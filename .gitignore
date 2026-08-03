@@ -1,0 +1,63 @@
+# Local agent/session artifacts
+.pi-subagents/
+
+# OpenTofu/Terraform working data (provider lock files stay tracked)
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.*
+*.plan
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+# Do not ignore .terraform.lock.hcl; dependency selections must be reviewed and tracked.
+
+# Ansible runtime artifacts
+*.retry
+ansible.log
+.ansible/
+**/.ansible_cache/
+**/.fact_cache/
+**/fact_cache/
+**/facts/
+
+# Kubernetes client configuration
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+k3s.yaml
+admin.conf
+.kube/
+
+# Local environment, credential, and key material
+.env
+.env.*
+!.env.example
+!.env.*.example
+credentials
+credentials.*
+*.credentials
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+.vault_pass
+vault-password*
+
+# Generated secret material
+.generated-secrets/
+generated-secrets/
+secrets.generated/
+secret-values.local.*
+secrets.local.*
+*.generated-secret
