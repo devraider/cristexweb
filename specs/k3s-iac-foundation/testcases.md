@@ -10,6 +10,7 @@
 | KIF-DOC-04 | KIF-013–KIF-015 | No secret or private address material | Documentation contains no private-key block, provider token, kubeconfig content, credential assignment, or private IPv4 address | PASS — bounded pattern scan returned no matches |
 | KIF-DOC-05 | KIF-016–KIF-021 | Shared-data risk is explicit | Separate databases/principals/credentials/backups and negative access tests are required; shared failure domain remains documented | PASS — architecture, requirements, tasks, and QA agree |
 | KIF-DOC-06 | KIF-026–KIF-030 | Honest evidence | Exactly 12 future cases are NOT RUN, at least 12 manual cases are PENDING, and status remains backlog/planned | PASS — 12 NOT RUN future cases, 12 PENDING manual cases, and backlog/planned status found |
+| KIF-DOC-07 | KIF-005, KIF-007 | Host automation standard | G1 explicitly uses Debian plus Ansible, defers NixOS, prefers built-in modules, and limits Python to justified, testable extensions | PASS — authoritative agent policy records the selected host path and Python learning guardrails |
 
 ### Exact command and actual result
 
@@ -70,6 +71,9 @@ for term in [
     "shared-data",
     "Cloudflare Tunnel",
     "Tailscale",
+    "NixOS",
+    "Ansible built-in modules",
+    "Learning Python",
 ]:
     assert term in combined, term
 
@@ -104,7 +108,7 @@ for path in paths + [Path(".gitignore")]:
     for line_number, line in enumerate(path.read_text().splitlines(), 1):
         assert line == line.rstrip(), (path, line_number, "trailing whitespace")
 
-print("PASS: 9 Markdown files + .gitignore; 6 specs; links resolved; 30 IDs in requirements/testcases; 12 NOT RUN; 12 PENDING; bounded scan clean")
+print("PASS: 9 Markdown files + .gitignore; 6 specs; links resolved; 30 IDs; Ansible/Python policy; 12 NOT RUN; 12 PENDING; bounded scan clean")
 PY
 
 git check-ignore -q --no-index opentofu/cloudflare/.terraform/provider
@@ -157,7 +161,7 @@ printf '%s\n' 'PASS: implementation-artifact scan, git diff --check, and no-stag
 Actual result (exit 0):
 
 ```text
-PASS: 9 Markdown files + .gitignore; 6 specs; links resolved; 30 IDs in requirements/testcases; 12 NOT RUN; 12 PENDING; bounded scan clean
+PASS: 9 Markdown files + .gitignore; 6 specs; links resolved; 30 IDs; Ansible/Python policy; 12 NOT RUN; 12 PENDING; bounded scan clean
 PASS: protective ignore policy; .terraform.lock.hcl remains trackable
 PASS: implementation-artifact scan, git diff --check, and no-staged-file check
 ```

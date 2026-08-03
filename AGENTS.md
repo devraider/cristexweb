@@ -27,6 +27,22 @@ Future implementation belongs at repository-root `ansible/`, `opentofu/`,
 for objects reconciled by Argo CD. GitHub Actions must not deploy directly with
 `kubectl`, Helm, or Argo CD.
 
+## Host automation standard
+
+- Debian plus Ansible is the approved host-management path for G1. NixOS migration
+  is out of scope unless a later architecture decision explicitly replaces this
+  owner.
+- Prefer Ansible built-in modules over `shell` or `command`. Use shell execution
+  only when no suitable module exists, make it idempotent, and document why.
+- Use Python for focused inventory, validation, reporting, filters, plugins, or
+  custom modules when built-in Ansible behavior is insufficient. Do not recreate
+  package, file, service, user, or mount modules merely as a learning exercise.
+- Python automation must be small, typed where practical, testable without secret
+  material, compatible with the discovered target Python version, and covered by
+  the milestone testcases.
+- Learning Python is an explicit secondary goal; operational simplicity,
+  idempotence, safety, and maintainability remain the acceptance criteria.
+
 ## Safety gates
 
 Explicit operator approval is required before any of these actions:
