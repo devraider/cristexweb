@@ -1,5 +1,14 @@
 # Local agent/session artifacts
 .pi-subagents/
+__pycache__/
+*.py[cod]
+
+# Raw or local inventory reports (sanitized documentation remains trackable)
+local-inventory-reports/
+inventory.raw*.json
+inventory.local*.json
+*.inventory.raw.json
+*.inventory.local.json
 
 # OpenTofu/Terraform working data (provider lock files stay tracked)
 **/.terraform/*

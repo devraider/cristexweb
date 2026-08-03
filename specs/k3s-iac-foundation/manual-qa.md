@@ -7,8 +7,9 @@ environment, redacted evidence location, result, and rollback outcome. Never pas
 passwords, tokens, cookies, kubeconfigs, connection strings, private keys, database
 rows, personal data, or full secret-bearing command output.
 
-All cases are **PENDING** because the milestone is backlog and no hosted
-implementation exists.
+All cases remain **PENDING** because no hosted runtime exists and no collector run,
+server/cluster access, deployment, or manual runtime validation occurred. The
+offline collector unit tests do not satisfy these manual cases.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|

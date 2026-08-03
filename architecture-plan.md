@@ -2,10 +2,11 @@
 
 ## Status
 
-This is a non-executable target design. This documentation-only repository has no
-implemented runtime and does not claim that hosted orchestration, DNS, tunnels,
-GitOps, secrets, databases, backups, or recovery are implemented. CristexHub local
-Compose assets remain an external application-repository concern.
+This is a non-executable target design. The repository's only implementation is a
+local, read-only Python inventory collector and its offline tests; it is not a
+hosted runtime or IaC reconciler. No hosted orchestration, DNS, tunnels, GitOps,
+secrets, databases, backups, or recovery are implemented. CristexHub local Compose
+assets remain an external application-repository concern.
 
 ## Known facts
 
@@ -17,7 +18,8 @@ be reverified through an approved read-only discovery step.
 
 The external CristexHub application repository publishes backend, frontend, and
 code-runner images to GHCR. This repository has no Kubernetes, Helm, Kustomize,
-Ansible, OpenTofu, or GitHub Actions implementation today.
+Ansible, OpenTofu, or GitHub Actions implementation today. Debian plus Ansible
+remains the selected future host-configuration owner.
 
 ## Goals
 
@@ -171,12 +173,22 @@ verification must meet the declared RPO/RTO before PROD.
 
 ### Stage 1 — read-only discovery
 
-- Entry: explicit approval for read-only host and cluster access.
-- Work: inventory k3s datastore, Traefik, CNI, NetworkPolicy support, StorageClass,
-  disks, firewall, routes, resource use, and recovery access.
-- Gate: sanitized inventory and decision register update.
+- Entry: offline collector implementation is approved; actual host, cluster, or
+  elevated access still requires its own explicit approval.
+- Work: use the static, local, read-only `tools/collect_inventory.py` allowlist to
+  capture k3s datastore metadata plus CNI/interface, DNS, Traefik, HelmChart,
+  NetworkPolicy-object, StorageClass, disk, firewall, route, and resource
+  indicators; verify recovery access separately without directly displaying secret
+  content.
+- Limit: object and component listings are configuration/capability indicators only.
+  CNI behavior and NetworkPolicy enforcement require later approved functional
+  probes and are not proven by this collector.
+- Current evidence: the collector and offline tests exist, but the collector has
+  not been run against the actual server or cluster and no inventory was captured.
+- Gate: human-reviewed sanitized inventory and decision register update.
 - Stop: a command needs mutation, secret output, or elevated access beyond approval.
-- Rollback: none; no state changes are permitted.
+- Rollback: none; no state changes are permitted other than writing the requested
+  local report.
 
 ### Stage 2 — host safety baseline
 
@@ -261,7 +273,8 @@ Implementation is blocked until each relevant item is resolved:
 - Argo CD private-repository bootstrap and recovery;
 - OpenTofu encrypted remote state, locking, and recovery;
 - Cloudflare connector ownership and credential rotation;
-- current k3s datastore, CNI, NetworkPolicy, Traefik, StorageClass, and firewall;
+- current k3s datastore, CNI indicators, NetworkPolicy objects and later enforcement
+  probes, DNS, Traefik, StorageClass, and firewall;
 - live PVC placement and approved use of the 1 TB disk;
 - backup retention, encryption, Google Drive identity, RPO, and RTO;
 - private GHCR pull authentication and image retention;

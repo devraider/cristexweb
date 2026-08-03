@@ -21,7 +21,7 @@
 | ID | Requirement |
 |---|---|
 | KIF-007 | Ansible host changes are bounded, reviewable in check/diff mode, idempotent, and preserve SSH/Tailscale recovery access. |
-| KIF-008 | The existing k3s datastore, CNI, NetworkPolicy enforcement, DNS, Traefik, StorageClass, disks, and resource capacity are discovered before design choices are applied. |
+| KIF-008 | The existing k3s datastore, CNI/interface indicators, NetworkPolicy objects, DNS, Traefik, StorageClass, disks, and resource capacity are discovered before design choices are applied; CNI behavior and NetworkPolicy enforcement require later approved functional probes and are not inferred from object listings. |
 | KIF-009 | Bundled k3s Traefik remains the sole ingress controller until an explicitly approved replacement migration. |
 
 ## Networking and exposure

@@ -43,12 +43,14 @@ recover DEV and PROD without presenting a single node as highly available.
 - direct GitHub Actions deployment;
 - migration of code-runner to the shared node without a separate security decision;
 - application source, local Compose, Keycloak theme, or Browserless gateway ownership;
-- implementation or deployment during this documentation milestone.
+- hosted runtime, IaC, or deployment implementation during the current collector deliverable.
 
 ## Delivery boundary
 
-G1 is a planned backlog milestone. The present change defines its contract only.
-This repository has no implemented runtime. It performs no server, cluster,
+G1 is agent-in-progress in its read-only discovery stage. The only implementation
+is the local, read-only Python inventory collector and its offline tests. The
+collector has not been run against the actual server or cluster, and no hosted
+runtime or IaC exists. This deliverable performs no sudo, SSH, server, cluster,
 Cloudflare, GitHub, Infisical, registry, database, storage, backup, DNS, tunnel, or
 data operation. CristexHub local runtime assets remain external application-repo
 concerns and are not copied here.

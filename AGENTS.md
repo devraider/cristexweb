@@ -4,10 +4,11 @@ This root `AGENTS.md` is authoritative for the entire repository.
 
 ## Current boundary
 
-- This repository is documentation-only today. It owns the design for future host configuration, external-resource IaC, GitOps desired state, and recovery runbooks.
-- No hosted runtime, Ansible playbook, OpenTofu configuration, Kubernetes manifest, Helm chart, workflow, or executable infrastructure implementation exists here yet.
+- The only implementation in this repository is the local, read-only Python inventory collector in `tools/collect_inventory.py` and its offline unit tests. It does not configure or deploy anything.
+- This repository otherwise owns design documentation for future host configuration, external-resource IaC, GitOps desired state, and recovery runbooks.
+- No hosted runtime, Ansible playbook, OpenTofu configuration, Kubernetes manifest, Helm chart, workflow, or executable IaC implementation exists here yet.
 - CristexHub application source, local Compose assets, Keycloak theme, and Browserless gateway remain external concerns in the CristexHub application repository and must not be copied here.
-- Until a task and approval gate explicitly authorize implementation, work is documentation and offline validation only.
+- Apart from the specifically approved collector, implementation remains blocked until a task and approval gate explicitly authorizes it. Offline validation remains allowed.
 
 ## Ownership
 

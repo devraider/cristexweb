@@ -14,9 +14,19 @@
 
 ## Stage 1 — read-only discovery
 
+- [x] Implement the standard-library-only local collector with a static read-only
+  allowlist, bounded subprocess execution, best-effort sanitization, and secure
+  atomic report output (`KIF-001`, `KIF-004`, `KIF-008`).
+- [x] Add offline unit tests for allowlist safety, sanitization, subprocess outcomes,
+  secure output, sudo ownership handoff, and CLI behavior (`KIF-001`, `KIF-030`).
 - [ ] Obtain explicit approval for read-only elevated k3s inventory (`KIF-001`).
-- [ ] Capture sanitized host, datastore, CNI, NetworkPolicy, DNS, Traefik,
-  StorageClass, disk, route, firewall, and resource state (`KIF-008`).
+- [ ] Run the collector against the actual server/cluster and capture a
+  human-reviewed sanitized host, datastore, CNI/interface, NetworkPolicy-object,
+  DNS, Traefik, HelmChart, StorageClass, disk, route, firewall, and resource
+  indicator report (`KIF-008`).
+- [ ] Separately approve and run bounded functional probes for CNI behavior and
+  NetworkPolicy enforcement; do not treat object listings as enforcement evidence
+  (`KIF-008`, `KIF-021`).
 - [ ] Confirm recovery access and record current configuration backups (`KIF-007`,
   `KIF-028`).
 - [ ] Resolve the decision register for the next stage; do not mutate while
