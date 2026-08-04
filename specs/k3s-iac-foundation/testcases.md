@@ -2,10 +2,10 @@
 
 ## Ansible-first discovery implementation — 2026-08-04
 
-The contract tests and pinned ephemeral Ansible tool validation do not invoke SSH,
-become, the inventory host, Kubernetes API, a provider, or report generation.
-`uvx` and `ansible-galaxy` contacted package registries to create temporary local
-tool and collection environments; no global Ansible installation was made.
+The contract tests and locked project-local `uv` validation do not invoke SSH,
+become, the inventory host, Kubernetes API, a provider, or report generation. `uv`
+and `ansible-galaxy` contacted package registries to resolve the ignored `.venv`
+and local Galaxy collection path; nothing was installed on the inventory host.
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
@@ -15,14 +15,15 @@ tool and collection environments; no global Ansible installation was made.
 | KIF-ANS-04 | KIF-013, KIF-030 | Bounded data projection | Raw discovery registrations are no_log; fact cache is memory-only; report omits addresses, MACs, UUIDs, annotations, labels, environment fields, secrets, chart values, raw specs, command output, and kubeconfig content | PASS — offline projection contract test passed; generated report NOT RUN |
 | KIF-ANS-05 | KIF-006, KIF-013 | Local report safety | Exactly one ignored controller-local JSON destination defaults under the repository root, mode 0600, diff disabled, become false, and symlink-refused | PASS — offline task/template contract test passed; write NOT RUN |
 | KIF-ANS-06 | KIF-008, KIF-021 | Kubernetes query boundary | Exact non-secret kinds provide object indicators; Secret, ConfigMap, Events, and broad all queries are absent; CNI and NetworkPolicy enforcement remain explicitly unproven | PASS — query boundary and template assertions passed |
-| KIF-ANS-07 | KIF-007, KIF-030 | Ansible syntax and lint | Pinned prerequisites are resolved to temporary paths, then syntax and production-profile lint pass before any host access | PASS — ansible-core 2.19.0 syntax check and ansible-lint 26.6.0 production profile passed; package-registry access only |
+| KIF-ANS-07 | KIF-007, KIF-030 | Ansible syntax and lint | Locked project tooling and the locally pinned collection pass syntax and production-profile lint before any host access | PASS — ansible-core 2.19.0 syntax check and ansible-lint 26.6.0 production profile passed; package-registry access only |
 | KIF-ANS-08 | KIF-001, KIF-008 | Actual inventory capture | Separately approved one-host check/diff run produces a human-reviewed curated report | NOT RUN — no discovery play, SSH, become, inventory-host, cluster, or report operation occurred |
+| KIF-ANS-09 | KIF-006, KIF-007 | Reproducible controller environment | `pyproject.toml` and `uv.lock` pin the ignored project `.venv`; Galaxy installs the pinned collection only into the ignored local Ansible path | PASS — `uv sync --locked`, dependency-pin contract, ignore checks, and project-local Ansible commands passed |
 
 ## Documentation and traceability
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
-| KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
+| KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
 | KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
 | KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Only read-only Ansible discovery is operational; no hosted runtime, mutation, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
@@ -45,6 +46,8 @@ required=(
   README.md
   architecture-plan.md
   .gitignore
+  pyproject.toml
+  uv.lock
   ansible/ansible.cfg
   ansible/requirements.yml
   ansible/README.md
@@ -83,8 +86,8 @@ spec_dir = Path("specs/k3s-iac-foundation")
 expected_specs = {"brief.md", "requirements.md", "tasks.md", "testcases.md", "manual-qa.md", "status.md"}
 assert {path.name for path in spec_dir.glob("*.md")} == expected_specs
 
-text_paths = [Path("AGENTS.md"), Path("README.md"), Path("architecture-plan.md"), Path(".gitignore")]
-text_paths += sorted(Path("ansible").rglob("*"))
+text_paths = [Path("AGENTS.md"), Path("README.md"), Path("architecture-plan.md"), Path(".gitignore"), Path("pyproject.toml"), Path("uv.lock")]
+text_paths += [path for path in sorted(Path("ansible").rglob("*")) if ".ansible" not in path.parts]
 text_paths += sorted(Path("tests").glob("*.py"))
 text_paths += sorted(spec_dir.glob("*.md"))
 text_paths = [path for path in text_paths if path.is_file()]
@@ -136,6 +139,8 @@ print("PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 12 manu
 PY
 
 git check-ignore -q --no-index inventory.local.ansible.json
+git check-ignore -q --no-index .venv/bin/ansible
+git check-ignore -q --no-index ansible/.ansible/collections/ansible_collections
 git check-ignore -q --no-index ansible/site.retry
 git check-ignore -q --no-index ansible/fact_cache/host
 if git check-ignore -q --no-index ansible/requirements.yml; then
@@ -150,36 +155,30 @@ printf '%s\n' 'PASS: ignore policy, git diff check, and no-staged-files check'
 Actual result (exit 0 on 2026-08-04):
 
 ```text
-Ran 10 tests
+Ran 11 tests
 OK
 PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 12 manual cases, status/implementation boundary, and bounded source scan
 PASS: ignore policy, git diff check, and no-staged-files check
 ```
 
-The Ansible-specific validation used temporary dependencies and did not execute the
-play against the inventory host:
+The Ansible-specific validation used the locked project environment and did not
+execute the play against the inventory host:
 
 ```bash
 set -euo pipefail
-collections_dir=$(mktemp -d)
-trap 'rm -rf "$collections_dir"' EXIT
-uvx --from ansible-core==2.19.0 ansible-galaxy collection install \
-  -r ansible/requirements.yml -p "$collections_dir"
-(
-  cd ansible
-  ANSIBLE_COLLECTIONS_PATH="$collections_dir" \
-    uvx --from ansible-core==2.19.0 \
-    ansible-playbook playbooks/discover.yml --syntax-check
-  ANSIBLE_COLLECTIONS_PATH="$collections_dir" \
-    uvx --from ansible-lint==26.6.0 \
-    ansible-lint playbooks/discover.yml roles/read_only_discovery
-)
+uv sync --locked
+cd ansible
+uv run ansible-galaxy collection install \
+  -r requirements.yml \
+  -p .ansible/collections
+uv run ansible-playbook playbooks/discover.yml --syntax-check
+uv run ansible-lint playbooks/discover.yml roles/read_only_discovery
 ```
 
 Actual result (exit 0 on 2026-08-04):
 
 ```text
-kubernetes.core:6.1.0 was installed successfully to the temporary collection path
+kubernetes.core:6.1.0 was installed successfully to ansible/.ansible/collections
 playbook: playbooks/discover.yml
 Passed: 0 failure(s), 0 warning(s) in 8 files processed; production profile
 ```

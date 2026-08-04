@@ -22,8 +22,9 @@
   output, mode `0600`, and symlink refusal (`KIF-001`, `KIF-006`, `KIF-030`).
 - [x] Add standard-library offline contract tests; keep Python out of operational
   automation (`KIF-001`, `KIF-030`).
-- [x] Validate the pinned collection with ephemeral Ansible tooling; syntax and
-  production-profile lint pass without inventory-host access (`KIF-007`).
+- [x] Create the locked project-local `uv` controller environment and local Galaxy
+  collection path; syntax and production-profile lint pass without inventory-host
+  access (`KIF-006`, `KIF-007`).
 - [ ] Obtain explicit approval for any SSH host access and, separately, read-only
   elevated k3s inventory (`KIF-001`).
 - [ ] Run the Ansible discovery playbook against exactly one approved host and

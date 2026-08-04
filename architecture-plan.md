@@ -187,8 +187,8 @@ verification must meet the declared RPO/RTO before PROD.
 - Limit: object listings are configuration/capability indicators only. CNI behavior
   and NetworkPolicy enforcement require later approved functional probes and are
   not proven by discovery.
-- Current evidence: the Ansible files and offline contract tests exist; pinned,
-  ephemeral tool environments passed syntax and production-profile lint without
+- Current evidence: the Ansible files and offline contract tests exist; the locked
+  project-local `uv` environment passed syntax and production-profile lint without
   contacting the inventory host. No discovery play has run against the server or
   cluster and no inventory report was captured.
 - Gate: human-reviewed local report and decision register update.

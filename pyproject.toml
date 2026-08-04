@@ -1,0 +1,13 @@
+[project]
+name = "cristexweb-infrastructure"
+version = "0.1.0"
+description = "Pinned local controller tooling for CristexWeb infrastructure"
+requires-python = ">=3.13"
+dependencies = [
+    "ansible-core==2.19.0",
+]
+
+[dependency-groups]
+dev = [
+    "ansible-lint==26.6.0",
+]

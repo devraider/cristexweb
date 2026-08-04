@@ -39,6 +39,9 @@ for objects reconciled by Argo CD. GitHub Actions must not deploy directly with
 - The current discovery uses Ansible built-ins plus `kubernetes.core.k8s_info`; it
   contains no operational Python, command allowlist, shell, raw, script, or command
   task.
+- Controller tools are pinned by root `pyproject.toml` and `uv.lock`; `uv` owns the
+  ignored project-local `.venv`, while Galaxy collections install only into the
+  ignored `ansible/.ansible/collections/` path.
 - Use Python only for offline tests or a later approved focused plugin/custom module
   when built-in Ansible behavior is demonstrably insufficient. Do not recreate
   package, file, service, user, mount, or information modules.

@@ -1,5 +1,6 @@
-# Local agent/session artifacts
+# Local agent/session artifacts and project tool environment
 .pi-subagents/
+.venv/
 __pycache__/
 *.py[cod]
 

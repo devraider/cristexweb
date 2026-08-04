@@ -105,30 +105,24 @@ lock files.
 - public DEV or public administrative dashboards;
 - migration of existing data or any external/platform change.
 
-## Safe local validation
+## Project-local tool environment and validation
 
-The workstation has no global Ansible installation. Syntax and lint were validated
-with pinned, ephemeral `uvx` tool environments and a temporary collection path;
-this contacted package registries but no inventory host, Kubernetes API, or
-provider. The standard-library tests inspect the Ansible safety contract only and
-perform no operational automation.
+`uv sync --locked` creates the ignored `.venv/` from the committed `pyproject.toml`
+and `uv.lock`. The pinned `kubernetes.core` collection is installed into the
+ignored `ansible/.ansible/collections/` path. Nothing is installed on the inventory
+host by this setup.
 
 ```bash
+uv sync --locked
+cd ansible
+uv run ansible-galaxy collection install \
+  -r requirements.yml \
+  -p .ansible/collections
+uv run ansible-playbook playbooks/discover.yml --syntax-check
+uv run ansible-lint playbooks/discover.yml roles/read_only_discovery
+cd ..
 python3 -m unittest discover -s tests -v
 python3 -m compileall -q tests
-collections_dir=$(mktemp -d)
-trap 'rm -rf "$collections_dir"' EXIT
-uvx --from ansible-core==2.19.0 ansible-galaxy collection install \
-  -r ansible/requirements.yml -p "$collections_dir"
-(
-  cd ansible
-  ANSIBLE_COLLECTIONS_PATH="$collections_dir" \
-    uvx --from ansible-core==2.19.0 \
-    ansible-playbook playbooks/discover.yml --syntax-check
-  ANSIBLE_COLLECTIONS_PATH="$collections_dir" \
-    uvx --from ansible-lint==26.6.0 \
-    ansible-lint playbooks/discover.yml roles/read_only_discovery
-)
 git diff --check
 git diff --cached --quiet
 ```

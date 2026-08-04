@@ -14,7 +14,7 @@
 |---|---|
 | KIF-004 | Future infrastructure source and runbooks live at repository-root `ansible/`, `opentofu/`, `kubernetes/`, and `runbooks/`; application source and local-runtime assets remain external. |
 | KIF-005 | Ansible owns host configuration, OpenTofu owns approved external resources, Argo CD owns Kubernetes objects, and Infisical owns secret values without overlapping reconciliation. |
-| KIF-006 | The protective root `.gitignore` excludes generated state, plans, credentials, kubeconfigs, facts, local variable/override/crash files, and generated secrets before corresponding tools execute, while `.terraform.lock.hcl` remains tracked. |
+| KIF-006 | The protective root `.gitignore` excludes the local `.venv`, Ansible collections/runtime data, generated state, plans, credentials, kubeconfigs, facts, local variable/override/crash files, and generated secrets, while `uv.lock` and `.terraform.lock.hcl` remain tracked. |
 
 ## Host and cluster
 

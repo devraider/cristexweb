@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -19,6 +20,8 @@ class AnsibleLayoutTests(unittest.TestCase):
             for path in ROOT.rglob("*.py")
             if ".git" not in path.parts
             and ".pi-subagents" not in path.parts
+            and ".venv" not in path.parts
+            and ".ansible" not in path.parts
             and "__pycache__" not in path.parts
         ]
         self.assertTrue(source_python)
@@ -42,9 +45,20 @@ class AnsibleLayoutTests(unittest.TestCase):
         actual = {
             str(path.relative_to(ANSIBLE))
             for path in ANSIBLE.rglob("*")
-            if path.is_file()
+            if path.is_file() and ".ansible" not in path.parts
         }
         self.assertEqual(set(required), actual)
+
+    def test_uv_controller_environment_is_pinned_and_ignored(self) -> None:
+        project = tomllib.loads((ROOT / "pyproject.toml").read_text())
+        self.assertIn("ansible-core==2.19.0", project["project"]["dependencies"])
+        self.assertIn("ansible-lint==26.6.0", project["dependency-groups"]["dev"])
+        self.assertTrue((ROOT / "uv.lock").is_file())
+        ignore_rules = (ROOT / ".gitignore").read_text()
+        self.assertIn(".venv/", ignore_rules)
+        self.assertIn(".ansible/", ignore_rules)
+        config = (ANSIBLE / "ansible.cfg").read_text()
+        self.assertIn("collections_path = .ansible/collections", config)
 
     def test_inventory_contains_only_the_neutral_ssh_alias(self) -> None:
         text = (ANSIBLE / "inventory/hosts.yml").read_text()
@@ -58,7 +72,11 @@ class AnsibleSafetyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.task_text = "\n".join(path.read_text() for path in sorted((ANSIBLE / "roles/read_only_discovery/tasks").glob("*.yml")))
-        cls.all_ansible_text = "\n".join(path.read_text() for path in sorted(ANSIBLE.rglob("*")) if path.is_file())
+        cls.all_ansible_text = "\n".join(
+            path.read_text()
+            for path in sorted(ANSIBLE.rglob("*"))
+            if path.is_file() and ".ansible" not in path.parts
+        )
 
     def test_no_arbitrary_execution_module_is_used(self) -> None:
         for module in ("shell", "command", "raw", "script"):
