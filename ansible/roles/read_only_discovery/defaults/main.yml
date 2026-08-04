@@ -1,0 +1,4 @@
+---
+read_only_discovery_output_path: "{{ playbook_dir }}/../../inventory.local.ansible.json"
+read_only_discovery_enable_elevated: false
+read_only_discovery_elevated_approved: false

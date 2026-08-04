@@ -2,74 +2,56 @@
 
 ## Status
 
-The only implemented code in this repository is a local, read-only Python inventory
-collector and its offline unit tests. The collector gathers an allowlisted host and
-k3s discovery report; it does not configure or deploy anything.
+The repository's only operational implementation is a small Ansible-first,
+read-only discovery playbook under [`ansible/`](ansible/). It gathers curated host
+indicators with Ansible built-ins and exact Kubernetes kinds with
+`kubernetes.core.k8s_info`; it does not configure or deploy anything. Python is used
+only for offline contract tests, not infrastructure automation.
 
-This repository otherwise owns the target design for future host automation,
-Cloudflare/GitHub IaC, Kubernetes GitOps, and recovery runbooks. No hosted runtime,
-Ansible playbook, OpenTofu configuration, Kubernetes manifest, Helm chart, workflow,
-deployment, DNS route, tunnel, database, backup, or recovery process exists here.
-Debian plus Ansible remains the approved owner for future host configuration.
+No Ansible host access, elevated discovery, hosted runtime, OpenTofu configuration,
+Kubernetes manifest, Helm chart, workflow, deployment, DNS route, tunnel, database,
+backup, or recovery process has run or been implemented. Debian plus Ansible is the
+host-management owner.
 
 CristexHub application source, local Compose assets, Keycloak theme, and Browserless
-gateway remain in the separate CristexHub application repository. They are not
-copied or supported as this repository's runtime.
+gateway remain in the separate CristexHub application repository.
 
 ## Read first
 
 1. [`AGENTS.md`](AGENTS.md) — authoritative ownership and safety rules.
 2. [`architecture-plan.md`](architecture-plan.md) — target design, staged delivery, gates, rollback, and unresolved decisions.
-3. [`specs/k3s-iac-foundation/brief.md`](specs/k3s-iac-foundation/brief.md) — scoped foundation milestone.
+3. [`ansible/README.md`](ansible/README.md) — discovery contract and approved command shape.
 4. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
-## Local inventory collector
+## Read-only Ansible discovery
 
-List the immutable read-only checks without executing them:
+The committed inventory contains only the SSH alias `crtxweb`; it contains no IP,
+user, key, credential, or become secret. The playbook:
 
-```bash
-python3 -m tools.collect_inventory --list-checks
-```
+- refuses to run without `--check --diff`, an explicit `--limit`, and exactly one
+  selected host;
+- defaults to `become: false`;
+- requires two explicit approval variables before narrowly scoped elevated k3s
+  queries;
+- uses `setup`, `service_facts`, and `stat` for host facts and
+  `kubernetes.core.k8s_info` for exact resource kinds;
+- never uses shell, raw, script, command, an embedded command allowlist, or automatic
+  dependency installation;
+- never queries Secret, ConfigMap, Events, or a broad `all` resource set;
+- marks raw facts and Kubernetes results `no_log`, disables persistent fact caching,
+  and projects only curated fields;
+- lets `k8s_info` load the normal root-only k3s kubeconfig for authentication, but
+  never separately slurps, copies, registers, logs, or renders its content;
+- writes one ignored controller-local JSON report, mode `0600`, with diff disabled
+  and symlink refusal.
 
-After reviewing the allowlist, collect locally to an ignored report name whose
-parent directory already exists:
+Listing NetworkPolicy and platform objects supplies configuration indicators only.
+It does not prove CNI behavior or NetworkPolicy enforcement; those require later,
+separately approved functional probes.
 
-```bash
-python3 -m tools.collect_inventory --local --sanitized-output inventory.local.sanitized.json
-```
-
-The collector:
-
-- accepts no command string or arbitrary command arguments and never uses a shell;
-- executes only static read-only argv tuples with a fixed minimal environment,
-  timeouts, and output bounds;
-- never invokes `sudo`; no allowlisted command directly displays Kubernetes Secret
-  content, kubeconfig content, k3s token/config content, process environments,
-  environment secrets, or arbitrary files;
-- may implicitly consume the normal k3s/kubectl authentication and kubeconfig needed
-  to query the API, but does not intentionally emit that authentication material;
-- disables kubectl's on-disk discovery cache with an explicit empty cache directory;
-- records unavailable, denied, failed, and timed-out checks rather than treating a
-  partial non-root inventory as collector failure;
-- captures interface, kube-system, DNS, Traefik, HelmChart, and NetworkPolicy-object
-  indicators, but does not prove CNI or NetworkPolicy enforcement;
-- sanitizes known host/user, email, IP, MAC, UUID/filesystem/LVM ID,
-  credential-assignment, and bearer patterns on a best-effort basis;
-- atomically writes only the requested JSON report, with mode `0600`, and refuses a
-  symlink destination.
-
-The report includes a prominent warning because sanitization cannot prove that all
-sensitive or identifying data was removed. A human must review the complete report
-before sharing or committing it. Raw and local report filenames are ignored by
-[`.gitignore`](.gitignore); intentionally authored sanitized documentation is not
-blanket-ignored.
-
-A normal non-root run is valid and may be partial. Running the collector through
-`sudo` would expose additional root-readable metadata, requires separate explicit
-operator approval, and **has not occurred**. When separately approved and invoked
-through `sudo`, the collector hands the report to the invoking UID/GID after its
-secure write. This implementation task did not access the actual server or cluster
-and did not capture an inventory report.
+No discovery play has executed. Syntax and lint were validated locally without
+contacting the inventory host. After review and separate host-access approval, the
+required runtime command shape is documented in [`ansible/README.md`](ansible/README.md).
 
 ## Selected direction
 
@@ -89,36 +71,29 @@ and did not capture an inventory report.
 | Other data services | Redis per environment; RabbitMQ may be shared only with separate users/vhosts and limits |
 | Backups | Application-consistent local dumps plus encrypted off-host copy; restore required before PROD |
 
-## Proposed future layout
-
-The IaC and runtime directories below are intentionally not created by this Stage 1
-collector deliverable:
+## Repository layout
 
 ```text
-ansible/
-opentofu/
-  cloudflare/
-  github/
-kubernetes/
-  bootstrap/
-  clusters/crtxweb/
-  platform/
-  apps/cristexhub/base/
-  apps/cristexhub/overlays/dev/
-  apps/cristexhub/overlays/prod/
-runbooks/
+ansible/                 # implemented read-only discovery only
+  inventory/
+  playbooks/
+  roles/read_only_discovery/
+opentofu/                # future
+kubernetes/              # future
+runbooks/                # future
+tests/                   # offline contract tests only
 ```
 
-Kustomize is intended for first-party application overlays. Helm is reserved for
-selected third-party components. After a bounded bootstrap, Argo CD owns all
-in-cluster desired state.
+Only `ansible/` and `tests/` currently exist. Kustomize remains intended for
+first-party application overlays; Helm is reserved for selected third-party
+components. After a bounded bootstrap, Argo CD owns all in-cluster desired state.
 
 ## Repository hygiene
 
 The protective [`.gitignore`](.gitignore) excludes local inventory reports,
 OpenTofu/Terraform state and plans, Ansible runtime data, kubeconfigs, local
-credentials/keys, and generated secret material. It deliberately does not ignore
-`.terraform.lock.hcl`; lock files are reviewed and committed.
+credentials/keys, and generated secret material. It deliberately tracks provider
+lock files.
 
 ## Non-goals for the foundation
 
@@ -130,18 +105,33 @@ credentials/keys, and generated secret material. It deliberately does not ignore
 - public DEV or public administrative dashboards;
 - migration of existing data or any external/platform change.
 
-## Safe offline validation
+## Safe local validation
 
-This deliverable permits offline repository and collector checks only:
+The workstation has no global Ansible installation. Syntax and lint were validated
+with pinned, ephemeral `uvx` tool environments and a temporary collection path;
+this contacted package registries but no inventory host, Kubernetes API, or
+provider. The standard-library tests inspect the Ansible safety contract only and
+perform no operational automation.
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 -m compileall -q tools tests
-python3 -m tools.collect_inventory --list-checks
+python3 -m compileall -q tests
+collections_dir=$(mktemp -d)
+trap 'rm -rf "$collections_dir"' EXIT
+uvx --from ansible-core==2.19.0 ansible-galaxy collection install \
+  -r ansible/requirements.yml -p "$collections_dir"
+(
+  cd ansible
+  ANSIBLE_COLLECTIONS_PATH="$collections_dir" \
+    uvx --from ansible-core==2.19.0 \
+    ansible-playbook playbooks/discover.yml --syntax-check
+  ANSIBLE_COLLECTIONS_PATH="$collections_dir" \
+    uvx --from ansible-lint==26.6.0 \
+    ansible-lint playbooks/discover.yml roles/read_only_discovery
+)
 git diff --check
 git diff --cached --quiet
 ```
 
-The exact validation block and actual results are recorded in
-[`testcases.md`](specs/k3s-iac-foundation/testcases.md). No collector run, provider
-operation, server access, or mutating command is part of this validation.
+The complete reproducible commands and actual results are recorded in
+[`testcases.md`](specs/k3s-iac-foundation/testcases.md).

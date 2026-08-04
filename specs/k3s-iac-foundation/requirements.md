@@ -4,7 +4,7 @@
 
 | ID | Requirement |
 |---|---|
-| KIF-001 | All host, cluster, and external discovery begins read-only and records sanitized evidence before mutation. |
+| KIF-001 | All host, cluster, and external discovery begins read-only and records curated, human-reviewed evidence before mutation; current host/cluster discovery is Ansible-first. |
 | KIF-002 | Every mutating stage has explicit operator approval, a stop condition, and a rollback checkpoint. |
 | KIF-003 | No disk format, namespace/PVC deletion, external destroy, secret export, or public cutover is used as an implicit setup or rollback step. |
 
@@ -73,6 +73,8 @@
 ## Traceability
 
 `tasks.md` references these requirement IDs by stage. `testcases.md` maps every ID
-to offline, integration, security, recovery, or manual evidence. Unresolved tool,
-storage, bootstrap, and RPO/RTO choices remain decision gates rather than implied
-requirements.
+to offline, integration, security, recovery, or manual evidence. The current
+Ansible discovery implementation satisfies its offline contract, syntax, and lint
+gates; it does not satisfy actual inventory, access, enforcement, or mutation
+gates. Unresolved tool, storage, bootstrap, and RPO/RTO choices remain
+decision gates rather than implied requirements.

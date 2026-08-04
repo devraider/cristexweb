@@ -1,0 +1,72 @@
+---
+- name: Gather bounded host facts
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - "!min"
+      - architecture
+      - distribution
+      - hardware
+      - interfaces
+      - kernel
+      - mounts
+      - service_mgr
+      - virtual
+  register: read_only_discovery_host_raw
+  no_log: true
+
+- name: Gather service states
+  ansible.builtin.service_facts:
+  register: read_only_discovery_services_raw
+  no_log: true
+
+- name: Inspect the k3s executable without reading it
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: read_only_discovery_k3s_executable_raw
+  no_log: true
+
+- name: Select the root filesystem fact
+  ansible.builtin.set_fact:
+    read_only_discovery_root_mounts: >-
+      {{ read_only_discovery_host_raw.ansible_facts.ansible_mounts | default([])
+         | selectattr('mount', 'equalto', '/') | list }}
+  no_log: true
+
+- name: Project safe host fields
+  ansible.builtin.set_fact:
+    read_only_discovery_host_summary:
+      operating_system:
+        family: "{{ read_only_discovery_host_raw.ansible_facts.ansible_os_family | default('unknown') }}"
+        distribution: "{{ read_only_discovery_host_raw.ansible_facts.ansible_distribution | default('unknown') }}"
+        major_version: "{{ read_only_discovery_host_raw.ansible_facts.ansible_distribution_major_version | default('unknown') }}"
+        architecture: "{{ read_only_discovery_host_raw.ansible_facts.ansible_architecture | default('unknown') }}"
+        kernel: "{{ read_only_discovery_host_raw.ansible_facts.ansible_kernel | default('unknown') }}"
+      capacity:
+        memory_mb: "{{ read_only_discovery_host_raw.ansible_facts.ansible_memtotal_mb | default(0) | int }}"
+        processor_count: "{{ read_only_discovery_host_raw.ansible_facts.ansible_processor_count | default(0) | int }}"
+        processor_cores: "{{ read_only_discovery_host_raw.ansible_facts.ansible_processor_cores | default(0) | int }}"
+        block_device_count: "{{ read_only_discovery_host_raw.ansible_facts.ansible_devices | default({}) | length }}"
+        network_interface_count: "{{ read_only_discovery_host_raw.ansible_facts.ansible_interfaces | default([]) | length }}"
+      virtualization:
+        role: "{{ read_only_discovery_host_raw.ansible_facts.ansible_virtualization_role | default('unknown') }}"
+        type: "{{ read_only_discovery_host_raw.ansible_facts.ansible_virtualization_type | default('unknown') }}"
+      root_filesystem:
+        filesystem_type: >-
+          {{ (read_only_discovery_root_mounts | first | default({})).fstype | default('unknown') }}
+        size_total_bytes: >-
+          {{ (read_only_discovery_root_mounts | first | default({})).size_total | default(0) | int }}
+        size_available_bytes: >-
+          {{ (read_only_discovery_root_mounts | first | default({})).size_available | default(0) | int }}
+      services:
+        k3s: >-
+          {{ (read_only_discovery_services_raw.ansible_facts.services.get('k3s.service', {})).get('state', 'not-found') }}
+        tailscaled: >-
+          {{ (read_only_discovery_services_raw.ansible_facts.services.get('tailscaled.service', {})).get('state', 'not-found') }}
+      k3s_executable:
+        exists: "{{ read_only_discovery_k3s_executable_raw.stat.exists | default(false) | bool }}"
+        executable: "{{ read_only_discovery_k3s_executable_raw.stat.executable | default(false) | bool }}"
+  no_log: true

@@ -2,15 +2,17 @@
 
 state: agent:in-progress
 phase: implementing
-build: hardened local inventory collector implemented; 33 offline unit tests pass; 32 checks list safely; exact offline validation passes; runtime inventory not run
-date: 2026-08-03
+build: Ansible-first read-only discovery implemented; 10 contract tests, syntax check, and production-profile lint pass; runtime inventory not run
+date: 2026-08-04
 deploy_required_after_acceptance: yes
 
 note: |
-  The only implementation is the standard-library local read-only Python inventory
-  collector and its offline tests. Debian plus Ansible remains the future host
-  configuration owner. No hosted runtime or executable IaC exists. No collector
-  execution against the actual server/cluster, sudo execution, SSH, host/cluster
-  access, external-resource operation, mutation, secret operation, data operation,
-  or deployment was performed. Elevated inventory and actual capture remain gated
-  and unchecked.
+  The only operational implementation is the read-only Ansible discovery playbook;
+  Python is limited to offline contract tests. No Ansible playbook execution,
+  become, SSH, server/cluster access, report generation, external-resource
+  operation, mutation, secret operation, data operation, or deployment was
+  performed. Pinned ephemeral Ansible tooling passed syntax and production-profile
+  lint without contacting the inventory host. Elevated discovery and actual
+  inventory capture remain separately gated.
+  Kubernetes object listings, if later run, will not prove CNI behavior or
+  NetworkPolicy enforcement.

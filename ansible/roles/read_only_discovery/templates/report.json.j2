@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "warning": "HUMAN REVIEW REQUIRED: this report contains curated infrastructure metadata. Review every field before sharing or committing; metadata projection cannot prove that all identifying information is absent.",
+  "generated_at_utc": {{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') | to_json }},
+  "target": {{ inventory_hostname | to_json }},
+  "invocation": {
+    "check_mode": {{ ansible_check_mode | bool | to_json }},
+    "diff_mode": {{ ansible_diff_mode | bool | to_json }},
+    "elevated_discovery_attempted": {{ read_only_discovery_kubernetes_attempted | bool | to_json }}
+  },
+  "host": {{ read_only_discovery_host_summary | to_nice_json(indent=4) | indent(2) }},
+  "k3s_datastore": {{ read_only_discovery_datastore_summary | to_nice_json(indent=4) | indent(2) }},
+  "kubernetes": {
+    "configuration_indicators_only": true,
+    "cni_behavior_proven": false,
+    "network_policy_enforcement_proven": false,
+    "queries": [
+{% for query_result in read_only_discovery_kubernetes_raw.results | default([]) %}
+      {
+        "id": {{ query_result.item.id | to_json }},
+        "api_version": {{ query_result.item.api_version | to_json }},
+        "kind": {{ query_result.item.kind | to_json }},
+        "namespace_scope": {{ query_result.item.namespace | default('all-namespaces') | to_json }},
+        "available": {{ ((query_result.resources is defined) and (query_result.api_found | default(true) | bool)) | bool | to_json }},
+        "count": {{ query_result.resources | default([]) | length }},
+        "objects": [
+{% for resource in query_result.resources | default([]) %}
+          {
+            "name": {{ resource.metadata.name | default('unknown') | to_json }},
+            "namespace": {{ resource.metadata.namespace | default('cluster-scoped') | to_json }}
+          }{% if not loop.last %},{% endif %}
+{% endfor %}
+        ]
+      }{% if not loop.last %},{% endif %}
+{% endfor %}
+    ]
+  }
+}

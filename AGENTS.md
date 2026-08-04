@@ -4,11 +4,12 @@ This root `AGENTS.md` is authoritative for the entire repository.
 
 ## Current boundary
 
-- The only implementation in this repository is the local, read-only Python inventory collector in `tools/collect_inventory.py` and its offline unit tests. It does not configure or deploy anything.
+- The only operational implementation in this repository is the small, read-only Ansible discovery playbook under `ansible/`. It does not configure or deploy anything.
+- Python exists only in offline contract tests; it is not operational infrastructure automation.
 - This repository otherwise owns design documentation for future host configuration, external-resource IaC, GitOps desired state, and recovery runbooks.
-- No hosted runtime, Ansible playbook, OpenTofu configuration, Kubernetes manifest, Helm chart, workflow, or executable IaC implementation exists here yet.
+- No hosted runtime, mutating Ansible baseline, OpenTofu configuration, Kubernetes manifest, Helm chart, or workflow exists here yet.
 - CristexHub application source, local Compose assets, Keycloak theme, and Browserless gateway remain external concerns in the CristexHub application repository and must not be copied here.
-- Apart from the specifically approved collector, implementation remains blocked until a task and approval gate explicitly authorizes it. Offline validation remains allowed.
+- Actual Ansible host access, elevation, configuration, and later implementation remain blocked until their explicit approval gates. Offline validation remains allowed.
 
 ## Ownership
 
@@ -35,14 +36,14 @@ for objects reconciled by Argo CD. GitHub Actions must not deploy directly with
   owner.
 - Prefer Ansible built-in modules over `shell` or `command`. Use shell execution
   only when no suitable module exists, make it idempotent, and document why.
-- Use Python for focused inventory, validation, reporting, filters, plugins, or
-  custom modules when built-in Ansible behavior is insufficient. Do not recreate
-  package, file, service, user, or mount modules merely as a learning exercise.
-- Python automation must be small, typed where practical, testable without secret
-  material, compatible with the discovered target Python version, and covered by
-  the milestone testcases.
-- Learning Python is an explicit secondary goal; operational simplicity,
-  idempotence, safety, and maintainability remain the acceptance criteria.
+- The current discovery uses Ansible built-ins plus `kubernetes.core.k8s_info`; it
+  contains no operational Python, command allowlist, shell, raw, script, or command
+  task.
+- Use Python only for offline tests or a later approved focused plugin/custom module
+  when built-in Ansible behavior is demonstrably insufficient. Do not recreate
+  package, file, service, user, mount, or information modules.
+- Operational simplicity, idempotence, safety, and maintainability are the
+  acceptance criteria.
 
 ## Safety gates
 

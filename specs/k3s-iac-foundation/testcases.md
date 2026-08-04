@@ -1,38 +1,41 @@
 # Test Cases — k3s IaC foundation
 
-## Documentation foundation — 2026-08-03
+## Ansible-first discovery implementation — 2026-08-04
+
+The contract tests and pinned ephemeral Ansible tool validation do not invoke SSH,
+become, the inventory host, Kubernetes API, a provider, or report generation.
+`uvx` and `ansible-galaxy` contacted package registries to create temporary local
+tool and collection environments; no global Ansible installation was made.
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
-| KIF-DOC-01 | KIF-004, KIF-030 | Required documentation shape and links | All nine canonical Markdown files, `.gitignore`, the approved collector package, and its test file exist; all six spec files exist; local Markdown links resolve | PASS — nine Markdown files, `.gitignore`, three approved Python files, and six spec files found; local links resolved |
-| KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership and ingress consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik is sole ingress | PASS — ownership and sole-ingress assertions found |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Implementation boundary | The local read-only collector and tests are the only approved code; no Ansible, OpenTofu, Kubernetes, Helm, workflow, unexpected executable, or other implementation artifact exists | PASS — allowlisted-file and prohibited-artifact scans found no unexpected files |
-| KIF-DOC-04 | KIF-013–KIF-015 | No secret or private address material | Repository text contains no private-key block, provider token, kubeconfig content, credential assignment value, or private IPv4 address | PASS — bounded pattern scan across approved text files returned no matches |
-| KIF-DOC-05 | KIF-016–KIF-021 | Shared-data risk is explicit | Separate databases/principals/credentials/backups and negative access tests are required; shared failure domain remains documented | PASS — architecture, requirements, tasks, and QA agree |
-| KIF-DOC-06 | KIF-026–KIF-030 | Honest evidence | Exactly 12 future runtime cases are NOT RUN, at least 12 manual cases are PENDING, and status is agent:in-progress/implementing with runtime inventory not run | PASS — 12 NOT RUN future cases, 12 PENDING manual cases, implementation status, and no-runtime statement found |
-| KIF-DOC-07 | KIF-005, KIF-007 | Host automation standard | G1 explicitly uses Debian plus Ansible, defers NixOS, prefers built-in modules, and limits Python to justified, testable extensions | PASS — authoritative agent policy records the selected host path and Python learning guardrails |
+| KIF-ANS-01 | KIF-001, KIF-004, KIF-008 | Ansible-first ownership | Operational Python collector is removed; minimal inventory, playbook, role, pinned collection, template, and Ansible documentation exist | PASS — layout contract test passed |
+| KIF-ANS-02 | KIF-001, KIF-003 | Declarative read-only implementation | Host discovery uses setup/service_facts/stat; cluster discovery uses exact k8s_info queries; no shell, command, raw, script, package, apt, or pip task exists | PASS — module-boundary tests passed |
+| KIF-ANS-03 | KIF-001, KIF-002, KIF-007 | Invocation and elevation gates | Play fails without check/diff, explicit limit, and one selected host; become defaults false; elevated queries need both approval flags | PASS — offline gate contract test passed; runtime behavior NOT RUN |
+| KIF-ANS-04 | KIF-013, KIF-030 | Bounded data projection | Raw discovery registrations are no_log; fact cache is memory-only; report omits addresses, MACs, UUIDs, annotations, labels, environment fields, secrets, chart values, raw specs, command output, and kubeconfig content | PASS — offline projection contract test passed; generated report NOT RUN |
+| KIF-ANS-05 | KIF-006, KIF-013 | Local report safety | Exactly one ignored controller-local JSON destination defaults under the repository root, mode 0600, diff disabled, become false, and symlink-refused | PASS — offline task/template contract test passed; write NOT RUN |
+| KIF-ANS-06 | KIF-008, KIF-021 | Kubernetes query boundary | Exact non-secret kinds provide object indicators; Secret, ConfigMap, Events, and broad all queries are absent; CNI and NetworkPolicy enforcement remain explicitly unproven | PASS — query boundary and template assertions passed |
+| KIF-ANS-07 | KIF-007, KIF-030 | Ansible syntax and lint | Pinned prerequisites are resolved to temporary paths, then syntax and production-profile lint pass before any host access | PASS — ansible-core 2.19.0 syntax check and ansible-lint 26.6.0 production profile passed; package-registry access only |
+| KIF-ANS-08 | KIF-001, KIF-008 | Actual inventory capture | Separately approved one-host check/diff run produces a human-reviewed curated report | NOT RUN — no discovery play, SSH, become, inventory-host, cluster, or report operation occurred |
 
-## Stage 1 collector implementation — 2026-08-03
-
-These are offline tests of the collector implementation. They do not execute an
-inventory check against the actual server or cluster.
+## Documentation and traceability
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
-| KIF-COL-01 | KIF-001, KIF-003, KIF-008 | Immutable allowlist safety and coverage | Only static argv tuples cover required host/k3s indicators; no sudo, shell, direct Secret/kubeconfig/token/process-environment display, or arbitrary file target exists; every kubectl command disables disk cache | PASS — allowlist, empty-cache, forbidden-target, findmnt-field, and coverage unit tests passed |
-| KIF-COL-02 | KIF-013, KIF-030 | Best-effort sanitization | Host/root/sudo-user identities, local email, padded IP, colon/dotted MAC, broad UUID/filesystem/LVM IDs, credential assignments, and bearer values are redacted in every textual result field | PASS — extended sanitizer category, derived-hostname boundary, sudo-user, and recursive report unit tests passed |
-| KIF-COL-03 | KIF-001, KIF-030 | Bounded subprocess outcomes | `shell=False`, fixed minimal environment, wall-clock timeout through reader completion, output bounds, and ok/nonzero/not-found/timeout statuses behave consistently | PASS — subprocess tests passed, including a detached descendant retaining pipes, without network, root, or k3s |
-| KIF-COL-04 | KIF-001, KIF-030 | Deterministic report schema and partial results | Stable IDs and field shapes, versions, UTC time, privilege indicator, warning, and ordinary failed checks remain a valid report | PASS — schema, shape, warning, partial-result, and CLI collection unit tests passed |
-| KIF-COL-05 | KIF-006, KIF-013 | Secure report output | JSON is atomically replaced at mode `0600`; symlink destinations are rejected; temp files are removed | PASS — secure atomic output unit tests passed |
-| KIF-COL-06 | KIF-001, KIF-030 | Sudo ownership and identity | Valid ASCII Linux-range `SUDO_UID`/`SUDO_GID` use descriptor-based `fchown` and resolve the invoking username for sanitization; malformed, Unicode, huge, or spoofed non-root cases fail safely | PASS — mocked bounds, ownership, sudo-username, and clean collector-error tests passed; sudo was not executed |
-| KIF-COL-07 | KIF-001, KIF-030 | CLI boundary | `--list-checks` performs no collection; collection requires `--local` and one output path; arbitrary/incomplete arguments fail | PASS — CLI list, collection, failure, and argument unit tests passed |
-| KIF-COL-08 | KIF-008, KIF-021 | CNI/DNS/Traefik indicators | Interface/link, kube-system, DNS, Traefik, HelmChart, and NetworkPolicy-object checks are present without claiming policy enforcement | PASS — focused allowlist coverage passed; functional enforcement probes remain unexecuted and separately gated |
-| KIF-COL-09 | KIF-001, KIF-008 | Actual inventory capture | Collector runs only after the applicable access/elevation approval and its report receives human review | NOT RUN — no collector execution, sudo, SSH, server, or cluster access occurred |
+| KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
+| KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Only read-only Ansible discovery is operational; no hosted runtime, mutation, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
+| KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
+| KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings do not prove policy enforcement | PASS — requirements and manual QA remain explicit |
+| KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | Twelve future runtime cases remain NOT RUN and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
 
-### Exact command and actual result
+All requirements KIF-001 through KIF-030 remain represented by the implementation,
+documentation, manual, or future-runtime cases in this file. Offline implementation
+success does not close any runtime gate.
 
-Run this exact offline validation block from the repository root. It lists checks
-but deliberately does not invoke collection mode.
+## Exact command and actual result
+
+Run from the repository root:
 
 ```bash
 set -euo pipefail
@@ -42,9 +45,18 @@ required=(
   README.md
   architecture-plan.md
   .gitignore
-  tools/__init__.py
-  tools/collect_inventory.py
-  tests/test_collect_inventory.py
+  ansible/ansible.cfg
+  ansible/requirements.yml
+  ansible/README.md
+  ansible/inventory/hosts.yml
+  ansible/playbooks/discover.yml
+  ansible/roles/read_only_discovery/defaults/main.yml
+  ansible/roles/read_only_discovery/tasks/main.yml
+  ansible/roles/read_only_discovery/tasks/host.yml
+  ansible/roles/read_only_discovery/tasks/kubernetes.yml
+  ansible/roles/read_only_discovery/tasks/report.yml
+  ansible/roles/read_only_discovery/templates/report.json.j2
+  tests/test_ansible_contract.py
   specs/k3s-iac-foundation/brief.md
   specs/k3s-iac-foundation/requirements.md
   specs/k3s-iac-foundation/tasks.md
@@ -56,81 +68,60 @@ for path in "${required[@]}"; do
   test -f "$path"
 done
 
+test ! -e tools/collect_inventory.py
+test ! -e tools/__init__.py
+test ! -e tests/test_collect_inventory.py
+
 python3 -m unittest discover -s tests -v
-python3 -m compileall -q tools tests
-test_count=$(python3 - <<'PY'
-import unittest
-print(unittest.defaultTestLoader.discover("tests").countTestCases())
-PY
-)
-check_count=$(python3 -m tools.collect_inventory --list-checks | python3 -c 'import json, sys; print(len(json.load(sys.stdin)))')
-printf 'PASS: %s unit tests; compileall; %s allowlisted checks listed without collection\n' "$test_count" "$check_count"
+python3 -m compileall -q tests
 
 python3 - <<'PY'
 import re
 from pathlib import Path
 
-root_docs = [Path("AGENTS.md"), Path("README.md"), Path("architecture-plan.md")]
 spec_dir = Path("specs/k3s-iac-foundation")
-spec_names = {"brief.md", "requirements.md", "tasks.md", "testcases.md", "manual-qa.md", "status.md"}
-spec_docs = sorted(spec_dir.glob("*.md"))
-assert {path.name for path in spec_docs} == spec_names, spec_docs
-doc_paths = root_docs + spec_docs
-python_paths = [Path("tools/__init__.py"), Path("tools/collect_inventory.py"), Path("tests/test_collect_inventory.py")]
-text_paths = doc_paths + python_paths + [Path(".gitignore")]
-assert len(doc_paths) == 9, doc_paths
-assert len(list(Path(".").glob("*.md"))) == 3
-assert len(list(Path("specs").glob("**/*.md"))) == 6
+expected_specs = {"brief.md", "requirements.md", "tasks.md", "testcases.md", "manual-qa.md", "status.md"}
+assert {path.name for path in spec_dir.glob("*.md")} == expected_specs
 
-for path in doc_paths:
-    text = path.read_text()
-    for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", text):
+text_paths = [Path("AGENTS.md"), Path("README.md"), Path("architecture-plan.md"), Path(".gitignore")]
+text_paths += sorted(Path("ansible").rglob("*"))
+text_paths += sorted(Path("tests").glob("*.py"))
+text_paths += sorted(spec_dir.glob("*.md"))
+text_paths = [path for path in text_paths if path.is_file()]
+combined = "\n".join(path.read_text() for path in text_paths)
+
+for path in [Path("README.md"), Path("architecture-plan.md"), *sorted(spec_dir.glob("*.md"))]:
+    for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", path.read_text()):
         if "://" in target or target.startswith("#"):
             continue
-        local_target = target.split("#", 1)[0]
-        if local_target:
-            resolved = (path.parent / local_target).resolve()
-            assert resolved.exists(), (path, target)
-
-combined = "\n".join(path.read_text() for path in text_paths)
-for term in [
-    "Ansible",
-    "OpenTofu",
-    "Argo CD",
-    "Infisical Cloud",
-    "GitHub Actions",
-    "private GHCR",
-    "bundled k3s Traefik",
-    "shared-data",
-    "Cloudflare Tunnel",
-    "Tailscale",
-    "NixOS",
-    "Ansible built-in modules",
-    "Learning Python",
-]:
-    assert term in combined, term
+        local = target.split("#", 1)[0]
+        if local:
+            assert (path.parent / local).resolve().exists(), (path, target)
 
 expected_ids = {f"KIF-{number:03d}" for number in range(1, 31)}
-for name in ["requirements.md", "testcases.md"]:
-    found = set(re.findall(r"KIF-\d{3}", (spec_dir / name).read_text()))
-    assert found == expected_ids, (name, sorted(expected_ids - found), sorted(found - expected_ids))
+found_ids = set(re.findall(r"KIF-\d{3}", (spec_dir / "testcases.md").read_text()))
+assert found_ids == expected_ids, sorted(expected_ids - found_ids)
+assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| NOT RUN —", (spec_dir / "testcases.md").read_text(), re.MULTILINE)) == 12
+assert len(re.findall(r"^\| MQA-\d{2} .* \| PENDING \|$", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) >= 12
 
 status = (spec_dir / "status.md").read_text()
-assert "(G1)" in status
-assert "state: agent:in-progress" in status
-assert "phase: implementing" in status
-assert "runtime inventory not run" in status
+for statement in [
+    "state: agent:in-progress",
+    "phase: implementing",
+    "runtime inventory not run",
+    "No Ansible playbook execution",
+]:
+    assert statement in status, statement
 
-future = (spec_dir / "testcases.md").read_text()
-assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| NOT RUN —", future, re.MULTILINE)) == 12
-manual_qa = (spec_dir / "manual-qa.md").read_text()
-assert len(re.findall(r"^\| MQA-\d{2} .* \| PENDING \|$", manual_qa, re.MULTILINE)) >= 12
+for future_path in [Path("opentofu"), Path("kubernetes"), Path("runbooks"), Path(".github/workflows")]:
+    assert not future_path.exists(), future_path
 
 for pattern in [
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
     r"\bghp_[A-Za-z0-9]+",
     r"\bgithub_pat_[A-Za-z0-9_]+",
-    r"\b(?:(?:[a-z0-9]+[-_])*(?:token|password|passwd|pass|secret|client[-_]secret|api[-_]key|credentials?|access[-_]key)(?:[-_][a-z0-9]+)*)\s*[=:]\s*['\"][^<'\"]+['\"]",
+    r"(?im)^\s*(?:certificate-authority-data|client-certificate-data|client-key-data|token):\s*\S+",
+    r"\b(?:(?:[a-z0-9]+[-_])*(?:token|password|passwd|(?-i:pass)|secret|client[-_]secret|api[-_]key|credentials?|access[-_]key)(?:[-_][a-z0-9]+)*)\s*[=:]\s*['\"]?[^<{\s'\"\]]+",
     r"\b(?:10|127)\.(?:\d{1,3}\.){2}\d{1,3}\b",
     r"\b192\.168\.(?:\d{1,3}\.)\d{1,3}\b",
     r"\b172\.(?:1[6-9]|2\d|3[01])\.(?:\d{1,3}\.)\d{1,3}\b",
@@ -139,90 +130,68 @@ for pattern in [
 
 for path in text_paths:
     for line_number, line in enumerate(path.read_text().splitlines(), 1):
-        assert line == line.rstrip(), (path, line_number, "trailing whitespace")
+        assert line == line.rstrip(), (path, line_number)
 
-print("PASS: 9 Markdown files + .gitignore + 3 Python files; 6 specs; links; 30 IDs; implementation boundary; 12 runtime NOT RUN; 12 PENDING; bounded scan clean")
+print("PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 12 manual cases, status/implementation boundary, and bounded source scan")
 PY
 
-git check-ignore -q --no-index opentofu/cloudflare/.terraform/provider
-git check-ignore -q --no-index opentofu/cloudflare/local.tfstate
-git check-ignore -q --no-index opentofu/cloudflare/review.tfplan
-git check-ignore -q --no-index opentofu/cloudflare/local.tfvars
+git check-ignore -q --no-index inventory.local.ansible.json
 git check-ignore -q --no-index ansible/site.retry
 git check-ignore -q --no-index ansible/fact_cache/host
-git check-ignore -q --no-index kubernetes/kubeconfig.local
-git check-ignore -q --no-index runbooks/.env.local
-git check-ignore -q --no-index runbooks/operator.key
-git check-ignore -q --no-index kubernetes/generated-secrets/value
-git check-ignore -q --no-index inventory.local.sanitized.json
-git check-ignore -q --no-index inventory.raw.json
-git check-ignore -q --no-index tools/__pycache__/collect_inventory.pyc
-if git check-ignore -q --no-index opentofu/cloudflare/.terraform.lock.hcl; then
-  exit 1
-fi
-if git check-ignore -q --no-index docs/inventory.sanitized.md; then
-  exit 1
-fi
-printf '%s\n' 'PASS: protective ignore policy includes local reports/cache; sanitized documentation and .terraform.lock.hcl remain trackable'
-
-unexpected=$(find . -type f \
-  -not -path './.git/*' \
-  -not -path './.pi-subagents/*' \
-  -not -path '*/__pycache__/*' \
-  -not -path './AGENTS.md' \
-  -not -path './README.md' \
-  -not -path './architecture-plan.md' \
-  -not -path './.gitignore' \
-  -not -path './tools/__init__.py' \
-  -not -path './tools/collect_inventory.py' \
-  -not -path './tests/test_collect_inventory.py' \
-  -not -path './specs/k3s-iac-foundation/brief.md' \
-  -not -path './specs/k3s-iac-foundation/requirements.md' \
-  -not -path './specs/k3s-iac-foundation/tasks.md' \
-  -not -path './specs/k3s-iac-foundation/testcases.md' \
-  -not -path './specs/k3s-iac-foundation/manual-qa.md' \
-  -not -path './specs/k3s-iac-foundation/status.md' \
-  -print)
-test -z "$unexpected"
-
-if find . -type f \
-  -not -path './.git/*' \
-  -not -path './.pi-subagents/*' \
-  -not -path '*/__pycache__/*' \
-  \( -name '*.tf' -o -name '*.tfvars' -o -name '*.tfstate*' \
-     -o -name 'Chart.yaml' -o -name 'kustomization.yaml' \
-     -o -name 'playbook.yml' -o -name 'playbook.yaml' \
-     -o -path '*/.github/workflows/*' -o -perm -111 \) \
-  -print -quit | grep -q .; then
+if git check-ignore -q --no-index ansible/requirements.yml; then
   exit 1
 fi
 
 git diff --check
 git diff --cached --quiet
-printf '%s\n' 'PASS: approved-file allowlist, prohibited-artifact scan, git diff --check, and no-staged-file check'
+printf '%s\n' 'PASS: ignore policy, git diff check, and no-staged-files check'
 ```
 
-Actual result (exit 0 on 2026-08-03):
+Actual result (exit 0 on 2026-08-04):
 
 ```text
-Ran 33 tests in 0.4s
+Ran 10 tests
 OK
-PASS: 33 unit tests; compileall; 32 allowlisted checks listed without collection
-PASS: 9 Markdown files + .gitignore + 3 Python files; 6 specs; links; 30 IDs; implementation boundary; 12 runtime NOT RUN; 12 PENDING; bounded scan clean
-PASS: protective ignore policy includes local reports/cache; sanitized documentation and .terraform.lock.hcl remain trackable
-PASS: approved-file allowlist, prohibited-artifact scan, git diff --check, and no-staged-file check
+PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 12 manual cases, status/implementation boundary, and bounded source scan
+PASS: ignore policy, git diff check, and no-staged-files check
 ```
+
+The Ansible-specific validation used temporary dependencies and did not execute the
+play against the inventory host:
+
+```bash
+set -euo pipefail
+collections_dir=$(mktemp -d)
+trap 'rm -rf "$collections_dir"' EXIT
+uvx --from ansible-core==2.19.0 ansible-galaxy collection install \
+  -r ansible/requirements.yml -p "$collections_dir"
+(
+  cd ansible
+  ANSIBLE_COLLECTIONS_PATH="$collections_dir" \
+    uvx --from ansible-core==2.19.0 \
+    ansible-playbook playbooks/discover.yml --syntax-check
+  ANSIBLE_COLLECTIONS_PATH="$collections_dir" \
+    uvx --from ansible-lint==26.6.0 \
+    ansible-lint playbooks/discover.yml roles/read_only_discovery
+)
+```
+
+Actual result (exit 0 on 2026-08-04):
+
+```text
+kubernetes.core:6.1.0 was installed successfully to the temporary collection path
+playbook: playbooks/discover.yml
+Passed: 0 failure(s), 0 warning(s) in 8 files processed; production profile
+```
+
+The discovery play remains deliberately NOT RUN pending host-access approval.
 
 ## Future validation contract
 
-These runtime cases remain intentionally unexecuted by the collector implementation
-deliverable. Provider-backed, elevated, or mutating commands require the matching
-approval gate.
-
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
-| KIF-FUT-01 | KIF-001, KIF-007, KIF-008, KIF-028 | Read-only host/cluster discovery | Sanitized inventory proves actual k3s, network, storage, resource, and recovery state without mutation | NOT RUN — runtime gate remains pending |
-| KIF-FUT-02 | KIF-002, KIF-003, KIF-007 | Ansible safety/idempotence | Lint/syntax/check/diff pass before approval; two approved runs converge and preserve recovery access | NOT RUN — runtime gate remains pending |
+| KIF-FUT-01 | KIF-001, KIF-007, KIF-008, KIF-028 | Read-only Ansible discovery | Curated report proves actual k3s, storage, resource, and recovery indicators without mutation; human review passes | NOT RUN — runtime gate remains pending |
+| KIF-FUT-02 | KIF-002, KIF-003, KIF-007 | Host baseline safety/idempotence | Syntax/lint/check/diff pass before approval; two approved host-baseline runs converge and preserve recovery access | NOT RUN — runtime gate remains pending |
 | KIF-FUT-03 | KIF-005, KIF-006, KIF-013, KIF-028 | OpenTofu state and plans | Format/validate pass; protected state recovers; reviewed plan has no secrets or unapproved destroy | NOT RUN — runtime gate remains pending |
 | KIF-FUT-04 | KIF-005, KIF-009, KIF-022, KIF-023 | Render and GitOps reconciliation | Helm/Kustomize/schema checks pass; Argo reconciles private desired state and restores controlled drift | NOT RUN — runtime gate remains pending |
 | KIF-FUT-05 | KIF-010, KIF-011, KIF-012, KIF-021 | Network exposure | Required private/public routes work and all DEV/admin/data negative public checks fail closed | NOT RUN — runtime gate remains pending |
@@ -236,12 +205,14 @@ approval gate.
 
 ## Prospective command families
 
-Exact commands and versions are selected only after discovery. Expected families:
+Exact commands and versions beyond the pinned Ansible collection are selected only
+after discovery. Expected families:
 
 ```text
-ansible-lint; ansible-playbook --syntax-check; ansible-playbook --check --diff
+ansible-playbook --syntax-check; ansible-lint; approved ansible-playbook --check --diff
+reviewed host-baseline Ansible runs and idempotence checks
 tofu fmt -check; tofu validate; reviewed tofu plan
-helm template; kustomize build; kubeconform or an approved schema validator
+helm template; kustomize build; approved schema validation
 argocd app diff/get/sync/rollback under the approved private access path
 kubectl auth can-i and bounded positive/negative NetworkPolicy probes
 database-native authorization, dump, integrity, and isolated restore checks

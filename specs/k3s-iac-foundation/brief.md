@@ -43,14 +43,15 @@ recover DEV and PROD without presenting a single node as highly available.
 - direct GitHub Actions deployment;
 - migration of code-runner to the shared node without a separate security decision;
 - application source, local Compose, Keycloak theme, or Browserless gateway ownership;
-- hosted runtime, IaC, or deployment implementation during the current collector deliverable.
+- hosted runtime, mutating host baseline, external-resource IaC, or deployment implementation during the current read-only discovery deliverable.
 
 ## Delivery boundary
 
-G1 is agent-in-progress in its read-only discovery stage. The only implementation
-is the local, read-only Python inventory collector and its offline tests. The
-collector has not been run against the actual server or cluster, and no hosted
-runtime or IaC exists. This deliverable performs no sudo, SSH, server, cluster,
-Cloudflare, GitHub, Infisical, registry, database, storage, backup, DNS, tunnel, or
-data operation. CristexHub local runtime assets remain external application-repo
-concerns and are not copied here.
+G1 is agent-in-progress in its read-only discovery stage. The only operational
+implementation is the Ansible discovery playbook under `ansible/`; Python is used
+only for offline contract tests. The playbook has not been run against the actual
+server or cluster. Pinned ephemeral Ansible tooling passed syntax and lint without
+inventory-host access. This deliverable performs no become, SSH, server, cluster,
+Cloudflare, GitHub, Infisical, registry, database, storage,
+backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain
+external application-repository concerns and are not copied here.

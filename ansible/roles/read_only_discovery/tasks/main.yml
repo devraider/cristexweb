@@ -1,0 +1,44 @@
+---
+- name: Require the read-only invocation contract
+  ansible.builtin.assert:
+    that:
+      - ansible_check_mode
+      - ansible_diff_mode
+      - (ansible_limit | default('') | string | length) > 0
+      - (ansible_play_hosts_all | length) == 1
+    fail_msg: >-
+      Discovery requires --check --diff, an explicit --limit, and exactly one
+      selected inventory host.
+  changed_when: false
+
+- name: Require a separate approval flag for elevated discovery
+  ansible.builtin.assert:
+    that:
+      - not (read_only_discovery_enable_elevated | bool) or (read_only_discovery_elevated_approved | bool)
+    fail_msg: >-
+      Elevated discovery is disabled unless both read_only_discovery_enable_elevated=true
+      and read_only_discovery_elevated_approved=true are supplied explicitly.
+  changed_when: false
+
+- name: Collect curated host indicators
+  ansible.builtin.include_tasks: host.yml
+
+- name: Initialize disabled Kubernetes discovery result
+  ansible.builtin.set_fact:
+    read_only_discovery_kubernetes_attempted: false
+    read_only_discovery_kubernetes_raw:
+      results: []
+    read_only_discovery_datastore_summary:
+      exists: false
+      is_directory: false
+  no_log: true
+  when: not (read_only_discovery_enable_elevated | bool)
+
+- name: Collect approved elevated Kubernetes indicators
+  ansible.builtin.include_tasks: kubernetes.yml
+  when:
+    - read_only_discovery_enable_elevated | bool
+    - read_only_discovery_elevated_approved | bool
+
+- name: Write the curated controller-local report
+  ansible.builtin.include_tasks: report.yml

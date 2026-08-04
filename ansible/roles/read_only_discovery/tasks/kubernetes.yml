@@ -1,0 +1,63 @@
+---
+- name: Inspect the k3s datastore directory without reading it
+  ansible.builtin.stat:
+    path: /var/lib/rancher/k3s/server/db
+    follow: false
+    get_checksum: false
+    get_mime: false
+  become: true
+  register: read_only_discovery_datastore_raw
+  no_log: true
+
+- name: Query exact Kubernetes kinds using the existing kubeconfig for authentication
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.namespace | default(omit) }}"
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+  become: true
+  loop:
+    - id: nodes
+      api_version: v1
+      kind: Node
+    - id: namespaces
+      api_version: v1
+      kind: Namespace
+    - id: network_policies
+      api_version: networking.k8s.io/v1
+      kind: NetworkPolicy
+    - id: storage_classes
+      api_version: storage.k8s.io/v1
+      kind: StorageClass
+    - id: ingress_classes
+      api_version: networking.k8s.io/v1
+      kind: IngressClass
+    - id: kube_system_deployments
+      api_version: apps/v1
+      kind: Deployment
+      namespace: kube-system
+    - id: kube_system_daemonsets
+      api_version: apps/v1
+      kind: DaemonSet
+      namespace: kube-system
+    - id: helm_charts
+      api_version: helm.cattle.io/v1
+      kind: HelmChart
+      namespace: kube-system
+    - id: helm_chart_configs
+      api_version: helm.cattle.io/v1
+      kind: HelmChartConfig
+      namespace: kube-system
+  loop_control:
+    label: "{{ item.id }}"
+  register: read_only_discovery_kubernetes_raw
+  failed_when: false
+  no_log: true
+
+- name: Project safe datastore fields
+  ansible.builtin.set_fact:
+    read_only_discovery_kubernetes_attempted: true
+    read_only_discovery_datastore_summary:
+      exists: "{{ read_only_discovery_datastore_raw.stat.exists | default(false) | bool }}"
+      is_directory: "{{ read_only_discovery_datastore_raw.stat.isdir | default(false) | bool }}"
+  no_log: true

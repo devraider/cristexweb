@@ -2,11 +2,11 @@
 
 ## Status
 
-This is a non-executable target design. The repository's only implementation is a
-local, read-only Python inventory collector and its offline tests; it is not a
-hosted runtime or IaC reconciler. No hosted orchestration, DNS, tunnels, GitOps,
-secrets, databases, backups, or recovery are implemented. CristexHub local Compose
-assets remain an external application-repository concern.
+This target design now has one bounded implementation: Ansible-first, read-only
+discovery under `ansible/`. It is not a host baseline, hosted runtime, or IaC
+reconciler. Python is limited to offline contract tests. No hosted orchestration,
+DNS, tunnels, GitOps, secrets, databases, backups, or recovery are implemented.
+CristexHub local Compose assets remain an external application-repository concern.
 
 ## Known facts
 
@@ -17,9 +17,10 @@ kubeconfig, so datastore, node, CNI, Traefik, StorageClass, and workload state m
 be reverified through an approved read-only discovery step.
 
 The external CristexHub application repository publishes backend, frontend, and
-code-runner images to GHCR. This repository has no Kubernetes, Helm, Kustomize,
-Ansible, OpenTofu, or GitHub Actions implementation today. Debian plus Ansible
-remains the selected future host-configuration owner.
+code-runner images to GHCR. This repository now implements read-only Ansible
+discovery only; it still has no Kubernetes, Helm, Kustomize, OpenTofu, GitHub
+Actions, or mutating host-baseline implementation. Debian plus Ansible is the
+selected host-configuration owner.
 
 ## Goals
 
@@ -173,22 +174,27 @@ verification must meet the declared RPO/RTO before PROD.
 
 ### Stage 1 — read-only discovery
 
-- Entry: offline collector implementation is approved; actual host, cluster, or
-  elevated access still requires its own explicit approval.
-- Work: use the static, local, read-only `tools/collect_inventory.py` allowlist to
-  capture k3s datastore metadata plus CNI/interface, DNS, Traefik, HelmChart,
-  NetworkPolicy-object, StorageClass, disk, firewall, route, and resource
-  indicators; verify recovery access separately without directly displaying secret
-  content.
-- Limit: object and component listings are configuration/capability indicators only.
-  CNI behavior and NetworkPolicy enforcement require later approved functional
-  probes and are not proven by this collector.
-- Current evidence: the collector and offline tests exist, but the collector has
-  not been run against the actual server or cluster and no inventory was captured.
-- Gate: human-reviewed sanitized inventory and decision register update.
-- Stop: a command needs mutation, secret output, or elevated access beyond approval.
-- Rollback: none; no state changes are permitted other than writing the requested
-  local report.
+- Entry: the offline Ansible discovery implementation is approved; actual SSH,
+  host, cluster, or elevated access still requires its own explicit approval.
+- Work: use Ansible built-ins for bounded host facts and
+  `kubernetes.core.k8s_info` for exact Kubernetes kinds. Project only curated OS,
+  capacity, service, filesystem, datastore-presence, and object-name/count fields
+  into one controller-local report.
+- Safety: the play requires check/diff mode, an explicit one-host limit, default
+  non-elevation, and two explicit flags before narrowly scoped become tasks. It
+  never uses shell/command automation or queries Secret, ConfigMap, Events, or a
+  broad `all` resource set.
+- Limit: object listings are configuration/capability indicators only. CNI behavior
+  and NetworkPolicy enforcement require later approved functional probes and are
+  not proven by discovery.
+- Current evidence: the Ansible files and offline contract tests exist; pinned,
+  ephemeral tool environments passed syntax and production-profile lint without
+  contacting the inventory host. No discovery play has run against the server or
+  cluster and no inventory report was captured.
+- Gate: human-reviewed local report and decision register update.
+- Stop: a task needs mutation, secret output, or elevated access beyond approval.
+- Rollback: none; no target state changes are permitted. The only write is the
+  explicitly requested controller-local report.
 
 ### Stage 2 — host safety baseline
 

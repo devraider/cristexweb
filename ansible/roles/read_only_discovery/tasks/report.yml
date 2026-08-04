@@ -1,0 +1,47 @@
+---
+- name: Require the fixed local report destination
+  ansible.builtin.assert:
+    that:
+      - read_only_discovery_output_path == (playbook_dir ~ '/../../inventory.local.ansible.json')
+    fail_msg: "The discovery report destination is fixed to the ignored repository-local path."
+  delegate_to: localhost
+  run_once: true
+  become: false
+  changed_when: false
+
+- name: Inspect the local report destination
+  ansible.builtin.stat:
+    path: "{{ read_only_discovery_output_path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  delegate_to: localhost
+  run_once: true
+  become: false
+  check_mode: false
+  changed_when: false
+  register: read_only_discovery_report_destination_raw
+  no_log: true
+
+- name: Refuse a symlink report destination
+  ansible.builtin.assert:
+    that:
+      - not (read_only_discovery_report_destination_raw.stat.islnk | default(false) | bool)
+    fail_msg: "Refusing to write the discovery report through a symlink."
+  delegate_to: localhost
+  run_once: true
+  become: false
+  changed_when: false
+
+- name: Render one curated local JSON report
+  ansible.builtin.template:
+    src: report.json.j2
+    dest: "{{ read_only_discovery_output_path }}"
+    mode: "0600"
+    backup: false
+  delegate_to: localhost
+  run_once: true
+  become: false
+  check_mode: false
+  diff: false
+  no_log: true

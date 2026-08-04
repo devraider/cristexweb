@@ -7,13 +7,14 @@ environment, redacted evidence location, result, and rollback outcome. Never pas
 passwords, tokens, cookies, kubeconfigs, connection strings, private keys, database
 rows, personal data, or full secret-bearing command output.
 
-All cases remain **PENDING** because no hosted runtime exists and no collector run,
-server/cluster access, deployment, or manual runtime validation occurred. The
-offline collector unit tests do not satisfy these manual cases.
+All cases remain **PENDING** because no hosted runtime exists and no Ansible
+discovery play run, server/cluster access, deployment, or manual runtime validation
+occurred. Offline contract, syntax, and lint checks do not satisfy these manual
+cases.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|
-| MQA-01 | KIF-001, KIF-007, KIF-008 | Read-only inventory and recovery access | SSH/Tailscale remain available; actual k3s/network/storage facts are captured without mutation or secret output | PENDING |
+| MQA-01 | KIF-001, KIF-007, KIF-008 | Read-only Ansible inventory and recovery access | The approved one-host check/diff run leaves SSH/Tailscale available; actual curated k3s/storage facts are captured without mutation or secret output | PENDING |
 | MQA-02 | KIF-005, KIF-009, KIF-010 | Private administration | Argo CD and k3s API work through the approved private path and are unreachable publicly | PENDING |
 | MQA-03 | KIF-013–KIF-015 | Infisical rotation | A test secret rotates and revokes without plaintext in Git/logs; recovery credential remains usable | PENDING |
 | MQA-04 | KIF-016–KIF-021 | DEV isolation | DEV reaches only its databases/services and cannot authenticate to or connect to PROD resources | PENDING |

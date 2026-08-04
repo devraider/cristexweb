@@ -14,16 +14,21 @@
 
 ## Stage 1 — read-only discovery
 
-- [x] Implement the standard-library-only local collector with a static read-only
-  allowlist, bounded subprocess execution, best-effort sanitization, and secure
-  atomic report output (`KIF-001`, `KIF-004`, `KIF-008`).
-- [x] Add offline unit tests for allowlist safety, sanitization, subprocess outcomes,
-  secure output, sudo ownership handoff, and CLI behavior (`KIF-001`, `KIF-030`).
-- [ ] Obtain explicit approval for read-only elevated k3s inventory (`KIF-001`).
-- [ ] Run the collector against the actual server/cluster and capture a
-  human-reviewed sanitized host, datastore, CNI/interface, NetworkPolicy-object,
-  DNS, Traefik, HelmChart, StorageClass, disk, route, firewall, and resource
-  indicator report (`KIF-008`).
+- [x] Replace the operational Python command allowlist with minimal Ansible-first
+  discovery using built-in fact/stat modules and exact
+  `kubernetes.core.k8s_info` queries (`KIF-001`, `KIF-004`, `KIF-008`).
+- [x] Enforce check/diff, explicit one-host limit, default non-elevation, dual
+  elevated-approval flags, no-log raw results, memory-only facts, curated local JSON
+  output, mode `0600`, and symlink refusal (`KIF-001`, `KIF-006`, `KIF-030`).
+- [x] Add standard-library offline contract tests; keep Python out of operational
+  automation (`KIF-001`, `KIF-030`).
+- [x] Validate the pinned collection with ephemeral Ansible tooling; syntax and
+  production-profile lint pass without inventory-host access (`KIF-007`).
+- [ ] Obtain explicit approval for any SSH host access and, separately, read-only
+  elevated k3s inventory (`KIF-001`).
+- [ ] Run the Ansible discovery playbook against exactly one approved host and
+  human-review its curated host, datastore, NetworkPolicy-object, platform-object,
+  StorageClass, and resource indicator report (`KIF-008`).
 - [ ] Separately approve and run bounded functional probes for CNI behavior and
   NetworkPolicy enforcement; do not treat object listings as enforcement evidence
   (`KIF-008`, `KIF-021`).
@@ -32,13 +37,15 @@
 - [ ] Resolve the decision register for the next stage; do not mutate while
   discovery is incomplete (`KIF-002`, `KIF-003`).
 
-Approval gate: operator approves the sanitized inventory and first mutation plan.
+Approval gate: operator approves the human-reviewed inventory and first mutation
+plan.
 
 ## Stage 2 — host safety baseline
 
 - [ ] Verify the protective ignore rules before generating any Ansible artifacts (`KIF-006`).
-- [ ] Implement the smallest Ansible inventory/playbook for approved host and k3s
-  settings (`KIF-004`, `KIF-005`, `KIF-007`).
+- [ ] Implement the smallest separate Ansible host-baseline roles for only approved
+  host and k3s settings; do not turn discovery tasks into mutation (`KIF-004`,
+  `KIF-005`, `KIF-007`).
 - [ ] Run syntax/lint and check/diff mode before the first mutation (`KIF-002`,
   `KIF-007`).
 - [ ] Obtain explicit approval for the first Ansible mutation (`KIF-002`).

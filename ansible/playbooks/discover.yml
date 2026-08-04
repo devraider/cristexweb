@@ -1,0 +1,10 @@
+---
+- name: Collect curated read-only host and k3s discovery
+  hosts: k3s_servers
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+
+  roles:
+    - role: read_only_discovery
