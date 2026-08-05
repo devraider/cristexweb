@@ -136,6 +136,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             "ansible.builtin.service:",
             "state: restarted",
             "k3s_admin_kubeconfig.stat.mode == '0640'",
+            "Inspect kubeconfig access as the approved user",
+            "become_user: \"{{ k3s_admin_user }}\"",
+            "k3s_admin_user_kubeconfig.stat.readable | default(false)",
             "retries: 15",
             "delay: 2",
         ):
@@ -173,6 +176,10 @@ class AnsibleLayoutTests(unittest.TestCase):
         self.assertLess(
             playbook.index("Verify exclusive dedicated group membership before configuring access"),
             playbook.index("Configure the kubeconfig group"),
+        )
+        self.assertLess(
+            playbook.index("Configure the kubeconfig group"),
+            playbook.index("Inspect kubeconfig access as the approved user"),
         )
         line_tasks = re.findall(
             r"- name: Configure the kubeconfig .*?(?=\n    - name:)",

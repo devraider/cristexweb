@@ -4,12 +4,12 @@ This root `AGENTS.md` is authoritative for the entire repository.
 
 ## Current boundary
 
-- Operational implementation is limited to read-only Ansible discovery, the executed two-package dependency bootstrap, and the approved-but-not-run group-scoped k3s administrator access playbook under `ansible/`. No general host baseline or deployment exists.
+- Operational implementation is limited to read-only Ansible discovery, the executed two-package dependency bootstrap, and the executed group-scoped k3s administrator access playbook under `ansible/`. Its check and mutation runs succeeded, and kubeconfig metadata is correct; fresh-session kubectl readability and idempotence remain under verification. No general host baseline or deployment exists.
 - Python exists only in offline contract tests; it is not operational infrastructure automation.
 - This repository otherwise owns design documentation for future host configuration, external-resource IaC, GitOps desired state, and recovery runbooks.
 - No hosted runtime, general Ansible host baseline, OpenTofu configuration, Kubernetes manifest, Helm chart, or workflow exists here yet.
 - CristexHub application source, local Compose assets, Keycloak theme, and Browserless gateway remain external concerns in the CristexHub application repository and must not be copied here.
-- Approved discovery and dependency installation have completed. Group-scoped k3s administrator access for a selected non-root user is approved and implemented but not run; it must pass check/diff before its k3s restart. Any other host mutation or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed.
+- Approved discovery, dependency installation, and the group-scoped k3s administrator access mutation have completed. The access playbook now verifies effective readability as the selected account; rerunning that already-approved playbook for verification remains in scope. Any other host mutation or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed.
 
 ## Ownership
 

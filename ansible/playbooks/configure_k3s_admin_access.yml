@@ -328,6 +328,29 @@
       changed_when: false
       when: not ansible_check_mode
 
+    - name: Inspect kubeconfig access as the approved user
+      ansible.builtin.stat:
+        path: /etc/rancher/k3s/k3s.yaml
+        follow: false
+        get_checksum: false
+        get_mime: false
+      become: true
+      become_user: "{{ k3s_admin_user }}"
+      register: k3s_admin_user_kubeconfig
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Verify kubeconfig readability as the approved user
+      ansible.builtin.assert:
+        that:
+          - k3s_admin_user_kubeconfig.stat.readable | default(false)
+        fail_msg: >-
+          The selected account cannot read the kubeconfig despite the approved
+          group and mode; inspect effective groups and parent-directory traversal.
+      changed_when: false
+      when: not ansible_check_mode
+
   handlers:
     - name: Restart k3s
       ansible.builtin.service:

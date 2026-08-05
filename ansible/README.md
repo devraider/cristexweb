@@ -78,8 +78,9 @@ members. It preserves the kubeconfig as
 root-owned mode `0640`, writes only the two persistent k3s settings, and restarts
 k3s only when those settings change. Existing config content is hidden from Ansible
 output and diff. A root-only `config.yaml.pre-admin-access` rollback copy is created
-without overwriting an earlier baseline. The restart causes a short control-plane
-interruption on this single node.
+without overwriting an earlier baseline. After restart, Ansible verifies both the
+metadata and actual readability of the kubeconfig while running as the selected
+account. The restart causes a short control-plane interruption on this single node.
 
 Review check/diff first:
 
@@ -103,9 +104,12 @@ uv run ansible-playbook -i .ansible/inventory.local.yml \
   --ask-become-pass
 ```
 
-Reconnect SSH after the run so the new supplementary group takes effect. Then
-verify `id -nG`, `kubectl get nodes`, and `kubectl get all -A`. Do not change the
-kubeconfig to world-readable mode.
+Existing login processes cannot acquire a newly assigned supplementary group.
+Fully reconnect SSH after the run; if SSH multiplexing reuses an old server session,
+reconnect with `ssh -o ControlMaster=no -o ControlPath=none crtxweb`. Then verify
+`id -nG`, `kubectl get nodes`, and `kubectl get all -A`. Do not change the kubeconfig
+to world-readable mode or expose the root-only k3s server configuration merely to
+silence its warnings.
 
 If the k3s restart fails, restore the root-only baseline before attempting anything
 else:

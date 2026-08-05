@@ -3,8 +3,9 @@
 ## Status
 
 This target design has three bounded Ansible implementations: read-only discovery,
-the executed Kubernetes-module dependency bootstrap, and approved-but-not-run
-group-scoped k3s administrator access under `ansible/`. They are not a general host
+the executed Kubernetes-module dependency bootstrap, and executed group-scoped
+k3s administrator access under `ansible/`; effective-user readability and
+fresh-session kubectl verification remain pending. They are not a general host
 baseline, hosted runtime, or IaC reconciler.
 Python is limited to offline contract tests. No hosted orchestration,
 DNS, tunnels, GitOps, secrets, databases, backups, or recovery are implemented.

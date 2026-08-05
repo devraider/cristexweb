@@ -3,8 +3,9 @@
 ## Status
 
 The repository's bounded Ansible implementation contains discovery, the executed
-two-package module bootstrap, and an approved-but-not-run group-scoped k3s
-administrator access playbook under [`ansible/`](ansible/). Discovery gathers
+two-package module bootstrap, and an executed group-scoped k3s administrator
+access playbook under [`ansible/`](ansible/). Its effective-user readability and
+fresh-session kubectl verification remain pending. Discovery gathers
 curated host indicators with built-ins and exact Kubernetes kinds with
 `kubernetes.core.k8s_info`. No general host baseline or deployment exists. Python
 is used only for offline contract tests, not infrastructure automation.

@@ -8,7 +8,8 @@ SSH, become, the inventory host, Kubernetes API, a provider, or report generatio
 `.venv` and local Galaxy collection path; nothing was installed on the inventory
 host. Separately approved non-elevated and elevated runtime attempts are recorded
 below, followed by the approved dependency installation and successful elevated
-rerun. The separately approved admin-access implementation remains offline-only.
+rerun. The admin-access check and mutation succeeded; effective-user readability,
+fresh-session kubectl, idempotence, and recovery verification remain pending.
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
@@ -25,9 +26,9 @@ rerun. The separately approved admin-access implementation remains offline-only.
 | KIF-ANS-11 | KIF-001, KIF-008, KIF-030 | Elevated failure diagnosis | Human-reviewed elevated report and a bounded read-only import probe explain unavailable Kubernetes queries without emitting kubeconfig or secrets | PASS — datastore exists; nine queries unavailable; remote `kubernetes`, `yaml`, and `jsonpatch` imports all false |
 | KIF-DEP-01 | KIF-002, KIF-007 | Approved dependency bootstrap contract | Separate one-host playbook requires explicit approval and directly requests only `python3-kubernetes` and `python3-jsonpatch`; no cache refresh, shell, command, latest, upgrade, or other direct package exists | PASS — contract test, syntax check, and production-profile lint passed |
 | KIF-DEP-02 | KIF-002, KIF-007 | Dependency bootstrap execution | Check/diff package plan is reviewed before the approved actual installation; subsequent import probe and elevated discovery pass | PASS — incomplete first plan rejected; revised plan reviewed 37 new, 0 upgraded/removed; installation, package verification, imports, and elevated discovery passed |
-| KIF-ADM-01 | KIF-002, KIF-007 | Group-scoped admin access contract | Explicit approval and one-host limit gate an existing nonzero-UID account; exact dedicated group rejects GID 0, numeric aliases, and unexpected members; check-safe creation, no home creation, persistent `0640` settings, hidden diff, safe rollback baseline, conditional restart, polling, and assertions are present | PASS — contract test, syntax check, and production-profile lint passed |
-| KIF-ADM-02 | KIF-002, KIF-007 | Admin-access check/diff | Approved one-host check predicts only rollback baseline, group, membership, two k3s config settings, and conditional restart without mutation | NOT RUN — operator password/check execution pending |
-| KIF-ADM-03 | KIF-007 | Admin-access mutation and recovery | Approved run succeeds; new SSH session has group access; kubeconfig is root/group `0640`; kubectl, SSH, Tailscale, restart recovery, and second-run idempotence pass | NOT RUN — check/diff must pass first |
+| KIF-ADM-01 | KIF-002, KIF-007 | Group-scoped admin access contract | Explicit approval and one-host limit gate an existing nonzero-UID account; exact dedicated group rejects GID 0, numeric aliases, and unexpected members; check-safe creation, no home creation, persistent `0640` settings, hidden diff, safe rollback baseline, conditional restart, polling, metadata assertions, and effective readability as the selected user are present | PASS — contract test, syntax check, and production-profile lint passed |
+| KIF-ADM-02 | KIF-002, KIF-007 | Admin-access check/diff | Approved one-host check predicts only rollback baseline, group, membership, two k3s config settings, and conditional restart without mutation | PASS — recap ok=16, changed=6, unreachable=0, failed=0, skipped=13 |
+| KIF-ADM-03 | KIF-007 | Admin-access mutation and recovery | Approved run succeeds; new SSH session has group access; kubeconfig is root/group `0640`; kubectl, SSH, Tailscale, restart recovery, and second-run idempotence pass | PARTIAL — mutation recap ok=24, changed=6, unreachable=0, failed=0; metadata is root:k3s-admin 0640; shell kubectl read failed pending effective-user assertion and genuinely fresh login |
 
 ## Documentation and traceability
 
@@ -35,7 +36,7 @@ rerun. The separately approved admin-access implementation remains offline-only.
 |---|---|---|---|---|
 | KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
 | KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, the executed dependency bootstrap, and approved-but-not-run admin access are the only bounded Ansible implementations; no general host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, the executed dependency bootstrap, and executed admin-access mutation are the only bounded Ansible implementations; effective-user, fresh-session kubectl, idempotence, and recovery verification remain pending; no general host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
 | KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings do not prove policy enforcement | PASS — requirements and manual QA remain explicit |
 | KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
@@ -124,9 +125,9 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "admin-access playbook approved/implemented",
+    "admin check ok=16/changed=6 and mutation ok=24/changed=6 passed",
     "all nine exact Kubernetes",
-    "approved-but-not-run group-scoped",
+    "executed group-scoped k3s",
 ]:
     assert statement in status, statement
 

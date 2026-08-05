@@ -67,11 +67,13 @@ host-baseline/next-stage mutation plan.
   admin-access playbook (`KIF-002`, `KIF-007`).
 - [x] Obtain explicit approval for granting the selected user cluster-admin
   kubeconfig access and restarting k3s (`KIF-002`, `KIF-007`).
-- [ ] Run the admin-access playbook in check/diff mode and review the predicted
-  group, membership, config, and restart changes (`KIF-002`, `KIF-007`).
-- [ ] Run the approved mutation, reconnect SSH, and verify group membership,
-  root/group `0640` kubeconfig, `kubectl get nodes`, and `kubectl get all -A`
+- [x] Run the admin-access playbook in check/diff mode and review the predicted
+  rollback, group, membership, config, and restart changes (`KIF-002`, `KIF-007`).
+- [x] Run the approved mutation and verify root/group `0640` kubeconfig metadata
   (`KIF-007`).
+- [ ] Verify effective kubeconfig readability through Ansible as the selected user,
+  reconnect without a stale SSH multiplexed session, and verify group membership,
+  `kubectl get nodes`, and `kubectl get all -A` (`KIF-007`).
 - [ ] Prove second-run idempotence, reboot recovery, SSH, and Tailscale access
   (`KIF-007`).
 
