@@ -11,7 +11,7 @@ below, followed by the approved dependency installation and successful elevated
 rerun. The admin-access check, mutation, effective-user readability, fresh-session
 all-namespace query, and idempotence succeeded. The user-scoped client-defaults
 check, execution, warning-free fresh-session queries, and idempotence also passed.
-The separately approved one-reboot recovery verifier is implemented but not run.
+The separately approved one-reboot recovery and manual post-reboot checks passed.
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
@@ -30,11 +30,11 @@ The separately approved one-reboot recovery verifier is implemented but not run.
 | KIF-DEP-02 | KIF-002, KIF-007 | Dependency bootstrap execution | Check/diff package plan is reviewed before the approved actual installation; subsequent import probe and elevated discovery pass | PASS — incomplete first plan rejected; revised plan reviewed 37 new, 0 upgraded/removed; installation, package verification, imports, and elevated discovery passed |
 | KIF-ADM-01 | KIF-002, KIF-007 | Group-scoped admin access contract | Explicit approval and one-host limit gate an existing nonzero-UID account; exact dedicated group rejects GID 0, numeric aliases, and unexpected members; check-safe creation, no home creation, persistent `0640` settings, hidden diff, safe rollback baseline, conditional restart, polling, metadata assertions, and effective readability as the selected user are present | PASS — contract test, syntax check, and production-profile lint passed |
 | KIF-ADM-02 | KIF-002, KIF-007 | Admin-access check/diff | Approved one-host check predicts only rollback baseline, group, membership, two k3s config settings, and conditional restart without mutation | PASS — recap ok=16, changed=6, unreachable=0, failed=0, skipped=13 |
-| KIF-ADM-03 | KIF-007 | Admin-access mutation and recovery | Approved run succeeds; new SSH session has group access; kubeconfig is root/group `0640`; kubectl, SSH, Tailscale, restart recovery, and second-run idempotence pass | PARTIAL — mutation ok=24/changed=6; fresh session includes k3s-admin; selected-user readability, node query, and all-namespace listing pass; idempotent rerun ok=28/changed=0/failed=0; recovery remains pending |
+| KIF-ADM-03 | KIF-007 | Admin-access mutation and recovery | Approved run succeeds; new SSH session has group access; kubeconfig is root/group `0640`; kubectl, SSH, Tailscale, reboot recovery, and second-run idempotence pass | PASS — mutation ok=24/changed=6; selected-user readability and fresh-session queries pass; idempotent rerun ok=28/changed=0/failed=0; reboot recovery passed in KIF-REB-02 |
 | KIF-ADM-04 | KIF-002, KIF-007 | Warning-free kubectl client contract | Explicit approval, diff, one-host limit, selected non-root exclusive group member, Bash/home/profile safety, user-scoped environment defaults, hidden profile diff, present/absent rollback, no server-config permission change, and no restart are enforced | PASS — 15 contract tests, syntax check, and production-profile lint passed |
 | KIF-ADM-05 | KIF-007 | Warning-free kubectl client runtime | Check/diff predicts only selected-user profile blocks; accepted run and fresh login remove server-config warnings from node/all-namespace queries; second run reports changed=0 | PASS — check recap ok=14/changed=1/failed=0 predicted two profile blocks; operator confirmed accepted run, expected client defaults, warning-free queries, and idempotent changed=0/failed=0 rerun |
 | KIF-REB-01 | KIF-002, KIF-007 | Single-node reboot recovery contract | Explicit approval, fallback-access confirmation, diff, one-host limit, preflight services/backup/access/Ready node, exactly one reboot, new boot ID, SSH return, post-reboot services/Ready node/access, no config mutation, and hidden sensitive facts are enforced | PASS — 15 contract tests, syntax check, and production-profile lint passed |
-| KIF-REB-02 | KIF-007 | Single-node reboot recovery runtime | Check/diff predicts exactly one reboot; accepted run returns through Tailscale SSH with a new boot ID, running k3s/Tailscale, one Ready node, and unchanged group-scoped kubeconfig access | NOT RUN — independent fallback confirmation and operator password/check execution pending |
+| KIF-REB-02 | KIF-007 | Single-node reboot recovery runtime | Check/diff predicts exactly one reboot; accepted run returns through Tailscale SSH with a new boot ID, running k3s/Tailscale, one Ready node, and unchanged group-scoped kubeconfig access | PASS — operator confirmed fallback; check ok=19/changed=1/unreachable=0/failed=0/skipped=7; reboot ok=26/changed=1/unreachable=0/failed=0/skipped=0; operator manually confirmed active services and warning-free node/all-namespace queries |
 
 ## Documentation and traceability
 
@@ -42,7 +42,7 @@ The separately approved one-reboot recovery verifier is implemented but not run.
 |---|---|---|---|---|
 | KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
 | KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, dependency bootstrap, admin access, and user-scoped client defaults are executed; the one-reboot verifier is approved but not run; no other host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, dependency bootstrap, admin access, user-scoped client defaults, and one-reboot recovery are executed; no other host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
 | KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings do not prove policy enforcement | PASS — requirements and manual QA remain explicit |
 | KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, and thirteen manual cases remain PENDING | PASS — counts and status assertions passed |
@@ -132,7 +132,7 @@ assert re.search(
     re.MULTILINE,
 )
 assert re.search(
-    r"^\| KIF-REB-02 .* \| NOT RUN —",
+    r"^\| KIF-REB-02 .* \| PASS —",
     (spec_dir / "testcases.md").read_text(),
     re.MULTILINE,
 )
@@ -141,7 +141,7 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "one-reboot recovery playbook approved/implemented but not run",
+    "admin/client/reboot recovery pass",
     "all nine exact Kubernetes",
     "executed group-scoped k3s",
 ]:
@@ -318,11 +318,42 @@ blocks. The operator confirmed the accepted execution, a fresh session with
 `K3S_CONFIG_FILE=/dev/null` and the approved `KUBECONFIG`, warning-free node and
 all-namespace queries, and a second-run result of `changed=0 failed=0`.
 
+The reboot validation used the approved local inventory and interactive become
+prompt; no password was recorded:
+
+```bash
+cd ansible
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/verify_k3s_reboot_recovery.yml \
+  --check --diff --limit crtxweb \
+  -e k3s_reboot_recovery_approved=true \
+  -e k3s_recovery_access_confirmed=true \
+  -e k3s_admin_user=paul \
+  --ask-become-pass
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/verify_k3s_reboot_recovery.yml \
+  --diff --limit crtxweb \
+  -e k3s_reboot_recovery_approved=true \
+  -e k3s_recovery_access_confirmed=true \
+  -e k3s_admin_user=paul \
+  --ask-become-pass
+```
+
+The operator manually confirmed independent physical or LAN fallback access before
+reboot testing. The approved reboot check predicted exactly one reboot and returned `ok=19 changed=1
+unreachable=0 failed=0 skipped=7`. The accepted run returned through the Tailscale
+inventory path with a changed boot ID, running k3s and tailscaled services, one Ready
+node, and preserved root:k3s-admin mode-0640 effective access at `ok=26 changed=1
+unreachable=0 failed=0 skipped=0`. The operator manually confirmed in a fresh
+session that both services were active and `kubectl get nodes` plus
+`kubectl get all -A` were warning-free.
+Replacement-host recovery remains pending and is not implied by this reboot proof.
+
 ## Future validation contract
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
-| KIF-FUT-01 | KIF-001, KIF-007, KIF-008, KIF-028 | Read-only Ansible discovery | Curated report proves actual k3s, storage, resource, and recovery indicators without mutation; human review passes | PARTIAL — host, datastore, capacity, and Kubernetes object indicators captured; recovery access and functional CNI/NetworkPolicy probes remain pending |
+| KIF-FUT-01 | KIF-001, KIF-007, KIF-008, KIF-028 | Read-only Ansible discovery | Curated report proves actual k3s, storage, resource, and recovery indicators without mutation; human review passes | PARTIAL — host, datastore, capacity, reboot recovery, and Kubernetes object indicators captured; replacement-host recovery and functional CNI/NetworkPolicy probes remain pending |
 | KIF-FUT-02 | KIF-002, KIF-003, KIF-007 | Host baseline safety/idempotence | Syntax/lint/check/diff pass before approval; two approved host-baseline runs converge and preserve recovery access | NOT RUN — runtime gate remains pending |
 | KIF-FUT-03 | KIF-005, KIF-006, KIF-013, KIF-028 | OpenTofu state and plans | Format/validate pass; protected state recovers; reviewed plan has no secrets or unapproved destroy | NOT RUN — runtime gate remains pending |
 | KIF-FUT-04 | KIF-005, KIF-009, KIF-022, KIF-023 | Render and GitOps reconciliation | Helm/Kustomize/schema checks pass; Argo reconciles private desired state and restores controlled drift | NOT RUN — runtime gate remains pending |

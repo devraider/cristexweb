@@ -7,11 +7,12 @@ the executed Kubernetes-module dependency bootstrap, and executed group-scoped
 k3s administrator access under `ansible/`; effective-user readability,
 fresh-session cluster listing, and idempotence passed. The executed user-scoped
 kubectl client-defaults playbook also passed warning-free fresh-session queries and
-idempotence. The approved one-reboot recovery playbook is implemented but not run.
-They are not a general host
+idempotence. The approved one-reboot recovery playbook passed with SSH/Tailscale
+return, running services, a new boot ID, a Ready node, and preserved access. They
+are not a general host
 baseline, hosted runtime, or IaC reconciler.
 Python is limited to offline contract tests. No hosted orchestration,
-DNS, tunnels, GitOps, secrets, databases, backups, or recovery are implemented.
+DNS, tunnels, GitOps, secrets, databases, backups, or replacement-host recovery are implemented.
 CristexHub local Compose assets remain an external application-repository concern.
 
 ## Known facts
@@ -20,13 +21,14 @@ A read-only host inspection observed a Debian 13 single-node k3s server with abo
 16 GiB RAM, an NVMe system disk, a separate unmounted 1 TB NTFS disk, and Tailscale
 installed. k3s is active. Approved elevated discovery has reverified the datastore,
 node, Traefik, local-path StorageClass, and curated kube-system workload indicators
-through the root-only kubeconfig. CNI behavior, NetworkPolicy enforcement, and
-recovery access still require separate approved verification.
+through the protected group-scoped kubeconfig. Reboot recovery and independent fallback access
+are verified; CNI behavior, NetworkPolicy enforcement, and replacement-host recovery
+still require separate approved verification.
 
 The external CristexHub application repository publishes backend, frontend, and
-code-runner images to GHCR. This repository implements Ansible discovery, the
-reviewed dependency bootstrap, and the bounded k3s administrator access playbook;
-it still has no Kubernetes desired state, Helm, Kustomize, OpenTofu, GitHub Actions,
+code-runner images to GHCR. This repository implements the five bounded Ansible
+workflows listed above; it still has no Kubernetes desired state, Helm, Kustomize,
+OpenTofu, GitHub Actions,
 or general host baseline. Debian plus Ansible is the
 selected host-configuration owner.
 
@@ -200,7 +202,8 @@ verification must meet the declared RPO/RTO before PROD.
   `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
   dependencies, and post-install imports pass. The
   elevated report confirms the datastore and nine available exact Kubernetes
-  queries. CNI behavior, NetworkPolicy enforcement, and recovery remain unproven.
+  queries. Reboot recovery passed; CNI behavior, NetworkPolicy enforcement, and
+  replacement-host recovery remain unproven.
 - Gate: human-reviewed local report and decision register update.
 - Stop: a task needs mutation, secret output, or elevated access beyond the two
   approved dependency packages and discovery scope.

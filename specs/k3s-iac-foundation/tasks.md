@@ -45,11 +45,11 @@
 - [ ] Separately approve and run bounded functional probes for CNI behavior and
   NetworkPolicy enforcement; do not treat object listings as enforcement evidence
   (`KIF-008`, `KIF-021`).
-- [ ] Confirm recovery access and record current configuration backups (`KIF-007`,
-  `KIF-028`).
-- [ ] Resolve the remaining CNI, enforcement, recovery, and storage decisions;
-  permit no mutation beyond the executed discovery dependencies and the approved
-  group-scoped admin-access change (`KIF-002`, `KIF-003`).
+- [x] Confirm independent recovery access and the protected current configuration
+  rollback baseline (`KIF-007`, `KIF-028`).
+- [ ] Resolve the remaining CNI, enforcement, replacement-recovery, and storage
+  decisions; permit no mutation beyond the explicitly approved bounded Ansible
+  changes (`KIF-002`, `KIF-003`).
 
 Approval gate: operator approves the human-reviewed inventory and first general
 host-baseline/next-stage mutation plan.
@@ -85,7 +85,7 @@ host-baseline/next-stage mutation plan.
 - [x] Implement and offline-validate the approved one-host reboot recovery playbook
   with pre/post service, boot-ID, Ready-node, rollback-baseline, and effective-user
   kubeconfig assertions (`KIF-007`).
-- [ ] Confirm independent console or LAN recovery access, run check/diff, review the
+- [x] Confirm independent console or LAN recovery access, run check/diff, review the
   single-reboot prediction, then execute and verify SSH/Tailscale/k3s recovery
   (`KIF-007`).
 

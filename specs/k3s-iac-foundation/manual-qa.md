@@ -12,10 +12,12 @@ non-elevated and elevated Ansible runs produced reviewed host and cluster-indica
 reports. A
 separately approved two-package dependency bootstrap completed and all nine exact
 Kubernetes queries now pass. Persistent group-scoped kubectl access and the
-all-namespace listing and warning-free client defaults pass, but recovery remains
-pending. No functional CNI/NetworkPolicy probe, deployment, recovery-access proof,
-or complete manual runtime validation occurred. These results do not satisfy the
-remaining manual cases.
+all-namespace listing, warning-free client defaults, and the single-node reboot
+recovery pass. The operator manually confirmed independent fallback access, active
+services, and warning-free queries after reboot. Replacement-host recovery remains
+pending. No functional
+CNI/NetworkPolicy probe, deployment, replacement recovery proof, or complete manual
+runtime validation occurred. These results do not satisfy the remaining manual cases.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|
