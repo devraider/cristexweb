@@ -5,8 +5,10 @@
 The repository's bounded Ansible implementation contains discovery, the executed
 two-package module bootstrap, and an executed group-scoped k3s administrator
 access playbook under [`ansible/`](ansible/). Effective-user readability,
-fresh-session node access, and second-run idempotence have passed; broader cluster
-listing and recovery verification remain pending. Discovery gathers
+fresh-session cluster listing, and second-run idempotence have passed. An approved
+user-scoped client-defaults playbook will remove k3s multicall warnings without
+exposing server configuration; its runtime and recovery verification remain pending.
+Discovery gathers
 curated host indicators with built-ins and exact Kubernetes kinds with
 `kubernetes.core.k8s_info`. No general host baseline or deployment exists. Python
 is used only for offline contract tests, not infrastructure automation.

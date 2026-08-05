@@ -11,9 +11,11 @@ All cases remain **PENDING** because no hosted runtime exists. Separate approved
 non-elevated and elevated Ansible runs produced reviewed host and cluster-indicator
 reports. A
 separately approved two-package dependency bootstrap completed and all nine exact
-Kubernetes queries now pass. No functional CNI/NetworkPolicy probe, deployment,
-recovery-access proof, or complete manual runtime validation occurred. These
-inventory results do not satisfy the manual cases.
+Kubernetes queries now pass. Persistent group-scoped kubectl access and the
+all-namespace listing pass, but warning-free client defaults and recovery remain
+pending. No functional CNI/NetworkPolicy probe, deployment, recovery-access proof,
+or complete manual runtime validation occurred. These results do not satisfy the
+remaining manual cases.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|
@@ -29,6 +31,7 @@ inventory results do not satisfy the manual cases.
 | MQA-10 | KIF-007, KIF-028–KIF-030 | Reboot and replacement recovery | Host reboot preserves access/workloads; documented replacement-host recovery restores desired state and data | PENDING |
 | MQA-11 | KIF-019, KIF-029 | Single-node pressure | Database and application limits preserve control-plane headroom; alerts arrive for disk/resource/backup failure | PENDING |
 | MQA-12 | KIF-003, KIF-030 | Rollback safety | Git, image, route, secret, and host rollback avoid namespace/PVC deletion and blind external destroy | PENDING |
+| MQA-13 | KIF-007 | Warning-free kubectl client | A genuinely fresh selected-user session inherits client-only defaults; node and all-namespace queries succeed without server-config warnings; root-only config remains protected; rollback removes only managed profile blocks | PENDING |
 
 ## Public exposure checklist
 

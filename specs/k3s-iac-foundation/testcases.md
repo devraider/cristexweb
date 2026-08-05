@@ -9,7 +9,8 @@ SSH, become, the inventory host, Kubernetes API, a provider, or report generatio
 host. Separately approved non-elevated and elevated runtime attempts are recorded
 below, followed by the approved dependency installation and successful elevated
 rerun. The admin-access check, mutation, effective-user readability, fresh-session
-node query, and idempotence succeeded; broader listing and recovery remain pending.
+all-namespace query, and idempotence succeeded. The proven warning-suppression
+environment is implemented as an approved user-scoped Ansible playbook but not run.
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
@@ -28,7 +29,9 @@ node query, and idempotence succeeded; broader listing and recovery remain pendi
 | KIF-DEP-02 | KIF-002, KIF-007 | Dependency bootstrap execution | Check/diff package plan is reviewed before the approved actual installation; subsequent import probe and elevated discovery pass | PASS — incomplete first plan rejected; revised plan reviewed 37 new, 0 upgraded/removed; installation, package verification, imports, and elevated discovery passed |
 | KIF-ADM-01 | KIF-002, KIF-007 | Group-scoped admin access contract | Explicit approval and one-host limit gate an existing nonzero-UID account; exact dedicated group rejects GID 0, numeric aliases, and unexpected members; check-safe creation, no home creation, persistent `0640` settings, hidden diff, safe rollback baseline, conditional restart, polling, metadata assertions, and effective readability as the selected user are present | PASS — contract test, syntax check, and production-profile lint passed |
 | KIF-ADM-02 | KIF-002, KIF-007 | Admin-access check/diff | Approved one-host check predicts only rollback baseline, group, membership, two k3s config settings, and conditional restart without mutation | PASS — recap ok=16, changed=6, unreachable=0, failed=0, skipped=13 |
-| KIF-ADM-03 | KIF-007 | Admin-access mutation and recovery | Approved run succeeds; new SSH session has group access; kubeconfig is root/group `0640`; kubectl, SSH, Tailscale, restart recovery, and second-run idempotence pass | PARTIAL — mutation ok=24/changed=6; fresh session includes k3s-admin; selected-user readability and `kubectl get nodes` pass; idempotent rerun ok=28/changed=0/failed=0; all-namespace listing and recovery remain pending |
+| KIF-ADM-03 | KIF-007 | Admin-access mutation and recovery | Approved run succeeds; new SSH session has group access; kubeconfig is root/group `0640`; kubectl, SSH, Tailscale, restart recovery, and second-run idempotence pass | PARTIAL — mutation ok=24/changed=6; fresh session includes k3s-admin; selected-user readability, node query, and all-namespace listing pass; idempotent rerun ok=28/changed=0/failed=0; recovery remains pending |
+| KIF-ADM-04 | KIF-002, KIF-007 | Warning-free kubectl client contract | Explicit approval, diff, one-host limit, selected non-root exclusive group member, Bash/home/profile safety, user-scoped environment defaults, hidden profile diff, present/absent rollback, no server-config permission change, and no restart are enforced | PASS — 14 contract tests, syntax check, and production-profile lint passed |
+| KIF-ADM-05 | KIF-007 | Warning-free kubectl client runtime | Check/diff predicts only selected-user profile blocks; accepted run and fresh login remove server-config warnings from node/all-namespace queries; second run reports changed=0 | NOT RUN — operator password/check execution pending |
 
 ## Documentation and traceability
 
@@ -36,10 +39,10 @@ node query, and idempotence succeeded; broader listing and recovery remain pendi
 |---|---|---|---|---|
 | KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
 | KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, the executed dependency bootstrap, and executed admin-access mutation are the only bounded Ansible implementations; effective-user, fresh-session node query, and idempotence passed while broader listing and recovery remain pending; no general host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, executed dependency/admin access, and the approved-but-not-run user-scoped client-defaults playbook are the only bounded Ansible implementations; access and listing passed while warning-free client and recovery remain pending; no general host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
 | KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings do not prove policy enforcement | PASS — requirements and manual QA remain explicit |
-| KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
+| KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, and thirteen manual cases remain PENDING | PASS — counts and status assertions passed |
 
 All requirements KIF-001 through KIF-030 remain represented by the implementation,
 documentation, manual, or future-runtime cases in this file. Offline implementation
@@ -119,13 +122,18 @@ found_ids = set(re.findall(r"KIF-\d{3}", (spec_dir / "testcases.md").read_text()
 assert found_ids == expected_ids, sorted(expected_ids - found_ids)
 assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| NOT RUN —", (spec_dir / "testcases.md").read_text(), re.MULTILINE)) == 11
 assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| PARTIAL —", (spec_dir / "testcases.md").read_text(), re.MULTILINE)) == 1
-assert len(re.findall(r"^\| MQA-\d{2} .* \| PENDING \|$", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) >= 12
+assert len(re.findall(r"^\| MQA-\d{2} .* \| PENDING \|$", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) == 13
+assert re.search(
+    r"^\| KIF-ADM-05 .* \| NOT RUN —",
+    (spec_dir / "testcases.md").read_text(),
+    re.MULTILINE,
+)
 
 status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "idempotence ok=28/changed=0",
+    "warning-free client playbook approved/implemented but not run",
     "all nine exact Kubernetes",
     "executed group-scoped k3s",
 ]:
@@ -150,7 +158,7 @@ for path in text_paths:
     for line_number, line in enumerate(path.read_text().splitlines(), 1):
         assert line == line.rstrip(), (path, line_number)
 
-print("PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 12 manual cases, status/implementation boundary, and bounded source scan")
+print("PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 13 manual cases, status/implementation boundary, and bounded source scan")
 PY
 
 git check-ignore -q --no-index inventory.local.ansible.json
@@ -170,9 +178,9 @@ printf '%s\n' 'PASS: ignore policy, git diff check, and no-staged-files check'
 Actual result (exit 0 on 2026-08-05):
 
 ```text
-Ran 13 tests
+Ran 14 tests
 OK
-PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 12 manual cases, status/implementation boundary, and bounded source scan
+PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 13 manual cases, status/implementation boundary, and bounded source scan
 PASS: ignore policy, git diff check, and no-staged-files check
 ```
 
@@ -189,6 +197,7 @@ uv run ansible-galaxy collection install \
 uv run ansible-playbook playbooks/discover.yml --syntax-check
 uv run ansible-playbook playbooks/bootstrap_dependencies.yml --syntax-check
 uv run ansible-playbook playbooks/configure_k3s_admin_access.yml --syntax-check
+uv run ansible-playbook playbooks/configure_k3s_kubectl_client.yml --syntax-check
 uv run ansible-lint playbooks roles/read_only_discovery
 ```
 
@@ -199,7 +208,8 @@ kubernetes.core:6.1.0 was installed successfully to ansible/.ansible/collections
 playbook: playbooks/discover.yml
 playbook: playbooks/bootstrap_dependencies.yml
 playbook: playbooks/configure_k3s_admin_access.yml
-Passed: 0 failure(s), 0 warning(s) in 10 files processed; production profile
+playbook: playbooks/configure_k3s_kubectl_client.yml
+Passed: 0 failure(s), 0 warning(s) in 11 files processed of 12 encountered; production profile
 ```
 
 The separately approved non-elevated runtime used an ignored operator-owned local
@@ -270,6 +280,29 @@ kube-system Deployments, 1 kube-system DaemonSet, 2 HelmCharts, and 0
 HelmChartConfigs. The local-path StorageClass, Traefik ingress/chart indicators, and
 CoreDNS deployment are present. Object listing still does not prove CNI behavior or
 NetworkPolicy enforcement, so those functional gates remain open.
+
+The approved admin-access check predicted the rollback baseline, dedicated group,
+membership, two persistent settings, and conditional restart without mutation:
+`ok=16 changed=6 unreachable=0 failed=0 skipped=13`. The accepted mutation returned
+`ok=24 changed=6 unreachable=0 failed=0 skipped=5`; the kubeconfig became
+`root:k3s-admin` mode `0640`. A fresh login included `k3s-admin`, `kubectl get nodes`
+reported the single Ready control-plane node, and `kubectl get all -A` successfully
+listed the seven kube-system pods plus Services, DaemonSet, Deployments, ReplicaSets,
+and completed Traefik jobs. The k3s multicall client emitted three permission
+warnings for its separate root-only server config while returning successful data.
+The idempotent Ansible rerun verified effective readability as the selected user and
+returned `ok=28 changed=0 unreachable=0 failed=0 skipped=2`. Finally, the read-only
+probe below returned the Ready node with no server-config warning, establishing the
+client-default mechanism before implementation:
+
+```bash
+K3S_CONFIG_FILE=/dev/null \
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+kubectl get nodes
+```
+
+No password, kubeconfig content, private address, or server-config content was
+recorded. The warning-free client-defaults playbook has not yet accessed the host.
 
 ## Future validation contract
 

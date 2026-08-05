@@ -2,10 +2,11 @@
 
 ## Status
 
-This target design has three bounded Ansible implementations: read-only discovery,
+This target design has four bounded Ansible implementations: read-only discovery,
 the executed Kubernetes-module dependency bootstrap, and executed group-scoped
 k3s administrator access under `ansible/`; effective-user readability,
-fresh-session node access, and idempotence passed, while broader cluster listing
+fresh-session cluster listing, and idempotence passed. The approved user-scoped
+kubectl client-defaults playbook is implemented but not run; warning-free client
 and recovery verification remain pending. They are not a general host
 baseline, hosted runtime, or IaC reconciler.
 Python is limited to offline contract tests. No hosted orchestration,

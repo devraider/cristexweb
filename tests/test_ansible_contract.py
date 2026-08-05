@@ -36,6 +36,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "playbooks/discover.yml",
             "playbooks/bootstrap_dependencies.yml",
             "playbooks/configure_k3s_admin_access.yml",
+            "playbooks/configure_k3s_kubectl_client.yml",
             "roles/read_only_discovery/defaults/main.yml",
             "roles/read_only_discovery/tasks/main.yml",
             "roles/read_only_discovery/tasks/host.yml",
@@ -199,6 +200,88 @@ class AnsibleLayoutTests(unittest.TestCase):
             "ansible.builtin.command:",
             "k3s_admin_group: root",
             "k3s_admin_group: sudo",
+        ):
+            self.assertNotIn(forbidden, playbook)
+
+    def test_k3s_kubectl_client_defaults_are_user_scoped_and_approved(self) -> None:
+        playbook = (ANSIBLE / "playbooks/configure_k3s_kubectl_client.yml").read_text()
+        for required in (
+            "k3s_kubectl_client_approved: false",
+            "k3s_kubectl_client_approved | bool",
+            "ansible_limit",
+            "ansible_play_hosts_all",
+            "ansible_diff_mode",
+            "k3s_admin_user is defined",
+            "k3s_admin_group: k3s-admin",
+            "k3s_kubectl_client_state in ['present', 'absent']",
+            "(k3s_client_passwd[1] | int) != 0",
+            "k3s_client_passwd[5] in ['/bin/bash', '/usr/bin/bash']",
+            "difference([k3s_admin_user])",
+            "Reject numeric aliases of the dedicated group",
+            "item.value[1] | string",
+            "Reject unexpected primary members of the dedicated group",
+            "item.value[2] | string",
+            "not (k3s_client_home_state.stat.islnk | default(false))",
+            ".bash_profile",
+            ".bash_login",
+            ".profile",
+            ".bashrc",
+            "ansible.builtin.blockinfile:",
+            'export K3S_CONFIG_FILE="${K3S_CONFIG_FILE:-/dev/null}"',
+            'export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"',
+            "Add the selected user's k3s kubectl client defaults",
+            "Remove k3s kubectl client defaults from every supported profile",
+            "item.stat.exists | default(false)",
+            "become_user: \"{{ k3s_admin_user }}\"",
+            "diff: false",
+            "no_log: true",
+        ):
+            self.assertIn(required, playbook)
+        self.assertLess(
+            playbook.index("Reject numeric aliases of the dedicated group"),
+            playbook.index("Record the approved user home"),
+        )
+        self.assertLess(
+            playbook.index("Reject unexpected primary members of the dedicated group"),
+            playbook.index("Record the approved user home"),
+        )
+        self.assertLess(
+            playbook.index("Require a safe existing user home"),
+            playbook.index("Add the selected user's k3s kubectl client defaults"),
+        )
+        self.assertIn(
+            '- "{{ k3s_client_home }}/.bash_profile"\n'
+            '        - "{{ k3s_client_home }}/.bash_login"\n'
+            '        - "{{ k3s_client_home }}/.profile"\n'
+            '        - "{{ k3s_client_home }}/.bashrc"',
+            playbook,
+        )
+        self.assertNotIn('path: "{{ k3s_client_home }}/{{ item }}"', playbook)
+        present_task = re.search(
+            r"- name: Add the selected user's k3s kubectl client defaults.*?(?=\n    - name: Remove)",
+            playbook,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(present_task)
+        self.assertIn('path: "{{ item.item }}"', present_task.group())
+        self.assertIn("loop: \"{{ k3s_client_profile_states.results }}\"", present_task.group())
+        self.assertIn("item.item in [k3s_client_login_profile, k3s_client_home ~ '/.bashrc']", present_task.group())
+        absent_task = playbook[playbook.index("- name: Remove k3s kubectl client defaults") :]
+        self.assertIn('path: "{{ item.item }}"', absent_task)
+        self.assertIn("loop: \"{{ k3s_client_profile_states.results }}\"", absent_task)
+        self.assertIn("state: absent", absent_task)
+        self.assertIn("item.stat.exists | default(false)", absent_task)
+        self.assertNotIn("k3s_client_login_profile", absent_task)
+        self.assertEqual(2, playbook.count("ansible.builtin.blockinfile:"))
+        for forbidden in (
+            "name: paul",
+            "/home/paul",
+            "/etc/rancher/k3s/config.yaml",
+            "ansible.builtin.shell:",
+            "ansible.builtin.command:",
+            "ansible.builtin.script:",
+            "ansible.builtin.service:",
+            "state: restarted",
         ):
             self.assertNotIn(forbidden, playbook)
 

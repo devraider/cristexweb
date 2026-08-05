@@ -1,0 +1,198 @@
+---
+- name: Configure approved warning-free k3s kubectl client defaults
+  hosts: k3s_servers
+  gather_facts: false
+  become: true
+  vars:
+    k3s_kubectl_client_approved: false
+    k3s_kubectl_client_state: present
+    k3s_admin_group: k3s-admin
+
+  tasks:
+    - name: Require the k3s kubectl client approval contract
+      ansible.builtin.assert:
+        that:
+          - k3s_kubectl_client_approved | bool
+          - ansible_limit is defined
+          - ansible_limit | length > 0
+          - ansible_play_hosts_all | length == 1
+          - ansible_diff_mode
+          - k3s_admin_user is defined
+          - k3s_admin_user | length > 0
+          - k3s_admin_group == 'k3s-admin'
+          - k3s_kubectl_client_state in ['present', 'absent']
+        fail_msg: >-
+          This playbook requires explicit approval, --diff, an explicit one-host
+          limit, a selected administrator account, and present/absent state.
+      changed_when: false
+
+    - name: Read local account metadata without exposing it
+      ansible.builtin.getent:
+        database: passwd
+      changed_when: false
+      no_log: true
+
+    - name: Read local group metadata without exposing it
+      ansible.builtin.getent:
+        database: group
+      changed_when: false
+      no_log: true
+
+    - name: Derive the selected client account paths and group
+      ansible.builtin.set_fact:
+        k3s_client_passwd: "{{ ansible_facts.getent_passwd.get(k3s_admin_user, []) }}"
+        k3s_client_group: "{{ ansible_facts.getent_group.get(k3s_admin_group, []) }}"
+      changed_when: false
+      no_log: true
+
+    - name: Require the approved Bash account and supplementary membership
+      ansible.builtin.assert:
+        that:
+          - k3s_client_passwd | length >= 6
+          - (k3s_client_passwd[1] | int) != 0
+          - k3s_client_passwd[4] is match('^/[^\n]+$')
+          - k3s_client_passwd[4] != '/'
+          - k3s_client_passwd[5] in ['/bin/bash', '/usr/bin/bash']
+          - k3s_client_group | length >= 3
+          - (k3s_client_group[1] | int) != 0
+          - k3s_admin_user in k3s_client_group[2].split(',')
+          - >-
+            (k3s_client_group[2].split(',') | reject('equalto', '') |
+             difference([k3s_admin_user]) | length) == 0
+        fail_msg: >-
+          Refusing to configure client defaults for an absent/root/non-Bash
+          account, unsafe home, or non-exclusive k3s-admin membership.
+      changed_when: false
+
+    - name: Reject numeric aliases of the dedicated group
+      ansible.builtin.assert:
+        that:
+          - >-
+            item.key == k3s_admin_group or
+            (item.value[1] | string) != (k3s_client_group[1] | string)
+        fail_msg: >-
+          Another group shares the k3s-admin numeric GID; refusing to configure
+          cluster-admin client defaults.
+      loop: "{{ ansible_facts.getent_group | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      changed_when: false
+      no_log: true
+
+    - name: Reject unexpected primary members of the dedicated group
+      ansible.builtin.assert:
+        that:
+          - >-
+            (item.value[2] | string) != (k3s_client_group[1] | string) or
+            item.key == k3s_admin_user
+        fail_msg: >-
+          The k3s-admin numeric GID is a primary group for an unexpected account;
+          refusing to configure cluster-admin client defaults.
+      loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      changed_when: false
+      no_log: true
+
+    - name: Record the approved user home
+      ansible.builtin.set_fact:
+        k3s_client_home: "{{ k3s_client_passwd[4] }}"
+      changed_when: false
+      no_log: true
+
+    - name: Inspect the approved user home
+      ansible.builtin.stat:
+        path: "{{ k3s_client_home }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+      register: k3s_client_home_state
+      no_log: true
+
+    - name: Require a safe existing user home
+      ansible.builtin.assert:
+        that:
+          - k3s_client_home_state.stat.exists | default(false)
+          - k3s_client_home_state.stat.isdir | default(false)
+          - not (k3s_client_home_state.stat.islnk | default(false))
+          - k3s_client_home_state.stat.pw_name == k3s_admin_user
+        fail_msg: "Refusing to modify a missing, symlinked, or foreign-owned home."
+      changed_when: false
+
+    - name: Inspect every supported Bash profile path
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "{{ k3s_client_home }}/.bash_profile"
+        - "{{ k3s_client_home }}/.bash_login"
+        - "{{ k3s_client_home }}/.profile"
+        - "{{ k3s_client_home }}/.bashrc"
+      register: k3s_client_profile_states
+      no_log: true
+
+    - name: Select the Bash login profile
+      ansible.builtin.set_fact:
+        k3s_client_login_profile: >-
+          {{ k3s_client_home ~ '/.bash_profile'
+             if (k3s_client_profile_states.results[0].stat.exists | default(false))
+             else (k3s_client_home ~ '/.bash_login'
+             if (k3s_client_profile_states.results[1].stat.exists | default(false))
+             else k3s_client_home ~ '/.profile') }}
+      changed_when: false
+      no_log: true
+
+    - name: Refuse unsafe existing Bash profile paths
+      ansible.builtin.assert:
+        that:
+          - >-
+            not (item.stat.exists | default(false)) or
+            ((item.stat.isreg | default(false)) and
+             not (item.stat.islnk | default(false)) and
+             item.stat.pw_name == k3s_admin_user)
+        fail_msg: "Refusing to modify a symlinked, non-regular, or foreign-owned profile."
+      loop: "{{ k3s_client_profile_states.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      changed_when: false
+      no_log: true
+
+    - name: Add the selected user's k3s kubectl client defaults
+      ansible.builtin.blockinfile:
+        path: "{{ item.item }}"
+        create: true
+        state: present
+        marker: "# {mark} ANSIBLE MANAGED K3S KUBECTL CLIENT DEFAULTS"
+        block: |
+          export K3S_CONFIG_FILE="${K3S_CONFIG_FILE:-/dev/null}"
+          export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+        mode: "{{ item.stat.mode if (item.stat.exists | default(false)) else '0600' }}"
+      loop: "{{ k3s_client_profile_states.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      become: true
+      become_user: "{{ k3s_admin_user }}"
+      diff: false
+      no_log: true
+      when:
+        - k3s_kubectl_client_state == 'present'
+        - item.item in [k3s_client_login_profile, k3s_client_home ~ '/.bashrc']
+
+    - name: Remove k3s kubectl client defaults from every supported profile
+      ansible.builtin.blockinfile:
+        path: "{{ item.item }}"
+        state: absent
+        marker: "# {mark} ANSIBLE MANAGED K3S KUBECTL CLIENT DEFAULTS"
+        mode: "{{ item.stat.mode }}"
+      loop: "{{ k3s_client_profile_states.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      become: true
+      become_user: "{{ k3s_admin_user }}"
+      diff: false
+      no_log: true
+      when:
+        - k3s_kubectl_client_state == 'absent'
+        - item.stat.exists | default(false)

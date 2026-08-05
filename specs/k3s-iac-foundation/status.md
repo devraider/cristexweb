@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: admin mutation passed; effective-user readability and node query pass; idempotence ok=28/changed=0; broader listing/recovery pending
+build: admin access and all-namespace listing pass; 14 client/access contracts and lint pass; warning-free client playbook approved/implemented but not run
 date: 2026-08-05
 deploy_required_after_acceptance: yes
 
@@ -20,8 +20,11 @@ note: |
   and the kubeconfig is root:k3s-admin mode 0640. A genuinely fresh session includes
   k3s-admin, `kubectl get nodes` reports the single Ready control-plane node, Ansible
   verifies readability while running as the selected account, and the second run is
-  idempotent at ok=28/changed=0/failed=0. The broader all-namespace listing and
-  recovery checks remain pending. CNI behavior, NetworkPolicy enforcement, recovery access, and
+  idempotent at ok=28/changed=0/failed=0. The all-namespace listing succeeds, but
+  the k3s multicall client emits root-only server-config warnings. The approved
+  user-scoped client-defaults playbook is implemented but still requires check/diff
+  and execution; warning-free fresh-session and recovery checks remain pending. CNI
+  behavior, NetworkPolicy enforcement, recovery access, and
   later platform work remain pending. No external-resource, secret, data, or
   deployment operation was performed.
   These Kubernetes object listings do not prove CNI behavior or NetworkPolicy

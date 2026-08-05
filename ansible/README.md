@@ -124,6 +124,50 @@ sudo systemctl restart k3s
 After k3s recovers, removal of the user membership or dedicated group requires a
 separately reviewed Ansible rollback; do not delete groups blindly.
 
+## Warning-free k3s kubectl client
+
+The k3s multicall `kubectl` reads the root-only server configuration before using
+its separate kubeconfig, which causes harmless permission warnings for non-root
+administrators. `configure_k3s_kubectl_client.yml` persists the proven client-only
+defaults in the selected Bash user's active login profile and `.bashrc`:
+
+```text
+K3S_CONFIG_FILE=/dev/null
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+```
+
+Existing environment overrides remain authoritative. The playbook derives the home
+and active login profile from account metadata, rejects unsafe profile paths, never
+reads profile content into output, keeps `/etc/rancher/k3s/config.yaml` root-only,
+and does not restart k3s.
+
+Review the one-host plan:
+
+```bash
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/configure_k3s_kubectl_client.yml \
+  --check --diff --limit crtxweb \
+  -e k3s_kubectl_client_approved=true \
+  -e k3s_admin_user=paul \
+  --ask-become-pass
+```
+
+After accepting the plan, remove only `--check`. Reconnect without SSH multiplexing
+and confirm `kubectl get nodes` and `kubectl get all -A` succeed with no server-config
+warning. A second run must report `changed=0`.
+
+Rollback removes only the Ansible-managed profile blocks:
+
+```bash
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/configure_k3s_kubectl_client.yml \
+  --diff --limit crtxweb \
+  -e k3s_kubectl_client_approved=true \
+  -e k3s_kubectl_client_state=absent \
+  -e k3s_admin_user=paul \
+  --ask-become-pass
+```
+
 ## Mandatory invocation contract
 
 Review first; then request separate approval before any host access. The playbook

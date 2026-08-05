@@ -75,8 +75,14 @@ host-baseline/next-stage mutation plan.
   reconnect without a stale SSH multiplexed session, verify group membership, and
   run `kubectl get nodes` successfully (`KIF-007`).
 - [x] Prove second-run Ansible idempotence with `changed=0` (`KIF-007`).
-- [ ] Verify `kubectl get all -A`, reboot recovery, SSH, and Tailscale access
+- [x] Verify `kubectl get all -A` through the persistent group-scoped access
   (`KIF-007`).
+- [x] Implement and offline-validate approved user-scoped k3s kubectl client defaults
+  without exposing the root-only server configuration or restarting k3s (`KIF-007`).
+- [ ] Run the client-defaults playbook in check/diff mode, execute the accepted plan,
+  reconnect, prove warning-free node/all-namespace queries, and require second-run
+  `changed=0` (`KIF-007`).
+- [ ] Verify reboot recovery, SSH, and Tailscale access (`KIF-007`).
 
 Stop gate: stop on access loss, unexpected network/package changes, or ambiguous
 disk state. Restore preserved configuration before continuing.

@@ -4,7 +4,7 @@ This root `AGENTS.md` is authoritative for the entire repository.
 
 ## Current boundary
 
-- Operational implementation is limited to read-only Ansible discovery, the executed two-package dependency bootstrap, and the executed group-scoped k3s administrator access playbook under `ansible/`. Its check, mutation, effective-user readability, fresh-session node query, and idempotence checks succeeded; broader cluster listing and recovery verification remain pending. No general host baseline or deployment exists.
+- Operational implementation is limited to read-only Ansible discovery, the executed two-package dependency bootstrap, the executed group-scoped k3s administrator access playbook, and the approved-but-not-run user-scoped kubectl client-defaults playbook under `ansible/`. Admin access, effective-user readability, fresh-session cluster listing, and idempotence succeeded; warning-free client and recovery verification remain pending. No general host baseline or deployment exists.
 - Python exists only in offline contract tests; it is not operational infrastructure automation.
 - This repository otherwise owns design documentation for future host configuration, external-resource IaC, GitOps desired state, and recovery runbooks.
 - No hosted runtime, general Ansible host baseline, OpenTofu configuration, Kubernetes manifest, Helm chart, or workflow exists here yet.
