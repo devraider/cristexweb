@@ -3,10 +3,10 @@
 ## Status
 
 The repository's operational implementation is a small Ansible-first discovery
-playbook plus a separately approved one-package dependency bootstrap under
+playbook plus a separately approved two-package dependency bootstrap under
 [`ansible/`](ansible/). Discovery gathers curated host indicators with built-ins and
 exact Kubernetes kinds with `kubernetes.core.k8s_info`. The bootstrap may install
-only `python3-kubernetes`; no general host baseline or deployment exists. Python is
+only `python3-kubernetes` and `python3-jsonpatch`; no general host baseline or deployment exists. Python is
 used only for offline contract tests, not infrastructure automation.
 
 One approved non-elevated check/diff run produced the ignored local report. An

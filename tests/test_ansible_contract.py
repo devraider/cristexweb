@@ -71,13 +71,20 @@ class AnsibleLayoutTests(unittest.TestCase):
             "ansible_limit",
             "ansible_play_hosts_all",
             "ansible.builtin.apt:",
-            "name: python3-kubernetes",
+            "- python3-jsonpatch",
+            "- python3-kubernetes",
             "state: present",
             "update_cache: false",
         ):
             self.assertIn(required, playbook)
         self.assertEqual(1, playbook.count("ansible.builtin.apt:"))
-        self.assertEqual(1, playbook.count("name: python3-kubernetes"))
+        package_block = re.search(
+            r"ansible\.builtin\.apt:\n\s+name:\n(?P<items>(?:\s+- [a-z0-9-]+\n)+)\s+state: present",
+            playbook,
+        )
+        self.assertIsNotNone(package_block)
+        packages = re.findall(r"^\s+- ([a-z0-9-]+)$", package_block.group("items"), re.MULTILINE)
+        self.assertEqual(["python3-jsonpatch", "python3-kubernetes"], packages)
         for forbidden in (
             "ansible.builtin.shell:",
             "ansible.builtin.command:",

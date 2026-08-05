@@ -13,7 +13,8 @@ note: |
   host-only report. An approved elevated attempt confirmed the datastore, but all
   nine Kubernetes queries were unavailable; a read-only import probe confirmed the
   remote kubernetes, yaml, and jsonpatch modules are absent. Installing only
-  `python3-kubernetes` is approved and implemented as a bounded playbook but has not
-  run. No external-resource, secret, data, or deployment operation was performed.
+  `python3-kubernetes` and `python3-jsonpatch` are approved and implemented as a
+  bounded playbook but have not run. No external-resource, secret, data, or
+  deployment operation was performed.
   Kubernetes object listings, if later run, will not prove CNI behavior or
   NetworkPolicy enforcement.

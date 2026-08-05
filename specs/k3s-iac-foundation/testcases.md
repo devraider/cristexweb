@@ -22,8 +22,8 @@ below; the dependency mutation remains unexecuted.
 | KIF-ANS-09 | KIF-006, KIF-007 | Reproducible controller environment | `pyproject.toml` and `uv.lock` pin the ignored project `.venv`; Galaxy installs the pinned collection only into the ignored local Ansible path | PASS — `uv sync --locked`, dependency-pin contract, ignore checks, and project-local Ansible commands passed |
 | KIF-ANS-10 | KIF-001, KIF-007, KIF-030 | Approved non-elevated host discovery | Ansible ping and exactly one check/diff-limited host run pass; only the ignored controller-local report changes and receives human review | PASS — ping changed=false; play recap ok=14, changed=1 local report, failed=0, unreachable=0, skipped=1; valid JSON mode 0600 reviewed; no become or Kubernetes query |
 | KIF-ANS-11 | KIF-001, KIF-008, KIF-030 | Elevated failure diagnosis | Human-reviewed elevated report and a bounded read-only import probe explain unavailable Kubernetes queries without emitting kubeconfig or secrets | PASS — datastore exists; nine queries unavailable; remote `kubernetes`, `yaml`, and `jsonpatch` imports all false |
-| KIF-DEP-01 | KIF-002, KIF-007 | Approved dependency bootstrap contract | Separate one-host playbook requires explicit approval and installs only `python3-kubernetes` with apt; no cache refresh, shell, command, latest, upgrade, or other package exists | PASS — contract test, syntax check, and production-profile lint passed |
-| KIF-DEP-02 | KIF-002, KIF-007 | Dependency bootstrap execution | Check/diff package plan is reviewed before the approved actual installation; subsequent import probe and elevated discovery pass | NOT RUN — operator execution and password prompt remain pending |
+| KIF-DEP-01 | KIF-002, KIF-007 | Approved dependency bootstrap contract | Separate one-host playbook requires explicit approval and directly requests only `python3-kubernetes` and `python3-jsonpatch`; no cache refresh, shell, command, latest, upgrade, or other direct package exists | PASS — contract test, syntax check, and production-profile lint passed |
+| KIF-DEP-02 | KIF-002, KIF-007 | Dependency bootstrap execution | Check/diff package plan is reviewed before the approved actual installation; subsequent import probe and elevated discovery pass | PARTIAL — first check proposed 35 new, 0 upgraded/removed but omitted non-transitive jsonpatch, so it was not accepted; revised two-package check and installation NOT RUN |
 
 ## Documentation and traceability
 
@@ -31,7 +31,7 @@ below; the dependency mutation remains unexecuted.
 |---|---|---|---|---|
 | KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
 | KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Only read-only discovery and the approved one-package bootstrap are implemented; the dependency mutation, hosted runtime, providers, Kubernetes desired state, and deployment are not claimed as executed | PASS — repository scan and status wording passed |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Only read-only discovery and the approved two-package bootstrap are implemented; the dependency mutation, hosted runtime, providers, Kubernetes desired state, and deployment are not claimed as executed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
 | KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings do not prove policy enforcement | PASS — requirements and manual QA remain explicit |
 | KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | Twelve future runtime cases remain NOT RUN and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
@@ -244,9 +244,14 @@ kubernetes=false, yaml=false, jsonpatch=false
 Ansible reported changed=true by command-module default; the probe performed no write
 ```
 
-The dependency bootstrap is implemented and approved but deliberately NOT RUN until
-its check/diff package plan is reviewed. No Kubernetes objects were captured, so
-cluster inventory and policy-enforcement gates remain open.
+The first dependency check/diff proposed 35 new packages, 0 upgrades, and 0
+removals. It correctly included PyYAML transitively but omitted `python3-jsonpatch`,
+which the import probe showed absent; therefore no installation was accepted or
+run. A read-only apt-cache check found Debian candidate `1.32-5`, the operator
+approved adding it explicitly, and the revised two-package playbook passed offline
+validation. Its revised check/diff and actual installation remain NOT RUN. No
+Kubernetes objects were captured, so cluster inventory and policy-enforcement gates
+remain open.
 
 ## Future validation contract
 

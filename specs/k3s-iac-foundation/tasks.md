@@ -33,9 +33,9 @@
   queries without exposing raw errors (`KIF-001`, `KIF-008`).
 - [x] Diagnose the unavailable queries with one bounded read-only import probe;
   confirm `kubernetes`, `yaml`, and `jsonpatch` are absent (`KIF-008`, `KIF-030`).
-- [x] Obtain explicit approval and implement a one-package Ansible bootstrap for
-  `python3-kubernetes`; syntax, lint, and offline safety tests pass (`KIF-002`,
-  `KIF-007`).
+- [x] Obtain explicit approval and implement a two-package Ansible bootstrap for
+  `python3-kubernetes` and the non-transitive `python3-jsonpatch` requirement;
+  syntax, lint, and offline safety tests pass (`KIF-002`, `KIF-007`).
 - [ ] Run the dependency bootstrap in check/diff mode, review the planned package
   change, then run the approved installation (`KIF-002`, `KIF-007`).
 - [ ] Rerun elevated Ansible discovery against exactly one approved host and

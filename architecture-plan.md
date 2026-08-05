@@ -191,7 +191,7 @@ verification must meet the declared RPO/RTO before PROD.
   one-host report pass. An approved elevated attempt confirmed the datastore, but
   all nine Kubernetes queries were unavailable because required remote Python
   modules are absent. A separately approved bounded playbook may install only
-  `python3-kubernetes`; it is implemented but has not run.
+  `python3-kubernetes` and `python3-jsonpatch`; it is implemented but has not run.
 - Gate: human-reviewed local report and decision register update.
 - Stop: a task needs mutation, secret output, or elevated access beyond approval.
 - Rollback: none; no target state changes are permitted. The only write is the

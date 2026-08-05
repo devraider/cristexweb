@@ -52,7 +52,8 @@ implementation is the Ansible discovery playbook under `ansible/`; Python is use
 only for offline contract tests. One approved non-elevated check/diff run produced
 a locally reviewed host report; an elevated attempt confirmed the datastore but all
 Kubernetes queries were unavailable due to missing remote Python dependencies. A
-separately approved playbook may install only `python3-kubernetes`; it has not run.
+separately approved playbook may install only `python3-kubernetes` and
+`python3-jsonpatch`; it has not run.
 The locked local environment passes syntax and lint. This deliverable performs no
 other host mutation, Cloudflare, GitHub, Infisical,
 registry, database, storage,

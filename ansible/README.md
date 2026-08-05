@@ -35,7 +35,8 @@ configuration and are never committed here.
 
 The first elevated discovery proved that the remote Python environment lacks the
 libraries required by `kubernetes.core.k8s_info`. The bounded bootstrap installs
-only Debian's `python3-kubernetes` package; apt resolves its declared dependencies.
+only Debian's `python3-kubernetes` and `python3-jsonpatch` packages; apt resolves
+their declared dependencies.
 Run check/diff first and inspect the package plan:
 
 ```bash
@@ -62,8 +63,9 @@ uv run ansible-playbook \
   --ask-become-pass
 ```
 
-No other package, apt-cache refresh, upgrade, or host baseline is authorized by
-this playbook.
+No directly requested package beyond those two, apt-cache refresh, upgrade, or host
+baseline is authorized by this playbook. Apt may install reviewed transitive
+dependencies.
 
 ## Mandatory invocation contract
 
