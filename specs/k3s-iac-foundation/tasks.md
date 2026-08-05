@@ -71,10 +71,11 @@ host-baseline/next-stage mutation plan.
   rollback, group, membership, config, and restart changes (`KIF-002`, `KIF-007`).
 - [x] Run the approved mutation and verify root/group `0640` kubeconfig metadata
   (`KIF-007`).
-- [ ] Verify effective kubeconfig readability through Ansible as the selected user,
-  reconnect without a stale SSH multiplexed session, and verify group membership,
-  `kubectl get nodes`, and `kubectl get all -A` (`KIF-007`).
-- [ ] Prove second-run idempotence, reboot recovery, SSH, and Tailscale access
+- [x] Verify effective kubeconfig readability through Ansible as the selected user,
+  reconnect without a stale SSH multiplexed session, verify group membership, and
+  run `kubectl get nodes` successfully (`KIF-007`).
+- [x] Prove second-run Ansible idempotence with `changed=0` (`KIF-007`).
+- [ ] Verify `kubectl get all -A`, reboot recovery, SSH, and Tailscale access
   (`KIF-007`).
 
 Stop gate: stop on access loss, unexpected network/package changes, or ambiguous

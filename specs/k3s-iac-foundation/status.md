@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: admin check ok=16/changed=6 and mutation ok=24/changed=6 passed; metadata is root:k3s-admin 0640; effective user readability verification pending
+build: admin mutation passed; effective-user readability and node query pass; idempotence ok=28/changed=0; broader listing/recovery pending
 date: 2026-08-05
 deploy_required_after_acceptance: yes
 
@@ -17,10 +17,11 @@ note: |
   dependencies, and package/import verification passes.
   The reviewed elevated report confirms the datastore and all nine exact Kubernetes
   queries as available. The approved admin-access check and mutation both passed,
-  and the kubeconfig is root:k3s-admin mode 0640. A shell that did not have the new
-  supplementary group still received permission denied, so Ansible-side effective
-  readability plus a genuinely fresh SSH session, kubectl, idempotence, and recovery
-  remain pending. CNI behavior, NetworkPolicy enforcement, recovery access, and
+  and the kubeconfig is root:k3s-admin mode 0640. A genuinely fresh session includes
+  k3s-admin, `kubectl get nodes` reports the single Ready control-plane node, Ansible
+  verifies readability while running as the selected account, and the second run is
+  idempotent at ok=28/changed=0/failed=0. The broader all-namespace listing and
+  recovery checks remain pending. CNI behavior, NetworkPolicy enforcement, recovery access, and
   later platform work remain pending. No external-resource, secret, data, or
   deployment operation was performed.
   These Kubernetes object listings do not prove CNI behavior or NetworkPolicy
