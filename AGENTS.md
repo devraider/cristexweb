@@ -9,7 +9,7 @@ This root `AGENTS.md` is authoritative for the entire repository.
 - This repository otherwise owns design documentation for future host configuration, external-resource IaC, GitOps desired state, and recovery runbooks.
 - No hosted runtime, mutating Ansible baseline, OpenTofu configuration, Kubernetes manifest, Helm chart, or workflow exists here yet.
 - CristexHub application source, local Compose assets, Keycloak theme, and Browserless gateway remain external concerns in the CristexHub application repository and must not be copied here.
-- Actual Ansible host access, elevation, configuration, and later implementation remain blocked until their explicit approval gates. Offline validation remains allowed.
+- One explicitly approved non-elevated read-only Ansible run has completed. Any further host access, elevation, configuration, or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed.
 
 ## Ownership
 

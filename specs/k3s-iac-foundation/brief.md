@@ -49,10 +49,10 @@ recover DEV and PROD without presenting a single node as highly available.
 
 G1 is agent-in-progress in its read-only discovery stage. The only operational
 implementation is the Ansible discovery playbook under `ansible/`; Python is used
-only for offline contract tests. The playbook has not been run against the actual
-server or cluster. The pinned, locked project-local `uv` environment passed syntax
-and lint without inventory-host access. This deliverable performs no become, SSH,
-server, cluster,
-Cloudflare, GitHub, Infisical, registry, database, storage,
+only for offline contract tests. One explicitly approved non-elevated check/diff run
+reached the server and produced a locally reviewed curated host report. The pinned,
+locked project-local `uv` environment passed syntax and lint. No become or cluster
+query occurred. This deliverable performs no Cloudflare, GitHub, Infisical,
+registry, database, storage,
 backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain
 external application-repository concerns and are not copied here.

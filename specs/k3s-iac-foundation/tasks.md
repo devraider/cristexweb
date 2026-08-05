@@ -25,9 +25,12 @@
 - [x] Create the locked project-local `uv` controller environment and local Galaxy
   collection path; syntax and production-profile lint pass without inventory-host
   access (`KIF-006`, `KIF-007`).
-- [ ] Obtain explicit approval for any SSH host access and, separately, read-only
-  elevated k3s inventory (`KIF-001`).
-- [ ] Run the Ansible discovery playbook against exactly one approved host and
+- [x] Obtain explicit approval for one non-elevated SSH inventory run; verify
+  Ansible ping and one-host check/diff, then human-review the ignored host-only
+  report (`KIF-001`, `KIF-007`).
+- [ ] Obtain separate explicit approval for read-only elevated k3s inventory
+  (`KIF-001`).
+- [ ] Run the elevated Ansible discovery against exactly one approved host and
   human-review its curated host, datastore, NetworkPolicy-object, platform-object,
   StorageClass, and resource indicator report (`KIF-008`).
 - [ ] Separately approve and run bounded functional probes for CNI behavior and

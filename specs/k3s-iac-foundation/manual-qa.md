@@ -7,10 +7,11 @@ environment, redacted evidence location, result, and rollback outcome. Never pas
 passwords, tokens, cookies, kubeconfigs, connection strings, private keys, database
 rows, personal data, or full secret-bearing command output.
 
-All cases remain **PENDING** because no hosted runtime exists and no Ansible
-discovery play run, server/cluster access, deployment, or manual runtime validation
-occurred. Offline contract, syntax, and lint checks do not satisfy these manual
-cases.
+All cases remain **PENDING** because no hosted runtime exists. One non-elevated
+Ansible discovery reached the server and produced a reviewed host-only report, but
+no become, cluster query, deployment, recovery-access proof, or complete manual
+runtime validation occurred. That partial discovery and the offline checks do not
+satisfy these manual cases.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|

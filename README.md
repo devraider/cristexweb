@@ -8,10 +8,11 @@ indicators with Ansible built-ins and exact Kubernetes kinds with
 `kubernetes.core.k8s_info`; it does not configure or deploy anything. Python is used
 only for offline contract tests, not infrastructure automation.
 
-No Ansible host access, elevated discovery, hosted runtime, OpenTofu configuration,
-Kubernetes manifest, Helm chart, workflow, deployment, DNS route, tunnel, database,
-backup, or recovery process has run or been implemented. Debian plus Ansible is the
-host-management owner.
+One explicitly approved non-elevated Ansible check/diff run reached the host and
+produced the ignored local report. Elevated Kubernetes discovery, hosted runtime,
+OpenTofu configuration, Kubernetes manifest, Helm chart, workflow, deployment, DNS
+route, tunnel, database, backup, and recovery remain unexecuted. Debian plus
+Ansible is the host-management owner.
 
 CristexHub application source, local Compose assets, Keycloak theme, and Browserless
 gateway remain in the separate CristexHub application repository.
@@ -49,9 +50,10 @@ Listing NetworkPolicy and platform objects supplies configuration indicators onl
 It does not prove CNI behavior or NetworkPolicy enforcement; those require later,
 separately approved functional probes.
 
-No discovery play has executed. Syntax and lint were validated locally without
-contacting the inventory host. After review and separate host-access approval, the
-required runtime command shape is documented in [`ansible/README.md`](ansible/README.md).
+The approved non-elevated discovery run passed and its curated host report was
+reviewed locally. It did not use become or query Kubernetes. Syntax and lint also
+passed. Any further or elevated run still requires separate approval; command shapes
+are documented in [`ansible/README.md`](ansible/README.md).
 
 ## Selected direction
 

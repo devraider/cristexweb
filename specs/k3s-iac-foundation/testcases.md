@@ -2,22 +2,24 @@
 
 ## Ansible-first discovery implementation — 2026-08-04
 
-The contract tests and locked project-local `uv` validation do not invoke SSH,
-become, the inventory host, Kubernetes API, a provider, or report generation. `uv`
-and `ansible-galaxy` contacted package registries to resolve the ignored `.venv`
-and local Galaxy collection path; nothing was installed on the inventory host.
+The offline contract tests and locked project-local `uv` validation do not invoke
+SSH, become, the inventory host, Kubernetes API, a provider, or report generation.
+`uv` and `ansible-galaxy` contacted package registries to resolve the ignored
+`.venv` and local Galaxy collection path; nothing was installed on the inventory
+host. A separately approved non-elevated runtime check is recorded below.
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
 | KIF-ANS-01 | KIF-001, KIF-004, KIF-008 | Ansible-first ownership | Operational Python collector is removed; minimal inventory, playbook, role, pinned collection, template, and Ansible documentation exist | PASS — layout contract test passed |
 | KIF-ANS-02 | KIF-001, KIF-003 | Declarative read-only implementation | Host discovery uses setup/service_facts/stat; cluster discovery uses exact k8s_info queries; no shell, command, raw, script, package, apt, or pip task exists | PASS — module-boundary tests passed |
-| KIF-ANS-03 | KIF-001, KIF-002, KIF-007 | Invocation and elevation gates | Play fails without check/diff, explicit limit, and one selected host; become defaults false; elevated queries need both approval flags | PASS — offline gate contract test passed; runtime behavior NOT RUN |
-| KIF-ANS-04 | KIF-013, KIF-030 | Bounded data projection | Raw discovery registrations are no_log; fact cache is memory-only; report omits addresses, MACs, UUIDs, annotations, labels, environment fields, secrets, chart values, raw specs, command output, and kubeconfig content | PASS — offline projection contract test passed; generated report NOT RUN |
-| KIF-ANS-05 | KIF-006, KIF-013 | Local report safety | Exactly one ignored controller-local JSON destination defaults under the repository root, mode 0600, diff disabled, become false, and symlink-refused | PASS — offline task/template contract test passed; write NOT RUN |
+| KIF-ANS-03 | KIF-001, KIF-002, KIF-007 | Invocation and elevation gates | Play fails without check/diff, explicit limit, and one selected host; become defaults false; elevated queries need both approval flags | PASS — approved positive non-elevated one-host runtime passed and gate presence is offline-tested; negative invocation and elevated branches NOT RUN |
+| KIF-ANS-04 | KIF-013, KIF-030 | Bounded data projection | Raw discovery registrations are no_log; fact cache is memory-only; report omits addresses, MACs, UUIDs, annotations, labels, environment fields, secrets, chart values, raw specs, command output, and kubeconfig content | PASS — offline projection contract passed and generated non-elevated report was reviewed; elevated Kubernetes projection NOT RUN |
+| KIF-ANS-05 | KIF-006, KIF-013 | Local report safety | Exactly one ignored controller-local JSON destination defaults under the repository root, mode 0600, diff disabled, become false, and symlink-refused | PASS — offline task/template contract and actual ignored mode-0600 report write passed; negative symlink runtime case remains offline-tested only |
 | KIF-ANS-06 | KIF-008, KIF-021 | Kubernetes query boundary | Exact non-secret kinds provide object indicators; Secret, ConfigMap, Events, and broad all queries are absent; CNI and NetworkPolicy enforcement remain explicitly unproven | PASS — query boundary and template assertions passed |
 | KIF-ANS-07 | KIF-007, KIF-030 | Ansible syntax and lint | Locked project tooling and the locally pinned collection pass syntax and production-profile lint before any host access | PASS — ansible-core 2.19.0 syntax check and ansible-lint 26.6.0 production profile passed; package-registry access only |
-| KIF-ANS-08 | KIF-001, KIF-008 | Actual inventory capture | Separately approved one-host check/diff run produces a human-reviewed curated report | NOT RUN — no discovery play, SSH, become, inventory-host, cluster, or report operation occurred |
+| KIF-ANS-08 | KIF-001, KIF-008 | Elevated cluster inventory capture | A separately approved one-host elevated check/diff run produces a human-reviewed host, datastore, and Kubernetes indicator report | NOT RUN — become and Kubernetes API access remain separately gated |
 | KIF-ANS-09 | KIF-006, KIF-007 | Reproducible controller environment | `pyproject.toml` and `uv.lock` pin the ignored project `.venv`; Galaxy installs the pinned collection only into the ignored local Ansible path | PASS — `uv sync --locked`, dependency-pin contract, ignore checks, and project-local Ansible commands passed |
+| KIF-ANS-10 | KIF-001, KIF-007, KIF-030 | Approved non-elevated host discovery | Ansible ping and exactly one check/diff-limited host run pass; only the ignored controller-local report changes and receives human review | PASS — ping changed=false; play recap ok=14, changed=1 local report, failed=0, unreachable=0, skipped=1; valid JSON mode 0600 reviewed; no become or Kubernetes query |
 
 ## Documentation and traceability
 
@@ -111,8 +113,8 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "runtime inventory not run",
-    "No Ansible playbook execution",
+    "elevated cluster inventory not run",
+    "One explicitly approved SSH ping",
 ]:
     assert statement in status, statement
 
@@ -152,7 +154,7 @@ git diff --cached --quiet
 printf '%s\n' 'PASS: ignore policy, git diff check, and no-staged-files check'
 ```
 
-Actual result (exit 0 on 2026-08-04):
+Actual result (exit 0 on 2026-08-05):
 
 ```text
 Ran 11 tests
@@ -175,7 +177,7 @@ uv run ansible-playbook playbooks/discover.yml --syntax-check
 uv run ansible-lint playbooks/discover.yml roles/read_only_discovery
 ```
 
-Actual result (exit 0 on 2026-08-04):
+Actual result (exit 0 on 2026-08-05):
 
 ```text
 kubernetes.core:6.1.0 was installed successfully to ansible/.ansible/collections
@@ -183,7 +185,38 @@ playbook: playbooks/discover.yml
 Passed: 0 failure(s), 0 warning(s) in 8 files processed; production profile
 ```
 
-The discovery play remains deliberately NOT RUN pending host-access approval.
+The separately approved non-elevated runtime used an ignored operator-owned local
+inventory file. The private address and SSH details are intentionally not recorded
+in Git:
+
+```bash
+cd ansible
+uv run ansible \
+  -i .ansible/inventory.local.yml \
+  k3s_servers \
+  --limit crtxweb \
+  -m ansible.builtin.ping
+uv run ansible-playbook \
+  -i .ansible/inventory.local.yml \
+  playbooks/discover.yml \
+  --check \
+  --diff \
+  --limit crtxweb
+```
+
+Actual result (2026-08-05):
+
+```text
+ping: SUCCESS, changed=false
+play recap: ok=14 changed=1 unreachable=0 failed=0 skipped=1
+changed=1 is only the ignored controller-local report write
+report: valid JSON, mode 0600, check=true, diff=true, elevated=false
+host indicators: Debian 13, k3s running, tailscaled running
+Kubernetes queries: 0
+```
+
+The report was reviewed locally and remains ignored. Elevated discovery, become,
+and Kubernetes API access remain deliberately NOT RUN pending separate approval.
 
 ## Future validation contract
 

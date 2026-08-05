@@ -188,9 +188,9 @@ verification must meet the declared RPO/RTO before PROD.
   and NetworkPolicy enforcement require later approved functional probes and are
   not proven by discovery.
 - Current evidence: the Ansible files and offline contract tests exist; the locked
-  project-local `uv` environment passed syntax and production-profile lint without
-  contacting the inventory host. No discovery play has run against the server or
-  cluster and no inventory report was captured.
+  project-local `uv` environment passed syntax and production-profile lint. One
+  approved non-elevated one-host check/diff run produced and locally reviewed the
+  ignored curated host report; it did not use become or query the cluster.
 - Gate: human-reviewed local report and decision register update.
 - Stop: a task needs mutation, secret output, or elevated access beyond approval.
 - Rollback: none; no target state changes are permitted. The only write is the
