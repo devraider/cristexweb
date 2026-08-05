@@ -37,6 +37,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "playbooks/bootstrap_dependencies.yml",
             "playbooks/configure_k3s_admin_access.yml",
             "playbooks/configure_k3s_kubectl_client.yml",
+            "playbooks/verify_k3s_reboot_recovery.yml",
             "roles/read_only_discovery/defaults/main.yml",
             "roles/read_only_discovery/tasks/main.yml",
             "roles/read_only_discovery/tasks/host.yml",
@@ -282,6 +283,73 @@ class AnsibleLayoutTests(unittest.TestCase):
             "ansible.builtin.script:",
             "ansible.builtin.service:",
             "state: restarted",
+        ):
+            self.assertNotIn(forbidden, playbook)
+
+    def test_k3s_reboot_recovery_is_bounded_and_approved(self) -> None:
+        playbook = (ANSIBLE / "playbooks/verify_k3s_reboot_recovery.yml").read_text()
+        for required in (
+            "k3s_reboot_recovery_approved: false",
+            "k3s_reboot_recovery_approved | bool",
+            "k3s_recovery_access_confirmed: false",
+            "k3s_recovery_access_confirmed | bool",
+            "ansible_limit",
+            "ansible_play_hosts_all",
+            "ansible_diff_mode",
+            "k3s_admin_user is defined",
+            "k3s_admin_group: k3s-admin",
+            "k3s_kubeconfig_path == '/etc/rancher/k3s/k3s.yaml'",
+            "difference([k3s_admin_user])",
+            "Reject numeric aliases of the dedicated administrator group",
+            "Reject unexpected primary administrator group members",
+            "ansible.builtin.service_facts:",
+            "'k3s.service' in ansible_facts.services",
+            "'tailscaled.service' in ansible_facts.services",
+            "config.yaml.pre-admin-access",
+            "k3s_recovery_user_access_before.stat.readable | default(false)",
+            "kind: Node",
+            "ansible.builtin.slurp:",
+            "/proc/sys/kernel/random/boot_id",
+            "ansible.builtin.reboot:",
+            "reboot_timeout: 600",
+            "post_reboot_delay: 15",
+            "k3s_recovery_reboot.rebooted | default(false)",
+            "k3s_recovery_user_access_after.stat.readable | default(false)",
+            "when: not ansible_check_mode",
+            "no_log: true",
+        ):
+            self.assertIn(required, playbook)
+        self.assertEqual(1, playbook.count("ansible.builtin.reboot:"))
+        self.assertEqual(2, playbook.count("kind: Node"))
+        self.assertLess(
+            playbook.index("Require one Ready node before reboot"),
+            playbook.index("Perform the approved single reboot"),
+        )
+        self.assertLess(
+            playbook.index("Perform the approved single reboot"),
+            playbook.index("Require a completed reboot and a new boot identifier"),
+        )
+        self.assertLess(
+            playbook.index("Require a completed reboot and a new boot identifier"),
+            playbook.index("Require the complete post-reboot recovery contract"),
+        )
+        for forbidden in (
+            "name: paul",
+            "/home/paul",
+            "ansible.builtin.shell:",
+            "ansible.builtin.command:",
+            "ansible.builtin.raw:",
+            "ansible.builtin.script:",
+            "ansible.builtin.apt:",
+            "ansible.builtin.package:",
+            "ansible.builtin.user:",
+            "ansible.builtin.group:",
+            "ansible.builtin.file:",
+            "ansible.builtin.copy:",
+            "ansible.builtin.lineinfile:",
+            "ansible.builtin.blockinfile:",
+            "kind: Secret",
+            "kind: ConfigMap",
         ):
             self.assertNotIn(forbidden, playbook)
 

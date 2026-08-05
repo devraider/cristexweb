@@ -82,7 +82,12 @@ host-baseline/next-stage mutation plan.
 - [x] Run the client-defaults playbook in check/diff mode, execute the accepted plan,
   reconnect, prove warning-free node/all-namespace queries, and require second-run
   `changed=0` (`KIF-007`).
-- [ ] Verify reboot recovery, SSH, and Tailscale access (`KIF-007`).
+- [x] Implement and offline-validate the approved one-host reboot recovery playbook
+  with pre/post service, boot-ID, Ready-node, rollback-baseline, and effective-user
+  kubeconfig assertions (`KIF-007`).
+- [ ] Confirm independent console or LAN recovery access, run check/diff, review the
+  single-reboot prediction, then execute and verify SSH/Tailscale/k3s recovery
+  (`KIF-007`).
 
 Stop gate: stop on access loss, unexpected network/package changes, or ambiguous
 disk state. Restore preserved configuration before continuing.

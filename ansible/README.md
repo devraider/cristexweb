@@ -168,6 +168,34 @@ uv run ansible-playbook -i .ansible/inventory.local.yml \
   --ask-become-pass
 ```
 
+## Approved single-node reboot recovery verification
+
+`verify_k3s_reboot_recovery.yml` performs exactly one reboot after requiring explicit
+approval, an explicit one-host limit, and operator confirmation of console or LAN
+fallback access. Before reboot it verifies k3s/Tailscale services, the root-only
+rollback baseline, group-scoped kubeconfig access, and one Ready node. After SSH
+returns it requires a new boot ID, running services, a Ready node, and unchanged
+effective kubeconfig access. It changes no package or configuration, but the single
+node and all workloads are temporarily unavailable.
+
+Review the prediction first:
+
+```bash
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/verify_k3s_reboot_recovery.yml \
+  --check --diff --limit crtxweb \
+  -e k3s_reboot_recovery_approved=true \
+  -e k3s_recovery_access_confirmed=true \
+  -e k3s_admin_user=paul \
+  --ask-become-pass
+```
+
+After accepting the plan, remove only `--check`. Do not set the recovery-access flag
+unless a physical console or independent LAN SSH path is genuinely available. If
+the Tailscale path does not return, use that confirmed fallback to inspect
+`tailscaled` and `k3s`; the reboot playbook itself makes no configuration change to
+roll back.
+
 ## Mandatory invocation contract
 
 Review first; then request separate approval before any host access. The playbook

@@ -50,9 +50,10 @@ recover DEV and PROD without presenting a single node as highly available.
 G1 is agent-in-progress in its discovery stage. Its bounded operational
 implementations are Ansible discovery, the executed two-package dependency
 bootstrap, the executed group-scoped k3s administrator access playbook, and the
-executed user-scoped kubectl client-defaults playbook under `ansible/`.
-Effective-user readability, warning-free fresh-session cluster listing, and both
-idempotence checks passed; recovery verification remains pending.
+executed user-scoped kubectl client-defaults playbook, and approved-but-not-run
+single-node reboot recovery playbook under `ansible/`. Effective-user readability,
+warning-free fresh-session cluster listing, and both idempotence checks passed;
+reboot recovery remains pending.
 Python is used only for offline contract tests. One
 approved non-elevated check/diff run produced
 a locally reviewed host report. A separately approved playbook directly requested

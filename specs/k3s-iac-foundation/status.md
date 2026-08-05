@@ -2,15 +2,15 @@
 
 state: agent:in-progress
 phase: implementing
-build: admin and warning-free kubectl client pass; both Ansible reruns changed=0/failed=0; 14 contracts and lint pass; recovery pending
+build: admin and warning-free client pass; 15 contracts and lint pass; one-reboot recovery playbook approved/implemented but not run
 date: 2026-08-05
 deploy_required_after_acceptance: yes
 
 note: |
   Operational implementation is limited to read-only Ansible discovery, the
   executed two-package dependency bootstrap, executed group-scoped k3s administrator
-  access, and executed user-scoped kubectl client defaults; Python is limited to
-  offline contract tests. One
+  access, executed user-scoped kubectl client defaults, and the approved-but-not-run
+  one-reboot recovery verifier; Python is limited to offline contract tests. One
   explicitly approved SSH ping and
   non-elevated one-host check/diff run passed and generated the ignored mode-0600
   host-only report. The approved bootstrap directly requested only
@@ -25,7 +25,8 @@ note: |
   but the k3s multicall client emitted root-only server-config warnings. The approved
   user-scoped client-defaults check and execution passed; a fresh session inherits
   the expected client-only defaults, node/all-namespace queries emit no warning, and
-  the second run reports changed=0/failed=0. Recovery checks remain pending. CNI
+  the second run reports changed=0/failed=0. The approved one-reboot recovery
+  playbook is implemented but still requires check/diff and execution. CNI
   behavior, NetworkPolicy enforcement, recovery access, and
   later platform work remain pending. No external-resource, secret, data, or
   deployment operation was performed.
