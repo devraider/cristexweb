@@ -9,8 +9,8 @@ SSH, become, the inventory host, Kubernetes API, a provider, or report generatio
 host. Separately approved non-elevated and elevated runtime attempts are recorded
 below, followed by the approved dependency installation and successful elevated
 rerun. The admin-access check, mutation, effective-user readability, fresh-session
-all-namespace query, and idempotence succeeded. The proven warning-suppression
-environment is implemented as an approved user-scoped Ansible playbook but not run.
+all-namespace query, and idempotence succeeded. The user-scoped client-defaults
+check, execution, warning-free fresh-session queries, and idempotence also passed.
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
@@ -31,7 +31,7 @@ environment is implemented as an approved user-scoped Ansible playbook but not r
 | KIF-ADM-02 | KIF-002, KIF-007 | Admin-access check/diff | Approved one-host check predicts only rollback baseline, group, membership, two k3s config settings, and conditional restart without mutation | PASS — recap ok=16, changed=6, unreachable=0, failed=0, skipped=13 |
 | KIF-ADM-03 | KIF-007 | Admin-access mutation and recovery | Approved run succeeds; new SSH session has group access; kubeconfig is root/group `0640`; kubectl, SSH, Tailscale, restart recovery, and second-run idempotence pass | PARTIAL — mutation ok=24/changed=6; fresh session includes k3s-admin; selected-user readability, node query, and all-namespace listing pass; idempotent rerun ok=28/changed=0/failed=0; recovery remains pending |
 | KIF-ADM-04 | KIF-002, KIF-007 | Warning-free kubectl client contract | Explicit approval, diff, one-host limit, selected non-root exclusive group member, Bash/home/profile safety, user-scoped environment defaults, hidden profile diff, present/absent rollback, no server-config permission change, and no restart are enforced | PASS — 14 contract tests, syntax check, and production-profile lint passed |
-| KIF-ADM-05 | KIF-007 | Warning-free kubectl client runtime | Check/diff predicts only selected-user profile blocks; accepted run and fresh login remove server-config warnings from node/all-namespace queries; second run reports changed=0 | NOT RUN — operator password/check execution pending |
+| KIF-ADM-05 | KIF-007 | Warning-free kubectl client runtime | Check/diff predicts only selected-user profile blocks; accepted run and fresh login remove server-config warnings from node/all-namespace queries; second run reports changed=0 | PASS — check recap ok=14/changed=1/failed=0 predicted two profile blocks; operator confirmed accepted run, expected client defaults, warning-free queries, and idempotent changed=0/failed=0 rerun |
 
 ## Documentation and traceability
 
@@ -39,7 +39,7 @@ environment is implemented as an approved user-scoped Ansible playbook but not r
 |---|---|---|---|---|
 | KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
 | KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, executed dependency/admin access, and the approved-but-not-run user-scoped client-defaults playbook are the only bounded Ansible implementations; access and listing passed while warning-free client and recovery remain pending; no general host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, dependency bootstrap, admin access, and user-scoped client defaults are the only executed bounded Ansible implementations; warning-free access passed while recovery remains pending; no general host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
 | KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings do not prove policy enforcement | PASS — requirements and manual QA remain explicit |
 | KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, and thirteen manual cases remain PENDING | PASS — counts and status assertions passed |
@@ -124,7 +124,7 @@ assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| NOT RUN —", (spec_dir / "testc
 assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| PARTIAL —", (spec_dir / "testcases.md").read_text(), re.MULTILINE)) == 1
 assert len(re.findall(r"^\| MQA-\d{2} .* \| PENDING \|$", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) == 13
 assert re.search(
-    r"^\| KIF-ADM-05 .* \| NOT RUN —",
+    r"^\| KIF-ADM-05 .* \| PASS —",
     (spec_dir / "testcases.md").read_text(),
     re.MULTILINE,
 )
@@ -133,7 +133,7 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "warning-free client playbook approved/implemented but not run",
+    "admin and warning-free kubectl client pass",
     "all nine exact Kubernetes",
     "executed group-scoped k3s",
 ]:
@@ -302,7 +302,11 @@ kubectl get nodes
 ```
 
 No password, kubeconfig content, private address, or server-config content was
-recorded. The warning-free client-defaults playbook has not yet accessed the host.
+recorded. The client-defaults check then returned `ok=14 changed=1 unreachable=0
+failed=0 skipped=1` and predicted exactly the selected login-profile and `.bashrc`
+blocks. The operator confirmed the accepted execution, a fresh session with
+`K3S_CONFIG_FILE=/dev/null` and the approved `KUBECONFIG`, warning-free node and
+all-namespace queries, and a second-run result of `changed=0 failed=0`.
 
 ## Future validation contract
 

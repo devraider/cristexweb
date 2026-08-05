@@ -43,16 +43,16 @@ recover DEV and PROD without presenting a single node as highly available.
 - direct GitHub Actions deployment;
 - migration of code-runner to the shared node without a separate security decision;
 - application source, local Compose, Keycloak theme, or Browserless gateway ownership;
-- hosted runtime, mutating host baseline, external-resource IaC, or deployment implementation during the current read-only discovery deliverable.
+- hosted runtime, general host-baseline implementation, external-resource IaC, or deployment implementation during the current bounded foundation deliverable.
 
 ## Delivery boundary
 
 G1 is agent-in-progress in its discovery stage. Its bounded operational
 implementations are Ansible discovery, the executed two-package dependency
-bootstrap, and the executed group-scoped k3s administrator access playbook under
-`ansible/`; effective-user readability, fresh-session cluster listing, and
-idempotence passed. A user-scoped kubectl client-defaults playbook is approved and
-implemented but not run; warning-free client and recovery verification remain pending.
+bootstrap, the executed group-scoped k3s administrator access playbook, and the
+executed user-scoped kubectl client-defaults playbook under `ansible/`.
+Effective-user readability, warning-free fresh-session cluster listing, and both
+idempotence checks passed; recovery verification remains pending.
 Python is used only for offline contract tests. One
 approved non-elevated check/diff run produced
 a locally reviewed host report. A separately approved playbook directly requested

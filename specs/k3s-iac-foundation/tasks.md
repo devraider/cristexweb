@@ -79,7 +79,7 @@ host-baseline/next-stage mutation plan.
   (`KIF-007`).
 - [x] Implement and offline-validate approved user-scoped k3s kubectl client defaults
   without exposing the root-only server configuration or restarting k3s (`KIF-007`).
-- [ ] Run the client-defaults playbook in check/diff mode, execute the accepted plan,
+- [x] Run the client-defaults playbook in check/diff mode, execute the accepted plan,
   reconnect, prove warning-free node/all-namespace queries, and require second-run
   `changed=0` (`KIF-007`).
 - [ ] Verify reboot recovery, SSH, and Tailscale access (`KIF-007`).
