@@ -8,10 +8,11 @@ passwords, tokens, cookies, kubeconfigs, connection strings, private keys, datab
 rows, personal data, or full secret-bearing command output.
 
 All cases remain **PENDING** because no hosted runtime exists. One non-elevated
-Ansible discovery reached the server and produced a reviewed host-only report, but
-no become, cluster query, deployment, recovery-access proof, or complete manual
-runtime validation occurred. That partial discovery and the offline checks do not
-satisfy these manual cases.
+Ansible discovery produced a reviewed host-only report. A separately approved
+become attempt confirmed the datastore, but all Kubernetes queries were unavailable
+because the remote Python dependencies are absent. No successful cluster inventory,
+dependency mutation, deployment, recovery-access proof, or complete manual runtime
+validation occurred. These partial results do not satisfy the manual cases.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|

@@ -49,10 +49,12 @@ recover DEV and PROD without presenting a single node as highly available.
 
 G1 is agent-in-progress in its read-only discovery stage. The only operational
 implementation is the Ansible discovery playbook under `ansible/`; Python is used
-only for offline contract tests. One explicitly approved non-elevated check/diff run
-reached the server and produced a locally reviewed curated host report. The pinned,
-locked project-local `uv` environment passed syntax and lint. No become or cluster
-query occurred. This deliverable performs no Cloudflare, GitHub, Infisical,
+only for offline contract tests. One approved non-elevated check/diff run produced
+a locally reviewed host report; an elevated attempt confirmed the datastore but all
+Kubernetes queries were unavailable due to missing remote Python dependencies. A
+separately approved playbook may install only `python3-kubernetes`; it has not run.
+The locked local environment passes syntax and lint. This deliverable performs no
+other host mutation, Cloudflare, GitHub, Infisical,
 registry, database, storage,
 backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain
 external application-repository concerns and are not copied here.

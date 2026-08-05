@@ -1,0 +1,29 @@
+---
+- name: Install the approved Ansible Kubernetes module dependency
+  hosts: k3s_servers
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  serial: 1
+
+  vars:
+    ansible_dependency_bootstrap_approved: false
+
+  pre_tasks:
+    - name: Require the dependency bootstrap approval contract
+      ansible.builtin.assert:
+        that:
+          - ansible_dependency_bootstrap_approved | bool
+          - (ansible_limit | default('') | string | length) > 0
+          - (ansible_play_hosts_all | length) == 1
+        fail_msg: >-
+          Dependency bootstrap requires explicit approval, an explicit --limit,
+          and exactly one selected inventory host.
+      changed_when: false
+
+  tasks:
+    - name: Install the Kubernetes Python client for Ansible modules
+      ansible.builtin.apt:
+        name: python3-kubernetes
+        state: present
+        update_cache: false

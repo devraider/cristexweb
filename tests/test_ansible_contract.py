@@ -34,6 +34,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "README.md",
             "inventory/hosts.yml",
             "playbooks/discover.yml",
+            "playbooks/bootstrap_dependencies.yml",
             "roles/read_only_discovery/defaults/main.yml",
             "roles/read_only_discovery/tasks/main.yml",
             "roles/read_only_discovery/tasks/host.yml",
@@ -59,6 +60,32 @@ class AnsibleLayoutTests(unittest.TestCase):
         self.assertIn(".ansible/", ignore_rules)
         config = (ANSIBLE / "ansible.cfg").read_text()
         self.assertIn("collections_path = .ansible/collections", config)
+
+    def test_dependency_bootstrap_is_bounded_and_approved(self) -> None:
+        playbook = (ANSIBLE / "playbooks/bootstrap_dependencies.yml").read_text()
+        for required in (
+            "hosts: k3s_servers",
+            "become: true",
+            "ansible_dependency_bootstrap_approved: false",
+            "ansible_dependency_bootstrap_approved | bool",
+            "ansible_limit",
+            "ansible_play_hosts_all",
+            "ansible.builtin.apt:",
+            "name: python3-kubernetes",
+            "state: present",
+            "update_cache: false",
+        ):
+            self.assertIn(required, playbook)
+        self.assertEqual(1, playbook.count("ansible.builtin.apt:"))
+        self.assertEqual(1, playbook.count("name: python3-kubernetes"))
+        for forbidden in (
+            "ansible.builtin.shell:",
+            "ansible.builtin.command:",
+            "state: latest",
+            "upgrade:",
+            "update_cache: true",
+        ):
+            self.assertNotIn(forbidden, playbook)
 
     def test_inventory_contains_only_the_neutral_ssh_alias(self) -> None:
         text = (ANSIBLE / "inventory/hosts.yml").read_text()

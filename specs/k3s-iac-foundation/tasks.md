@@ -28,9 +28,17 @@
 - [x] Obtain explicit approval for one non-elevated SSH inventory run; verify
   Ansible ping and one-host check/diff, then human-review the ignored host-only
   report (`KIF-001`, `KIF-007`).
-- [ ] Obtain separate explicit approval for read-only elevated k3s inventory
-  (`KIF-001`).
-- [ ] Run the elevated Ansible discovery against exactly one approved host and
+- [x] Obtain separate explicit approval and attempt read-only elevated k3s
+  inventory; confirm datastore access and record nine unavailable Kubernetes
+  queries without exposing raw errors (`KIF-001`, `KIF-008`).
+- [x] Diagnose the unavailable queries with one bounded read-only import probe;
+  confirm `kubernetes`, `yaml`, and `jsonpatch` are absent (`KIF-008`, `KIF-030`).
+- [x] Obtain explicit approval and implement a one-package Ansible bootstrap for
+  `python3-kubernetes`; syntax, lint, and offline safety tests pass (`KIF-002`,
+  `KIF-007`).
+- [ ] Run the dependency bootstrap in check/diff mode, review the planned package
+  change, then run the approved installation (`KIF-002`, `KIF-007`).
+- [ ] Rerun elevated Ansible discovery against exactly one approved host and
   human-review its curated host, datastore, NetworkPolicy-object, platform-object,
   StorageClass, and resource indicator report (`KIF-008`).
 - [ ] Separately approve and run bounded functional probes for CNI behavior and
@@ -38,8 +46,9 @@
   (`KIF-008`, `KIF-021`).
 - [ ] Confirm recovery access and record current configuration backups (`KIF-007`,
   `KIF-028`).
-- [ ] Resolve the decision register for the next stage; do not mutate while
-  discovery is incomplete (`KIF-002`, `KIF-003`).
+- [ ] Resolve the decision register for the next stage; permit no mutation beyond
+  the explicitly approved discovery dependency while inventory is incomplete
+  (`KIF-002`, `KIF-003`).
 
 Approval gate: operator approves the human-reviewed inventory and first mutation
 plan.
@@ -52,7 +61,8 @@ plan.
   `KIF-005`, `KIF-007`).
 - [ ] Run syntax/lint and check/diff mode before the first mutation (`KIF-002`,
   `KIF-007`).
-- [ ] Obtain explicit approval for the first Ansible mutation (`KIF-002`).
+- [ ] Obtain explicit approval for the first general host-baseline mutation
+  (`KIF-002`).
 - [ ] Prove idempotence, reboot recovery, SSH, and Tailscale access (`KIF-007`).
 
 Stop gate: stop on access loss, unexpected network/package changes, or ambiguous

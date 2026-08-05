@@ -31,6 +31,40 @@ The committed inventory contains only the SSH alias `crtxweb`. Connection addres
 user, key, and privilege credentials stay in operator-owned SSH/Ansible
 configuration and are never committed here.
 
+## Approved remote dependency bootstrap
+
+The first elevated discovery proved that the remote Python environment lacks the
+libraries required by `kubernetes.core.k8s_info`. The bounded bootstrap installs
+only Debian's `python3-kubernetes` package; apt resolves its declared dependencies.
+Run check/diff first and inspect the package plan:
+
+```bash
+uv run ansible-playbook \
+  -i .ansible/inventory.local.yml \
+  playbooks/bootstrap_dependencies.yml \
+  --check \
+  --diff \
+  --limit crtxweb \
+  -e ansible_dependency_bootstrap_approved=true \
+  --ask-become-pass
+```
+
+After the check result is accepted, run the approved mutation by removing only
+`--check`:
+
+```bash
+uv run ansible-playbook \
+  -i .ansible/inventory.local.yml \
+  playbooks/bootstrap_dependencies.yml \
+  --diff \
+  --limit crtxweb \
+  -e ansible_dependency_bootstrap_approved=true \
+  --ask-become-pass
+```
+
+No other package, apt-cache refresh, upgrade, or host baseline is authorized by
+this playbook.
+
 ## Mandatory invocation contract
 
 Review first; then request separate approval before any host access. The playbook

@@ -2,14 +2,18 @@
 
 ## Status
 
-The repository's only operational implementation is a small Ansible-first,
-read-only discovery playbook under [`ansible/`](ansible/). It gathers curated host
-indicators with Ansible built-ins and exact Kubernetes kinds with
-`kubernetes.core.k8s_info`; it does not configure or deploy anything. Python is used
-only for offline contract tests, not infrastructure automation.
+The repository's operational implementation is a small Ansible-first discovery
+playbook plus a separately approved one-package dependency bootstrap under
+[`ansible/`](ansible/). Discovery gathers curated host indicators with built-ins and
+exact Kubernetes kinds with `kubernetes.core.k8s_info`. The bootstrap may install
+only `python3-kubernetes`; no general host baseline or deployment exists. Python is
+used only for offline contract tests, not infrastructure automation.
 
-One explicitly approved non-elevated Ansible check/diff run reached the host and
-produced the ignored local report. Elevated Kubernetes discovery, hosted runtime,
+One approved non-elevated check/diff run produced the ignored local report. An
+approved elevated attempt confirmed the k3s datastore but all nine Kubernetes
+queries were unavailable because the remote Python dependencies were absent. The
+bounded Ansible dependency bootstrap is implemented and approved but not yet run.
+Successful elevated Kubernetes discovery, hosted runtime,
 OpenTofu configuration, Kubernetes manifest, Helm chart, workflow, deployment, DNS
 route, tunnel, database, backup, and recovery remain unexecuted. Debian plus
 Ansible is the host-management owner.

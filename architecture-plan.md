@@ -187,10 +187,11 @@ verification must meet the declared RPO/RTO before PROD.
 - Limit: object listings are configuration/capability indicators only. CNI behavior
   and NetworkPolicy enforcement require later approved functional probes and are
   not proven by discovery.
-- Current evidence: the Ansible files and offline contract tests exist; the locked
-  project-local `uv` environment passed syntax and production-profile lint. One
-  approved non-elevated one-host check/diff run produced and locally reviewed the
-  ignored curated host report; it did not use become or query the cluster.
+- Current evidence: the locked local environment, syntax, lint, and non-elevated
+  one-host report pass. An approved elevated attempt confirmed the datastore, but
+  all nine Kubernetes queries were unavailable because required remote Python
+  modules are absent. A separately approved bounded playbook may install only
+  `python3-kubernetes`; it is implemented but has not run.
 - Gate: human-reviewed local report and decision register update.
 - Stop: a task needs mutation, secret output, or elevated access beyond approval.
 - Rollback: none; no target state changes are permitted. The only write is the
