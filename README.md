@@ -2,12 +2,12 @@
 
 ## Status
 
-The repository's operational implementation is a small Ansible-first discovery
-playbook plus a separately approved two-package dependency bootstrap under
-[`ansible/`](ansible/). Discovery gathers curated host indicators with built-ins and
-exact Kubernetes kinds with `kubernetes.core.k8s_info`. The bootstrap may install
-only `python3-kubernetes` and `python3-jsonpatch`; no general host baseline or deployment exists. Python is
-used only for offline contract tests, not infrastructure automation.
+The repository's bounded Ansible implementation contains discovery, the executed
+two-package module bootstrap, and an approved-but-not-run group-scoped k3s
+administrator access playbook under [`ansible/`](ansible/). Discovery gathers
+curated host indicators with built-ins and exact Kubernetes kinds with
+`kubernetes.core.k8s_info`. No general host baseline or deployment exists. Python
+is used only for offline contract tests, not infrastructure automation.
 
 One approved non-elevated check/diff run produced the ignored local report. An
 approved elevated attempt identified missing remote Python dependencies. The
@@ -80,7 +80,7 @@ are documented in [`ansible/README.md`](ansible/README.md).
 ## Repository layout
 
 ```text
-ansible/                 # discovery + approved dependency bootstrap
+ansible/                 # discovery + two narrowly approved host changes
   inventory/
   playbooks/
   roles/read_only_discovery/

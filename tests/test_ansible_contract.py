@@ -35,6 +35,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "inventory/hosts.yml",
             "playbooks/discover.yml",
             "playbooks/bootstrap_dependencies.yml",
+            "playbooks/configure_k3s_admin_access.yml",
             "roles/read_only_discovery/defaults/main.yml",
             "roles/read_only_discovery/tasks/main.yml",
             "roles/read_only_discovery/tasks/host.yml",
@@ -91,6 +92,106 @@ class AnsibleLayoutTests(unittest.TestCase):
             "state: latest",
             "upgrade:",
             "update_cache: true",
+        ):
+            self.assertNotIn(forbidden, playbook)
+
+    def test_k3s_admin_access_is_group_scoped_and_approved(self) -> None:
+        playbook = (ANSIBLE / "playbooks/configure_k3s_admin_access.yml").read_text()
+        for required in (
+            "k3s_admin_access_approved: false",
+            "k3s_admin_access_approved | bool",
+            "ansible_limit",
+            "ansible_play_hosts_all",
+            "k3s_admin_user is defined",
+            "(ansible_facts.getent_passwd[k3s_admin_user][1] | int) != 0",
+            "k3s_admin_group: k3s-admin",
+            "k3s_admin_group == 'k3s-admin'",
+            "k3s_admin_existing_members | difference([k3s_admin_user])",
+            "Reject unexpected primary members of the dedicated group",
+            "item.value[2] | string",
+            "Reject an unsafe existing dedicated group GID",
+            "Reject pre-existing numeric aliases of the dedicated group",
+            "Refresh group metadata before granting access",
+            "Verify the dedicated group numeric identity before granting access",
+            "Verify no numeric group aliases before granting access",
+            "Verify no unexpected primary members before granting access",
+            "item.value[1] | string",
+            "ansible.builtin.group:",
+            "ansible.builtin.user:",
+            "append: true",
+            "create_home: false",
+            "not ansible_check_mode or (k3s_admin_group_preexists | bool)",
+            "Refresh dedicated group membership before configuring access",
+            "Verify exclusive dedicated group membership before configuring access",
+            "Predict membership change when the group is new",
+            "config.yaml.pre-admin-access",
+            "Refuse an unsafe existing k3s configuration path",
+            "Refuse an unsafe existing rollback destination",
+            "islnk",
+            "remote_src: true",
+            "force: false",
+            "write-kubeconfig-group",
+            "write-kubeconfig-mode",
+            "'0640'",
+            "ansible.builtin.service:",
+            "state: restarted",
+            "k3s_admin_kubeconfig.stat.mode == '0640'",
+            "retries: 15",
+            "delay: 2",
+        ):
+            self.assertIn(required, playbook)
+        self.assertEqual(2, playbook.count("ansible.builtin.lineinfile:"))
+        self.assertEqual(2, playbook.count("ansible.builtin.copy:"))
+        self.assertLess(
+            playbook.index("Create the restricted k3s administrator group"),
+            playbook.index("Refresh group metadata before granting access"),
+        )
+        self.assertLess(
+            playbook.index("Refresh group metadata before granting access"),
+            playbook.index("Verify the dedicated group numeric identity before granting access"),
+        )
+        self.assertLess(
+            playbook.index("Verify the dedicated group numeric identity before granting access"),
+            playbook.index("Verify no numeric group aliases before granting access"),
+        )
+        self.assertLess(
+            playbook.index("Verify no numeric group aliases before granting access"),
+            playbook.index("Verify no unexpected primary members before granting access"),
+        )
+        self.assertLess(
+            playbook.index("Verify no unexpected primary members before granting access"),
+            playbook.index("Add the approved user to the k3s administrator group"),
+        )
+        self.assertLess(
+            playbook.index("Add the approved user to the k3s administrator group"),
+            playbook.index("Refresh dedicated group membership before configuring access"),
+        )
+        self.assertLess(
+            playbook.index("Refresh dedicated group membership before configuring access"),
+            playbook.index("Verify exclusive dedicated group membership before configuring access"),
+        )
+        self.assertLess(
+            playbook.index("Verify exclusive dedicated group membership before configuring access"),
+            playbook.index("Configure the kubeconfig group"),
+        )
+        line_tasks = re.findall(
+            r"- name: Configure the kubeconfig .*?(?=\n    - name:)",
+            playbook,
+            re.DOTALL,
+        )
+        self.assertEqual(2, len(line_tasks))
+        for task in line_tasks:
+            self.assertIn("path: /etc/rancher/k3s/config.yaml", task)
+            self.assertIn("diff: false", task)
+            self.assertIn("no_log: true", task)
+            self.assertIn("notify: Restart k3s", task)
+        for forbidden in (
+            'write-kubeconfig-mode: "0644"',
+            "name: paul",
+            "ansible.builtin.shell:",
+            "ansible.builtin.command:",
+            "k3s_admin_group: root",
+            "k3s_admin_group: sudo",
         ):
             self.assertNotIn(forbidden, playbook)
 

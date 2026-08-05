@@ -2,9 +2,10 @@
 
 ## Status
 
-This target design now has two bounded Ansible implementations: read-only discovery
-and the executed, explicitly approved Kubernetes-module dependency bootstrap under
-`ansible/`. They are not a general host baseline, hosted runtime, or IaC reconciler.
+This target design has three bounded Ansible implementations: read-only discovery,
+the executed Kubernetes-module dependency bootstrap, and approved-but-not-run
+group-scoped k3s administrator access under `ansible/`. They are not a general host
+baseline, hosted runtime, or IaC reconciler.
 Python is limited to offline contract tests. No hosted orchestration,
 DNS, tunnels, GitOps, secrets, databases, backups, or recovery are implemented.
 CristexHub local Compose assets remain an external application-repository concern.
@@ -19,10 +20,10 @@ through the root-only kubeconfig. CNI behavior, NetworkPolicy enforcement, and
 recovery access still require separate approved verification.
 
 The external CristexHub application repository publishes backend, frontend, and
-code-runner images to GHCR. This repository implements Ansible discovery and the
-reviewed dependency bootstrap only; it still has no Kubernetes desired state, Helm,
-Kustomize, OpenTofu, GitHub Actions, or general host-baseline implementation. Debian
-plus Ansible is the
+code-runner images to GHCR. This repository implements Ansible discovery, the
+reviewed dependency bootstrap, and the bounded k3s administrator access playbook;
+it still has no Kubernetes desired state, Helm, Kustomize, OpenTofu, GitHub Actions,
+or general host baseline. Debian plus Ansible is the
 selected host-configuration owner.
 
 ## Goals

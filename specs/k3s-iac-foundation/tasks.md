@@ -47,24 +47,33 @@
   (`KIF-008`, `KIF-021`).
 - [ ] Confirm recovery access and record current configuration backups (`KIF-007`,
   `KIF-028`).
-- [ ] Resolve the decision register for the next stage; permit no mutation beyond
-  the explicitly approved discovery dependency while inventory is incomplete
-  (`KIF-002`, `KIF-003`).
+- [ ] Resolve the remaining CNI, enforcement, recovery, and storage decisions;
+  permit no mutation beyond the executed discovery dependencies and the approved
+  group-scoped admin-access change (`KIF-002`, `KIF-003`).
 
 Approval gate: operator approves the human-reviewed inventory and first general
 host-baseline/next-stage mutation plan.
 
 ## Stage 2 — host safety baseline
 
-- [ ] Verify the protective ignore rules before generating any Ansible artifacts (`KIF-006`).
-- [ ] Implement the smallest separate Ansible host-baseline roles for only approved
-  host and k3s settings; do not turn discovery tasks into mutation (`KIF-004`,
-  `KIF-005`, `KIF-007`).
-- [ ] Run syntax/lint and check/diff mode before the first mutation (`KIF-002`,
-  `KIF-007`).
-- [ ] Obtain explicit approval for the first general host-baseline mutation
-  (`KIF-002`).
-- [ ] Prove idempotence, reboot recovery, SSH, and Tailscale access (`KIF-007`).
+- [x] Verify the protective ignore rules before adding the admin-access Ansible
+  artifact (`KIF-006`).
+- [x] Implement the bounded group-scoped k3s administrator access playbook: fixed
+  dedicated group, existing nonzero-UID user, rejection of unexpected members,
+  GID 0, and numeric aliases, root-owned kubeconfig mode `0640`, hidden config diff,
+  root-only rollback baseline,
+  conditional k3s restart, and post-run assertions (`KIF-004`, `KIF-005`, `KIF-007`).
+- [x] Run syntax, production-profile lint, and offline contract tests for the
+  admin-access playbook (`KIF-002`, `KIF-007`).
+- [x] Obtain explicit approval for granting the selected user cluster-admin
+  kubeconfig access and restarting k3s (`KIF-002`, `KIF-007`).
+- [ ] Run the admin-access playbook in check/diff mode and review the predicted
+  group, membership, config, and restart changes (`KIF-002`, `KIF-007`).
+- [ ] Run the approved mutation, reconnect SSH, and verify group membership,
+  root/group `0640` kubeconfig, `kubectl get nodes`, and `kubectl get all -A`
+  (`KIF-007`).
+- [ ] Prove second-run idempotence, reboot recovery, SSH, and Tailscale access
+  (`KIF-007`).
 
 Stop gate: stop on access loss, unexpected network/package changes, or ambiguous
 disk state. Restore preserved configuration before continuing.

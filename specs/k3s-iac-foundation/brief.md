@@ -48,9 +48,10 @@ recover DEV and PROD without presenting a single node as highly available.
 ## Delivery boundary
 
 G1 is agent-in-progress in its discovery stage. Its bounded operational
-implementations are the Ansible discovery playbook and the separately approved,
-executed two-package dependency bootstrap under `ansible/`; Python is used only for
-offline contract tests. One approved non-elevated check/diff run produced
+implementations are Ansible discovery, the executed two-package dependency
+bootstrap, and the approved-but-not-run group-scoped k3s administrator access
+playbook under `ansible/`; Python is used only for offline contract tests. One
+approved non-elevated check/diff run produced
 a locally reviewed host report. A separately approved playbook directly requested
 only `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
 dependencies, and post-install imports plus all nine exact

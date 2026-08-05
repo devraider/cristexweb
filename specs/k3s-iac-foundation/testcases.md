@@ -8,7 +8,7 @@ SSH, become, the inventory host, Kubernetes API, a provider, or report generatio
 `.venv` and local Galaxy collection path; nothing was installed on the inventory
 host. Separately approved non-elevated and elevated runtime attempts are recorded
 below, followed by the approved dependency installation and successful elevated
-rerun.
+rerun. The separately approved admin-access implementation remains offline-only.
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
@@ -25,6 +25,9 @@ rerun.
 | KIF-ANS-11 | KIF-001, KIF-008, KIF-030 | Elevated failure diagnosis | Human-reviewed elevated report and a bounded read-only import probe explain unavailable Kubernetes queries without emitting kubeconfig or secrets | PASS — datastore exists; nine queries unavailable; remote `kubernetes`, `yaml`, and `jsonpatch` imports all false |
 | KIF-DEP-01 | KIF-002, KIF-007 | Approved dependency bootstrap contract | Separate one-host playbook requires explicit approval and directly requests only `python3-kubernetes` and `python3-jsonpatch`; no cache refresh, shell, command, latest, upgrade, or other direct package exists | PASS — contract test, syntax check, and production-profile lint passed |
 | KIF-DEP-02 | KIF-002, KIF-007 | Dependency bootstrap execution | Check/diff package plan is reviewed before the approved actual installation; subsequent import probe and elevated discovery pass | PASS — incomplete first plan rejected; revised plan reviewed 37 new, 0 upgraded/removed; installation, package verification, imports, and elevated discovery passed |
+| KIF-ADM-01 | KIF-002, KIF-007 | Group-scoped admin access contract | Explicit approval and one-host limit gate an existing nonzero-UID account; exact dedicated group rejects GID 0, numeric aliases, and unexpected members; check-safe creation, no home creation, persistent `0640` settings, hidden diff, safe rollback baseline, conditional restart, polling, and assertions are present | PASS — contract test, syntax check, and production-profile lint passed |
+| KIF-ADM-02 | KIF-002, KIF-007 | Admin-access check/diff | Approved one-host check predicts only rollback baseline, group, membership, two k3s config settings, and conditional restart without mutation | NOT RUN — operator password/check execution pending |
+| KIF-ADM-03 | KIF-007 | Admin-access mutation and recovery | Approved run succeeds; new SSH session has group access; kubeconfig is root/group `0640`; kubectl, SSH, Tailscale, restart recovery, and second-run idempotence pass | NOT RUN — check/diff must pass first |
 
 ## Documentation and traceability
 
@@ -32,7 +35,7 @@ rerun.
 |---|---|---|---|---|
 | KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
 | KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Only read-only discovery and the executed approved two-package bootstrap are implemented; no general host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, the executed dependency bootstrap, and approved-but-not-run admin access are the only bounded Ansible implementations; no general host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
 | KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings do not prove policy enforcement | PASS — requirements and manual QA remain explicit |
 | KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
@@ -61,6 +64,7 @@ required=(
   ansible/inventory/hosts.yml
   ansible/playbooks/discover.yml
   ansible/playbooks/bootstrap_dependencies.yml
+  ansible/playbooks/configure_k3s_admin_access.yml
   ansible/roles/read_only_discovery/defaults/main.yml
   ansible/roles/read_only_discovery/tasks/main.yml
   ansible/roles/read_only_discovery/tasks/host.yml
@@ -120,8 +124,9 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "imports and all 9 exact Kubernetes queries pass",
-    "One explicitly approved SSH ping",
+    "admin-access playbook approved/implemented",
+    "all nine exact Kubernetes",
+    "approved-but-not-run group-scoped",
 ]:
     assert statement in status, statement
 
@@ -164,7 +169,7 @@ printf '%s\n' 'PASS: ignore policy, git diff check, and no-staged-files check'
 Actual result (exit 0 on 2026-08-05):
 
 ```text
-Ran 12 tests
+Ran 13 tests
 OK
 PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 12 manual cases, status/implementation boundary, and bounded source scan
 PASS: ignore policy, git diff check, and no-staged-files check
@@ -182,6 +187,7 @@ uv run ansible-galaxy collection install \
   -p .ansible/collections
 uv run ansible-playbook playbooks/discover.yml --syntax-check
 uv run ansible-playbook playbooks/bootstrap_dependencies.yml --syntax-check
+uv run ansible-playbook playbooks/configure_k3s_admin_access.yml --syntax-check
 uv run ansible-lint playbooks roles/read_only_discovery
 ```
 
@@ -191,7 +197,8 @@ Actual result (exit 0 on 2026-08-05):
 kubernetes.core:6.1.0 was installed successfully to ansible/.ansible/collections
 playbook: playbooks/discover.yml
 playbook: playbooks/bootstrap_dependencies.yml
-Passed: 0 failure(s), 0 warning(s) in 9 files processed; production profile
+playbook: playbooks/configure_k3s_admin_access.yml
+Passed: 0 failure(s), 0 warning(s) in 10 files processed; production profile
 ```
 
 The separately approved non-elevated runtime used an ignored operator-owned local

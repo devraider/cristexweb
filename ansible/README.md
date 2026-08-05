@@ -68,6 +68,58 @@ No directly requested package beyond those two, apt-cache refresh, upgrade, or h
 baseline is authorized by this playbook. Apt may install reviewed transitive
 dependencies.
 
+## Approved group-scoped k3s administrator access
+
+`configure_k3s_admin_access.yml` grants the selected non-root user access to the
+cluster-admin kubeconfig through a dedicated `k3s-admin` group. It requires an
+existing account with nonzero UID, fixes the group name, rejects GID 0 or numeric
+GID aliases, and refuses unexpected existing supplementary or primary group
+members. It preserves the kubeconfig as
+root-owned mode `0640`, writes only the two persistent k3s settings, and restarts
+k3s only when those settings change. Existing config content is hidden from Ansible
+output and diff. A root-only `config.yaml.pre-admin-access` rollback copy is created
+without overwriting an earlier baseline. The restart causes a short control-plane
+interruption on this single node.
+
+Review check/diff first:
+
+```bash
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/configure_k3s_admin_access.yml \
+  --check --diff --limit crtxweb \
+  -e k3s_admin_access_approved=true \
+  -e k3s_admin_user=paul \
+  --ask-become-pass
+```
+
+After accepting the plan, run the approved mutation by removing only `--check`:
+
+```bash
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/configure_k3s_admin_access.yml \
+  --diff --limit crtxweb \
+  -e k3s_admin_access_approved=true \
+  -e k3s_admin_user=paul \
+  --ask-become-pass
+```
+
+Reconnect SSH after the run so the new supplementary group takes effect. Then
+verify `id -nG`, `kubectl get nodes`, and `kubectl get all -A`. Do not change the
+kubeconfig to world-readable mode.
+
+If the k3s restart fails, restore the root-only baseline before attempting anything
+else:
+
+```bash
+sudo install -o root -g root -m 0600 \
+  /etc/rancher/k3s/config.yaml.pre-admin-access \
+  /etc/rancher/k3s/config.yaml
+sudo systemctl restart k3s
+```
+
+After k3s recovers, removal of the user membership or dedicated group requires a
+separately reviewed Ansible rollback; do not delete groups blindly.
+
 ## Mandatory invocation contract
 
 Review first; then request separate approval before any host access. The playbook
