@@ -10,10 +10,10 @@ only `python3-kubernetes` and `python3-jsonpatch`; no general host baseline or d
 used only for offline contract tests, not infrastructure automation.
 
 One approved non-elevated check/diff run produced the ignored local report. An
-approved elevated attempt confirmed the k3s datastore but all nine Kubernetes
-queries were unavailable because the remote Python dependencies were absent. The
-bounded Ansible dependency bootstrap is implemented and approved but not yet run.
-Successful elevated Kubernetes discovery, hosted runtime,
+approved elevated attempt identified missing remote Python dependencies. The
+bounded two-package Ansible bootstrap was reviewed and installed; post-install
+imports and all nine exact Kubernetes queries now pass. The report confirms the
+k3s datastore and curated cluster indicators. Hosted runtime,
 OpenTofu configuration, Kubernetes manifest, Helm chart, workflow, deployment, DNS
 route, tunnel, database, backup, and recovery remain unexecuted. Debian plus
 Ansible is the host-management owner.
@@ -80,7 +80,7 @@ are documented in [`ansible/README.md`](ansible/README.md).
 ## Repository layout
 
 ```text
-ansible/                 # implemented read-only discovery only
+ansible/                 # discovery + approved dependency bootstrap
   inventory/
   playbooks/
   roles/read_only_discovery/

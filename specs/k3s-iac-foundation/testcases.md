@@ -7,23 +7,24 @@ SSH, become, the inventory host, Kubernetes API, a provider, or report generatio
 `uv` and `ansible-galaxy` contacted package registries to resolve the ignored
 `.venv` and local Galaxy collection path; nothing was installed on the inventory
 host. Separately approved non-elevated and elevated runtime attempts are recorded
-below; the dependency mutation remains unexecuted.
+below, followed by the approved dependency installation and successful elevated
+rerun.
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
 | KIF-ANS-01 | KIF-001, KIF-004, KIF-008 | Ansible-first ownership | Operational Python collector is removed; minimal inventory, playbook, role, pinned collection, template, and Ansible documentation exist | PASS — layout contract test passed |
 | KIF-ANS-02 | KIF-001, KIF-003 | Declarative read-only discovery | Host discovery uses setup/service_facts/stat; cluster discovery uses exact k8s_info queries; the discovery role contains no shell, command, raw, script, package, apt, or pip task | PASS — discovery module-boundary tests passed; the separate approved bootstrap is covered below |
 | KIF-ANS-03 | KIF-001, KIF-002, KIF-007 | Invocation and elevation gates | Play fails without check/diff, explicit limit, and one selected host; become defaults false; elevated queries need both approval flags | PASS — approved positive non-elevated and elevated attempts passed the gates; negative invocation branches NOT RUN |
-| KIF-ANS-04 | KIF-013, KIF-030 | Bounded data projection | Raw discovery registrations are no_log; fact cache is memory-only; report omits addresses, MACs, UUIDs, annotations, labels, environment fields, secrets, chart values, raw specs, command output, and kubeconfig content | PARTIAL — non-elevated report passed; elevated report safely recorded nine unavailable queries but captured no Kubernetes objects |
+| KIF-ANS-04 | KIF-013, KIF-030 | Bounded data projection | Raw discovery registrations are no_log; fact cache is memory-only; report omits addresses, MACs, UUIDs, annotations, labels, environment fields, secrets, chart values, raw specs, command output, and kubeconfig content | PASS — non-elevated and elevated reports were reviewed; all projected query results contain only curated names/counts |
 | KIF-ANS-05 | KIF-006, KIF-013 | Local report safety | Exactly one ignored controller-local JSON destination defaults under the repository root, mode 0600, diff disabled, become false, and symlink-refused | PASS — offline task/template contract and actual ignored mode-0600 report write passed; negative symlink runtime case remains offline-tested only |
 | KIF-ANS-06 | KIF-008, KIF-021 | Kubernetes query boundary | Exact non-secret kinds provide object indicators; Secret, ConfigMap, Events, and broad all queries are absent; CNI and NetworkPolicy enforcement remain explicitly unproven | PASS — query boundary and template assertions passed |
 | KIF-ANS-07 | KIF-007, KIF-030 | Ansible syntax and lint | Locked project tooling and the locally pinned collection pass syntax and production-profile lint before any host access | PASS — ansible-core 2.19.0 syntax check and ansible-lint 26.6.0 production profile passed; package-registry access only |
-| KIF-ANS-08 | KIF-001, KIF-008 | Elevated cluster inventory capture | A separately approved one-host elevated check/diff run produces a human-reviewed host, datastore, and Kubernetes indicator report | PARTIAL — become succeeded and datastore exists, but all nine Kubernetes queries were unavailable; no cluster objects were captured |
+| KIF-ANS-08 | KIF-001, KIF-008 | Elevated cluster inventory capture | A separately approved one-host elevated check/diff run produces a human-reviewed host, datastore, and Kubernetes indicator report | PASS — datastore exists; all nine exact queries available; curated node, namespace, StorageClass, ingress, kube-system workload, and HelmChart indicators captured |
 | KIF-ANS-09 | KIF-006, KIF-007 | Reproducible controller environment | `pyproject.toml` and `uv.lock` pin the ignored project `.venv`; Galaxy installs the pinned collection only into the ignored local Ansible path | PASS — `uv sync --locked`, dependency-pin contract, ignore checks, and project-local Ansible commands passed |
 | KIF-ANS-10 | KIF-001, KIF-007, KIF-030 | Approved non-elevated host discovery | Ansible ping and exactly one check/diff-limited host run pass; only the ignored controller-local report changes and receives human review | PASS — ping changed=false; play recap ok=14, changed=1 local report, failed=0, unreachable=0, skipped=1; valid JSON mode 0600 reviewed; no become or Kubernetes query |
 | KIF-ANS-11 | KIF-001, KIF-008, KIF-030 | Elevated failure diagnosis | Human-reviewed elevated report and a bounded read-only import probe explain unavailable Kubernetes queries without emitting kubeconfig or secrets | PASS — datastore exists; nine queries unavailable; remote `kubernetes`, `yaml`, and `jsonpatch` imports all false |
 | KIF-DEP-01 | KIF-002, KIF-007 | Approved dependency bootstrap contract | Separate one-host playbook requires explicit approval and directly requests only `python3-kubernetes` and `python3-jsonpatch`; no cache refresh, shell, command, latest, upgrade, or other direct package exists | PASS — contract test, syntax check, and production-profile lint passed |
-| KIF-DEP-02 | KIF-002, KIF-007 | Dependency bootstrap execution | Check/diff package plan is reviewed before the approved actual installation; subsequent import probe and elevated discovery pass | PARTIAL — first check proposed 35 new, 0 upgraded/removed but omitted non-transitive jsonpatch, so it was not accepted; revised two-package check and installation NOT RUN |
+| KIF-DEP-02 | KIF-002, KIF-007 | Dependency bootstrap execution | Check/diff package plan is reviewed before the approved actual installation; subsequent import probe and elevated discovery pass | PASS — incomplete first plan rejected; revised plan reviewed 37 new, 0 upgraded/removed; installation, package verification, imports, and elevated discovery passed |
 
 ## Documentation and traceability
 
@@ -31,10 +32,10 @@ below; the dependency mutation remains unexecuted.
 |---|---|---|---|---|
 | KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
 | KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Only read-only discovery and the approved two-package bootstrap are implemented; the dependency mutation, hosted runtime, providers, Kubernetes desired state, and deployment are not claimed as executed | PASS — repository scan and status wording passed |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Only read-only discovery and the executed approved two-package bootstrap are implemented; no general host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
 | KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings do not prove policy enforcement | PASS — requirements and manual QA remain explicit |
-| KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | Twelve future runtime cases remain NOT RUN and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
+| KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
 
 All requirements KIF-001 through KIF-030 remain represented by the implementation,
 documentation, manual, or future-runtime cases in this file. Offline implementation
@@ -111,14 +112,15 @@ for path in [Path("README.md"), Path("architecture-plan.md"), *sorted(spec_dir.g
 expected_ids = {f"KIF-{number:03d}" for number in range(1, 31)}
 found_ids = set(re.findall(r"KIF-\d{3}", (spec_dir / "testcases.md").read_text()))
 assert found_ids == expected_ids, sorted(expected_ids - found_ids)
-assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| NOT RUN —", (spec_dir / "testcases.md").read_text(), re.MULTILINE)) == 12
+assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| NOT RUN —", (spec_dir / "testcases.md").read_text(), re.MULTILINE)) == 11
+assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| PARTIAL —", (spec_dir / "testcases.md").read_text(), re.MULTILINE)) == 1
 assert len(re.findall(r"^\| MQA-\d{2} .* \| PENDING \|$", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) >= 12
 
 status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "elevated discovery attempted but 9 Kubernetes queries unavailable",
+    "imports and all 9 exact Kubernetes queries pass",
     "One explicitly approved SSH ping",
 ]:
     assert statement in status, statement
@@ -245,19 +247,27 @@ Ansible reported changed=true by command-module default; the probe performed no 
 ```
 
 The first dependency check/diff proposed 35 new packages, 0 upgrades, and 0
-removals. It correctly included PyYAML transitively but omitted `python3-jsonpatch`,
-which the import probe showed absent; therefore no installation was accepted or
-run. A read-only apt-cache check found Debian candidate `1.32-5`, the operator
-approved adding it explicitly, and the revised two-package playbook passed offline
-validation. Its revised check/diff and actual installation remain NOT RUN. No
-Kubernetes objects were captured, so cluster inventory and policy-enforcement gates
-remain open.
+removals, but omitted non-transitive `python3-jsonpatch`; no installation was
+accepted. A read-only apt-cache check found Debian candidate `1.32-5`. After explicit
+approval, the revised plan proposed 37 new packages with 0 upgraded/removed. The
+operator ran the approved installation: `ok=2 changed=1 failed=0 unreachable=0`.
+Read-only verification then found `python3-jsonpatch 1.32-5` and
+`python3-kubernetes 30.1.0-2` installed, with `kubernetes`, `yaml`, and `jsonpatch`
+imports all true.
+
+The final elevated discovery report was generated at `2026-08-05T16:56:17Z`, is
+valid JSON mode `0600`, and records datastore presence plus nine available exact
+queries: 1 Node, 4 Namespaces, 0 NetworkPolicies, 1 StorageClass, 1 IngressClass, 4
+kube-system Deployments, 1 kube-system DaemonSet, 2 HelmCharts, and 0
+HelmChartConfigs. The local-path StorageClass, Traefik ingress/chart indicators, and
+CoreDNS deployment are present. Object listing still does not prove CNI behavior or
+NetworkPolicy enforcement, so those functional gates remain open.
 
 ## Future validation contract
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
-| KIF-FUT-01 | KIF-001, KIF-007, KIF-008, KIF-028 | Read-only Ansible discovery | Curated report proves actual k3s, storage, resource, and recovery indicators without mutation; human review passes | NOT RUN — runtime gate remains pending |
+| KIF-FUT-01 | KIF-001, KIF-007, KIF-008, KIF-028 | Read-only Ansible discovery | Curated report proves actual k3s, storage, resource, and recovery indicators without mutation; human review passes | PARTIAL — host, datastore, capacity, and Kubernetes object indicators captured; recovery access and functional CNI/NetworkPolicy probes remain pending |
 | KIF-FUT-02 | KIF-002, KIF-003, KIF-007 | Host baseline safety/idempotence | Syntax/lint/check/diff pass before approval; two approved host-baseline runs converge and preserve recovery access | NOT RUN — runtime gate remains pending |
 | KIF-FUT-03 | KIF-005, KIF-006, KIF-013, KIF-028 | OpenTofu state and plans | Format/validate pass; protected state recovers; reviewed plan has no secrets or unapproved destroy | NOT RUN — runtime gate remains pending |
 | KIF-FUT-04 | KIF-005, KIF-009, KIF-022, KIF-023 | Render and GitOps reconciliation | Helm/Kustomize/schema checks pass; Argo reconciles private desired state and restores controlled drift | NOT RUN — runtime gate remains pending |

@@ -7,12 +7,13 @@ environment, redacted evidence location, result, and rollback outcome. Never pas
 passwords, tokens, cookies, kubeconfigs, connection strings, private keys, database
 rows, personal data, or full secret-bearing command output.
 
-All cases remain **PENDING** because no hosted runtime exists. One non-elevated
-Ansible discovery produced a reviewed host-only report. A separately approved
-become attempt confirmed the datastore, but all Kubernetes queries were unavailable
-because the remote Python dependencies are absent. No successful cluster inventory,
-dependency mutation, deployment, recovery-access proof, or complete manual runtime
-validation occurred. These partial results do not satisfy the manual cases.
+All cases remain **PENDING** because no hosted runtime exists. Separate approved
+non-elevated and elevated Ansible runs produced reviewed host and cluster-indicator
+reports. A
+separately approved two-package dependency bootstrap completed and all nine exact
+Kubernetes queries now pass. No functional CNI/NetworkPolicy probe, deployment,
+recovery-access proof, or complete manual runtime validation occurred. These
+inventory results do not satisfy the manual cases.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|

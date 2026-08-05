@@ -33,8 +33,9 @@ configuration and are never committed here.
 
 ## Approved remote dependency bootstrap
 
-The first elevated discovery proved that the remote Python environment lacks the
-libraries required by `kubernetes.core.k8s_info`. The bounded bootstrap installs
+The first elevated discovery proved that the remote Python environment lacked the
+libraries required by `kubernetes.core.k8s_info`. The reviewed bootstrap has now
+been installed successfully and the elevated queries pass. It installs
 only Debian's `python3-kubernetes` and `python3-jsonpatch` packages; apt resolves
 their declared dependencies.
 Run check/diff first and inspect the package plan:

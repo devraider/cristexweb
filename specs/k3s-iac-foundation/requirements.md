@@ -74,7 +74,8 @@
 
 `tasks.md` references these requirement IDs by stage. `testcases.md` maps every ID
 to offline, integration, security, recovery, or manual evidence. The current
-Ansible discovery implementation satisfies its offline contract, syntax, and lint
-gates; it does not satisfy actual inventory, access, enforcement, or mutation
-gates. Unresolved tool, storage, bootstrap, and RPO/RTO choices remain
-decision gates rather than implied requirements.
+Ansible discovery satisfies its offline, syntax/lint, approved host-access,
+dependency-bootstrap, and curated host/cluster-indicator gates. It does not satisfy
+functional CNI/NetworkPolicy enforcement, recovery access, general host-baseline,
+or later platform mutation gates. Unresolved storage, secret bootstrap, and RPO/RTO
+choices remain decision gates rather than implied requirements.

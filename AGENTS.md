@@ -9,7 +9,7 @@ This root `AGENTS.md` is authoritative for the entire repository.
 - This repository otherwise owns design documentation for future host configuration, external-resource IaC, GitOps desired state, and recovery runbooks.
 - No hosted runtime, general Ansible host baseline, OpenTofu configuration, Kubernetes manifest, Helm chart, or workflow exists here yet.
 - CristexHub application source, local Compose assets, Keycloak theme, and Browserless gateway remain external concerns in the CristexHub application repository and must not be copied here.
-- One non-elevated discovery and one elevated-but-unavailable Kubernetes query run have completed. The operator approved installing only `python3-kubernetes` and `python3-jsonpatch` to enable `k8s_info`; any other host mutation or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed.
+- Approved non-elevated and elevated discovery runs have completed. The approved playbook directly requested only `python3-kubernetes` and `python3-jsonpatch` to enable `k8s_info`; apt installed 37 packages including dependencies, and all exact Kubernetes queries now succeed. Any other host mutation or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed.
 
 ## Ownership
 

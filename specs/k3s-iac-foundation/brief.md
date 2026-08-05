@@ -47,15 +47,17 @@ recover DEV and PROD without presenting a single node as highly available.
 
 ## Delivery boundary
 
-G1 is agent-in-progress in its read-only discovery stage. The only operational
-implementation is the Ansible discovery playbook under `ansible/`; Python is used
-only for offline contract tests. One approved non-elevated check/diff run produced
-a locally reviewed host report; an elevated attempt confirmed the datastore but all
-Kubernetes queries were unavailable due to missing remote Python dependencies. A
-separately approved playbook may install only `python3-kubernetes` and
-`python3-jsonpatch`; it has not run.
-The locked local environment passes syntax and lint. This deliverable performs no
-other host mutation, Cloudflare, GitHub, Infisical,
+G1 is agent-in-progress in its discovery stage. Its bounded operational
+implementations are the Ansible discovery playbook and the separately approved,
+executed two-package dependency bootstrap under `ansible/`; Python is used only for
+offline contract tests. One approved non-elevated check/diff run produced
+a locally reviewed host report. A separately approved playbook directly requested
+only `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
+dependencies, and post-install imports plus all nine exact
+Kubernetes queries pass. The elevated report confirms the datastore and curated
+cluster indicators but not CNI behavior or NetworkPolicy enforcement. The locked
+local environment passes syntax and lint. This deliverable performs no other host
+mutation, Cloudflare, GitHub, Infisical,
 registry, database, storage,
 backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain
 external application-repository concerns and are not copied here.

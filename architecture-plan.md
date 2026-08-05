@@ -2,9 +2,10 @@
 
 ## Status
 
-This target design now has one bounded implementation: Ansible-first, read-only
-discovery under `ansible/`. It is not a host baseline, hosted runtime, or IaC
-reconciler. Python is limited to offline contract tests. No hosted orchestration,
+This target design now has two bounded Ansible implementations: read-only discovery
+and the executed, explicitly approved Kubernetes-module dependency bootstrap under
+`ansible/`. They are not a general host baseline, hosted runtime, or IaC reconciler.
+Python is limited to offline contract tests. No hosted orchestration,
 DNS, tunnels, GitOps, secrets, databases, backups, or recovery are implemented.
 CristexHub local Compose assets remain an external application-repository concern.
 
@@ -12,14 +13,16 @@ CristexHub local Compose assets remain an external application-repository concer
 
 A read-only host inspection observed a Debian 13 single-node k3s server with about
 16 GiB RAM, an NVMe system disk, a separate unmounted 1 TB NTFS disk, and Tailscale
-installed. k3s is active. The non-root operator cannot currently read the root-only
-kubeconfig, so datastore, node, CNI, Traefik, StorageClass, and workload state must
-be reverified through an approved read-only discovery step.
+installed. k3s is active. Approved elevated discovery has reverified the datastore,
+node, Traefik, local-path StorageClass, and curated kube-system workload indicators
+through the root-only kubeconfig. CNI behavior, NetworkPolicy enforcement, and
+recovery access still require separate approved verification.
 
 The external CristexHub application repository publishes backend, frontend, and
-code-runner images to GHCR. This repository now implements read-only Ansible
-discovery only; it still has no Kubernetes, Helm, Kustomize, OpenTofu, GitHub
-Actions, or mutating host-baseline implementation. Debian plus Ansible is the
+code-runner images to GHCR. This repository implements Ansible discovery and the
+reviewed dependency bootstrap only; it still has no Kubernetes desired state, Helm,
+Kustomize, OpenTofu, GitHub Actions, or general host-baseline implementation. Debian
+plus Ansible is the
 selected host-configuration owner.
 
 ## Goals
@@ -188,14 +191,18 @@ verification must meet the declared RPO/RTO before PROD.
   and NetworkPolicy enforcement require later approved functional probes and are
   not proven by discovery.
 - Current evidence: the locked local environment, syntax, lint, and non-elevated
-  one-host report pass. An approved elevated attempt confirmed the datastore, but
-  all nine Kubernetes queries were unavailable because required remote Python
-  modules are absent. A separately approved bounded playbook may install only
-  `python3-kubernetes` and `python3-jsonpatch`; it is implemented but has not run.
+  one-host report pass. The approved bootstrap directly requested only
+  `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
+  dependencies, and post-install imports pass. The
+  elevated report confirms the datastore and nine available exact Kubernetes
+  queries. CNI behavior, NetworkPolicy enforcement, and recovery remain unproven.
 - Gate: human-reviewed local report and decision register update.
-- Stop: a task needs mutation, secret output, or elevated access beyond approval.
-- Rollback: none; no target state changes are permitted. The only write is the
-  explicitly requested controller-local report.
+- Stop: a task needs mutation, secret output, or elevated access beyond the two
+  approved dependency packages and discovery scope.
+- Rollback: the only approved target-state change is the recorded apt transaction.
+  Any package removal requires a separately reviewed apt plan; do not remove
+  transitive packages blindly. The discovery play's only write is the explicitly
+  requested controller-local report.
 
 ### Stage 2 — host safety baseline
 

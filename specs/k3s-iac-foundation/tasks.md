@@ -36,9 +36,10 @@
 - [x] Obtain explicit approval and implement a two-package Ansible bootstrap for
   `python3-kubernetes` and the non-transitive `python3-jsonpatch` requirement;
   syntax, lint, and offline safety tests pass (`KIF-002`, `KIF-007`).
-- [ ] Run the dependency bootstrap in check/diff mode, review the planned package
-  change, then run the approved installation (`KIF-002`, `KIF-007`).
-- [ ] Rerun elevated Ansible discovery against exactly one approved host and
+- [x] Run the revised dependency bootstrap in check/diff mode; review 37 new, zero
+  upgraded/removed packages; install the approved dependencies and verify package
+  plus import availability (`KIF-002`, `KIF-007`).
+- [x] Rerun elevated Ansible discovery against exactly one approved host and
   human-review its curated host, datastore, NetworkPolicy-object, platform-object,
   StorageClass, and resource indicator report (`KIF-008`).
 - [ ] Separately approve and run bounded functional probes for CNI behavior and
@@ -50,8 +51,8 @@
   the explicitly approved discovery dependency while inventory is incomplete
   (`KIF-002`, `KIF-003`).
 
-Approval gate: operator approves the human-reviewed inventory and first mutation
-plan.
+Approval gate: operator approves the human-reviewed inventory and first general
+host-baseline/next-stage mutation plan.
 
 ## Stage 2 — host safety baseline
 
