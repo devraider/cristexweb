@@ -8,6 +8,9 @@ __pycache__/
 local-inventory-reports/
 inventory.raw*.json
 inventory.local*.json
+recovery-artifact-register.local.*
+replacement-recovery.local.*
+replacement-host-recovery.local.*
 *.inventory.raw.json
 *.inventory.local.json
 

@@ -1,0 +1,123 @@
+---
+- name: Require the read-only CNI probe planning contract
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_action == 'plan'
+      - ansible_check_mode
+      - ansible_diff_mode
+      - (ansible_limit | default('') | string | length) > 0
+      - (ansible_play_hosts_all | length) == 1
+      - network_policy_probe_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - network_policy_probe_namespace == 'kif-cni-netpol-probe'
+      - network_policy_probe_authored_object_count == 8
+      - network_policy_probe_object_names.namespace == 'kif-cni-netpol-probe'
+      - network_policy_probe_object_names.config_map == 'probe-http-content'
+      - network_policy_probe_object_names.service == 'probe-server'
+      - network_policy_probe_object_names.server_pod == 'probe-server'
+      - network_policy_probe_object_names.allowed_client_pod == 'probe-client-allowed'
+      - network_policy_probe_object_names.denied_client_pod == 'probe-client-denied'
+      - network_policy_probe_object_names.deny_policy == 'deny-probe-server-ingress'
+      - network_policy_probe_object_names.allow_policy == 'allow-probe-server-from-allowed-client'
+      - network_policy_probe_image | length == 0
+      - network_policy_probe_image_architecture | length == 0
+      - network_policy_probe_required_architecture == 'linux/amd64'
+    fail_msg: >-
+      Only the read-only plan action is implemented. It requires --check --diff,
+      an explicit one-host limit, and the fixed proposed object boundary.
+  changed_when: false
+
+- name: Inspect protected kubeconfig metadata without reading its content
+  ansible.builtin.stat:
+    path: "{{ network_policy_probe_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: network_policy_probe_kubeconfig_state
+  changed_when: false
+  no_log: true
+
+- name: Require effective non-elevated kubeconfig access
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_kubeconfig_state.stat.exists | default(false)
+      - network_policy_probe_kubeconfig_state.stat.isreg | default(false)
+      - not (network_policy_probe_kubeconfig_state.stat.islnk | default(false))
+      - network_policy_probe_kubeconfig_state.stat.readable | default(false)
+    fail_msg: "The effective account cannot read the protected kubeconfig."
+  changed_when: false
+
+- name: Query the single node without exposing addresses
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    api_version: v1
+    kind: Node
+  register: network_policy_probe_nodes_raw
+  changed_when: false
+  no_log: true
+
+- name: Require exactly one Ready linux amd64 node
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_nodes_raw.resources | length == 1
+      - >-
+        (network_policy_probe_nodes_raw.resources[0].status.conditions |
+         selectattr('type', 'equalto', 'Ready') |
+         selectattr('status', 'equalto', 'True') | list | length) == 1
+      - >-
+        network_policy_probe_nodes_raw.resources[0].metadata.labels.get(
+        'kubernetes.io/os', '') == 'linux'
+      - >-
+        network_policy_probe_nodes_raw.resources[0].metadata.labels.get(
+        'kubernetes.io/arch', '') == 'amd64'
+    fail_msg: "The proposed probe is bounded to one Ready linux/amd64 node."
+  changed_when: false
+
+- name: Verify the NetworkPolicy API is readable
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+  changed_when: false
+  no_log: true
+
+- name: Inspect the proposed temporary namespace collision
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    api_version: v1
+    kind: Namespace
+    name: "{{ network_policy_probe_namespace }}"
+  register: network_policy_probe_namespace_raw
+  changed_when: false
+  no_log: true
+
+- name: Require no namespace collision in the read-only plan
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_namespace_raw.resources | length == 0
+    fail_msg: >-
+      The proposed namespace already exists. No mutation or adoption is implemented;
+      inspect it separately before redesigning the probe.
+  changed_when: false
+
+- name: Describe the blocked temporary probe design
+  ansible.builtin.debug:
+    msg:
+      action: plan
+      mutation_implemented: false
+      functional_test_performed: false
+      namespace: kif-cni-netpol-probe
+      authored_object_count: 8
+      phase_order:
+        - baseline
+        - deny
+        - selective-allow
+        - policy-rollback
+        - exact-object-cleanup
+      exposure: ClusterIP TCP 8080 only; no public route
+      blockers:
+        - independently verified linux/amd64 image digest
+        - atomic namespace ownership strategy
+        - exhaustive foreign-resource-safe cleanup design
+        - explicit create and delete approvals
+      ownership: Argo CD remains owner of persistent Kubernetes desired state
+  changed_when: false

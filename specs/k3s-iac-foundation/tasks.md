@@ -42,14 +42,40 @@
 - [x] Rerun elevated Ansible discovery against exactly one approved host and
   human-review its curated host, datastore, NetworkPolicy-object, platform-object,
   StorageClass, and resource indicator report (`KIF-008`).
-- [ ] Separately approve and run bounded functional probes for CNI behavior and
-  NetworkPolicy enforcement; do not treat object listings as enforcement evidence
-  (`KIF-008`, `KIF-021`).
+- [x] Extend read-only discovery offline with curated block-device, partition,
+  mounted-filesystem-type, and direct mount-state indicators; exact StorageClass
+  behavior fields; bounded PV metadata; and PVC metadata from five fixed namespaces,
+  without device serials, generated PV identifiers, addresses, backing paths,
+  filesystem contents, sensitive
+  Kubernetes kinds, or broad PVC queries (`KIF-001`, `KIF-003`, `KIF-008`, `KIF-030`).
+- [ ] Separately approve and run the extended one-host elevated discovery, then
+  human-review the new storage projection; offline implementation does not establish
+  disk filesystem type or PV/PVC placement evidence (`KIF-001`, `KIF-008`, `KIF-030`).
+- [x] Implement and offline-validate a read-only CNI/NetworkPolicy probe planner
+  that requires check/diff, one host, a Ready linux/amd64 node, readable policy API,
+  fixed proposed scope, and no namespace collision (`KIF-002`, `KIF-003`, `KIF-008`,
+  `KIF-021`, `KIF-030`).
+- [ ] Before implementing mutation, independently verify the image digest and design
+  atomic namespace ownership plus exhaustive cleanup that cannot cascade-delete
+  uninspected built-in or custom resources (`KIF-003`, `KIF-006`, `KIF-023`).
+- [ ] Add a separately reviewed ephemeral-QA ownership exception and explicit
+  create/delete approvals, then implement and approve the bounded functional probe;
+  object listings and the read-only planner are not enforcement evidence
+  (`KIF-005`, `KIF-008`, `KIF-021`).
 - [x] Confirm independent recovery access and the protected current configuration
   rollback baseline (`KIF-007`, `KIF-028`).
-- [ ] Resolve the remaining CNI, enforcement, replacement-recovery, and storage
-  decisions; permit no mutation beyond the explicitly approved bounded Ansible
-  changes (`KIF-002`, `KIF-003`).
+- [x] Implement and offline-validate the first replacement-host recovery increment:
+  a truthful reboot boundary, secret-free runbook/register, old-host fencing and
+  split-brain stop gates, and an explicit preserve-existing-identity versus
+  create-new-cluster decision gate, with no guessed recovery automation (`KIF-002`,
+  `KIF-003`, `KIF-013`, `KIF-028`, `KIF-030`).
+- [ ] Resolve the register's `UNKNOWN — STOP` datastore, exact k3s version/config,
+  token custody, storage mapping, RPO/RTO, off-node artifact, and isolated-restore
+  prerequisites; approve exactly one identity model and only then review a concrete
+  operational recovery plan (`KIF-002`, `KIF-015`, `KIF-026`–`KIF-030`).
+- [ ] Resolve the remaining CNI, enforcement, and storage decisions; permit no
+  mutation beyond the explicitly approved bounded Ansible changes (`KIF-002`,
+  `KIF-003`).
 
 Approval gate: operator approves the human-reviewed inventory and first general
 host-baseline/next-stage mutation plan.

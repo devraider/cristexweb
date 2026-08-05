@@ -14,10 +14,21 @@ separately approved two-package dependency bootstrap completed and all nine exac
 Kubernetes queries now pass. Persistent group-scoped kubectl access and the
 all-namespace listing, warning-free client defaults, and the single-node reboot
 recovery pass. The operator manually confirmed independent fallback access, active
-services, and warning-free queries after reboot. Replacement-host recovery remains
-pending. No functional
-CNI/NetworkPolicy probe, deployment, replacement recovery proof, or complete manual
-runtime validation occurred. These results do not satisfy the remaining manual cases.
+services, and warning-free queries after reboot. Only a read-only
+CNI/NetworkPolicy planner exists; mutating probe code is blocked on image, atomic
+ownership, cleanup, and approval prerequisites. This change contacted no inventory
+host or Kubernetes API. The storage discovery projection is
+also extended only offline; its new device, StorageClass, PV, and namespace-bounded
+PVC indicators have not been collected from the host or cluster and do not close
+MQA-01. The first replacement-host increment is now documented offline: a
+secret-free runbook/register separates reboot from replacement, stops on old-host or
+storage split-brain risk, and requires an explicit recovery identity decision. Its
+datastore/version/token/storage/RPO/RTO/off-node entries remain `UNKNOWN — STOP`.
+No functional CNI/NetworkPolicy probe, deployment, replacement recovery proof, or
+complete manual runtime validation occurred. MQA-13 remains pending specifically
+because the managed-profile rollback path has not been executed and verified, even
+though warning-free fresh-session behavior passed. These results do not satisfy the
+remaining manual cases.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|
@@ -49,7 +60,12 @@ Before MQA-09 can pass, verify from outside the LAN/tailnet:
 
 ## Recovery checklist
 
-A restore rehearsal must start from a clean isolated target and prove recovery of:
+A restore rehearsal must start from a clean isolated target only after independent
+old-host fencing/storage-exclusivity evidence and approval of exactly one
+preserve-existing-identity or create-new-cluster model. The
+[replacement-host runbook](../../runbooks/replacement-host-recovery.md) and
+[secret-free artifact register](../../runbooks/recovery-artifact-register.md) remain
+blocked on unknown prerequisites. A later rehearsal must prove recovery of:
 
 - pinned host/k3s configuration;
 - Argo CD repository access;

@@ -3,8 +3,13 @@
 ## Status
 
 The repository's bounded Ansible implementation contains discovery, the executed
-two-package module bootstrap, and an executed group-scoped k3s administrator
-access playbook under [`ansible/`](ansible/). Effective-user readability,
+two-package module bootstrap, an executed group-scoped k3s administrator access
+playbook, an offline-validated non-destructive storage-discovery increment, and an
+offline-validated read-only CNI/NetworkPolicy probe planner under
+[`ansible/`](ansible/). The extended storage query set and probe planner have not
+been run against the host or Kubernetes API. Mutating probe code is not implemented:
+runtime is NOT RUN/BLOCKED on a verified image digest, atomic namespace ownership,
+foreign-resource-safe cleanup, and separate create/delete approvals. Effective-user readability,
 fresh-session cluster listing, and second-run idempotence have passed. The executed
 user-scoped client-defaults playbook removes k3s multicall warnings without exposing
 server configuration. The separately approved one-reboot recovery playbook passed
@@ -17,11 +22,14 @@ is used only for offline contract tests, not infrastructure automation.
 One approved non-elevated check/diff run produced the ignored local report. An
 approved elevated attempt identified missing remote Python dependencies. The
 bounded two-package Ansible bootstrap was reviewed and installed; post-install
-imports and all nine exact Kubernetes queries now pass. The report confirms the
-k3s datastore and curated cluster indicators. Hosted runtime,
+imports and the prior nine exact Kubernetes queries pass. That report confirms the
+k3s datastore and curated cluster indicators; it predates the extended StorageClass,
+PV, and namespace-bounded PVC projection. Hosted runtime,
 OpenTofu configuration, Kubernetes manifest, Helm chart, workflow, deployment, DNS
-route, tunnel, database, backup, and recovery remain unexecuted. Debian plus
-Ansible is the host-management owner.
+route, tunnel, database, backup, and replacement recovery remain unexecuted. The
+first replacement-host increment is documentation-only: it adds a secret-free
+runbook and artifact register with fail-closed decision gates, not recovery
+automation or runtime proof. Debian plus Ansible is the host-management owner.
 
 CristexHub application source, local Compose assets, Keycloak theme, and Browserless
 gateway remain in the separate CristexHub application repository.
@@ -31,7 +39,8 @@ gateway remain in the separate CristexHub application repository.
 1. [`AGENTS.md`](AGENTS.md) — authoritative ownership and safety rules.
 2. [`architecture-plan.md`](architecture-plan.md) — target design, staged delivery, gates, rollback, and unresolved decisions.
 3. [`ansible/README.md`](ansible/README.md) — discovery contract and approved command shape.
-4. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+4. [`runbooks/replacement-host-recovery.md`](runbooks/replacement-host-recovery.md) — replacement boundary, isolation gates, and decision-first recovery contract.
+5. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -50,14 +59,24 @@ user, key, credential, or become secret. The playbook:
 - never queries Secret, ConfigMap, Events, or a broad `all` resource set;
 - marks raw facts and Kubernetes results `no_log`, disables persistent fact caching,
   and projects only curated fields;
+- projects device/partition size and state without serials, UUIDs, addresses, mount
+  sources/paths, or contents, plus exact StorageClass behavior fields and bounded
+  PV/PVC placement metadata from five fixed PVC namespaces;
 - lets `k8s_info` load the normal root-only k3s kubeconfig for authentication, but
   never separately slurps, copies, registers, logs, or renders its content;
 - writes one ignored controller-local JSON report, mode `0600`, with diff disabled
   and symlink refusal.
 
 Listing NetworkPolicy and platform objects supplies configuration indicators only.
-It does not prove CNI behavior or NetworkPolicy enforcement; those require later,
-separately approved functional probes.
+It does not prove CNI behavior or NetworkPolicy enforcement. The repository now
+contains a separately gated read-only probe planner, but offline validation does
+not execute it or establish runtime evidence.
+
+The planner describes a proposed eight-object, ClusterIP-only temporary probe but
+cannot mutate Kubernetes. Argo CD remains the only Kubernetes object writer until a
+separately reviewed ephemeral-QA exception closes the image, atomic ownership, safe
+cleanup, and approval blockers. See [`ansible/README.md`](ansible/README.md) for the
+read-only plan command and blocked prerequisites.
 
 The approved non-elevated discovery run passed and its curated host report was
 reviewed locally. It did not use become or query Kubernetes. Syntax and lint also
@@ -85,17 +104,21 @@ are documented in [`ansible/README.md`](ansible/README.md).
 ## Repository layout
 
 ```text
-ansible/                 # discovery + two narrowly approved host changes
+ansible/                 # discovery + bounded host changes + read-only QA planner
   inventory/
   playbooks/
   roles/read_only_discovery/
+  roles/network_policy_probe/
 opentofu/                # future
 kubernetes/              # future
-runbooks/                # future
+runbooks/                # decision-first recovery docs; no recovery automation
+  replacement-host-recovery.md
+  recovery-artifact-register.md
 tests/                   # offline contract tests only
 ```
 
-Only `ansible/` and `tests/` currently exist. Kustomize remains intended for
+Only `ansible/`, the first documentation-only replacement recovery increment under
+`runbooks/`, and offline `tests/` currently exist. Kustomize remains intended for
 first-party application overlays; Helm is reserved for selected third-party
 components. After a bounded bootstrap, Argo CD owns all in-cluster desired state.
 

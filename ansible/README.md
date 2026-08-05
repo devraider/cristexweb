@@ -2,9 +2,12 @@
 
 This directory contains the repository's first Ansible implementation: a small,
 read-only discovery playbook. It gathers bounded host facts with built-in modules
-and queries exact Kubernetes kinds with `kubernetes.core.k8s_info`. It does not
-configure the host, install dependencies, or prove CNI behavior or NetworkPolicy
-enforcement.
+and queries exact Kubernetes kinds with `kubernetes.core.k8s_info`. Its storage
+projection includes only curated block-device, partition, mounted-filesystem-type,
+and mount-state indicators; exact StorageClass fields; bounded PersistentVolume
+metadata; and PersistentVolumeClaim metadata from five fixed namespaces. It does
+not configure the host, install dependencies, read filesystem contents, or prove
+CNI behavior or NetworkPolicy enforcement.
 
 ## Controller environment
 
@@ -196,6 +199,35 @@ the Tailscale path does not return, use that confirmed fallback to inspect
 `tailscaled` and `k3s`; the reboot playbook itself makes no configuration change to
 roll back.
 
+## Temporary CNI and NetworkPolicy probe design (read-only plan only)
+
+`probe_k3s_network_policy.yml` currently implements only a read-only planning
+preflight. It verifies one Ready linux/amd64 node, NetworkPolicy API readability,
+protected kubeconfig access, and absence of the proposed fixed namespace. It must
+run with `--check --diff` and cannot create, patch, or delete Kubernetes objects.
+Argo CD remains the owner of all persistent Kubernetes desired state.
+
+```bash
+cd ansible
+uv run ansible-playbook \
+  -i .ansible/inventory.local.yml \
+  playbooks/probe_k3s_network_policy.yml \
+  --check --diff --limit crtxweb \
+  -e k3s_network_probe_action=plan
+```
+
+The intended future probe remains **NOT RUN/BLOCKED**. Before mutating code may be
+authorized, independent review must close all of these prerequisites:
+
+- verify and pin the real linux/amd64 digest for the approved probe image;
+- replace the fixed-name create race with an atomic namespace-ownership strategy;
+- design cleanup that cannot cascade-delete uninspected built-in or custom resources;
+- obtain separate create and delete approvals.
+
+The proposed scope remains eight temporary objects, ClusterIP TCP 8080 only, and
+baseline → deny → selective allow → policy removal → exact-object cleanup. No run or
+cleanup command is implemented or documented until those blockers close.
+
 ## Mandatory invocation contract
 
 Review first; then request separate approval before any host access. The playbook
@@ -225,15 +257,25 @@ logs, or renders kubeconfig content.
 
 ## Output and privacy
 
-The only write is a controller-local report at
+The only write is a controller-local schema-v2 report at
 `inventory.local.ansible.json` in the repository root. It is ignored by Git,
 written mode `0600`, has task diff disabled, and is refused when the destination is
 a symlink. Target discovery remains read-only even though the local report task
 must run with `check_mode: false`.
 
 Raw facts and Kubernetes objects are marked `no_log` and fact caching is memory-only.
-The report projects only selected OS/capacity/service/filesystem fields and
-Kubernetes object names/counts. It excludes addresses, MACs, UUIDs, annotations,
-labels, environment fields, Secret data, chart values, raw specs, command output,
-and kubeconfig content. Projection is still not a proof of anonymity: review the
-complete report before sharing, and never commit it.
+The report projects only selected OS/capacity/service fields; device/partition size,
+rotational/removable state, mounted state, and filesystem types observed in mount
+facts; exact StorageClass behavior fields; and bounded PV/PVC capacity, binding,
+claim, backend-type, and placement booleans. PVC queries are limited to `default`,
+`kube-system`, `shared-data`, `cristexhub-dev`, and `cristexhub-prod`; no Secret,
+ConfigMap, Event, or broad PVC query is made. Generated PV identifiers and backing
+paths are not rendered: placement is reduced to backend, node-affinity presence,
+and whether a host path is under the fixed k3s storage root.
+
+The report excludes device serials, addresses, MACs, UUIDs, annotations, labels,
+environment fields, mount source/path strings, filesystem contents, Secret data,
+chart values, raw specs, command output, and kubeconfig content. Unmounted
+filesystem types are not inferred: they remain unknown unless a later separately
+approved read-only method can supply them safely. Projection is still not a proof
+of anonymity: review the complete report before sharing, and never commit it.

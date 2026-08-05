@@ -1,0 +1,90 @@
+---
+- name: Validate exact synthetic storage mount attribution
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    read_only_discovery_kubernetes_attempted: false
+    read_only_discovery_host_summary: {}
+    read_only_discovery_datastore_summary: {}
+    read_only_discovery_kubernetes_raw:
+      results: []
+    read_only_discovery_host_raw:
+      ansible_facts:
+        ansible_devices:
+          sda:
+            sectors: 100
+            sectorsize: 512
+            rotational: 1
+            removable: 0
+            partitions:
+              sda1:
+                sectors: 50
+                sectorsize: 512
+          sdap:
+            sectors: 100
+            sectorsize: 512
+            rotational: 1
+            removable: 0
+            partitions:
+              sdap1:
+                sectors: 50
+                sectorsize: 512
+          nvme0n1:
+            sectors: 100
+            sectorsize: 512
+            rotational: 0
+            removable: 0
+            partitions:
+              nvme0n1p1:
+                sectors: 50
+                sectorsize: 512
+          nvme0n11:
+            sectors: 100
+            sectorsize: 512
+            rotational: 0
+            removable: 0
+            partitions:
+              nvme0n11p1:
+                sectors: 50
+                sectorsize: 512
+        ansible_mounts:
+          - device: /dev/sdap1
+            fstype: ext4
+          - device: /dev/nvme0n11
+            fstype: xfs
+
+  tasks:
+    - name: Render the committed report template from synthetic colliding names
+      ansible.builtin.set_fact:
+        storage_report_rendered: >-
+          {{ lookup('ansible.builtin.template',
+                    playbook_dir ~ '/../ansible/roles/read_only_discovery/templates/report.json.j2')
+             | from_json }}
+      changed_when: false
+      no_log: true
+
+    - name: Index synthetic block devices by exact name
+      ansible.builtin.set_fact:
+        storage_devices_by_name: >-
+          {{ dict(storage_report_rendered.storage.block_devices |
+                  map(attribute='name') |
+                  zip(storage_report_rendered.storage.block_devices)) }}
+      changed_when: false
+      no_log: true
+
+    - name: Require collision-safe device and partition attribution
+      ansible.builtin.assert:
+        that:
+          - not storage_devices_by_name.sda.direct_mount_observed_for_device_or_partition
+          - storage_devices_by_name.sdap.direct_mount_observed_for_device_or_partition
+          - storage_devices_by_name.sdap.filesystem_types_observed_while_mounted == ['ext4']
+          - not storage_devices_by_name.nvme0n1.direct_mount_observed_for_device_or_partition
+          - storage_devices_by_name.nvme0n11.direct_mount_observed_for_device_or_partition
+          - storage_devices_by_name.nvme0n11.filesystem_types_observed_while_mounted == ['xfs']
+          - not storage_devices_by_name.sda.partitions[0].direct_mount_observed
+          - storage_devices_by_name.sdap.partitions[0].direct_mount_observed
+          - not storage_devices_by_name.nvme0n1.partitions[0].direct_mount_observed
+          - not storage_devices_by_name.nvme0n11.partitions[0].direct_mount_observed
+        fail_msg: "Synthetic colliding block-device names were attributed incorrectly."
+      changed_when: false

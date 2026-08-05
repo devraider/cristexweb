@@ -38,6 +38,10 @@ class AnsibleLayoutTests(unittest.TestCase):
             "playbooks/configure_k3s_admin_access.yml",
             "playbooks/configure_k3s_kubectl_client.yml",
             "playbooks/verify_k3s_reboot_recovery.yml",
+            "playbooks/probe_k3s_network_policy.yml",
+            "roles/network_policy_probe/defaults/main.yml",
+            "roles/network_policy_probe/tasks/main.yml",
+            "roles/network_policy_probe/tasks/preflight.yml",
             "roles/read_only_discovery/defaults/main.yml",
             "roles/read_only_discovery/tasks/main.yml",
             "roles/read_only_discovery/tasks/host.yml",
@@ -361,6 +365,92 @@ class AnsibleLayoutTests(unittest.TestCase):
         self.assertNotRegex(text, r"\b(?:10|127|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.")
 
 
+class NetworkPolicyProbeContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.role = ANSIBLE / "roles/network_policy_probe"
+        cls.playbook = (ANSIBLE / "playbooks/probe_k3s_network_policy.yml").read_text()
+        cls.defaults = (cls.role / "defaults/main.yml").read_text()
+        cls.main = (cls.role / "tasks/main.yml").read_text()
+        cls.preflight = (cls.role / "tasks/preflight.yml").read_text()
+        cls.operational = "\n".join(
+            [cls.playbook, cls.defaults, cls.main, cls.preflight]
+        )
+
+    def test_only_read_only_plan_is_implemented(self) -> None:
+        for required in (
+            "hosts: k3s_servers",
+            "serial: 1",
+            "any_errors_fatal: true",
+            "become: false",
+            "network_policy_probe_action == 'plan'",
+            "ansible_check_mode",
+            "ansible_diff_mode",
+            "ansible_limit",
+            "ansible_play_hosts_all | length",
+            "mutation_implemented: false",
+            "functional_test_performed: false",
+        ):
+            self.assertIn(required, self.operational)
+        for forbidden in (
+            "network_policy_probe_action in ['plan', 'run', 'cleanup']",
+            "kubernetes.core.k8s:",
+            "kubernetes.core.k8s_exec:",
+            "ansible.builtin.shell:",
+            "ansible.builtin.command:",
+            "ansible.builtin.raw:",
+            "ansible.builtin.script:",
+            "state: absent",
+            "state: present",
+        ):
+            self.assertNotIn(forbidden, self.operational)
+
+    def test_design_is_fixed_and_runtime_prerequisites_fail_closed(self) -> None:
+        self.assertRegex(
+            self.defaults,
+            re.compile(r'^network_policy_probe_image: ""$', re.MULTILINE),
+        )
+        self.assertIn('network_policy_probe_required_architecture: linux/amd64', self.defaults)
+        self.assertIn('network_policy_probe_authored_object_count: 8', self.defaults)
+        for name in (
+            "kif-cni-netpol-probe",
+            "probe-http-content",
+            "probe-server",
+            "probe-client-allowed",
+            "probe-client-denied",
+            "deny-probe-server-ingress",
+            "allow-probe-server-from-allowed-client",
+        ):
+            self.assertIn(name, self.defaults)
+        for blocker in (
+            "independently verified linux/amd64 image digest",
+            "atomic namespace ownership strategy",
+            "exhaustive foreign-resource-safe cleanup design",
+            "explicit create and delete approvals",
+        ):
+            self.assertIn(blocker, self.preflight)
+
+    def test_preflight_is_address_safe_and_exact(self) -> None:
+        self.assertIn("kind: Node", self.preflight)
+        self.assertIn("kind: NetworkPolicy", self.preflight)
+        self.assertIn("kind: Namespace", self.preflight)
+        self.assertIn("no_log: true", self.preflight)
+        self.assertIn("network_policy_probe_namespace_raw.resources | length == 0", self.preflight)
+        for forbidden in (
+            "kind: Secret",
+            "kind: ConfigMap",
+            "kind: PersistentVolumeClaim",
+            "kind: Ingress",
+            "kind: Service",
+            "kind: Pod",
+            "NodePort",
+            "LoadBalancer",
+            "hostPort",
+            "kubectl",
+        ):
+            self.assertNotIn(forbidden, self.operational)
+
+
 class AnsibleSafetyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -387,12 +477,114 @@ class AnsibleSafetyTests(unittest.TestCase):
     def test_kubernetes_queries_are_exact_and_exclude_sensitive_kinds(self) -> None:
         kubernetes_tasks = (ANSIBLE / "roles/read_only_discovery/tasks/kubernetes.yml").read_text()
         kinds = set(re.findall(r"^\s+kind:\s*([A-Za-z]+)\s*$", kubernetes_tasks, re.MULTILINE))
-        self.assertTrue({"Node", "Namespace", "NetworkPolicy", "StorageClass", "IngressClass"}.issubset(kinds))
+        self.assertTrue(
+            {
+                "Node",
+                "Namespace",
+                "NetworkPolicy",
+                "StorageClass",
+                "PersistentVolume",
+                "PersistentVolumeClaim",
+                "IngressClass",
+            }.issubset(kinds)
+        )
         self.assertTrue(kinds.isdisjoint({"Secret", "ConfigMap", "Event", "Events", "all"}))
         self.assertNotIn("kind: all", kubernetes_tasks.lower())
         self.assertNotIn("read_only_discovery_kubernetes_queries", self.all_ansible_text)
         self.assertIn("kubernetes.core.k8s_info:", kubernetes_tasks)
         self.assertIn("kubeconfig: /etc/rancher/k3s/k3s.yaml", kubernetes_tasks)
+
+    def test_storage_queries_are_exact_and_pvc_scopes_are_bounded(self) -> None:
+        kubernetes_tasks = (ANSIBLE / "roles/read_only_discovery/tasks/kubernetes.yml").read_text()
+        pvc_blocks = re.findall(
+            r"    - id: (?P<id>[a-z_]+_persistent_volume_claims)\n"
+            r"      api_version: v1\n"
+            r"      kind: PersistentVolumeClaim\n"
+            r"      namespace: (?P<namespace>[a-z0-9-]+)",
+            kubernetes_tasks,
+        )
+        self.assertEqual(
+            [
+                ("default_persistent_volume_claims", "default"),
+                ("kube_system_persistent_volume_claims", "kube-system"),
+                ("shared_data_persistent_volume_claims", "shared-data"),
+                ("dev_persistent_volume_claims", "cristexhub-dev"),
+                ("prod_persistent_volume_claims", "cristexhub-prod"),
+            ],
+            pvc_blocks,
+        )
+        self.assertEqual(5, kubernetes_tasks.count("kind: PersistentVolumeClaim"))
+        self.assertIn("- id: persistent_volumes\n      api_version: v1\n      kind: PersistentVolume", kubernetes_tasks)
+        self.assertNotRegex(kubernetes_tasks, r"kind: PersistentVolumeClaim\n\s+- id:")
+
+    def test_storage_report_is_curated_and_omits_identifying_raw_fields(self) -> None:
+        template = (ANSIBLE / "roles/read_only_discovery/templates/report.json.j2").read_text()
+        self.assertIn('"schema_version": 2', template)
+        for required in (
+            '"block_devices"',
+            '"size_bytes"',
+            '"rotational"',
+            '"removable"',
+            '"partition_count"',
+            '"direct_mount_observed_for_device_or_partition"',
+            '"filesystem_types_observed_while_mounted"',
+            '"partitions"',
+        ):
+            self.assertIn(required, template)
+        for forbidden in ("serial", "uuid", "address", "mount_point", "mount_source", "contents"):
+            self.assertNotIn(forbidden, template.lower())
+        self.assertIn("selectattr('device', 'in', device_sources)", template)
+        self.assertIn("selectattr('device', 'equalto', partition_source)", template)
+        self.assertNotIn("(?:p?[0-9]+)?", template)
+        self.assertTrue((ROOT / "tests/validate_storage_report.yml").is_file())
+        for forbidden_module in (
+            "ansible.posix.mount",
+            "community.general.filesystem",
+            "community.general.parted",
+            "community.general.lvol",
+            "ansible.builtin.file",
+            "ansible.builtin.copy",
+            "ansible.builtin.replace",
+            "ansible.builtin.lineinfile",
+            "ansible.builtin.blockinfile",
+            "ansible.builtin.apt",
+            "ansible.builtin.package",
+            "ansible.builtin.shell",
+            "ansible.builtin.command",
+            "ansible.builtin.raw",
+            "ansible.builtin.script",
+        ):
+            self.assertNotRegex(self.task_text, rf"{re.escape(forbidden_module)}\s*:")
+
+    def test_storageclass_and_volume_projection_is_exact_and_path_safe(self) -> None:
+        template = (ANSIBLE / "roles/read_only_discovery/templates/report.json.j2").read_text()
+        for required in (
+            '"provisioner"',
+            '"reclaim_policy"',
+            '"volume_binding_mode"',
+            '"allow_volume_expansion"',
+            '"storage_class_name"',
+            '"phase"',
+            '"capacity_storage"',
+            '"requested_storage"',
+            '"access_modes"',
+            '"volume_mode"',
+            '"bound_volume_present"',
+            '"host_path_backend"',
+            '"local_volume_backend"',
+            '"under_k3s_default_storage_root"',
+            '"node_affinity_required"',
+        ):
+            self.assertIn(required, template)
+        for forbidden in (
+            '"volume_name"',
+            "metadata.uid",
+            "metadata.annotations",
+            "claimRef.uid",
+            "hostPath.path | to_json",
+            "local.path | to_json",
+        ):
+            self.assertNotIn(forbidden, template)
 
     def test_mandatory_gates_and_default_non_elevation_are_present(self) -> None:
         main = (ANSIBLE / "roles/read_only_discovery/tasks/main.yml").read_text()

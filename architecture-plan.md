@@ -2,18 +2,27 @@
 
 ## Status
 
-This target design has five bounded Ansible implementations: read-only discovery,
-the executed Kubernetes-module dependency bootstrap, and executed group-scoped
-k3s administrator access under `ansible/`; effective-user readability,
-fresh-session cluster listing, and idempotence passed. The executed user-scoped
+This target design has the existing bounded Ansible workflows plus an
+offline-validated non-destructive storage-discovery increment and read-only
+CNI/NetworkPolicy probe planner. Neither increment has contacted the host or
+Kubernetes API. Mutating probe code is not implemented and runtime is NOT
+RUN/BLOCKED pending a verified image digest, atomic namespace ownership,
+foreign-resource-safe cleanup, and separate create/delete approvals. Read-only discovery, the Kubernetes-module dependency
+bootstrap, and group-scoped k3s administrator access have been executed under
+`ansible/`; effective-user readability, fresh-session cluster listing, and
+idempotence passed. The executed user-scoped
 kubectl client-defaults playbook also passed warning-free fresh-session queries and
 idempotence. The approved one-reboot recovery playbook passed with SSH/Tailscale
 return, running services, a new boot ID, a Ready node, and preserved access. They
 are not a general host
 baseline, hosted runtime, or IaC reconciler.
 Python is limited to offline contract tests. No hosted orchestration,
-DNS, tunnels, GitOps, secrets, databases, backups, or replacement-host recovery are implemented.
-CristexHub local Compose assets remain an external application-repository concern.
+DNS, tunnels, GitOps, secrets, databases, backups, or operational replacement-host
+recovery are implemented. The first replacement increment is a secret-free,
+decision-first runbook and artifact register only; it does not resolve or automate
+the unknown k3s datastore/version/token, storage, RPO/RTO, or off-node recovery
+prerequisites. CristexHub local Compose assets remain an external
+application-repository concern.
 
 ## Known facts
 
@@ -26,8 +35,9 @@ are verified; CNI behavior, NetworkPolicy enforcement, and replacement-host reco
 still require separate approved verification.
 
 The external CristexHub application repository publishes backend, frontend, and
-code-runner images to GHCR. This repository implements the five bounded Ansible
-workflows listed above; it still has no Kubernetes desired state, Helm, Kustomize,
+code-runner images to GHCR. This repository implements five executed bounded
+Ansible workflows plus the offline read-only probe planner; it still has no
+Kubernetes desired state, Helm, Kustomize,
 OpenTofu, GitHub Actions,
 or general host baseline. Debian plus Ansible is the
 selected host-configuration owner.
@@ -64,6 +74,10 @@ selected host-configuration owner.
 
 One resource has one owner. OpenTofu must not reconcile Kubernetes resources also
 owned by Argo CD. GitHub Actions validates and publishes; it does not deploy.
+The bounded `network_policy_probe` Ansible role is currently read-only planning,
+not a Kubernetes ownership exception. Any future ephemeral QA execution requires a
+separately reviewed exception with atomic ownership and cleanup that cannot cascade-
+delete uninspected resources. Until then, Argo CD remains the only object writer.
 Operational procedures belong under `runbooks/` when implementation is approved.
 
 ## Traffic model
@@ -159,8 +173,13 @@ PROD sync and promotion remain manual and reviewed.
 ## Storage and backup
 
 Live database PVCs are expected on the NVMe through the discovered local
-StorageClass. The separate 1 TB disk is not usable until its contents, ownership,
-filesystem choice, mount path, and destructive formatting approval are confirmed.
+StorageClass. Read-only discovery now has an offline-validated curated projection
+for device/partition and direct mount indicators, exact StorageClass behavior, and
+bounded PV/PVC placement metadata, but it has not been rerun. The separate 1 TB disk
+is not usable until its contents, ownership, filesystem choice, mount path, and
+destructive formatting approval are confirmed. Storage discovery makes no mount,
+repair, write, format, or ownership change; Ansible remains the host/mount owner and
+Argo CD remains the persistent Kubernetes-object owner.
 
 Backups require database-consistent PostgreSQL and MongoDB dumps, separate DEV/PROD
 paths, compression, encryption, integrity checks, local retention, and an encrypted
@@ -198,7 +217,12 @@ verification must meet the declared RPO/RTO before PROD.
   and NetworkPolicy enforcement require later approved functional probes and are
   not proven by discovery.
 - Current evidence: the locked local environment, syntax, lint, and non-elevated
-  one-host report pass. The approved bootstrap directly requested only
+  one-host report pass. A fixed temporary functional-probe planner is implemented
+  offline as a read-only fixed-scope plan. Digest verification, atomic ownership,
+  foreign-resource-safe cleanup, create/delete approvals, and sanitized runtime
+  evidence remain blocked. It has not accessed the cluster or proved enforcement; runtime is
+  blocked until a real linux/amd64 registry manifest digest is independently
+  verified and supplied. The approved bootstrap directly requested only
   `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
   dependencies, and post-install imports pass. The
   elevated report confirms the datastore and nine available exact Kubernetes
@@ -306,7 +330,17 @@ Implementation is blocked until each relevant item is resolved:
 
 ## Recovery order
 
-A replacement host is recovered in this order:
+The documentation-only
+[`replacement-host-recovery` runbook](runbooks/replacement-host-recovery.md) first
+requires truthful reboot-versus-replacement classification, independently verified
+old-host fencing/storage exclusivity, and an approved preserve-existing-identity or
+create-new-cluster decision. These split-brain gates precede every item below. The
+current artifact register marks datastore, exact version, token custody, storage,
+RPO/RTO, and off-node prerequisites `UNKNOWN — STOP`; therefore this order is a
+target sequence, not an executable or proven procedure.
+
+After those gates and a separately approved concrete plan, a replacement host is
+recovered in this order:
 
 1. restore documented host access and prerequisites;
 2. install the pinned k3s version/configuration;

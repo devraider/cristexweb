@@ -1,0 +1,19 @@
+---
+# This role is a read-only planner. Persistent Kubernetes desired state remains
+# Argo CD-owned; no ephemeral QA mutation is implemented until all blockers close.
+network_policy_probe_action: plan
+network_policy_probe_kubeconfig: /etc/rancher/k3s/k3s.yaml
+network_policy_probe_namespace: kif-cni-netpol-probe
+network_policy_probe_image: ""
+network_policy_probe_image_architecture: ""
+network_policy_probe_required_architecture: linux/amd64
+network_policy_probe_authored_object_count: 8
+network_policy_probe_object_names:
+  namespace: kif-cni-netpol-probe
+  config_map: probe-http-content
+  service: probe-server
+  server_pod: probe-server
+  allowed_client_pod: probe-client-allowed
+  denied_client_pod: probe-client-denied
+  deny_policy: deny-probe-server-ingress
+  allow_policy: allow-probe-server-from-allowed-client

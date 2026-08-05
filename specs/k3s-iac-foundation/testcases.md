@@ -35,6 +35,113 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-ADM-05 | KIF-007 | Warning-free kubectl client runtime | Check/diff predicts only selected-user profile blocks; accepted run and fresh login remove server-config warnings from node/all-namespace queries; second run reports changed=0 | PASS — check recap ok=14/changed=1/failed=0 predicted two profile blocks; operator confirmed accepted run, expected client defaults, warning-free queries, and idempotent changed=0/failed=0 rerun |
 | KIF-REB-01 | KIF-002, KIF-007 | Single-node reboot recovery contract | Explicit approval, fallback-access confirmation, diff, one-host limit, preflight services/backup/access/Ready node, exactly one reboot, new boot ID, SSH return, post-reboot services/Ready node/access, no config mutation, and hidden sensitive facts are enforced | PASS — 15 contract tests, syntax check, and production-profile lint passed |
 | KIF-REB-02 | KIF-007 | Single-node reboot recovery runtime | Check/diff predicts exactly one reboot; accepted run returns through Tailscale SSH with a new boot ID, running k3s/Tailscale, one Ready node, and unchanged group-scoped kubeconfig access | PASS — operator confirmed fallback; check ok=19/changed=1/unreachable=0/failed=0/skipped=7; reboot ok=26/changed=1/unreachable=0/failed=0/skipped=0; operator manually confirmed active services and warning-free node/all-namespace queries |
+| KIF-NET-01 | KIF-002, KIF-003, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy read-only planning contract | Plan requires check/diff and one host, verifies protected access, one Ready linux/amd64 node, NetworkPolicy API readability, fixed proposed eight-object scope, and no namespace collision while containing no Kubernetes write/exec/delete module | PASS — focused contracts, syntax, and production lint passed offline; no inventory host or Kubernetes API was accessed |
+| KIF-NET-02 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional runtime | After a reviewed ownership exception, verified image, atomic namespace ownership, foreign-resource-safe cleanup, and separate create/delete approvals, baseline/deny/selective/rollback behavior and cleanup pass | NOT RUN/BLOCKED — mutating probe code is not implemented; digest, atomic ownership, exhaustive safe cleanup, ownership exception, and approvals remain unresolved |
+| KIF-STO-01 | KIF-001, KIF-003, KIF-008, KIF-030 | Non-destructive storage discovery offline contract | Built-in facts project only curated device/partition size, rotational/removable state, direct mount state, and mounted filesystem types; exact StorageClass behavior fields, bounded PV placement booleans, and PVC metadata from five fixed namespaces omit device serials, UUIDs, addresses, backing paths, filesystem contents, Secret/ConfigMap kinds, and broad PVC queries | PASS — focused contracts, all 26 offline tests, collision-safe synthetic render, discovery syntax, and production lint passed; no inventory host, kubeconfig, Kubernetes API, or filesystem content was accessed |
+| KIF-STO-02 | KIF-001, KIF-008, KIF-030 | Extended storage discovery runtime | A separately approved one-host elevated check/diff run renders valid mode-0600 JSON and human review establishes actual curated device, StorageClass, PV, and PVC indicators without mutation or sensitive metadata | NOT RUN — implementation and validation were controller-local only; the prior nine-query elevated report remains unchanged and no new disk or PV/PVC placement fact is claimed |
+| KIF-REC-01 | KIF-002, KIF-003, KIF-013, KIF-015, KIF-028, KIF-030 | Replacement-host recovery first offline increment | Secret-free runbook/register truthfully separate same-host reboot from replacement, require old-host fencing and exclusive storage ownership, stop split brain, require exactly one preserve-existing or create-new identity decision, and leave datastore/version/token/storage/RPO/RTO/off-node prerequisites explicitly unknown without guessed commands | PASS — 5 focused offline recovery contracts and the full offline suite passed; documentation contains no executable recovery command or secret-shaped value and no host/provider/API was accessed |
+| KIF-REC-02 | KIF-007, KIF-015, KIF-026–KIF-030 | Replacement-host recovery rehearsal/runtime | An isolated, approved replacement follows an actual version/datastore/storage-specific plan; proves one authoritative cluster/storage writer, desired state, mutable data, encryption behavior, isolation, and measured RPO/RTO before public reactivation | NOT RUN/BLOCKED — identity model and datastore, exact version/config, token custody, storage, RPO/RTO, off-node artifacts, restore procedures, and approvals remain `UNKNOWN — STOP`; reboot success is not replacement proof |
+
+## Replacement-host recovery first increment offline validation — 2026-08-05
+
+This validation was controller-local and documentation-only. It did not use
+inventory, SSH, a host, kubeconfig, Kubernetes/provider APIs, secret storage, backup
+storage, or a registry. It did not isolate a host, read or recover a token, attach
+storage, restore data, create a cluster, change a route, or prove replacement
+recovery.
+
+```bash
+python3 -m unittest -v tests.test_replacement_recovery_contract
+python3 -m unittest discover -s tests -v
+python3 -m compileall -q tests
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Ran 5 focused replacement recovery tests — OK
+Ran 26 full offline tests — OK
+PASS: Python compile, diff check, and no staged files
+```
+
+The secret-free register intentionally leaves every recovery prerequisite at
+`UNKNOWN — STOP`. Operational recovery remains NOT RUN/BLOCKED pending old-host
+fencing, exactly one approved identity model, resolved off-node artifacts, and a
+later version/datastore/storage-specific execution plan and isolated rehearsal.
+
+## Temporary network probe offline validation — 2026-08-05
+
+This validation was controller-local only. It did not use an inventory file, SSH,
+the protected kubeconfig, a Kubernetes API, or an image registry, and it did not
+execute plan, run, or cleanup. No digest was resolved or fabricated.
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 -m compileall -q tests
+cd ansible
+uv run ansible-playbook playbooks/probe_k3s_network_policy.yml --syntax-check
+uv run ansible-lint playbooks/probe_k3s_network_policy.yml roles/network_policy_probe
+cd ..
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Focused and full offline tests — OK
+playbook: playbooks/probe_k3s_network_policy.yml
+Passed: 0 failure(s), 0 warning(s); production profile
+PASS: Python compile, diff check, and no staged files
+```
+
+The controller environment emitted only a warning that an active virtual
+environment from the separate application repository was ignored in favor of this
+repository's locked `.venv`; validation still exited zero.
+
+## Storage discovery increment offline validation — 2026-08-05
+
+This validation was controller-local only. It did not use inventory, SSH, become,
+the protected kubeconfig, a Kubernetes API, or filesystem content. It did not alter
+or replace the prior elevated discovery or CNI/NetworkPolicy evidence.
+
+```bash
+python3 -m unittest -v \
+  tests.test_ansible_contract.AnsibleSafetyTests.test_storage_queries_are_exact_and_pvc_scopes_are_bounded \
+  tests.test_ansible_contract.AnsibleSafetyTests.test_storage_report_is_curated_and_omits_identifying_raw_fields \
+  tests.test_ansible_contract.AnsibleSafetyTests.test_storageclass_and_volume_projection_is_exact_and_path_safe
+python3 -m unittest discover -s tests -v
+python3 -m compileall -q tests
+cd ansible
+uv run ansible-playbook ../tests/validate_storage_report.yml
+uv run ansible-playbook playbooks/discover.yml --syntax-check
+uv run ansible-lint playbooks/discover.yml roles/read_only_discovery
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-lint .
+cd ..
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Focused storage tests and full offline suite — OK
+PASS: synthetic collision-safe storage render ok=3 changed=0 failed=0
+playbook: playbooks/discover.yml
+Passed: 0 failure(s), 0 warning(s) in 8 focused files; production profile
+PASS: syntax for all 6 playbooks
+Passed: 0 failure(s), 0 warning(s) in 20 files processed of 23 encountered; production profile
+PASS: Python compile, diff check, and no staged files
+```
+
+The same benign project-environment warning described above appeared on `uv`
+commands. Runtime storage evidence remains NOT RUN pending separate host-access and
+elevation approval.
 
 ## Documentation and traceability
 
@@ -79,6 +186,9 @@ required=(
   ansible/roles/read_only_discovery/tasks/report.yml
   ansible/roles/read_only_discovery/templates/report.json.j2
   tests/test_ansible_contract.py
+  tests/test_replacement_recovery_contract.py
+  runbooks/replacement-host-recovery.md
+  runbooks/recovery-artifact-register.md
   specs/k3s-iac-foundation/brief.md
   specs/k3s-iac-foundation/requirements.md
   specs/k3s-iac-foundation/tasks.md
@@ -108,6 +218,7 @@ assert {path.name for path in spec_dir.glob("*.md")} == expected_specs
 text_paths = [Path("AGENTS.md"), Path("README.md"), Path("architecture-plan.md"), Path(".gitignore"), Path("pyproject.toml"), Path("uv.lock")]
 text_paths += [path for path in sorted(Path("ansible").rglob("*")) if ".ansible" not in path.parts]
 text_paths += sorted(Path("tests").glob("*.py"))
+text_paths += sorted(Path("runbooks").glob("*.md"))
 text_paths += sorted(spec_dir.glob("*.md"))
 text_paths = [path for path in text_paths if path.is_file()]
 combined = "\n".join(path.read_text() for path in text_paths)
@@ -147,15 +258,20 @@ for statement in [
 ]:
     assert statement in status, statement
 
-for future_path in [Path("opentofu"), Path("kubernetes"), Path("runbooks"), Path(".github/workflows")]:
+for future_path in [Path("opentofu"), Path("kubernetes"), Path(".github/workflows")]:
     assert not future_path.exists(), future_path
+for recovery_doc in [
+    Path("runbooks/replacement-host-recovery.md"),
+    Path("runbooks/recovery-artifact-register.md"),
+]:
+    assert recovery_doc.is_file(), recovery_doc
 
 for pattern in [
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
     r"\bghp_[A-Za-z0-9]+",
     r"\bgithub_pat_[A-Za-z0-9_]+",
     r"(?im)^\s*(?:certificate-authority-data|client-certificate-data|client-key-data|token):\s*\S+",
-    r"\b(?:(?:[a-z0-9]+[-_])*(?:token|password|passwd|(?-i:pass)|secret|client[-_]secret|api[-_]key|credentials?|access[-_]key)(?:[-_][a-z0-9]+)*)\s*[=:]\s*['\"]?[^<{\s'\"\]]+",
+    r"\b(?!network_policy_probe_[a-z0-9_]*_pass\s*[=:])(?:(?:[a-z0-9]+[-_])*(?:token|password|passwd|(?-i:pass)|secret|client[-_]secret|api[-_]key|credentials?|access[-_]key)(?:[-_][a-z0-9]+)*)\s*[=:]\s*['\"]?[^<{\s'\"\]]+",
     r"\b(?:10|127)\.(?:\d{1,3}\.){2}\d{1,3}\b",
     r"\b192\.168\.(?:\d{1,3}\.)\d{1,3}\b",
     r"\b172\.(?:1[6-9]|2\d|3[01])\.(?:\d{1,3}\.)\d{1,3}\b",
@@ -186,7 +302,7 @@ printf '%s\n' 'PASS: ignore policy, git diff check, and no-staged-files check'
 Actual result (exit 0 on 2026-08-05):
 
 ```text
-Ran 15 tests
+Ran 26 tests
 OK
 PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 13 manual cases, status/implementation boundary, and bounded source scan
 PASS: ignore policy, git diff check, and no-staged-files check
@@ -207,7 +323,9 @@ uv run ansible-playbook playbooks/bootstrap_dependencies.yml --syntax-check
 uv run ansible-playbook playbooks/configure_k3s_admin_access.yml --syntax-check
 uv run ansible-playbook playbooks/configure_k3s_kubectl_client.yml --syntax-check
 uv run ansible-playbook playbooks/verify_k3s_reboot_recovery.yml --syntax-check
-uv run ansible-lint playbooks roles/read_only_discovery
+uv run ansible-playbook playbooks/probe_k3s_network_policy.yml --syntax-check
+uv run ansible-playbook ../tests/validate_storage_report.yml
+uv run ansible-lint . ../tests/validate_storage_report.yml
 ```
 
 Actual result (exit 0 on 2026-08-05):
@@ -219,7 +337,9 @@ playbook: playbooks/bootstrap_dependencies.yml
 playbook: playbooks/configure_k3s_admin_access.yml
 playbook: playbooks/configure_k3s_kubectl_client.yml
 playbook: playbooks/verify_k3s_reboot_recovery.yml
-Passed: 0 failure(s), 0 warning(s) in 12 files processed of 13 encountered; production profile
+playbook: playbooks/probe_k3s_network_policy.yml
+synthetic storage render: ok=3 changed=0 failed=0
+Passed: 0 failure(s), 0 warning(s) in 20 files processed of 23 encountered; production profile
 ```
 
 The separately approved non-elevated runtime used an ignored operator-owned local

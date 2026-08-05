@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: admin/client/reboot recovery pass; check ok=19/changed=1/unreachable=0/failed=0/skipped=7; reboot ok=26/changed=1/unreachable=0/failed=0/skipped=0; CNI/replacement pending
+build: admin/client/reboot recovery pass; CNI probe, storage discovery, and decision-first replacement runbook/register offline-implemented; extended storage run, image digest, runtime probes, and replacement execution pending
 date: 2026-08-05
 deploy_required_after_acceptance: yes
 
@@ -29,8 +29,28 @@ note: |
   reboot at ok=19/changed=1/unreachable=0/failed=0/skipped=7; execution returned with a new boot ID at
   ok=26/changed=1/unreachable=0/failed=0/skipped=0. The operator manually confirmed
   fallback access, both services active, and warning-free node/all-namespace queries.
-  CNI behavior, NetworkPolicy enforcement, replacement recovery, and
-  later platform work remain pending. No external-resource, secret, data, or
-  deployment operation was performed.
-  These Kubernetes object listings do not prove CNI behavior or NetworkPolicy
-  enforcement.
+  Read-only discovery is now extended offline with curated device/partition size,
+  mounted-filesystem-type, and direct mount-state indicators; exact StorageClass
+  behavior fields; bounded PV metadata; and PVC metadata from five fixed namespaces.
+  The projection emits no device serial, generated PV identifier, address, backing
+  path, filesystem content, Secret, ConfigMap, or broad PVC result. This increment
+  has not contacted the inventory host or Kubernetes API, so the prior nine-query
+  elevated report remains the latest runtime storage evidence and unmounted
+  filesystem type plus live PV/PVC placement remain unverified.
+  A bounded read-only CNI/NetworkPolicy probe planner is implemented offline. It
+  cannot create, patch, execute in, or delete Kubernetes objects; Argo CD remains
+  the only object writer. The planner has not contacted the inventory host or API.
+  Mutating probe code remains NOT IMPLEMENTED/BLOCKED pending a verified image
+  digest, atomic namespace ownership, exhaustive foreign-resource-safe cleanup, and
+  separate create/delete approvals.
+  The first replacement-host recovery increment is documentation-only. Its
+  secret-free runbook/register truthfully separates the verified same-host reboot
+  from replacement, requires independently verified old-host fencing and storage
+  exclusivity, stops on split-brain risk, and requires exactly one approved
+  preserve-existing-identity or create-new-cluster model. Datastore type, exact k3s
+  version/config, token custody, storage mapping, RPO/RTO, off-node artifacts, and
+  isolated restore remain `UNKNOWN — STOP`; no recovery command or automation was
+  guessed. CNI behavior, NetworkPolicy enforcement, replacement execution, and
+  later platform work therefore remain pending. No external-resource, secret, data,
+  or deployment operation was performed. Object listings and offline tests do not
+  prove functional enforcement or replacement recovery.

@@ -24,6 +24,11 @@ Each resource has exactly one reconciliation owner:
 | Tests, image builds, and immutable private-GHCR publication | GitHub Actions |
 | Production approvals and destructive operations | Human operator |
 
+Ansible may perform read-only planning for a proposed ephemeral Kubernetes QA probe.
+Any future temporary-object execution requires an explicit, separately reviewed
+ownership exception plus atomic ownership and cleanup that cannot cascade-delete
+uninspected resources. Until then, Argo CD remains the only Kubernetes object writer.
+
 Future implementation belongs at repository-root `ansible/`, `opentofu/`,
 `kubernetes/`, and `runbooks/`. Do not use OpenTofu Kubernetes or Helm providers
 for objects reconciled by Argo CD. GitHub Actions must not deploy directly with

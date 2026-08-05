@@ -29,6 +29,29 @@
     - id: storage_classes
       api_version: storage.k8s.io/v1
       kind: StorageClass
+    - id: persistent_volumes
+      api_version: v1
+      kind: PersistentVolume
+    - id: default_persistent_volume_claims
+      api_version: v1
+      kind: PersistentVolumeClaim
+      namespace: default
+    - id: kube_system_persistent_volume_claims
+      api_version: v1
+      kind: PersistentVolumeClaim
+      namespace: kube-system
+    - id: shared_data_persistent_volume_claims
+      api_version: v1
+      kind: PersistentVolumeClaim
+      namespace: shared-data
+    - id: dev_persistent_volume_claims
+      api_version: v1
+      kind: PersistentVolumeClaim
+      namespace: cristexhub-dev
+    - id: prod_persistent_volume_claims
+      api_version: v1
+      kind: PersistentVolumeClaim
+      namespace: cristexhub-prod
     - id: ingress_classes
       api_version: networking.k8s.io/v1
       kind: IngressClass

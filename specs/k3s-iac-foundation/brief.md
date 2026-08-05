@@ -5,7 +5,7 @@
 CristexHub has production-capable service images in its application repository but
 no hosted orchestration supported by this infrastructure repository. The target
 server already runs single-node k3s, while the desired host, external-resource,
-GitOps, secret, data, backup, and recovery contracts are not yet implemented.
+GitOps, secret, data, backup, and operational recovery automation are not yet implemented.
 
 ## Outcome
 

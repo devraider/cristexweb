@@ -1,0 +1,3 @@
+---
+- name: Run the read-only NetworkPolicy probe planner
+  ansible.builtin.include_tasks: preflight.yml
