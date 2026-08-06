@@ -13,7 +13,7 @@
 | ID | Requirement |
 |---|---|
 | KIF-004 | Future infrastructure source and runbooks live at repository-root `ansible/`, `opentofu/`, `kubernetes/`, and `runbooks/`; application source and local-runtime assets remain external. |
-| KIF-005 | Ansible owns host configuration, OpenTofu owns approved external resources, Argo CD owns persistent Kubernetes objects, and Infisical owns secret values without overlapping reconciliation. Ansible may implement the bounded ephemeral QA probe, but execution requires a separately reviewed ownership exception, API-generated identity, exact-UID guarded cleanup, and explicit create/delete approval. |
+| KIF-005 | Ansible owns host configuration, OpenTofu owns approved external resources, Argo CD is the intended persistent Kubernetes reconciler, and Infisical owns secret values without overlapping reconciliation. Ansible may implement the bounded ephemeral QA probe under its guarded exception. One separate bootstrap exception may create or reconcile only the committed `argocd` and `platform-edge` Namespaces with state present, foreign-existing refusal, no deletion path, and a non-passthrough entrypoint that rejects task-skipping controls, launches only the repository controller in an allowlisted clean environment, and binds mutation to an ephemeral single-run attestation. Those manifests identify Ansible as bootstrap writer and Argo CD only as future desired owner; handoff remains pending Argo CD installation, Namespace adoption or Application registration, and successful sync evidence. |
 | KIF-006 | The protective root `.gitignore` excludes the local `.venv`, Ansible collections/runtime data, generated state, plans, credentials, kubeconfigs, facts, local variable/override/crash files, and generated secrets, while `uv.lock` and `.terraform.lock.hcl` remain tracked. |
 
 ## Host and cluster
@@ -44,7 +44,7 @@
 
 | ID | Requirement |
 |---|---|
-| KIF-016 | Applications use separate `cristexhub-dev` and `cristexhub-prod` namespaces, credentials, migrations, and backup paths. |
+| KIF-016 | The cluster uses separate `argocd`, `platform-edge`, future `shared-services`, `cristexhub-dev`, and `cristexhub-prod` namespaces; applications retain separate DEV/PROD credentials, migrations, and backup paths. |
 | KIF-017 | Shared PostgreSQL provides separate DEV/PROD databases and owner roles; each role is denied access to the other environment. |
 | KIF-018 | Shared MongoDB provides separate DEV/PROD databases and users; each user is denied access to the other environment. |
 | KIF-019 | Shared-engine failure and contention risks are documented, bounded with requests/limits/connection limits, and accepted before PROD. |
@@ -76,6 +76,8 @@
 to offline, integration, security, recovery, or manual evidence. The current
 Ansible discovery satisfies its offline, syntax/lint, approved host-access,
 dependency-bootstrap, curated host/cluster-indicator, and functional
-CNI/NetworkPolicy enforcement gates. It does not satisfy replacement-host recovery, general host-baseline,
-or later platform mutation gates. Unresolved storage, secret bootstrap, and RPO/RTO
+CNI/NetworkPolicy enforcement gates. Exact platform Namespace source and its bounded
+bootstrap pass offline contracts only; cluster execution remains pending. The
+foundation does not satisfy replacement-host recovery, general host-baseline, or
+later platform mutation gates. Unresolved storage, secret bootstrap, and RPO/RTO
 choices remain decision gates rather than implied requirements.

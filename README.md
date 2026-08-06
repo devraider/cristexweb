@@ -28,20 +28,25 @@ live recovery installed the verified CLI at `ok=39 changed=6 failed=0`, and the
 second run converged at `ok=30 changed=0 failed=0` without requiring host egress.
 The protected directory still contains no state file, and no provider operation or
 external resource exists. The root `opentofu/` source is Cloudflare-only and has zero
-resources. No general
-host baseline or deployment exists. Python is used only for offline contract tests,
-not infrastructure automation.
+resources. Committed Kubernetes source now contains only the `argocd` and
+`platform-edge` Namespace manifests plus a gated Ansible bootstrap; runtime remains
+NOT RUN and no Argo CD, cloudflared, Secret, workload, Service, or route exists. No
+general host baseline or deployment exists. Python is used only for offline contract
+tests, not infrastructure automation.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
 local report. The extended report confirms the unmounted 1 TB rotational disk,
 NVMe/root capacity, local-path behavior, and zero current PV/PVC objects without
-identifying the unmounted filesystem or touching disk contents. An earlier
+identifying the unmounted filesystem or touching disk contents. That historical
+live report queried `shared-data` as its fifth PVC scope. Current source instead
+queries `shared-services`; that scope change is offline-only until a separately
+approved read-only discovery rerun. An earlier
 approved elevated attempt identified missing remote Python dependencies. The
 bounded two-package Ansible bootstrap was reviewed and installed; post-install
 imports and the prior nine exact Kubernetes queries pass. That report confirms the
 k3s datastore and curated cluster indicators; it predates the extended StorageClass,
 PV, and namespace-bounded PVC projection. Hosted runtime, OpenTofu provider initialization/state/plan/apply, persistent
-Kubernetes manifest, Helm chart, workflow, deployment, DNS route, tunnel, database,
+Namespace runtime, Helm chart, workflow, deployment, DNS route, tunnel, database,
 backup, and replacement recovery remain unexecuted. The
 first replacement-host increment is documentation-only: it adds a secret-free
 runbook and artifact register with fail-closed decision gates, not recovery
@@ -92,10 +97,13 @@ The probe uses one existing fixed namespace, a selectorless ClusterIP service wi
 an explicit EndpointSlice, a hardened server Pod, and short-lived standalone client
 Pods to prove baseline success, deny failure, selective
 allow/deny, rollback success, and zero labeled residue. It uses no remote exec and
-never creates or deletes a Namespace. Argo CD remains the only persistent
-Kubernetes object writer. The completed temporary exception used the verified image
-and explicit approvals documented in [`ansible/README.md`](ansible/README.md); every
-future run requires fresh approvals and a unique Run ID.
+never creates or deletes a Namespace. Argo CD is the intended persistent Kubernetes
+reconciler, with one separately gated Ansible exception limited to creating or
+reconciling the committed `argocd` and `platform-edge` Namespaces with state present.
+That exception has no delete path and remains NOT RUN. The completed temporary probe
+exception used the verified image and explicit approvals documented in
+[`ansible/README.md`](ansible/README.md); every future run requires fresh approvals
+and a unique Run ID.
 
 The approved non-elevated discovery run passed and its curated host report was
 reviewed locally. It did not use become or query Kubernetes. Syntax and lint also
@@ -112,11 +120,11 @@ are documented in [`ansible/README.md`](ansible/README.md).
 | Ingress | Bundled k3s Traefik, retained as the sole ingress controller |
 | Host configuration | Minimal Ansible on Debian |
 | External resources | OpenTofu for Cloudflare and GitHub only |
-| Cluster reconciliation | Argo CD for all in-cluster desired state |
+| Cluster reconciliation | Bounded Ansible bootstrap for only `argocd`/`platform-edge`; Argo CD after evidenced installation and handoff |
 | Secrets | Infisical Cloud initially; no plaintext values in Git or OpenTofu state |
 | CI and images | GitHub Actions and private GHCR images addressed immutably |
 | Environments | `cristexhub-dev` and `cristexhub-prod` |
-| Shared data | One PostgreSQL engine and one MongoDB engine in `shared-data`, with separate environment databases, principals, credentials, and backups |
+| Shared services | PostgreSQL, MongoDB, and any retained shared RabbitMQ in `shared-services`, with separate environment databases, principals, credentials, vhosts, limits, and backups |
 | Other data services | Redis per environment; RabbitMQ may be shared only with separate users/vhosts and limits |
 | Backups | Application-consistent local dumps plus encrypted off-host copy; restore required before PROD |
 
@@ -129,19 +137,22 @@ ansible/                 # discovery + bounded host changes + gated temporary QA
   roles/read_only_discovery/
   roles/network_policy_probe/
   roles/opentofu_install/
+  roles/platform_namespace_bootstrap/
 opentofu/                # zero-resource Cloudflare-only scaffold
-kubernetes/              # future
+kubernetes/              # exact platform Namespace source; future Argo desired state
 runbooks/                # decision-first recovery docs; no recovery automation
   replacement-host-recovery.md
   recovery-artifact-register.md
 tests/                   # offline contract tests only
 ```
 
-Only `ansible/`, the zero-resource `opentofu/` scaffold, the first documentation-only
-replacement recovery increment under `runbooks/`, and offline `tests/` currently
-exist. Kustomize remains intended for
+Only `ansible/`, the zero-resource `opentofu/` scaffold, the two platform Namespace
+manifests under `kubernetes/`, the first documentation-only replacement recovery
+increment under `runbooks/`, and offline `tests/` currently exist. Kustomize remains intended for
 first-party application overlays; Helm is reserved for selected third-party
-components. After a bounded bootstrap, Argo CD owns all in-cluster desired state.
+components. Argo ownership remains pending until Argo CD is installed, the two
+Namespaces are adopted or registered through an Application, and successful sync
+evidence exists; the future-owner label alone is not a handoff.
 
 ## Repository hygiene
 

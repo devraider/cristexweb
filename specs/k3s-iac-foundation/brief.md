@@ -17,15 +17,15 @@ recover DEV and PROD without presenting a single node as highly available.
 
 - Minimal Ansible owns the Debian host and k3s baseline.
 - OpenTofu owns Cloudflare and GitHub resources, not Kubernetes objects.
-- Argo CD owns all Kubernetes desired state.
+- Argo CD is the intended persistent Kubernetes reconciler. Its ownership is not effective until installation, Namespace adoption or Application registration, and successful sync evidence; a future-owner label alone is not a handoff.
 - Infisical Cloud initially owns runtime secret values; self-hosting is out of scope for the foundation.
 - GitHub Actions validates/builds and publishes immutable images to private GHCR.
 - Bundled k3s Traefik remains the sole ingress controller.
 - DEV and administration remain private through host Tailscale.
 - Only approved PROD application routes become public through Cloudflare Tunnel.
 - Application namespaces are `cristexhub-dev` and `cristexhub-prod`.
-- `shared-data` hosts shared PostgreSQL and MongoDB engines with separate databases, principals, credentials, migrations, and backups per environment.
-- Redis remains per environment; shared RabbitMQ uses separate users, virtual hosts, and limits if retained after discovery.
+- `shared-services` hosts shared PostgreSQL, MongoDB, and any retained RabbitMQ, with separate databases, principals, credentials, migrations, virtual hosts, limits, and backups per environment.
+- Redis remains per environment.
 
 ## Constraints
 
@@ -70,9 +70,12 @@ and Cloudflare-only zero-resource source scaffold are implemented. The approved
 host check passed; the first live run created only the exact managed parent and
 empty protected state directories before host-side GitHub retrieval failed. The
 reviewed controller-transfer recovery then passed check, live installation, and a
-`changed=0` rerun without host egress. Provider initialization, state, plan, and
-apply remain unrun. This deliverable performs no other
-host mutation, Cloudflare, GitHub, Infisical,
+`changed=0` rerun without host egress. Exact `argocd` and `platform-edge` Namespace
+manifests and a bounded present-only Ansible bootstrap are implemented offline. Its
+non-passthrough entrypoint rejects task-skipping controls; namespace runtime, Argo
+CD, cloudflared, Secrets, workloads, Services, and routes
+remain unrun. Provider initialization, state, plan, and apply also remain unrun.
+This deliverable performs no other host mutation, Cloudflare, GitHub, Infisical,
 registry, database, storage,
 backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain
 external application-repository concerns and are not copied here.

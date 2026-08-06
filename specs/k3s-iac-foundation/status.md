@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: prior host/network/storage evidence passes; pinned OpenTofu install recovered through controller transfer and converged changed=0; provider/state/backup/apply pending
+build: prior host/network/storage/OpenTofu evidence passes; argocd/platform-edge Namespace bootstrap passes offline only; cluster runtime/provider/state/backup/apply pending
 date: 2026-08-06
 deploy_required_after_acceptance: yes
 
@@ -37,9 +37,11 @@ note: |
   extended check/diff run passed at ok=17/changed=1/failed=0; the only write was the
   ignored mode-`0600` controller report. Human review confirmed an unmounted 1 TB
   rotational disk with one partition, NVMe/root capacity, local-path StorageClass
-  behavior, and zero current PV/PVC objects. The unmounted filesystem, disk health,
-  contents, reuse decision, and off-node backup design remain unresolved; no disk
-  mutation occurred.
+  behavior, and zero current PV/PVC objects. That historical live report's fifth PVC
+  scope was `shared-data`; current source now queries `shared-services`, and the
+  changed scope is offline-only pending a separately approved read-only rerun. The
+  unmounted filesystem, disk health, contents, reuse decision, and off-node backup
+  design remain unresolved; no disk mutation occurred.
   A bounded CNI/NetworkPolicy functional probe is implemented offline with separate
   plan, run, and cleanup paths. It uses an existing namespace, API-generated names,
   two fixed ownership labels, private exact-UID ledger recovery, fixed-kind
@@ -74,5 +76,20 @@ note: |
   remains empty; provider initialization/lockfile, state creation/encryption, Google
   Drive copy and restore, plan, apply, and every external resource remain NOT
   RUN/BLOCKED.
+  Exact committed Namespace source now defines only `argocd` and `platform-edge`.
+  The bounded Ansible bootstrap loads those manifests, requires state present and
+  exact bootstrap/future-owner labels, refuses forged internal results and foreign
+  existing Namespaces, and has no delete path. Its non-passthrough wrapper rejects
+  task-skipping controls, launches the repository `.venv` controller in an allowlisted
+  clean environment, and creates a private random single-run attestation. The mutating
+  task independently requires that attestation, reloads only the two literal manifest
+  paths, and rejects extra top-level or metadata keys. The labels identify Ansible as
+  bootstrap writer and Argo CD only as future desired owner. Argo ownership remains
+  pending installation, Namespace adoption or Application registration, and
+  successful sync evidence; the label alone is not a handoff. Its cluster
+  check/live/idempotence are NOT RUN; Argo CD, cloudflared,
+  `shared-services`, DEV/PROD namespaces, Secrets, workloads, Services, and routes do
+  not exist from this increment. The future shared service Namespace is named
+  `shared-services`, but it is not created.
   No external-resource, secret, data, or deployment operation was performed. Object
   listings and offline tests do not prove replacement recovery.

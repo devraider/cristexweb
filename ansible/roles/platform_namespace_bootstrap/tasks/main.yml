@@ -1,0 +1,404 @@
+---
+- name: Reject externally supplied platform Namespace internal variables
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied internal variable
+      {{ item }}.
+  loop:
+    - platform_namespace_bootstrap_internal_attestation_state
+    - platform_namespace_bootstrap_internal_controller_path_states
+    - platform_namespace_bootstrap_internal_manifest_path_states
+    - platform_namespace_bootstrap_internal_manifests
+    - platform_namespace_bootstrap_internal_service_facts_before
+    - platform_namespace_bootstrap_internal_kubeconfig_state
+    - platform_namespace_bootstrap_internal_prestate
+    - platform_namespace_bootstrap_internal_poststate
+    - platform_namespace_bootstrap_internal_service_facts_after
+  changed_when: false
+
+- name: Require the platform Namespace bootstrap approval contract
+  ansible.builtin.assert:
+    that:
+      - >-
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_NAMESPACE_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - >-
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_NAMESPACE_BOOTSTRAP_TOKEN') is
+        match('^[0-9a-f]{64}$')
+      - >-
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - platform_namespace_bootstrap_approved | bool
+      - platform_namespace_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - platform_namespace_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - platform_namespace_bootstrap_controller_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - platform_namespace_bootstrap_controller_user == lookup('ansible.builtin.env', 'USER')
+      - >-
+        platform_namespace_bootstrap_repository_root ==
+        (playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname)
+      - >-
+        platform_namespace_bootstrap_controller_path_components ==
+        [platform_namespace_bootstrap_repository_root,
+         platform_namespace_bootstrap_repository_root ~ '/kubernetes',
+         platform_namespace_bootstrap_repository_root ~ '/kubernetes/platform',
+         platform_namespace_bootstrap_repository_root ~ '/kubernetes/platform/namespaces']
+      - >-
+        platform_namespace_bootstrap_manifest_paths ==
+        [platform_namespace_bootstrap_repository_root ~
+           '/kubernetes/platform/namespaces/argocd.yaml',
+         platform_namespace_bootstrap_repository_root ~
+           '/kubernetes/platform/namespaces/platform-edge.yaml']
+    fail_msg: >-
+      Platform Namespace bootstrap requires its non-passthrough controller entrypoint,
+      explicit approval, --diff, the exact one-host limit, state present, the protected
+      k3s kubeconfig, and exact canonical paths for the two committed manifests.
+  changed_when: false
+
+- name: Inspect the ephemeral Namespace bootstrap entrypoint attestation
+  ansible.builtin.stat:
+    path: >-
+      {{ lookup('ansible.builtin.env',
+                'CRISTEXWEB_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE') }}
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: platform_namespace_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run Namespace bootstrap attestation
+  ansible.builtin.assert:
+    that:
+      - platform_namespace_bootstrap_internal_attestation_state.stat.exists |
+        default(false)
+      - platform_namespace_bootstrap_internal_attestation_state.stat.isreg |
+        default(false)
+      - >-
+        not (platform_namespace_bootstrap_internal_attestation_state.stat.islnk |
+        default(false))
+      - >-
+        platform_namespace_bootstrap_internal_attestation_state.stat.pw_name ==
+        platform_namespace_bootstrap_controller_user
+      - platform_namespace_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file',
+               lookup('ansible.builtin.env',
+                      'CRISTEXWEB_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_NAMESPACE_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    fail_msg: >-
+      Refusing a missing, reusable, foreign-owned, symlinked, or invalid
+      single-run Namespace bootstrap attestation.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect every controller repository path component without following links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ platform_namespace_bootstrap_controller_path_components }}"
+  register: platform_namespace_bootstrap_internal_controller_path_states
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Refuse unsafe or noncanonical controller repository path components
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isdir | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == platform_namespace_bootstrap_controller_user
+      - >-
+        item.stat.gr_name ==
+        platform_namespace_bootstrap_internal_controller_path_states.results[0].stat.gr_name
+      - item.stat.mode == '0755'
+      - (item.item | ansible.builtin.realpath) == item.item
+    fail_msg: >-
+      Refusing a missing, symlinked, non-directory, foreign-owned, mode-drifted,
+      or noncanonical controller repository path component.
+  loop: "{{ platform_namespace_bootstrap_internal_controller_path_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Inspect the exact committed Namespace manifest leaves without following links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ platform_namespace_bootstrap_manifest_paths }}"
+  register: platform_namespace_bootstrap_internal_manifest_path_states
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Refuse unsafe or noncanonical committed Namespace manifest leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == platform_namespace_bootstrap_controller_user
+      - >-
+        item.stat.gr_name ==
+        platform_namespace_bootstrap_internal_controller_path_states.results[0].stat.gr_name
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - >-
+        (item.item | ansible.builtin.dirname) ==
+        platform_namespace_bootstrap_controller_path_components[-1]
+      - >-
+        (item.item | ansible.builtin.realpath).startswith(
+          (platform_namespace_bootstrap_repository_root | ansible.builtin.realpath) ~ '/')
+    fail_msg: >-
+      Refusing a missing, symlinked, non-regular, foreign-owned, mode-drifted,
+      noncanonical, or repository-external committed Namespace manifest.
+  loop: "{{ platform_namespace_bootstrap_internal_manifest_path_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Load the exact committed Namespace manifests on the controller
+  ansible.builtin.set_fact:
+    platform_namespace_bootstrap_internal_manifests: >-
+      {{ (platform_namespace_bootstrap_internal_manifests | default([])) +
+         [(lookup('ansible.builtin.file', item) | from_yaml)] }}
+  loop: "{{ platform_namespace_bootstrap_manifest_paths }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Require the exact bounded Namespace manifest contract
+  ansible.builtin.assert:
+    that:
+      - platform_namespace_bootstrap_internal_manifests | length == 2
+      - >-
+        platform_namespace_bootstrap_internal_manifests |
+        map(attribute='metadata.name') | list == ['argocd', 'platform-edge']
+      - item.keys() | list | sort == ['apiVersion', 'kind', 'metadata']
+      - item.apiVersion == 'v1'
+      - item.kind == 'Namespace'
+      - item.metadata.keys() | list | sort == ['labels', 'name']
+      - item.metadata.name in ['argocd', 'platform-edge']
+      - item.metadata.labels['app.kubernetes.io/part-of'] == 'cristex-platform'
+      - item.metadata.labels['cristex.io/bootstrap-writer'] == 'ansible'
+      - item.metadata.labels['cristex.io/desired-owner'] == 'argocd'
+      - item.metadata.labels | length == 3
+    fail_msg: >-
+      Refusing a manifest outside the exact argocd/platform-edge Namespace,
+      Ansible bootstrap-writer, and future Argo CD desired-owner contract.
+  loop: "{{ platform_namespace_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  changed_when: false
+
+- name: Capture service facts before Namespace bootstrap
+  ansible.builtin.service_facts:
+  register: platform_namespace_bootstrap_internal_service_facts_before
+
+- name: Require k3s and Tailscale to be running before Namespace bootstrap
+  ansible.builtin.assert:
+    that:
+      - >-
+        platform_namespace_bootstrap_internal_service_facts_before.ansible_facts.services.get(
+          'k3s.service', {}).get('state', '') == 'running'
+      - >-
+        platform_namespace_bootstrap_internal_service_facts_before.ansible_facts.services.get(
+          'tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: >-
+      k3s and tailscaled must be running; Namespace bootstrap does not restart them.
+  changed_when: false
+
+- name: Inspect the protected k3s kubeconfig metadata
+  ansible.builtin.stat:
+    path: "{{ platform_namespace_bootstrap_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: platform_namespace_bootstrap_internal_kubeconfig_state
+  no_log: true
+
+- name: Require the protected group-scoped kubeconfig contract
+  ansible.builtin.assert:
+    that:
+      - >-
+        platform_namespace_bootstrap_internal_kubeconfig_state.stat.exists |
+        default(false)
+      - >-
+        platform_namespace_bootstrap_internal_kubeconfig_state.stat.isreg |
+        default(false)
+      - >-
+        not (platform_namespace_bootstrap_internal_kubeconfig_state.stat.islnk |
+        default(false))
+      - platform_namespace_bootstrap_internal_kubeconfig_state.stat.pw_name == 'root'
+      - >-
+        platform_namespace_bootstrap_internal_kubeconfig_state.stat.gr_name ==
+        'k3s-admin'
+      - platform_namespace_bootstrap_internal_kubeconfig_state.stat.mode == '0640'
+    fail_msg: >-
+      Refusing Namespace bootstrap without the existing root:k3s-admin mode-0640
+      non-symlink kubeconfig.
+  changed_when: false
+  no_log: true
+
+- name: Query only the exact platform Namespace pre-state
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ platform_namespace_bootstrap_kubeconfig }}"
+  loop: "{{ platform_namespace_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: platform_namespace_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Refuse a foreign existing platform Namespace
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - >-
+        item.resources | length == 0 or
+        ((item.resources[0].metadata.labels | default({})).get(
+          'app.kubernetes.io/part-of', '') ==
+          item.item.metadata.labels['app.kubernetes.io/part-of'] and
+         (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/bootstrap-writer', '') ==
+          item.item.metadata.labels['cristex.io/bootstrap-writer'] and
+         (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/desired-owner', '') ==
+          item.item.metadata.labels['cristex.io/desired-owner'])
+    fail_msg: >-
+      An existing argocd or platform-edge Namespace lacks the exact reviewed
+      bootstrap and future-owner labels; refusing silent adoption.
+  loop: "{{ platform_namespace_bootstrap_internal_prestate.results }}"
+  loop_control:
+    label: "{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Create or reconcile only the approved platform Namespaces
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    wait: true
+    wait_timeout: 30
+  loop:
+    - >-
+      {{ lookup('ansible.builtin.file',
+                (playbook_dir | ansible.builtin.dirname |
+                 ansible.builtin.dirname) ~
+                '/kubernetes/platform/namespaces/argocd.yaml') | from_yaml }}
+    - >-
+      {{ lookup('ansible.builtin.file',
+                (playbook_dir | ansible.builtin.dirname |
+                 ansible.builtin.dirname) ~
+                '/kubernetes/platform/namespaces/platform-edge.yaml') | from_yaml }}
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when:
+    - >-
+      lookup('ansible.builtin.env',
+             'CRISTEXWEB_NAMESPACE_BOOTSTRAP_ENTRYPOINT') == 'v1'
+    - >-
+      lookup('ansible.builtin.env',
+             'CRISTEXWEB_NAMESPACE_BOOTSTRAP_TOKEN') is
+      match('^[0-9a-f]{64}$')
+    - >-
+      lookup('ansible.builtin.file',
+             lookup('ansible.builtin.env',
+                    'CRISTEXWEB_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE')) ==
+      lookup('ansible.builtin.env',
+             'CRISTEXWEB_NAMESPACE_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    - platform_namespace_bootstrap_approved | bool
+    - platform_namespace_bootstrap_state == 'present'
+    - ansible_diff_mode
+    - (ansible_limit | default('')) == 'crtxweb'
+    - ansible_play_hosts_all | length == 1
+    - item.keys() | list | sort == ['apiVersion', 'kind', 'metadata']
+    - item.apiVersion == 'v1'
+    - item.kind == 'Namespace'
+    - item.metadata.keys() | list | sort == ['labels', 'name']
+    - item.metadata.name in ['argocd', 'platform-edge']
+    - item.metadata.labels['app.kubernetes.io/part-of'] == 'cristex-platform'
+    - item.metadata.labels['cristex.io/bootstrap-writer'] == 'ansible'
+    - item.metadata.labels['cristex.io/desired-owner'] == 'argocd'
+    - item.metadata.labels | length == 3
+
+- name: Requery only the exact platform Namespaces after live bootstrap
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ platform_namespace_bootstrap_kubeconfig }}"
+  loop: "{{ platform_namespace_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: platform_namespace_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Verify exact Namespace identity and pending Argo CD desired ownership
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.metadata.name
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'app.kubernetes.io/part-of', '') ==
+          item.item.metadata.labels['app.kubernetes.io/part-of']
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/bootstrap-writer', '') ==
+          item.item.metadata.labels['cristex.io/bootstrap-writer']
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/desired-owner', '') ==
+          item.item.metadata.labels['cristex.io/desired-owner']
+      - item.resources[0].status.phase == 'Active'
+    fail_msg: >-
+      The exact platform Namespace did not become Active with reviewed bootstrap
+      and future desired-owner labels.
+  loop: "{{ platform_namespace_bootstrap_internal_poststate.results }}"
+  loop_control:
+    label: "{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Capture service facts after Namespace bootstrap
+  ansible.builtin.service_facts:
+  register: platform_namespace_bootstrap_internal_service_facts_after
+
+- name: Require k3s and Tailscale to remain running
+  ansible.builtin.assert:
+    that:
+      - >-
+        platform_namespace_bootstrap_internal_service_facts_after.ansible_facts.services.get(
+          'k3s.service', {}).get('state', '') == 'running'
+      - >-
+        platform_namespace_bootstrap_internal_service_facts_after.ansible_facts.services.get(
+          'tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: "Namespace bootstrap must not stop or restart k3s or tailscaled."
+  changed_when: false

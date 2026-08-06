@@ -20,7 +20,9 @@ name CNI/NetworkPolicy probe passed live baseline, deny, selective allow/deny,
 rollback, exact-UID cleanup, and a separate zero-residue check with no Namespace or
 public exposure. Extended live storage discovery captured curated device,
 StorageClass, PV, and bounded PVC indicators without disk mutation or secret output;
-the same Tailscale/SSH path remained available, closing MQA-01. The first
+its fifth PVC scope was the then-current `shared-data`. Current source uses
+`shared-services`, but that change is offline-only pending a separately approved
+read-only rerun. The same Tailscale/SSH path remained available, closing MQA-01. The first
 replacement-host increment is documented offline: a
 secret-free runbook/register separates reboot from replacement, stops on old-host or
 storage split-brain risk, and requires an explicit recovery identity decision. Its
@@ -29,7 +31,10 @@ The OpenTofu installer now passes its reviewed controller-mediated live recovery
 and `changed=0` idempotence run after the first host-side GitHub retrieval failed.
 The protected state directory remains empty; state encryption/off-node restore,
 provider operations, and external ownership remain pending and close no manual
-case. No deployment, replacement
+case. Exact `argocd` and `platform-edge` Namespace manifests plus their present-only
+Ansible bootstrap pass offline contracts, but cluster check/live/idempotence are NOT
+RUN. Argo CD, cloudflared, Secrets, workloads, Services, and routes are not installed
+and this closes no manual case. No deployment, replacement
 recovery proof, or complete manual runtime validation
 occurred. MQA-13 remains pending specifically
 because the managed-profile rollback path has not been executed and verified, even
@@ -38,7 +43,7 @@ remaining manual cases.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|
-| MQA-01 | KIF-001, KIF-007, KIF-008 | Read-only Ansible inventory and recovery access | The approved one-host check/diff run leaves SSH/Tailscale available; actual curated k3s/storage facts are captured without mutation or secret output | PASS — ok=17/changed=1 local mode-0600 report/failed=0; curated disk, StorageClass, zero PV/PVC, and continuing access reviewed |
+| MQA-01 | KIF-001, KIF-007, KIF-008 | Read-only Ansible inventory and recovery access | The approved one-host check/diff run leaves SSH/Tailscale available; actual curated k3s/storage facts are captured without mutation or secret output | PASS — ok=17/changed=1 local mode-0600 report/failed=0; curated disk, StorageClass, zero PV/PVC, and continuing access reviewed. The live report used `shared-data`; current `shared-services` source is offline-only pending rerun |
 | MQA-02 | KIF-005, KIF-009, KIF-010 | Private administration | Argo CD and k3s API work through the approved private path and are unreachable publicly | PENDING |
 | MQA-03 | KIF-013–KIF-015 | Infisical rotation | A test secret rotates and revokes without plaintext in Git/logs; recovery credential remains usable | PENDING |
 | MQA-04 | KIF-016–KIF-021 | DEV isolation | DEV reaches only its databases/services and cannot authenticate to or connect to PROD resources | PENDING |

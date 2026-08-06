@@ -40,16 +40,18 @@ access, CNI behavior, and NetworkPolicy enforcement are verified for the current
 single-node cluster; replacement-host recovery still requires separate verification.
 
 The external CristexHub application repository publishes backend, frontend, and
-code-runner images to GHCR. This repository implements six executed bounded
+code-runner images to GHCR. This repository implements seven executed bounded
 Ansible workflows, including the temporary functional probe. It now has an
 offline-validated gated OpenTofu installer and zero-resource Cloudflare-only source
 scaffold. The first live run stopped after two bounded directory tasks because the
 host had no route to GitHub. The reviewed controller-cache and Ansible-transfer
 recovery subsequently passed check, live installation, and a `changed=0` rerun; the
-pinned CLI and selector now exist without host egress. No state file, provider
-initialization, plan, apply, Kubernetes desired state, Helm, Kustomize, GitHub
-Actions, or general host baseline exists yet. Debian plus Ansible is the selected
-host-configuration owner.
+pinned CLI and selector now exist without host egress. Committed Kubernetes desired
+state is limited to exact `argocd` and `platform-edge` Namespace manifests plus an
+offline-only bounded Ansible bootstrap; neither Namespace nor any workload exists
+from this increment yet. No state file, provider initialization, plan, apply, Helm,
+Kustomize workload, GitHub Actions, or general host baseline exists yet. Debian plus
+Ansible is the selected host-configuration owner.
 
 ## Goals
 
@@ -88,9 +90,15 @@ exception but does not authorize its own execution. API-generated names and labe
 establish ownership atomically; a private ledger records exact UIDs; cleanup verifies
 labels and UID preconditions, uses `Orphan` propagation, and proves zero residue
 without deleting a Namespace. Runtime still requires separate human approval of the ownership
-exception plus create and delete actions. Argo CD remains the only persistent object
-writer.
-Operational procedures belong under `runbooks/` when implementation is approved.
+exception plus create and delete actions. A separate one-time bootstrap exception
+may create or reconcile only the committed `argocd` and `platform-edge` Namespaces,
+with no delete path and foreign-existing refusal. The manifests identify Ansible as
+bootstrap writer and Argo CD only as future desired owner. Argo ownership remains
+pending until Argo CD is installed, the Namespaces are adopted or registered through
+an Application, and successful sync evidence exists; the label alone is not a
+handoff. Argo CD is the intended sole persistent Kubernetes reconciler after that
+verified handoff. Operational procedures belong under `runbooks/` when implementation
+is approved.
 
 ## Traffic model
 
@@ -121,8 +129,9 @@ Cloudflare and Tailscale do not replace application OIDC/JWT enforcement.
 | Namespace | Purpose |
 |---|---|
 | `argocd` | Argo CD controllers and private UI/API |
+| `platform-edge` | Cloudflare Tunnel connector only; no route exists until separately approved |
 | Infisical operator namespace | Secret synchronization controller; exact name follows the selected chart |
-| `shared-data` | Shared PostgreSQL and MongoDB engines only |
+| `shared-services` | Shared PostgreSQL, MongoDB, and any retained shared RabbitMQ |
 | `cristexhub-dev` | DEV applications and environment-local dependencies |
 | `cristexhub-prod` | PROD applications and environment-local dependencies |
 | Optional backup/monitoring namespaces | Added only when their first workload is approved |
@@ -190,8 +199,10 @@ device/partition and direct mount indicators, exact StorageClass behavior, and
 bounded PV/PVC placement metadata from the live host and cluster. The separate 1 TB disk
 is not usable until its contents, ownership, filesystem choice, mount path, and
 destructive formatting approval are confirmed. Storage discovery makes no mount,
-repair, write, format, or ownership change; Ansible remains the host/mount owner and
-Argo CD remains the persistent Kubernetes-object owner.
+repair, write, format, or ownership change; Ansible remains the host/mount owner.
+Argo CD becomes the persistent Kubernetes-object reconciler only after its pending
+installation, Namespace adoption or Application registration, and successful sync
+evidence.
 
 Backups require database-consistent PostgreSQL and MongoDB dumps, separate DEV/PROD
 paths, compression, encryption, integrity checks, local retention, and an encrypted
@@ -267,8 +278,9 @@ verification must meet the declared RPO/RTO before PROD.
 ### Stage 4 — minimal GitOps and secrets bootstrap
 
 - Entry: pinned versions and approved secret-zero procedure.
-- Work: bounded Argo CD bootstrap, private repository access, Infisical operator,
-  and one non-sensitive demonstration secret.
+- Work: first create or reconcile only the committed `argocd` and `platform-edge`
+  Namespaces through the bounded Ansible exception, then bootstrap Argo CD, private
+  repository access, Infisical operator, and one non-sensitive demonstration secret.
 - Gate: Argo is private, reconciles a demo workload, and secret values remain absent
   from Git/logs.
 - Stop: admin endpoint becomes public or bootstrap credentials cannot be recovered.
@@ -287,7 +299,7 @@ verification must meet the declared RPO/RTO before PROD.
 
 ### Stage 6 — DEV
 
-- Entry: shared-data gate passes.
+- Entry: shared-services gate passes.
 - Work: deploy the minimum CristexHub DEV slice privately and add services only after
   measuring capacity.
 - Gate: authentication, API, workers, migrations, resource headroom, and rollback to

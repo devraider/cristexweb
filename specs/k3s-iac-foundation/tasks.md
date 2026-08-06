@@ -3,7 +3,7 @@
 ## Documentation foundation
 
 - [x] Document infrastructure-specific ownership and safety rules (`KIF-001`–`KIF-006`).
-- [x] Document the target architecture, accepted shared-data trade-off, stages,
+- [x] Document the target architecture, accepted shared-services trade-off, stages,
   stop conditions, and rollback (`KIF-009`–`KIF-030`).
 - [x] Define the requirements, test contract, manual QA, and truthful backlog status
   without adding executable IaC (`KIF-030`).
@@ -147,6 +147,10 @@ missing state recovery. Reverse changes only through another reviewed plan.
 
 ## Stage 4 — GitOps and secret bootstrap
 
+- [x] Commit exact `argocd` and `platform-edge` Namespace source plus the bounded
+  present-only, no-delete Ansible bootstrap exception (`KIF-002`, `KIF-005`).
+- [ ] Run the separately approved namespace bootstrap check/diff, execute only the
+  accepted two-Namespace plan, and prove second-run `changed=0` (`KIF-002`, `KIF-005`).
 - [ ] Pin and render the minimal Argo CD and Infisical operator versions
   (`KIF-005`, `KIF-013`, `KIF-023`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare secret-zero
@@ -164,7 +168,7 @@ logs, or bootstrap cannot be recovered.
 
 - [ ] Approve StorageClass, live-data path, backup path, capacity, and any destructive
   disk preparation separately (`KIF-002`, `KIF-003`, `KIF-019`, `KIF-026`).
-- [ ] Add DEV, PROD, and shared-data namespaces, service accounts, RBAC, quotas,
+- [ ] Add DEV, PROD, and shared-services namespaces, service accounts, RBAC, quotas,
   limits, and default-deny policies (`KIF-016`, `KIF-019`, `KIF-021`).
 - [ ] Obtain explicit approval before creating stateful services (`KIF-002`).
 - [ ] Create shared PostgreSQL with separate databases/roles and negative access

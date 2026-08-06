@@ -7,7 +7,7 @@ This root `AGENTS.md` is authoritative for the entire repository.
 - Operational implementation is limited to read-only Ansible discovery, the executed two-package dependency bootstrap, the executed group-scoped k3s administrator access playbook, the executed user-scoped kubectl client-defaults playbook, the executed single-node reboot recovery playbook, and the executed temporary NetworkPolicy probe under `ansible/`. Admin access, warning-free cluster listing, idempotence, reboot, SSH/Tailscale return, Ready node, kubeconfig recovery, current CNI behavior, NetworkPolicy enforcement, rollback, and zero-residue cleanup succeeded; replacement-host recovery remains pending. No general host baseline or deployment exists.
 - Python exists only in offline contract tests; it is not operational infrastructure automation.
 - This repository also contains a zero-resource Cloudflare-only OpenTofu scaffold and a gated pinned-CLI host installer. The first live attempt stopped when the host had no route to GitHub after creating only exact parent directories and the empty protected state directory. The reviewed controller-transfer recovery then passed check, installed the exact CLI without host egress, and converged at `changed=0`. The protected directory remains empty: no state file, provider initialization, plan, apply, or external resource exists.
-- No hosted runtime, general Ansible host baseline, persistent Kubernetes manifest, Helm chart, or workflow exists here yet. The only Kubernetes write definitions are inline, generated-name, temporary QA fixtures in the probe role; its approved run cleaned all fixtures.
+- No hosted runtime, general Ansible host baseline, Helm chart, or workflow exists here yet. Committed persistent Kubernetes source is limited to the `argocd` and `platform-edge` Namespace manifests. Their Ansible bootstrap is offline-only until a separately reviewed run; no Argo CD, cloudflared, Secret, workload, Service, route, or other persistent object exists from this increment.
 - CristexHub application source, local Compose assets, Keycloak theme, and Browserless gateway remain external concerns in the CristexHub application repository and must not be copied here.
 - Approved discovery, dependency installation, and the group-scoped k3s administrator access mutation have completed. The access playbook verified effective readability as the selected account and a second run was idempotent. Any other host mutation or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed.
 
@@ -28,8 +28,17 @@ Ansible may plan and, only after an explicit separately reviewed exception, exec
 the bounded ephemeral Kubernetes QA probe. The implementation uses API-generated
 names, run labels, an exact-UID cleanup ledger, UID delete preconditions,
 non-cascading `Orphan` propagation, and no Namespace create/delete. Execution still requires a verified
-image plus separate create/delete approvals. Argo CD remains the only persistent
-Kubernetes object writer.
+image plus separate create/delete approvals. One additional bounded bootstrap
+exception may create or reconcile only the committed `argocd` and `platform-edge`
+Namespaces with `state: present`; it refuses foreign existing namespaces and has no
+deletion path. Its only authorized entrypoint is the committed non-passthrough
+wrapper, which uses an allowlisted clean environment, the repository `.venv`
+controller, and an ephemeral single-run attestation; direct playbook invocation and
+task-skipping/selection controls are forbidden. The manifests truthfully label Ansible as bootstrap writer and Argo CD
+only as future desired owner. Argo ownership remains pending until Argo CD is
+installed, the Namespaces are adopted or registered through an Application, and a
+successful sync is evidenced; a label alone is not a handoff. Ansible may not create
+any other persistent Kubernetes object.
 
 Implementation belongs at repository-root `ansible/`, `opentofu/`,
 `kubernetes/`, and `runbooks/`. Do not use OpenTofu Kubernetes or Helm providers

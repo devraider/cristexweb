@@ -1,0 +1,10 @@
+---
+- name: Bootstrap the approved persistent platform Namespaces
+  hosts: k3s_servers
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  serial: 1
+
+  roles:
+    - role: platform_namespace_bootstrap

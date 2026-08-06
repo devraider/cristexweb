@@ -40,10 +40,10 @@
       api_version: v1
       kind: PersistentVolumeClaim
       namespace: kube-system
-    - id: shared_data_persistent_volume_claims
+    - id: shared_services_persistent_volume_claims
       api_version: v1
       kind: PersistentVolumeClaim
-      namespace: shared-data
+      namespace: shared-services
     - id: dev_persistent_volume_claims
       api_version: v1
       kind: PersistentVolumeClaim

@@ -1,0 +1,15 @@
+---
+platform_namespace_bootstrap_approved: false
+platform_namespace_bootstrap_state: present
+platform_namespace_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+platform_namespace_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+platform_namespace_bootstrap_repository_root: >-
+  {{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}
+platform_namespace_bootstrap_controller_path_components:
+  - "{{ platform_namespace_bootstrap_repository_root }}"
+  - "{{ platform_namespace_bootstrap_repository_root }}/kubernetes"
+  - "{{ platform_namespace_bootstrap_repository_root }}/kubernetes/platform"
+  - "{{ platform_namespace_bootstrap_repository_root }}/kubernetes/platform/namespaces"
+platform_namespace_bootstrap_manifest_paths:
+  - "{{ platform_namespace_bootstrap_repository_root }}/kubernetes/platform/namespaces/argocd.yaml"
+  - "{{ platform_namespace_bootstrap_repository_root }}/kubernetes/platform/namespaces/platform-edge.yaml"

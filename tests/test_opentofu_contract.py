@@ -433,7 +433,7 @@ class OpenTofuContractTests(unittest.TestCase):
             "The approved\nhost check passed",
             "the first live run created only the exact managed parent and\nempty protected state directories",
             "reviewed controller-transfer recovery then passed check, live installation, and a\n`changed=0` rerun",
-            "Provider initialization, state, plan, and\napply remain unrun",
+            "Provider initialization, state, plan, and apply also remain unrun",
         ):
             self.assertIn(required, self.brief)
         for obsolete in (

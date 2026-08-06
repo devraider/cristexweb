@@ -308,8 +308,9 @@ confirmed `bin/httpd` and `bin/wget`. Check mode passed at
 policies had already been UID-deleted, and reported zero residue. A separate cleanup
 check passed at `ok=20 changed=0` with `exact_identity_count=0`. No Namespace or
 public exposure was created. Every future mutation requires fresh ownership,
-create, and delete approvals plus a unique Run ID. Argo CD remains the sole owner of
-persistent Kubernetes desired state.
+create, and delete approvals plus a unique Run ID. Argo CD is only the intended
+persistent reconciler after its separately evidenced installation and handoff; the
+bounded Namespace bootstrap remains the current exception.
 
 ## Mandatory invocation contract
 
@@ -350,9 +351,11 @@ Raw facts and Kubernetes objects are marked `no_log` and fact caching is memory-
 The report projects only selected OS/capacity/service fields; device/partition size,
 rotational/removable state, mounted state, and filesystem types observed in mount
 facts; exact StorageClass behavior fields; and bounded PV/PVC capacity, binding,
-claim, backend-type, and placement booleans. PVC queries are limited to `default`,
-`kube-system`, `shared-data`, `cristexhub-dev`, and `cristexhub-prod`; no Secret,
-ConfigMap, Event, or broad PVC query is made. Generated PV identifiers and backing
+claim, backend-type, and placement booleans. Current source limits PVC queries to
+`default`, `kube-system`, `shared-services`, `cristexhub-dev`, and `cristexhub-prod`;
+no Secret, ConfigMap, Event, or broad PVC query is made. The prior live extended
+report used `shared-data` as its fifth scope. The `shared-services` source change is
+offline-only pending a separately approved read-only rerun. Generated PV identifiers and backing
 paths are not rendered: placement is reduced to backend, node-affinity presence,
 and whether a host path is under the fixed k3s storage root.
 
@@ -362,6 +365,50 @@ chart values, raw specs, command output, and kubeconfig content. Unmounted
 filesystem types are not inferred: they remain unknown unless a later separately
 approved read-only method can supply them safely. Projection is still not a proof
 of anonymity: review the complete report before sharing, and never commit it.
+
+## Bounded persistent platform Namespace bootstrap
+
+`bootstrap_platform_namespaces.yml` is a one-time ownership exception that may
+create or reconcile only the committed `argocd` and `platform-edge` Namespace
+manifests. Its only authorized entrypoint is the non-passthrough
+`bin/bootstrap-platform-namespaces` wrapper. The wrapper accepts exactly `check` or
+`apply`, rejects extra arguments including task-skipping controls, launches the
+repository `.venv` Ansible executable by absolute path under an `env -i` allowlist,
+and creates a mode-`0600` random single-run attestation removed on exit. The role
+checks that private attestation during normal preflight and again on the mutating
+task itself. The role also requires explicit approval, `--diff`, the exact
+one-host limit, running k3s/Tailscale, and the existing root:`k3s-admin` mode-`0640`
+kubeconfig. It rejects forged internal results before any register or API task, validates every
+controller path ancestor and manifest leaf without following symlinks, loads the
+committed definitions controller-side, requires exact top-level/metadata key sets,
+queries only those two exact names, and
+refuses an existing Namespace unless all reviewed bootstrap/future-owner labels
+already match. Service, manifest, kubeconfig, and pre/post query assertions use
+protected role results rather than externally forgeable facts. It uses only
+`kubernetes.core.k8s` state `present`; no Namespace or other object has a deletion
+path.
+
+The manifests add no Pod Security policy before workload compatibility is reviewed
+and contain no Secret, ConfigMap, workload, Service, Ingress, Tunnel, hostname, or
+route. They identify Ansible as bootstrap writer and Argo CD only as future desired
+owner; they do not claim `app.kubernetes.io/managed-by: argocd`. Argo CD and
+cloudflared are not installed by this playbook. Argo ownership remains pending until
+Argo CD installation, Namespace adoption or Application registration, and successful
+sync evidence; a label alone is not a handoff. Rollback preserves the empty or
+adopted Namespaces; deletion requires a separate future destructive plan and
+approval.
+
+From the repository root, review the exact two-Namespace prediction first:
+
+```bash
+ansible/bin/bootstrap-platform-namespaces check
+```
+
+Only after accepting that plan, run `ansible/bin/bootstrap-platform-namespaces apply`.
+A second separately approved `apply` run must report `changed=0`. Never invoke this
+playbook directly and never use `--start-at-task`, `--step`, tags, or other task
+selection controls. This implementation is currently offline-only: no Namespace or
+Kubernetes API mutation has run.
 
 ## Approved pinned OpenTofu CLI installation
 

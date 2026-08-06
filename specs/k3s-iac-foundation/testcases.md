@@ -38,13 +38,15 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-NET-01 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional-probe contract | Plan/run/cleanup truth tables, immutable image and approval gates, API-generated names, fixed existing namespace, selectorless ClusterIP plus explicit EndpointSlice, hardened standalone Pods with exact terminal-state checks, private exact-UID ledger recovery, dual-label fixed-kind interruption discovery, UID-preconditioned non-cascading cleanup, zero residue, and no remote exec or Namespace mutation are enforced | PASS — focused contracts, syntax, and production lint passed offline; no inventory host, image registry, or Kubernetes API was accessed |
 | KIF-NET-02 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional runtime | After independent image verification and a reviewed ownership exception plus separate create/delete approvals, baseline success, deny failure, selective allow/deny, rollback success, and exact cleanup pass | PASS — official BusyBox linux/amd64 digest and `httpd`/`wget` paths verified; run check ok=18/changed=0; eight phases passed; execution ok=225/changed=43/failed=0; 12 remaining identities removed after two policy deletes; post-cleanup check ok=20/changed=0/exact_identity_count=0 |
 | KIF-STO-01 | KIF-001, KIF-003, KIF-008, KIF-030 | Non-destructive storage discovery offline contract | Built-in facts project only curated device/partition size, rotational/removable state, direct mount state, and mounted filesystem types; exact StorageClass behavior fields, bounded PV placement booleans, and PVC metadata from five fixed namespaces omit device serials, UUIDs, addresses, backing paths, filesystem contents, Secret/ConfigMap kinds, and broad PVC queries | PASS — focused contracts, all 28 offline tests, collision-safe synthetic render, discovery syntax, and production lint passed; no inventory host, kubeconfig, Kubernetes API, or filesystem content was accessed |
-| KIF-STO-02 | KIF-001, KIF-008, KIF-030 | Extended storage discovery runtime | A separately approved one-host elevated check/diff run renders valid mode-0600 JSON and human review establishes actual curated device, StorageClass, PV, and PVC indicators without mutation or sensitive metadata | PASS — ok=17/changed=1 local report/failed=0; unmounted 1 TB rotational disk with one partition, NVMe/root capacity, local-path `Delete`/`WaitForFirstConsumer`/no expansion, and zero PV/PVC objects confirmed; filesystem/content/health and reuse decision remain unknown; no disk mutation |
+| KIF-STO-02 | KIF-001, KIF-008, KIF-030 | Extended storage discovery runtime | A separately approved one-host elevated check/diff run renders valid mode-0600 JSON and human review establishes actual curated device, StorageClass, PV, and PVC indicators without mutation or sensitive metadata | PASS — ok=17/changed=1 local report/failed=0; unmounted 1 TB rotational disk with one partition, NVMe/root capacity, local-path `Delete`/`WaitForFirstConsumer`/no expansion, and zero PV/PVC objects confirmed. Historical boundary: that live report's fifth PVC scope was `shared-data`; current source queries `shared-services`, and that scope change is offline-only pending a separately approved read-only rerun. Filesystem/content/health and reuse decision remain unknown; no disk mutation |
 | KIF-REC-01 | KIF-002, KIF-003, KIF-013, KIF-015, KIF-028, KIF-030 | Replacement-host recovery first offline increment | Secret-free runbook/register truthfully separate same-host reboot from replacement, require old-host fencing and exclusive storage ownership, stop split brain, require exactly one preserve-existing or create-new identity decision, and leave datastore/version/token/storage/RPO/RTO/off-node prerequisites explicitly unknown without guessed commands | PASS — 5 focused offline recovery contracts and the full offline suite passed; documentation contains no executable recovery command or secret-shaped value and no host/provider/API was accessed |
 | KIF-REC-02 | KIF-007, KIF-015, KIF-026–KIF-030 | Replacement-host recovery rehearsal/runtime | An isolated, approved replacement follows an actual version/datastore/storage-specific plan; proves one authoritative cluster/storage writer, desired state, mutable data, encryption behavior, isolation, and measured RPO/RTO before public reactivation | NOT RUN/BLOCKED — identity model and datastore, exact version/config, token custody, storage, RPO/RTO, off-node artifacts, restore procedures, and approvals remain `UNKNOWN — STOP`; reboot success is not replacement proof |
 | KIF-TOFU-01 | KIF-002, KIF-005, KIF-006, KIF-013, KIF-030 | Pinned host installer offline contract | Source structurally requires default-false install and separate rollback approval, diff/one-host gates, Debian 13 x86_64, reviewed checksum-pinned archive/payload digests, an existing non-root operator without UID aliases, strict remote and controller-cache modes, symlink-safe controller preflight, controller-only download plus verified Ansible transfer, absent-only version extraction, an exact managed selector, protected state directory, service preservation, check-mode prediction, and selector-only state-preserving rollback | PASS — focused structural contracts, full offline suite, syntax, and production lint passed; controller transfer fix used no host/provider contact and negative runtime branches remain NOT RUN |
 | KIF-TOFU-02 | KIF-002, KIF-007, KIF-030 | OpenTofu host install runtime | Approved check/diff, reviewed live run, exact version verification, preserved k3s/Tailscale, and a changed=0 rerun pass without provider or state operations | PASS — initial check passed at ok=27/changed=6/failed=0; bounded host-egress failure stopped at ok=21/changed=2/failed=1; reviewed controller-transfer check passed at ok=33/changed=6/failed=0, live recovery passed at ok=39/changed=6/failed=0, and second run converged at ok=30/changed=0/failed=0. The exact CLI and selector exist; the protected directory remains empty and no provider/state operation ran |
 | KIF-TOFU-03 | KIF-004–KIF-006, KIF-013 | Cloudflare-only zero-resource scaffold | Exact OpenTofu/provider pins and local backend path exist with zero resources/data/modules/imports/variables/outputs and no forbidden provider, credential, lockfile, state, or plan | PASS — static contract passed; `tofu fmt/validate` and provider initialization are honestly NOT RUN because no approved controller binary/provider download exists |
 | KIF-TOFU-04 | KIF-013, KIF-028, KIF-030 | Local-state encryption and off-node recovery gate | Timestamped encrypted Google Drive copies, independent key custody, integrity verification, and isolated restore pass before the first apply | NOT RUN/BLOCKED — no state exists; encryption, Drive identity, copy, retention, key recovery, and restore remain `UNKNOWN — STOP` |
+| KIF-NS-01 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-030 | Bounded platform Namespace bootstrap offline contract | Exact committed `argocd` and `platform-edge` Namespace manifests are the sole definition; a non-passthrough entrypoint rejects `--start-at-task`, `--step`, and all extra arguments; the wrapper launches the repository `.venv` controller in an allowlisted clean environment and supplies a private random single-run attestation; the mutating task independently requires that attestation, reloads only literal manifest paths, and rejects extra top-level/metadata keys; a first-task internal-variable guard, canonical non-symlink ancestor/leaf validation, approval/diff/exact-limit/kubeconfig/protected-result gates, foreign-existing refusal, present-only reconciliation, exact post-verification, truthful ownership labels, executable closure, and no deletion/other-kind path are enforced | PASS — focused structural, control-flow, and synthetic ancestor-symlink contracts, controller-only forged-extra-var rejection, full offline suite, syntax, synthetic discovery validation, and production lint passed without inventory or Kubernetes API contact |
+| KIF-NS-02 | KIF-002, KIF-005, KIF-010, KIF-030 | Platform Namespace bootstrap runtime | Reviewed check predicts exactly the two absent Namespaces; approved live run creates them, verifies labels/services, and second run converges changed=0 without installing Argo CD/cloudflared or creating a route | NOT RUN — no inventory, SSH, kubeconfig, Kubernetes API, Namespace mutation, Secret, workload, Service, or route operation occurred |
 
 ## Replacement-host recovery first increment offline validation — 2026-08-05
 
@@ -252,6 +254,12 @@ PersistentVolumes: 0
 PersistentVolumeClaims in five bounded namespaces: 0
 ```
 
+Historical scope boundary: the fifth PVC query in that approved live report was
+`shared-data`. Current committed source now uses `shared-services` instead. That
+source change has only offline test/syntax/lint evidence and must not be described as
+live-verified until a separately approved read-only discovery rerun succeeds. The
+ignored report was not edited.
+
 Decision boundary: keep initial k3s workloads on the NVMe-backed local-path storage.
 Treat the separate disk only as a backup candidate until a separately approved
 non-destructive filesystem, health, and content inspection resolves its state. Do
@@ -375,20 +383,87 @@ empty: no state file, provider initialization, lockfile, plan, apply, Kubernetes
 operation, or external resource was created. Rollback remains selector-only and was
 not run.
 
+## Platform Namespace bootstrap offline validation — 2026-08-06
+
+This validation was controller-local only. It used no inventory, SSH, become,
+kubeconfig, Kubernetes API, registry, provider, or external credential. It created
+no Namespace or other Kubernetes object. The committed manifests define only
+`argocd` and `platform-edge`; `shared-services`, DEV, and PROD remain future names
+and were not created. Argo CD and cloudflared themselves remain uninstalled.
+
+```bash
+python3 -m unittest -v tests.test_platform_namespace_contract
+python3 -m unittest -v \
+  tests.test_platform_namespace_contract.PlatformNamespaceBootstrapContractTests.test_synthetic_ancestor_symlink_is_noncanonical
+python3 -m unittest discover -s tests -v
+python3 -m compileall -q tests
+sh -n ansible/bin/bootstrap-platform-namespaces
+bash -n tests/reject_platform_namespace_task_start.sh
+sh -n tests/validate_platform_namespace_clean_controller.sh
+tests/validate_platform_namespace_clean_controller.sh
+tests/reject_platform_namespace_task_start.sh
+cd ansible
+uv run ansible-playbook -i localhost, -c local \
+  ../tests/reject_platform_namespace_internal_injection.yml \
+  --extra-vars '{"platform_namespace_bootstrap_internal_prestate":{"resources":[]},"platform_namespace_bootstrap_internal_manifests":[]}'
+uv run ansible-playbook playbooks/bootstrap_platform_namespaces.yml --syntax-check
+uv run ansible-lint playbooks/bootstrap_platform_namespaces.yml roles/platform_namespace_bootstrap
+uv run ansible-lint ../tests/reject_platform_namespace_internal_injection.yml
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-playbook ../tests/validate_storage_report.yml
+uv run ansible-lint .
+cd ..
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Focused platform Namespace contracts — PASS, 12 tests
+Synthetic ancestor-symlink negative contract — PASS, 1 test
+Non-passthrough control-flow/toolchain negatives — PASS; wrapper returned 64 before Ansible for `--start-at-task` and `--step`, uses no bare `uv`, launches the repository `.venv` controller through `env -i`, and binds mutation to a mode-0600 random single-run attestation; direct task-start with only the old static marker skipped both Namespace items and could not mutate
+Controller-only forged internal-variable fixture — PASS, ok=4 changed=0 failed=0 rescued=1; unique first-task guard rejected both extra vars before approval/path/API tasks
+Full offline suite — PASS, 47 tests
+Python compile, wrapper/clean-controller `sh -n`, and task-start fixture `bash -n` — PASS
+Wrapper-equivalent clean controller startup — PASS with `LC_ALL=C.UTF-8`; Namespace playbook syntax parsed under `env -i`
+Namespace bootstrap and all 8 playbook syntax checks — PASS
+Synthetic storage report — PASS, ok=3 changed=0 failed=0
+Focused production lint — PASS, 0 failures/warnings in 4 files
+Controller-only negative fixture production lint — PASS, 0 failures/warnings in 3 files
+Full production lint — PASS, 0 failures/warnings; 37 of 41 files processed
+git diff --check and no-staged-files — PASS
+```
+
+Runtime remains NOT RUN. The future check must use only
+`ansible/bin/bootstrap-platform-namespaces check`; live and idempotence runs must use
+only its `apply` mode. The wrapper supplies the exact ignored inventory, `--diff`,
+one-host limit, approval, and become prompt, and accepts no passthrough options. A foreign existing
+`argocd` or `platform-edge` Namespace fails closed unless all bootstrap/future-owner
+labels already match. Ansible remains the truthful bootstrap writer. Argo CD is only
+the future desired owner: handoff remains pending its installation, Namespace
+adoption or Application registration, and successful sync evidence. The label alone
+is not a handoff. Live reconciliation is state-present-only. Rollback preserves the
+Namespaces; deletion is a separate destructive future decision and is not present
+in this playbook.
+
 ## Documentation and traceability
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
 | KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
-| KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Executed Ansible evidence distinguishes the bounded failed OpenTofu attempt from its completed controller-transfer recovery and zero-resource scaffold; no state/provider operation, general host baseline, hosted runtime, persistent Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
+| KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; the exact two-Namespace present-only exception truthfully records Ansible as bootstrap writer and Argo CD only as future desired owner pending install/adoption/Application/sync evidence; Traefik remains sole ingress | PASS — authoritative documents remain consistent; a label alone is not a handoff |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Executed Ansible evidence distinguishes completed OpenTofu installation from offline-only Namespace source/bootstrap; no Namespace runtime, Argo CD/cloudflared install, state/provider operation, general host baseline, hosted runtime, or deployment is claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
-| KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings alone do not prove policy enforcement | PASS — functional probe evidence and remaining application-isolation QA are explicit |
+| KIF-DOC-05 | KIF-016–KIF-021 | Shared-services and policy risk | Separate principals/backups/vhosts and negative tests remain required; object listings alone do not prove policy enforcement | PASS — functional probe evidence and remaining application-isolation QA are explicit |
 | KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, one manual case passes, and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
 
 All requirements KIF-001 through KIF-030 remain represented by the implementation,
 documentation, manual, or future-runtime cases in this file. Only the explicit live
-CNI and storage evidence above closes their bounded runtime gates.
+CNI, storage, and OpenTofu evidence above closes their bounded runtime gates; the
+platform Namespace bootstrap remains offline-only.
 
 ## Exact command and actual result
 
@@ -412,8 +487,12 @@ required=(
   ansible/playbooks/bootstrap_dependencies.yml
   ansible/playbooks/configure_k3s_admin_access.yml
   ansible/playbooks/install_opentofu.yml
+  ansible/playbooks/bootstrap_platform_namespaces.yml
+  ansible/bin/bootstrap-platform-namespaces
   ansible/roles/opentofu_install/defaults/main.yml
   ansible/roles/opentofu_install/tasks/main.yml
+  ansible/roles/platform_namespace_bootstrap/defaults/main.yml
+  ansible/roles/platform_namespace_bootstrap/tasks/main.yml
   ansible/roles/read_only_discovery/defaults/main.yml
   ansible/roles/read_only_discovery/tasks/main.yml
   ansible/roles/read_only_discovery/tasks/host.yml
@@ -424,8 +503,14 @@ required=(
   opentofu/backend.tf
   opentofu/providers.tf
   opentofu/versions.tf
+  kubernetes/platform/namespaces/argocd.yaml
+  kubernetes/platform/namespaces/platform-edge.yaml
   tests/test_ansible_contract.py
   tests/test_opentofu_contract.py
+  tests/test_platform_namespace_contract.py
+  tests/reject_platform_namespace_internal_injection.yml
+  tests/reject_platform_namespace_task_start.sh
+  tests/validate_platform_namespace_clean_controller.sh
   tests/test_replacement_recovery_contract.py
   runbooks/replacement-host-recovery.md
   runbooks/recovery-artifact-register.md
@@ -458,7 +543,8 @@ assert {path.name for path in spec_dir.glob("*.md")} == expected_specs
 text_paths = [Path("AGENTS.md"), Path("README.md"), Path("architecture-plan.md"), Path(".gitignore"), Path("pyproject.toml"), Path("uv.lock")]
 text_paths += [path for path in sorted(Path("ansible").rglob("*")) if ".ansible" not in path.parts]
 text_paths += sorted(Path("opentofu").glob("*"))
-text_paths += sorted(Path("tests").glob("*.py"))
+text_paths += [path for path in sorted(Path("kubernetes").rglob("*")) if path.is_file()]
+text_paths += [path for path in sorted(Path("tests").glob("*")) if path.is_file()]
 text_paths += sorted(Path("runbooks").glob("*.md"))
 text_paths += sorted(spec_dir.glob("*.md"))
 text_paths = [path for path in text_paths if path.is_file()]
@@ -494,7 +580,7 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "prior host/network/storage evidence passes; pinned OpenTofu install recovered through controller transfer and converged changed=0",
+    "prior host/network/storage/OpenTofu evidence passes; argocd/platform-edge Namespace bootstrap passes offline only",
     "all nine exact Kubernetes",
     "executed group-scoped k3s",
 ]:
@@ -505,7 +591,9 @@ for statement in [
     "The approved\nhost check passed",
     "the first live run created only the exact managed parent and\nempty protected state directories",
     "reviewed controller-transfer recovery then passed check, live installation, and a\n`changed=0` rerun",
-    "Provider initialization, state, plan, and\napply remain unrun",
+    "Exact `argocd` and `platform-edge` Namespace\nmanifests and a bounded present-only Ansible bootstrap are implemented offline. Its\nnon-passthrough entrypoint rejects task-skipping controls",
+    "namespace runtime, Argo\nCD, cloudflared, Secrets, workloads, Services, and routes\nremain unrun",
+    "Provider initialization, state, plan, and apply also remain unrun",
 ]:
     assert statement in brief, statement
 assert "host check/live run" not in brief
@@ -514,20 +602,69 @@ assert "controller-transfer retry and idempotence remain unrun" not in brief
 assert {path.name for path in Path("opentofu").iterdir() if path.is_file()} == {
     "README.md", "backend.tf", "providers.tf", "versions.tf"
 }
-for future_path in [Path("kubernetes"), Path(".github/workflows")]:
-    assert not future_path.exists(), future_path
+assert {
+    str(path.relative_to(Path("kubernetes")))
+    for path in Path("kubernetes").rglob("*")
+    if path.is_file()
+} == {
+    "platform/namespaces/argocd.yaml",
+    "platform/namespaces/platform-edge.yaml",
+}
+namespace_playbook = Path("ansible/playbooks/bootstrap_platform_namespaces.yml")
+assert namespace_playbook.read_text() == """---
+- name: Bootstrap the approved persistent platform Namespaces
+  hosts: k3s_servers
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  serial: 1
+
+  roles:
+    - role: platform_namespace_bootstrap
+"""
+namespace_role = Path("ansible/roles/platform_namespace_bootstrap")
+assert {
+    str(path.relative_to(namespace_role))
+    for path in namespace_role.rglob("*")
+    if path.is_file()
+} == {"defaults/main.yml", "tasks/main.yml"}
+for executable in [namespace_playbook, *sorted((namespace_role / "tasks").rglob("*.yml"))]:
+    executable_text = executable.read_text()
+    for forbidden in [
+        "pre_tasks:", "post_tasks:", "include_tasks:", "import_tasks:",
+        "include_role:", "import_role:",
+    ]:
+        assert forbidden not in executable_text, (executable, forbidden)
+assert not Path(".github/workflows").exists()
 for recovery_doc in [
     Path("runbooks/replacement-host-recovery.md"),
     Path("runbooks/recovery-artifact-register.md"),
 ]:
     assert recovery_doc.is_file(), recovery_doc
 
+sensitive_assignment_pattern = (
+    r"\b(?!network_policy_probe_[a-z0-9_]*_pass\s*[=:])"
+    r"(?:(?:[a-z0-9]+[-_])*(?:token|password|passwd|(?-i:pass)|secret|"
+    r"client[-_]secret|api[-_]key|credentials?|access[-_]key)"
+    r"(?:[-_][a-z0-9]+)*)\s*[=:]\s*['\"]?[^<{$\s'\"\]]+"
+)
+assert re.search(
+    sensitive_assignment_pattern,
+    "bootstrap_" + "to" + "ken" + "=" + "committed-value",
+    re.IGNORECASE,
+)
+assert not re.search(
+    sensitive_assignment_pattern,
+    "bootstrap_" + "to" + "ken" + "=" + "$runtime_value",
+    re.IGNORECASE,
+)
+
 for pattern in [
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
     r"\bghp_[A-Za-z0-9]+",
     r"\bgithub_pat_[A-Za-z0-9_]+",
     r"(?im)^\s*(?:certificate-authority-data|client-certificate-data|client-key-data|token):\s*\S+",
-    r"\b(?!network_policy_probe_[a-z0-9_]*_pass\s*[=:])(?:(?:[a-z0-9]+[-_])*(?:token|password|passwd|(?-i:pass)|secret|client[-_]secret|api[-_]key|credentials?|access[-_]key)(?:[-_][a-z0-9]+)*)\s*[=:]\s*['\"]?[^<{\s'\"\]]+",
+    sensitive_assignment_pattern,
     r"\b(?:10|127)\.(?:\d{1,3}\.){2}\d{1,3}\b",
     r"\b192\.168\.(?:\d{1,3}\.)\d{1,3}\b",
     r"\b172\.(?:1[6-9]|2\d|3[01])\.(?:\d{1,3}\.)\d{1,3}\b",
@@ -538,7 +675,7 @@ for path in text_paths:
     for line_number, line in enumerate(path.read_text().splitlines(), 1):
         assert line == line.rstrip(), (path, line_number)
 
-print("PASS: Ansible/OpenTofu layout, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan")
+print("PASS: Ansible/OpenTofu/Namespace layout, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan")
 PY
 
 git check-ignore -q --no-index inventory.local.ansible.json
@@ -559,9 +696,9 @@ printf '%s\n' 'PASS: ignore policy, git diff check, and no-staged-files check'
 Actual result (exit 0 on 2026-08-06):
 
 ```text
-Ran 35 tests
+Ran 47 tests
 OK
-PASS: Ansible/OpenTofu layout, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan
+PASS: Ansible/OpenTofu/Namespace layout, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan
 PASS: ignore policy, git diff check, and no-staged-files check
 ```
 
