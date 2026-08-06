@@ -3,13 +3,13 @@
 ## Status
 
 This target design has the existing bounded Ansible workflows plus an
-offline-validated non-destructive storage-discovery increment and temporary
-CNI/NetworkPolicy functional probe. Neither increment has contacted the host or
-Kubernetes API. Probe runtime is NOT RUN/BLOCKED pending an independently verified
-linux/amd64 image digest, a temporary Argo CD ownership exception, a unique run ID,
-and separate create/delete approvals. The implementation uses generated names,
-exact UID cleanup, dual-label fixed-kind recovery discovery, selectorless Service
-plus explicit EndpointSlice, non-cascading deletion, and no Namespace create/delete.
+offline-validated non-destructive storage-discovery increment and executed temporary
+CNI/NetworkPolicy functional probe. Extended storage discovery has not contacted the
+host, while the approved probe passed against the live Kubernetes API using an
+independently verified linux/amd64 digest and temporary Argo CD ownership exception.
+The implementation used generated names, exact UID cleanup, dual-label fixed-kind
+recovery discovery, selectorless Service plus explicit EndpointSlice, non-cascading
+deletion, and no Namespace create/delete; post-run verification found zero residue.
 Read-only discovery, the Kubernetes-module dependency
 bootstrap, and group-scoped k3s administrator access have been executed under
 `ansible/`; effective-user readability, fresh-session cluster listing, and
@@ -33,13 +33,13 @@ A read-only host inspection observed a Debian 13 single-node k3s server with abo
 16 GiB RAM, an NVMe system disk, a separate unmounted 1 TB NTFS disk, and Tailscale
 installed. k3s is active. Approved elevated discovery has reverified the datastore,
 node, Traefik, local-path StorageClass, and curated kube-system workload indicators
-through the protected group-scoped kubeconfig. Reboot recovery and independent fallback access
-are verified; CNI behavior, NetworkPolicy enforcement, and replacement-host recovery
-still require separate approved verification.
+through the protected group-scoped kubeconfig. Reboot recovery, independent fallback
+access, CNI behavior, and NetworkPolicy enforcement are verified for the current
+single-node cluster; replacement-host recovery still requires separate verification.
 
 The external CristexHub application repository publishes backend, frontend, and
-code-runner images to GHCR. This repository implements five executed bounded
-Ansible workflows plus the offline-validated but unexecuted functional probe; it still has no
+code-runner images to GHCR. This repository implements six executed bounded
+Ansible workflows, including the temporary functional probe; it still has no
 Kubernetes desired state, Helm, Kustomize,
 OpenTofu, GitHub Actions,
 or general host baseline. Debian plus Ansible is the
@@ -226,14 +226,14 @@ verification must meet the declared RPO/RTO before PROD.
   one-host report pass. A temporary generated-name functional probe is implemented
   and validated offline. Exact-UID cleanup, an interruption ledger, no Namespace
   create/delete, and baseline/deny/selective/rollback standalone Pods close the earlier design
-  blockers. It has not accessed the cluster or proved enforcement; runtime remains
-  blocked until a real linux/amd64 image digest is independently verified and
-  supplied with the ownership exception and separate approvals. The approved bootstrap directly requested only
+  blockers. The approved live run used an independently verified official BusyBox
+  linux/amd64 manifest, passed baseline/deny/selective/rollback evidence, deleted
+  exact objects, and passed a separate zero-residue cleanup check. The approved bootstrap directly requested only
   `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
   dependencies, and post-install imports pass. The
   elevated report confirms the datastore and nine available exact Kubernetes
-  queries. Reboot recovery passed; CNI behavior, NetworkPolicy enforcement, and
-  replacement-host recovery remain unproven.
+  queries. Reboot recovery and the bounded CNI/NetworkPolicy probe passed;
+  replacement-host recovery remains unproven.
 - Gate: human-reviewed local report and decision register update.
 - Stop: a task needs mutation, secret output, or elevated access beyond the two
   approved dependency packages and discovery scope.

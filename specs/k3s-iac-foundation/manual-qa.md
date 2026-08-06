@@ -14,19 +14,18 @@ separately approved two-package dependency bootstrap completed and all nine exac
 Kubernetes queries now pass. Persistent group-scoped kubectl access and the
 all-namespace listing, warning-free client defaults, and the single-node reboot
 recovery pass. The operator manually confirmed independent fallback access, active
-services, and warning-free queries after reboot. A generated-name temporary
-CNI/NetworkPolicy probe with exact-UID cleanup is implemented and offline-validated,
-but runtime is blocked on independent image verification, the temporary Argo CD
-ownership exception, a unique run ID, and separate create/delete approvals. This
-change contacted no inventory host or Kubernetes API. The storage discovery projection is
+services, and warning-free queries after reboot. A separately approved generated-
+name CNI/NetworkPolicy probe passed live baseline, deny, selective allow/deny,
+rollback, exact-UID cleanup, and a separate zero-residue check with no Namespace or
+public exposure. The storage discovery projection is
 also extended only offline; its new device, StorageClass, PV, and namespace-bounded
 PVC indicators have not been collected from the host or cluster and do not close
 MQA-01. The first replacement-host increment is now documented offline: a
 secret-free runbook/register separates reboot from replacement, stops on old-host or
 storage split-brain risk, and requires an explicit recovery identity decision. Its
 datastore/version/token/storage/RPO/RTO/off-node entries remain `UNKNOWN — STOP`.
-No functional CNI/NetworkPolicy probe, deployment, replacement recovery proof, or
-complete manual runtime validation occurred. MQA-13 remains pending specifically
+No deployment, replacement recovery proof, or complete manual runtime validation
+occurred. MQA-13 remains pending specifically
 because the managed-profile rollback path has not been executed and verified, even
 though warning-free fresh-session behavior passed. These results do not satisfy the
 remaining manual cases.

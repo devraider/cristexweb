@@ -20,7 +20,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-ANS-03 | KIF-001, KIF-002, KIF-007 | Invocation and elevation gates | Play fails without check/diff, explicit limit, and one selected host; become defaults false; elevated queries need both approval flags | PASS — approved positive non-elevated and elevated attempts passed the gates; negative invocation branches NOT RUN |
 | KIF-ANS-04 | KIF-013, KIF-030 | Bounded data projection | Raw discovery registrations are no_log; fact cache is memory-only; report omits addresses, MACs, UUIDs, annotations, labels, environment fields, secrets, chart values, raw specs, command output, and kubeconfig content | PASS — non-elevated and elevated reports were reviewed; all projected query results contain only curated names/counts |
 | KIF-ANS-05 | KIF-006, KIF-013 | Local report safety | Exactly one ignored controller-local JSON destination defaults under the repository root, mode 0600, diff disabled, become false, and symlink-refused | PASS — offline task/template contract and actual ignored mode-0600 report write passed; negative symlink runtime case remains offline-tested only |
-| KIF-ANS-06 | KIF-008, KIF-021 | Kubernetes query boundary | Exact non-secret kinds provide object indicators; Secret, ConfigMap, Events, and broad all queries are absent; CNI and NetworkPolicy enforcement remain explicitly unproven | PASS — query boundary and template assertions passed |
+| KIF-ANS-06 | KIF-008, KIF-021 | Kubernetes query boundary | Exact non-secret kinds provide object indicators; Secret, ConfigMap, Events, and broad all queries are absent; listing evidence alone never claims CNI or NetworkPolicy enforcement | PASS — query boundary and template assertions passed; separate functional evidence is recorded in KIF-NET-02 |
 | KIF-ANS-07 | KIF-007, KIF-030 | Ansible syntax and lint | Locked project tooling and the locally pinned collection pass syntax and production-profile lint before any host access | PASS — ansible-core 2.19.0 syntax check and ansible-lint 26.6.0 production profile passed; package-registry access only |
 | KIF-ANS-08 | KIF-001, KIF-008 | Elevated cluster inventory capture | A separately approved one-host elevated check/diff run produces a human-reviewed host, datastore, and Kubernetes indicator report | PASS — datastore exists; all nine exact queries available; curated node, namespace, StorageClass, ingress, kube-system workload, and HelmChart indicators captured |
 | KIF-ANS-09 | KIF-006, KIF-007 | Reproducible controller environment | `pyproject.toml` and `uv.lock` pin the ignored project `.venv`; Galaxy installs the pinned collection only into the ignored local Ansible path | PASS — `uv sync --locked`, dependency-pin contract, ignore checks, and project-local Ansible commands passed |
@@ -36,7 +36,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-REB-01 | KIF-002, KIF-007 | Single-node reboot recovery contract | Explicit approval, fallback-access confirmation, diff, one-host limit, preflight services/backup/access/Ready node, exactly one reboot, new boot ID, SSH return, post-reboot services/Ready node/access, no config mutation, and hidden sensitive facts are enforced | PASS — 15 contract tests, syntax check, and production-profile lint passed |
 | KIF-REB-02 | KIF-007 | Single-node reboot recovery runtime | Check/diff predicts exactly one reboot; accepted run returns through Tailscale SSH with a new boot ID, running k3s/Tailscale, one Ready node, and unchanged group-scoped kubeconfig access | PASS — operator confirmed fallback; check ok=19/changed=1/unreachable=0/failed=0/skipped=7; reboot ok=26/changed=1/unreachable=0/failed=0/skipped=0; operator manually confirmed active services and warning-free node/all-namespace queries |
 | KIF-NET-01 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional-probe contract | Plan/run/cleanup truth tables, immutable image and approval gates, API-generated names, fixed existing namespace, selectorless ClusterIP plus explicit EndpointSlice, hardened standalone Pods with exact terminal-state checks, private exact-UID ledger recovery, dual-label fixed-kind interruption discovery, UID-preconditioned non-cascading cleanup, zero residue, and no remote exec or Namespace mutation are enforced | PASS — focused contracts, syntax, and production lint passed offline; no inventory host, image registry, or Kubernetes API was accessed |
-| KIF-NET-02 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional runtime | After independent image verification and a reviewed ownership exception plus separate create/delete approvals, baseline success, deny failure, selective allow/deny, rollback success, and exact cleanup pass | NOT RUN/BLOCKED — implementation exists, but no verified linux/amd64 `httpd`/`wget` image digest, ownership-exception approval, create/delete approvals, or runtime evidence has been supplied |
+| KIF-NET-02 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional runtime | After independent image verification and a reviewed ownership exception plus separate create/delete approvals, baseline success, deny failure, selective allow/deny, rollback success, and exact cleanup pass | PASS — official BusyBox linux/amd64 digest and `httpd`/`wget` paths verified; run check ok=18/changed=0; eight phases passed; execution ok=225/changed=43/failed=0; 12 remaining identities removed after two policy deletes; post-cleanup check ok=20/changed=0/exact_identity_count=0 |
 | KIF-STO-01 | KIF-001, KIF-003, KIF-008, KIF-030 | Non-destructive storage discovery offline contract | Built-in facts project only curated device/partition size, rotational/removable state, direct mount state, and mounted filesystem types; exact StorageClass behavior fields, bounded PV placement booleans, and PVC metadata from five fixed namespaces omit device serials, UUIDs, addresses, backing paths, filesystem contents, Secret/ConfigMap kinds, and broad PVC queries | PASS — focused contracts, all 28 offline tests, collision-safe synthetic render, discovery syntax, and production lint passed; no inventory host, kubeconfig, Kubernetes API, or filesystem content was accessed |
 | KIF-STO-02 | KIF-001, KIF-008, KIF-030 | Extended storage discovery runtime | A separately approved one-host elevated check/diff run renders valid mode-0600 JSON and human review establishes actual curated device, StorageClass, PV, and PVC indicators without mutation or sensitive metadata | NOT RUN — implementation and validation were controller-local only; the prior nine-query elevated report remains unchanged and no new disk or PV/PVC placement fact is claimed |
 | KIF-REC-01 | KIF-002, KIF-003, KIF-013, KIF-015, KIF-028, KIF-030 | Replacement-host recovery first offline increment | Secret-free runbook/register truthfully separate same-host reboot from replacement, require old-host fencing and exclusive storage ownership, stop split brain, require exactly one preserve-existing or create-new identity decision, and leave datastore/version/token/storage/RPO/RTO/off-node prerequisites explicitly unknown without guessed commands | PASS — 5 focused offline recovery contracts and the full offline suite passed; documentation contains no executable recovery command or secret-shaped value and no host/provider/API was accessed |
@@ -103,6 +103,77 @@ PASS: Python compile, diff check, and no staged files
 The controller environment emitted only a warning that an active virtual
 environment from the separate application repository was ignored in favor of this
 repository's locked `.venv`; validation still exited zero.
+
+## Temporary network probe live validation — 2026-08-05
+
+The operator supplied the existing Tailscale SSH target and selected account, then
+explicitly approved the temporary Argo CD ownership exception and separate create
+and delete gates. Those connection details remain only in the ignored mode-`0600`
+local inventory and are not recorded in Git. No sudo or secret value was used.
+
+Registry verification selected official BusyBox 1.37.0 index
+`sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0`
+and its linux/amd64 manifest
+`sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0`.
+Read-only direct inspection of layer
+`sha256:436a1b1fd078ee8e117111472724c2827077657189af7a781829d0825d48d2ab`
+confirmed `bin/httpd` and `bin/wget`. An attempted local `docker run --rm` could not
+connect to the inactive Docker Desktop daemon; it did not affect the later registry
+or cluster evidence.
+
+```bash
+cd ansible
+uv run ansible -i .ansible/inventory.local.yml k3s_servers \
+  --limit crtxweb -m ansible.builtin.ping
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/probe_k3s_network_policy.yml \
+  --check --diff --limit crtxweb \
+  -e k3s_network_probe_action=plan
+
+# The same approved run request was executed first with --check --diff, then with
+# only --diff after the exact zero-change plan passed.
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/probe_k3s_network_policy.yml \
+  --diff --limit crtxweb \
+  -e k3s_network_probe_action=run \
+  -e network_policy_probe_run_id=8d96ec2146d54312e182fd12 \
+  -e network_policy_probe_image=docker.io/library/busybox@sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0 \
+  -e network_policy_probe_image_architecture=linux/amd64 \
+  -e network_policy_probe_image_verification_reference=docker-busybox-1.37.0-linux-amd64-7a3ebe5b-httpd-wget \
+  -e network_policy_probe_ownership_exception_approved=true \
+  -e network_policy_probe_create_approved=true \
+  -e network_policy_probe_delete_approved=true
+
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/probe_k3s_network_policy.yml \
+  --check --diff --limit crtxweb \
+  -e k3s_network_probe_action=cleanup \
+  -e network_policy_probe_run_id=8d96ec2146d54312e182fd12 \
+  -e network_policy_probe_ownership_exception_approved=true \
+  -e network_policy_probe_delete_approved=true
+```
+
+Actual result:
+
+```text
+Ansible ping: SUCCESS, changed=false
+Read-only planner: ok=12 changed=0 unreachable=0 failed=0
+Run check: ok=18 changed=0 unreachable=0 failed=0
+Phases: baseline-allowed Succeeded; baseline-denied Succeeded;
+        deny-allowed Failed; deny-denied Failed;
+        selective-allowed Succeeded; selective-denied Failed;
+        rollback-allowed Succeeded; rollback-denied Succeeded
+Functional run: ok=225 changed=43 unreachable=0 failed=0 skipped=14
+Cleanup: 12 live exact identities removed after two policies were UID-deleted;
+         cleanup_verified=true; Namespace/public exposure not created
+Post-cleanup check: ok=20 changed=0 unreachable=0 failed=0;
+                    exact_identity_count=0; deletion_performed=false
+```
+
+This proves bounded CNI connectivity and NetworkPolicy enforcement on the current
+single-node cluster at the tested revision. It is not a permanent workload, a
+future-cluster guarantee, replacement-host evidence, or permission for another run
+without fresh approvals and a unique Run ID.
 
 ## Storage discovery increment offline validation — 2026-08-05
 
@@ -255,7 +326,7 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "admin/client/reboot recovery pass",
+    "admin/client/reboot recovery and live CNI/NetworkPolicy probe pass",
     "all nine exact Kubernetes",
     "executed group-scoped k3s",
 ]:
@@ -412,8 +483,9 @@ valid JSON mode `0600`, and records datastore presence plus nine available exact
 queries: 1 Node, 4 Namespaces, 0 NetworkPolicies, 1 StorageClass, 1 IngressClass, 4
 kube-system Deployments, 1 kube-system DaemonSet, 2 HelmCharts, and 0
 HelmChartConfigs. The local-path StorageClass, Traefik ingress/chart indicators, and
-CoreDNS deployment are present. Object listing still does not prove CNI behavior or
-NetworkPolicy enforcement, so those functional gates remain open.
+CoreDNS deployment are present. Object listing alone does not prove CNI behavior or
+NetworkPolicy enforcement; the later KIF-NET-02 functional run closes those gates
+for the current cluster.
 
 The approved admin-access check predicted the rollback baseline, dedicated group,
 membership, two persistent settings, and conditional restart without mutation:
@@ -477,7 +549,7 @@ Replacement-host recovery remains pending and is not implied by this reboot proo
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
-| KIF-FUT-01 | KIF-001, KIF-007, KIF-008, KIF-028 | Read-only Ansible discovery | Curated report proves actual k3s, storage, resource, and recovery indicators without mutation; human review passes | PARTIAL — host, datastore, capacity, reboot recovery, and Kubernetes object indicators captured; replacement-host recovery and functional CNI/NetworkPolicy probes remain pending |
+| KIF-FUT-01 | KIF-001, KIF-007, KIF-008, KIF-028 | Read-only Ansible discovery | Curated report proves actual k3s, storage, resource, and recovery indicators without mutation; human review passes | PARTIAL — host, datastore, capacity, reboot recovery, Kubernetes object indicators, and functional CNI/NetworkPolicy evidence captured; extended storage and replacement-host recovery remain pending |
 | KIF-FUT-02 | KIF-002, KIF-003, KIF-007 | Host baseline safety/idempotence | Syntax/lint/check/diff pass before approval; two approved host-baseline runs converge and preserve recovery access | NOT RUN — runtime gate remains pending |
 | KIF-FUT-03 | KIF-005, KIF-006, KIF-013, KIF-028 | OpenTofu state and plans | Format/validate pass; protected state recovers; reviewed plan has no secrets or unapproved destroy | NOT RUN — runtime gate remains pending |
 | KIF-FUT-04 | KIF-005, KIF-009, KIF-022, KIF-023 | Render and GitOps reconciliation | Helm/Kustomize/schema checks pass; Argo reconciles private desired state and restores controlled drift | NOT RUN — runtime gate remains pending |

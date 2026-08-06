@@ -61,10 +61,10 @@
   propagation, `always` cleanup, and rejection of
   selector/Namespace deletion (`KIF-003`, `KIF-006`,
   `KIF-023`).
-- [ ] Independently verify the digest and linux/amd64 `httpd`/`wget` capability,
-  review the ephemeral-QA ownership exception, grant separate create/delete
-  approvals, then run baseline/deny/selective/rollback/cleanup; offline contracts
-  and object listings are not enforcement evidence (`KIF-005`, `KIF-008`, `KIF-021`).
+- [x] Independently verify the official BusyBox digest and linux/amd64
+  `httpd`/`wget` capability, approve the ephemeral-QA ownership exception and
+  separate create/delete gates, then pass baseline/deny/selective/rollback, exact
+  cleanup, and an independent zero-residue check (`KIF-005`, `KIF-008`, `KIF-021`).
 - [x] Confirm independent recovery access and the protected current configuration
   rollback baseline (`KIF-007`, `KIF-028`).
 - [x] Implement and offline-validate the first replacement-host recovery increment:
@@ -76,7 +76,7 @@
   token custody, storage mapping, RPO/RTO, off-node artifact, and isolated-restore
   prerequisites; approve exactly one identity model and only then review a concrete
   operational recovery plan (`KIF-002`, `KIF-015`, `KIF-026`–`KIF-030`).
-- [ ] Resolve the remaining CNI, enforcement, and storage decisions; permit no
+- [ ] Resolve the remaining storage and replacement-recovery decisions; permit no
   mutation beyond the explicitly approved bounded Ansible changes (`KIF-002`,
   `KIF-003`).
 

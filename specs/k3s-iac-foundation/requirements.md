@@ -75,7 +75,7 @@
 `tasks.md` references these requirement IDs by stage. `testcases.md` maps every ID
 to offline, integration, security, recovery, or manual evidence. The current
 Ansible discovery satisfies its offline, syntax/lint, approved host-access,
-dependency-bootstrap, and curated host/cluster-indicator gates. It does not satisfy
-functional CNI/NetworkPolicy enforcement, replacement-host recovery, general host-baseline,
+dependency-bootstrap, curated host/cluster-indicator, and functional
+CNI/NetworkPolicy enforcement gates. It does not satisfy replacement-host recovery, general host-baseline,
 or later platform mutation gates. Unresolved storage, secret bootstrap, and RPO/RTO
 choices remain decision gates rather than implied requirements.

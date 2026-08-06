@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: admin/client/reboot recovery pass; gated CNI functional probe, storage discovery, and decision-first replacement runbook/register offline-implemented; extended storage run, verified probe image, runtime probes, and replacement execution pending
+build: admin/client/reboot recovery and live CNI/NetworkPolicy probe pass; storage discovery and decision-first replacement runbook/register offline-implemented; extended storage run and replacement execution pending
 date: 2026-08-05
 deploy_required_after_acceptance: yes
 
@@ -43,10 +43,14 @@ note: |
   interruption rediscovery, selectorless Service plus explicit EndpointSlice, UID
   delete preconditions, non-cascading `Orphan` propagation,
   `always` cleanup, and zero-residue assertions; it has no remote exec
-  and never creates or deletes a Namespace. The probe has not contacted the inventory
-  host or API. Runtime remains NOT RUN/BLOCKED pending an independently verified
-  digest-qualified linux/amd64 `httpd`/`wget` image, a reviewed temporary Argo CD
-  ownership exception, a unique run ID, and separate create/delete approvals.
+  and never creates or deletes a Namespace. The approved live run used independently
+  verified official BusyBox 1.37.0 linux/amd64 manifest
+  `sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0`.
+  Run check passed at ok=18/changed=0/failed=0; all eight functional phases passed;
+  execution completed at ok=225/changed=43/failed=0; exact cleanup removed 12 live
+  identities after both policies were already UID-deleted. A separate cleanup check
+  passed at ok=20/changed=0 with exact_identity_count=0. No Namespace or public
+  exposure was created.
   The first replacement-host recovery increment is documentation-only. Its
   secret-free runbook/register truthfully separates the verified same-host reboot
   from replacement, requires independently verified old-host fencing and storage
@@ -54,7 +58,7 @@ note: |
   preserve-existing-identity or create-new-cluster model. Datastore type, exact k3s
   version/config, token custody, storage mapping, RPO/RTO, off-node artifacts, and
   isolated restore remain `UNKNOWN — STOP`; no recovery command or automation was
-  guessed. CNI behavior, NetworkPolicy enforcement, replacement execution, and
-  later platform work therefore remain pending. No external-resource, secret, data,
+  guessed. Replacement execution and later platform work therefore remain pending.
+  No external-resource, secret, data,
   or deployment operation was performed. Object listings and offline tests do not
   prove functional enforcement or replacement recovery.

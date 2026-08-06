@@ -6,11 +6,10 @@ The repository's bounded Ansible implementation contains discovery, the executed
 two-package module bootstrap, an executed group-scoped k3s administrator access
 playbook, an offline-validated non-destructive storage-discovery increment, and an
 offline-validated temporary CNI/NetworkPolicy functional probe under
-[`ansible/`](ansible/). The extended storage query set and probe have not been run
-against the host or Kubernetes API. Runtime remains NOT RUN/BLOCKED until an
-independently verified digest-qualified linux/amd64 image, temporary Argo ownership
-exception, unique run ID, and separate create/delete approvals are supplied. The
-probe never creates or deletes a Namespace; generated names, two fixed ownership
+[`ansible/`](ansible/). The extended storage query set has not been run against the
+host, but the separately approved functional probe passed against the live cluster
+with an independently verified digest-qualified linux/amd64 image and temporary Argo
+ownership exception. The probe never creates or deletes a Namespace; generated names, two fixed ownership
 labels, private mode-`0600` ledger recovery, fixed-kind read-only rediscovery, exact
 UID preconditions, non-cascading `Orphan` deletion, and an `always` cleanup path
 bound every temporary object. Effective-user readability,
@@ -71,19 +70,19 @@ user, key, credential, or become secret. The playbook:
 - writes one ignored controller-local JSON report, mode `0600`, with diff disabled
   and symlink refusal.
 
-Listing NetworkPolicy and platform objects supplies configuration indicators only.
-It does not prove CNI behavior or NetworkPolicy enforcement. The repository now
-contains a separately gated functional probe, but offline validation does not
-execute it or establish runtime evidence.
+Listing NetworkPolicy and platform objects supplies configuration indicators only;
+the listings themselves do not prove enforcement. The separately gated functional
+probe has now established bounded live evidence for current CNI behavior,
+NetworkPolicy deny/selective-allow semantics, rollback, and cleanup.
 
 The probe uses one existing fixed namespace, a selectorless ClusterIP service with
 an explicit EndpointSlice, a hardened server Pod, and short-lived standalone client
 Pods to prove baseline success, deny failure, selective
 allow/deny, rollback success, and zero labeled residue. It uses no remote exec and
 never creates or deletes a Namespace. Argo CD remains the only persistent
-Kubernetes object writer; running this bounded temporary exception still requires
-the verified image and explicit approvals documented in
-[`ansible/README.md`](ansible/README.md).
+Kubernetes object writer. The completed temporary exception used the verified image
+and explicit approvals documented in [`ansible/README.md`](ansible/README.md); every
+future run requires fresh approvals and a unique Run ID.
 
 The approved non-elevated discovery run passed and its curated host report was
 reviewed locally. It did not use become or query Kubernetes. Syntax and lint also

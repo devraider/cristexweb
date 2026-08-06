@@ -202,8 +202,8 @@ roll back.
 ## Temporary CNI and NetworkPolicy functional probe
 
 `probe_k3s_network_policy.yml` implements three fail-closed actions: `plan`, `run`,
-and `cleanup`. Runtime is still **NOT RUN/BLOCKED**. Offline implementation is not
-proof of CNI behavior or NetworkPolicy enforcement.
+and `cleanup`. The first approved runtime passed; offline implementation alone is
+still not proof for a future cluster or changed CNI.
 
 The read-only plan verifies protected kubeconfig access, one Ready linux/amd64 node,
 NetworkPolicy API readability, and the existing fixed `default` namespace. It
@@ -299,8 +299,16 @@ uv run ansible-playbook \
   -e network_policy_probe_delete_approved=true
 ```
 
-Do not run either mutation command yet: the repository contains no independently
-verified image digest or approval record. Argo CD remains the sole owner of
+The approved runtime used official BusyBox 1.37.0 linux/amd64 manifest
+`sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0`.
+Registry inspection confirmed platform `linux/amd64`; direct layer inspection
+confirmed `bin/httpd` and `bin/wget`. Check mode passed at
+`ok=18 changed=0 failed=0`; execution passed all eight expected phases at
+`ok=225 changed=43 failed=0`, removed 12 remaining exact identities after the two
+policies had already been UID-deleted, and reported zero residue. A separate cleanup
+check passed at `ok=20 changed=0` with `exact_identity_count=0`. No Namespace or
+public exposure was created. Every future mutation requires fresh ownership,
+create, and delete approvals plus a unique Run ID. Argo CD remains the sole owner of
 persistent Kubernetes desired state.
 
 ## Mandatory invocation contract
