@@ -38,7 +38,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-NET-01 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional-probe contract | Plan/run/cleanup truth tables, immutable image and approval gates, API-generated names, fixed existing namespace, selectorless ClusterIP plus explicit EndpointSlice, hardened standalone Pods with exact terminal-state checks, private exact-UID ledger recovery, dual-label fixed-kind interruption discovery, UID-preconditioned non-cascading cleanup, zero residue, and no remote exec or Namespace mutation are enforced | PASS — focused contracts, syntax, and production lint passed offline; no inventory host, image registry, or Kubernetes API was accessed |
 | KIF-NET-02 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional runtime | After independent image verification and a reviewed ownership exception plus separate create/delete approvals, baseline success, deny failure, selective allow/deny, rollback success, and exact cleanup pass | PASS — official BusyBox linux/amd64 digest and `httpd`/`wget` paths verified; run check ok=18/changed=0; eight phases passed; execution ok=225/changed=43/failed=0; 12 remaining identities removed after two policy deletes; post-cleanup check ok=20/changed=0/exact_identity_count=0 |
 | KIF-STO-01 | KIF-001, KIF-003, KIF-008, KIF-030 | Non-destructive storage discovery offline contract | Built-in facts project only curated device/partition size, rotational/removable state, direct mount state, and mounted filesystem types; exact StorageClass behavior fields, bounded PV placement booleans, and PVC metadata from five fixed namespaces omit device serials, UUIDs, addresses, backing paths, filesystem contents, Secret/ConfigMap kinds, and broad PVC queries | PASS — focused contracts, all 28 offline tests, collision-safe synthetic render, discovery syntax, and production lint passed; no inventory host, kubeconfig, Kubernetes API, or filesystem content was accessed |
-| KIF-STO-02 | KIF-001, KIF-008, KIF-030 | Extended storage discovery runtime | A separately approved one-host elevated check/diff run renders valid mode-0600 JSON and human review establishes actual curated device, StorageClass, PV, and PVC indicators without mutation or sensitive metadata | NOT RUN — implementation and validation were controller-local only; the prior nine-query elevated report remains unchanged and no new disk or PV/PVC placement fact is claimed |
+| KIF-STO-02 | KIF-001, KIF-008, KIF-030 | Extended storage discovery runtime | A separately approved one-host elevated check/diff run renders valid mode-0600 JSON and human review establishes actual curated device, StorageClass, PV, and PVC indicators without mutation or sensitive metadata | PASS — ok=17/changed=1 local report/failed=0; unmounted 1 TB rotational disk with one partition, NVMe/root capacity, local-path `Delete`/`WaitForFirstConsumer`/no expansion, and zero PV/PVC objects confirmed; filesystem/content/health and reuse decision remain unknown; no disk mutation |
 | KIF-REC-01 | KIF-002, KIF-003, KIF-013, KIF-015, KIF-028, KIF-030 | Replacement-host recovery first offline increment | Secret-free runbook/register truthfully separate same-host reboot from replacement, require old-host fencing and exclusive storage ownership, stop split brain, require exactly one preserve-existing or create-new identity decision, and leave datastore/version/token/storage/RPO/RTO/off-node prerequisites explicitly unknown without guessed commands | PASS — 5 focused offline recovery contracts and the full offline suite passed; documentation contains no executable recovery command or secret-shaped value and no host/provider/API was accessed |
 | KIF-REC-02 | KIF-007, KIF-015, KIF-026–KIF-030 | Replacement-host recovery rehearsal/runtime | An isolated, approved replacement follows an actual version/datastore/storage-specific plan; proves one authoritative cluster/storage writer, desired state, mutable data, encryption behavior, isolation, and measured RPO/RTO before public reactivation | NOT RUN/BLOCKED — identity model and datastore, exact version/config, token custody, storage, RPO/RTO, off-node artifacts, restore procedures, and approvals remain `UNKNOWN — STOP`; reboot success is not replacement proof |
 
@@ -214,8 +214,45 @@ PASS: Python compile, diff check, and no staged files
 ```
 
 The same benign project-environment warning described above appeared on `uv`
-commands. Runtime storage evidence remains NOT RUN pending separate host-access and
-elevation approval.
+commands.
+
+## Extended storage discovery live validation — 2026-08-06
+
+The operator ran the separately approved elevated one-host check/diff from the
+ignored local inventory and entered the become password only at the local prompt.
+The play did not mount, repair, format, read filesystem contents, or otherwise
+mutate a disk or Kubernetes object.
+
+```bash
+cd ansible
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/discover.yml \
+  --check --diff --limit crtxweb \
+  -e read_only_discovery_enable_elevated=true \
+  -e read_only_discovery_elevated_approved=true \
+  --ask-become-pass
+```
+
+Actual result and human review:
+
+```text
+Play recap: ok=17 changed=1 unreachable=0 failed=0 skipped=1
+Only write: ignored controller-local inventory.local.ansible.json, mode 0600
+Host: Debian 13 x86_64; 6 cores; 15839 MiB memory
+Root filesystem: ext4; 472339357696 bytes total; 445053747200 available
+NVMe: 500107862016 bytes; non-rotational; three partitions
+Separate disk: 1000204886016 bytes; rotational; non-removable; one unmounted partition
+Unmounted filesystem/content/health: UNKNOWN — no inference from mount-only facts
+StorageClass: local-path; reclaim Delete; WaitForFirstConsumer; expansion false
+PersistentVolumes: 0
+PersistentVolumeClaims in five bounded namespaces: 0
+```
+
+Decision boundary: keep initial k3s workloads on the NVMe-backed local-path storage.
+Treat the separate disk only as a backup candidate until a separately approved
+non-destructive filesystem, health, and content inspection resolves its state. Do
+not mount, repair, format, repartition, or write it. Local backup capacity never
+replaces the required encrypted off-node copy.
 
 ## Documentation and traceability
 
@@ -223,14 +260,14 @@ elevation approval.
 |---|---|---|---|---|
 | KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
 | KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, dependency bootstrap, admin access, user-scoped client defaults, and one-reboot recovery are executed; no other host baseline, hosted runtime, provider, Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, dependency bootstrap, admin access, user-scoped client defaults, one-reboot recovery, extended storage discovery, and temporary NetworkPolicy probe are executed; no general host baseline, hosted runtime, provider, persistent Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
-| KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings do not prove policy enforcement | PASS — requirements and manual QA remain explicit |
-| KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, and thirteen manual cases remain PENDING | PASS — counts and status assertions passed |
+| KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings alone do not prove policy enforcement | PASS — functional probe evidence and remaining application-isolation QA are explicit |
+| KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, one manual case passes, and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
 
 All requirements KIF-001 through KIF-030 remain represented by the implementation,
-documentation, manual, or future-runtime cases in this file. Offline implementation
-success does not close any runtime gate.
+documentation, manual, or future-runtime cases in this file. Only the explicit live
+CNI and storage evidence above closes their bounded runtime gates.
 
 ## Exact command and actual result
 
@@ -310,7 +347,8 @@ found_ids = set(re.findall(r"KIF-\d{3}", (spec_dir / "testcases.md").read_text()
 assert found_ids == expected_ids, sorted(expected_ids - found_ids)
 assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| NOT RUN —", (spec_dir / "testcases.md").read_text(), re.MULTILINE)) == 11
 assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| PARTIAL —", (spec_dir / "testcases.md").read_text(), re.MULTILINE)) == 1
-assert len(re.findall(r"^\| MQA-\d{2} .* \| PENDING \|$", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) == 13
+assert len(re.findall(r"^\| MQA-\d{2} .* \| PENDING \|$", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) == 12
+assert len(re.findall(r"^\| MQA-\d{2} .* \| PASS —", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) == 1
 assert re.search(
     r"^\| KIF-ADM-05 .* \| PASS —",
     (spec_dir / "testcases.md").read_text(),
@@ -326,7 +364,7 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "admin/client/reboot recovery and live CNI/NetworkPolicy probe pass",
+    "admin/client/reboot recovery, extended storage discovery, and live CNI/NetworkPolicy probe pass",
     "all nine exact Kubernetes",
     "executed group-scoped k3s",
 ]:
@@ -356,7 +394,7 @@ for path in text_paths:
     for line_number, line in enumerate(path.read_text().splitlines(), 1):
         assert line == line.rstrip(), (path, line_number)
 
-print("PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 13 manual cases, status/implementation boundary, and bounded source scan")
+print("PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan")
 PY
 
 git check-ignore -q --no-index inventory.local.ansible.json
@@ -379,7 +417,7 @@ Actual result (exit 0 on 2026-08-05):
 ```text
 Ran 28 tests
 OK
-PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 13 manual cases, status/implementation boundary, and bounded source scan
+PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan
 PASS: ignore policy, git diff check, and no-staged-files check
 ```
 
@@ -549,7 +587,7 @@ Replacement-host recovery remains pending and is not implied by this reboot proo
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
-| KIF-FUT-01 | KIF-001, KIF-007, KIF-008, KIF-028 | Read-only Ansible discovery | Curated report proves actual k3s, storage, resource, and recovery indicators without mutation; human review passes | PARTIAL — host, datastore, capacity, reboot recovery, Kubernetes object indicators, and functional CNI/NetworkPolicy evidence captured; extended storage and replacement-host recovery remain pending |
+| KIF-FUT-01 | KIF-001, KIF-007, KIF-008, KIF-028 | Read-only Ansible discovery | Curated report proves actual k3s, storage, resource, and recovery indicators without mutation; human review passes | PARTIAL — host, datastore, capacity, reboot recovery, extended storage, Kubernetes indicators, and functional CNI/NetworkPolicy evidence captured; disk decision and replacement-host recovery remain pending |
 | KIF-FUT-02 | KIF-002, KIF-003, KIF-007 | Host baseline safety/idempotence | Syntax/lint/check/diff pass before approval; two approved host-baseline runs converge and preserve recovery access | NOT RUN — runtime gate remains pending |
 | KIF-FUT-03 | KIF-005, KIF-006, KIF-013, KIF-028 | OpenTofu state and plans | Format/validate pass; protected state recovers; reviewed plan has no secrets or unapproved destroy | NOT RUN — runtime gate remains pending |
 | KIF-FUT-04 | KIF-005, KIF-009, KIF-022, KIF-023 | Render and GitOps reconciliation | Helm/Kustomize/schema checks pass; Argo reconciles private desired state and restores controlled drift | NOT RUN — runtime gate remains pending |

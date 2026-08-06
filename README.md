@@ -4,10 +4,10 @@
 
 The repository's bounded Ansible implementation contains discovery, the executed
 two-package module bootstrap, an executed group-scoped k3s administrator access
-playbook, an offline-validated non-destructive storage-discovery increment, and an
-offline-validated temporary CNI/NetworkPolicy functional probe under
-[`ansible/`](ansible/). The extended storage query set has not been run against the
-host, but the separately approved functional probe passed against the live cluster
+playbook, an executed non-destructive storage-discovery increment, and an
+executed temporary CNI/NetworkPolicy functional probe under
+[`ansible/`](ansible/). The separately approved extended storage discovery and
+functional probe both passed against the live host/cluster. The probe ran
 with an independently verified digest-qualified linux/amd64 image and temporary Argo
 ownership exception. The probe never creates or deletes a Namespace; generated names, two fixed ownership
 labels, private mode-`0600` ledger recovery, fixed-kind read-only rediscovery, exact
@@ -22,7 +22,10 @@ curated host indicators with built-ins and exact Kubernetes kinds with
 `kubernetes.core.k8s_info`. No general host baseline or deployment exists. Python
 is used only for offline contract tests, not infrastructure automation.
 
-One approved non-elevated check/diff run produced the ignored local report. An
+Approved non-elevated and extended elevated check/diff runs produced the ignored
+local report. The extended report confirms the unmounted 1 TB rotational disk,
+NVMe/root capacity, local-path behavior, and zero current PV/PVC objects without
+identifying the unmounted filesystem or touching disk contents. An earlier
 approved elevated attempt identified missing remote Python dependencies. The
 bounded two-package Ansible bootstrap was reviewed and installed; post-install
 imports and the prior nine exact Kubernetes queries pass. That report confirms the

@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: admin/client/reboot recovery and live CNI/NetworkPolicy probe pass; storage discovery and decision-first replacement runbook/register offline-implemented; extended storage run and replacement execution pending
+build: admin/client/reboot recovery, extended storage discovery, and live CNI/NetworkPolicy probe pass; decision-first replacement runbook/register offline-implemented; disk decision and replacement execution pending
 date: 2026-08-05
 deploy_required_after_acceptance: yes
 
@@ -33,10 +33,13 @@ note: |
   mounted-filesystem-type, and direct mount-state indicators; exact StorageClass
   behavior fields; bounded PV metadata; and PVC metadata from five fixed namespaces.
   The projection emits no device serial, generated PV identifier, address, backing
-  path, filesystem content, Secret, ConfigMap, or broad PVC result. This increment
-  has not contacted the inventory host or Kubernetes API, so the prior nine-query
-  elevated report remains the latest runtime storage evidence and unmounted
-  filesystem type plus live PV/PVC placement remain unverified.
+  path, filesystem content, Secret, ConfigMap, or broad PVC result. The approved
+  extended check/diff run passed at ok=17/changed=1/failed=0; the only write was the
+  ignored mode-`0600` controller report. Human review confirmed an unmounted 1 TB
+  rotational disk with one partition, NVMe/root capacity, local-path StorageClass
+  behavior, and zero current PV/PVC objects. The unmounted filesystem, disk health,
+  contents, reuse decision, and off-node backup design remain unresolved; no disk
+  mutation occurred.
   A bounded CNI/NetworkPolicy functional probe is implemented offline with separate
   plan, run, and cleanup paths. It uses an existing namespace, API-generated names,
   two fixed ownership labels, private exact-UID ledger recovery, fixed-kind

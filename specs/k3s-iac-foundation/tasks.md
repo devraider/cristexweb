@@ -48,9 +48,10 @@
   without device serials, generated PV identifiers, addresses, backing paths,
   filesystem contents, sensitive
   Kubernetes kinds, or broad PVC queries (`KIF-001`, `KIF-003`, `KIF-008`, `KIF-030`).
-- [ ] Separately approve and run the extended one-host elevated discovery, then
-  human-review the new storage projection; offline implementation does not establish
-  disk filesystem type or PV/PVC placement evidence (`KIF-001`, `KIF-008`, `KIF-030`).
+- [x] Separately approve and run the extended one-host elevated discovery, then
+  human-review the mode-`0600` storage projection: unmounted 1 TB rotational disk,
+  NVMe capacity, local-path behavior, and zero current PV/PVC objects confirmed;
+  unmounted filesystem/content/health remain unknown (`KIF-001`, `KIF-008`, `KIF-030`).
 - [x] Implement and offline-validate CNI/NetworkPolicy `plan`, `run`, and `cleanup`
   actions with check/diff and one-host gates, a Ready linux/amd64 node, readable
   policy API, generated names, run labels, exact-UID cleanup, and no Namespace

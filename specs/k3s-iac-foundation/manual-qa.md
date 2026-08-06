@@ -7,9 +7,10 @@ environment, redacted evidence location, result, and rollback outcome. Never pas
 passwords, tokens, cookies, kubeconfigs, connection strings, private keys, database
 rows, personal data, or full secret-bearing command output.
 
-All cases remain **PENDING** because no hosted runtime exists. Separate approved
-non-elevated and elevated Ansible runs produced reviewed host and cluster-indicator
-reports. A
+MQA-01 now **PASSES**; the other twelve cases remain **PENDING** because their
+hosted-runtime, rollback, isolation, recovery, or exposure evidence does not yet
+exist. Separate approved non-elevated and elevated Ansible runs produced reviewed
+host and cluster-indicator reports. A
 separately approved two-package dependency bootstrap completed and all nine exact
 Kubernetes queries now pass. Persistent group-scoped kubectl access and the
 all-namespace listing, warning-free client defaults, and the single-node reboot
@@ -17,10 +18,10 @@ recovery pass. The operator manually confirmed independent fallback access, acti
 services, and warning-free queries after reboot. A separately approved generated-
 name CNI/NetworkPolicy probe passed live baseline, deny, selective allow/deny,
 rollback, exact-UID cleanup, and a separate zero-residue check with no Namespace or
-public exposure. The storage discovery projection is
-also extended only offline; its new device, StorageClass, PV, and namespace-bounded
-PVC indicators have not been collected from the host or cluster and do not close
-MQA-01. The first replacement-host increment is now documented offline: a
+public exposure. Extended live storage discovery captured curated device,
+StorageClass, PV, and bounded PVC indicators without disk mutation or secret output;
+the same Tailscale/SSH path remained available, closing MQA-01. The first
+replacement-host increment is documented offline: a
 secret-free runbook/register separates reboot from replacement, stops on old-host or
 storage split-brain risk, and requires an explicit recovery identity decision. Its
 datastore/version/token/storage/RPO/RTO/off-node entries remain `UNKNOWN — STOP`.
@@ -32,7 +33,7 @@ remaining manual cases.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|
-| MQA-01 | KIF-001, KIF-007, KIF-008 | Read-only Ansible inventory and recovery access | The approved one-host check/diff run leaves SSH/Tailscale available; actual curated k3s/storage facts are captured without mutation or secret output | PENDING |
+| MQA-01 | KIF-001, KIF-007, KIF-008 | Read-only Ansible inventory and recovery access | The approved one-host check/diff run leaves SSH/Tailscale available; actual curated k3s/storage facts are captured without mutation or secret output | PASS — ok=17/changed=1 local mode-0600 report/failed=0; curated disk, StorageClass, zero PV/PVC, and continuing access reviewed |
 | MQA-02 | KIF-005, KIF-009, KIF-010 | Private administration | Argo CD and k3s API work through the approved private path and are unreachable publicly | PENDING |
 | MQA-03 | KIF-013–KIF-015 | Infisical rotation | A test secret rotates and revokes without plaintext in Git/logs; recovery credential remains usable | PENDING |
 | MQA-04 | KIF-016–KIF-021 | DEV isolation | DEV reaches only its databases/services and cannot authenticate to or connect to PROD resources | PENDING |

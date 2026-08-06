@@ -60,8 +60,9 @@ approved non-elevated check/diff run produced
 a locally reviewed host report. A separately approved playbook directly requested
 only `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
 dependencies, and post-install imports plus all nine exact
-Kubernetes queries pass. The elevated report confirms the datastore and curated
-cluster indicators but not CNI behavior or NetworkPolicy enforcement. The separate
+Kubernetes queries pass. The extended elevated report confirms the datastore,
+curated device/storage indicators, local-path behavior, and zero current PV/PVC
+objects without touching the unmounted disk. The separate
 generated-name functional probe subsequently passed all live phases and exact-UID
 cleanup without Namespace create/delete. The locked local
 environment passes syntax and lint. This deliverable performs no other host

@@ -3,9 +3,9 @@
 ## Status
 
 This target design has the existing bounded Ansible workflows plus an
-offline-validated non-destructive storage-discovery increment and executed temporary
-CNI/NetworkPolicy functional probe. Extended storage discovery has not contacted the
-host, while the approved probe passed against the live Kubernetes API using an
+executed non-destructive storage-discovery increment and temporary CNI/NetworkPolicy
+functional probe. Extended storage discovery confirmed the live curated device and
+PV/PVC indicators, while the approved probe passed against the Kubernetes API using an
 independently verified linux/amd64 digest and temporary Argo CD ownership exception.
 The implementation used generated names, exact UID cleanup, dual-label fixed-kind
 recovery discovery, selectorless Service plus explicit EndpointSlice, non-cascading
@@ -30,9 +30,11 @@ application-repository concern.
 ## Known facts
 
 A read-only host inspection observed a Debian 13 single-node k3s server with about
-16 GiB RAM, an NVMe system disk, a separate unmounted 1 TB NTFS disk, and Tailscale
-installed. k3s is active. Approved elevated discovery has reverified the datastore,
-node, Traefik, local-path StorageClass, and curated kube-system workload indicators
+16 GiB RAM, an NVMe system disk, a separate unmounted 1 TB rotational disk with one
+partition and filesystem still unverified, and Tailscale installed. k3s is active.
+Approved extended elevated discovery has reverified the datastore,
+node, Traefik, local-path StorageClass (`Delete`, `WaitForFirstConsumer`, no
+expansion), zero current PV/PVC objects, and curated kube-system workload indicators
 through the protected group-scoped kubeconfig. Reboot recovery, independent fallback
 access, CNI behavior, and NetworkPolicy enforcement are verified for the current
 single-node cluster; replacement-host recovery still requires separate verification.
