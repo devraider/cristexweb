@@ -49,9 +49,10 @@ recover DEV and PROD without presenting a single node as highly available.
 
 G1 is agent-in-progress in its discovery stage. Its bounded operational
 implementations are Ansible discovery, the executed two-package dependency
-bootstrap, the executed group-scoped k3s administrator access playbook, and the
-executed user-scoped kubectl client-defaults playbook, and executed single-node
-reboot recovery playbook under `ansible/`. Effective-user readability, warning-free
+bootstrap, the executed group-scoped k3s administrator access playbook, the
+executed user-scoped kubectl client-defaults playbook, the executed single-node
+reboot recovery playbook, and the offline-validated but unexecuted temporary
+NetworkPolicy probe under `ansible/`. Effective-user readability, warning-free
 fresh-session cluster listing, both idempotence checks, SSH/Tailscale return, Ready
 node, and kubeconfig recovery passed.
 Python is used only for offline contract tests. One
@@ -60,8 +61,10 @@ a locally reviewed host report. A separately approved playbook directly requeste
 only `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
 dependencies, and post-install imports plus all nine exact
 Kubernetes queries pass. The elevated report confirms the datastore and curated
-cluster indicators but not CNI behavior or NetworkPolicy enforcement. The locked
-local environment passes syntax and lint. This deliverable performs no other host
+cluster indicators but not CNI behavior or NetworkPolicy enforcement. The generated-
+name probe implements exact-UID cleanup without Namespace create/delete, but still
+requires verified image/approval inputs and runtime evidence. The locked local
+environment passes syntax and lint. This deliverable performs no other host
 mutation, Cloudflare, GitHub, Infisical,
 registry, database, storage,
 backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain

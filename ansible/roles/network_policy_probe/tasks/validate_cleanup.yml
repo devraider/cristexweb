@@ -1,0 +1,51 @@
+---
+- name: Discover the complete exact cleanup plan
+  ansible.builtin.include_tasks: discover_owned.yml
+
+- name: Compare the private ledger with live exact identities
+  ansible.builtin.set_fact:
+    network_policy_probe_cleanup_ledger_matches: >-
+      {{
+        (network_policy_probe_cleanup_objects | length ==
+         network_policy_probe_discovered_objects | length) and
+        (network_policy_probe_cleanup_objects |
+         difference(network_policy_probe_discovered_objects) | length == 0) and
+        (network_policy_probe_discovered_objects |
+         difference(network_policy_probe_cleanup_objects) | length == 0)
+      }}
+  no_log: true
+
+- name: Rebuild a mismatched or missing cleanup ledger without deleting Kubernetes objects
+  ansible.builtin.include_tasks: write_ledger.yml
+  vars:
+    network_policy_probe_ledger_objects: "{{ network_policy_probe_discovered_objects }}"
+  when: not (network_policy_probe_cleanup_ledger_matches | bool)
+
+- name: Stop for human review after rebuilding the cleanup ledger
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_cleanup_ledger_matches | bool
+    fail_msg: >-
+      Cleanup check discovered a missing or changed exact identity set and rebuilt
+      the private mode-0600 ledger. Review it, then re-run --check before deletion.
+  changed_when: false
+
+- name: Validate each exact cleanup target without deleting it
+  ansible.builtin.include_tasks: delete_object.yml
+  vars:
+    network_policy_probe_delete_object: "{{ cleanup_object }}"
+  loop: "{{ network_policy_probe_discovered_objects | reverse | list }}"
+  loop_control:
+    loop_var: cleanup_object
+    label: "{{ cleanup_object.kind }}"
+  no_log: true
+
+- name: Confirm cleanup validation did not mutate Kubernetes
+  ansible.builtin.debug:
+    msg:
+      action: cleanup
+      check_mode: true
+      kubernetes_deletion_performed: false
+      exact_identity_count: "{{ network_policy_probe_discovered_objects | length }}"
+      next_gate: remove only --check after reviewing exact identity validation
+  changed_when: false

@@ -40,8 +40,18 @@ class AnsibleLayoutTests(unittest.TestCase):
             "playbooks/verify_k3s_reboot_recovery.yml",
             "playbooks/probe_k3s_network_policy.yml",
             "roles/network_policy_probe/defaults/main.yml",
+            "roles/network_policy_probe/tasks/cleanup.yml",
+            "roles/network_policy_probe/tasks/delete_object.yml",
+            "roles/network_policy_probe/tasks/discover_owned.yml",
             "roles/network_policy_probe/tasks/main.yml",
+            "roles/network_policy_probe/tasks/plan.yml",
             "roles/network_policy_probe/tasks/preflight.yml",
+            "roles/network_policy_probe/tasks/probe_pod.yml",
+            "roles/network_policy_probe/tasks/register_object.yml",
+            "roles/network_policy_probe/tasks/run.yml",
+            "roles/network_policy_probe/tasks/validate_cleanup.yml",
+            "roles/network_policy_probe/tasks/verify_server.yml",
+            "roles/network_policy_probe/tasks/write_ledger.yml",
             "roles/read_only_discovery/defaults/main.yml",
             "roles/read_only_discovery/tasks/main.yml",
             "roles/read_only_discovery/tasks/host.yml",
@@ -371,82 +381,189 @@ class NetworkPolicyProbeContractTests(unittest.TestCase):
         cls.role = ANSIBLE / "roles/network_policy_probe"
         cls.playbook = (ANSIBLE / "playbooks/probe_k3s_network_policy.yml").read_text()
         cls.defaults = (cls.role / "defaults/main.yml").read_text()
-        cls.main = (cls.role / "tasks/main.yml").read_text()
-        cls.preflight = (cls.role / "tasks/preflight.yml").read_text()
+        cls.tasks = {
+            path.name: path.read_text()
+            for path in sorted((cls.role / "tasks").glob("*.yml"))
+        }
+        cls.main = cls.tasks["main.yml"]
+        cls.preflight = cls.tasks["preflight.yml"]
+        cls.run_tasks = cls.tasks["run.yml"]
+        cls.cleanup_tasks = cls.tasks["cleanup.yml"]
+        cls.delete_tasks = cls.tasks["delete_object.yml"]
+        cls.pod_tasks = cls.tasks["probe_pod.yml"]
         cls.operational = "\n".join(
-            [cls.playbook, cls.defaults, cls.main, cls.preflight]
+            [cls.playbook, cls.defaults, *cls.tasks.values()]
         )
 
-    def test_only_read_only_plan_is_implemented(self) -> None:
+    def test_plan_run_and_cleanup_truth_table_fails_closed(self) -> None:
         for required in (
             "hosts: k3s_servers",
             "serial: 1",
             "any_errors_fatal: true",
             "become: false",
-            "network_policy_probe_action == 'plan'",
-            "ansible_check_mode",
+            "network_policy_probe_action in ['plan', 'run', 'cleanup']",
+            "network_policy_probe_action != 'plan' or ansible_check_mode",
+            "network_policy_probe_action == 'plan' or ansible_check_mode",
+            "network_policy_probe_action == 'run'",
+            "network_policy_probe_action == 'cleanup'",
+            "not ansible_check_mode",
             "ansible_diff_mode",
             "ansible_limit",
             "ansible_play_hosts_all | length",
-            "mutation_implemented: false",
-            "functional_test_performed: false",
         ):
             self.assertIn(required, self.operational)
+        self.assertRegex(
+            self.defaults,
+            re.compile(r'^network_policy_probe_image: ""$', re.MULTILINE),
+        )
+        self.assertRegex(
+            self.defaults,
+            re.compile(r'^network_policy_probe_delete_approved: false$', re.MULTILINE),
+        )
+
+    def test_runtime_requires_verified_digest_and_separate_approvals(self) -> None:
+        for required in (
+            "@sha256:[0-9a-f]{64}",
+            "network_policy_probe_image_architecture == network_policy_probe_required_architecture",
+            "network_policy_probe_image_verification_reference",
+            "network_policy_probe_ownership_exception_approved | bool",
+            "network_policy_probe_create_approved | bool",
+            "network_policy_probe_delete_approved | bool",
+            "network_policy_probe_run_id is",
+            "[a-z0-9-]{18,30}[a-z0-9]",
+            "network_policy_probe_managed_by == 'cristexweb-network-policy-probe'",
+            "network_policy_probe_run_label == 'cristexweb.io/network-probe-run'",
+            "network_policy_probe_allowed_cleanup_kinds == [",
+            "Reject externally supplied internal probe variables",
+            "vars.keys()",
+        ):
+            self.assertIn(required, self.preflight)
+        cleanup_gate = self.preflight[
+            self.preflight.index("Require exact cleanup identities") :
+            self.preflight.index("Validate every exact cleanup identity")
+        ]
+        self.assertNotIn("network_policy_probe_image", cleanup_gate)
+        self.assertIn("equalto', 'Namespace'", cleanup_gate)
+        self.assertIn("It does not require", cleanup_gate)
+
+    def test_generated_identity_uid_cleanup_and_ledger_are_bounded(self) -> None:
+        self.assertGreaterEqual(self.operational.count("generate_name:"), 5)
+        for required in (
+            "delete_options:",
+            "preconditions:",
+            'uid: "{{ network_policy_probe_delete_object.uid }}"',
+            "propagationPolicy: Orphan",
+            "kind: EndpointSlice",
+            "kubernetes.io/service-name",
+            "Register the generated client Pod before observing its result",
+            "network_policy_probe_discovered_objects | reverse | list",
+            "Require zero authored residue",
+            'mode: "0600"',
+            "not (network_policy_probe_ledger_state.stat.islnk",
+            "network_policy_probe_ledger_state.stat.isreg",
+            "network_policy_probe_ledger_state.stat.mode",
+            "network_policy_probe_ledger_state.stat.pw_name",
+            "lookup('ansible.builtin.env', 'USER')",
+            "cleanup_required",
+            "Discover exact objects carrying both immutable ownership labels",
+            "difference(network_policy_probe_discovered_objects)",
+        ):
+            self.assertIn(required, self.operational)
+        self.assertIn(
+            "network-policy-probe.local*.json",
+            (ROOT / ".gitignore").read_text(),
+        )
+        self.assertIn("'k3s_network_probe_action': 'cleanup'", self.operational)
+        self.assertIn("Revalidate the immutable exact-delete boundary", self.delete_tasks)
+        self.assertNotIn("delete_all:", self.operational)
+        self.assertNotIn("propagationPolicy: Foreground", self.operational)
+        self.assertNotIn("kind: Namespace\n    state: absent", self.operational)
+        self.assertNotIn("kind: Namespace\n    state: present", self.operational)
+        self.assertIn("namespace_created_or_deleted: false", self.operational)
+        service_block = self.run_tasks[
+            self.run_tasks.index("Create the generated-name ClusterIP service") :
+            self.run_tasks.index("Register the generated service")
+        ]
+        self.assertNotIn("selector:", service_block)
+        self.assertLess(
+            self.run_tasks.index("Register the explicit EndpointSlice"),
+            self.run_tasks.index("Prove allowed-role baseline connectivity"),
+        )
+
+    def test_functional_phases_use_standalone_pods_without_remote_exec(self) -> None:
+        for phase in (
+            "baseline-allowed",
+            "baseline-denied",
+            "deny-allowed",
+            "deny-denied",
+            "selective-allowed",
+            "selective-denied",
+            "rollback-allowed",
+            "rollback-denied",
+        ):
+            self.assertIn(f"network_policy_probe_pod_phase: {phase}", self.run_tasks)
+        self.assertEqual(5, self.run_tasks.count("network_policy_probe_expected_pod_phase: Succeeded"))
+        self.assertEqual(3, self.run_tasks.count("network_policy_probe_expected_pod_phase: Failed"))
+        for required in (
+            "activeDeadlineSeconds: 20",
+            "automountServiceAccountToken: false",
+            "runAsNonRoot: true",
+            "allowPrivilegeEscalation: false",
+            "readOnlyRootFilesystem: true",
+            "type: ClusterIP",
+            "ingress: []",
+            "network_policy_probe_probe_succeeded",
+            "state.terminated.exitCode == 1",
+            "state.terminated.reason == 'Error'",
+            "'DeadlineExceeded'",
+            "result.spec.clusterIP",
+            "restartCount == 0",
+            "Verify stable server control after default-deny evidence",
+            "Verify stable server control after selective-deny evidence",
+            "always:",
+        ):
+            self.assertIn(required, self.operational)
+        self.assertNotIn("cristexweb.io/network-probe-phase", self.pod_tasks)
+        self.assertLess(
+            self.pod_tasks.index("Register the generated client Pod"),
+            self.pod_tasks.index("Wait for the expected terminal Pod phase"),
+        )
+        self.assertLess(
+            self.pod_tasks.index("Require an expected wget connectivity rejection"),
+            self.pod_tasks.index("Record the sanitized phase result"),
+        )
         for forbidden in (
-            "network_policy_probe_action in ['plan', 'run', 'cleanup']",
-            "kubernetes.core.k8s:",
             "kubernetes.core.k8s_exec:",
             "ansible.builtin.shell:",
             "ansible.builtin.command:",
             "ansible.builtin.raw:",
             "ansible.builtin.script:",
-            "state: absent",
-            "state: present",
-        ):
-            self.assertNotIn(forbidden, self.operational)
-
-    def test_design_is_fixed_and_runtime_prerequisites_fail_closed(self) -> None:
-        self.assertRegex(
-            self.defaults,
-            re.compile(r'^network_policy_probe_image: ""$', re.MULTILINE),
-        )
-        self.assertIn('network_policy_probe_required_architecture: linux/amd64', self.defaults)
-        self.assertIn('network_policy_probe_authored_object_count: 8', self.defaults)
-        for name in (
-            "kif-cni-netpol-probe",
-            "probe-http-content",
-            "probe-server",
-            "probe-client-allowed",
-            "probe-client-denied",
-            "deny-probe-server-ingress",
-            "allow-probe-server-from-allowed-client",
-        ):
-            self.assertIn(name, self.defaults)
-        for blocker in (
-            "independently verified linux/amd64 image digest",
-            "atomic namespace ownership strategy",
-            "exhaustive foreign-resource-safe cleanup design",
-            "explicit create and delete approvals",
-        ):
-            self.assertIn(blocker, self.preflight)
-
-    def test_preflight_is_address_safe_and_exact(self) -> None:
-        self.assertIn("kind: Node", self.preflight)
-        self.assertIn("kind: NetworkPolicy", self.preflight)
-        self.assertIn("kind: Namespace", self.preflight)
-        self.assertIn("no_log: true", self.preflight)
-        self.assertIn("network_policy_probe_namespace_raw.resources | length == 0", self.preflight)
-        for forbidden in (
-            "kind: Secret",
-            "kind: ConfigMap",
-            "kind: PersistentVolumeClaim",
-            "kind: Ingress",
-            "kind: Service",
-            "kind: Pod",
             "NodePort",
             "LoadBalancer",
             "hostPort",
             "kubectl",
+            "kind: Job",
+        ):
+            self.assertNotIn(forbidden, self.operational)
+
+    def test_preflight_is_address_safe_and_never_manages_a_namespace(self) -> None:
+        self.assertIn("kind: Node", self.preflight)
+        self.assertIn("kind: NetworkPolicy", self.preflight)
+        self.assertIn("kind: Namespace", self.preflight)
+        self.assertIn("network_policy_probe_namespace == 'default'", self.preflight)
+        self.assertIn("network_policy_probe_namespace_raw.resources | length == 1", self.preflight)
+        self.assertIn("no_log: true", self.preflight)
+        node_query = self.preflight[
+            self.preflight.index("Query the single node") :
+            self.preflight.index("Require exactly one Ready")
+        ]
+        self.assertIn("when: network_policy_probe_action in ['plan', 'run']", node_query)
+        self.assertNotIn("kind: Node", self.tasks["cleanup.yml"])
+        self.assertNotIn("kind: Node", self.tasks["validate_cleanup.yml"])
+        for forbidden in (
+            "kind: Secret",
+            "kind: PersistentVolumeClaim",
+            "kind: Ingress",
         ):
             self.assertNotIn(forbidden, self.operational)
 

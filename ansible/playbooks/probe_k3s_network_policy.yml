@@ -1,5 +1,5 @@
 ---
-- name: Plan the bounded temporary k3s CNI and NetworkPolicy probe
+- name: Plan, run, or exactly clean the bounded k3s NetworkPolicy probe
   hosts: k3s_servers
   gather_facts: false
   become: false

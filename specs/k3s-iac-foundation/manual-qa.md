@@ -14,10 +14,11 @@ separately approved two-package dependency bootstrap completed and all nine exac
 Kubernetes queries now pass. Persistent group-scoped kubectl access and the
 all-namespace listing, warning-free client defaults, and the single-node reboot
 recovery pass. The operator manually confirmed independent fallback access, active
-services, and warning-free queries after reboot. Only a read-only
-CNI/NetworkPolicy planner exists; mutating probe code is blocked on image, atomic
-ownership, cleanup, and approval prerequisites. This change contacted no inventory
-host or Kubernetes API. The storage discovery projection is
+services, and warning-free queries after reboot. A generated-name temporary
+CNI/NetworkPolicy probe with exact-UID cleanup is implemented and offline-validated,
+but runtime is blocked on independent image verification, the temporary Argo CD
+ownership exception, a unique run ID, and separate create/delete approvals. This
+change contacted no inventory host or Kubernetes API. The storage discovery projection is
 also extended only offline; its new device, StorageClass, PV, and namespace-bounded
 PVC indicators have not been collected from the host or cluster and do not close
 MQA-01. The first replacement-host increment is now documented offline: a

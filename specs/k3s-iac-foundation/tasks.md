@@ -51,17 +51,20 @@
 - [ ] Separately approve and run the extended one-host elevated discovery, then
   human-review the new storage projection; offline implementation does not establish
   disk filesystem type or PV/PVC placement evidence (`KIF-001`, `KIF-008`, `KIF-030`).
-- [x] Implement and offline-validate a read-only CNI/NetworkPolicy probe planner
-  that requires check/diff, one host, a Ready linux/amd64 node, readable policy API,
-  fixed proposed scope, and no namespace collision (`KIF-002`, `KIF-003`, `KIF-008`,
-  `KIF-021`, `KIF-030`).
-- [ ] Before implementing mutation, independently verify the image digest and design
-  atomic namespace ownership plus exhaustive cleanup that cannot cascade-delete
-  uninspected built-in or custom resources (`KIF-003`, `KIF-006`, `KIF-023`).
-- [ ] Add a separately reviewed ephemeral-QA ownership exception and explicit
-  create/delete approvals, then implement and approve the bounded functional probe;
-  object listings and the read-only planner are not enforcement evidence
-  (`KIF-005`, `KIF-008`, `KIF-021`).
+- [x] Implement and offline-validate CNI/NetworkPolicy `plan`, `run`, and `cleanup`
+  actions with check/diff and one-host gates, a Ready linux/amd64 node, readable
+  policy API, generated names, run labels, exact-UID cleanup, and no Namespace
+  create/delete (`KIF-002`, `KIF-003`, `KIF-008`, `KIF-021`, `KIF-030`).
+- [x] Close the offline ownership and cleanup design: persist a private mode-`0600`
+  exact-identity ledger, dual-label fixed-kind interruption recovery, a selectorless
+  Service plus explicit EndpointSlice, UID delete preconditions, `Orphan`
+  propagation, `always` cleanup, and rejection of
+  selector/Namespace deletion (`KIF-003`, `KIF-006`,
+  `KIF-023`).
+- [ ] Independently verify the digest and linux/amd64 `httpd`/`wget` capability,
+  review the ephemeral-QA ownership exception, grant separate create/delete
+  approvals, then run baseline/deny/selective/rollback/cleanup; offline contracts
+  and object listings are not enforcement evidence (`KIF-005`, `KIF-008`, `KIF-021`).
 - [x] Confirm independent recovery access and the protected current configuration
   rollback baseline (`KIF-007`, `KIF-028`).
 - [x] Implement and offline-validate the first replacement-host recovery increment:

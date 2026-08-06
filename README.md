@@ -5,11 +5,15 @@
 The repository's bounded Ansible implementation contains discovery, the executed
 two-package module bootstrap, an executed group-scoped k3s administrator access
 playbook, an offline-validated non-destructive storage-discovery increment, and an
-offline-validated read-only CNI/NetworkPolicy probe planner under
-[`ansible/`](ansible/). The extended storage query set and probe planner have not
-been run against the host or Kubernetes API. Mutating probe code is not implemented:
-runtime is NOT RUN/BLOCKED on a verified image digest, atomic namespace ownership,
-foreign-resource-safe cleanup, and separate create/delete approvals. Effective-user readability,
+offline-validated temporary CNI/NetworkPolicy functional probe under
+[`ansible/`](ansible/). The extended storage query set and probe have not been run
+against the host or Kubernetes API. Runtime remains NOT RUN/BLOCKED until an
+independently verified digest-qualified linux/amd64 image, temporary Argo ownership
+exception, unique run ID, and separate create/delete approvals are supplied. The
+probe never creates or deletes a Namespace; generated names, two fixed ownership
+labels, private mode-`0600` ledger recovery, fixed-kind read-only rediscovery, exact
+UID preconditions, non-cascading `Orphan` deletion, and an `always` cleanup path
+bound every temporary object. Effective-user readability,
 fresh-session cluster listing, and second-run idempotence have passed. The executed
 user-scoped client-defaults playbook removes k3s multicall warnings without exposing
 server configuration. The separately approved one-reboot recovery playbook passed
@@ -25,7 +29,7 @@ bounded two-package Ansible bootstrap was reviewed and installed; post-install
 imports and the prior nine exact Kubernetes queries pass. That report confirms the
 k3s datastore and curated cluster indicators; it predates the extended StorageClass,
 PV, and namespace-bounded PVC projection. Hosted runtime,
-OpenTofu configuration, Kubernetes manifest, Helm chart, workflow, deployment, DNS
+OpenTofu configuration, persistent Kubernetes manifest, Helm chart, workflow, deployment, DNS
 route, tunnel, database, backup, and replacement recovery remain unexecuted. The
 first replacement-host increment is documentation-only: it adds a secret-free
 runbook and artifact register with fail-closed decision gates, not recovery
@@ -69,14 +73,17 @@ user, key, credential, or become secret. The playbook:
 
 Listing NetworkPolicy and platform objects supplies configuration indicators only.
 It does not prove CNI behavior or NetworkPolicy enforcement. The repository now
-contains a separately gated read-only probe planner, but offline validation does
-not execute it or establish runtime evidence.
+contains a separately gated functional probe, but offline validation does not
+execute it or establish runtime evidence.
 
-The planner describes a proposed eight-object, ClusterIP-only temporary probe but
-cannot mutate Kubernetes. Argo CD remains the only Kubernetes object writer until a
-separately reviewed ephemeral-QA exception closes the image, atomic ownership, safe
-cleanup, and approval blockers. See [`ansible/README.md`](ansible/README.md) for the
-read-only plan command and blocked prerequisites.
+The probe uses one existing fixed namespace, a selectorless ClusterIP service with
+an explicit EndpointSlice, a hardened server Pod, and short-lived standalone client
+Pods to prove baseline success, deny failure, selective
+allow/deny, rollback success, and zero labeled residue. It uses no remote exec and
+never creates or deletes a Namespace. Argo CD remains the only persistent
+Kubernetes object writer; running this bounded temporary exception still requires
+the verified image and explicit approvals documented in
+[`ansible/README.md`](ansible/README.md).
 
 The approved non-elevated discovery run passed and its curated host report was
 reviewed locally. It did not use become or query Kubernetes. Syntax and lint also
@@ -104,7 +111,7 @@ are documented in [`ansible/README.md`](ansible/README.md).
 ## Repository layout
 
 ```text
-ansible/                 # discovery + bounded host changes + read-only QA planner
+ansible/                 # discovery + bounded host changes + gated temporary QA probe
   inventory/
   playbooks/
   roles/read_only_discovery/

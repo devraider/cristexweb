@@ -1,0 +1,419 @@
+---
+- name: Initialize the temporary probe run
+  ansible.builtin.set_fact:
+    network_policy_probe_owned_objects: []
+    network_policy_probe_phase_results: {}
+    network_policy_probe_probe_succeeded: false
+    network_policy_probe_failure_phase: none
+
+- name: Execute the functional probe with guaranteed cleanup
+  block:
+    - name: Create generated-name HTTP content
+      kubernetes.core.k8s:
+        kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+        state: present
+        generate_name: kif-netpol-content-
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            namespace: "{{ network_policy_probe_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: "{{ network_policy_probe_managed_by }}"
+              cristexweb.io/network-probe-run: "{{ network_policy_probe_run_id }}"
+          data:
+            index.html: network-policy-probe
+      register: network_policy_probe_content
+      no_log: true
+
+    - name: Register generated HTTP content for exact cleanup
+      ansible.builtin.include_tasks: register_object.yml
+      vars:
+        network_policy_probe_new_object:
+          api_version: v1
+          kind: ConfigMap
+          namespace: "{{ network_policy_probe_namespace }}"
+          name: "{{ network_policy_probe_content.result.metadata.name }}"
+          uid: "{{ network_policy_probe_content.result.metadata.uid }}"
+
+    - name: Create the generated-name non-root probe server
+      kubernetes.core.k8s:
+        kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+        state: present
+        generate_name: kif-netpol-server-
+        definition:
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            namespace: "{{ network_policy_probe_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: "{{ network_policy_probe_managed_by }}"
+              cristexweb.io/network-probe-run: "{{ network_policy_probe_run_id }}"
+              cristexweb.io/network-probe-role: server
+          spec:
+            automountServiceAccountToken: false
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 65534
+              runAsGroup: 65534
+              seccompProfile:
+                type: RuntimeDefault
+            containers:
+              - name: server
+                image: "{{ network_policy_probe_image }}"
+                imagePullPolicy: IfNotPresent
+                command:
+                  - httpd
+                args:
+                  - -f
+                  - -p
+                  - "8080"
+                  - -h
+                  - /www
+                ports:
+                  - name: http
+                    containerPort: 8080
+                    protocol: TCP
+                readinessProbe:
+                  tcpSocket:
+                    port: http
+                  periodSeconds: 2
+                  timeoutSeconds: 1
+                  failureThreshold: 15
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem: true
+                  capabilities:
+                    drop:
+                      - ALL
+                resources:
+                  requests:
+                    cpu: 5m
+                    memory: 8Mi
+                  limits:
+                    cpu: 50m
+                    memory: 32Mi
+                volumeMounts:
+                  - name: content
+                    mountPath: /www
+                    readOnly: true
+            volumes:
+              - name: content
+                configMap:
+                  name: "{{ network_policy_probe_content.result.metadata.name }}"
+      register: network_policy_probe_server
+      no_log: true
+
+    - name: Register the generated server for exact cleanup
+      ansible.builtin.include_tasks: register_object.yml
+      vars:
+        network_policy_probe_new_object:
+          api_version: v1
+          kind: Pod
+          namespace: "{{ network_policy_probe_namespace }}"
+          name: "{{ network_policy_probe_server.result.metadata.name }}"
+          uid: "{{ network_policy_probe_server.result.metadata.uid }}"
+
+    - name: Wait for the generated server to become Ready
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+        api_version: v1
+        kind: Pod
+        namespace: "{{ network_policy_probe_namespace }}"
+        name: "{{ network_policy_probe_server.result.metadata.name }}"
+      register: network_policy_probe_server_state
+      until:
+        - network_policy_probe_server_state.resources | length == 1
+        - >-
+          (network_policy_probe_server_state.resources[0].status.conditions | default([]) |
+           selectattr('type', 'equalto', 'Ready') |
+           selectattr('status', 'equalto', 'True') | list | length) == 1
+      retries: "{{ network_policy_probe_wait_retries }}"
+      delay: "{{ network_policy_probe_wait_delay_seconds }}"
+      changed_when: false
+      no_log: true
+
+    - name: Create the generated-name ClusterIP service
+      kubernetes.core.k8s:
+        kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+        state: present
+        generate_name: kif-netpol-service-
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            namespace: "{{ network_policy_probe_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: "{{ network_policy_probe_managed_by }}"
+              cristexweb.io/network-probe-run: "{{ network_policy_probe_run_id }}"
+          spec:
+            type: ClusterIP
+            ports:
+              - name: http
+                port: 8080
+                targetPort: http
+                protocol: TCP
+      register: network_policy_probe_service
+      no_log: true
+
+    - name: Register the generated service for exact cleanup
+      ansible.builtin.include_tasks: register_object.yml
+      vars:
+        network_policy_probe_new_object:
+          api_version: v1
+          kind: Service
+          namespace: "{{ network_policy_probe_namespace }}"
+          name: "{{ network_policy_probe_service.result.metadata.name }}"
+          uid: "{{ network_policy_probe_service.result.metadata.uid }}"
+
+    - name: Create the explicit generated-name service EndpointSlice
+      kubernetes.core.k8s:
+        kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+        state: present
+        generate_name: kif-netpol-endpoints-
+        definition:
+          apiVersion: discovery.k8s.io/v1
+          kind: EndpointSlice
+          metadata:
+            namespace: "{{ network_policy_probe_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: "{{ network_policy_probe_managed_by }}"
+              cristexweb.io/network-probe-run: "{{ network_policy_probe_run_id }}"
+              kubernetes.io/service-name: "{{ network_policy_probe_service.result.metadata.name }}"
+              endpointslice.kubernetes.io/managed-by: "{{ network_policy_probe_managed_by }}"
+          addressType: >-
+            {{ 'IPv6' if ':' in network_policy_probe_server_state.resources[0].status.podIP
+               else 'IPv4' }}
+          ports:
+            - name: http
+              protocol: TCP
+              port: 8080
+          endpoints:
+            - addresses:
+                - "{{ network_policy_probe_server_state.resources[0].status.podIP }}"
+              conditions:
+                ready: true
+              targetRef:
+                apiVersion: v1
+                kind: Pod
+                namespace: "{{ network_policy_probe_namespace }}"
+                name: "{{ network_policy_probe_server.result.metadata.name }}"
+                uid: "{{ network_policy_probe_server.result.metadata.uid }}"
+      register: network_policy_probe_endpoint_slice
+      no_log: true
+
+    - name: Register the explicit EndpointSlice for exact cleanup
+      ansible.builtin.include_tasks: register_object.yml
+      vars:
+        network_policy_probe_new_object:
+          api_version: discovery.k8s.io/v1
+          kind: EndpointSlice
+          namespace: "{{ network_policy_probe_namespace }}"
+          name: "{{ network_policy_probe_endpoint_slice.result.metadata.name }}"
+          uid: "{{ network_policy_probe_endpoint_slice.result.metadata.uid }}"
+
+    - name: Prove allowed-role baseline connectivity before policies
+      ansible.builtin.include_tasks: probe_pod.yml
+      vars:
+        network_policy_probe_pod_phase: baseline-allowed
+        network_policy_probe_pod_role: allowed
+        network_policy_probe_expected_pod_phase: Succeeded
+
+    - name: Prove denied-role baseline connectivity before policies
+      ansible.builtin.include_tasks: probe_pod.yml
+      vars:
+        network_policy_probe_pod_phase: baseline-denied
+        network_policy_probe_pod_role: denied
+        network_policy_probe_expected_pod_phase: Succeeded
+
+    - name: Create generated-name default-deny ingress policy
+      kubernetes.core.k8s:
+        kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+        state: present
+        generate_name: kif-netpol-deny-
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            namespace: "{{ network_policy_probe_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: "{{ network_policy_probe_managed_by }}"
+              cristexweb.io/network-probe-run: "{{ network_policy_probe_run_id }}"
+          spec:
+            podSelector:
+              matchLabels:
+                cristexweb.io/network-probe-run: "{{ network_policy_probe_run_id }}"
+                cristexweb.io/network-probe-role: server
+            policyTypes:
+              - Ingress
+            ingress: []
+      register: network_policy_probe_deny_policy
+      no_log: true
+
+    - name: Register default-deny policy for exact cleanup
+      ansible.builtin.include_tasks: register_object.yml
+      vars:
+        network_policy_probe_new_object:
+          api_version: networking.k8s.io/v1
+          kind: NetworkPolicy
+          namespace: "{{ network_policy_probe_namespace }}"
+          name: "{{ network_policy_probe_deny_policy.result.metadata.name }}"
+          uid: "{{ network_policy_probe_deny_policy.result.metadata.uid }}"
+
+    - name: Allow the deny policy to reach the dataplane
+      ansible.builtin.pause:
+        seconds: 2
+
+    - name: Prove default-deny blocks the allowed-role client
+      ansible.builtin.include_tasks: probe_pod.yml
+      vars:
+        network_policy_probe_pod_phase: deny-allowed
+        network_policy_probe_pod_role: allowed
+        network_policy_probe_expected_pod_phase: Failed
+
+    - name: Prove default-deny blocks the denied-role client
+      ansible.builtin.include_tasks: probe_pod.yml
+      vars:
+        network_policy_probe_pod_phase: deny-denied
+        network_policy_probe_pod_role: denied
+        network_policy_probe_expected_pod_phase: Failed
+
+    - name: Verify stable server control after default-deny evidence
+      ansible.builtin.include_tasks: verify_server.yml
+
+    - name: Create generated-name selective-allow ingress policy
+      kubernetes.core.k8s:
+        kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+        state: present
+        generate_name: kif-netpol-allow-
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            namespace: "{{ network_policy_probe_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: "{{ network_policy_probe_managed_by }}"
+              cristexweb.io/network-probe-run: "{{ network_policy_probe_run_id }}"
+          spec:
+            podSelector:
+              matchLabels:
+                cristexweb.io/network-probe-run: "{{ network_policy_probe_run_id }}"
+                cristexweb.io/network-probe-role: server
+            policyTypes:
+              - Ingress
+            ingress:
+              - from:
+                  - podSelector:
+                      matchLabels:
+                        cristexweb.io/network-probe-run: "{{ network_policy_probe_run_id }}"
+                        cristexweb.io/network-probe-role: allowed
+                ports:
+                  - protocol: TCP
+                    port: 8080
+      register: network_policy_probe_allow_policy
+      no_log: true
+
+    - name: Register selective-allow policy for exact cleanup
+      ansible.builtin.include_tasks: register_object.yml
+      vars:
+        network_policy_probe_new_object:
+          api_version: networking.k8s.io/v1
+          kind: NetworkPolicy
+          namespace: "{{ network_policy_probe_namespace }}"
+          name: "{{ network_policy_probe_allow_policy.result.metadata.name }}"
+          uid: "{{ network_policy_probe_allow_policy.result.metadata.uid }}"
+
+    - name: Allow the selective policy to reach the dataplane
+      ansible.builtin.pause:
+        seconds: 2
+
+    - name: Prove selective allow admits the labeled client
+      ansible.builtin.include_tasks: probe_pod.yml
+      vars:
+        network_policy_probe_pod_phase: selective-allowed
+        network_policy_probe_pod_role: allowed
+        network_policy_probe_expected_pod_phase: Succeeded
+
+    - name: Prove selective allow still denies the unlabeled client
+      ansible.builtin.include_tasks: probe_pod.yml
+      vars:
+        network_policy_probe_pod_phase: selective-denied
+        network_policy_probe_pod_role: denied
+        network_policy_probe_expected_pod_phase: Failed
+
+    - name: Verify stable server control after selective-deny evidence
+      ansible.builtin.include_tasks: verify_server.yml
+
+    - name: Remove default-deny policy by exact UID before rollback proof
+      ansible.builtin.include_tasks: delete_object.yml
+      vars:
+        network_policy_probe_delete_object:
+          api_version: networking.k8s.io/v1
+          kind: NetworkPolicy
+          namespace: "{{ network_policy_probe_namespace }}"
+          name: "{{ network_policy_probe_deny_policy.result.metadata.name }}"
+          uid: "{{ network_policy_probe_deny_policy.result.metadata.uid }}"
+
+    - name: Remove selective-allow policy by exact UID before rollback proof
+      ansible.builtin.include_tasks: delete_object.yml
+      vars:
+        network_policy_probe_delete_object:
+          api_version: networking.k8s.io/v1
+          kind: NetworkPolicy
+          namespace: "{{ network_policy_probe_namespace }}"
+          name: "{{ network_policy_probe_allow_policy.result.metadata.name }}"
+          uid: "{{ network_policy_probe_allow_policy.result.metadata.uid }}"
+
+    - name: Allow policy removal to reach the dataplane
+      ansible.builtin.pause:
+        seconds: 2
+
+    - name: Prove policy rollback restores allowed-role connectivity
+      ansible.builtin.include_tasks: probe_pod.yml
+      vars:
+        network_policy_probe_pod_phase: rollback-allowed
+        network_policy_probe_pod_role: allowed
+        network_policy_probe_expected_pod_phase: Succeeded
+
+    - name: Prove policy rollback restores denied-role connectivity
+      ansible.builtin.include_tasks: probe_pod.yml
+      vars:
+        network_policy_probe_pod_phase: rollback-denied
+        network_policy_probe_pod_role: denied
+        network_policy_probe_expected_pod_phase: Succeeded
+
+    - name: Mark all functional phases successful
+      ansible.builtin.set_fact:
+        network_policy_probe_probe_succeeded: true
+
+  rescue:
+    - name: Record a sanitized functional failure
+      ansible.builtin.set_fact:
+        network_policy_probe_failure_phase: >-
+          {{ ansible_failed_task.name | default('unknown probe phase') }}
+      no_log: true
+
+  always:
+    - name: Discover and delete only exact objects created by this invocation
+      ansible.builtin.include_tasks: cleanup.yml
+
+    - name: Report sanitized functional and cleanup evidence
+      ansible.builtin.debug:
+        msg:
+          action: run
+          functional_test_performed: "{{ (network_policy_probe_phase_results | length) > 0 }}"
+          functional_probe_passed: "{{ network_policy_probe_probe_succeeded }}"
+          phases: "{{ network_policy_probe_phase_results }}"
+          cleanup_verified: true
+          namespace_created_or_deleted: false
+          public_exposure_created: false
+      changed_when: false
+
+- name: Fail closed when any functional phase did not pass
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_probe_succeeded | bool
+    fail_msg: >-
+      The functional probe failed in a sanitized phase. Exact cleanup completed;
+      inspect controller output without treating object listings as enforcement proof.
+  changed_when: false

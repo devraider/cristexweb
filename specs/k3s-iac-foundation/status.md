@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: admin/client/reboot recovery pass; CNI probe, storage discovery, and decision-first replacement runbook/register offline-implemented; extended storage run, image digest, runtime probes, and replacement execution pending
+build: admin/client/reboot recovery pass; gated CNI functional probe, storage discovery, and decision-first replacement runbook/register offline-implemented; extended storage run, verified probe image, runtime probes, and replacement execution pending
 date: 2026-08-05
 deploy_required_after_acceptance: yes
 
@@ -37,12 +37,16 @@ note: |
   has not contacted the inventory host or Kubernetes API, so the prior nine-query
   elevated report remains the latest runtime storage evidence and unmounted
   filesystem type plus live PV/PVC placement remain unverified.
-  A bounded read-only CNI/NetworkPolicy probe planner is implemented offline. It
-  cannot create, patch, execute in, or delete Kubernetes objects; Argo CD remains
-  the only object writer. The planner has not contacted the inventory host or API.
-  Mutating probe code remains NOT IMPLEMENTED/BLOCKED pending a verified image
-  digest, atomic namespace ownership, exhaustive foreign-resource-safe cleanup, and
-  separate create/delete approvals.
+  A bounded CNI/NetworkPolicy functional probe is implemented offline with separate
+  plan, run, and cleanup paths. It uses an existing namespace, API-generated names,
+  two fixed ownership labels, private exact-UID ledger recovery, fixed-kind
+  interruption rediscovery, selectorless Service plus explicit EndpointSlice, UID
+  delete preconditions, non-cascading `Orphan` propagation,
+  `always` cleanup, and zero-residue assertions; it has no remote exec
+  and never creates or deletes a Namespace. The probe has not contacted the inventory
+  host or API. Runtime remains NOT RUN/BLOCKED pending an independently verified
+  digest-qualified linux/amd64 `httpd`/`wget` image, a reviewed temporary Argo CD
+  ownership exception, a unique run ID, and separate create/delete approvals.
   The first replacement-host recovery increment is documentation-only. Its
   secret-free runbook/register truthfully separates the verified same-host reboot
   from replacement, requires independently verified old-host fencing and storage

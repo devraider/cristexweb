@@ -1,0 +1,73 @@
+---
+- name: Revalidate the immutable exact-delete boundary
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_delete_object.namespace == 'default'
+      - network_policy_probe_delete_object.kind != 'Namespace'
+      - network_policy_probe_delete_object.name is match('^kif-netpol-[a-z0-9-]+$')
+      - >-
+        network_policy_probe_delete_object.uid is
+        match('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+      - >-
+        ([
+          {'api_version': 'discovery.k8s.io/v1', 'kind': 'EndpointSlice'},
+          {'api_version': 'networking.k8s.io/v1', 'kind': 'NetworkPolicy'},
+          {'api_version': 'v1', 'kind': 'Service'},
+          {'api_version': 'v1', 'kind': 'Pod'},
+          {'api_version': 'v1', 'kind': 'ConfigMap'}
+        ] | selectattr('api_version', 'equalto', network_policy_probe_delete_object.api_version) |
+        selectattr('kind', 'equalto', network_policy_probe_delete_object.kind) |
+        list | length) == 1
+    fail_msg: "The effective delete identity is outside the immutable probe boundary."
+  changed_when: false
+  no_log: true
+
+- name: Read the exact object before deletion | {{ network_policy_probe_delete_object.kind }}
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    api_version: "{{ network_policy_probe_delete_object.api_version }}"
+    kind: "{{ network_policy_probe_delete_object.kind }}"
+    namespace: "{{ network_policy_probe_delete_object.namespace }}"
+    name: "{{ network_policy_probe_delete_object.name }}"
+  register: network_policy_probe_delete_target_raw
+  changed_when: false
+  no_log: true
+
+- name: Require exact UID and ownership labels before deletion
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_delete_target_raw.resources | length == 1
+      - >-
+        network_policy_probe_delete_target_raw.resources[0].metadata.uid ==
+        network_policy_probe_delete_object.uid
+      - >-
+        network_policy_probe_delete_target_raw.resources[0].metadata.labels.get(
+        'app.kubernetes.io/managed-by', '') == network_policy_probe_managed_by
+      - >-
+        network_policy_probe_delete_target_raw.resources[0].metadata.labels.get(
+        network_policy_probe_run_label, '') == network_policy_probe_run_id
+    fail_msg: >-
+      Exact cleanup stopped because the named object is absent, replaced, or no
+      longer carries both ownership labels. Nothing else will be adopted or deleted.
+  changed_when: false
+  no_log: true
+  when: network_policy_probe_delete_target_raw.resources | length > 0
+
+- name: Delete the exact UID-preconditioned object
+  kubernetes.core.k8s:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    state: absent
+    api_version: "{{ network_policy_probe_delete_object.api_version }}"
+    kind: "{{ network_policy_probe_delete_object.kind }}"
+    namespace: "{{ network_policy_probe_delete_object.namespace }}"
+    name: "{{ network_policy_probe_delete_object.name }}"
+    delete_options:
+      preconditions:
+        uid: "{{ network_policy_probe_delete_object.uid }}"
+      propagationPolicy: Orphan
+    wait: true
+    wait_timeout: 60
+  no_log: true
+  when:
+    - network_policy_probe_delete_target_raw.resources | length == 1
+    - not ansible_check_mode

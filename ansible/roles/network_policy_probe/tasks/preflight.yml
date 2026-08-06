@@ -1,30 +1,134 @@
 ---
-- name: Require the read-only CNI probe planning contract
+- name: Require the bounded CNI probe invocation contract
   ansible.builtin.assert:
     that:
-      - network_policy_probe_action == 'plan'
-      - ansible_check_mode
+      - network_policy_probe_action in ['plan', 'run', 'cleanup']
       - ansible_diff_mode
       - (ansible_limit | default('') | string | length) > 0
       - (ansible_play_hosts_all | length) == 1
       - network_policy_probe_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
-      - network_policy_probe_namespace == 'kif-cni-netpol-probe'
-      - network_policy_probe_authored_object_count == 8
-      - network_policy_probe_object_names.namespace == 'kif-cni-netpol-probe'
-      - network_policy_probe_object_names.config_map == 'probe-http-content'
-      - network_policy_probe_object_names.service == 'probe-server'
-      - network_policy_probe_object_names.server_pod == 'probe-server'
-      - network_policy_probe_object_names.allowed_client_pod == 'probe-client-allowed'
-      - network_policy_probe_object_names.denied_client_pod == 'probe-client-denied'
-      - network_policy_probe_object_names.deny_policy == 'deny-probe-server-ingress'
-      - network_policy_probe_object_names.allow_policy == 'allow-probe-server-from-allowed-client'
-      - network_policy_probe_image | length == 0
-      - network_policy_probe_image_architecture | length == 0
+      - network_policy_probe_namespace == 'default'
       - network_policy_probe_required_architecture == 'linux/amd64'
+      - network_policy_probe_wait_retries == 30
+      - network_policy_probe_wait_delay_seconds == 2
+      - network_policy_probe_managed_by == 'cristexweb-network-policy-probe'
+      - network_policy_probe_run_label == 'cristexweb.io/network-probe-run'
+      - >-
+        network_policy_probe_allowed_cleanup_kinds == [
+          {'api_version': 'discovery.k8s.io/v1', 'kind': 'EndpointSlice'},
+          {'api_version': 'networking.k8s.io/v1', 'kind': 'NetworkPolicy'},
+          {'api_version': 'v1', 'kind': 'Service'},
+          {'api_version': 'v1', 'kind': 'Pod'},
+          {'api_version': 'v1', 'kind': 'ConfigMap'}
+        ]
+      - network_policy_probe_output_path == (playbook_dir + '/../network-policy-probe.local.json')
+      - network_policy_probe_action != 'plan' or ansible_check_mode
     fail_msg: >-
-      Only the read-only plan action is implemented. It requires --check --diff,
-      an explicit one-host limit, and the fixed proposed object boundary.
+      The probe requires --diff, an explicit one-host limit, the fixed protected
+      kubeconfig and target namespace, and --check for the plan action.
   changed_when: false
+
+- name: Reject externally supplied internal probe variables
+  ansible.builtin.assert:
+    that:
+      - >-
+        (vars.keys() | select('match', '^network_policy_probe_') | list |
+         difference([
+           'network_policy_probe_action',
+           'network_policy_probe_kubeconfig',
+           'network_policy_probe_namespace',
+           'network_policy_probe_run_id',
+           'network_policy_probe_image',
+           'network_policy_probe_image_architecture',
+           'network_policy_probe_image_verification_reference',
+           'network_policy_probe_required_architecture',
+           'network_policy_probe_ownership_exception_approved',
+           'network_policy_probe_create_approved',
+           'network_policy_probe_delete_approved',
+           'network_policy_probe_cleanup_objects',
+           'network_policy_probe_output_path',
+           'network_policy_probe_wait_retries',
+           'network_policy_probe_wait_delay_seconds',
+           'network_policy_probe_managed_by',
+           'network_policy_probe_run_label',
+           'network_policy_probe_allowed_cleanup_kinds'
+         ]) | length) == 0
+    fail_msg: >-
+      Internal probe state cannot be supplied through inventory or extra variables.
+      Only the explicit public inputs are accepted.
+  changed_when: false
+
+- name: Require a bounded run identifier for mutation or cleanup
+  ansible.builtin.assert:
+    that:
+      - >-
+        network_policy_probe_run_id is
+        match('^[a-z0-9](?:[a-z0-9-]{18,30}[a-z0-9])$')
+    fail_msg: >-
+      Mutation and cleanup require an explicit 20-32 character lowercase run ID.
+  changed_when: false
+  when: network_policy_probe_action in ['run', 'cleanup']
+
+- name: Require independently verified immutable run inputs
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_image is match('^[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}$')
+      - network_policy_probe_image_architecture == network_policy_probe_required_architecture
+      - >-
+        network_policy_probe_image_verification_reference is
+        match('^[A-Za-z0-9][A-Za-z0-9._:/#-]{2,127}$')
+      - network_policy_probe_ownership_exception_approved | bool
+      - network_policy_probe_create_approved | bool
+      - network_policy_probe_delete_approved | bool
+    fail_msg: >-
+      Run requires an independently verified digest-qualified linux/amd64 image,
+      a sanitized evidence reference, the temporary ownership exception, and
+      separate create and delete approvals.
+  changed_when: false
+  when: network_policy_probe_action == 'run'
+
+- name: Require exact cleanup identities and delete approval
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_ownership_exception_approved | bool
+      - network_policy_probe_delete_approved | bool
+      - network_policy_probe_cleanup_objects is sequence
+      - network_policy_probe_cleanup_objects is not string
+      - ansible_check_mode or (network_policy_probe_cleanup_objects | length > 0)
+      - >-
+        network_policy_probe_cleanup_objects |
+        selectattr('kind', 'defined') |
+        selectattr('kind', 'equalto', 'Namespace') | list | length == 0
+    fail_msg: >-
+      Cleanup requires the ownership exception, explicit delete approval, and the
+      exact object identities from the private cleanup ledger. It does not require
+      or validate an image digest.
+  changed_when: false
+  when: network_policy_probe_action == 'cleanup'
+
+- name: Validate every exact cleanup identity
+  ansible.builtin.assert:
+    that:
+      - cleanup_object is mapping
+      - cleanup_object.api_version | default('') | length > 0
+      - >-
+        (network_policy_probe_allowed_cleanup_kinds |
+         selectattr('api_version', 'equalto', cleanup_object.api_version | default('')) |
+         selectattr('kind', 'equalto', cleanup_object.kind | default('')) |
+         list | length) == 1
+      - cleanup_object.name | default('') is match('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')
+      - >-
+        cleanup_object.uid | default('') is
+        match('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+      - cleanup_object.namespace | default('') == network_policy_probe_namespace
+    fail_msg: "A cleanup identity is incomplete or outside the fixed allowlist."
+  loop: "{{ network_policy_probe_cleanup_objects }}"
+  loop_control:
+    loop_var: cleanup_object
+    label: "{{ cleanup_object.kind | default('invalid') }}"
+  changed_when: false
+  no_log: true
+  when: network_policy_probe_action == 'cleanup'
 
 - name: Inspect protected kubeconfig metadata without reading its content
   ansible.builtin.stat:
@@ -54,6 +158,7 @@
   register: network_policy_probe_nodes_raw
   changed_when: false
   no_log: true
+  when: network_policy_probe_action in ['plan', 'run']
 
 - name: Require exactly one Ready linux amd64 node
   ansible.builtin.assert:
@@ -69,8 +174,9 @@
       - >-
         network_policy_probe_nodes_raw.resources[0].metadata.labels.get(
         'kubernetes.io/arch', '') == 'amd64'
-    fail_msg: "The proposed probe is bounded to one Ready linux/amd64 node."
+    fail_msg: "The probe is bounded to one Ready linux/amd64 node."
   changed_when: false
+  when: network_policy_probe_action in ['plan', 'run']
 
 - name: Verify the NetworkPolicy API is readable
   kubernetes.core.k8s_info:
@@ -79,8 +185,9 @@
     kind: NetworkPolicy
   changed_when: false
   no_log: true
+  when: network_policy_probe_action in ['plan', 'run']
 
-- name: Inspect the proposed temporary namespace collision
+- name: Require the fixed existing target namespace
   kubernetes.core.k8s_info:
     kubeconfig: "{{ network_policy_probe_kubeconfig }}"
     api_version: v1
@@ -90,34 +197,86 @@
   changed_when: false
   no_log: true
 
-- name: Require no namespace collision in the read-only plan
+- name: Reject namespace creation, adoption, or ambiguity
   ansible.builtin.assert:
     that:
-      - network_policy_probe_namespace_raw.resources | length == 0
+      - network_policy_probe_namespace_raw.resources | length == 1
+      - network_policy_probe_namespace_raw.resources[0].metadata.name == network_policy_probe_namespace
     fail_msg: >-
-      The proposed namespace already exists. No mutation or adoption is implemented;
-      inspect it separately before redesigning the probe.
+      The probe only uses the existing fixed namespace and never creates, adopts,
+      or deletes a Namespace.
   changed_when: false
 
-- name: Describe the blocked temporary probe design
-  ansible.builtin.debug:
-    msg:
-      action: plan
-      mutation_implemented: false
-      functional_test_performed: false
-      namespace: kif-cni-netpol-probe
-      authored_object_count: 8
-      phase_order:
-        - baseline
-        - deny
-        - selective-allow
-        - policy-rollback
-        - exact-object-cleanup
-      exposure: ClusterIP TCP 8080 only; no public route
-      blockers:
-        - independently verified linux/amd64 image digest
-        - atomic namespace ownership strategy
-        - exhaustive foreign-resource-safe cleanup design
-        - explicit create and delete approvals
-      ownership: Argo CD remains owner of persistent Kubernetes desired state
+- name: Inspect the private cleanup ledger path
+  ansible.builtin.stat:
+    path: "{{ network_policy_probe_output_path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  delegate_to: localhost
+  become: false
+  register: network_policy_probe_ledger_state
   changed_when: false
+  no_log: true
+  when: network_policy_probe_action in ['run', 'cleanup']
+
+- name: Reject a symlinked or stale cleanup ledger before a run
+  ansible.builtin.assert:
+    that:
+      - not (network_policy_probe_ledger_state.stat.islnk | default(false))
+      - >-
+        network_policy_probe_action != 'run' or
+        not (network_policy_probe_ledger_state.stat.exists | default(false))
+      - >-
+        network_policy_probe_action != 'cleanup' or ansible_check_mode or
+        (network_policy_probe_ledger_state.stat.exists | default(false))
+      - >-
+        network_policy_probe_action != 'cleanup' or
+        not (network_policy_probe_ledger_state.stat.exists | default(false)) or
+        (network_policy_probe_ledger_state.stat.isreg | default(false))
+      - >-
+        network_policy_probe_action != 'cleanup' or
+        not (network_policy_probe_ledger_state.stat.exists | default(false)) or
+        network_policy_probe_ledger_state.stat.mode | default('') == '0600'
+      - >-
+        network_policy_probe_action != 'cleanup' or
+        not (network_policy_probe_ledger_state.stat.exists | default(false)) or
+        network_policy_probe_ledger_state.stat.pw_name | default('') ==
+        lookup('ansible.builtin.env', 'USER')
+    fail_msg: >-
+      The private cleanup ledger is a symlink or a prior run still requires exact
+      cleanup. Resolve it before creating more objects.
+  changed_when: false
+  when: network_policy_probe_action in ['run', 'cleanup']
+
+- name: Inspect objects carrying the requested run ownership label
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    api_version: "{{ owned_kind.api_version }}"
+    kind: "{{ owned_kind.kind }}"
+    namespace: "{{ network_policy_probe_namespace }}"
+    label_selectors:
+      - "{{ network_policy_probe_run_label }}={{ network_policy_probe_run_id }}"
+  loop: "{{ network_policy_probe_allowed_cleanup_kinds }}"
+  loop_control:
+    loop_var: owned_kind
+    label: "{{ owned_kind.kind }}"
+  register: network_policy_probe_existing_owned_raw
+  changed_when: false
+  no_log: true
+  when: network_policy_probe_action == 'run'
+
+- name: Reject reuse or adoption of an existing run identifier
+  ansible.builtin.assert:
+    that:
+      - owned_result.resources | length == 0
+    fail_msg: >-
+      The run identifier already labels an object. Use the exact cleanup ledger or
+      choose a new run identifier; existing resources are never adopted.
+  loop: "{{ network_policy_probe_existing_owned_raw.results | default([]) }}"
+  loop_control:
+    loop_var: owned_result
+    label: "{{ owned_result.owned_kind.kind | default('unknown') }}"
+  changed_when: false
+  no_log: true
+  when: network_policy_probe_action == 'run'

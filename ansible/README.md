@@ -199,13 +199,16 @@ the Tailscale path does not return, use that confirmed fallback to inspect
 `tailscaled` and `k3s`; the reboot playbook itself makes no configuration change to
 roll back.
 
-## Temporary CNI and NetworkPolicy probe design (read-only plan only)
+## Temporary CNI and NetworkPolicy functional probe
 
-`probe_k3s_network_policy.yml` currently implements only a read-only planning
-preflight. It verifies one Ready linux/amd64 node, NetworkPolicy API readability,
-protected kubeconfig access, and absence of the proposed fixed namespace. It must
-run with `--check --diff` and cannot create, patch, or delete Kubernetes objects.
-Argo CD remains the owner of all persistent Kubernetes desired state.
+`probe_k3s_network_policy.yml` implements three fail-closed actions: `plan`, `run`,
+and `cleanup`. Runtime is still **NOT RUN/BLOCKED**. Offline implementation is not
+proof of CNI behavior or NetworkPolicy enforcement.
+
+The read-only plan verifies protected kubeconfig access, one Ready linux/amd64 node,
+NetworkPolicy API readability, and the existing fixed `default` namespace. It
+requires an explicit one-host limit plus `--check --diff` and never enters mutation
+tasks:
 
 ```bash
 cd ansible
@@ -216,17 +219,89 @@ uv run ansible-playbook \
   -e k3s_network_probe_action=plan
 ```
 
-The intended future probe remains **NOT RUN/BLOCKED**. Before mutating code may be
-authorized, independent review must close all of these prerequisites:
+The functional run uses no Namespace create/delete and no remote exec. Kubernetes
+assigns every temporary object name. Every object receives two immutable ownership
+labels and is added to the ignored mode-`0600`
+`ansible/network-policy-probe.local.json` cleanup ledger immediately after the API
+returns its exact UID. The Service is selectorless
+and uses an explicitly authored, ledgered EndpointSlice, so no controller-generated
+endpoint object falls outside the cleanup boundary. Reverse cleanup reads each exact
+name, verifies UID and both ownership labels, sends the same UID as a delete
+precondition, and uses `Orphan` propagation so deletion cannot cascade to an
+uninspected object. Cleanup runs in an Ansible `always` section, independently
+rediscovers only the fixed kinds carrying both immutable labels, validates generated
+prefixes and exact UIDs, and verifies zero residue. This closes the API-create/ledger
+interruption gap without selector-based deletion: recovery check mode may rebuild the
+private ledger from those exact identities, then intentionally stops for human
+review before any deletion. Never broaden the fixed kinds or delete a Namespace.
 
-- verify and pin the real linux/amd64 digest for the approved probe image;
-- replace the fixed-name create race with an atomic namespace-ownership strategy;
-- design cleanup that cannot cascade-delete uninspected built-in or custom resources;
-- obtain separate create and delete approvals.
+Before `run`, independently verify a digest-qualified image that supplies BusyBox-
+compatible `httpd` and `wget` entrypoints for linux/amd64. Record only a sanitized
+evidence reference, select a unique high-entropy lowercase 20–32 character run ID, review the
+separate temporary Argo CD ownership exception, and obtain separate create and
+delete approvals. Then run the same request first with `--check --diff`; remove only
+`--check` after accepting that plan:
 
-The proposed scope remains eight temporary objects, ClusterIP TCP 8080 only, and
-baseline → deny → selective allow → policy removal → exact-object cleanup. No run or
-cleanup command is implemented or documented until those blockers close.
+```bash
+cd ansible
+uv run ansible-playbook \
+  -i .ansible/inventory.local.yml \
+  playbooks/probe_k3s_network_policy.yml \
+  --check --diff --limit crtxweb \
+  -e k3s_network_probe_action=run \
+  -e network_policy_probe_run_id="$PROBE_RUN_ID" \
+  -e network_policy_probe_image="$PROBE_IMAGE_DIGEST" \
+  -e network_policy_probe_image_architecture=linux/amd64 \
+  -e network_policy_probe_image_verification_reference="$PROBE_IMAGE_EVIDENCE" \
+  -e network_policy_probe_ownership_exception_approved=true \
+  -e network_policy_probe_create_approved=true \
+  -e network_policy_probe_delete_approved=true
+```
+
+The accepted actual run proves, in order: both allowed- and denied-role baseline
+clients succeed, both are blocked by default deny, selective allow admits only the
+allowed role, and both roles succeed after policy removal. Client Pods use the
+Service ClusterIP directly, require exact terminal exit/reason evidence, and expose
+no phase-varying label. Denied evidence additionally requires the exact server to
+remain Ready with zero restarts. The run ends with exact cleanup. It creates only a
+ClusterIP service on TCP 8080 and no public route.
+
+Cleanup deliberately does not validate or require the image. If a controller hard
+stop left no ledger or an incomplete one, first run the following read-only recovery
+check with the original high-entropy run ID. It discovers only the fixed generated-
+name kinds carrying both ownership labels, rebuilds the mode-`0600` ledger, and
+intentionally stops without Kubernetes deletion:
+
+```bash
+cd ansible
+uv run ansible-playbook \
+  -i .ansible/inventory.local.yml \
+  playbooks/probe_k3s_network_policy.yml \
+  --check --diff --limit crtxweb \
+  -e k3s_network_probe_action=cleanup \
+  -e network_policy_probe_run_id="$PROBE_RUN_ID" \
+  -e network_policy_probe_ownership_exception_approved=true \
+  -e network_policy_probe_delete_approved=true
+```
+
+Review the rebuilt ledger. The fixed file must be a non-symlink regular file owned
+by the controller user with mode `0600`. Then run the exact cleanup request with
+`--check --diff`; remove only `--check` after that validation succeeds:
+
+```bash
+cd ansible
+uv run ansible-playbook \
+  -i .ansible/inventory.local.yml \
+  playbooks/probe_k3s_network_policy.yml \
+  --check --diff --limit crtxweb \
+  -e @network-policy-probe.local.json \
+  -e network_policy_probe_ownership_exception_approved=true \
+  -e network_policy_probe_delete_approved=true
+```
+
+Do not run either mutation command yet: the repository contains no independently
+verified image digest or approval record. Argo CD remains the sole owner of
+persistent Kubernetes desired state.
 
 ## Mandatory invocation contract
 

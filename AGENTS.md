@@ -4,10 +4,10 @@ This root `AGENTS.md` is authoritative for the entire repository.
 
 ## Current boundary
 
-- Operational implementation is limited to read-only Ansible discovery, the executed two-package dependency bootstrap, the executed group-scoped k3s administrator access playbook, the executed user-scoped kubectl client-defaults playbook, and the executed single-node reboot recovery playbook under `ansible/`. Admin access, warning-free cluster listing, idempotence, reboot, SSH/Tailscale return, Ready node, and kubeconfig recovery succeeded; functional CNI/NetworkPolicy and replacement recovery remain pending. No general host baseline or deployment exists.
+- Operational implementation is limited to read-only Ansible discovery, the executed two-package dependency bootstrap, the executed group-scoped k3s administrator access playbook, the executed user-scoped kubectl client-defaults playbook, the executed single-node reboot recovery playbook, and an offline-validated but unexecuted temporary NetworkPolicy probe under `ansible/`. Admin access, warning-free cluster listing, idempotence, reboot, SSH/Tailscale return, Ready node, and kubeconfig recovery succeeded; functional CNI/NetworkPolicy runtime evidence and replacement recovery remain pending. No general host baseline or deployment exists.
 - Python exists only in offline contract tests; it is not operational infrastructure automation.
 - This repository otherwise owns design documentation for future host configuration, external-resource IaC, GitOps desired state, and recovery runbooks.
-- No hosted runtime, general Ansible host baseline, OpenTofu configuration, Kubernetes manifest, Helm chart, or workflow exists here yet.
+- No hosted runtime, general Ansible host baseline, OpenTofu configuration, persistent Kubernetes manifest, Helm chart, or workflow exists here yet. The only Kubernetes write definitions are inline, generated-name, temporary QA fixtures in the unexecuted probe role.
 - CristexHub application source, local Compose assets, Keycloak theme, and Browserless gateway remain external concerns in the CristexHub application repository and must not be copied here.
 - Approved discovery, dependency installation, and the group-scoped k3s administrator access mutation have completed. The access playbook verified effective readability as the selected account and a second run was idempotent. Any other host mutation or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed.
 
@@ -24,10 +24,12 @@ Each resource has exactly one reconciliation owner:
 | Tests, image builds, and immutable private-GHCR publication | GitHub Actions |
 | Production approvals and destructive operations | Human operator |
 
-Ansible may perform read-only planning for a proposed ephemeral Kubernetes QA probe.
-Any future temporary-object execution requires an explicit, separately reviewed
-ownership exception plus atomic ownership and cleanup that cannot cascade-delete
-uninspected resources. Until then, Argo CD remains the only Kubernetes object writer.
+Ansible may plan and, only after an explicit separately reviewed exception, execute
+the bounded ephemeral Kubernetes QA probe. The implementation uses API-generated
+names, run labels, an exact-UID cleanup ledger, UID delete preconditions,
+non-cascading `Orphan` propagation, and no Namespace create/delete. Execution still requires a verified
+image plus separate create/delete approvals. Argo CD remains the only persistent
+Kubernetes object writer.
 
 Future implementation belongs at repository-root `ansible/`, `opentofu/`,
 `kubernetes/`, and `runbooks/`. Do not use OpenTofu Kubernetes or Helm providers

@@ -3,11 +3,14 @@
 ## Status
 
 This target design has the existing bounded Ansible workflows plus an
-offline-validated non-destructive storage-discovery increment and read-only
-CNI/NetworkPolicy probe planner. Neither increment has contacted the host or
-Kubernetes API. Mutating probe code is not implemented and runtime is NOT
-RUN/BLOCKED pending a verified image digest, atomic namespace ownership,
-foreign-resource-safe cleanup, and separate create/delete approvals. Read-only discovery, the Kubernetes-module dependency
+offline-validated non-destructive storage-discovery increment and temporary
+CNI/NetworkPolicy functional probe. Neither increment has contacted the host or
+Kubernetes API. Probe runtime is NOT RUN/BLOCKED pending an independently verified
+linux/amd64 image digest, a temporary Argo CD ownership exception, a unique run ID,
+and separate create/delete approvals. The implementation uses generated names,
+exact UID cleanup, dual-label fixed-kind recovery discovery, selectorless Service
+plus explicit EndpointSlice, non-cascading deletion, and no Namespace create/delete.
+Read-only discovery, the Kubernetes-module dependency
 bootstrap, and group-scoped k3s administrator access have been executed under
 `ansible/`; effective-user readability, fresh-session cluster listing, and
 idempotence passed. The executed user-scoped
@@ -36,7 +39,7 @@ still require separate approved verification.
 
 The external CristexHub application repository publishes backend, frontend, and
 code-runner images to GHCR. This repository implements five executed bounded
-Ansible workflows plus the offline read-only probe planner; it still has no
+Ansible workflows plus the offline-validated but unexecuted functional probe; it still has no
 Kubernetes desired state, Helm, Kustomize,
 OpenTofu, GitHub Actions,
 or general host baseline. Debian plus Ansible is the
@@ -74,10 +77,13 @@ selected host-configuration owner.
 
 One resource has one owner. OpenTofu must not reconcile Kubernetes resources also
 owned by Argo CD. GitHub Actions validates and publishes; it does not deploy.
-The bounded `network_policy_probe` Ansible role is currently read-only planning,
-not a Kubernetes ownership exception. Any future ephemeral QA execution requires a
-separately reviewed exception with atomic ownership and cleanup that cannot cascade-
-delete uninspected resources. Until then, Argo CD remains the only object writer.
+The bounded `network_policy_probe` Ansible role implements an ephemeral QA
+exception but does not authorize its own execution. API-generated names and labels
+establish ownership atomically; a private ledger records exact UIDs; cleanup verifies
+labels and UID preconditions, uses `Orphan` propagation, and proves zero residue
+without deleting a Namespace. Runtime still requires separate human approval of the ownership
+exception plus create and delete actions. Argo CD remains the only persistent object
+writer.
 Operational procedures belong under `runbooks/` when implementation is approved.
 
 ## Traffic model
@@ -217,12 +223,12 @@ verification must meet the declared RPO/RTO before PROD.
   and NetworkPolicy enforcement require later approved functional probes and are
   not proven by discovery.
 - Current evidence: the locked local environment, syntax, lint, and non-elevated
-  one-host report pass. A fixed temporary functional-probe planner is implemented
-  offline as a read-only fixed-scope plan. Digest verification, atomic ownership,
-  foreign-resource-safe cleanup, create/delete approvals, and sanitized runtime
-  evidence remain blocked. It has not accessed the cluster or proved enforcement; runtime is
-  blocked until a real linux/amd64 registry manifest digest is independently
-  verified and supplied. The approved bootstrap directly requested only
+  one-host report pass. A temporary generated-name functional probe is implemented
+  and validated offline. Exact-UID cleanup, an interruption ledger, no Namespace
+  create/delete, and baseline/deny/selective/rollback standalone Pods close the earlier design
+  blockers. It has not accessed the cluster or proved enforcement; runtime remains
+  blocked until a real linux/amd64 image digest is independently verified and
+  supplied with the ownership exception and separate approvals. The approved bootstrap directly requested only
   `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
   dependencies, and post-install imports pass. The
   elevated report confirms the datastore and nine available exact Kubernetes

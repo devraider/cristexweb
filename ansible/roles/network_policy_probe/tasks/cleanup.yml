@@ -1,0 +1,84 @@
+---
+- name: Discover the complete exact cleanup set
+  ansible.builtin.include_tasks: discover_owned.yml
+
+- name: Require standalone cleanup ledger to match live exact identities
+  ansible.builtin.assert:
+    that:
+      - >-
+        network_policy_probe_cleanup_objects | length ==
+        network_policy_probe_discovered_objects | length
+      - >-
+        network_policy_probe_cleanup_objects |
+        difference(network_policy_probe_discovered_objects) | length == 0
+      - >-
+        network_policy_probe_discovered_objects |
+        difference(network_policy_probe_cleanup_objects) | length == 0
+    fail_msg: >-
+      The reviewed cleanup ledger no longer matches the exact live ownership set.
+      Re-run cleanup with --check to rebuild and review it; no deletion occurred.
+  changed_when: false
+  no_log: true
+  when: network_policy_probe_action == 'cleanup'
+
+- name: Delete discovered exact objects without cascade
+  ansible.builtin.include_tasks: delete_object.yml
+  vars:
+    network_policy_probe_delete_object: "{{ cleanup_object }}"
+  loop: "{{ network_policy_probe_discovered_objects | reverse | list }}"
+  loop_control:
+    loop_var: cleanup_object
+    label: "{{ cleanup_object.kind }}"
+  no_log: true
+
+- name: Query every immutable kind for labeled residue
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    api_version: "{{ residue_kind.api_version }}"
+    kind: "{{ residue_kind.kind }}"
+    namespace: "{{ network_policy_probe_namespace }}"
+    label_selectors:
+      - "app.kubernetes.io/managed-by={{ network_policy_probe_managed_by }}"
+      - "{{ network_policy_probe_run_label }}={{ network_policy_probe_run_id }}"
+  loop: "{{ network_policy_probe_allowed_cleanup_kinds }}"
+  loop_control:
+    loop_var: residue_kind
+    label: "{{ residue_kind.kind }}"
+  register: network_policy_probe_residue_raw
+  changed_when: false
+  no_log: true
+
+- name: Require zero authored residue
+  ansible.builtin.assert:
+    that:
+      - residue_result.resources | length == 0
+    fail_msg: >-
+      Exact cleanup left labeled residue. The private ledger is retained and no
+      broader selector-based or Namespace deletion is permitted.
+  loop: "{{ network_policy_probe_residue_raw.results }}"
+  loop_control:
+    loop_var: residue_result
+    label: "{{ residue_result.residue_kind.kind | default('unknown') }}"
+  changed_when: false
+  no_log: true
+
+- name: Remove the private ledger only after verified zero residue
+  ansible.builtin.file:
+    path: "{{ network_policy_probe_output_path }}"
+    state: absent
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  diff: false
+  no_log: true
+
+- name: Confirm exact cleanup without widening the deletion scope
+  ansible.builtin.debug:
+    msg:
+      cleanup_verified: true
+      run_id: "{{ network_policy_probe_run_id }}"
+      exact_identity_count: "{{ network_policy_probe_discovered_objects | length }}"
+      namespace_deleted: false
+      selector_based_deletion: false
+      propagation_policy: Orphan
+  changed_when: false

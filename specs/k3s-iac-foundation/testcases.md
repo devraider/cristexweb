@@ -35,9 +35,9 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-ADM-05 | KIF-007 | Warning-free kubectl client runtime | Check/diff predicts only selected-user profile blocks; accepted run and fresh login remove server-config warnings from node/all-namespace queries; second run reports changed=0 | PASS — check recap ok=14/changed=1/failed=0 predicted two profile blocks; operator confirmed accepted run, expected client defaults, warning-free queries, and idempotent changed=0/failed=0 rerun |
 | KIF-REB-01 | KIF-002, KIF-007 | Single-node reboot recovery contract | Explicit approval, fallback-access confirmation, diff, one-host limit, preflight services/backup/access/Ready node, exactly one reboot, new boot ID, SSH return, post-reboot services/Ready node/access, no config mutation, and hidden sensitive facts are enforced | PASS — 15 contract tests, syntax check, and production-profile lint passed |
 | KIF-REB-02 | KIF-007 | Single-node reboot recovery runtime | Check/diff predicts exactly one reboot; accepted run returns through Tailscale SSH with a new boot ID, running k3s/Tailscale, one Ready node, and unchanged group-scoped kubeconfig access | PASS — operator confirmed fallback; check ok=19/changed=1/unreachable=0/failed=0/skipped=7; reboot ok=26/changed=1/unreachable=0/failed=0/skipped=0; operator manually confirmed active services and warning-free node/all-namespace queries |
-| KIF-NET-01 | KIF-002, KIF-003, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy read-only planning contract | Plan requires check/diff and one host, verifies protected access, one Ready linux/amd64 node, NetworkPolicy API readability, fixed proposed eight-object scope, and no namespace collision while containing no Kubernetes write/exec/delete module | PASS — focused contracts, syntax, and production lint passed offline; no inventory host or Kubernetes API was accessed |
-| KIF-NET-02 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional runtime | After a reviewed ownership exception, verified image, atomic namespace ownership, foreign-resource-safe cleanup, and separate create/delete approvals, baseline/deny/selective/rollback behavior and cleanup pass | NOT RUN/BLOCKED — mutating probe code is not implemented; digest, atomic ownership, exhaustive safe cleanup, ownership exception, and approvals remain unresolved |
-| KIF-STO-01 | KIF-001, KIF-003, KIF-008, KIF-030 | Non-destructive storage discovery offline contract | Built-in facts project only curated device/partition size, rotational/removable state, direct mount state, and mounted filesystem types; exact StorageClass behavior fields, bounded PV placement booleans, and PVC metadata from five fixed namespaces omit device serials, UUIDs, addresses, backing paths, filesystem contents, Secret/ConfigMap kinds, and broad PVC queries | PASS — focused contracts, all 26 offline tests, collision-safe synthetic render, discovery syntax, and production lint passed; no inventory host, kubeconfig, Kubernetes API, or filesystem content was accessed |
+| KIF-NET-01 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional-probe contract | Plan/run/cleanup truth tables, immutable image and approval gates, API-generated names, fixed existing namespace, selectorless ClusterIP plus explicit EndpointSlice, hardened standalone Pods with exact terminal-state checks, private exact-UID ledger recovery, dual-label fixed-kind interruption discovery, UID-preconditioned non-cascading cleanup, zero residue, and no remote exec or Namespace mutation are enforced | PASS — focused contracts, syntax, and production lint passed offline; no inventory host, image registry, or Kubernetes API was accessed |
+| KIF-NET-02 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional runtime | After independent image verification and a reviewed ownership exception plus separate create/delete approvals, baseline success, deny failure, selective allow/deny, rollback success, and exact cleanup pass | NOT RUN/BLOCKED — implementation exists, but no verified linux/amd64 `httpd`/`wget` image digest, ownership-exception approval, create/delete approvals, or runtime evidence has been supplied |
+| KIF-STO-01 | KIF-001, KIF-003, KIF-008, KIF-030 | Non-destructive storage discovery offline contract | Built-in facts project only curated device/partition size, rotational/removable state, direct mount state, and mounted filesystem types; exact StorageClass behavior fields, bounded PV placement booleans, and PVC metadata from five fixed namespaces omit device serials, UUIDs, addresses, backing paths, filesystem contents, Secret/ConfigMap kinds, and broad PVC queries | PASS — focused contracts, all 28 offline tests, collision-safe synthetic render, discovery syntax, and production lint passed; no inventory host, kubeconfig, Kubernetes API, or filesystem content was accessed |
 | KIF-STO-02 | KIF-001, KIF-008, KIF-030 | Extended storage discovery runtime | A separately approved one-host elevated check/diff run renders valid mode-0600 JSON and human review establishes actual curated device, StorageClass, PV, and PVC indicators without mutation or sensitive metadata | NOT RUN — implementation and validation were controller-local only; the prior nine-query elevated report remains unchanged and no new disk or PV/PVC placement fact is claimed |
 | KIF-REC-01 | KIF-002, KIF-003, KIF-013, KIF-015, KIF-028, KIF-030 | Replacement-host recovery first offline increment | Secret-free runbook/register truthfully separate same-host reboot from replacement, require old-host fencing and exclusive storage ownership, stop split brain, require exactly one preserve-existing or create-new identity decision, and leave datastore/version/token/storage/RPO/RTO/off-node prerequisites explicitly unknown without guessed commands | PASS — 5 focused offline recovery contracts and the full offline suite passed; documentation contains no executable recovery command or secret-shaped value and no host/provider/API was accessed |
 | KIF-REC-02 | KIF-007, KIF-015, KIF-026–KIF-030 | Replacement-host recovery rehearsal/runtime | An isolated, approved replacement follows an actual version/datastore/storage-specific plan; proves one authoritative cluster/storage writer, desired state, mutable data, encryption behavior, isolation, and measured RPO/RTO before public reactivation | NOT RUN/BLOCKED — identity model and datastore, exact version/config, token custody, storage, RPO/RTO, off-node artifacts, restore procedures, and approvals remain `UNKNOWN — STOP`; reboot success is not replacement proof |
@@ -62,7 +62,7 @@ Actual result:
 
 ```text
 Ran 5 focused replacement recovery tests — OK
-Ran 26 full offline tests — OK
+Ran 28 full offline tests — OK
 PASS: Python compile, diff check, and no staged files
 ```
 
@@ -78,6 +78,7 @@ the protected kubeconfig, a Kubernetes API, or an image registry, and it did not
 execute plan, run, or cleanup. No digest was resolved or fabricated.
 
 ```bash
+python3 -m unittest -v tests.test_ansible_contract.NetworkPolicyProbeContractTests
 python3 -m unittest discover -s tests -v
 python3 -m compileall -q tests
 cd ansible
@@ -91,9 +92,11 @@ git diff --cached --quiet
 Actual result:
 
 ```text
-Focused and full offline tests — OK
+Ran 5 focused NetworkPolicy probe contracts — OK
+Ran 28 full offline tests — OK
 playbook: playbooks/probe_k3s_network_policy.yml
-Passed: 0 failure(s), 0 warning(s); production profile
+Passed: 0 failure(s), 0 warning(s) in 15 files processed; production profile
+PASS: independent final blocker review — APPROVED
 PASS: Python compile, diff check, and no staged files
 ```
 
@@ -135,7 +138,7 @@ PASS: synthetic collision-safe storage render ok=3 changed=0 failed=0
 playbook: playbooks/discover.yml
 Passed: 0 failure(s), 0 warning(s) in 8 focused files; production profile
 PASS: syntax for all 6 playbooks
-Passed: 0 failure(s), 0 warning(s) in 20 files processed of 23 encountered; production profile
+Passed: 0 failure(s), 0 warning(s) in 30 files processed of 33 encountered; production profile
 PASS: Python compile, diff check, and no staged files
 ```
 
@@ -286,6 +289,7 @@ print("PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 13 manu
 PY
 
 git check-ignore -q --no-index inventory.local.ansible.json
+git check-ignore -q --no-index ansible/network-policy-probe.local.json
 git check-ignore -q --no-index .venv/bin/ansible
 git check-ignore -q --no-index ansible/.ansible/collections/ansible_collections
 git check-ignore -q --no-index ansible/site.retry
@@ -302,7 +306,7 @@ printf '%s\n' 'PASS: ignore policy, git diff check, and no-staged-files check'
 Actual result (exit 0 on 2026-08-05):
 
 ```text
-Ran 26 tests
+Ran 28 tests
 OK
 PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 13 manual cases, status/implementation boundary, and bounded source scan
 PASS: ignore policy, git diff check, and no-staged-files check
@@ -339,7 +343,7 @@ playbook: playbooks/configure_k3s_kubectl_client.yml
 playbook: playbooks/verify_k3s_reboot_recovery.yml
 playbook: playbooks/probe_k3s_network_policy.yml
 synthetic storage render: ok=3 changed=0 failed=0
-Passed: 0 failure(s), 0 warning(s) in 20 files processed of 23 encountered; production profile
+Passed: 0 failure(s), 0 warning(s) in 30 files processed of 33 encountered; production profile
 ```
 
 The separately approved non-elevated runtime used an ignored operator-owned local

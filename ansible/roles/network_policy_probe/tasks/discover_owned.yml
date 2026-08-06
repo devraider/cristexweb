@@ -1,0 +1,69 @@
+---
+- name: Discover exact objects carrying both immutable ownership labels
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    api_version: "{{ discovery_kind.api_version }}"
+    kind: "{{ discovery_kind.kind }}"
+    namespace: "{{ network_policy_probe_namespace }}"
+    label_selectors:
+      - "app.kubernetes.io/managed-by={{ network_policy_probe_managed_by }}"
+      - "{{ network_policy_probe_run_label }}={{ network_policy_probe_run_id }}"
+  loop: "{{ network_policy_probe_allowed_cleanup_kinds }}"
+  loop_control:
+    loop_var: discovery_kind
+    label: "{{ discovery_kind.kind }}"
+  register: network_policy_probe_discovery_raw
+  changed_when: false
+  no_log: true
+
+- name: Initialize discovered exact identities
+  ansible.builtin.set_fact:
+    network_policy_probe_discovered_objects: []
+  no_log: true
+
+- name: Validate every discovered object before accepting its identity
+  ansible.builtin.assert:
+    that:
+      - discovered_item.1.metadata.namespace == 'default'
+      - discovered_item.1.metadata.name is match('^kif-netpol-[a-z0-9-]+$')
+      - >-
+        discovered_item.1.metadata.uid is
+        match('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+      - >-
+        discovered_item.1.metadata.labels.get('app.kubernetes.io/managed-by', '') ==
+        'cristexweb-network-policy-probe'
+      - >-
+        discovered_item.1.metadata.labels.get('cristexweb.io/network-probe-run', '') ==
+        network_policy_probe_run_id
+      - >-
+        discovered_item.0.discovery_kind.api_version == discovered_item.1.apiVersion
+      - discovered_item.0.discovery_kind.kind == discovered_item.1.kind
+    fail_msg: >-
+      A labeled object falls outside the immutable generated-name, namespace, UID,
+      label, or kind boundary. It will not be adopted or deleted.
+  loop: >-
+    {{ network_policy_probe_discovery_raw.results |
+       subelements('resources', skip_missing=True) }}
+  loop_control:
+    loop_var: discovered_item
+    label: discovered-object
+  changed_when: false
+  no_log: true
+
+- name: Collect exact discovered identities
+  ansible.builtin.set_fact:
+    network_policy_probe_discovered_objects: >-
+      {{ network_policy_probe_discovered_objects + [{
+        'api_version': discovered_item.0.discovery_kind.api_version,
+        'kind': discovered_item.0.discovery_kind.kind,
+        'namespace': discovered_item.1.metadata.namespace,
+        'name': discovered_item.1.metadata.name,
+        'uid': discovered_item.1.metadata.uid
+      }] }}
+  loop: >-
+    {{ network_policy_probe_discovery_raw.results |
+       subelements('resources', skip_missing=True) }}
+  loop_control:
+    loop_var: discovered_item
+    label: discovered-object
+  no_log: true

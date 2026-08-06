@@ -1,0 +1,18 @@
+---
+- name: Persist the private exact-cleanup ledger
+  ansible.builtin.copy:
+    dest: "{{ network_policy_probe_output_path }}"
+    content: >-
+      {{ {
+        'k3s_network_probe_action': 'cleanup',
+        'network_policy_probe_run_id': network_policy_probe_run_id,
+        'network_policy_probe_namespace': network_policy_probe_namespace,
+        'network_policy_probe_cleanup_objects': network_policy_probe_ledger_objects,
+        'cleanup_required': true
+      } | to_nice_json }}
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  diff: false
+  no_log: true
