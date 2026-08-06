@@ -65,8 +65,14 @@ curated device/storage indicators, local-path behavior, and zero current PV/PVC
 objects without touching the unmounted disk. The separate
 generated-name functional probe subsequently passed all live phases and exact-UID
 cleanup without Namespace create/delete. The locked local
-environment passes syntax and lint. This deliverable performs no other host
-mutation, Cloudflare, GitHub, Infisical,
+environment passes syntax and lint. A gated checksum-pinned OpenTofu CLI installer
+and Cloudflare-only zero-resource source scaffold are implemented. The approved
+host check passed; the first live run created only the exact managed parent and
+empty protected state directories before host-side GitHub retrieval failed. The
+reviewed controller-transfer recovery then passed check, live installation, and a
+`changed=0` rerun without host egress. Provider initialization, state, plan, and
+apply remain unrun. This deliverable performs no other
+host mutation, Cloudflare, GitHub, Infisical,
 registry, database, storage,
 backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain
 external application-repository concerns and are not copied here.

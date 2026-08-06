@@ -66,7 +66,7 @@
 |---|---|
 | KIF-026 | Database-consistent, encrypted backups are separated by environment, retained locally and off-node, integrity checked, and copied without destructive mirror semantics. |
 | KIF-027 | An isolated restore proves the declared RPO/RTO before PROD acceptance; a successful backup exit code alone is insufficient. |
-| KIF-028 | Recovery covers k3s datastore/token, OpenTofu state, Infisical bootstrap material, application encryption keys, desired state, and mutable application data. |
+| KIF-028 | Recovery covers k3s datastore/token, protected host-local single-writer OpenTofu state through encrypted timestamped off-node copies and independent key custody, Infisical bootstrap material, application encryption keys, desired state, and mutable application data. |
 | KIF-029 | Resource headroom, disk usage, certificate/tunnel health, workload health, and backup freshness have bounded monitoring before public PROD. |
 | KIF-030 | Every phase records actual commands/results, revisions/digests, residual risks, and rollback evidence without leaking sensitive values. |
 

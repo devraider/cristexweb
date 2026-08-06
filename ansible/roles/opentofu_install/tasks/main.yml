@@ -1,0 +1,609 @@
+---
+- name: Require the OpenTofu installation approval contract
+  ansible.builtin.assert:
+    that:
+      - opentofu_install_state in ['present', 'absent']
+      - opentofu_install_state != 'present' or (opentofu_install_approved | bool)
+      - opentofu_install_state != 'absent' or (opentofu_install_rollback_approved | bool)
+      - (ansible_limit | default('') | string | length) > 0
+      - ansible_play_hosts_all | length == 1
+      - ansible_diff_mode
+      - opentofu_install_operator_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - opentofu_install_version == '1.12.5'
+      - opentofu_install_archive_url == 'https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_linux_amd64.tar.gz'
+      - opentofu_install_checksums_url == 'https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_SHA256SUMS'
+      - opentofu_install_checksums_signature_url == 'https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_SHA256SUMS.gpgsig'
+      - opentofu_install_checksums_sha256 == '120345f8a2493375aebbca072106de425b2eb227837f8064440b8d911e36f987'
+      - opentofu_install_release_signer_fingerprint == 'E3E6E43D84CB852EADB0051D0C0AF313E5FD9F80'
+      - opentofu_install_archive_sha256 == 'a6894d45ae7a17ce83189cce8fe04b5a65f68cefceb62455b5a6a89fa53ab38f'
+      - opentofu_install_binary_sha256 == '36dae7ca1e4f1552a6faef27179dc16ef403203e956f31416c17b3d87a38c3f4'
+      - opentofu_install_controller_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - opentofu_install_controller_user == lookup('ansible.builtin.env', 'USER')
+      - opentofu_install_controller_runtime_root == playbook_dir ~ '/../.ansible'
+      - opentofu_install_controller_cache_root == playbook_dir ~ '/../.ansible/cache'
+      - opentofu_install_controller_cache_directory == playbook_dir ~ '/../.ansible/cache/opentofu'
+      - opentofu_install_controller_archive_path == playbook_dir ~ '/../.ansible/cache/opentofu/tofu_1.12.5_linux_amd64.tar.gz'
+      - opentofu_install_archive_path == '/var/cache/opentofu/tofu_1.12.5_linux_amd64.tar.gz'
+      - opentofu_install_version_dir == '/opt/opentofu/1.12.5'
+      - opentofu_install_version_binary == '/opt/opentofu/1.12.5/tofu'
+      - opentofu_install_selector_path == '/usr/local/bin/tofu'
+      - opentofu_install_state_root == '/var/lib/opentofu'
+      - opentofu_install_state_directory == '/var/lib/opentofu/cristexweb'
+      - opentofu_install_state_path == '/var/lib/opentofu/cristexweb/foundation.tfstate'
+    fail_msg: >-
+      OpenTofu installation requires the matching install or rollback approval,
+      --diff, an explicit one-host limit, an existing operator account, and the
+      reviewed immutable version, artifact, digests, and host-local state path.
+  changed_when: false
+
+- name: Require the reviewed Debian host platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.system == 'Linux'
+      - ansible_facts.distribution == 'Debian'
+      - ansible_facts.distribution_major_version == '13'
+      - ansible_facts.architecture == 'x86_64'
+    fail_msg: "The approved OpenTofu artifact is only for Debian 13 x86_64."
+  changed_when: false
+
+- name: Read operator account metadata without exposing it
+  ansible.builtin.getent:
+    database: passwd
+  changed_when: false
+  no_log: true
+
+- name: Record the selected operator account
+  ansible.builtin.set_fact:
+    opentofu_install_operator_passwd: "{{ ansible_facts.getent_passwd.get(opentofu_install_operator_user, []) }}"
+  changed_when: false
+  no_log: true
+
+- name: Require an existing non-root operator account
+  ansible.builtin.assert:
+    that:
+      - opentofu_install_operator_passwd | length >= 6
+      - (opentofu_install_operator_passwd[1] | int) != 0
+      - opentofu_install_operator_passwd[4] is match('^/[^\n]+$')
+      - opentofu_install_operator_passwd[4] != '/'
+    fail_msg: "Refusing an absent, root, or unsafe OpenTofu operator account."
+  changed_when: false
+  no_log: true
+
+- name: Reject numeric aliases of the selected operator account
+  ansible.builtin.assert:
+    that:
+      - >-
+        item.key == opentofu_install_operator_user or
+        (item.value[1] | string) != (opentofu_install_operator_passwd[1] | string)
+    fail_msg: >-
+      Another account shares the selected OpenTofu operator numeric UID; refusing
+      to grant access to operator-owned state through an aliased account.
+  loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  changed_when: false
+  no_log: true
+
+- name: Capture service state before installation
+  ansible.builtin.service_facts:
+
+- name: Require k3s and Tailscale to be running before installation
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: "k3s and tailscaled must already be running; installation will not restart them."
+  changed_when: false
+
+- name: Inspect protected OpenTofu parent paths
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - path: /opt/opentofu
+      mode: "0755"
+    - path: /var/cache/opentofu
+      mode: "0700"
+    - path: "{{ opentofu_install_state_root }}"
+      mode: "0711"
+  register: opentofu_install_parent_states
+  no_log: true
+
+- name: Refuse unsafe existing OpenTofu parent paths
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (item.stat.exists | default(false)) or
+        ((item.stat.isdir | default(false)) and
+         not (item.stat.islnk | default(false)) and
+         item.stat.pw_name == 'root' and item.stat.gr_name == 'root' and
+         item.stat.mode == item.item.mode)
+    fail_msg: >-
+      Refusing a symlinked, non-directory, non-root, or mode-drifted OpenTofu
+      parent path.
+  loop: "{{ opentofu_install_parent_states.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  changed_when: false
+  no_log: true
+
+- name: Inspect the protected project state directory
+  ansible.builtin.stat:
+    path: "{{ opentofu_install_state_directory }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: opentofu_install_state_directory_state
+  no_log: true
+
+- name: Refuse an unsafe existing project state directory
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (opentofu_install_state_directory_state.stat.exists | default(false)) or
+        ((opentofu_install_state_directory_state.stat.isdir | default(false)) and
+         not (opentofu_install_state_directory_state.stat.islnk | default(false)) and
+         opentofu_install_state_directory_state.stat.pw_name == opentofu_install_operator_user and
+         opentofu_install_state_directory_state.stat.gr_name == 'root' and
+         opentofu_install_state_directory_state.stat.mode == '0700')
+    fail_msg: >-
+      Refusing to adopt or alter a symlinked, foreign-owned, or permissive state
+      directory. Existing state content is never inspected or changed.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the cached OpenTofu release archive for installation
+  ansible.builtin.stat:
+    path: "{{ opentofu_install_archive_path }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  register: opentofu_install_archive_state
+  when: opentofu_install_state == 'present'
+  no_log: true
+
+- name: Refuse an unsafe or modified cached release archive
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (opentofu_install_archive_state.stat.exists | default(false)) or
+        ((opentofu_install_archive_state.stat.isreg | default(false)) and
+         not (opentofu_install_archive_state.stat.islnk | default(false)) and
+         opentofu_install_archive_state.stat.pw_name == 'root' and
+         opentofu_install_archive_state.stat.gr_name == 'root' and
+         opentofu_install_archive_state.stat.mode == '0600' and
+         opentofu_install_archive_state.stat.checksum == opentofu_install_archive_sha256)
+    fail_msg: >-
+      Refusing an unsafe, mode-drifted, or digest-mismatched cached OpenTofu
+      archive during installation. Rollback does not inspect retained artifacts.
+  when: opentofu_install_state == 'present'
+  changed_when: false
+  no_log: true
+
+- name: Inspect controller OpenTofu cache paths for transfer
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - path: "{{ opentofu_install_controller_runtime_root }}"
+      mode: "0755"
+      required: true
+    - path: "{{ opentofu_install_controller_cache_root }}"
+      mode: "0700"
+      required: false
+    - path: "{{ opentofu_install_controller_cache_directory }}"
+      mode: "0700"
+      required: false
+  register: opentofu_install_controller_cache_states
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_archive_state.stat.exists | default(false))
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- name: Refuse unsafe controller OpenTofu cache paths
+  ansible.builtin.assert:
+    that:
+      - >-
+        (not item.item.required or (item.stat.exists | default(false))) and
+        (not (item.stat.exists | default(false)) or
+         ((item.stat.isdir | default(false)) and
+          not (item.stat.islnk | default(false)) and
+          item.stat.pw_name == opentofu_install_controller_user and
+          item.stat.mode == item.item.mode))
+    fail_msg: >-
+      Refusing a missing controller runtime root or a symlinked, non-directory,
+      foreign-owned, or mode-drifted controller OpenTofu cache path.
+  loop: "{{ opentofu_install_controller_cache_states.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_archive_state.stat.exists | default(false))
+  changed_when: false
+  no_log: true
+
+- name: Inspect the controller-cached OpenTofu release archive
+  ansible.builtin.stat:
+    path: "{{ opentofu_install_controller_archive_path }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  register: opentofu_install_controller_archive_state
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_archive_state.stat.exists | default(false))
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- name: Refuse an unsafe or modified controller-cached release archive
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (opentofu_install_controller_archive_state.stat.exists | default(false)) or
+        ((opentofu_install_controller_archive_state.stat.isreg | default(false)) and
+         not (opentofu_install_controller_archive_state.stat.islnk | default(false)) and
+         opentofu_install_controller_archive_state.stat.pw_name == opentofu_install_controller_user and
+         opentofu_install_controller_archive_state.stat.mode == '0600' and
+         opentofu_install_controller_archive_state.stat.checksum == opentofu_install_archive_sha256)
+    fail_msg: >-
+      Refusing a symlinked, non-regular, foreign-owned, mode-drifted, or
+      digest-mismatched controller-cached OpenTofu archive.
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_archive_state.stat.exists | default(false))
+  changed_when: false
+  no_log: true
+
+- name: Prepare private controller OpenTofu cache directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ opentofu_install_controller_user }}"
+    mode: "0700"
+  loop:
+    - "{{ opentofu_install_controller_cache_root }}"
+    - "{{ opentofu_install_controller_cache_directory }}"
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_archive_state.stat.exists | default(false))
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- name: Retrieve the exact release archive into the controller cache
+  ansible.builtin.get_url:
+    url: "{{ opentofu_install_archive_url }}"
+    dest: "{{ opentofu_install_controller_archive_path }}"
+    checksum: "sha256:{{ opentofu_install_archive_sha256 }}"
+    owner: "{{ opentofu_install_controller_user }}"
+    mode: "0600"
+    validate_certs: true
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_archive_state.stat.exists | default(false))
+    - not (opentofu_install_controller_archive_state.stat.exists | default(false))
+    - not ansible_check_mode
+  delegate_to: localhost
+  become: false
+  diff: false
+  no_log: true
+
+- name: Predict controller release archive retrieval in check mode
+  ansible.builtin.debug:
+    msg: "The exact checksum-pinned OpenTofu archive would be downloaded to the private controller cache."
+  changed_when: true
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_archive_state.stat.exists | default(false))
+    - not (opentofu_install_controller_archive_state.stat.exists | default(false))
+    - ansible_check_mode
+
+- name: Inspect the versioned OpenTofu directory for installation
+  ansible.builtin.stat:
+    path: "{{ opentofu_install_version_dir }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: opentofu_install_version_directory_state
+  when: opentofu_install_state == 'present'
+  no_log: true
+
+- name: Refuse an unsafe existing version directory
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (opentofu_install_version_directory_state.stat.exists | default(false)) or
+        ((opentofu_install_version_directory_state.stat.isdir | default(false)) and
+         not (opentofu_install_version_directory_state.stat.islnk | default(false)) and
+         opentofu_install_version_directory_state.stat.pw_name == 'root' and
+         opentofu_install_version_directory_state.stat.gr_name == 'root' and
+         opentofu_install_version_directory_state.stat.mode == '0755')
+    fail_msg: >-
+      Refusing a symlinked, foreign, or mode-drifted OpenTofu version directory.
+      The payload path is not inspected through an unsafe directory.
+  when: opentofu_install_state == 'present'
+  changed_when: false
+  no_log: true
+
+- name: Inspect the payload in an existing safe version directory
+  ansible.builtin.stat:
+    path: "{{ opentofu_install_version_binary }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  register: opentofu_install_version_binary_state
+  when:
+    - opentofu_install_state == 'present'
+    - opentofu_install_version_directory_state.stat.exists | default(false)
+  no_log: true
+
+- name: Refuse an empty or modified existing version directory
+  ansible.builtin.assert:
+    that:
+      - opentofu_install_version_binary_state.stat.isreg | default(false)
+      - not (opentofu_install_version_binary_state.stat.islnk | default(false))
+      - opentofu_install_version_binary_state.stat.pw_name == 'root'
+      - opentofu_install_version_binary_state.stat.gr_name == 'root'
+      - opentofu_install_version_binary_state.stat.mode == '0755'
+      - opentofu_install_version_binary_state.stat.checksum == opentofu_install_binary_sha256
+    fail_msg: >-
+      Refusing an empty, foreign, mode-drifted, or digest-mismatched existing
+      OpenTofu version directory. Existing directories are never adopted.
+  when:
+    - opentofu_install_state == 'present'
+    - opentofu_install_version_directory_state.stat.exists | default(false)
+  changed_when: false
+  no_log: true
+
+- name: Inspect the managed OpenTofu selector
+  ansible.builtin.stat:
+    path: "{{ opentofu_install_selector_path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: opentofu_install_selector_state
+  no_log: true
+
+- name: Refuse an unknown OpenTofu selector
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (opentofu_install_selector_state.stat.exists | default(false)) or
+        ((opentofu_install_selector_state.stat.islnk | default(false)) and
+         opentofu_install_selector_state.stat.lnk_source == opentofu_install_version_binary and
+         opentofu_install_selector_state.stat.pw_name == 'root' and
+         opentofu_install_selector_state.stat.gr_name == 'root')
+    fail_msg: >-
+      Refusing to replace or remove an unknown /usr/local/bin/tofu object. Resolve
+      its ownership through a separately reviewed migration.
+  changed_when: false
+  no_log: true
+
+- name: Create root-owned OpenTofu parent directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - path: /opt/opentofu
+      mode: "0755"
+    - path: /var/cache/opentofu
+      mode: "0700"
+    - path: "{{ opentofu_install_state_root }}"
+      mode: "0711"
+  when: opentofu_install_state == 'present'
+
+- name: Create the protected empty project state directory
+  ansible.builtin.file:
+    path: "{{ opentofu_install_state_directory }}"
+    state: directory
+    owner: "{{ opentofu_install_operator_user }}"
+    group: root
+    mode: "0700"
+  when:
+    - opentofu_install_state == 'present'
+    - not ansible_check_mode
+  no_log: true
+
+- name: Predict protected state-directory creation in check mode
+  ansible.builtin.debug:
+    msg: "The empty operator-owned mode-0700 OpenTofu state directory would be created."
+  changed_when: not (opentofu_install_state_directory_state.stat.exists | default(false))
+  when:
+    - opentofu_install_state == 'present'
+    - ansible_check_mode
+
+- name: Transfer the verified controller archive to the host cache
+  ansible.builtin.copy:
+    src: "{{ opentofu_install_controller_archive_path }}"
+    dest: "{{ opentofu_install_archive_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_archive_state.stat.exists | default(false))
+    - not ansible_check_mode
+  diff: false
+  no_log: true
+
+- name: Predict verified archive transfer to the host in check mode
+  ansible.builtin.debug:
+    msg: "The verified controller-cached archive would be copied to the root-owned host cache."
+  changed_when: true
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_archive_state.stat.exists | default(false))
+    - ansible_check_mode
+
+- name: Inspect the transferred host release archive
+  ansible.builtin.stat:
+    path: "{{ opentofu_install_archive_path }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  register: opentofu_install_transferred_archive_state
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_archive_state.stat.exists | default(false))
+    - not ansible_check_mode
+  no_log: true
+
+- name: Require the exact transferred host release archive
+  ansible.builtin.assert:
+    that:
+      - opentofu_install_transferred_archive_state.stat.isreg | default(false)
+      - not (opentofu_install_transferred_archive_state.stat.islnk | default(false))
+      - opentofu_install_transferred_archive_state.stat.pw_name == 'root'
+      - opentofu_install_transferred_archive_state.stat.gr_name == 'root'
+      - opentofu_install_transferred_archive_state.stat.mode == '0600'
+      - opentofu_install_transferred_archive_state.stat.checksum == opentofu_install_archive_sha256
+    fail_msg: "The controller-transferred host archive does not match the reviewed contract."
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_archive_state.stat.exists | default(false))
+    - not ansible_check_mode
+  changed_when: false
+  no_log: true
+
+- name: Create the immutable version directory
+  ansible.builtin.file:
+    path: "{{ opentofu_install_version_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_version_directory_state.stat.exists | default(false))
+    - not ansible_check_mode
+
+- name: Predict immutable version-directory creation in check mode
+  ansible.builtin.debug:
+    msg: "The root-owned OpenTofu 1.12.5 version directory would be created."
+  changed_when: not (opentofu_install_version_directory_state.stat.exists | default(false))
+  when:
+    - opentofu_install_state == 'present'
+    - ansible_check_mode
+
+- name: Expand the verified release archive
+  ansible.builtin.unarchive:
+    src: "{{ opentofu_install_archive_path }}"
+    dest: "{{ opentofu_install_version_dir }}"
+    remote_src: true
+    owner: root
+    group: root
+    creates: "{{ opentofu_install_version_binary }}"
+  when:
+    - opentofu_install_state == 'present'
+    - not (opentofu_install_version_directory_state.stat.exists | default(false))
+    - not ansible_check_mode
+  diff: false
+
+- name: Predict versioned payload extraction in check mode
+  ansible.builtin.debug:
+    msg: "The verified OpenTofu 1.12.5 payload would be extracted."
+  changed_when: not (opentofu_install_version_directory_state.stat.exists | default(false))
+  when:
+    - opentofu_install_state == 'present'
+    - ansible_check_mode
+
+- name: Inspect the installed versioned payload
+  ansible.builtin.stat:
+    path: "{{ opentofu_install_version_binary }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  register: opentofu_install_installed_payload
+  when:
+    - opentofu_install_state == 'present'
+    - not ansible_check_mode
+  no_log: true
+
+- name: Require the exact installed payload digest
+  ansible.builtin.assert:
+    that:
+      - opentofu_install_installed_payload.stat.isreg | default(false)
+      - not (opentofu_install_installed_payload.stat.islnk | default(false))
+      - opentofu_install_installed_payload.stat.pw_name == 'root'
+      - opentofu_install_installed_payload.stat.gr_name == 'root'
+      - opentofu_install_installed_payload.stat.mode == '0755'
+      - opentofu_install_installed_payload.stat.checksum == opentofu_install_binary_sha256
+    fail_msg: "The extracted OpenTofu executable does not match the reviewed digest."
+  when:
+    - opentofu_install_state == 'present'
+    - not ansible_check_mode
+  changed_when: false
+  no_log: true
+
+- name: Select the reviewed OpenTofu version
+  ansible.builtin.file:
+    src: "{{ opentofu_install_version_binary }}"
+    dest: "{{ opentofu_install_selector_path }}"
+    state: link
+    owner: root
+    group: root
+    force: false
+  when:
+    - opentofu_install_state == 'present'
+    - not ansible_check_mode
+
+- name: Predict managed selector creation in check mode
+  ansible.builtin.debug:
+    msg: "The root-owned OpenTofu selector would target the reviewed payload."
+  changed_when: not (opentofu_install_selector_state.stat.exists | default(false))
+  when:
+    - opentofu_install_state == 'present'
+    - ansible_check_mode
+
+- name: Remove only the exact managed OpenTofu selector
+  ansible.builtin.file:
+    path: "{{ opentofu_install_selector_path }}"
+    state: absent
+  when:
+    - opentofu_install_state == 'absent'
+    - opentofu_install_selector_state.stat.exists | default(false)
+
+- name: Verify the selected OpenTofu executable version
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/tofu
+      - version
+      - -json
+  become: true
+  become_user: "{{ opentofu_install_operator_user }}"
+  register: opentofu_install_version_result
+  changed_when: false
+  when:
+    - opentofu_install_state == 'present'
+    - not ansible_check_mode
+
+- name: Require the exact selected OpenTofu version
+  ansible.builtin.assert:
+    that:
+      - (opentofu_install_version_result.stdout | from_json).terraform_version == opentofu_install_version
+    fail_msg: "The selected executable did not report OpenTofu 1.12.5."
+  changed_when: false
+  when:
+    - opentofu_install_state == 'present'
+    - not ansible_check_mode
+
+- name: Refresh service state after installation
+  ansible.builtin.service_facts:
+
+- name: Require k3s and Tailscale to remain running
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: "Installation must not stop or restart k3s or tailscaled."
+  changed_when: false

@@ -41,11 +41,15 @@ single-node cluster; replacement-host recovery still requires separate verificat
 
 The external CristexHub application repository publishes backend, frontend, and
 code-runner images to GHCR. This repository implements six executed bounded
-Ansible workflows, including the temporary functional probe; it still has no
-Kubernetes desired state, Helm, Kustomize,
-OpenTofu, GitHub Actions,
-or general host baseline. Debian plus Ansible is the
-selected host-configuration owner.
+Ansible workflows, including the temporary functional probe. It now has an
+offline-validated gated OpenTofu installer and zero-resource Cloudflare-only source
+scaffold. The first live run stopped after two bounded directory tasks because the
+host had no route to GitHub. The reviewed controller-cache and Ansible-transfer
+recovery subsequently passed check, live installation, and a `changed=0` rerun; the
+pinned CLI and selector now exist without host egress. No state file, provider
+initialization, plan, apply, Kubernetes desired state, Helm, Kustomize, GitHub
+Actions, or general host baseline exists yet. Debian plus Ansible is the selected
+host-configuration owner.
 
 ## Goals
 
@@ -71,7 +75,7 @@ selected host-configuration owner.
 | Layer | Owner | State source |
 |---|---|---|
 | Debian host and k3s baseline | Ansible | playbooks and inventory under `ansible/` |
-| Cloudflare and GitHub resources | OpenTofu | configuration under `opentofu/` plus protected remote state |
+| Cloudflare and GitHub resources | OpenTofu | configuration under `opentofu/`; protected host-local single-writer state plus mandatory encrypted off-node recovery |
 | Kubernetes objects | Argo CD | manifests and Helm values under `kubernetes/` |
 | Secret values and rotation | Infisical Cloud initially | separate DEV, PROD, and infrastructure scopes |
 | CI and image publication | GitHub Actions | workflows and immutable GHCR digests |
@@ -181,9 +185,9 @@ PROD sync and promotion remain manual and reviewed.
 ## Storage and backup
 
 Live database PVCs are expected on the NVMe through the discovered local
-StorageClass. Read-only discovery now has an offline-validated curated projection
-for device/partition and direct mount indicators, exact StorageClass behavior, and
-bounded PV/PVC placement metadata, but it has not been rerun. The separate 1 TB disk
+StorageClass. Approved extended read-only discovery has captured curated
+device/partition and direct mount indicators, exact StorageClass behavior, and
+bounded PV/PVC placement metadata from the live host and cluster. The separate 1 TB disk
 is not usable until its contents, ownership, filesystem choice, mount path, and
 destructive formatting approval are confirmed. Storage discovery makes no mount,
 repair, write, format, or ownership change; Ansible remains the host/mount owner and
@@ -254,7 +258,7 @@ verification must meet the declared RPO/RTO before PROD.
 
 ### Stage 3 — external-resource preparation
 
-- Entry: protected OpenTofu state backend, least-privilege credentials, reviewed plan.
+- Entry: protected host-local single-writer state, proven encrypted off-node recovery, least-privilege credentials, reviewed plan.
 - Work: Cloudflare/GitHub resources only; no public route yet.
 - Gate: plan contains only approved resources and state recovery is tested.
 - Stop: secret value in state/plan or destructive replacement.
@@ -325,7 +329,7 @@ Implementation is blocked until each relevant item is resolved:
 
 - Infisical Cloud bootstrap authentication, export/recovery, and machine-identity rotation;
 - Argo CD private-repository bootstrap and recovery;
-- OpenTofu encrypted remote state, locking, and recovery;
+- OpenTofu host-local single-writer state encryption, Google Drive copy, key custody, integrity, and isolated recovery;
 - Cloudflare connector ownership and credential rotation;
 - current k3s datastore, CNI indicators, NetworkPolicy objects and later enforcement
   probes, DNS, Traefik, StorageClass, and firewall;

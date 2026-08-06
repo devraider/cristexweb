@@ -101,6 +101,12 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
         )
         self.assertIn("off-node", self.runbook.lower())
         self.assertIn("off-node", self.register.lower())
+        for required in (
+            "Protected host-local single-writer owner",
+            "timestamped off-node Google Drive copy",
+            "isolated restore result",
+        ):
+            self.assertIn(required, self.register)
         self.assertRegex(
             self.register,
             r"(?m)^\| Replacement execution plan \(Gate 4\) \|.*NOT AUTHORED — GATE 3 BLOCKED \|$",

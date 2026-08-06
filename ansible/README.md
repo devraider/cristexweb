@@ -362,3 +362,84 @@ chart values, raw specs, command output, and kubeconfig content. Unmounted
 filesystem types are not inferred: they remain unknown unless a later separately
 approved read-only method can supply them safely. Projection is still not a proof
 of anonymity: review the complete report before sharing, and never commit it.
+
+## Approved pinned OpenTofu CLI installation
+
+`install_opentofu.yml` installs only the independently verified OpenTofu `1.12.5`
+linux/amd64 release, selects it through `/usr/local/bin/tofu`, and creates the empty
+operator-owned mode-`0700` `/var/lib/opentofu/cristexweb` directory outside k3s.
+It requires Debian 13 x86_64, running k3s/Tailscale, an existing non-root operator
+with no numeric UID alias, exact safe parent/artifact modes, `--diff`, a one-host
+limit, and explicit approval. The host does not need outbound GitHub access: when
+the root-owned host archive is absent, the controller downloads it into ignored
+`ansible/.ansible/cache/opentofu/`, verifies the exact digest, and transfers it over
+the existing Ansible connection. The role preflights controller directories and the
+cached archive without following symlinks, refuses foreign ownership or mode/digest
+drift, and makes no controller-cache write in check mode. It never initializes a
+provider, creates or reads a state file, restarts a service, or contacts Kubernetes.
+
+Controller-side release review verified the official
+[`tofu_1.12.5_SHA256SUMS`](https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_SHA256SUMS)
+file (SHA-256
+`120345f8a2493375aebbca072106de425b2eb227837f8064440b8d911e36f987`)
+against its official
+[OpenPGP signature](https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_SHA256SUMS.gpgsig)
+and signer fingerprint `E3E6E43D84CB852EADB0051D0C0AF313E5FD9F80`. The
+signed manifest records archive SHA-256
+`a6894d45ae7a17ce83189cce8fe04b5a65f68cefceb62455b5a6a89fa53ab38f`;
+the extracted `tofu` binary was independently verified as
+`36dae7ca1e4f1552a6faef27179dc16ef403203e956f31416c17b3d87a38c3f4`.
+The controller and host enforce the reviewed archive digest, and the host also
+enforces the extracted payload digest. Neither downloads the manifest or repeats
+OpenPGP verification during installation.
+
+The first approved check passed at `ok=27 changed=6 failed=0`. The first live run
+stopped at `ok=21 changed=2 failed=1` when the old host-side download returned
+`[Errno 113] No route to host`. Only `/opt/opentofu`, `/var/cache/opentofu`,
+`/var/lib/opentofu`, and the empty protected project directory were created with the
+reviewed ownership and modes; no archive, binary, selector, or state file existed at
+that stop. The reviewed controller-transfer check then passed at
+`ok=33 changed=6 failed=0`. The live recovery downloaded the exact archive into the
+ignored controller cache, transferred and reverified it, installed the pinned
+payload and selector, and preserved running k3s/Tailscale at
+`ok=39 changed=6 failed=0`. The second run passed at
+`ok=30 changed=0 failed=0`. The project state directory remains empty and no provider
+operation or external resource exists.
+
+Review check/diff first. The operator account remains an explicit local input:
+
+```bash
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/install_opentofu.yml \
+  --check --diff --limit crtxweb \
+  -e opentofu_install_approved=true \
+  -e opentofu_install_operator_user=<approved-user> \
+  --ask-become-pass
+```
+
+After reviewing that only the private controller cache when needed, verified archive
+transfer, versioned payload, managed selector, and protected empty directory change,
+remove only `--check` for the separately approved live installation. A second approved live run must report
+`changed=0`. Verify the exact version in a fresh session; do not add provider or
+backend credentials to extra vars or shell history.
+
+Rollback is separately approved and first reviewed in check mode:
+
+```bash
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/install_opentofu.yml \
+  --check --diff --limit crtxweb \
+  -e opentofu_install_state=absent \
+  -e opentofu_install_rollback_approved=true \
+  -e opentofu_install_operator_user=<approved-user> \
+  --ask-become-pass
+```
+
+Live rollback removes only the exact managed `/usr/local/bin/tofu` selector. It
+retains the archive, versioned payload, local state directory, every state/lock
+file, and all external resources. Unknown or modified selectors fail closed.
+
+Provider initialization, lockfile generation, validation, planning, apply, import,
+state commands, destroy, state encryption, Google Drive copy, and recovery are
+separate future gates. No apply is allowed until encrypted timestamped off-node
+state recovery and key custody pass an isolated rehearsal.

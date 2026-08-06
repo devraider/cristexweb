@@ -1,0 +1,10 @@
+---
+- name: Install the approved OpenTofu CLI and protected local state directory
+  hosts: k3s_servers
+  gather_facts: true
+  become: true
+  any_errors_fatal: true
+  serial: 1
+
+  roles:
+    - role: opentofu_install

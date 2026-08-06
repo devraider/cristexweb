@@ -2,8 +2,8 @@
 
 state: agent:in-progress
 phase: implementing
-build: admin/client/reboot recovery, extended storage discovery, and live CNI/NetworkPolicy probe pass; decision-first replacement runbook/register offline-implemented; disk decision and replacement execution pending
-date: 2026-08-05
+build: prior host/network/storage evidence passes; pinned OpenTofu install recovered through controller transfer and converged changed=0; provider/state/backup/apply pending
+date: 2026-08-06
 deploy_required_after_acceptance: yes
 
 note: |
@@ -62,6 +62,17 @@ note: |
   version/config, token custody, storage mapping, RPO/RTO, off-node artifacts, and
   isolated restore remain `UNKNOWN — STOP`; no recovery command or automation was
   guessed. Replacement execution and later platform work therefore remain pending.
-  No external-resource, secret, data,
-  or deployment operation was performed. Object listings and offline tests do not
-  prove functional enforcement or replacement recovery.
+  The checksum-pinned OpenTofu 1.12.5 installer, protected host-local directory
+  contract, and exact Cloudflare provider 5.23.0 zero-resource scaffold are
+  implemented. The original check passed at ok=27/changed=6/failed=0. The first live
+  attempt stopped at ok=21/changed=2/failed=1 when remote `get_url` reported
+  `[Errno 113] No route to host`; only exact parent directories and the empty
+  operator-owned state directory were created. The reviewed controller-transfer
+  check then passed at ok=33/changed=6/failed=0, live recovery installed and verified
+  the pinned CLI at ok=39/changed=6/failed=0, and the second run converged at
+  ok=30/changed=0/failed=0. k3s and Tailscale remained running. The state directory
+  remains empty; provider initialization/lockfile, state creation/encryption, Google
+  Drive copy and restore, plan, apply, and every external resource remain NOT
+  RUN/BLOCKED.
+  No external-resource, secret, data, or deployment operation was performed. Object
+  listings and offline tests do not prove replacement recovery.

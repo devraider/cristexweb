@@ -50,7 +50,7 @@ models are `preserve-existing` or `create-new`; never record or execute a hybrid
 | Host/storage design | Disk identity mapping, filesystem/mount design, capacity, ownership, encryption-access result, and non-destructive attachment plan | `<off-node evidence record ID>` | UNKNOWN — STOP |
 | Git desired state | Reviewed repository revision and independent off-node availability | `<repository and immutable revision>` | UNKNOWN — STOP |
 | Immutable workload images/build inputs | Required digests or reproducible-build revisions and confirmed off-node availability | `<registry/build evidence record ID>` | UNKNOWN — STOP |
-| OpenTofu state | Protected state owner, backend recovery result, lock/ownership method, and sanitized state revision | `<off-node backend evidence record ID>` | UNKNOWN — STOP |
+| OpenTofu state | Protected host-local single-writer owner, exact ignored state path, encryption/key-custody result, timestamped off-node Google Drive copy, integrity check, isolated restore result, and sanitized state revision | `<off-node state-recovery evidence record ID>` | UNKNOWN — STOP |
 | Infisical bootstrap material | Custodian, infrastructure/DEV/PROD scope separation, and non-disclosing recovery check | `<off-node secret-manager record ID only>` | UNKNOWN — STOP |
 | Application encryption keys | Separate environment custodians and non-disclosing recovery/compatibility checks | `<off-node secret-manager record IDs only>` | UNKNOWN — STOP |
 | Argo CD repository access | Custodian and non-disclosing private bootstrap-access check | `<off-node secret-manager record ID only>` | UNKNOWN — STOP |

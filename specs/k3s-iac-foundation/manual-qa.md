@@ -25,7 +25,12 @@ replacement-host increment is documented offline: a
 secret-free runbook/register separates reboot from replacement, stops on old-host or
 storage split-brain risk, and requires an explicit recovery identity decision. Its
 datastore/version/token/storage/RPO/RTO/off-node entries remain `UNKNOWN — STOP`.
-No deployment, replacement recovery proof, or complete manual runtime validation
+The OpenTofu installer now passes its reviewed controller-mediated live recovery
+and `changed=0` idempotence run after the first host-side GitHub retrieval failed.
+The protected state directory remains empty; state encryption/off-node restore,
+provider operations, and external ownership remain pending and close no manual
+case. No deployment, replacement
+recovery proof, or complete manual runtime validation
 occurred. MQA-13 remains pending specifically
 because the managed-profile rollback path has not been executed and verified, even
 though warning-free fresh-session behavior passed. These results do not satisfy the

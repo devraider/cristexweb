@@ -41,6 +41,10 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-STO-02 | KIF-001, KIF-008, KIF-030 | Extended storage discovery runtime | A separately approved one-host elevated check/diff run renders valid mode-0600 JSON and human review establishes actual curated device, StorageClass, PV, and PVC indicators without mutation or sensitive metadata | PASS — ok=17/changed=1 local report/failed=0; unmounted 1 TB rotational disk with one partition, NVMe/root capacity, local-path `Delete`/`WaitForFirstConsumer`/no expansion, and zero PV/PVC objects confirmed; filesystem/content/health and reuse decision remain unknown; no disk mutation |
 | KIF-REC-01 | KIF-002, KIF-003, KIF-013, KIF-015, KIF-028, KIF-030 | Replacement-host recovery first offline increment | Secret-free runbook/register truthfully separate same-host reboot from replacement, require old-host fencing and exclusive storage ownership, stop split brain, require exactly one preserve-existing or create-new identity decision, and leave datastore/version/token/storage/RPO/RTO/off-node prerequisites explicitly unknown without guessed commands | PASS — 5 focused offline recovery contracts and the full offline suite passed; documentation contains no executable recovery command or secret-shaped value and no host/provider/API was accessed |
 | KIF-REC-02 | KIF-007, KIF-015, KIF-026–KIF-030 | Replacement-host recovery rehearsal/runtime | An isolated, approved replacement follows an actual version/datastore/storage-specific plan; proves one authoritative cluster/storage writer, desired state, mutable data, encryption behavior, isolation, and measured RPO/RTO before public reactivation | NOT RUN/BLOCKED — identity model and datastore, exact version/config, token custody, storage, RPO/RTO, off-node artifacts, restore procedures, and approvals remain `UNKNOWN — STOP`; reboot success is not replacement proof |
+| KIF-TOFU-01 | KIF-002, KIF-005, KIF-006, KIF-013, KIF-030 | Pinned host installer offline contract | Source structurally requires default-false install and separate rollback approval, diff/one-host gates, Debian 13 x86_64, reviewed checksum-pinned archive/payload digests, an existing non-root operator without UID aliases, strict remote and controller-cache modes, symlink-safe controller preflight, controller-only download plus verified Ansible transfer, absent-only version extraction, an exact managed selector, protected state directory, service preservation, check-mode prediction, and selector-only state-preserving rollback | PASS — focused structural contracts, full offline suite, syntax, and production lint passed; controller transfer fix used no host/provider contact and negative runtime branches remain NOT RUN |
+| KIF-TOFU-02 | KIF-002, KIF-007, KIF-030 | OpenTofu host install runtime | Approved check/diff, reviewed live run, exact version verification, preserved k3s/Tailscale, and a changed=0 rerun pass without provider or state operations | PASS — initial check passed at ok=27/changed=6/failed=0; bounded host-egress failure stopped at ok=21/changed=2/failed=1; reviewed controller-transfer check passed at ok=33/changed=6/failed=0, live recovery passed at ok=39/changed=6/failed=0, and second run converged at ok=30/changed=0/failed=0. The exact CLI and selector exist; the protected directory remains empty and no provider/state operation ran |
+| KIF-TOFU-03 | KIF-004–KIF-006, KIF-013 | Cloudflare-only zero-resource scaffold | Exact OpenTofu/provider pins and local backend path exist with zero resources/data/modules/imports/variables/outputs and no forbidden provider, credential, lockfile, state, or plan | PASS — static contract passed; `tofu fmt/validate` and provider initialization are honestly NOT RUN because no approved controller binary/provider download exists |
+| KIF-TOFU-04 | KIF-013, KIF-028, KIF-030 | Local-state encryption and off-node recovery gate | Timestamped encrypted Google Drive copies, independent key custody, integrity verification, and isolated restore pass before the first apply | NOT RUN/BLOCKED — no state exists; encryption, Drive identity, copy, retention, key recovery, and restore remain `UNKNOWN — STOP` |
 
 ## Replacement-host recovery first increment offline validation — 2026-08-05
 
@@ -254,13 +258,130 @@ non-destructive filesystem, health, and content inspection resolves its state. D
 not mount, repair, format, repartition, or write it. Local backup capacity never
 replaces the required encrypted off-node copy.
 
+## OpenTofu host-installer and zero-resource scaffold offline validation — 2026-08-06
+
+The initial installer validation and the later controller-transfer fix validation
+were controller-local only. They used no inventory, SSH, become,
+Kubernetes/provider API, provider registry, Cloudflare authentication, Google Drive,
+or state. The fix validation did not contact the host or write the ignored controller
+cache. It created no lockfile, state, plan, credential, resource, or host change.
+
+Authenticated release provenance was independently verified controller-side before
+this implementation. The official sources and reviewed values are:
+
+- `https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_SHA256SUMS`
+  — SHA-256 `120345f8a2493375aebbca072106de425b2eb227837f8064440b8d911e36f987`;
+- `https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_SHA256SUMS.gpgsig`
+  — verified signer fingerprint `E3E6E43D84CB852EADB0051D0C0AF313E5FD9F80`;
+- `tofu_1.12.5_linux_amd64.tar.gz` — signed-manifest SHA-256
+  `a6894d45ae7a17ce83189cce8fe04b5a65f68cefceb62455b5a6a89fa53ab38f`;
+- extracted `tofu` — independently verified SHA-256
+  `36dae7ca1e4f1552a6faef27179dc16ef403203e956f31416c17b3d87a38c3f4`.
+
+The controller-transfer role enforces the reviewed archive digest before and after
+transfer, and the host enforces the extracted-payload digest. It does not download
+the checksum manifest or repeat OpenPGP verification. No network provenance
+verification was rerun during this offline fix pass.
+
+```bash
+python3 -m unittest -v tests.test_opentofu_contract
+python3 -m unittest discover -s tests -v
+python3 -m compileall -q tests
+cd ansible
+uv run ansible-playbook playbooks/install_opentofu.yml --syntax-check
+uv run ansible-lint playbooks/install_opentofu.yml roles/opentofu_install
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-lint .
+cd ..
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Focused OpenTofu contracts — PASS, 7 tests
+Full offline suite — PASS, 35 tests
+Python compile — PASS
+OpenTofu installer syntax — PASS
+Focused production lint — PASS, 0 failures and 0 warnings in 4 files
+All 7 playbook syntax checks — PASS
+Full production lint — PASS, 0 failures and 0 warnings; 33 of 36 files processed
+git diff --check and no-staged-files — PASS
+```
+
+`tofu fmt` and `tofu validate` are NOT RUN: no controller OpenTofu binary was
+approved or installed, and provider initialization/download is a later gate. The HCL
+is statically checked and conventionally formatted, but that is not provider-aware
+validation. The original host check, bounded failure, reviewed controller-transfer recovery,
+and idempotence evidence are recorded below. Lockfile generation, state creation and
+encryption, off-node copy/restore, plan, and apply remain NOT RUN/BLOCKED.
+
+## OpenTofu first host installation attempt — 2026-08-06
+
+The operator used the ignored local inventory and entered the become password only
+at the local prompt. The approved controller-to-host check completed without
+mutation:
+
+```text
+crtxweb: ok=27 changed=6 unreachable=0 failed=0 skipped=12
+```
+
+The separately approved live attempt then failed at the old remote
+`ansible.builtin.get_url` task before an archive was written:
+
+```text
+Request failed: <urlopen error [Errno 113] No route to host>
+crtxweb: ok=21 changed=2 unreachable=0 failed=1 skipped=3
+```
+
+The two changed tasks created only the exact root-owned parent directories and the
+empty operator-owned mode-`0700` project state directory. No archive, versioned
+binary, `/usr/local/bin/tofu` selector, state file, provider operation, Kubernetes
+operation, or external resource was created. k3s and Tailscale had passed the
+pre-install running-state gate; the failed attempt did not contain a service
+mutation task. A blind retry was rejected. The revised role downloads the pinned
+archive into ignored controller-local `ansible/.ansible/cache/opentofu/`, transfers
+it using `ansible.builtin.copy`, and rechecks the root-owned host archive before
+extraction.
+
+The reviewed recovery check produced the expected six predictions without mutation:
+
+```text
+crtxweb: ok=33 changed=6 unreachable=0 failed=0 skipped=15
+```
+
+The separately approved live recovery then downloaded and verified the archive on
+the controller, transferred and reverified it on the host, extracted the exact
+payload, selected `/usr/local/bin/tofu`, verified version `1.12.5` as the non-root
+operator, and confirmed k3s/Tailscale remained running:
+
+```text
+crtxweb: ok=39 changed=6 unreachable=0 failed=0 skipped=9
+```
+
+The immediate approved second run revalidated every boundary and converged:
+
+```text
+crtxweb: ok=30 changed=0 unreachable=0 failed=0 skipped=18
+```
+
+The ignored controller archive is current-controller-owned mode `0600` with SHA-256
+`a6894d45ae7a17ce83189cce8fe04b5a65f68cefceb62455b5a6a89fa53ab38f`;
+its cache directories are mode `0700`. The protected host project directory remains
+empty: no state file, provider initialization, lockfile, plan, apply, Kubernetes
+operation, or external resource was created. Rollback remains selector-only and was
+not run.
+
 ## Documentation and traceability
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
 | KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, and offline contract test exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
 | KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; Traefik remains sole ingress | PASS — authoritative documents remain consistent |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Discovery, dependency bootstrap, admin access, user-scoped client defaults, one-reboot recovery, extended storage discovery, and temporary NetworkPolicy probe are executed; no general host baseline, hosted runtime, provider, persistent Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Executed Ansible evidence distinguishes the bounded failed OpenTofu attempt from its completed controller-transfer recovery and zero-resource scaffold; no state/provider operation, general host baseline, hosted runtime, persistent Kubernetes desired state, or deployment is claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
 | KIF-DOC-05 | KIF-016–KIF-021 | Shared-data and policy risk | Separate principals/backups and negative tests remain required; object listings alone do not prove policy enforcement | PASS — functional probe evidence and remaining application-isolation QA are explicit |
 | KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, one manual case passes, and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
@@ -290,13 +411,21 @@ required=(
   ansible/playbooks/discover.yml
   ansible/playbooks/bootstrap_dependencies.yml
   ansible/playbooks/configure_k3s_admin_access.yml
+  ansible/playbooks/install_opentofu.yml
+  ansible/roles/opentofu_install/defaults/main.yml
+  ansible/roles/opentofu_install/tasks/main.yml
   ansible/roles/read_only_discovery/defaults/main.yml
   ansible/roles/read_only_discovery/tasks/main.yml
   ansible/roles/read_only_discovery/tasks/host.yml
   ansible/roles/read_only_discovery/tasks/kubernetes.yml
   ansible/roles/read_only_discovery/tasks/report.yml
   ansible/roles/read_only_discovery/templates/report.json.j2
+  opentofu/README.md
+  opentofu/backend.tf
+  opentofu/providers.tf
+  opentofu/versions.tf
   tests/test_ansible_contract.py
+  tests/test_opentofu_contract.py
   tests/test_replacement_recovery_contract.py
   runbooks/replacement-host-recovery.md
   runbooks/recovery-artifact-register.md
@@ -328,6 +457,7 @@ assert {path.name for path in spec_dir.glob("*.md")} == expected_specs
 
 text_paths = [Path("AGENTS.md"), Path("README.md"), Path("architecture-plan.md"), Path(".gitignore"), Path("pyproject.toml"), Path("uv.lock")]
 text_paths += [path for path in sorted(Path("ansible").rglob("*")) if ".ansible" not in path.parts]
+text_paths += sorted(Path("opentofu").glob("*"))
 text_paths += sorted(Path("tests").glob("*.py"))
 text_paths += sorted(Path("runbooks").glob("*.md"))
 text_paths += sorted(spec_dir.glob("*.md"))
@@ -364,13 +494,27 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "admin/client/reboot recovery, extended storage discovery, and live CNI/NetworkPolicy probe pass",
+    "prior host/network/storage evidence passes; pinned OpenTofu install recovered through controller transfer and converged changed=0",
     "all nine exact Kubernetes",
     "executed group-scoped k3s",
 ]:
     assert statement in status, statement
 
-for future_path in [Path("opentofu"), Path("kubernetes"), Path(".github/workflows")]:
+brief = (spec_dir / "brief.md").read_text()
+for statement in [
+    "The approved\nhost check passed",
+    "the first live run created only the exact managed parent and\nempty protected state directories",
+    "reviewed controller-transfer recovery then passed check, live installation, and a\n`changed=0` rerun",
+    "Provider initialization, state, plan, and\napply remain unrun",
+]:
+    assert statement in brief, statement
+assert "host check/live run" not in brief
+assert "controller-transfer retry and idempotence remain unrun" not in brief
+
+assert {path.name for path in Path("opentofu").iterdir() if path.is_file()} == {
+    "README.md", "backend.tf", "providers.tf", "versions.tf"
+}
+for future_path in [Path("kubernetes"), Path(".github/workflows")]:
     assert not future_path.exists(), future_path
 for recovery_doc in [
     Path("runbooks/replacement-host-recovery.md"),
@@ -394,7 +538,7 @@ for path in text_paths:
     for line_number, line in enumerate(path.read_text().splitlines(), 1):
         assert line == line.rstrip(), (path, line_number)
 
-print("PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan")
+print("PASS: Ansible/OpenTofu layout, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan")
 PY
 
 git check-ignore -q --no-index inventory.local.ansible.json
@@ -412,12 +556,12 @@ git diff --cached --quiet
 printf '%s\n' 'PASS: ignore policy, git diff check, and no-staged-files check'
 ```
 
-Actual result (exit 0 on 2026-08-05):
+Actual result (exit 0 on 2026-08-06):
 
 ```text
-Ran 28 tests
+Ran 35 tests
 OK
-PASS: Ansible layout, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan
+PASS: Ansible/OpenTofu layout, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan
 PASS: ignore policy, git diff check, and no-staged-files check
 ```
 

@@ -124,13 +124,22 @@ disk state. Restore preserved configuration before continuing.
 
 ## Stage 3 — external resources
 
-- [ ] Verify the root OpenTofu ignore policy, then select a protected, encrypted,
-  locked, recoverable state backend (`KIF-006`, `KIF-028`).
-- [ ] Implement only approved Cloudflare/GitHub resources; do not use Kubernetes or
-  Helm providers (`KIF-005`).
-- [ ] Validate formatting/configuration and review a sanitized plan (`KIF-002`,
-  `KIF-013`).
-- [ ] Obtain explicit approval for the first OpenTofu apply (`KIF-002`).
+- [x] Verify the root ignore policy and offline-implement the checksum-pinned
+  OpenTofu CLI installer plus protected host-local state-directory contract
+  (`KIF-006`, `KIF-028`).
+- [x] Add the exact-version Cloudflare-only zero-resource scaffold; do not use
+  Kubernetes, Helm, or GitHub providers (`KIF-005`, `KIF-013`).
+- [x] Run the separately approved one-host CLI installation check/diff, recover the
+  bounded host-egress failure through reviewed controller transfer, execute it, and
+  prove idempotence without provider or state operations (`KIF-002`).
+- [ ] Generate and review the provider lockfile through separately approved
+  initialization, then run OpenTofu format/validate (`KIF-006`, `KIF-030`).
+- [ ] Implement encrypted timestamped Google Drive state copies, independent key
+  custody, integrity verification, and isolated restore before any apply
+  (`KIF-013`, `KIF-028`).
+- [ ] Implement only explicitly approved external resources and review a sanitized
+  plan with no destroy/replacement or public route (`KIF-002`, `KIF-005`, `KIF-013`).
+- [ ] Obtain explicit approval for the first exact reviewed OpenTofu apply (`KIF-002`).
 - [ ] Create no public application route in this stage (`KIF-010`, `KIF-011`).
 
 Stop gate: stop on secret-bearing state/plan, replacement/destroy outside scope, or

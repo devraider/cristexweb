@@ -19,8 +19,18 @@ server configuration. The separately approved one-reboot recovery playbook passe
 with SSH/Tailscale return, running services, a Ready node, and preserved access.
 Discovery gathers
 curated host indicators with built-ins and exact Kubernetes kinds with
-`kubernetes.core.k8s_info`. No general host baseline or deployment exists. Python
-is used only for offline contract tests, not infrastructure automation.
+`kubernetes.core.k8s_info`. A gated Ansible playbook pins the OpenTofu CLI. Its
+approved host check passed at `ok=27 changed=6 failed=0`; the first live attempt
+stopped at `ok=21 changed=2 failed=1` because the host had no route to GitHub, after
+creating only exact parent directories and the empty protected state directory. The
+reviewed controller-transfer check then passed at `ok=33 changed=6 failed=0`, the
+live recovery installed the verified CLI at `ok=39 changed=6 failed=0`, and the
+second run converged at `ok=30 changed=0 failed=0` without requiring host egress.
+The protected directory still contains no state file, and no provider operation or
+external resource exists. The root `opentofu/` source is Cloudflare-only and has zero
+resources. No general
+host baseline or deployment exists. Python is used only for offline contract tests,
+not infrastructure automation.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
 local report. The extended report confirms the unmounted 1 TB rotational disk,
@@ -30,9 +40,9 @@ approved elevated attempt identified missing remote Python dependencies. The
 bounded two-package Ansible bootstrap was reviewed and installed; post-install
 imports and the prior nine exact Kubernetes queries pass. That report confirms the
 k3s datastore and curated cluster indicators; it predates the extended StorageClass,
-PV, and namespace-bounded PVC projection. Hosted runtime,
-OpenTofu configuration, persistent Kubernetes manifest, Helm chart, workflow, deployment, DNS
-route, tunnel, database, backup, and replacement recovery remain unexecuted. The
+PV, and namespace-bounded PVC projection. Hosted runtime, OpenTofu provider initialization/state/plan/apply, persistent
+Kubernetes manifest, Helm chart, workflow, deployment, DNS route, tunnel, database,
+backup, and replacement recovery remain unexecuted. The
 first replacement-host increment is documentation-only: it adds a secret-free
 runbook and artifact register with fail-closed decision gates, not recovery
 automation or runtime proof. Debian plus Ansible is the host-management owner.
@@ -118,7 +128,8 @@ ansible/                 # discovery + bounded host changes + gated temporary QA
   playbooks/
   roles/read_only_discovery/
   roles/network_policy_probe/
-opentofu/                # future
+  roles/opentofu_install/
+opentofu/                # zero-resource Cloudflare-only scaffold
 kubernetes/              # future
 runbooks/                # decision-first recovery docs; no recovery automation
   replacement-host-recovery.md
@@ -126,8 +137,9 @@ runbooks/                # decision-first recovery docs; no recovery automation
 tests/                   # offline contract tests only
 ```
 
-Only `ansible/`, the first documentation-only replacement recovery increment under
-`runbooks/`, and offline `tests/` currently exist. Kustomize remains intended for
+Only `ansible/`, the zero-resource `opentofu/` scaffold, the first documentation-only
+replacement recovery increment under `runbooks/`, and offline `tests/` currently
+exist. Kustomize remains intended for
 first-party application overlays; Helm is reserved for selected third-party
 components. After a bounded bootstrap, Argo CD owns all in-cluster desired state.
 

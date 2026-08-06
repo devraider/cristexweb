@@ -6,8 +6,8 @@ This root `AGENTS.md` is authoritative for the entire repository.
 
 - Operational implementation is limited to read-only Ansible discovery, the executed two-package dependency bootstrap, the executed group-scoped k3s administrator access playbook, the executed user-scoped kubectl client-defaults playbook, the executed single-node reboot recovery playbook, and the executed temporary NetworkPolicy probe under `ansible/`. Admin access, warning-free cluster listing, idempotence, reboot, SSH/Tailscale return, Ready node, kubeconfig recovery, current CNI behavior, NetworkPolicy enforcement, rollback, and zero-residue cleanup succeeded; replacement-host recovery remains pending. No general host baseline or deployment exists.
 - Python exists only in offline contract tests; it is not operational infrastructure automation.
-- This repository otherwise owns design documentation for future host configuration, external-resource IaC, GitOps desired state, and recovery runbooks.
-- No hosted runtime, general Ansible host baseline, OpenTofu configuration, persistent Kubernetes manifest, Helm chart, or workflow exists here yet. The only Kubernetes write definitions are inline, generated-name, temporary QA fixtures in the probe role; its approved run cleaned all fixtures.
+- This repository also contains a zero-resource Cloudflare-only OpenTofu scaffold and a gated pinned-CLI host installer. The first live attempt stopped when the host had no route to GitHub after creating only exact parent directories and the empty protected state directory. The reviewed controller-transfer recovery then passed check, installed the exact CLI without host egress, and converged at `changed=0`. The protected directory remains empty: no state file, provider initialization, plan, apply, or external resource exists.
+- No hosted runtime, general Ansible host baseline, persistent Kubernetes manifest, Helm chart, or workflow exists here yet. The only Kubernetes write definitions are inline, generated-name, temporary QA fixtures in the probe role; its approved run cleaned all fixtures.
 - CristexHub application source, local Compose assets, Keycloak theme, and Browserless gateway remain external concerns in the CristexHub application repository and must not be copied here.
 - Approved discovery, dependency installation, and the group-scoped k3s administrator access mutation have completed. The access playbook verified effective readability as the selected account and a second run was idempotent. Any other host mutation or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed.
 
@@ -31,7 +31,7 @@ non-cascading `Orphan` propagation, and no Namespace create/delete. Execution st
 image plus separate create/delete approvals. Argo CD remains the only persistent
 Kubernetes object writer.
 
-Future implementation belongs at repository-root `ansible/`, `opentofu/`,
+Implementation belongs at repository-root `ansible/`, `opentofu/`,
 `kubernetes/`, and `runbooks/`. Do not use OpenTofu Kubernetes or Helm providers
 for objects reconciled by Argo CD. GitHub Actions must not deploy directly with
 `kubectl`, Helm, or Argo CD.
@@ -85,7 +85,7 @@ destroy as routine rollback.
 
 - Never commit plaintext credentials, kubeconfigs, private keys, tunnel tokens, database URLs containing credentials, Infisical machine credentials, or real `.env` files.
 - Kubernetes manifests contain only Infisical references, never secret values.
-- Do not place secret values in OpenTofu variables, plans, outputs, committed state, examples, CI logs, or review artifacts.
+- Do not place secret values in OpenTofu variables, plans, outputs, committed state, examples, CI logs, or review artifacts. The selected local backend is single-writer host state outside k3s; its encrypted off-node copy, key recovery, integrity check, and isolated restore must pass before any apply.
 - The root [`.gitignore`](.gitignore) protects OpenTofu/Terraform working directories, state, plans, local variable/override/crash files; Ansible retry/cache/facts; kubeconfigs; local environment/credential/key artifacts; and generated secret material. `.terraform.lock.hcl` is deliberately tracked so provider selections are reviewable.
 - DEV and PROD use separate Infisical environments, identities, application credentials, encryption keys, database principals, and backup paths.
 - Preserve and back up application encryption keys independently; losing them can make encrypted application data unrecoverable.
