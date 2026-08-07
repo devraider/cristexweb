@@ -101,7 +101,15 @@ stable upstream API registration screened successfully, and controller-side imag
 closure was reachable. Exact k3s admission/runtime and node pullability remain
 unproven; wildcard/broad RBAC, ingress-only/unrestricted-egress policy, signing and
 image trust, generated/internal Secret recovery, private Git secret-zero, Namespace
-adoption, human selection/soak, and all runtime approvals remain blocked. A separate source-only
+adoption, human selection/soak, and all runtime approvals remain blocked. The
+[source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
+accepts only a private ClusterIP/loopback-port-forward direction, retained quiescent
+ApplicationSet, supplemental default-deny with an explicit broad ports-only
+`443`/`6443` weakness, phased least privilege, an exact one-repository read-only
+GitHub App credential shape, value-free Infisical custody, disabled Redis initializer,
+and two adoption Applications. It is **DESIGN ONLY**, adds no deployable source, and
+leaves its exact five installer/ownership, future-Namespace, resource-inventory,
+Infisical-recovery, and adoption-apply decisions open. A separate source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 records release `2026.7.3`, unsigned source, immutable linux/amd64 image,
 token-file, readiness/health, and edge-transport evidence. It is **CANDIDATE — NOT

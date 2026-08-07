@@ -52,6 +52,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-NS-02 | KIF-002, KIF-005, KIF-010, KIF-030 | Platform Namespace bootstrap runtime | Reviewed check predicts exactly the two absent Namespaces; approved live run creates them, verifies labels/services, and second run converges changed=0 without installing Argo CD/cloudflared or creating a route | PASS — wrapper check passed without mutation; separately approved first apply passed at ok=21/changed=1/unreachable=0/failed=0/skipped=0 and changed exactly `argocd` plus `platform-edge`. During the separately approved idempotence checkpoint, a local sudo authentication failure stopped the initial invocation before service preflight/reconciliation at ok=10/changed=0/unreachable=0/failed=1/skipped=0; the retry passed at ok=21/changed=0/unreachable=0/failed=0/skipped=0, both exact items were `ok`, post-state identity/labels/Active passed, and service health was preserved |
 | KIF-ARGO-01 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-023, KIF-030 | Argo CD candidate provenance and target-minor screen | A secret-free record binds exact official chart/index/provenance/image/render evidence plus the approved target kubelet and official Argo CD tested-version sources; it narrowly concludes only that Kubernetes minor `1.36` is in Argo CD `3.5`'s tested matrix and passes chart `10.3.0`'s semver gate, while preserving the exact two-Namespace source set and blocking exact k3s/runtime, rendered API/CRD, trust, selection/soak, Secret, private Git, image/traffic, ownership, and runtime gates | PASS — 5 focused provenance contracts enforce exact associations and qualified boundaries; chart `10.3.0`/app `v3.5.0` remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; Argo runtime NOT RUN and no chart, values, Kubernetes object, secret, or deployment source was added |
 | KIF-ARGO-02 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Argo CD online/static readiness refresh | A secret-free committed record curates refreshed official bytes plus deterministic render, upstream API registration, RBAC/network, image trust/availability/vulnerability, private-Git, and Namespace-adoption evidence while preserving exact two-Namespace source closure and all live admission/runtime gates | PASS — 9 focused provenance contracts and 71 full offline tests pass; chart `10.3.0`/app `v3.5.0` remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; live API, server-side dry-run, install, Secret, provider, and runtime operations remain NOT RUN; no chart, values, rendered YAML, Kubernetes object, credential, or deployment source was added |
+| KIF-ARGO-03 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013–KIF-015, KIF-021, KIF-030 | Argo CD source-only hardened design | A secret-free design fixes private ClusterIP/loopback-only administration, retained quiescent ApplicationSet, complete supplemental default-deny flows with an explicit ports-only weakness, phased least privilege, one-repository GitHub App credentials, value-free secret custody, two-Application adoption, stop/rollback, and exactly five open decisions without adding deployable source | PASS — 10 focused hardened-design contracts and 81 full offline tests pass; chart `10.3.0`/app `v3.5.0` remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED and runtime NOT RUN; no network, cluster, chart, values, manifest, Secret, Application/AppProject/RBAC/NetworkPolicy, provider, or deployment source was added |
 | KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, preserves exact two-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator candidate provenance | A secret-free record binds the latest `v0.11.8` source release and time-qualified public chart/image distribution gap separately from the last observed version-aligned `v0.11.7` chart/source/image set; association-sensitive evidence qualifies unverified chart provenance, observed SLSA content, missing SBOM observation, chart defaults, and exact architecture child digest while preserving the two-Namespace and zero-resource OpenTofu source sets and blocking selection/trust, compatibility, dedicated Namespace, scoped RBAC, Argo handoff, secret-zero/recovery, traffic, single-node, and runtime | PASS — 5 focused contracts enforce exact evidence associations, qualified trust/absence wording, source closure, operational-command hygiene, and effective RFC1918/loopback sentinels; both versions remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no chart, values, CRD, Kubernetes object, credential, Secret, or deployment source was added |
 
@@ -412,6 +413,131 @@ trust selection, reduced RBAC/default-deny networking, Secret recovery, private 
 secret-zero, Namespace adoption, and all live approvals remain blocked. The chart and
 application remain **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**; Argo CD runtime is
 **NOT RUN**, and this evidence closes no manual QA case.
+
+## Argo CD hardened-design source-only validation — 2026-08-07
+
+The [hardened design](../../runbooks/argocd-hardened-design.md) is documentation and
+offline contract coverage only. Validation used no network, inventory, SSH, become,
+kubeconfig, Kubernetes API, Helm operation, registry, GitHub API, Infisical API,
+provider, secret operation, fixture, deployment, cleanup, mutation, staging, commit,
+or push.
+
+```bash
+python3 -m unittest -v tests.test_argocd_hardened_design_contract
+python3 -m unittest discover -s tests -v
+python3 -m compileall -q tests
+cd ansible
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-lint . ../tests/validate_storage_report.yml
+cd ..
+python3 - <<'PY'
+from pathlib import Path
+import re
+import subprocess
+
+expected = {
+    "README.md",
+    "architecture-plan.md",
+    "runbooks/argocd-hardened-design.md",
+    "specs/k3s-iac-foundation/brief.md",
+    "specs/k3s-iac-foundation/manual-qa.md",
+    "specs/k3s-iac-foundation/requirements.md",
+    "specs/k3s-iac-foundation/status.md",
+    "specs/k3s-iac-foundation/tasks.md",
+    "specs/k3s-iac-foundation/testcases.md",
+    "tests/test_argocd_hardened_design_contract.py",
+    "tests/test_replacement_recovery_contract.py",
+}
+actual = {
+    line[3:]
+    for line in subprocess.check_output(["git", "status", "--short"], text=True).splitlines()
+    if line
+}
+assert actual == expected, actual ^ expected
+for protected in ("ansible", "kubernetes", "opentofu", ".github/workflows"):
+    assert not subprocess.check_output(
+        ["git", "diff", "--name-only", "--", protected], text=True
+    ).strip(), protected
+assert {
+    str(path.relative_to("kubernetes"))
+    for path in Path("kubernetes").rglob("*")
+    if path.is_file()
+} == {
+    "platform/namespaces/argocd.yaml",
+    "platform/namespaces/platform-edge.yaml",
+}
+assert {path.name for path in Path("opentofu").iterdir() if path.is_file()} == {
+    "README.md", "backend.tf", "providers.tf", "versions.tf"
+}
+for path in [
+    Path("README.md"),
+    Path("architecture-plan.md"),
+    Path("runbooks/argocd-hardened-design.md"),
+    *sorted(Path("specs/k3s-iac-foundation").glob("*.md")),
+]:
+    text = path.read_text()
+    for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", text):
+        if "://" in target or target.startswith("#"):
+            continue
+        local = target.split("#", 1)[0]
+        if local:
+            assert (path.parent / local).resolve().exists(), (path, target)
+runbook = Path("runbooks/argocd-hardened-design.md").read_text()
+assert ".pi-subagents" not in runbook
+assert not re.search(r"\b[0-9a-f]{65}\b", runbook)
+controller_home_pattern = "/" + "Users/" + r"[^/\s]+/"
+assert not re.search(controller_home_pattern, runbook)
+for private_pattern in (
+    r"\b(?:10|127)\.(?:\d{1,3}\.){2}\d{1,3}\b",
+    r"\b192\.168\.(?:\d{1,3}\.)\d{1,3}\b",
+    r"\b172\.(?:1[6-9]|2\d|3[01])\.(?:\d{1,3}\.)\d{1,3}\b",
+):
+    assert not re.search(private_pattern, runbook)
+for operational in (
+    "kubectl ", "helm install", "helm upgrade", "helm uninstall",
+    "argocd app ", "tofu apply", "ansible-playbook ", "--address",
+):
+    assert operational not in runbook.lower(), operational
+assert "**DESIGN ONLY.**" in runbook
+assert "CANDIDATE — NOT DEPLOYABLE — NOT SELECTED" in runbook
+assert "Argo CD runtime remains **NOT RUN**" in runbook
+current = Path("specs/k3s-iac-foundation/testcases.md").read_text()
+previous = subprocess.check_output(
+    ["git", "show", "HEAD:specs/k3s-iac-foundation/testcases.md"], text=True
+)
+for case_id in ("KIF-ARGO-01", "KIF-ARGO-02"):
+    current_row = next(line for line in current.splitlines() if line.startswith(f"| {case_id} "))
+    previous_row = next(line for line in previous.splitlines() if line.startswith(f"| {case_id} "))
+    assert current_row == previous_row, case_id
+assert len([line for line in current.splitlines() if line.startswith("| KIF-ARGO-03 ")]) == 1
+assert not subprocess.check_output(["git", "diff", "--cached", "--name-only"], text=True).strip()
+print("PASS: exact hardened-design closure, links, hygiene, and KIF-ARGO traceability")
+PY
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Ran 10 focused Argo CD hardened-design contracts — OK
+Ran 81 full offline tests — OK
+PASS: Python compile
+PASS: syntax for all 8 production playbooks
+Passed: 0 failure(s), 0 warning(s) in 38 files processed of 42 encountered; production profile
+PASS: exact 11-file documentation/test closure and unchanged protected deployable source
+PASS: exact two-file Kubernetes and four-file zero-resource OpenTofu closure
+PASS: local Markdown links, evidence hygiene, unchanged KIF-ARGO-01/02, exactly one KIF-ARGO-03, git diff, and no staged files
+```
+
+The design accepts no candidate and authorizes no runtime. It introduces no chart,
+values, manifest, Secret, Application, AppProject, RBAC object, NetworkPolicy,
+GitHub/Infisical resource, route, or deployment source. Its privileged-installer,
+future-Namespace, exact-resource-inventory, Infisical-recovery, and live-adoption-
+apply decisions remain open. Argo CD remains **CANDIDATE — NOT DEPLOYABLE — NOT
+SELECTED** with runtime **NOT RUN**, and no manual QA case closes.
 
 ## Node version discovery source-only validation — 2026-08-06
 
@@ -1337,8 +1463,8 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "Namespace idempotence plus Argo 3.5 online/static render/API/image readiness contracts pass",
-    "exact k3s admission/security/Secret/adoption/runtime and provider/state/backup pending",
+    "Namespace idempotence plus Argo 3.5 online/static readiness and source-only hardened-design contracts pass",
+    "candidate selection, five architecture decisions, deployable security/Secret/adoption/runtime, and provider/state/backup pending",
     "all nine exact Kubernetes",
     "Exact k3s\n  admission/runtime and node pullability remain unproven",
     "CANDIDATE — NOT DEPLOYABLE — NOT SELECTED",

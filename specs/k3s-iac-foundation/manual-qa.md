@@ -53,7 +53,14 @@ and controller-side image closure passed online/static review. Exact k3s admissi
 and runtime, node pullability, signing/index-to-child and Redis trust, wildcard/broad
 RBAC, ingress-only/unrestricted-egress policy, Secret recovery, private Git
 secret-zero, Namespace adoption, version selection/soak, and runtime approvals remain
-blocked. This online/static evidence closes no manual QA case.
+blocked. This online/static evidence closes no manual QA case. The
+[source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
+accepts a private ClusterIP/loopback-only access direction, quiescent retained
+ApplicationSet, supplemental default-deny, a documented broad ports-only weakness,
+phased least privilege, value-free secret custody, and two independent adoption
+Applications without implementing or proving any of them. MQA-02 private
+administration, MQA-03 Infisical rotation, and MQA-12 rollback safety remain
+**PENDING**; the design closes no manual QA case.
 The separate source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 is also **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** with runtime **NOT RUN**. Its

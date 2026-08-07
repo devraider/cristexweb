@@ -194,6 +194,16 @@ entry gate.
   image trust/vulnerability limits, private Git, and Namespace adoption without live
   API contact, version selection, deployable source, Secret, or runtime (`KIF-005`,
   `KIF-008`, `KIF-010`, `KIF-013`, `KIF-015`, `KIF-021`, `KIF-023`, `KIF-030`).
+- [x] Record the
+  [source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
+  covering private access, retained quiescent ApplicationSet, supplemental
+  ingress/egress default-deny with an explicit ports-only weakness, phased RBAC and
+  AppProjects, one-repository GitHub App credentials, value-free secret custody,
+  Redis initializer removal, two-Application Namespace adoption, and stop/rollback
+  without selecting a candidate, approving the privileged installer or future
+  Namespace writer, adding deployable source, creating a Secret, or contacting the
+  cluster (`KIF-002`, `KIF-003`, `KIF-005`, `KIF-008`, `KIF-010`, `KIF-013`–`KIF-015`,
+  `KIF-021`, `KIF-030`).
 - [x] Record official cloudflared release/source/image, token-file,
   readiness/health, and edge-transport research in a source-only
   [candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md),
@@ -233,6 +243,12 @@ entry gate.
   (`KIF-010`, `KIF-022`).
 - [ ] Prove one non-sensitive Infisical sync, rotation, and revocation without value
   disclosure (`KIF-013`–`KIF-015`).
+
+The completed hardened-design task is documentation only. It does not satisfy the
+unchecked candidate-selection, privileged-bootstrap, private-Git/Infisical,
+reconciliation, Secret, or runtime tasks above. Its five installer/ownership,
+future-Namespace, exact-resource-inventory, Infisical-recovery, and live-adoption-
+apply decisions remain open.
 
 Stop gate: stop if an admin surface becomes public, secret content appears in Git or
 logs, or bootstrap cannot be recovered.

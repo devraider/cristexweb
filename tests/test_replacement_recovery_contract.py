@@ -24,6 +24,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "argocd-candidate-provenance.md",
+                "argocd-hardened-design.md",
                 "cloudflared-candidate-provenance.md",
                 "infisical-operator-candidate-provenance.md",
                 "recovery-artifact-register.md",

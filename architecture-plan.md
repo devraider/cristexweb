@@ -72,7 +72,16 @@ registration screened successfully, and controller-side image closure was reacha
 Exact k3s admission/runtime and node pullability remain unproven. Wildcard/broad
 RBAC, ingress-only/unrestricted-egress policy, image trust, Secret recovery, private
 Git secret-zero, Namespace adoption, human selection/soak, and runtime approvals
-remain blockers. It adds no chart, values, or Kubernetes object source. The separate source-only
+remain blockers. It adds no chart, values, or Kubernetes object source. The
+[source-only hardened design](runbooks/argocd-hardened-design.md) accepts a private
+ClusterIP and loopback-only port-forward direction, retained quiescent ApplicationSet,
+supplemental ingress/egress default-deny with an explicit broad ports-only
+`443`/`6443` weakness, phased least-privilege RBAC/AppProjects, one-repository
+read-only GitHub App credentials, value-free Infisical custody, and two independent
+Namespace-adoption Applications. It selects no candidate and adds no deployable
+source. Privileged installation/post-install ownership, future Namespace creation,
+exact resource/GVR/discovery inventory, Infisical authentication/recovery, and live
+adoption apply mode remain the exact five open architecture decisions. The separate source-only
 [cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 records official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
 image evidence, token-file precedence, connection-aware readiness, and required edge
@@ -369,6 +378,25 @@ verification must meet the declared RPO/RTO before PROD.
   admission/runtime, or node pullability proof; wildcard/broad RBAC,
   ingress-only/unrestricted-egress policy, image trust, Secret recovery, private Git,
   and adoption decisions remain blocked.
+- Current source-only hardened design: the
+  [Argo CD hardened design](runbooks/argocd-hardened-design.md) keeps all Services
+  ClusterIP and administration behind Tailscale, authenticated k3s access, and a
+  loopback-only port-forward, with no route. It retains ApplicationSet quiescent;
+  its webhook listener and TCP `7000` ClusterIP Service remain present while exposure
+  and use are denied. It disables future chart policies in favor of one complete
+  supplemental ingress/egress default-deny set, explicitly accepting broad ports-only
+  TCP `443`/`6443` rather than claiming endpoint/FQDN/TLS-identity isolation. It also
+  selects the one-repository read-only GitHub App credential shape, value-free
+  Infisical custody, Redis initializer removal, phased least-privilege direction, and
+  two independent adoption Applications. This is **DESIGN ONLY**: chart `10.3.0` and
+  app `v3.5.0` remain **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**, runtime is **NOT
+  RUN**, and no RBAC, AppProject, policy, Secret, Application, chart, values, or
+  manifest source exists from this design.
+- Open hardened-design decisions: a human must still decide (1) privileged installer
+  and post-install CRD/cluster-RBAC ownership, (2) exact creation of future
+  Namespaces, (3) exact resource/GVR/discovery inventory, (4) Infisical authentication
+  and independent recovery, and (5) first-sync apply mode after live Namespace field
+  evidence. None is silently approved by this design.
 - Current source-only cloudflared evidence: the
   [candidate provenance record](runbooks/cloudflared-candidate-provenance.md) binds
   release, unsigned source, architecture-specific image, token-file, health, and

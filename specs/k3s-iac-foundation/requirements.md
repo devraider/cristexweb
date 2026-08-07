@@ -87,7 +87,19 @@ admission/runtime and node pullability remain unproven. The source-only
 binds public chart, captured signature/hash-binding, image, online/static API, RBAC,
 network, private-Git, and adoption evidence for KIF-005, KIF-008, KIF-010, KIF-013,
 KIF-015, KIF-021, KIF-023, and KIF-030 without selecting a version, closing its
-security/Secret/adoption gates, or adding deployable source. The source-only
+security/Secret/adoption gates, or adding deployable source. The separate
+[source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
+maps the private exposure, stop/rollback, ownership, RBAC, policy, secret-custody,
+and evidence direction to KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013
+through KIF-015, KIF-021, and KIF-030. It accepts ClusterIP/loopback-only
+administration, quiescent retained ApplicationSet, supplemental default-deny with a
+truthful broad ports-only weakness, one-repository read-only GitHub App credentials,
+value-free Infisical custody, disabled Redis initialization, and two independent
+adoption Applications as design only. Privileged installer/post-install ownership,
+future Namespace creation, exact resource/GVR/discovery inventory, Infisical
+authentication/recovery, and live adoption apply mode remain the exact five open
+architecture decisions; selection, source, admission, runtime, and handoff gates also
+remain open. The source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 binds exact release/source/image, token-file, health, and edge-transport evidence for
 KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, and KIF-030 while explicitly

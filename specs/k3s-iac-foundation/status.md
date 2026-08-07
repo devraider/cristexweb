@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: Namespace idempotence plus Argo 3.5 online/static render/API/image readiness contracts pass; exact k3s admission/security/Secret/adoption/runtime and provider/state/backup pending
+build: Namespace idempotence plus Argo 3.5 online/static readiness and source-only hardened-design contracts pass; candidate selection, five architecture decisions, deployable security/Secret/adoption/runtime, and provider/state/backup pending
 date: 2026-08-07
 deploy_required_after_acceptance: yes
 
@@ -65,7 +65,19 @@ note: |
   Redis trust, vulnerability policy, wildcard/broad RBAC,
   ingress-only/unrestricted-egress policy, generated/internal Secret recovery,
   private Git secret-zero, Namespace adoption, human selection/soak, and runtime
-  approvals remain blockers. The separate source-only
+  approvals remain blockers. The separate
+  [source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
+  accepts ClusterIP/loopback-only private administration, retained quiescent
+  ApplicationSet, supplemental default-deny with an explicit broad ports-only
+  `443`/`6443` weakness, phased least privilege, one-repository read-only GitHub App
+  credentials, value-free Infisical custody, disabled Redis initialization, and two
+  adoption Applications. It is **DESIGN ONLY**: chart `10.3.0` and application
+  `v3.5.0` remain **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**, runtime remains
+  **NOT RUN**, and no chart, values, policy, RBAC, AppProject, Secret, Application, or
+  route source was added. Privileged installer/post-install ownership, future
+  Namespace creation, exact resource/GVR/discovery inventory, Infisical
+  authentication/recovery, and live Namespace-adoption apply mode remain the exact
+  five open architecture decisions. The separate source-only
   [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
   binds official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
   image, token-file, health, and edge-transport evidence. It is **CANDIDATE — NOT

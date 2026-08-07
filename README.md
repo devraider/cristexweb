@@ -47,7 +47,15 @@ SELECTED**. The exact 44-document render was reproduced at Kubernetes capability
 closures were reachable from the controller. Exact k3s admission/runtime and node
 pullability remain unproven; wildcard/broad RBAC, ineffective network isolation,
 image trust, Secret recovery, private Git secret-zero, and Namespace adoption remain
-blockers. It adds no chart, values, or Kubernetes object source. A separate
+blockers. It adds no chart, values, or Kubernetes object source. The separate
+[source-only Argo CD hardened design](runbooks/argocd-hardened-design.md) accepts a
+private ClusterIP and loopback-only port-forward direction, a retained quiescent
+ApplicationSet, supplemental default-deny policy with an explicit ports-only
+`443`/`6443` weakness, phased least-privilege RBAC, one-repository read-only GitHub
+App credentials, value-free Infisical custody, and two independent Namespace-adoption
+Applications. It adds no deployable source and leaves the privileged installer,
+future Namespace creation, exact resource inventory, Infisical recovery, adoption
+apply mode, candidate selection, and runtime unresolved. A separate
 [source-only cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 binds official release, unsigned source, immutable linux/amd64 image, token-file,
 health, and edge-transport evidence. It is also **CANDIDATE — NOT DEPLOYABLE — NOT
@@ -94,9 +102,10 @@ gateway remain in the separate CristexHub application repository.
 3. [`ansible/README.md`](ansible/README.md) — discovery contract and approved command shape.
 4. [`runbooks/replacement-host-recovery.md`](runbooks/replacement-host-recovery.md) — replacement boundary, isolation gates, and decision-first recovery contract.
 5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source-only, non-deployable Argo CD candidate evidence and blockers.
-6. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
-7. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — source-only, non-deployable Infisical Operator candidate evidence and blockers.
-8. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+6. [`runbooks/argocd-hardened-design.md`](runbooks/argocd-hardened-design.md) — source-only private-access, RBAC, network, secret-custody, and adoption design; not deployment authorization.
+7. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
+8. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — source-only, non-deployable Infisical Operator candidate evidence and blockers.
+9. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -196,18 +205,19 @@ ansible/                 # discovery + bounded host changes + gated temporary QA
   roles/platform_namespace_bootstrap/
 opentofu/                # zero-resource Cloudflare-only scaffold
 kubernetes/              # exact platform Namespace source; future Argo desired state
-runbooks/                # recovery docs plus source-only candidate provenance
+runbooks/                # recovery docs plus source-only candidate/design records
   replacement-host-recovery.md
   recovery-artifact-register.md
   argocd-candidate-provenance.md
+  argocd-hardened-design.md
   cloudflared-candidate-provenance.md
   infisical-operator-candidate-provenance.md
 tests/                   # offline contract tests only
 ```
 
 Only `ansible/`, the zero-resource `opentofu/` scaffold, the two platform Namespace
-manifests under `kubernetes/`, documentation-only recovery and candidate-provenance
-records under `runbooks/`, and offline `tests/` currently exist. Kustomize remains intended for
+manifests under `kubernetes/`, documentation-only recovery, candidate-provenance, and
+hardened-design records under `runbooks/`, and offline `tests/` currently exist. Kustomize remains intended for
 first-party application overlays; Helm is reserved for selected third-party
 components. Argo ownership remains pending until Argo CD is installed, the two
 Namespaces are adopted or registered through an Application, and successful sync
