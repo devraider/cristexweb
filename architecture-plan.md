@@ -32,11 +32,16 @@ application-repository concern.
 A read-only host inspection observed a Debian 13 single-node k3s server with about
 16 GiB RAM, an NVMe system disk, a separate unmounted 1 TB rotational disk with one
 partition and filesystem still unverified, and Tailscale installed. k3s is active.
-Approved extended elevated discovery has reverified the datastore,
-node, Traefik, local-path StorageClass (`Delete`, `WaitForFirstConsumer`, no
-expansion), zero current PV/PVC objects, and curated kube-system workload indicators
-through the protected group-scoped kubeconfig. Reboot recovery, independent fallback
-access, CNI behavior, and NetworkPolicy enforcement are verified for the current
+Approved extended elevated discovery has reverified the datastore, node, Traefik,
+local-path StorageClass (`Delete`, `WaitForFirstConsumer`, no expansion), zero
+current PV/PVC objects, and curated kube-system workload indicators through the
+protected group-scoped kubeconfig. That historical live report did not capture a
+Kubernetes version and used `shared-data` rather than the current `shared-services`
+PVC scope. A schema-v3 exact Node kubelet-version projection now passes offline
+validation only; target version and Argo CD compatibility remain unproven until one
+separately approved elevated read-only rerun is human-reviewed. Reboot recovery,
+independent fallback access, CNI behavior, and NetworkPolicy enforcement are
+verified for the current
 single-node cluster; replacement-host recovery still requires separate verification.
 
 The external CristexHub application repository publishes backend, frontend, and
@@ -230,8 +235,9 @@ verification must meet the declared RPO/RTO before PROD.
   host, cluster, or elevated access still requires its own explicit approval.
 - Work: use Ansible built-ins for bounded host facts and
   `kubernetes.core.k8s_info` for exact Kubernetes kinds. Project only curated OS,
-  capacity, service, filesystem, datastore-presence, and object-name/count fields
-  into one controller-local report.
+  capacity, service, filesystem, datastore-presence, object-name/count fields, and
+  the existing Node name/cluster scope plus exact kubelet version string into one
+  controller-local report.
 - Safety: the play requires check/diff mode, an explicit one-host limit, default
   non-elevation, and two explicit flags before narrowly scoped become tasks. It
   never uses shell/command automation or queries Secret, ConfigMap, Events, or a
@@ -248,9 +254,11 @@ verification must meet the declared RPO/RTO before PROD.
   exact objects, and passed a separate zero-residue cleanup check. The approved bootstrap directly requested only
   `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
   dependencies, and post-install imports pass. The
-  elevated report confirms the datastore and nine available exact Kubernetes
-  queries. Reboot recovery and the bounded CNI/NetworkPolicy probe passed;
-  replacement-host recovery remains unproven.
+  elevated report confirms the datastore and nine then-current available exact
+  Kubernetes queries. The schema-v3 kubelet-version and current `shared-services`
+  projections pass offline checks only; the historical live report contains neither
+  the version nor current PVC scope. Reboot recovery and the bounded
+  CNI/NetworkPolicy probe passed; replacement-host recovery remains unproven.
 - Gate: human-reviewed local report and decision register update.
 - Stop: a task needs mutation, secret output, or elevated access beyond the two
   approved dependency packages and discovery scope.
@@ -277,7 +285,8 @@ verification must meet the declared RPO/RTO before PROD.
 
 ### Stage 4 — minimal GitOps and secrets bootstrap
 
-- Entry: pinned versions and approved secret-zero procedure.
+- Entry: pinned component versions, human-reviewed target kubelet-version evidence,
+  verified Kubernetes compatibility, and an approved secret-zero procedure.
 - Work: first create or reconcile only the committed `argocd` and `platform-edge`
   Namespaces through the bounded Ansible exception, then bootstrap Argo CD, private
   repository access, Infisical operator, and one non-sensitive demonstration secret.

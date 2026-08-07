@@ -17,9 +17,11 @@ fresh-session cluster listing, and second-run idempotence have passed. The execu
 user-scoped client-defaults playbook removes k3s multicall warnings without exposing
 server configuration. The separately approved one-reboot recovery playbook passed
 with SSH/Tailscale return, running services, a Ready node, and preserved access.
-Discovery gathers
-curated host indicators with built-ins and exact Kubernetes kinds with
-`kubernetes.core.k8s_info`. A gated Ansible playbook pins the OpenTofu CLI. Its
+Discovery gathers curated host indicators with built-ins and exact Kubernetes
+kinds with `kubernetes.core.k8s_info`. Current source adds a bounded Node branch
+that projects only the existing curated name/cluster scope and exact kubelet
+version string; that changed schema has offline evidence only. A gated Ansible
+playbook pins the OpenTofu CLI. Its
 approved host check passed at `ok=27 changed=6 failed=0`; the first live attempt
 stopped at `ok=21 changed=2 failed=1` because the host had no route to GitHub, after
 creating only exact parent directories and the empty protected state directory. The
@@ -38,9 +40,12 @@ Approved non-elevated and extended elevated check/diff runs produced the ignored
 local report. The extended report confirms the unmounted 1 TB rotational disk,
 NVMe/root capacity, local-path behavior, and zero current PV/PVC objects without
 identifying the unmounted filesystem or touching disk contents. That historical
-live report queried `shared-data` as its fifth PVC scope. Current source instead
-queries `shared-services`; that scope change is offline-only until a separately
-approved read-only discovery rerun. An earlier
+live report queried `shared-data` as its fifth PVC scope and did not capture a
+Kubernetes version. Current source instead queries `shared-services`
+and projects `status.nodeInfo.kubeletVersion` from the existing exact Node query;
+both changes are offline-only until one separately approved elevated read-only
+discovery rerun. No Argo CD compatibility claim is made before that result is
+human-reviewed. An earlier
 approved elevated attempt identified missing remote Python dependencies. The
 bounded two-package Ansible bootstrap was reviewed and installed; post-install
 imports and the prior nine exact Kubernetes queries pass. That report confirms the
@@ -107,8 +112,10 @@ and a unique Run ID.
 
 The approved non-elevated discovery run passed and its curated host report was
 reviewed locally. It did not use become or query Kubernetes. Syntax and lint also
-passed. Any further or elevated run still requires separate approval; command shapes
-are documented in [`ansible/README.md`](ansible/README.md).
+passed. The source-only schema-v3 Node version projection also passes offline
+contracts, but has not refreshed the ignored report. Any further or elevated run
+still requires separate approval; command shapes are documented in
+[`ansible/README.md`](ansible/README.md).
 
 ## Selected direction
 

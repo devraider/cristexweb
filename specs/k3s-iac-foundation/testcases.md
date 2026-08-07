@@ -26,6 +26,8 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-ANS-09 | KIF-006, KIF-007 | Reproducible controller environment | `pyproject.toml` and `uv.lock` pin the ignored project `.venv`; Galaxy installs the pinned collection only into the ignored local Ansible path | PASS — `uv sync --locked`, dependency-pin contract, ignore checks, and project-local Ansible commands passed |
 | KIF-ANS-10 | KIF-001, KIF-007, KIF-030 | Approved non-elevated host discovery | Ansible ping and exactly one check/diff-limited host run pass; only the ignored controller-local report changes and receives human review | PASS — ping changed=false; play recap ok=14, changed=1 local report, failed=0, unreachable=0, skipped=1; valid JSON mode 0600 reviewed; no become or Kubernetes query |
 | KIF-ANS-11 | KIF-001, KIF-008, KIF-030 | Elevated failure diagnosis | Human-reviewed elevated report and a bounded read-only import probe explain unavailable Kubernetes queries without emitting kubeconfig or secrets | PASS — datastore exists; nine queries unavailable; remote `kubernetes`, `yaml`, and `jsonpatch` imports all false |
+| KIF-ANS-12 | KIF-001, KIF-008, KIF-030 | Exact Node version projection offline contract | Schema v3 adds an exact existing-Node branch that emits only curated name/cluster scope and `status.nodeInfo.kubeletVersion`; missing metadata/status/nodeInfo safely fall back to `unknown`; raw resource/nodeInfo, other Node status, IDs, addresses, labels/annotations, kernel/container-runtime fields, and new query kinds remain absent | PASS — exact-branch static contract and a three-Node synthetic render (complete, missing status, missing nodeInfo) passed with sensitive fixture fields omitted and exact `unknown` fallbacks; full offline suite, syntax, and production lint passed without inventory or Kubernetes API access |
+| KIF-ANS-13 | KIF-001, KIF-002, KIF-008, KIF-030 | Target kubelet version and current PVC scope runtime | One separately approved elevated read-only check/diff rerun refreshes the ignored mode-0600 report; human review confirms actual kubelet version and `shared-services` scope before Argo CD compatibility is decided | NOT RUN — historical live report used `shared-data` and did not capture Kubernetes version; current schema-v3/source changes are offline-only and no compatibility claim is made |
 | KIF-DEP-01 | KIF-002, KIF-007 | Approved dependency bootstrap contract | Separate one-host playbook requires explicit approval and directly requests only `python3-kubernetes` and `python3-jsonpatch`; no cache refresh, shell, command, latest, upgrade, or other direct package exists | PASS — contract test, syntax check, and production-profile lint passed |
 | KIF-DEP-02 | KIF-002, KIF-007 | Dependency bootstrap execution | Check/diff package plan is reviewed before the approved actual installation; subsequent import probe and elevated discovery pass | PASS — incomplete first plan rejected; revised plan reviewed 37 new, 0 upgraded/removed; installation, package verification, imports, and elevated discovery passed |
 | KIF-ADM-01 | KIF-002, KIF-007 | Group-scoped admin access contract | Explicit approval and one-host limit gate an existing nonzero-UID account; exact dedicated group rejects GID 0, numeric aliases, and unexpected members; check-safe creation, no home creation, persistent `0640` settings, hidden diff, safe rollback baseline, conditional restart, polling, metadata assertions, and effective readability as the selected user are present | PASS — contract test, syntax check, and production-profile lint passed |
@@ -47,6 +49,56 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-TOFU-04 | KIF-013, KIF-028, KIF-030 | Local-state encryption and off-node recovery gate | Timestamped encrypted Google Drive copies, independent key custody, integrity verification, and isolated restore pass before the first apply | NOT RUN/BLOCKED — no state exists; encryption, Drive identity, copy, retention, key recovery, and restore remain `UNKNOWN — STOP` |
 | KIF-NS-01 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-030 | Bounded platform Namespace bootstrap offline contract | Exact committed `argocd` and `platform-edge` Namespace manifests are the sole definition; a non-passthrough entrypoint rejects `--start-at-task`, `--step`, and all extra arguments; the wrapper launches the repository `.venv` controller in an allowlisted clean environment and supplies a private random single-run attestation; the mutating task independently requires that attestation, reloads only literal manifest paths, and rejects extra top-level/metadata keys; a first-task internal-variable guard, canonical non-symlink ancestor/leaf validation, approval/diff/exact-limit/kubeconfig/protected-result gates, foreign-existing refusal, present-only reconciliation, exact post-verification, truthful ownership labels, executable closure, and no deletion/other-kind path are enforced | PASS — focused structural, control-flow, and synthetic ancestor-symlink contracts, controller-only forged-extra-var rejection, full offline suite, syntax, synthetic discovery validation, and production lint passed without inventory or Kubernetes API contact |
 | KIF-NS-02 | KIF-002, KIF-005, KIF-010, KIF-030 | Platform Namespace bootstrap runtime | Reviewed check predicts exactly the two absent Namespaces; approved live run creates them, verifies labels/services, and second run converges changed=0 without installing Argo CD/cloudflared or creating a route | NOT RUN — no inventory, SSH, kubeconfig, Kubernetes API, Namespace mutation, Secret, workload, Service, or route operation occurred |
+
+## Node version discovery source-only validation — 2026-08-06
+
+This validation was controller-local only. It did not use inventory, SSH, become,
+the protected kubeconfig, a Kubernetes API, host, provider, registry, secret, or
+deployment operation. It did not read or rewrite the ignored live report. The
+synthetic Node versions, missing-field cases, and sensitive input fields are test data,
+not claims about the target cluster.
+
+```bash
+python3 -m unittest -v \
+  tests.test_ansible_contract.AnsibleSafetyTests.test_node_version_projection_is_exact_and_bounded \
+  tests.test_ansible_contract.AnsibleSafetyTests.test_kubernetes_queries_are_exact_and_exclude_sensitive_kinds \
+  tests.test_ansible_contract.AnsibleSafetyTests.test_storage_queries_are_exact_and_pvc_scopes_are_bounded \
+  tests.test_ansible_contract.AnsibleSafetyTests.test_storage_report_is_curated_and_omits_identifying_raw_fields
+python3 -m unittest discover -s tests -v
+python3 -m compileall -q tests
+cd ansible
+uv run ansible-playbook ../tests/validate_storage_report.yml
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-lint playbooks/discover.yml roles/read_only_discovery ../tests/validate_storage_report.yml
+uv run ansible-lint . ../tests/validate_storage_report.yml
+cd ..
+# Run the embedded documentation/traceability validation under
+# "Exact command and actual result" below.
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Ran 4 focused discovery contracts — OK
+Ran 48 full offline tests — OK
+PASS: Python compile
+Synthetic schema-v3 Node/storage render: ok=4 changed=0 failed=0
+PASS: syntax for all 8 production playbooks
+Passed: 0 failure(s), 0 warning(s) in 9 focused files; production profile
+Passed: 0 failure(s), 0 warning(s) in 38 files processed of 42 encountered; production profile
+PASS: embedded documentation/traceability validation
+PASS: git diff check and no staged files
+```
+
+The active virtual environment warning only stated that the separate application
+repository environment was ignored in favor of this repository's locked `.venv`.
+The current target kubelet version, current `shared-services` live result, and Argo
+CD compatibility remain NOT RUN pending one separately approved elevated read-only
+rerun and human review.
 
 ## Replacement-host recovery first increment offline validation — 2026-08-05
 
@@ -512,6 +564,7 @@ required=(
   tests/reject_platform_namespace_task_start.sh
   tests/validate_platform_namespace_clean_controller.sh
   tests/test_replacement_recovery_contract.py
+  tests/validate_storage_report.yml
   runbooks/replacement-host-recovery.md
   runbooks/recovery-artifact-register.md
   specs/k3s-iac-foundation/brief.md
@@ -580,8 +633,9 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "prior host/network/storage/OpenTofu evidence passes; argocd/platform-edge Namespace bootstrap passes offline only",
+    "schema-v3 kubelet-version discovery and Namespace bootstrap pass offline",
     "all nine exact Kubernetes",
+    "Argo CD compatibility is not established",
     "executed group-scoped k3s",
 ]:
     assert statement in status, statement
@@ -696,7 +750,7 @@ printf '%s\n' 'PASS: ignore policy, git diff check, and no-staged-files check'
 Actual result (exit 0 on 2026-08-06):
 
 ```text
-Ran 47 tests
+Ran 48 tests
 OK
 PASS: Ansible/OpenTofu/Namespace layout, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan
 PASS: ignore policy, git diff check, and no-staged-files check

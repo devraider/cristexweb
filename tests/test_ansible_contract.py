@@ -643,7 +643,8 @@ class AnsibleSafetyTests(unittest.TestCase):
 
     def test_storage_report_is_curated_and_omits_identifying_raw_fields(self) -> None:
         template = (ANSIBLE / "roles/read_only_discovery/templates/report.json.j2").read_text()
-        self.assertIn('"schema_version": 2', template)
+        self.assertEqual(1, template.count('"schema_version": 3'))
+        self.assertNotIn('"schema_version": 2', template)
         for required in (
             '"block_devices"',
             '"size_bytes"',
@@ -679,6 +680,62 @@ class AnsibleSafetyTests(unittest.TestCase):
             "ansible.builtin.script",
         ):
             self.assertNotRegex(self.task_text, rf"{re.escape(forbidden_module)}\s*:")
+
+    def test_node_version_projection_is_exact_and_bounded(self) -> None:
+        template = (ANSIBLE / "roles/read_only_discovery/templates/report.json.j2").read_text()
+        node_branch_start = template.index("{% if query_result.item.id == 'nodes' %}")
+        node_branch_end = template.index(
+            "{% elif query_result.item.id == 'storage_classes' %}", node_branch_start
+        )
+        node_branch = template[node_branch_start:node_branch_end]
+        expected_node_branch = """{% if query_result.item.id == 'nodes' %}
+          {
+            "name": {{ resource.get('metadata', {}).get('name', 'unknown') | to_json }},
+            "namespace": {{ resource.get('metadata', {}).get('namespace', 'cluster-scoped') | to_json }},
+            "kubelet_version": {{ resource.get('status', {}).get('nodeInfo', {}).get('kubeletVersion', 'unknown') | to_json }}
+          }{% if not loop.last %},{% endif %}
+"""
+        self.assertEqual(expected_node_branch, node_branch)
+        self.assertEqual(1, template.count("query_result.item.id == 'nodes'"))
+        self.assertEqual(
+            1,
+            template.count(
+                "resource.get('status', {}).get('nodeInfo', {}).get("
+                "'kubeletVersion', 'unknown')"
+            ),
+        )
+        for forbidden in (
+            "resource |",
+            "resource.status",
+            "resource.get('status', {}) |",
+            "kernelVersion",
+            "containerRuntimeVersion",
+            "machineID",
+            "systemUUID",
+            "bootID",
+            "metadata.labels",
+            "metadata.annotations",
+            "status.addresses",
+        ):
+            self.assertNotIn(forbidden, node_branch)
+        self.assertNotIn('"kubelet_version"', template[:node_branch_start])
+        self.assertNotIn('"kubelet_version"', template[node_branch_end:])
+
+        fixture = (ROOT / "tests/validate_storage_report.yml").read_text()
+        for required in (
+            "synthetic-node-without-status",
+            "synthetic-node-without-node-info",
+            "kernelVersion: synthetic-kernel",
+            "containerRuntimeVersion: synthetic-runtime",
+            "machineID: synthetic-machine-id",
+            "systemUUID: synthetic-system-uuid",
+            "bootID: synthetic-boot-id",
+            "addresses:",
+            "labels:",
+            "annotations:",
+            "'kubelet_version': 'unknown'",
+        ):
+            self.assertIn(required, fixture)
 
     def test_storageclass_and_volume_projection_is_exact_and_path_safe(self) -> None:
         template = (ANSIBLE / "roles/read_only_discovery/templates/report.json.j2").read_text()

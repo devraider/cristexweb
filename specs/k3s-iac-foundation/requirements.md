@@ -21,7 +21,7 @@
 | ID | Requirement |
 |---|---|
 | KIF-007 | Ansible host changes are bounded, reviewable in check/diff mode, idempotent, and preserve SSH/Tailscale recovery access. |
-| KIF-008 | The existing k3s datastore, CNI/interface indicators, NetworkPolicy objects, DNS, Traefik, StorageClass, disks, and resource capacity are discovered before design choices are applied; CNI behavior and NetworkPolicy enforcement require later approved functional probes and are not inferred from object listings. |
+| KIF-008 | The existing k3s datastore, exact Node kubelet version, CNI/interface indicators, NetworkPolicy objects, DNS, Traefik, StorageClass, disks, and resource capacity are discovered before design choices are applied; CNI behavior, NetworkPolicy enforcement, and component compatibility require later approved evidence and are not inferred from object listings alone. |
 | KIF-009 | Bundled k3s Traefik remains the sole ingress controller until an explicitly approved replacement migration. |
 
 ## Networking and exposure
@@ -76,7 +76,9 @@
 to offline, integration, security, recovery, or manual evidence. The current
 Ansible discovery satisfies its offline, syntax/lint, approved host-access,
 dependency-bootstrap, curated host/cluster-indicator, and functional
-CNI/NetworkPolicy enforcement gates. Exact platform Namespace source and its bounded
+CNI/NetworkPolicy enforcement gates. The exact kubelet-version projection passes
+source-only validation, but the target value and compatibility gate remain NOT RUN.
+Exact platform Namespace source and its bounded
 bootstrap pass offline contracts only; cluster execution remains pending. The
 foundation does not satisfy replacement-host recovery, general host-baseline, or
 later platform mutation gates. Unresolved storage, secret bootstrap, and RPO/RTO

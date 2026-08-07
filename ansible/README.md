@@ -3,11 +3,13 @@
 This directory contains the repository's first Ansible implementation: a small,
 read-only discovery playbook. It gathers bounded host facts with built-in modules
 and queries exact Kubernetes kinds with `kubernetes.core.k8s_info`. Its storage
-projection includes only curated block-device, partition, mounted-filesystem-type,
-and mount-state indicators; exact StorageClass fields; bounded PersistentVolume
-metadata; and PersistentVolumeClaim metadata from five fixed namespaces. It does
-not configure the host, install dependencies, read filesystem contents, or prove
-CNI behavior or NetworkPolicy enforcement.
+projection includes only the existing curated Node name/cluster scope plus exact
+`status.nodeInfo.kubeletVersion`; curated block-device, partition,
+mounted-filesystem-type, and mount-state indicators; exact StorageClass fields;
+bounded PersistentVolume metadata; and PersistentVolumeClaim metadata from five
+fixed namespaces. It does not configure the host, install dependencies, read
+filesystem contents, or prove compatibility, CNI behavior, or NetworkPolicy
+enforcement.
 
 ## Controller environment
 
@@ -341,7 +343,7 @@ logs, or renders kubeconfig content.
 
 ## Output and privacy
 
-The only write is a controller-local schema-v2 report at
+The only write is a controller-local schema-v3 report at
 `inventory.local.ansible.json` in the repository root. It is ignored by Git,
 written mode `0600`, has task diff disabled, and is refused when the destination is
 a symlink. Target discovery remains read-only even though the local report task
@@ -350,14 +352,19 @@ must run with `check_mode: false`.
 Raw facts and Kubernetes objects are marked `no_log` and fact caching is memory-only.
 The report projects only selected OS/capacity/service fields; device/partition size,
 rotational/removable state, mounted state, and filesystem types observed in mount
-facts; exact StorageClass behavior fields; and bounded PV/PVC capacity, binding,
-claim, backend-type, and placement booleans. Current source limits PVC queries to
-`default`, `kube-system`, `shared-services`, `cristexhub-dev`, and `cristexhub-prod`;
-no Secret, ConfigMap, Event, or broad PVC query is made. The prior live extended
-report used `shared-data` as its fifth scope. The `shared-services` source change is
-offline-only pending a separately approved read-only rerun. Generated PV identifiers and backing
-paths are not rendered: placement is reduced to backend, node-affinity presence,
-and whether a host path is under the fixed k3s storage root.
+facts; the existing curated Node name/cluster scope and one exact
+`kubelet_version` string; exact StorageClass behavior fields; and bounded PV/PVC
+capacity, binding, claim, backend-type, and placement booleans. The Node branch does
+not render raw `nodeInfo`, addresses, identifiers, kernel/container-runtime fields,
+labels, or annotations. Current source limits PVC queries to `default`,
+`kube-system`, `shared-services`, `cristexhub-dev`, and `cristexhub-prod`; no Secret,
+ConfigMap, Event, new API kind, or broad PVC query is made. The prior live extended
+report used `shared-data` as its fifth scope and did not capture a Kubernetes
+version. The schema-v3 kubelet-version projection and `shared-services` scope are
+offline-only pending one separately approved elevated read-only rerun. They do not
+yet prove target-cluster or Argo CD compatibility. Generated PV identifiers and
+backing paths are not rendered: placement is reduced to backend, node-affinity
+presence, and whether a host path is under the fixed k3s storage root.
 
 The report excludes device serials, addresses, MACs, UUIDs, annotations, labels,
 environment fields, mount source/path strings, filesystem contents, Secret data,

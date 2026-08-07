@@ -8,7 +8,41 @@
     read_only_discovery_host_summary: {}
     read_only_discovery_datastore_summary: {}
     read_only_discovery_kubernetes_raw:
-      results: []
+      results:
+        - item:
+            id: nodes
+            api_version: v1
+            kind: Node
+          api_found: true
+          resources:
+            - metadata:
+                name: synthetic-node
+                uid: 11111111-1111-1111-1111-111111111111
+                labels:
+                  sensitive.example/label: omitted
+                annotations:
+                  sensitive.example/annotation: omitted
+              status:
+                addresses:
+                  - type: InternalIP
+                    address: omitted-address
+                nodeInfo:
+                  kubeletVersion: v1.32.9+k3s1
+                  kernelVersion: synthetic-kernel
+                  containerRuntimeVersion: synthetic-runtime
+                  machineID: synthetic-machine-id
+                  systemUUID: synthetic-system-uuid
+                  bootID: synthetic-boot-id
+            - metadata:
+                name: synthetic-node-without-status
+                uid: 22222222-2222-2222-2222-222222222222
+            - metadata:
+                name: synthetic-node-without-node-info
+                uid: 33333333-3333-3333-3333-333333333333
+              status:
+                addresses:
+                  - type: Hostname
+                    address: omitted.example
     read_only_discovery_host_raw:
       ansible_facts:
         ansible_devices:
@@ -63,6 +97,23 @@
              | from_json }}
       changed_when: false
       no_log: true
+
+    - name: Require exact synthetic Node version projection
+      ansible.builtin.assert:
+        that:
+          - storage_report_rendered.schema_version == 3
+          - storage_report_rendered.kubernetes.queries | length == 1
+          - storage_report_rendered.kubernetes.queries[0].id == 'nodes'
+          - >-
+            storage_report_rendered.kubernetes.queries[0].objects ==
+            [{'name': 'synthetic-node', 'namespace': 'cluster-scoped',
+              'kubelet_version': 'v1.32.9+k3s1'},
+             {'name': 'synthetic-node-without-status',
+              'namespace': 'cluster-scoped', 'kubelet_version': 'unknown'},
+             {'name': 'synthetic-node-without-node-info',
+              'namespace': 'cluster-scoped', 'kubelet_version': 'unknown'}]
+        fail_msg: "Synthetic Node version was not projected exactly."
+      changed_when: false
 
     - name: Index synthetic block devices by exact name
       ansible.builtin.set_fact:

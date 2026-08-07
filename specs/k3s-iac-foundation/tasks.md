@@ -52,6 +52,14 @@
   human-review the mode-`0600` storage projection: unmounted 1 TB rotational disk,
   NVMe capacity, local-path behavior, and zero current PV/PVC objects confirmed;
   unmounted filesystem/content/health remain unknown (`KIF-001`, `KIF-008`, `KIF-030`).
+- [x] Bump the curated report to schema v3 and offline-validate an exact Node branch
+  that emits only name, cluster scope, and `status.nodeInfo.kubeletVersion`, while
+  retaining the current `shared-services` PVC scope and adding no query kind
+  (`KIF-001`, `KIF-008`, `KIF-030`).
+- [ ] Separately approve one elevated read-only discovery rerun and human-review the
+  actual kubelet version plus `shared-services` scope before deciding Argo CD
+  compatibility; the historical live report captured neither current field
+  (`KIF-001`, `KIF-002`, `KIF-008`, `KIF-030`).
 - [x] Implement and offline-validate CNI/NetworkPolicy `plan`, `run`, and `cleanup`
   actions with check/diff and one-host gates, a Ready linux/amd64 node, readable
   policy API, generated names, run labels, exact-UID cleanup, and no Namespace

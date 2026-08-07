@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: prior host/network/storage/OpenTofu evidence passes; argocd/platform-edge Namespace bootstrap passes offline only; cluster runtime/provider/state/backup/apply pending
+build: schema-v3 kubelet-version discovery and Namespace bootstrap pass offline; target version/Argo compatibility and runtime/provider/state/backup/apply pending
 date: 2026-08-06
 deploy_required_after_acceptance: yes
 
@@ -31,15 +31,19 @@ note: |
   fallback access, both services active, and warning-free node/all-namespace queries.
   Read-only discovery is now extended offline with curated device/partition size,
   mounted-filesystem-type, and direct mount-state indicators; exact StorageClass
-  behavior fields; bounded PV metadata; and PVC metadata from five fixed namespaces.
-  The projection emits no device serial, generated PV identifier, address, backing
-  path, filesystem content, Secret, ConfigMap, or broad PVC result. The approved
-  extended check/diff run passed at ok=17/changed=1/failed=0; the only write was the
+  behavior fields; bounded PV metadata; PVC metadata from five fixed namespaces;
+  and a schema-v3 exact Node branch limited to curated name, cluster scope, and
+  `status.nodeInfo.kubeletVersion`. The projection emits no raw `nodeInfo`, other
+  Node status, device serial, generated PV identifier, address, backing path,
+  filesystem content, Secret, ConfigMap, new API kind, or broad PVC result. The
+  approved extended check/diff run passed at ok=17/changed=1/failed=0; the only write was the
   ignored mode-`0600` controller report. Human review confirmed an unmounted 1 TB
   rotational disk with one partition, NVMe/root capacity, local-path StorageClass
   behavior, and zero current PV/PVC objects. That historical live report's fifth PVC
-  scope was `shared-data`; current source now queries `shared-services`, and the
-  changed scope is offline-only pending a separately approved read-only rerun. The
+  scope was `shared-data` and it did not capture a Kubernetes version. Current source
+  now queries `shared-services` and projects the exact kubelet version; both changes
+  pass offline only and remain NOT RUN pending one separately approved elevated
+  read-only rerun and human review. Argo CD compatibility is not established. The
   unmounted filesystem, disk health, contents, reuse decision, and off-node backup
   design remain unresolved; no disk mutation occurred.
   A bounded CNI/NetworkPolicy functional probe is implemented offline with separate

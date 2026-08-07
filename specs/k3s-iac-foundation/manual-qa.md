@@ -20,10 +20,12 @@ name CNI/NetworkPolicy probe passed live baseline, deny, selective allow/deny,
 rollback, exact-UID cleanup, and a separate zero-residue check with no Namespace or
 public exposure. Extended live storage discovery captured curated device,
 StorageClass, PV, and bounded PVC indicators without disk mutation or secret output;
-its fifth PVC scope was the then-current `shared-data`. Current source uses
-`shared-services`, but that change is offline-only pending a separately approved
-read-only rerun. The same Tailscale/SSH path remained available, closing MQA-01. The first
-replacement-host increment is documented offline: a
+its fifth PVC scope was the then-current `shared-data` and it did not capture a
+Kubernetes version. Current schema-v3 source uses `shared-services` and projects the
+exact kubelet version from the existing Node query, but both changes are offline-only
+pending one separately approved elevated read-only rerun. No Argo CD compatibility
+claim has passed. The same Tailscale/SSH path remained available, closing MQA-01.
+The first replacement-host increment is documented offline: a
 secret-free runbook/register separates reboot from replacement, stops on old-host or
 storage split-brain risk, and requires an explicit recovery identity decision. Its
 datastore/version/token/storage/RPO/RTO/off-node entries remain `UNKNOWN — STOP`.
@@ -43,7 +45,7 @@ remaining manual cases.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|
-| MQA-01 | KIF-001, KIF-007, KIF-008 | Read-only Ansible inventory and recovery access | The approved one-host check/diff run leaves SSH/Tailscale available; actual curated k3s/storage facts are captured without mutation or secret output | PASS — ok=17/changed=1 local mode-0600 report/failed=0; curated disk, StorageClass, zero PV/PVC, and continuing access reviewed. The live report used `shared-data`; current `shared-services` source is offline-only pending rerun |
+| MQA-01 | KIF-001, KIF-007, KIF-008 | Read-only Ansible inventory and recovery access | The approved one-host check/diff run leaves SSH/Tailscale available; actual curated k3s/storage facts are captured without mutation or secret output | PASS — ok=17/changed=1 local mode-0600 report/failed=0; curated disk, StorageClass, zero PV/PVC, and continuing access reviewed. The live report used `shared-data` and omitted Kubernetes version; schema-v3 kubelet-version/`shared-services` source remains offline-only pending rerun |
 | MQA-02 | KIF-005, KIF-009, KIF-010 | Private administration | Argo CD and k3s API work through the approved private path and are unreachable publicly | PENDING |
 | MQA-03 | KIF-013–KIF-015 | Infisical rotation | A test secret rotates and revokes without plaintext in Git/logs; recovery credential remains usable | PENDING |
 | MQA-04 | KIF-016–KIF-021 | DEV isolation | DEV reaches only its databases/services and cannot authenticate to or connect to PROD resources | PENDING |

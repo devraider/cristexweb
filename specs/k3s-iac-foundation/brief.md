@@ -59,10 +59,14 @@ Python is used only for offline contract tests. One
 approved non-elevated check/diff run produced
 a locally reviewed host report. A separately approved playbook directly requested
 only `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
-dependencies, and post-install imports plus all nine exact
-Kubernetes queries pass. The extended elevated report confirms the datastore,
-curated device/storage indicators, local-path behavior, and zero current PV/PVC
-objects without touching the unmounted disk. The separate
+dependencies, and post-install imports plus all nine then-current exact Kubernetes
+queries pass. The extended elevated report confirms the datastore, curated
+device/storage indicators, local-path behavior, and zero current PV/PVC objects
+without touching the unmounted disk. It did not capture a Kubernetes version and
+used `shared-data` as its fifth PVC scope. Current source projects only the exact
+Node kubelet version and uses `shared-services`; both changes pass offline only and
+need one separately approved elevated read-only rerun before any Argo CD
+compatibility claim. The separate
 generated-name functional probe subsequently passed all live phases and exact-UID
 cleanup without Namespace create/delete. The locked local
 environment passes syntax and lint. A gated checksum-pinned OpenTofu CLI installer

@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "warning": "HUMAN REVIEW REQUIRED: this report contains curated infrastructure metadata. Review every field before sharing or committing; metadata projection cannot prove that all identifying information is absent.",
   "generated_at_utc": {{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') | to_json }},
   "target": {{ inventory_hostname | to_json }},
@@ -59,7 +59,13 @@
         "count": {{ query_result.resources | default([]) | length }},
         "objects": [
 {% for resource in query_result.resources | default([]) %}
-{% if query_result.item.id == 'storage_classes' %}
+{% if query_result.item.id == 'nodes' %}
+          {
+            "name": {{ resource.get('metadata', {}).get('name', 'unknown') | to_json }},
+            "namespace": {{ resource.get('metadata', {}).get('namespace', 'cluster-scoped') | to_json }},
+            "kubelet_version": {{ resource.get('status', {}).get('nodeInfo', {}).get('kubeletVersion', 'unknown') | to_json }}
+          }{% if not loop.last %},{% endif %}
+{% elif query_result.item.id == 'storage_classes' %}
           {
             "name": {{ resource.metadata.name | default('unknown') | to_json }},
             "provisioner": {{ resource.provisioner | default('unknown') | to_json }},
