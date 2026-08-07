@@ -56,9 +56,10 @@ scaffold. The first live run stopped after two bounded directory tasks because t
 host had no route to GitHub. The reviewed controller-cache and Ansible-transfer
 recovery subsequently passed check, live installation, and a `changed=0` rerun; the
 pinned CLI and selector now exist without host egress. Committed Kubernetes desired
-state is limited to exact `argocd` and `platform-edge` Namespace manifests plus an
-offline-only bounded Ansible bootstrap; neither Namespace nor any workload exists
-from this increment yet. The source-only
+state is limited to exact `argocd` and `platform-edge` Namespace manifests plus a
+bounded Ansible bootstrap. Its separately approved first apply created exactly those
+two Active Namespaces with the reviewed labels; no workload or other persistent kind
+exists from this increment. The source-only
 [Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 records chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
 immutable linux/amd64 images, and ignored 44-document render evidence. It is explicitly **CANDIDATE — NOT
@@ -325,12 +326,15 @@ verification must meet the declared RPO/RTO before PROD.
   assertions passed and the single changed loop task predicted exactly `argocd` and
   `platform-edge`. Check mode created nothing and skipped live post-state verification
   by design.
-- Work: through that non-passthrough wrapper only, inspect and then reconcile exactly
-  the committed `argocd` and `platform-edge` Namespace manifests with `state:
-  present`. No deletion or other persistent Kubernetes kind is authorized.
-- Gate: after the reviewed check, separately approve the first `apply`, verify exact
-  identity, labels, Active phase, and service health, then separately approve a
-  second `apply` and require `changed=0`.
+- First-apply evidence: the separately approved wrapper apply passed at
+  `ok=21 changed=1 unreachable=0 failed=0 skipped=0`; the single changed loop task
+  changed exactly the committed `argocd` and `platform-edge` Namespace manifests
+  with `state:
+  present`. Protected post-state assertions verified both exact identities, the
+  reviewed labels, `Active` phase, and service health. No deletion or other persistent
+  Kubernetes kind is authorized; none was changed.
+- Gate: separately approve a second wrapper `apply` and require `changed=0`; this
+  idempotence checkpoint remains unrun.
 - Stop: foreign ownership, an unexpected object or change, source drift, failed
   verification, or nonzero change on the second apply.
 - Ownership: Ansible remains the bootstrap writer. Argo CD is only the future desired

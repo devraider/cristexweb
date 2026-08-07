@@ -162,18 +162,20 @@ missing state recovery. Reverse changes only through another reviewed plan.
   `ansible/bin/bootstrap-platform-namespaces check` and inspect its complete result;
   it passed at `ok=19 changed=1 unreachable=0 failed=0 skipped=2`, predicted exactly
   `argocd` and `platform-edge`, and made no mutation (`KIF-002`, `KIF-005`).
-- [ ] After accepting the check result, obtain separate human approval for the first
-  `ansible/bin/bootstrap-platform-namespaces apply` and reconcile exactly the two
+- [x] After accepting the check result, obtain separate human approval for the first
+  `ansible/bin/bootstrap-platform-namespaces apply`; it passed at
+  `ok=21 changed=1 unreachable=0 failed=0 skipped=0` and reconciled exactly the two
   reviewed Namespaces (`KIF-002`, `KIF-005`).
-- [ ] Verify exact identity, labels, Active phase, and service health, then obtain
-  separate human approval for a second
+- [x] Verify exact identity, labels, Active phase, and k3s/Tailscale service health
+  after the first apply (`KIF-002`, `KIF-005`).
+- [ ] Obtain separate human approval for a second
   `ansible/bin/bootstrap-platform-namespaces apply` and require `changed=0`
   (`KIF-002`, `KIF-005`).
 
 Stop gate: stop on foreign ownership, source drift, any unexpected object or change,
-failed verification, or nonzero change on the second apply. Check mode passed without
-mutation; first apply and idempotence apply remain NOT RUN. These checklist entries
-grant no apply approval and waive no Stage 4 entry gate.
+failed verification, or nonzero change on the second apply. Check mode and first
+apply passed; the idempotence apply remains NOT RUN. These checklist entries grant no
+second-apply approval and waive no Stage 4 entry gate.
 
 ## Stage 4 — GitOps and secret bootstrap
 

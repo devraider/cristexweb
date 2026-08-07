@@ -81,9 +81,12 @@ manifests and a bounded present-only Ansible bootstrap are implemented. Its
 separately approved non-passthrough wrapper check passed at
 `ok=19 changed=1 unreachable=0 failed=0 skipped=2` and predicted changes for exactly
 those two items; check mode created nothing and skipped live post-state tasks by
-design. First apply and idempotence apply remain unrun and require separate
-approvals. Argo CD, cloudflared, Infisical, Secrets, workloads, Services, and routes
-remain unrun. A source-only
+design. The separately approved first apply passed at
+`ok=21 changed=1 unreachable=0 failed=0 skipped=0`, changed exactly both Namespace
+items, and verified exact identity, reviewed labels, Active phase, and k3s/Tailscale
+health. The second idempotence apply remains unrun, requires separate approval, and
+must report `changed=0`. Argo CD, cloudflared, Infisical, Secrets, workloads,
+Services, and routes remain unrun. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 records chart, captured signature/hash-binding, image, and ignored-render research
 for chart `10.3.0` and app `v3.5.0`, but is explicitly **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. It adds

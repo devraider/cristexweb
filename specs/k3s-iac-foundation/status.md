@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: schema-v3 discovery and Namespace wrapper check passed; Argo 3.5 target-minor screen and candidate provenance contracts pass; Namespace applies/full compatibility/provider/state/backup pending
+build: schema-v3 discovery plus Namespace check/first apply passed; Argo 3.5 target-minor screen and candidate provenance contracts pass; Namespace idempotence/full compatibility/provider/state/backup pending
 date: 2026-08-07
 deploy_required_after_acceptance: yes
 
@@ -46,8 +46,10 @@ note: |
   the sole change was the controller-local report write and target discovery remained
   read-only. Human review confirmed kubelet `v1.36.2+k3s1`, four existing Namespaces,
   all 15 bounded Kubernetes queries available, and the exact `shared-services` PVC
-  query available with count zero. `argocd`, `platform-edge`, `shared-services`,
-  `cristexhub-dev`, and `cristexhub-prod` remain absent. The first attempt omitted
+  query available with count zero. At that discovery checkpoint, `argocd`,
+  `platform-edge`, `shared-services`, `cristexhub-dev`, and `cristexhub-prod` were
+  absent. After the later first Namespace apply, `argocd` and `platform-edge` exist;
+  `shared-services`, `cristexhub-dev`, and `cristexhub-prod` remain absent. The first attempt omitted
   `-i .ansible/inventory.local.yml`, stopped at ok=3/changed=0/unreachable=1 before
   discovery, and made no host or report change; every operational command now
   explicitly loads the ignored local inventory. The
@@ -131,8 +133,13 @@ note: |
   protected preflight assertions. The manifest contract displayed exactly `argocd`
   and `platform-edge` with the reviewed three labels, and the single loop task
   predicted `changed` for both items. Check mode created nothing and skipped live
-  post-state verification by design. First apply and idempotence apply remain NOT RUN
-  and require separate approvals. Argo CD, cloudflared, `shared-services`, DEV/PROD
+  post-state verification by design. The separately approved first wrapper apply
+  passed at `ok=21 changed=1 unreachable=0 failed=0 skipped=0`; the single changed
+  loop task changed exactly `argocd` and `platform-edge`. Protected post-state
+  queries and assertions verified both exact identities, all three reviewed labels,
+  `Active` phase, and k3s/Tailscale service health. No other kind was authorized or
+  changed. The second idempotence apply remains NOT RUN, requires separate approval,
+  and must report `changed=0`. Argo CD, cloudflared, `shared-services`, DEV/PROD
   namespaces, Secrets, workloads, Services, and routes do not exist from this
   increment. The future shared service Namespace is named `shared-services`, but it
   is not created.

@@ -429,10 +429,15 @@ predicted `changed` for both items. The recap therefore reports one changed task
 not one Namespace. Check mode created no object and skipped the two live post-state
 tasks by design.
 
-A first `ansible/bin/bootstrap-platform-namespaces apply` still requires its own
-explicit approval. A second separately approved `apply` must then report `changed=0`.
-Never invoke this playbook directly and never use `--start-at-task`, `--step`, tags,
-or other task selection controls. No Namespace or Kubernetes API mutation has run.
+The separately approved first
+`ansible/bin/bootstrap-platform-namespaces apply` passed at
+`ok=21 changed=1 unreachable=0 failed=0 skipped=0`. The single changed loop task
+changed exactly `argocd` and `platform-edge`; post-state queries and protected
+assertions verified both exact identities, all three reviewed labels, `Active` phase,
+and k3s/Tailscale health before and after. No other persistent kind was authorized or
+changed. A second separately approved `apply` remains unrun and must report
+`changed=0`. Never invoke this playbook directly and never use `--start-at-task`,
+`--step`, tags, or other task selection controls.
 
 ## Approved pinned OpenTofu CLI installation
 

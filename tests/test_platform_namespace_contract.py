@@ -528,9 +528,9 @@ metadata:
             "`ansible/bin/bootstrap-platform-namespaces check`",
             "`argocd` and `platform-edge` Namespace manifests",
             "`state:\n  present`",
-            "No deletion or other persistent Kubernetes kind is authorized",
-            "separately approve the first `apply`",
-            "separately approve a\n  second `apply` and require `changed=0`",
+            "No deletion or other persistent\n  Kubernetes kind is authorized",
+            "separately approved wrapper apply passed",
+            "separately approve a second wrapper `apply` and require `changed=0`",
             "Ansible remains the bootstrap writer",
             "a label alone is not a handoff",
             "this exception does not waive the Stage 4 entry gates",
@@ -578,13 +578,13 @@ metadata:
             "predicted exactly `argocd` and `platform-edge`, and made no mutation",
             "separate human approval for the first "
             "`ansible/bin/bootstrap-platform-namespaces apply`",
-            "reconcile exactly the two reviewed Namespaces",
+            "reconciled exactly the two reviewed Namespaces",
             "separate human approval for a second "
             "`ansible/bin/bootstrap-platform-namespaces apply`",
             "require `changed=0`",
-            "Check mode passed without mutation",
-            "first apply and idempotence apply remain NOT RUN",
-            "grant no apply approval and waive no Stage 4 entry gate",
+            "Check mode and first apply passed",
+            "idempotence apply remains NOT RUN",
+            "grant no second-apply approval and waive no Stage 4 entry gate",
         ):
             self.assertIn(required, normalized_exception)
 
@@ -618,7 +618,7 @@ metadata:
         ):
             self.assertIn(required, authority)
 
-    def test_wrapper_check_evidence_is_partial_and_apply_remains_blocked(self) -> None:
+    def test_wrapper_check_evidence_is_preserved_after_first_apply(self) -> None:
         recap = "ok=19 changed=1 unreachable=0 failed=0 skipped=2"
         for relative in (
             "README.md",
@@ -632,47 +632,80 @@ metadata:
             self.assertIn(recap, (ROOT / relative).read_text(), relative)
 
         testcases = (ROOT / "specs/k3s-iac-foundation/testcases.md").read_text()
-        self.assertRegex(
-            testcases,
-            r"(?m)^\| KIF-NS-02 .* \| PARTIAL — .*predicted exactly `argocd` plus `platform-edge`; no object changed\.",
-        )
         for required in (
             "Labels: app.kubernetes.io/part-of=cristex-platform; cristex.io/bootstrap-writer=ansible; cristex.io/desired-owner=argocd",
             "Prediction: changed item=argocd; changed item=platform-edge",
             "Live post-state query and identity verification: skipped by design in check mode",
             "Namespace or other Kubernetes-object mutation: none",
-            "First apply and the second\n`changed=0` idempotence apply remain **NOT RUN**",
-            "The raw verbose output and\ncontroller-local username, UID, inode, timestamp, and path metadata are not copied\ninto Git",
+            "At this checkpoint the check did not approve the first apply; both applies were\n**NOT RUN**",
+            "later separately approved first-apply evidence below supersedes only\nthat first-apply boundary",
+        ):
+            self.assertIn(required, testcases)
+
+    def test_first_apply_evidence_is_partial_and_idempotence_remains_blocked(self) -> None:
+        recap = "ok=21 changed=1 unreachable=0 failed=0 skipped=0"
+        for relative in (
+            "README.md",
+            "ansible/README.md",
+            "architecture-plan.md",
+            "specs/k3s-iac-foundation/brief.md",
+            "specs/k3s-iac-foundation/status.md",
+            "specs/k3s-iac-foundation/tasks.md",
+            "specs/k3s-iac-foundation/testcases.md",
+        ):
+            self.assertIn(recap, (ROOT / relative).read_text(), relative)
+
+        testcases = (ROOT / "specs/k3s-iac-foundation/testcases.md").read_text()
+        for relative in (
+            "AGENTS.md",
+            "README.md",
+            "ansible/README.md",
+            "architecture-plan.md",
+            "specs/k3s-iac-foundation/brief.md",
+            "specs/k3s-iac-foundation/manual-qa.md",
+            "specs/k3s-iac-foundation/requirements.md",
+            "specs/k3s-iac-foundation/status.md",
+            "specs/k3s-iac-foundation/tasks.md",
+            "specs/k3s-iac-foundation/testcases.md",
+        ):
+            self.assertNotRegex((ROOT / relative).read_text(), r"/Users/[^/\s]+/")
+        self.assertRegex(
+            testcases,
+            r"(?m)^\| KIF-NS-02 .* \| PARTIAL — .*first apply passed at ok=21/changed=1/unreachable=0/failed=0/skipped=0, changed exactly `argocd` plus `platform-edge`.*Second idempotence apply remains NOT RUN",
+        )
+        for required in (
+            "Reconciliation: changed item=argocd; changed item=platform-edge",
+            "Post-state requery: ok for both exact items",
+            "Exact identity, all three labels, and status.phase=Active assertions: ok for both exact items under no_log",
+            "k3s and tailscaled service assertions before/after: PASS",
+            "Skipped/failed/unreachable tasks: none",
+            "Other persistent kind authorized or changed: none",
+            "The raw verbose output and controller-local username, UID, inode,\ntimestamp, and stat/path metadata are not copied into Git",
+            "second idempotence\napply remains **NOT RUN**, requires a new separate approval, and must report\n`changed=0`",
         ):
             self.assertIn(required, testcases)
 
         tasks = (ROOT / "specs/k3s-iac-foundation/tasks.md").read_text()
         normalized_tasks = " ".join(tasks.split())
         self.assertIn(
-            "- [x] Obtain separate human approval for only "
-            "`ansible/bin/bootstrap-platform-namespaces check`",
-            normalized_tasks,
-        )
-        self.assertIn(
-            "- [ ] After accepting the check result, obtain separate human approval "
+            "- [x] After accepting the check result, obtain separate human approval "
             "for the first `ansible/bin/bootstrap-platform-namespaces apply`",
             normalized_tasks,
         )
         self.assertIn(
-            "- [ ] Verify exact identity, labels, Active phase, and service health, "
-            "then obtain separate human approval for a second "
+            "- [x] Verify exact identity, labels, Active phase, and k3s/Tailscale service health",
+            normalized_tasks,
+        )
+        self.assertIn(
+            "- [ ] Obtain separate human approval for a second "
             "`ansible/bin/bootstrap-platform-namespaces apply` and require `changed=0`",
             normalized_tasks,
         )
-        self.assertNotIn(
-            "- [x] After accepting the check result",
-            tasks,
-        )
-        self.assertIn("grant no apply approval", normalized_tasks)
+        self.assertIn("grant no second-apply approval", normalized_tasks)
 
         authority = (ROOT / "AGENTS.md").read_text()
-        self.assertIn("separately approved wrapper check passed", authority)
-        self.assertIn("first apply and idempotence apply remain unrun", authority)
+        self.assertIn("separately approved first apply created exactly those two Namespaces", authority)
+        self.assertIn("second idempotence apply remains unrun", authority)
 
     def test_authoritative_ownership_wording_has_no_stale_absolute_claims(self) -> None:
         authoritative = "\n".join(

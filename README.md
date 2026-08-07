@@ -33,8 +33,10 @@ The protected directory still contains no state file, and no provider operation 
 external resource exists. The root `opentofu/` source is Cloudflare-only and has zero
 resources. Committed Kubernetes source now contains only the `argocd` and
 `platform-edge` Namespace manifests plus a gated Ansible bootstrap. Its non-mutating
-wrapper check passed; first apply and idempotence apply remain NOT RUN. No Argo CD,
-cloudflared, Infisical, Secret, workload, Service, or route exists. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
+wrapper check passed, and the separately approved first apply created exactly those
+two Active Namespaces with the reviewed labels. The idempotence apply remains NOT
+RUN and requires separate approval. No Argo CD, cloudflared, Infisical, Secret,
+workload, Service, or route exists. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, ignored-render, and
 bounded target-minor evidence while remaining explicitly **CANDIDATE — NOT
 DEPLOYABLE — NOT SELECTED**. Kubernetes minor `1.36` passes Argo CD `3.5`'s official
@@ -69,9 +71,9 @@ approved elevated attempt identified missing remote Python dependencies. The
 bounded two-package Ansible bootstrap was reviewed and installed; post-install
 imports and the prior nine exact Kubernetes queries pass. That report confirms the
 k3s datastore and curated cluster indicators; it predates the extended StorageClass,
-PV, and namespace-bounded PVC projection. Hosted runtime, OpenTofu provider initialization/state/plan/apply, persistent
-Namespace runtime, Helm chart, workflow, deployment, DNS route, tunnel, database,
-backup, and replacement recovery remain unexecuted. The
+PV, and namespace-bounded PVC projection. Hosted application runtime, OpenTofu provider initialization/state/plan/apply, the
+Namespace idempotence checkpoint, Helm chart, workflow, deployment, DNS route,
+tunnel, database, backup, and replacement recovery remain unexecuted. The
 first replacement-host increment is documentation-only: it adds a secret-free
 runbook and artifact register with fail-closed decision gates, not recovery
 automation or runtime proof. Debian plus Ansible is the host-management owner.
@@ -130,10 +132,12 @@ reconciling the committed `argocd` and `platform-edge` Namespaces with state pre
 The separately approved wrapper check passed at
 `ok=19 changed=1 unreachable=0 failed=0 skipped=2` and predicted changes for exactly
 those two absent Namespace items; the recap counts the single changed loop task.
-Check mode created nothing and intentionally skipped live post-state verification.
-The exception has no delete path. First apply and idempotence apply remain unrun and
-require separate approvals. The completed temporary probe exception used the
-verified image and explicit approvals documented in
+The separately approved first apply then passed at
+`ok=21 changed=1 unreachable=0 failed=0 skipped=0`, changed exactly both Namespace
+items, verified both identities, all three labels, Active phase, and service health,
+and created no other kind. The exception has no delete path. The second idempotence
+apply remains unrun, requires separate approval, and must report `changed=0`. The
+completed temporary probe exception used the verified image and explicit approvals documented in
 [`ansible/README.md`](ansible/README.md); every future run requires fresh approvals
 and a unique Run ID.
 
@@ -145,7 +149,7 @@ ignored local inventory because the default inventory contains only the neutral
 alias. Use this one-line zsh shape only after the required approval:
 
 ```zsh
-cd /Users/paul/Projects/cristexweb/ansible && uv run ansible-playbook -i .ansible/inventory.local.yml playbooks/discover.yml --check --diff --limit crtxweb -e read_only_discovery_enable_elevated=true -e read_only_discovery_elevated_approved=true --ask-become-pass
+cd ~/Projects/cristexweb/ansible && uv run ansible-playbook -i .ansible/inventory.local.yml playbooks/discover.yml --check --diff --limit crtxweb -e read_only_discovery_enable_elevated=true -e read_only_discovery_elevated_approved=true --ask-become-pass
 ```
 
 Any further or elevated run still requires separate approval; complete command

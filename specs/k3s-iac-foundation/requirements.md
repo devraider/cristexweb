@@ -100,8 +100,10 @@ trust, Namespace, scoped-RBAC, Argo handoff, secret-zero/recovery, traffic,
 single-node, and runtime gates blocked. Exact
 platform Namespace source and its bounded bootstrap pass offline contracts; the
 separately approved wrapper check predicted exactly `argocd` and `platform-edge`
-without mutation. First apply and idempotence apply remain pending separate
-approvals. The foundation does not
+without mutation, and the separately approved first apply created and verified those
+exact Active Namespaces with the reviewed labels and preserved service health. The
+second idempotence apply remains pending separate approval and must report
+`changed=0`. The foundation does not
 satisfy replacement-host recovery, general host-baseline, or later platform
 mutation gates. Unresolved storage, secret bootstrap, and RPO/RTO
 choices remain decision gates rather than implied requirements.
