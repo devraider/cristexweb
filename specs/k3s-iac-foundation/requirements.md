@@ -13,7 +13,7 @@
 | ID | Requirement |
 |---|---|
 | KIF-004 | Future infrastructure source and runbooks live at repository-root `ansible/`, `opentofu/`, `kubernetes/`, and `runbooks/`; application source and local-runtime assets remain external. |
-| KIF-005 | Ansible owns host configuration, OpenTofu owns approved external resources, Argo CD is the intended persistent Kubernetes reconciler, and Infisical owns secret values without overlapping reconciliation. Ansible may implement the bounded ephemeral QA probe under its guarded exception. One separate bootstrap exception may create or reconcile only the committed `argocd` and `platform-edge` Namespaces with state present, foreign-existing refusal, no deletion path, and a non-passthrough entrypoint that rejects task-skipping controls, launches only the repository controller in an allowlisted clean environment, and binds mutation to an ephemeral single-run attestation. Those manifests identify Ansible as bootstrap writer and Argo CD only as future desired owner; handoff remains pending Argo CD installation, Namespace adoption or Application registration, and successful sync evidence. |
+| KIF-005 | Ansible owns host configuration and is the selected bounded bootstrap installer for future exact foundational Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted Keycloak, privileged CRDs/cluster RBAC, and Keycloak realm/client/group reconciliation; OpenTofu owns approved external resources; Argo CD owns namespaced desired state only after object-by-object handoff; Infisical Cloud owns secret values. Each future bootstrap requires a component-specific exact source closure and separate check/apply/idempotence approvals. Ansible must stop reconciling an object before registration/adoption/successful-sync evidence transfers it to Argo; dual reconciliation is forbidden. The completed `argocd`/`platform-edge` present-only exception remains closed and authorizes no future component or Namespace. |
 | KIF-006 | The protective root `.gitignore` excludes the local `.venv`, Ansible collections/runtime data, generated state, plans, credentials, kubeconfigs, facts, local variable/override/crash files, and generated secrets, while `uv.lock` and `.terraform.lock.hcl` remain tracked. |
 
 ## Host and cluster
@@ -28,23 +28,23 @@
 
 | ID | Requirement |
 |---|---|
-| KIF-010 | DEV, SSH, k3s API, Argo CD, dashboards, databases, brokers, and administrative endpoints remain private through Tailscale or explicit port-forwarding. |
-| KIF-011 | Only an approved PROD application hostname may become public through Cloudflare Tunnel to Traefik; no direct WAN origin exposure is introduced. |
-| KIF-012 | Every exposure has positive route/auth tests and negative public-reachability tests for all private surfaces. |
+| KIF-010 | DEV, SSH, k3s API, Argo CD, dashboards, databases, brokers, Keycloak administration/management, and other administrative endpoints remain private through Tailscale or explicit port-forwarding. |
+| KIF-011 | Only an approved PROD application hostname and a separately approved stable Keycloak browser-authentication issuer may become public through Cloudflare Tunnel to Traefik; neither authorization permits direct WAN origin exposure or any identity administration/management path. |
+| KIF-012 | Every exposure has positive route/auth tests and negative public-reachability tests for all private surfaces; a later Keycloak browser-authentication route requires separate approval, exact auth-path closure, direct-origin closure, rollback evidence, and proof that identity administration and management remain private. |
 
 ## Secrets and identity
 
 | ID | Requirement |
 |---|---|
 | KIF-013 | Git, OpenTofu state/plans, Argo parameters, CI logs, examples, and documentation contain no plaintext runtime secret values. |
-| KIF-014 | Infisical Cloud initially provides separate DEV, PROD, and infrastructure scopes/identities with least-privilege Kubernetes service accounts; self-hosting is deferred. |
-| KIF-015 | Bootstrap credentials and application encryption keys have documented, off-node, tested recovery and rotation procedures. |
+| KIF-014 | Infisical Cloud initially provides separate DEV, PROD, and infrastructure scopes/identities with least-privilege Kubernetes service accounts; only its Kubernetes Operator is bootstrapped and self-hosted Infisical is deferred. Keycloak authenticates and emits groups, Argo RBAC authorizes Argo actions, and Kubernetes RBAC independently constrains controllers; direct Argo OIDC is intended with Dex absent. |
+| KIF-015 | Bootstrap credentials, Keycloak administrator and OIDC client material, Infisical machine authentication, and application encryption keys have documented, off-node, tested recovery and rotation procedures. |
 
 ## Environment and data isolation
 
 | ID | Requirement |
 |---|---|
-| KIF-016 | The cluster uses separate `argocd`, `platform-edge`, future `shared-services`, `cristexhub-dev`, and `cristexhub-prod` namespaces; applications retain separate DEV/PROD credentials, migrations, and backup paths. |
+| KIF-016 | The cluster uses separate `argocd`, `platform-edge`, future `shared-services`, `cristexhub-dev`, and `cristexhub-prod` namespaces; proposed `platform-secrets` and `platform-identity` names remain unapproved without manifests; applications retain separate DEV/PROD credentials, migrations, and backup paths. |
 | KIF-017 | Shared PostgreSQL provides separate DEV/PROD databases and owner roles; each role is denied access to the other environment. |
 | KIF-018 | Shared MongoDB provides separate DEV/PROD databases and users; each user is denied access to the other environment. |
 | KIF-019 | Shared-engine failure and contention risks are documented, bounded with requests/limits/connection limits, and accepted before PROD. |
@@ -64,9 +64,9 @@
 
 | ID | Requirement |
 |---|---|
-| KIF-026 | Database-consistent, encrypted backups are separated by environment, retained locally and off-node, integrity checked, and copied without destructive mirror semantics. |
+| KIF-026 | Database-consistent, encrypted backups are separated by environment or identity purpose, retained locally and off-node, integrity checked, and copied without destructive mirror semantics; Keycloak uses application-consistent `pg_dump`, not live-volume synchronization or realm export as backup. |
 | KIF-027 | An isolated restore proves the declared RPO/RTO before PROD acceptance; a successful backup exit code alone is insufficient. |
-| KIF-028 | Recovery covers k3s datastore/token, protected host-local single-writer OpenTofu state through encrypted timestamped off-node copies and independent key custody, Infisical bootstrap material, application encryption keys, desired state, and mutable application data. |
+| KIF-028 | Recovery covers k3s datastore/token, protected host-local single-writer OpenTofu state through encrypted timestamped off-node copies and independent key custody, Infisical bootstrap material, Keycloak database/realm/admin/OIDC material, application encryption keys, desired state, and mutable application data. |
 | KIF-029 | Resource headroom, disk usage, certificate/tunnel health, workload health, and backup freshness have bounded monitoring before public PROD. |
 | KIF-030 | Every phase records actual commands/results, revisions/digests, residual risks, and rollback evidence without leaking sensitive values. |
 
@@ -95,11 +95,21 @@ through KIF-015, KIF-021, and KIF-030. It accepts ClusterIP/loopback-only
 administration, quiescent retained ApplicationSet, supplemental default-deny with a
 truthful broad ports-only weakness, one-repository read-only GitHub App credentials,
 value-free Infisical custody, disabled Redis initialization, and two independent
-adoption Applications as design only. Privileged installer/post-install ownership,
-future Namespace creation, exact resource/GVR/discovery inventory, Infisical
-authentication/recovery, and live adoption apply mode remain the exact five open
-architecture decisions; selection, source, admission, runtime, and handoff gates also
-remain open. The source-only
+adoption Applications as design only. Ansible is selected as bounded bootstrap
+installer and privileged lifecycle owner. Exact bootstrap source/credentials, the
+proposed future Namespace exception, resource/GVR/discovery inventory, Infisical
+authentication/recovery, live adoption apply mode, and stable Keycloak OIDC remain
+six open architecture decisions; selection, source, admission, runtime, and handoff
+gates also remain open. The source-only
+[Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
+maps KIF-002, KIF-003, KIF-005, KIF-010, KIF-012 through KIF-016, KIF-021, KIF-023,
+and KIF-026 through KIF-030 to one future shared self-hosted identity architecture
+target. It distinguishes Keycloak authentication/groups, Argo RBAC, and Kubernetes
+RBAC; retains direct OIDC with Dex absent, private administration, Infisical-owned
+client secrets, dedicated PostgreSQL, encrypted off-node backup/isolated restore,
+and object-by-object handoff. It selects no Keycloak release/image/package,
+database version, hostname, route, credential, or deployable source; runtime remains
+**NOT RUN**. The source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 binds exact release/source/image, token-file, health, and edge-transport evidence for
 KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, and KIF-030 while explicitly

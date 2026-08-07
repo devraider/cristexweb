@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: Namespace idempotence plus Argo 3.5 online/static readiness and source-only hardened-design contracts pass; candidate selection, five architecture decisions, deployable security/Secret/adoption/runtime, and provider/state/backup pending
+build: Namespace idempotence, Argo 3.5 online/static readiness, and source-only Argo/Keycloak architecture contracts pass; candidate selection, six architecture decisions, deployable security/Secret/adoption/runtime, and provider/state/backup pending
 date: 2026-08-07
 deploy_required_after_acceptance: yes
 
@@ -74,10 +74,22 @@ note: |
   adoption Applications. It is **DESIGN ONLY**: chart `10.3.0` and application
   `v3.5.0` remain **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**, runtime remains
   **NOT RUN**, and no chart, values, policy, RBAC, AppProject, Secret, Application, or
-  route source was added. Privileged installer/post-install ownership, future
-  Namespace creation, exact resource/GVR/discovery inventory, Infisical
-  authentication/recovery, and live Namespace-adoption apply mode remain the exact
-  five open architecture decisions. The separate source-only
+  route source was added. Ansible is selected as the future bounded bootstrap
+  installer and lifecycle owner of privileged CRDs/cluster RBAC. Exact Ansible
+  bootstrap source/credentials, a new exception for the proposed `platform-secrets`
+  and `platform-identity` Namespaces, resource/GVR/discovery inventory, Infisical
+  authentication/recovery, live Namespace-adoption apply mode, and stable Keycloak
+  OIDC remain six open architecture decisions. The completed Namespace exception
+  stays closed. The source-only
+  [Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
+  selects one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and
+  Argo CD as the identity architecture target only. It distinguishes Keycloak
+  authentication/groups, Argo RBAC, and Kubernetes RBAC; retains direct OIDC with
+  Dex absent, local break-glass, private administration, Infisical-owned client
+  secrets, dedicated PostgreSQL, encrypted off-node backup/isolated restore, and
+  object-by-object handoff. No Keycloak release, image, package, database version,
+  hostname, route, credential, manifest, or deployable source is selected; runtime
+  remains **NOT RUN**. The separate source-only
   [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
   binds official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
   image, token-file, health, and edge-transport evidence. It is **CANDIDATE — NOT
@@ -159,9 +171,11 @@ note: |
   prove idempotence. The retry passed at
   `ok=21 changed=0 unreachable=0 failed=0 skipped=0`; both exact reconciliation items
   were `ok`, protected identity/label/`Active` assertions passed, and k3s/Tailscale
-  remained running before and after. Argo CD, cloudflared, `shared-services`, DEV/PROD
-  namespaces, Secrets, workloads, Services, and routes do not exist from this
-  increment. The future shared service Namespace is named `shared-services`, but it
-  is not created.
+  remained running before and after. Argo CD, cloudflared, Infisical Operator,
+  Keycloak, `shared-services`, DEV/PROD, proposed `platform-secrets`/
+  `platform-identity` namespaces, Secrets, workloads, Services, and routes do not
+  exist from this increment. The future shared service Namespace is named
+  `shared-services`, while both platform identity names remain design-only; none is
+  created.
   No external-resource, secret, data, or deployment operation was performed. Object
   listings and offline tests do not prove replacement recovery.

@@ -8,8 +8,8 @@ This root `AGENTS.md` is authoritative for the entire repository.
 - Python exists only in offline contract tests; it is not operational infrastructure automation.
 - This repository also contains a zero-resource Cloudflare-only OpenTofu scaffold and a gated pinned-CLI host installer. The first live attempt stopped when the host had no route to GitHub after creating only exact parent directories and the empty protected state directory. The reviewed controller-transfer recovery then passed check, installed the exact CLI without host egress, and converged at `changed=0`. The protected directory remains empty: no state file, provider initialization, plan, apply, or external resource exists.
 - No hosted runtime, general Ansible host baseline, Helm chart, or workflow exists here yet. Committed persistent Kubernetes source is limited to the `argocd` and `platform-edge` Namespace manifests. Their separately approved wrapper check passed without mutation, and the separately approved first apply created exactly those two Namespaces, verified both Active with the reviewed labels, and preserved k3s/Tailscale service health. During the separately approved idempotence checkpoint, an initial invocation stopped before service preflight and Kubernetes reconciliation because local sudo authentication failed; it reported `changed=0` and made no mutation. The retry passed at `changed=0`, reverified both exact Active Namespaces and service health, and completed the bounded exception. No Argo CD, cloudflared, Secret, workload, Service, route, or other persistent object exists from this increment.
-- CristexHub application source, local Compose assets, Keycloak theme, and Browserless gateway remain external concerns in the CristexHub application repository and must not be copied here.
-- Approved discovery, dependency installation, and the group-scoped k3s administrator access mutation have completed. The access playbook verified effective readability as the selected account and a second run was idempotent. Any other host mutation or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed.
+- CristexHub application source, local Compose assets, development Keycloak realm/theme assets, and Browserless gateway remain external concerns in the CristexHub application repository and must not be copied here. A source-only design now selects one future self-hosted Keycloak as the shared identity architecture target without selecting a release, image, package, database, hostname, route, or deployable source.
+- Approved discovery, dependency installation, and the group-scoped k3s administrator access mutation have completed. The access playbook verified effective readability as the selected account and a second run was idempotent. Any other host mutation or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed. The accepted Ansible bootstrap direction authorizes no run and adds no executable bootstrap source.
 
 ## Ownership
 
@@ -18,9 +18,10 @@ Each resource has exactly one reconciliation owner:
 | Area | Owner |
 |---|---|
 | Debian host, mounts, firewall, Tailscale host access, k3s installation | Ansible |
+| Bounded foundation bootstrap, privileged CRDs/cluster RBAC, and Keycloak realm/client/group reconciliation | Ansible |
 | Cloudflare and GitHub resources | OpenTofu |
-| Kubernetes objects and Helm releases | Argo CD |
-| Runtime secret values and rotation | Infisical |
+| Namespaced Kubernetes desired state after evidenced object-by-object handoff | Argo CD |
+| Runtime secret values and rotation | Infisical Cloud |
 | Tests, image builds, and immutable private-GHCR publication | GitHub Actions |
 | Production approvals and destructive operations | Human operator |
 
@@ -37,8 +38,24 @@ controller, and an ephemeral single-run attestation; direct playbook invocation 
 task-skipping/selection controls are forbidden. The manifests truthfully label Ansible as bootstrap writer and Argo CD
 only as future desired owner. Argo ownership remains pending until Argo CD is
 installed, the Namespaces are adopted or registered through an Application, and a
-successful sync is evidenced; a label alone is not a handoff. Ansible may not create
-any other persistent Kubernetes object.
+successful sync is evidenced; a label alone is not a handoff. That completed
+exception authorizes no other persistent Kubernetes object and must not be reopened
+or reused.
+
+Ansible is selected as the bounded bootstrap installer for future exact foundational
+Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted
+Keycloak, and privileged cluster-scoped prerequisites. Each component requires its
+own future exact source closure and separate check/apply/idempotence approvals; no
+such executable source or runtime approval exists yet. Ansible remains lifecycle
+owner of foundation CRDs, ClusterRoles, ClusterRoleBindings, and Keycloak
+realm/client/group reconciliation unless a later explicit decision replaces it.
+Namespaced workload specifications may hand off to Argo one exact object set at a
+time only after Ansible stops reconciling those objects and registration, adoption,
+successful sync, and managed-field evidence pass. Dual reconciliation is forbidden.
+The proposed `platform-secrets` and `platform-identity` Namespace names are design
+only and have no manifest or runtime authorization. The source-only
+[Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md) records
+the production identity, database, recovery, exposure, and handoff gates.
 
 Implementation belongs at repository-root `ansible/`, `opentofu/`,
 `kubernetes/`, and `runbooks/`. Do not use OpenTofu Kubernetes or Helm providers
@@ -86,8 +103,9 @@ destroy as routine rollback.
 
 - Retain bundled k3s Traefik as the sole ingress controller unless a later approved migration replaces it. Do not add a second ingress controller.
 - PROD application traffic may become public only through an explicitly reviewed Cloudflare Tunnel route to Traefik.
-- DEV, SSH, the k3s API, Argo CD, dashboards, databases, brokers, code-runner, and administrative endpoints remain private through host Tailscale or explicit port-forwarding.
+- DEV, SSH, the k3s API, Argo CD, dashboards, databases, brokers, code-runner, Keycloak administration/management, and other administrative endpoints remain private through host Tailscale or explicit port-forwarding.
 - Databases and brokers must never receive public Ingress, NodePort, or Tunnel routes.
+- A future shared Keycloak browser-authentication route requires its own public-route approval and negative administration/management reachability tests; no Keycloak route is authorized now.
 - Every exposure change must document authentication, source, destination, port, expected public status, negative reachability checks, and rollback.
 
 ## Secrets and state
@@ -105,6 +123,7 @@ destroy as routine rollback.
 - DEV and PROD must have separate databases, owners/users, credentials, migrations, backup sets, and negative cross-access tests.
 - Redis remains environment-local. A shared RabbitMQ requires separate users and virtual hosts plus resource limits.
 - Stateful work requires a verified backup before mutation and an isolated restore rehearsal before production acceptance.
+- Future Keycloak requires a dedicated PostgreSQL database/principal/PVC, encrypted application-consistent `pg_dump`, non-destructive off-node copy, integrity verification, independent key custody, and an isolated restore meeting declared RPO/RTO before identity state is accepted.
 - Rollback prefers Git revert and a previously verified image digest. Database changes must be forward-compatible or have a tested data recovery plan.
 
 ## Delivery and evidence

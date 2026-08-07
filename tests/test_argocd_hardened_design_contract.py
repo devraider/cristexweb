@@ -42,7 +42,7 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
             "Argo CD runtime remains **NOT RUN**",
             "does not select a\nrelease, authorize bootstrap, contact the cluster",
             "does not select a\nrelease, authorize bootstrap, contact the cluster, or add a chart, values file,\nrendered YAML, manifest, Secret, Application, AppProject, NetworkPolicy, RBAC object",
-            "privileged\ninstaller, permanent ownership of privileged artifacts, and creation of future\nNamespaces remain unresolved human decisions",
+            "Ansible is\nselected as the future bounded bootstrap installer and lifecycle owner of privileged\nCRDs and cluster RBAC",
             "There is no runtime\nrollback because no runtime action occurred",
         ):
             self.assertIn(required, self.text)
@@ -57,6 +57,17 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
             "Server TLS remains\nenabled",
             "Dex and notifications remain absent",
             "Metrics Services and ServiceMonitors remain\nabsent",
+        ):
+            self.assertIn(required, self.text)
+
+    def test_ansible_bootstrap_and_direct_oidc_boundary(self) -> None:
+        for required in (
+            "Ansible is\nselected as the future bounded bootstrap installer",
+            "lifecycle owner of privileged\nCRDs and cluster RBAC",
+            "Direct OIDC to the future selected shared Keycloak is the intended design",
+            "stable issuer,\ncallback, TLS, NetworkPolicy, Secret, and positive/negative authorization evidence",
+            "Direct Keycloak OIDC client",
+            "Infisical-owned client secret after OIDC positive/negative and recovery proof",
         ):
             self.assertIn(required, self.text)
 
@@ -95,6 +106,7 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
                 "application-controller to API class": ("TCP `443` and conservative translated TCP `6443`", "Watches and reconciliation"),
                 "ApplicationSet to API class": ("TCP `443` and conservative translated TCP `6443`", "Bounded Argo-resource reconciliation"),
                 "repo-server to approved HTTPS": ("broad TCP `443`", "Exact private repository and reviewed HTTPS dependencies"),
+                "server to selected OIDC issuer": ("conditional future TCP `443`", "Direct OIDC discovery, code exchange, and key retrieval only after identity approval"),
                 "DNS clients to CoreDNS": ("UDP/TCP `53`", "Name resolution for controller, server, repo-server, and ApplicationSet"),
                 "loopback port-forward to server": ("node-origin stream to TCP `8080`", "Private UI, API, and gRPC administration"),
             },
@@ -117,8 +129,8 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         for required in (
             "AppProject policy and Kubernetes RBAC are independent enforcement layers",
             "Kubernetes\nRBAC must be equal to or narrower",
-            "future privileged installation phase requires separate human approval",
-            "permanently owns Argo CRDs, ClusterRoles, and ClusterRoleBindings remains\nopen",
+            "Ansible is selected for a future bounded privileged installation phase",
+            "Ansible remains lifecycle owner of Argo CRDs,\nClusterRoles, and ClusterRoleBindings",
             "server does not receive the chart's broad ClusterRole",
             "Repo-server has a dedicated ServiceAccount, no API token, no Role, and no\n  RoleBinding",
             "Initial runtime rules omit `delete`, `deletecollection`, `escalate`, `bind`",
@@ -164,6 +176,7 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
                 "`argocd-redis`",
                 "`argocd-server-tls`",
                 "Direct repository credential",
+                "Direct Keycloak OIDC client",
                 "Infisical authentication",
             },
             set(self.table("## Private Git and value-free secret custody")),
@@ -195,11 +208,12 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
             self.assertIn(required, self.text)
         self.assertEqual(
             {
-                "D1": ("Privileged installer and post-install ownership", "Exact writer, credential lifetime, CRD/RBAC upgrade owner, and escalation controls require human approval"),
-                "D2": ("Future Namespace creation", "Kubernetes RBAC cannot restrict create by name and the earlier Ansible exception is closed"),
+                "D1": ("Exact Ansible bootstrap closure and credentials", "Installer and privileged lifecycle owner are selected, but exact source, objects, credential lifetime, escalation controls, and separate approvals remain undefined"),
+                "D2": ("Future Ansible Namespace exception", "`platform-secrets` and `platform-identity` are proposed only; Kubernetes RBAC cannot restrict create by name and the earlier exception remains closed"),
                 "D3": ("Exact resource, GVR, and discovery inventory", "Runtime Roles and Projects cannot be authored safely before every required kind and discovery path is enumerated"),
                 "D4": ("Infisical authentication and independent recovery", "Authentication method, scope, custodians, RPO/RTO, and isolated recovery remain unselected"),
                 "D5": ("Live Namespace-adoption apply mode", "Managed-field, tracking, last-applied, and diff evidence is unavailable until a separately approved read-only checkpoint"),
+                "D6": ("Stable Keycloak issuer and Argo OIDC/RBAC", "Release, private callback, TLS, client secret, group mappings, negative authorization, logout, and recovery evidence remain absent"),
             },
             self.table("## Open architecture decisions"),
         )

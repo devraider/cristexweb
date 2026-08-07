@@ -7,9 +7,10 @@
 This source-only record accepts a hardened design direction. It does not select a
 release, authorize bootstrap, contact the cluster, or add a chart, values file,
 rendered YAML, manifest, Secret, Application, AppProject, NetworkPolicy, RBAC object,
-GitHub resource, Infisical resource, route, or other deployable source. The privileged
-installer, permanent ownership of privileged artifacts, and creation of future
-Namespaces remain unresolved human decisions.
+GitHub resource, Infisical resource, route, or other deployable source. Ansible is
+selected as the future bounded bootstrap installer and lifecycle owner of privileged
+CRDs and cluster RBAC; exact source, credentials, approvals, proposed future
+Namespaces, and runtime evidence remain unresolved.
 
 ## Private administration and exposure
 
@@ -28,8 +29,11 @@ through kube-router and the future default-deny policy remains a live acceptance
 not an assumed success.
 
 Dex and notifications remain absent. Metrics Services and ServiceMonitors remain
-absent. UI exec, extensions, public webhooks, external identity-provider egress, and
-public administration remain disabled until separately designed and approved.
+absent. UI exec, extensions, public webhooks, and public administration remain
+disabled. Direct OIDC to the future selected shared Keycloak is the intended design,
+but external identity-provider egress remains disabled until its stable issuer,
+callback, TLS, NetworkPolicy, Secret, and positive/negative authorization evidence
+are separately designed and approved.
 
 ## Retained quiescent ApplicationSet
 
@@ -77,6 +81,7 @@ chart policy. A future supplemental set owns the complete policy boundary:
 | application-controller to API class | TCP `443` and conservative translated TCP `6443` | Watches and reconciliation |
 | ApplicationSet to API class | TCP `443` and conservative translated TCP `6443` | Bounded Argo-resource reconciliation |
 | repo-server to approved HTTPS | broad TCP `443` | Exact private repository and reviewed HTTPS dependencies |
+| server to selected OIDC issuer | conditional future TCP `443` | Direct OIDC discovery, code exchange, and key retrieval only after identity approval |
 | DNS clients to CoreDNS | UDP/TCP `53` | Name resolution for controller, server, repo-server, and ApplicationSet |
 | loopback port-forward to server | node-origin stream to TCP `8080` | Private UI, API, and gRPC administration |
 
@@ -107,12 +112,13 @@ resources, verbs, or non-resource URLs.
 
 ### Privileged installation boundary
 
-A future privileged installation phase requires separate human approval. If chosen,
-a short-lived credential that is never mounted in an Argo pod installs only the exact
-reviewed closure and is revoked after the window. Whether that writer or another
-mechanism permanently owns Argo CRDs, ClusterRoles, and ClusterRoleBindings remains
-open. Argo must not update its own cluster authorization by default because that
-would permit privilege escalation.
+Ansible is selected for a future bounded privileged installation phase, which still
+requires a dedicated exact source closure and separate check, apply, and idempotence
+approvals. Its short-lived bootstrap credential is never mounted in an Argo pod and
+is revoked after the window. Ansible remains lifecycle owner of Argo CRDs,
+ClusterRoles, and ClusterRoleBindings unless a later explicit decision replaces it.
+Argo must not update its own cluster authorization by default because that would
+permit privilege escalation.
 
 ### Runtime identities
 
@@ -176,6 +182,7 @@ arguments, environment examples, or matching disclosure context.
 | `argocd-redis` | Precreated before workloads; initializer disabled | One exact Infisical-owned target with coordinated rotation |
 | `argocd-server-tls` | Dedicated precreated TLS material | One exact Infisical-owned target with independent renewal and recovery |
 | Direct repository credential | Injected only after Argo is healthy without Git | Infisical-owned successor GitHub App key after fresh-read proof |
+| Direct Keycloak OIDC client | Absent until stable issuer and Keycloak readiness pass | Infisical-owned client secret after OIDC positive/negative and recovery proof |
 | Infisical authentication | Separate out-of-band bootstrap custody | Independently recoverable; never dependent only on Infisical itself |
 
 `argocd-initial-admin-secret` must remain absent; unexpected creation stops the
@@ -235,11 +242,12 @@ rollback because no runtime action occurred.
 
 | ID | Decision | Why still open |
 |---|---|---|
-| D1 | Privileged installer and post-install ownership | Exact writer, credential lifetime, CRD/RBAC upgrade owner, and escalation controls require human approval |
-| D2 | Future Namespace creation | Kubernetes RBAC cannot restrict create by name and the earlier Ansible exception is closed |
+| D1 | Exact Ansible bootstrap closure and credentials | Installer and privileged lifecycle owner are selected, but exact source, objects, credential lifetime, escalation controls, and separate approvals remain undefined |
+| D2 | Future Ansible Namespace exception | `platform-secrets` and `platform-identity` are proposed only; Kubernetes RBAC cannot restrict create by name and the earlier exception remains closed |
 | D3 | Exact resource, GVR, and discovery inventory | Runtime Roles and Projects cannot be authored safely before every required kind and discovery path is enumerated |
 | D4 | Infisical authentication and independent recovery | Authentication method, scope, custodians, RPO/RTO, and isolated recovery remain unselected |
 | D5 | Live Namespace-adoption apply mode | Managed-field, tracking, last-applied, and diff evidence is unavailable until a separately approved read-only checkpoint |
+| D6 | Stable Keycloak issuer and Argo OIDC/RBAC | Release, private callback, TLS, client secret, group mappings, negative authorization, logout, and recovery evidence remain absent |
 
 ## Closure
 
@@ -248,5 +256,5 @@ ApplicationSet, supplemental default-deny policy model, explicit ports-only weak
 phased least-privilege direction, exact one-repository GitHub App model, value-free
 secret custody, and two-Application adoption recommendation are accepted design
 directions only. Trust and version selection, the exact deployable RBAC/policy
-inventory, the five decisions above, target admission, node pullability, installation,
+inventory, the six decisions above, target admission, node pullability, installation,
 runtime behavior, recovery rehearsal, and ownership handoff remain open.

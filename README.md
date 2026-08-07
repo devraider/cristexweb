@@ -53,9 +53,16 @@ private ClusterIP and loopback-only port-forward direction, a retained quiescent
 ApplicationSet, supplemental default-deny policy with an explicit ports-only
 `443`/`6443` weakness, phased least-privilege RBAC, one-repository read-only GitHub
 App credentials, value-free Infisical custody, and two independent Namespace-adoption
-Applications. It adds no deployable source and leaves the privileged installer,
-future Namespace creation, exact resource inventory, Infisical recovery, adoption
-apply mode, candidate selection, and runtime unresolved. A separate
+Applications. It adds no deployable source. Ansible is now selected as the future
+bounded bootstrap installer and privileged lifecycle owner, while exact bootstrap
+source/credentials, the proposed future Namespace exception, resource inventory,
+Infisical recovery, Keycloak OIDC, adoption apply mode, candidate selection, and
+runtime remain unresolved. The companion
+[source-only Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md)
+selects one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and
+Argo CD as an architecture target only. It selects no release, image, database,
+hostname, route, credential, or deployable source; Keycloak runtime is **NOT RUN**.
+A separate
 [source-only cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 binds official release, unsigned source, immutable linux/amd64 image, token-file,
 health, and edge-transport evidence. It is also **CANDIDATE — NOT DEPLOYABLE — NOT
@@ -103,9 +110,10 @@ gateway remain in the separate CristexHub application repository.
 4. [`runbooks/replacement-host-recovery.md`](runbooks/replacement-host-recovery.md) — replacement boundary, isolation gates, and decision-first recovery contract.
 5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source-only, non-deployable Argo CD candidate evidence and blockers.
 6. [`runbooks/argocd-hardened-design.md`](runbooks/argocd-hardened-design.md) — source-only private-access, RBAC, network, secret-custody, and adoption design; not deployment authorization.
-7. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
-8. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — source-only, non-deployable Infisical Operator candidate evidence and blockers.
-9. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+7. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
+8. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
+9. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — source-only, non-deployable Infisical Operator candidate evidence and blockers.
+10. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -141,10 +149,12 @@ The probe uses one existing fixed namespace, a selectorless ClusterIP service wi
 an explicit EndpointSlice, a hardened server Pod, and short-lived standalone client
 Pods to prove baseline success, deny failure, selective
 allow/deny, rollback success, and zero labeled residue. It uses no remote exec and
-never creates or deletes a Namespace. Argo CD is the intended persistent Kubernetes
-reconciler, with one separately gated Ansible exception limited to creating or
-reconciling the committed `argocd` and `platform-edge` Namespaces with state present.
-The separately approved wrapper check passed at
+never creates or deletes a Namespace. Argo CD is the intended namespaced
+reconciler only for exact object sets after Ansible stops reconciling them and
+handoff evidence passes; Ansible retains privileged lifecycle ownership. The closed
+historical exception was limited to creating or reconciling the committed `argocd`
+and `platform-edge` Namespaces with state present. Any future component bootstrap
+requires its own separately approved exact exception. The separately approved wrapper check passed at
 `ok=19 changed=1 unreachable=0 failed=0 skipped=2` and predicted changes for exactly
 those two absent Namespace items; the recap counts the single changed loop task.
 The separately approved first apply then passed at
@@ -185,8 +195,10 @@ contracts are documented in [`ansible/README.md`](ansible/README.md).
 | Ingress | Bundled k3s Traefik, retained as the sole ingress controller |
 | Host configuration | Minimal Ansible on Debian |
 | External resources | OpenTofu for Cloudflare and GitHub only |
-| Cluster reconciliation | Bounded Ansible bootstrap for only `argocd`/`platform-edge`; Argo CD after evidenced installation and handoff |
-| Secrets | Infisical Cloud initially; no plaintext values in Git or OpenTofu state |
+| Foundation bootstrap | Ansible for exact future Namespaces, Infisical Operator, Argo CD, Keycloak, privileged CRDs/cluster RBAC, and Keycloak realm/client/group lifecycle under component-specific approvals |
+| Cluster reconciliation | Argo CD for namespaced desired state only after Ansible stops each exact object set and evidenced adoption/sync completes; no dual reconciliation |
+| Identity | One future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD; architecture target only, with direct Argo OIDC and private administration |
+| Secrets | Infisical Cloud plus its Kubernetes Operator initially; no self-hosted Infisical and no plaintext values in Git or OpenTofu state |
 | CI and images | GitHub Actions and private GHCR images addressed immutably |
 | Environments | `cristexhub-dev` and `cristexhub-prod` |
 | Shared services | PostgreSQL, MongoDB, and any retained shared RabbitMQ in `shared-services`, with separate environment databases, principals, credentials, vhosts, limits, and backups |
@@ -210,14 +222,17 @@ runbooks/                # recovery docs plus source-only candidate/design recor
   recovery-artifact-register.md
   argocd-candidate-provenance.md
   argocd-hardened-design.md
+  keycloak-oidc-bootstrap-design.md
   cloudflared-candidate-provenance.md
   infisical-operator-candidate-provenance.md
 tests/                   # offline contract tests only
 ```
 
 Only `ansible/`, the zero-resource `opentofu/` scaffold, the two platform Namespace
-manifests under `kubernetes/`, documentation-only recovery, candidate-provenance, and
-hardened-design records under `runbooks/`, and offline `tests/` currently exist. Kustomize remains intended for
+manifests under `kubernetes/`, documentation-only recovery, candidate-provenance,
+hardened-design, and Keycloak/OIDC design records under `runbooks/`, and offline
+`tests/` currently exist. The proposed `platform-secrets` and `platform-identity`
+Namespaces have no manifests and no runtime authorization. Kustomize remains intended for
 first-party application overlays; Helm is reserved for selected third-party
 components. Argo ownership remains pending until Argo CD is installed, the two
 Namespaces are adopted or registered through an Application, and successful sync
@@ -234,7 +249,7 @@ lock files.
 
 - multi-node or high availability;
 - Longhorn, service mesh, policy engines, or autoscaling platforms;
-- self-hosted registry, Infisical, or GitHub runner;
+- self-hosted registry, Infisical server, or GitHub runner;
 - a second ingress controller;
 - automated production promotion;
 - public DEV or public administrative dashboards;

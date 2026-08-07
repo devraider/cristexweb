@@ -443,7 +443,29 @@ passed at `ok=21 changed=0 unreachable=0 failed=0 skipped=0`: both exact Namespa
 reconciliation items were `ok`, protected post-state identity/label/Active
 assertions passed, and k3s/Tailscale remained running before and after. Never invoke
 this playbook directly and never use `--start-at-task`, `--step`, tags, or other task
-selection controls.
+selection controls. This completed exception remains closed and must not be reused
+for any future Namespace or component.
+
+## Future bounded foundation bootstrap direction
+
+Ansible is selected as the future bounded bootstrap installer for exact foundational
+Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted
+Keycloak, and privileged CRD/cluster-RBAC prerequisites. This is an architecture
+direction only: no component playbook, role, wrapper, chart, manifest, Secret, or
+runtime approval exists from that decision.
+
+Each future component requires a dedicated non-passthrough entrypoint and frozen
+source/object closure with separate check, apply, and idempotence approvals. The
+proposed `platform-secrets` and `platform-identity` Namespace names require a new
+present-only/no-delete exception; the completed wrapper above is neither broadened
+nor reopened. Ansible remains lifecycle owner of privileged CRDs,
+ClusterRoles/ClusterRoleBindings and Keycloak realm/client/group reconciliation.
+Namespaced specifications may hand off to Argo only after Ansible stops reconciling
+the exact objects and reviewed adoption/sync evidence passes. Dual reconciliation is
+forbidden. The source-only
+[Keycloak OIDC bootstrap design](../runbooks/keycloak-oidc-bootstrap-design.md)
+records the remaining release, database, secret, network, recovery, and runtime
+gates without authorizing cluster contact.
 
 ## Approved pinned OpenTofu CLI installation
 

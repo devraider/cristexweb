@@ -619,7 +619,12 @@ metadata:
             "Its only authorized entrypoint is the committed non-passthrough wrapper",
             "direct playbook invocation and task-skipping/selection controls are forbidden",
             "a label alone is not a handoff",
-            "Ansible may not create any other persistent Kubernetes object",
+            "That completed exception authorizes no other persistent Kubernetes object",
+            "Ansible is selected as the bounded bootstrap installer for future exact "
+            "foundational Namespaces",
+            "Each component requires its own future exact source closure and separate "
+            "check/apply/idempotence approvals",
+            "Dual reconciliation is forbidden",
         ):
             self.assertIn(required, authority)
 
@@ -745,12 +750,15 @@ metadata:
             "Argo CD remains the sole owner of persistent Kubernetes desired state",
             "Argo CD remains the persistent Kubernetes-object owner",
             "Argo CD for all in-cluster desired state",
+            "Argo CD is the intended persistent Kubernetes reconciler",
         ):
             self.assertNotIn(stale, authoritative)
         for required in (
             "Ansible as bootstrap writer",
             "future desired owner",
             "label alone is not a handoff",
+            "Argo CD is the intended namespaced\nreconciler only for exact object sets",
+            "Ansible retains privileged lifecycle ownership",
         ):
             self.assertIn(required, authoritative)
 

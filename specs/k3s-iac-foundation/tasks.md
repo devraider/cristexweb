@@ -200,10 +200,21 @@ entry gate.
   ingress/egress default-deny with an explicit ports-only weakness, phased RBAC and
   AppProjects, one-repository GitHub App credentials, value-free secret custody,
   Redis initializer removal, two-Application Namespace adoption, and stop/rollback
-  without selecting a candidate, approving the privileged installer or future
-  Namespace writer, adding deployable source, creating a Secret, or contacting the
-  cluster (`KIF-002`, `KIF-003`, `KIF-005`, `KIF-008`, `KIF-010`, `KIF-013`–`KIF-015`,
-  `KIF-021`, `KIF-030`).
+  without selecting a release candidate, adding deployable source, creating a
+  Secret, or contacting the cluster. The later source-only correction selects
+  Ansible as bounded bootstrap installer and privileged lifecycle owner while
+  preserving component-specific approvals (`KIF-002`, `KIF-003`, `KIF-005`,
+  `KIF-008`, `KIF-010`, `KIF-013`–`KIF-015`, `KIF-021`, `KIF-030`).
+- [x] Record the
+  [source-only Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md):
+  one future shared self-hosted identity architecture target, Ansible bootstrap,
+  proposed `platform-secrets`/`platform-identity` names, direct Argo OIDC with Dex
+  absent, independent Keycloak/Argo/Kubernetes authorization layers, dedicated
+  PostgreSQL and recovery gates, private administration, Infisical-owned client
+  secrets, and object-by-object handoff. Select no release/image/package, database
+  version, hostname, route, credential, manifest, or deployable source; authorize no
+  runtime (`KIF-002`, `KIF-003`, `KIF-005`, `KIF-010`, `KIF-012`–`KIF-016`,
+  `KIF-021`, `KIF-023`, `KIF-026`–`KIF-030`).
 - [x] Record official cloudflared release/source/image, token-file,
   readiness/health, and edge-transport research in a source-only
   [candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md),
@@ -236,8 +247,15 @@ entry gate.
   dedicated Namespace, explicit scope/RBAC, Argo handoff, secret-zero/recovery,
   traffic, single-node, and runtime gates are resolved (`KIF-005`, `KIF-013`,
   `KIF-023`).
-- [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare secret-zero
-  sequence (`KIF-014`, `KIF-015`).
+- [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare/Keycloak
+  secret-zero sequence (`KIF-014`, `KIF-015`).
+- [ ] Design and separately approve a new present-only/no-delete Ansible exception
+  for only the proposed `platform-secrets` and `platform-identity` Namespaces; do not
+  reuse or reopen the completed wrapper (`KIF-002`, `KIF-005`, `KIF-016`).
+- [ ] Implement component-specific exact Ansible source closures and separate
+  check/apply/idempotence approvals in this order: Infisical Operator and a
+  non-sensitive sync/rotation/revocation/recovery proof, Infisical-materialized Argo
+  Secrets, then hardened private Argo bootstrap (`KIF-002`, `KIF-005`, `KIF-013`–`KIF-015`).
 - [ ] Obtain explicit approval for bounded Argo CD bootstrap (`KIF-002`).
 - [ ] Keep Argo CD private and prove Git reconciliation using a demo workload
   (`KIF-010`, `KIF-022`).
@@ -246,9 +264,10 @@ entry gate.
 
 The completed hardened-design task is documentation only. It does not satisfy the
 unchecked candidate-selection, privileged-bootstrap, private-Git/Infisical,
-reconciliation, Secret, or runtime tasks above. Its five installer/ownership,
-future-Namespace, exact-resource-inventory, Infisical-recovery, and live-adoption-
-apply decisions remain open.
+reconciliation, Secret, or runtime tasks above. Its six exact-bootstrap-closure, future-Namespace, exact-resource-inventory,
+Infisical-recovery, live-adoption-apply, and stable-Keycloak-OIDC decisions remain
+open. Installer and privileged lifecycle ownership are selected as Ansible, but no
+future bootstrap run is approved.
 
 Stop gate: stop if an admin surface becomes public, secret content appears in Git or
 logs, or bootstrap cannot be recovered.
@@ -266,8 +285,24 @@ logs, or bootstrap cannot be recovered.
   (`KIF-018`).
 - [ ] Create per-environment Redis; retain shared RabbitMQ only after separate
   user/vhost/limit tests (`KIF-020`).
-- [ ] Complete backup and isolated restore tests before application data is accepted
-  (`KIF-026`–`KIF-028`).
+- [ ] Select exact Keycloak/PostgreSQL versions and immutable `linux/amd64` images;
+  design stable issuer/callback/TLS/proxy, private administration, exact
+  NetworkPolicy/probes/resources, and Infisical-owned credentials (`KIF-010`,
+  `KIF-013`–`KIF-015`, `KIF-021`, `KIF-023`).
+- [ ] Before the first private Keycloak bootstrap, approve dedicated PostgreSQL
+  storage, backup tooling/destination/key custody, restore procedure, provisional
+  RPO/RTO, and a non-authoritative controlled test-state plan (`KIF-002`, `KIF-026`–
+  `KIF-028`).
+- [ ] Obtain separate Ansible check/apply/idempotence approvals for a private,
+  non-authoritative Keycloak bootstrap; create only controlled test identity state,
+  then prove `pg_dump`, encrypted off-node copy, integrity, isolated restore, and
+  measured RPO/RTO before accepting authoritative identity state or enabling OIDC
+  (`KIF-002`, `KIF-005`, `KIF-026`–`KIF-028`).
+- [ ] Prove direct Argo OIDC administrator/read-only/ungrouped/invalid-token/logout/
+  break-glass cases before disabling routine local authentication (`KIF-002`,
+  `KIF-005`, `KIF-010`, `KIF-012`–`KIF-015`).
+- [ ] Complete backup and isolated restore tests before application or identity data
+  is accepted (`KIF-026`–`KIF-028`).
 
 Stop gate: stop on cross-access, public data exposure, failed restore, unsafe node
 pressure, or inability to preserve encryption keys. Never delete PVCs as rollback.
@@ -312,15 +347,22 @@ restore needs unavailable credentials.
 Stop gate: stop if DEV can reach PROD, any admin/data surface is public, or recovery
 and rollback evidence is incomplete.
 
-## Stage 9 — public PROD
+## Stage 9 — public identity and PROD
 
-- [ ] Review the exact Cloudflare hostname, authentication path, tunnel destination,
-  origin exposure, negative routes, and rollback (`KIF-011`, `KIF-012`).
-- [ ] Obtain explicit approval for DNS/Tunnel cutover (`KIF-002`).
+- [ ] Review the stable Keycloak issuer hostname, exact browser-authentication paths,
+  tunnel destination, positive login, negative administration/management and
+  direct-origin reachability, and rollback (`KIF-011`, `KIF-012`).
+- [ ] Obtain separate explicit approval before publishing only that reviewed
+  Keycloak browser-authentication route; keep all identity administration and
+  management private (`KIF-002`, `KIF-011`, `KIF-012`).
+- [ ] Review the exact PROD application hostname, authentication path, tunnel
+  destination, origin exposure, negative routes, and rollback (`KIF-011`, `KIF-012`).
+- [ ] Obtain separate explicit approval for the PROD DNS/Tunnel cutover (`KIF-002`).
 - [ ] Publish only the approved PROD application route (`KIF-011`).
-- [ ] Verify public PROD and negative public reachability for DEV/admin/data services
-  (`KIF-012`).
-- [ ] Rehearse route rollback while private PROD remains healthy (`KIF-030`).
+- [ ] Verify public login/PROD and negative public reachability for DEV, Argo,
+  identity administration/management, and data services (`KIF-012`).
+- [ ] Rehearse each route rollback while private identity and PROD remain healthy
+  (`KIF-030`).
 
 ## Closeout
 

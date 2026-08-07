@@ -79,9 +79,15 @@ supplemental ingress/egress default-deny with an explicit broad ports-only
 `443`/`6443` weakness, phased least-privilege RBAC/AppProjects, one-repository
 read-only GitHub App credentials, value-free Infisical custody, and two independent
 Namespace-adoption Applications. It selects no candidate and adds no deployable
-source. Privileged installation/post-install ownership, future Namespace creation,
-exact resource/GVR/discovery inventory, Infisical authentication/recovery, and live
-adoption apply mode remain the exact five open architecture decisions. The separate source-only
+source. Ansible is selected as the future bounded bootstrap installer and lifecycle
+owner of privileged CRDs/cluster RBAC. Exact bootstrap source and credentials, the
+proposed future Namespace exception, resource/GVR/discovery inventory, Infisical
+authentication/recovery, live adoption apply mode, and stable Keycloak OIDC remain
+six open architecture decisions. The source-only
+[Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md) selects
+one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD as
+an architecture target only. It selects no release, image, database, hostname, route,
+credential, or deployable source, and runtime is **NOT RUN**. The separate source-only
 [cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 records official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
 image evidence, token-file precedence, connection-aware readiness, and required edge
@@ -118,7 +124,7 @@ the selected host-configuration owner.
 - high availability or zero downtime;
 - a second ingress controller, service mesh, Longhorn, or autoscaling platform;
 - public databases, brokers, Argo CD, k3s API, SSH, or dashboards;
-- self-hosted secrets, registry, or CI runner during the first implementation;
+- self-hosted Infisical, registry, or CI runner during the first implementation;
 - automatic PROD promotion or destructive automatic rollback;
 - moving privileged code-runner onto the shared node without separate isolation.
 
@@ -127,8 +133,9 @@ the selected host-configuration owner.
 | Layer | Owner | State source |
 |---|---|---|
 | Debian host and k3s baseline | Ansible | playbooks and inventory under `ansible/` |
+| Bounded foundation bootstrap, privileged CRDs/cluster RBAC, and Keycloak realm/client/group reconciliation | Ansible | future component-specific source closures and separate approvals |
 | Cloudflare and GitHub resources | OpenTofu | configuration under `opentofu/`; protected host-local single-writer state plus mandatory encrypted off-node recovery |
-| Kubernetes objects | Argo CD | manifests and Helm values under `kubernetes/` |
+| Namespaced Kubernetes desired state after evidenced handoff | Argo CD | manifests and Helm values under `kubernetes/` |
 | Secret values and rotation | Infisical Cloud initially | separate DEV, PROD, and infrastructure scopes |
 | CI and image publication | GitHub Actions | workflows and immutable GHCR digests |
 | Approvals and recovery | Human operator | reviewed evidence and runbooks |
@@ -146,9 +153,19 @@ with no delete path and foreign-existing refusal. The manifests identify Ansible
 bootstrap writer and Argo CD only as future desired owner. Argo ownership remains
 pending until Argo CD is installed, the Namespaces are adopted or registered through
 an Application, and successful sync evidence exists; the label alone is not a
-handoff. Argo CD is the intended sole persistent Kubernetes reconciler after that
-verified handoff. Operational procedures belong under `runbooks/` when implementation
-is approved.
+handoff. The completed exception remains closed and authorizes no future component or
+Namespace.
+
+Ansible is selected as the future bounded bootstrap installer for exact foundational
+Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted
+Keycloak, and privileged cluster-scoped prerequisites. Each component still needs a
+dedicated exact source closure plus separate check, apply, and idempotence approvals;
+this design authorizes none. Ansible remains lifecycle owner of privileged CRDs,
+ClusterRoles, ClusterRoleBindings, and Keycloak realm/client/group reconciliation.
+A namespaced specification may hand off to Argo only after Ansible stops reconciling
+the exact object set and registration/adoption, successful sync, and managed-field
+evidence pass. Dual reconciliation is forbidden. Operational procedures belong under
+`runbooks/` when implementation is approved.
 
 ## Traffic model
 
@@ -163,16 +180,20 @@ Internet -> Cloudflare -> cloudflared -> bundled Traefik -> PROD frontend gatewa
 Bundled k3s Traefik remains the sole ingress controller. The frontend nginx image
 in the external CristexHub application repository remains the application gateway
 for `auth_request`, API proxying, and WebSockets; it is not the cluster ingress
-controller. Application source, local Compose, Keycloak theme, and Browserless
-gateway assets remain in that application repository and are not owned here.
+controller. Application source, local Compose, development Keycloak realm/theme, and Browserless
+gateway assets remain in that application repository and are not copied here. One
+future self-hosted production Keycloak is the shared identity architecture target,
+but its release and deployable source remain unselected.
 
 The first private DEV hostname may use a tailnet name. A custom private
 `dev-hub.cristex-soft.com` name requires a later private-DNS and certificate
 decision. The intended public PROD host is `hub.cristex-soft.com`.
 
 Cloudflare Tunnel must never route DEV, SSH, k3s API, Argo CD, databases, Redis,
-RabbitMQ management, Browserless, code-runner, or identity administration.
-Cloudflare and Tailscale do not replace application OIDC/JWT enforcement.
+RabbitMQ management, Browserless, code-runner, Keycloak administration, or its
+management listener. A future Keycloak browser-authentication route is a separate
+public-route decision and does not authorize any administration path. Cloudflare and
+Tailscale do not replace application OIDC/JWT enforcement.
 
 ## Namespace model
 
@@ -180,8 +201,9 @@ Cloudflare and Tailscale do not replace application OIDC/JWT enforcement.
 |---|---|
 | `argocd` | Argo CD controllers and private UI/API |
 | `platform-edge` | Cloudflare Tunnel connector only; no route exists until separately approved |
-| Infisical operator namespace | Secret synchronization controller; exact dedicated name is a pending human decision |
-| `shared-services` | Shared PostgreSQL, MongoDB, and any retained shared RabbitMQ |
+| proposed `platform-secrets` | Infisical Cloud Kubernetes Operator only; design name without manifest or approval |
+| proposed `platform-identity` | Future shared Keycloak and dedicated identity PostgreSQL; design name without manifest or approval |
+| `shared-services` | Shared application PostgreSQL, MongoDB, and any retained shared RabbitMQ |
 | `cristexhub-dev` | DEV applications and environment-local dependencies |
 | `cristexhub-prod` | PROD applications and environment-local dependencies |
 | Optional backup/monitoring namespaces | Added only when their first workload is approved |
@@ -212,7 +234,9 @@ separate it.
 
 NetworkPolicy must allow each application namespace to reach only its own approved
 database endpoints and deny cross-environment application traffic. Database engines
-remain ClusterIP-only.
+remain ClusterIP-only. Keycloak uses a separate PostgreSQL database, principal, PVC,
+backup set, connection policy, and recovery acceptance; it does not share an
+application database credential.
 
 ## Secrets
 
@@ -221,7 +245,9 @@ out of scope. Git stores only secret references. DEV, PROD, and infrastructure u
 separate scopes and machine identities with least privilege. The bootstrap method
 is a decision gate because Argo private-repository access, Infisical
 authentication, GHCR pulls, and Cloudflare connector credentials form a secret-zero
-sequence.
+sequence. Only the Infisical Cloud Kubernetes Operator is bootstrapped; a self-hosted
+Infisical server is not selected. The future Keycloak OIDC client secret and database
+credentials are Infisical-owned values with independent bootstrap recovery.
 
 Secret values must not pass through OpenTofu state, saved plans, Argo parameters,
 committed manifests, examples, or CI logs. Recovery material, including application
@@ -250,9 +276,10 @@ bounded PV/PVC placement metadata from the live host and cluster. The separate 1
 is not usable until its contents, ownership, filesystem choice, mount path, and
 destructive formatting approval are confirmed. Storage discovery makes no mount,
 repair, write, format, or ownership change; Ansible remains the host/mount owner.
-Argo CD becomes the persistent Kubernetes-object reconciler only after its pending
-installation, Namespace adoption or Application registration, and successful sync
-evidence.
+Argo CD becomes the namespaced desired-state reconciler for one exact object set only
+after Ansible stops reconciling it and installation, registration/adoption,
+successful sync, and managed-field evidence pass. Ansible retains lifecycle ownership
+of privileged CRDs and cluster RBAC.
 
 Backups require database-consistent PostgreSQL and MongoDB dumps, separate DEV/PROD
 paths, compression, encryption, integrity checks, local retention, and an encrypted
@@ -392,11 +419,23 @@ verification must meet the declared RPO/RTO before PROD.
   app `v3.5.0` remain **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**, runtime is **NOT
   RUN**, and no RBAC, AppProject, policy, Secret, Application, chart, values, or
   manifest source exists from this design.
-- Open hardened-design decisions: a human must still decide (1) privileged installer
-  and post-install CRD/cluster-RBAC ownership, (2) exact creation of future
-  Namespaces, (3) exact resource/GVR/discovery inventory, (4) Infisical authentication
-  and independent recovery, and (5) first-sync apply mode after live Namespace field
-  evidence. None is silently approved by this design.
+- Updated hardened-design ownership: Ansible is selected as bounded bootstrap
+  installer and lifecycle owner of privileged CRDs/cluster RBAC. Six decisions remain:
+  (1) exact Ansible source/object/credential closure and approvals, (2) a new Ansible
+  exception for the proposed `platform-secrets` and `platform-identity` Namespaces,
+  (3) exact resource/GVR/discovery inventory, (4) Infisical authentication and
+  independent recovery, (5) first-sync apply mode after live Namespace field evidence,
+  and (6) stable Keycloak issuer/callback/TLS plus direct OIDC/RBAC acceptance. The
+  completed Namespace exception remains closed and none of these items is runtime
+  approval.
+- Current source-only identity design: the
+  [Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md) selects
+  one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD
+  as the identity architecture target. Keycloak authenticates and emits groups; Argo
+  RBAC authorizes Argo actions; Kubernetes RBAC independently constrains controller
+  ServiceAccounts. Direct Argo OIDC is intended and Dex remains absent. No Keycloak
+  release/image/package, PostgreSQL version/PVC, hostname, route, credential, manifest,
+  or deployable source is selected; runtime is **NOT RUN**.
 - Current source-only cloudflared evidence: the
   [candidate provenance record](runbooks/cloudflared-candidate-provenance.md) binds
   release, unsigned source, architecture-specific image, token-file, health, and
@@ -412,10 +451,14 @@ verification must meet the declared RPO/RTO before PROD.
   Argo handoff, secret-zero, traffic, recovery, and runtime gates remain blocked.
 - Entry: pinned component versions, human-reviewed target kubelet-version evidence,
   verified Kubernetes compatibility, and an approved secret-zero procedure.
-- Work: bootstrap Argo CD, private repository access, Infisical operator, and one
-  non-sensitive demonstration secret only after every Stage 4 entry gate passes.
-- Gate: Argo is private, reconciles a demo workload, and secret values remain absent
-  from Git/logs.
+- Work sequence: a new bounded Ansible Namespace exception; selected Infisical Cloud
+  Kubernetes Operator plus separate secret-zero and non-sensitive sync/rotation/
+  revocation/recovery proof; Infisical-materialized precreated Argo Secrets; then the
+  separately approved hardened Ansible Argo bootstrap and private one-time local
+  break-glass readiness, only after every Stage 4 entry gate passes. Keycloak follows
+  only after Stage 5 stateful recovery gates.
+- Gate: Argo is private, reconciles a demo workload after explicit handoff, and secret
+  values remain absent from Git/logs.
 - Stop: admin endpoint becomes public or bootstrap credentials cannot be recovered.
 - Rollback: uninstall only newly bootstrapped stateless controllers after evidence
   capture; preserve data and access.
@@ -424,11 +467,26 @@ verification must meet the declared RPO/RTO before PROD.
 
 - Entry: StorageClass, capacity, backup, and resource-limit decisions approved.
 - Work: namespaces, service accounts, RBAC, NetworkPolicy, PostgreSQL, MongoDB,
-  principals, and environment-local Redis.
-- Gate: positive own-environment access, negative cross-environment access, backup,
-  and isolated restore all pass.
-- Stop: cross-access succeeds, backup cannot restore, or node pressure is unsafe.
-- Rollback: restore verified data/config; never delete PVCs as routine rollback.
+  principals, environment-local Redis, and the stateful Keycloak prerequisites.
+  Keycloak requires a selected immutable `linux/amd64` image, production startup,
+  dedicated PostgreSQL database/principal/PVC, stable issuer/callback/TLS/proxy
+  design, private administration/management, exact policies/probes/resources, and
+  independently recoverable secret-zero.
+- Gate: before the first private Keycloak bootstrap, approve the image, dedicated
+  database/storage, backup tooling/destination/key custody, restore procedure,
+  provisional RPO/RTO, stable issuer, and private exposure. That separately approved
+  bootstrap is non-authoritative and creates only controlled test identity state.
+  Encrypted application-consistent `pg_dump`, non-destructive off-node copy, integrity
+  check, isolated restore, and measured RPO/RTO must then pass before authoritative
+  identity state is accepted or OIDC is enabled. Direct Argo OIDC additionally
+  requires administrator/read-only positive cases, ungrouped and mutation denial,
+  invalid/expired-token denial, logout, and local break-glass recovery before routine
+  local authentication is disabled.
+- Stop: cross-access succeeds, backup cannot restore, issuer/callback is unstable,
+  administration becomes public, authorization fails closed incorrectly, or node
+  pressure is unsafe.
+- Rollback: restore verified data/config; never delete PVCs, re-import a realm, or
+  downgrade Keycloak as routine rollback.
 
 ### Stage 6 — DEV
 
@@ -483,7 +541,10 @@ Implementation is blocked until each relevant item is resolved:
 - live PVC placement and approved use of the 1 TB disk;
 - backup retention, encryption, Google Drive identity, RPO, and RTO;
 - private GHCR pull authentication and image retention;
-- identity provider placement and hosted OIDC URLs;
+- selected Keycloak release/image/package, dedicated PostgreSQL/storage/backup and
+  isolated restore, stable private-first issuer/callback/TLS/proxy design, proposed
+  identity/secrets Namespaces, direct Argo OIDC groups/RBAC, and later separately
+  approved browser-auth route;
 - exact initial CristexHub service slice and code-runner disposition;
 - private DEV naming: tailnet name or custom private DNS.
 
@@ -504,13 +565,18 @@ recovered in this order:
 1. restore documented host access and prerequisites;
 2. install the pinned k3s version/configuration;
 3. restore or reconstruct external state safely;
-4. bootstrap Argo CD private access;
-5. restore Infisical/GHCR/Cloudflare access references;
-6. reconcile namespaces, policies, and stateful services;
-7. restore databases and application encryption keys;
-8. reconcile DEV/PROD workloads by immutable digest;
-9. validate privately;
-10. re-enable the public PROD route only after acceptance.
+4. bootstrap the Infisical Cloud Kubernetes Operator and independently recover its
+   access;
+5. materialize precreated Argo Secrets and bootstrap Argo CD private access through
+   the bounded Ansible path;
+6. restore GHCR/Cloudflare access references;
+7. restore Keycloak PostgreSQL and identity recovery material before activating OIDC;
+8. reconcile namespaces, policies, and stateful services object by object without
+   dual Ansible/Argo ownership;
+9. restore application databases and encryption keys;
+10. reconcile DEV/PROD workloads by immutable digest;
+11. validate privately;
+12. re-enable only separately approved public routes after acceptance.
 
 Git and Argo reconstruct desired state. They do not restore mutable data, secret
 values, or external state by themselves.

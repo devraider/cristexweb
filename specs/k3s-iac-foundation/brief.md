@@ -15,10 +15,11 @@ recover DEV and PROD without presenting a single node as highly available.
 
 ## Approved direction
 
-- Minimal Ansible owns the Debian host and k3s baseline.
+- Minimal Ansible owns the Debian host/k3s baseline and is selected as the future bounded bootstrap installer for exact foundational Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted Keycloak, privileged CRDs/cluster RBAC, and Keycloak realm/client/group reconciliation. Each component needs separate source and check/apply/idempotence approvals.
 - OpenTofu owns Cloudflare and GitHub resources, not Kubernetes objects.
-- Argo CD is the intended persistent Kubernetes reconciler. Its ownership is not effective until installation, Namespace adoption or Application registration, and successful sync evidence; a future-owner label alone is not a handoff.
-- Infisical Cloud initially owns runtime secret values; self-hosting is out of scope for the foundation.
+- Argo CD owns namespaced desired state only after Ansible stops reconciling the exact object set and registration/adoption, successful sync, and managed-field evidence pass; dual reconciliation is forbidden.
+- Infisical Cloud initially owns runtime secret values; only its Kubernetes Operator is bootstrapped and self-hosting Infisical is out of scope for the foundation.
+- One future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD is selected as an identity architecture target only. Keycloak authenticates/emits groups, Argo RBAC authorizes Argo actions, and Kubernetes RBAC constrains controllers.
 - GitHub Actions validates/builds and publishes immutable images to private GHCR.
 - Bundled k3s Traefik remains the sole ingress controller.
 - DEV and administration remain private through host Tailscale.
@@ -42,7 +43,7 @@ recover DEV and PROD without presenting a single node as highly available.
 - local image registry or self-hosted CI runner;
 - direct GitHub Actions deployment;
 - migration of code-runner to the shared node without a separate security decision;
-- application source, local Compose, Keycloak theme, or Browserless gateway ownership;
+- application source, local Compose, development Keycloak realm/theme, or Browserless gateway ownership;
 - hosted runtime, general host-baseline implementation, external-resource IaC, or deployment implementation during the current bounded foundation deliverable.
 
 ## Delivery boundary
@@ -108,8 +109,15 @@ ApplicationSet, supplemental default-deny with an explicit broad ports-only
 `443`/`6443` weakness, phased least privilege, an exact one-repository read-only
 GitHub App credential shape, value-free Infisical custody, disabled Redis initializer,
 and two adoption Applications. It is **DESIGN ONLY**, adds no deployable source, and
-leaves its exact five installer/ownership, future-Namespace, resource-inventory,
-Infisical-recovery, and adoption-apply decisions open. A separate source-only
+records Ansible as the selected bounded bootstrap installer and privileged lifecycle
+owner while leaving six exact bootstrap-closure, future-Namespace, resource-inventory,
+Infisical-recovery, adoption-apply, and stable-Keycloak-OIDC decisions open. The
+[source-only Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
+selects the shared self-hosted identity architecture target, direct Argo OIDC with
+Dex absent, private administration, dedicated PostgreSQL/recovery, Infisical-owned
+client secret, and object-by-object handoff directions. It selects no Keycloak
+release/image/package, database version, hostname, route, credential, manifest, or
+deployable source; runtime is **NOT RUN**. A separate source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 records release `2026.7.3`, unsigned source, immutable linux/amd64 image,
 token-file, readiness/health, and edge-transport evidence. It is **CANDIDATE — NOT
