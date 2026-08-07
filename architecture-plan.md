@@ -320,10 +320,15 @@ verification must meet the declared RPO/RTO before PROD.
 
 - Entry: freeze and validate the exact reviewed source, then obtain a separate human
   approval for `ansible/bin/bootstrap-platform-namespaces check`.
+- Check evidence: the separately approved wrapper check passed at
+  `ok=19 changed=1 unreachable=0 failed=0 skipped=2`; all protected preflight
+  assertions passed and the single changed loop task predicted exactly `argocd` and
+  `platform-edge`. Check mode created nothing and skipped live post-state verification
+  by design.
 - Work: through that non-passthrough wrapper only, inspect and then reconcile exactly
   the committed `argocd` and `platform-edge` Namespace manifests with `state:
   present`. No deletion or other persistent Kubernetes kind is authorized.
-- Gate: inspect the check result, separately approve the first `apply`, verify exact
+- Gate: after the reviewed check, separately approve the first `apply`, verify exact
   identity, labels, Active phase, and service health, then separately approve a
   second `apply` and require `changed=0`.
 - Stop: foreign ownership, an unexpected object or change, source drift, failed

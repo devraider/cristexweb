@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: schema-v3 discovery passed live; Argo 3.5 target-minor screen and candidate provenance contracts pass; full compatibility and Namespace/runtime/provider/state/backup/apply pending
+build: schema-v3 discovery and Namespace wrapper check passed; Argo 3.5 target-minor screen and candidate provenance contracts pass; Namespace applies/full compatibility/provider/state/backup pending
 date: 2026-08-07
 deploy_required_after_acceptance: yes
 
@@ -126,11 +126,15 @@ note: |
   paths, and rejects extra top-level or metadata keys. The labels identify Ansible as
   bootstrap writer and Argo CD only as future desired owner. Argo ownership remains
   pending installation, Namespace adoption or Application registration, and
-  successful sync evidence; the label alone is not a handoff. Its cluster
-  check/live/idempotence are NOT RUN; discovery evidence permits requesting only the
-  separately approved wrapper `check`. Argo CD, cloudflared,
-  `shared-services`, DEV/PROD namespaces, Secrets, workloads, Services, and routes do
-  not exist from this increment. The future shared service Namespace is named
-  `shared-services`, but it is not created.
+  successful sync evidence; the label alone is not a handoff. The separately approved
+  wrapper check passed at `ok=19 changed=1 unreachable=0 failed=0 skipped=2` after all
+  protected preflight assertions. The manifest contract displayed exactly `argocd`
+  and `platform-edge` with the reviewed three labels, and the single loop task
+  predicted `changed` for both items. Check mode created nothing and skipped live
+  post-state verification by design. First apply and idempotence apply remain NOT RUN
+  and require separate approvals. Argo CD, cloudflared, `shared-services`, DEV/PROD
+  namespaces, Secrets, workloads, Services, and routes do not exist from this
+  increment. The future shared service Namespace is named `shared-services`, but it
+  is not created.
   No external-resource, secret, data, or deployment operation was performed. Object
   listings and offline tests do not prove replacement recovery.

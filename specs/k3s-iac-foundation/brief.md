@@ -77,9 +77,12 @@ host check passed; the first live run created only the exact managed parent and
 empty protected state directories before host-side GitHub retrieval failed. The
 reviewed controller-transfer recovery then passed check, live installation, and a
 `changed=0` rerun without host egress. Exact `argocd` and `platform-edge` Namespace
-manifests and a bounded present-only Ansible bootstrap are implemented offline. Its
-non-passthrough entrypoint rejects task-skipping controls; namespace runtime, Argo
-CD, cloudflared, Infisical, Secrets, workloads, Services, and routes
+manifests and a bounded present-only Ansible bootstrap are implemented. Its
+separately approved non-passthrough wrapper check passed at
+`ok=19 changed=1 unreachable=0 failed=0 skipped=2` and predicted changes for exactly
+those two items; check mode created nothing and skipped live post-state tasks by
+design. First apply and idempotence apply remain unrun and require separate
+approvals. Argo CD, cloudflared, Infisical, Secrets, workloads, Services, and routes
 remain unrun. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 records chart, captured signature/hash-binding, image, and ignored-render research

@@ -415,17 +415,24 @@ sync evidence; a label alone is not a handoff. Rollback preserves the empty or
 adopted Namespaces; deletion requires a separate future destructive plan and
 approval.
 
-From the repository root, review the exact two-Namespace prediction first:
+From the repository root, the separately approved exact prediction used only:
 
 ```bash
 ansible/bin/bootstrap-platform-namespaces check
 ```
 
-Only after accepting that plan, run `ansible/bin/bootstrap-platform-namespaces apply`.
-A second separately approved `apply` run must report `changed=0`. Never invoke this
-playbook directly and never use `--start-at-task`, `--step`, tags, or other task
-selection controls. This implementation is currently offline-only: no Namespace or
-Kubernetes API mutation has run.
+The check passed at `ok=19 changed=1 unreachable=0 failed=0 skipped=2` after all
+approval, attestation, canonical-path, manifest, service, kubeconfig, pre-state, and
+foreign-existing assertions passed. The exact manifest contract contained only
+`argocd` and `platform-edge` with the three reviewed labels, and the single loop task
+predicted `changed` for both items. The recap therefore reports one changed task,
+not one Namespace. Check mode created no object and skipped the two live post-state
+tasks by design.
+
+A first `ansible/bin/bootstrap-platform-namespaces apply` still requires its own
+explicit approval. A second separately approved `apply` must then report `changed=0`.
+Never invoke this playbook directly and never use `--start-at-task`, `--step`, tags,
+or other task selection controls. No Namespace or Kubernetes API mutation has run.
 
 ## Approved pinned OpenTofu CLI installation
 

@@ -32,9 +32,9 @@ second run converged at `ok=30 changed=0 failed=0` without requiring host egress
 The protected directory still contains no state file, and no provider operation or
 external resource exists. The root `opentofu/` source is Cloudflare-only and has zero
 resources. Committed Kubernetes source now contains only the `argocd` and
-`platform-edge` Namespace manifests plus a gated Ansible bootstrap; runtime remains
-NOT RUN and no Argo CD, cloudflared, Infisical, Secret, workload, Service, or route
-exists. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
+`platform-edge` Namespace manifests plus a gated Ansible bootstrap. Its non-mutating
+wrapper check passed; first apply and idempotence apply remain NOT RUN. No Argo CD,
+cloudflared, Infisical, Secret, workload, Service, or route exists. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, ignored-render, and
 bounded target-minor evidence while remaining explicitly **CANDIDATE — NOT
 DEPLOYABLE — NOT SELECTED**. Kubernetes minor `1.36` passes Argo CD `3.5`'s official
@@ -127,8 +127,13 @@ allow/deny, rollback success, and zero labeled residue. It uses no remote exec a
 never creates or deletes a Namespace. Argo CD is the intended persistent Kubernetes
 reconciler, with one separately gated Ansible exception limited to creating or
 reconciling the committed `argocd` and `platform-edge` Namespaces with state present.
-That exception has no delete path and remains NOT RUN. The completed temporary probe
-exception used the verified image and explicit approvals documented in
+The separately approved wrapper check passed at
+`ok=19 changed=1 unreachable=0 failed=0 skipped=2` and predicted changes for exactly
+those two absent Namespace items; the recap counts the single changed loop task.
+Check mode created nothing and intentionally skipped live post-state verification.
+The exception has no delete path. First apply and idempotence apply remain unrun and
+require separate approvals. The completed temporary probe exception used the
+verified image and explicit approvals documented in
 [`ansible/README.md`](ansible/README.md); every future run requires fresh approvals
 and a unique Run ID.
 

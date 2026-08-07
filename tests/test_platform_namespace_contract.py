@@ -574,15 +574,17 @@ metadata:
             "Commit exact `argocd` and `platform-edge` Namespace source",
             "`state: present`, no-delete Ansible bootstrap exception",
             "separate human approval for only `ansible/bin/bootstrap-platform-namespaces check`",
-            "inspect its complete result before any mutation",
+            "inspect its complete result",
+            "predicted exactly `argocd` and `platform-edge`, and made no mutation",
             "separate human approval for the first "
             "`ansible/bin/bootstrap-platform-namespaces apply`",
             "reconcile exactly the two reviewed Namespaces",
             "separate human approval for a second "
             "`ansible/bin/bootstrap-platform-namespaces apply`",
             "require `changed=0`",
-            "Runtime remains NOT RUN",
-            "grant no live approval and waive no Stage 4 entry gate",
+            "Check mode passed without mutation",
+            "first apply and idempotence apply remain NOT RUN",
+            "grant no apply approval and waive no Stage 4 entry gate",
         ):
             self.assertIn(required, normalized_exception)
 
@@ -615,6 +617,62 @@ metadata:
             "Ansible may not create any other persistent Kubernetes object",
         ):
             self.assertIn(required, authority)
+
+    def test_wrapper_check_evidence_is_partial_and_apply_remains_blocked(self) -> None:
+        recap = "ok=19 changed=1 unreachable=0 failed=0 skipped=2"
+        for relative in (
+            "README.md",
+            "ansible/README.md",
+            "architecture-plan.md",
+            "specs/k3s-iac-foundation/brief.md",
+            "specs/k3s-iac-foundation/status.md",
+            "specs/k3s-iac-foundation/tasks.md",
+            "specs/k3s-iac-foundation/testcases.md",
+        ):
+            self.assertIn(recap, (ROOT / relative).read_text(), relative)
+
+        testcases = (ROOT / "specs/k3s-iac-foundation/testcases.md").read_text()
+        self.assertRegex(
+            testcases,
+            r"(?m)^\| KIF-NS-02 .* \| PARTIAL — .*predicted exactly `argocd` plus `platform-edge`; no object changed\.",
+        )
+        for required in (
+            "Labels: app.kubernetes.io/part-of=cristex-platform; cristex.io/bootstrap-writer=ansible; cristex.io/desired-owner=argocd",
+            "Prediction: changed item=argocd; changed item=platform-edge",
+            "Live post-state query and identity verification: skipped by design in check mode",
+            "Namespace or other Kubernetes-object mutation: none",
+            "First apply and the second\n`changed=0` idempotence apply remain **NOT RUN**",
+            "The raw verbose output and\ncontroller-local username, UID, inode, timestamp, and path metadata are not copied\ninto Git",
+        ):
+            self.assertIn(required, testcases)
+
+        tasks = (ROOT / "specs/k3s-iac-foundation/tasks.md").read_text()
+        normalized_tasks = " ".join(tasks.split())
+        self.assertIn(
+            "- [x] Obtain separate human approval for only "
+            "`ansible/bin/bootstrap-platform-namespaces check`",
+            normalized_tasks,
+        )
+        self.assertIn(
+            "- [ ] After accepting the check result, obtain separate human approval "
+            "for the first `ansible/bin/bootstrap-platform-namespaces apply`",
+            normalized_tasks,
+        )
+        self.assertIn(
+            "- [ ] Verify exact identity, labels, Active phase, and service health, "
+            "then obtain separate human approval for a second "
+            "`ansible/bin/bootstrap-platform-namespaces apply` and require `changed=0`",
+            normalized_tasks,
+        )
+        self.assertNotIn(
+            "- [x] After accepting the check result",
+            tasks,
+        )
+        self.assertIn("grant no apply approval", normalized_tasks)
+
+        authority = (ROOT / "AGENTS.md").read_text()
+        self.assertIn("separately approved wrapper check passed", authority)
+        self.assertIn("first apply and idempotence apply remain unrun", authority)
 
     def test_authoritative_ownership_wording_has_no_stale_absolute_claims(self) -> None:
         authoritative = "\n".join(

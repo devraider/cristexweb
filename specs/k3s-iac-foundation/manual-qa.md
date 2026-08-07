@@ -36,8 +36,10 @@ and `changed=0` idempotence run after the first host-side GitHub retrieval faile
 The protected state directory remains empty; state encryption/off-node restore,
 provider operations, and external ownership remain pending and close no manual
 case. Exact `argocd` and `platform-edge` Namespace manifests plus their present-only
-Ansible bootstrap pass offline contracts, but cluster check/live/idempotence are NOT
-RUN. The source-only
+Ansible bootstrap pass offline contracts. The separately approved wrapper check
+passed and predicted exactly those two items without mutation; first apply and
+idempotence apply remain NOT RUN and require separate approvals. This check closes no
+manual QA case. The source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 is **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** and records no runtime evidence.
 The target-minor compatibility screen passed, but exact k3s/runtime and rendered
