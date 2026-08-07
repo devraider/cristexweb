@@ -65,13 +65,14 @@ exact post-state and service-health verification. No workload or other persisten
 kind exists from this increment. The source-only
 [Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 records chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
-immutable linux/amd64 images, and ignored 44-document render evidence. It is explicitly **CANDIDATE — NOT
-DEPLOYABLE — NOT SELECTED**. The target minor screen passes for Kubernetes `1.36`,
-but full k3s/rendered API/CRD compatibility, human version selection and soak,
-signing-key trust/status, generated/internal Secret ownership and recovery,
-private Git secret-zero, exact image availability plus component flow controls,
-bootstrap ownership, and runtime approvals remain blockers. It
-adds no chart, values, or Kubernetes object source. The separate source-only
+immutable linux/amd64 images, and curated online/static readiness evidence. It is
+explicitly **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. The exact 44-document
+render was reproduced at Kubernetes capability `1.36.2`, stable upstream API
+registration screened successfully, and controller-side image closure was reachable.
+Exact k3s admission/runtime and node pullability remain unproven. Wildcard/broad
+RBAC, ingress-only/unrestricted-egress policy, image trust, Secret recovery, private
+Git secret-zero, Namespace adoption, human selection/soak, and runtime approvals
+remain blockers. It adds no chart, values, or Kubernetes object source. The separate source-only
 [cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 records official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
 image evidence, token-file precedence, connection-aware readiness, and required edge
@@ -359,13 +360,15 @@ verification must meet the declared RPO/RTO before PROD.
 
 - Current source-only evidence: the
   [Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
-  binds public chart, captured signature/hash-binding, image metadata, and an ignored
-  minimal render. The
-  candidate retains ApplicationSet because chart `10.3.0` has no effective
-  `applicationSet.enabled` disable gate. The captured target minor `1.36` appears in
-  Argo CD `3.5`'s official tested matrix and passes the chart semver gate, but this is
-  not version selection, deployable desired state, k3s-specific/runtime, or full
-  rendered API/CRD compatibility proof.
+  binds public chart, captured signature/hash-binding, image metadata, and curated
+  online/static readiness evidence. The candidate retains ApplicationSet because
+  chart `10.3.0` has no effective parent disable gate. Its 44-document render is
+  reproducible at Kubernetes capability `1.36.2`, every rendered built-in kind is
+  registered in upstream Kubernetes `v1.36.2`, and the controller reached both exact
+  image closures. This is not version selection, deployable desired state, exact k3s
+  admission/runtime, or node pullability proof; wildcard/broad RBAC,
+  ingress-only/unrestricted-egress policy, image trust, Secret recovery, private Git,
+  and adoption decisions remain blocked.
 - Current source-only cloudflared evidence: the
   [candidate provenance record](runbooks/cloudflared-candidate-provenance.md) binds
   release, unsigned source, architecture-specific image, token-file, health, and

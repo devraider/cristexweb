@@ -189,6 +189,11 @@ entry gate.
   [candidate provenance record](../../runbooks/argocd-candidate-provenance.md),
   explicitly without version selection, chart/values/Kubernetes source, secret,
   runtime, or deployment (`KIF-005`, `KIF-013`, `KIF-023`, `KIF-030`).
+- [x] Record the online/static Argo CD readiness refresh covering deterministic render,
+  upstream API registration, RBAC/network posture, controller-side image closure,
+  image trust/vulnerability limits, private Git, and Namespace adoption without live
+  API contact, version selection, deployable source, Secret, or runtime (`KIF-005`,
+  `KIF-008`, `KIF-010`, `KIF-013`, `KIF-015`, `KIF-021`, `KIF-023`, `KIF-030`).
 - [x] Record official cloudflared release/source/image, token-file,
   readiness/health, and edge-transport research in a source-only
   [candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md),
@@ -202,13 +207,13 @@ entry gate.
   single-node risk, and runtime approvals are resolved; add deployable source only in
   a separate reviewed change (`KIF-002`, `KIF-005`, `KIF-011`, `KIF-013`, `KIF-015`,
   `KIF-021`, `KIF-023`).
-- [ ] Human-select and soak the Argo CD chart/application candidate only after full
-  exact-k3s and rendered API/CRD compatibility beyond the passed target-minor screen,
-  signing-key trust/status, generated/internal Secret ownership and recovery,
-  private Git secret-zero/recovery, exact image availability
-  plus component flow controls, bootstrap ownership, and runtime approval gates are
-  resolved; then add and review deployable source
-  separately (`KIF-002`, `KIF-005`, `KIF-013`, `KIF-015`, `KIF-023`).
+- [ ] Human-select and soak the Argo CD chart/application candidate only after exact
+  k3s admission/runtime beyond the passed static API screen, signing/index-to-child
+  and Redis trust, vulnerability policy, reduced RBAC/default-deny networking,
+  generated/internal Secret recovery, private Git secret-zero, node image pullability,
+  Namespace adoption, bootstrap ownership, and runtime approval gates are resolved;
+  then add and review deployable source separately (`KIF-002`, `KIF-005`, `KIF-013`,
+  `KIF-015`, `KIF-021`, `KIF-023`).
 - [x] Record the latest Infisical Operator `v0.11.8` public distribution gap and
   last observed version-aligned `v0.11.7` chart/source/image evidence in a
   source-only

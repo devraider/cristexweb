@@ -40,11 +40,14 @@ Kubernetes reconciliation on failed local sudo authentication at `changed=0`; it
 retry passed at `ok=21 changed=0 unreachable=0 failed=0 skipped=0` and reverified
 both exact Namespaces and service health. No Argo CD, cloudflared, Infisical, Secret,
 workload, Service, or route exists. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
-binds public chart, captured signature/hash-binding, image, ignored-render, and
-bounded target-minor evidence while remaining explicitly **CANDIDATE — NOT
-DEPLOYABLE — NOT SELECTED**. Kubernetes minor `1.36` passes Argo CD `3.5`'s official
-tested-matrix and chart-semver screen, but exact k3s/runtime and rendered API/CRD
-compatibility remain unproven. It adds no chart, values, or Kubernetes object source. A separate
+binds public chart, captured signature/hash-binding, image, and online/static
+readiness evidence while remaining explicitly **CANDIDATE — NOT DEPLOYABLE — NOT
+SELECTED**. The exact 44-document render was reproduced at Kubernetes capability
+`1.36.2`, stable upstream API registration screened successfully, and both image
+closures were reachable from the controller. Exact k3s admission/runtime and node
+pullability remain unproven; wildcard/broad RBAC, ineffective network isolation,
+image trust, Secret recovery, private Git secret-zero, and Namespace adoption remain
+blockers. It adds no chart, values, or Kubernetes object source. A separate
 [source-only cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 binds official release, unsigned source, immutable linux/amd64 image, token-file,
 health, and edge-transport evidence. It is also **CANDIDATE — NOT DEPLOYABLE — NOT

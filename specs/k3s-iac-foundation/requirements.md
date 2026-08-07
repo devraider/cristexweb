@@ -79,12 +79,15 @@ dependency-bootstrap, curated host/cluster-indicator, and functional
 CNI/NetworkPolicy enforcement gates. The separately approved schema-v3 discovery
 captured kubelet `v1.36.2+k3s1`, all 15 bounded queries available, and the current
 `shared-services` PVC query with count zero. Argo CD `3.5`'s official tested matrix
-contains target minor `1.36`, and chart `10.3.0` admits the target through its semver
-gate; exact k3s/runtime and rendered API/CRD compatibility remain unproven. The
-source-only [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
-binds public chart, captured signature/hash-binding, image, and ignored-render evidence for
-KIF-005, KIF-013, KIF-023, and KIF-030 without selecting a version or adding
-deployable source. The source-only
+contains target minor `1.36`, chart `10.3.0` admits the target, the exact 44-document
+render reproduced at Kubernetes capability `1.36.2`, stable upstream API registration
+screened successfully, and controller-side image closure was reachable. Exact k3s
+admission/runtime and node pullability remain unproven. The source-only
+[Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
+binds public chart, captured signature/hash-binding, image, online/static API, RBAC,
+network, private-Git, and adoption evidence for KIF-005, KIF-008, KIF-010, KIF-013,
+KIF-015, KIF-021, KIF-023, and KIF-030 without selecting a version, closing its
+security/Secret/adoption gates, or adding deployable source. The source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 binds exact release/source/image, token-file, health, and edge-transport evidence for
 KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, and KIF-030 while explicitly

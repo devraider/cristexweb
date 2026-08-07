@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: schema-v3 discovery plus Namespace check/first apply/idempotence passed; Argo 3.5 target-minor screen and candidate provenance contracts pass; full compatibility/provider/state/backup pending
+build: Namespace idempotence plus Argo 3.5 online/static render/API/image readiness contracts pass; exact k3s admission/security/Secret/adoption/runtime and provider/state/backup pending
 date: 2026-08-07
 deploy_required_after_acceptance: yes
 
@@ -56,14 +56,16 @@ note: |
   source-only
   [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
   binds chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
-  immutable linux/amd64 images, and ignored 44-document render evidence. It is **CANDIDATE —
-  NOT DEPLOYABLE — NOT SELECTED**, adds no chart/values/Kubernetes source, and has
-  no Argo runtime evidence. The target Kubernetes minor `1.36` is in Argo CD `3.5`'s
-  official tested matrix and passes chart `10.3.0`'s semver gate. Exact k3s/runtime
-  and rendered API/CRD compatibility, signing-key trust/status, human selection and
-  soak, generated/internal Secret ownership and recovery, private Git
-  secret-zero, exact image availability plus component flow controls, bootstrap
-  ownership, and runtime approvals remain blockers. The separate source-only
+  immutable linux/amd64 images, and curated online/static readiness evidence. It is
+  **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**, adds no chart/values/Kubernetes
+  source, and has no live API or Argo runtime evidence. The exact 44-document render
+  reproduced at Kubernetes capability `1.36.2`, stable upstream API registration
+  screened successfully, and controller-side image closure was reachable. Exact k3s
+  admission/runtime and node pullability remain unproven. Signing/index-to-child and
+  Redis trust, vulnerability policy, wildcard/broad RBAC,
+  ingress-only/unrestricted-egress policy, generated/internal Secret recovery,
+  private Git secret-zero, Namespace adoption, human selection/soak, and runtime
+  approvals remain blockers. The separate source-only
   [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
   binds official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
   image, token-file, health, and edge-transport evidence. It is **CANDIDATE — NOT

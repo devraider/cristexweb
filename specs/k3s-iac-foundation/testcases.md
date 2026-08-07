@@ -51,6 +51,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-NS-01 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-030 | Bounded platform Namespace bootstrap offline contract | Exact committed `argocd` and `platform-edge` Namespace manifests are the sole definition and the architecture/task checklist places them in a documented pre-Stage-4 exception with separate check/apply/idempotence approvals that waives no Stage 4 entry gate; a non-passthrough entrypoint rejects `--start-at-task`, `--step`, and all extra arguments; the wrapper launches the repository `.venv` controller in an allowlisted clean environment and supplies a private random single-run attestation; the mutating task independently requires that attestation, reloads only literal manifest paths, and rejects extra top-level/metadata keys; a first-task internal-variable guard, canonical non-symlink ancestor/leaf validation, approval/diff/exact-limit/kubeconfig/protected-result gates, foreign-existing refusal, present-only reconciliation, exact post-verification, truthful ownership labels, executable closure, and no deletion/other-kind path are enforced | PASS — focused structural, stage-boundary, control-flow, and synthetic ancestor-symlink contracts, controller-only forged-extra-var rejection, full offline suite, syntax, synthetic discovery validation, and production lint passed without inventory or Kubernetes API contact |
 | KIF-NS-02 | KIF-002, KIF-005, KIF-010, KIF-030 | Platform Namespace bootstrap runtime | Reviewed check predicts exactly the two absent Namespaces; approved live run creates them, verifies labels/services, and second run converges changed=0 without installing Argo CD/cloudflared or creating a route | PASS — wrapper check passed without mutation; separately approved first apply passed at ok=21/changed=1/unreachable=0/failed=0/skipped=0 and changed exactly `argocd` plus `platform-edge`. During the separately approved idempotence checkpoint, a local sudo authentication failure stopped the initial invocation before service preflight/reconciliation at ok=10/changed=0/unreachable=0/failed=1/skipped=0; the retry passed at ok=21/changed=0/unreachable=0/failed=0/skipped=0, both exact items were `ok`, post-state identity/labels/Active passed, and service health was preserved |
 | KIF-ARGO-01 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-023, KIF-030 | Argo CD candidate provenance and target-minor screen | A secret-free record binds exact official chart/index/provenance/image/render evidence plus the approved target kubelet and official Argo CD tested-version sources; it narrowly concludes only that Kubernetes minor `1.36` is in Argo CD `3.5`'s tested matrix and passes chart `10.3.0`'s semver gate, while preserving the exact two-Namespace source set and blocking exact k3s/runtime, rendered API/CRD, trust, selection/soak, Secret, private Git, image/traffic, ownership, and runtime gates | PASS — 5 focused provenance contracts enforce exact associations and qualified boundaries; chart `10.3.0`/app `v3.5.0` remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; Argo runtime NOT RUN and no chart, values, Kubernetes object, secret, or deployment source was added |
+| KIF-ARGO-02 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Argo CD online/static readiness refresh | A secret-free committed record curates refreshed official bytes plus deterministic render, upstream API registration, RBAC/network, image trust/availability/vulnerability, private-Git, and Namespace-adoption evidence while preserving exact two-Namespace source closure and all live admission/runtime gates | PASS — 9 focused provenance contracts and 71 full offline tests pass; chart `10.3.0`/app `v3.5.0` remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; live API, server-side dry-run, install, Secret, provider, and runtime operations remain NOT RUN; no chart, values, rendered YAML, Kubernetes object, credential, or deployment source was added |
 | KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, preserves exact two-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator candidate provenance | A secret-free record binds the latest `v0.11.8` source release and time-qualified public chart/image distribution gap separately from the last observed version-aligned `v0.11.7` chart/source/image set; association-sensitive evidence qualifies unverified chart provenance, observed SLSA content, missing SBOM observation, chart defaults, and exact architecture child digest while preserving the two-Namespace and zero-resource OpenTofu source sets and blocking selection/trust, compatibility, dedicated Namespace, scoped RBAC, Argo handoff, secret-zero/recovery, traffic, single-node, and runtime | PASS — 5 focused contracts enforce exact evidence associations, qualified trust/absence wording, source closure, operational-command hygiene, and effective RFC1918/loopback sentinels; both versions remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no chart, values, CRD, Kubernetes object, credential, Secret, or deployment source was added |
 
@@ -295,12 +296,122 @@ PASS: git diff check and no staged files
 
 The active virtual environment warning only stated that the separate application
 repository environment was ignored in favor of this repository's locked `.venv`.
-The target-minor screen now passes through the later schema-v3 review above. Exact
-k3s/runtime and rendered API/CRD compatibility, signing-key trust/status, human
-candidate selection and soak, generated/internal Secret lifecycle and recovery,
-private Git secret-zero/recovery, exact image availability plus Kubernetes API/DNS/
-Redis/Git flow controls, bootstrap ownership exception, and all runtime approvals
-remain blocked.
+At this historical checkpoint, the target-minor screen passed through the later
+schema-v3 review above, while exact k3s/runtime and rendered API/CRD compatibility,
+signing-key trust/status, human selection/soak, Secret recovery, private Git,
+image/flow, bootstrap ownership, and all runtime approvals were still blocked. The
+later KIF-ARGO-02 section supersedes only the static render/API and controller-side
+image-availability parts of that historical boundary; live and decision gates remain.
+
+## Argo CD online/static readiness source-only validation — 2026-08-07
+
+The completed online research used only anonymous official-source HTTPS and private
+temporary files. This committed increment curates durable results without depending
+on ignored reports. Its acceptance validation below was offline and used no network,
+inventory, SSH, become, kubeconfig, Kubernetes API, server-side dry-run, Helm
+install/upgrade, provider, Secret, deployment, fixture, mutation, commit, or push.
+
+```bash
+python3 -m unittest -v tests.test_argocd_provenance_contract
+python3 -m unittest discover -s tests -v
+python3 -m compileall -q tests
+cd ansible
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-lint . ../tests/validate_storage_report.yml
+cd ..
+python3 - <<'PY'
+from pathlib import Path
+import re
+import subprocess
+
+expected = {
+    "README.md",
+    "architecture-plan.md",
+    "runbooks/argocd-candidate-provenance.md",
+    "specs/k3s-iac-foundation/brief.md",
+    "specs/k3s-iac-foundation/manual-qa.md",
+    "specs/k3s-iac-foundation/requirements.md",
+    "specs/k3s-iac-foundation/status.md",
+    "specs/k3s-iac-foundation/tasks.md",
+    "specs/k3s-iac-foundation/testcases.md",
+    "tests/test_argocd_provenance_contract.py",
+}
+actual = {
+    line[3:]
+    for line in subprocess.check_output(["git", "status", "--short"], text=True).splitlines()
+    if line
+}
+assert actual == expected, actual ^ expected
+for protected in ("ansible", "kubernetes", "opentofu", ".github/workflows"):
+    assert not subprocess.check_output(
+        ["git", "diff", "--name-only", "--", protected], text=True
+    ).strip(), protected
+assert {
+    str(path.relative_to("kubernetes"))
+    for path in Path("kubernetes").rglob("*")
+    if path.is_file()
+} == {
+    "platform/namespaces/argocd.yaml",
+    "platform/namespaces/platform-edge.yaml",
+}
+for path in [
+    Path("README.md"),
+    Path("architecture-plan.md"),
+    Path("runbooks/argocd-candidate-provenance.md"),
+    *sorted(Path("specs/k3s-iac-foundation").glob("*.md")),
+]:
+    text = path.read_text()
+    for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", text):
+        if "://" in target or target.startswith("#"):
+            continue
+        local = target.split("#", 1)[0]
+        if local:
+            assert (path.parent / local).resolve().exists(), (path, target)
+runbook = Path("runbooks/argocd-candidate-provenance.md").read_text()
+assert ".pi-subagents" not in runbook
+assert not re.search(r"\b[0-9a-f]{65}\b", runbook)
+controller_home_pattern = "/" + "Users/" + r"[^/\s]+/"
+assert not re.search(controller_home_pattern, runbook)
+assert "CANDIDATE — NOT DEPLOYABLE — NOT SELECTED" in runbook
+assert "Argo CD runtime is **NOT RUN**" in runbook
+current = Path("specs/k3s-iac-foundation/testcases.md").read_text()
+previous = subprocess.check_output(
+    ["git", "show", "HEAD:specs/k3s-iac-foundation/testcases.md"], text=True
+)
+current_argo_01 = next(line for line in current.splitlines() if line.startswith("| KIF-ARGO-01 "))
+previous_argo_01 = next(line for line in previous.splitlines() if line.startswith("| KIF-ARGO-01 "))
+assert current_argo_01 == previous_argo_01
+assert len([line for line in current.splitlines() if line.startswith("| KIF-ARGO-02 ")]) == 1
+assert not subprocess.check_output(["git", "diff", "--cached", "--name-only"], text=True).strip()
+print("PASS: exact closure, protected source, links, evidence hygiene, and KIF-ARGO traceability")
+PY
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Ran 9 focused Argo CD candidate provenance contracts — OK
+Ran 71 full offline tests — OK
+PASS: Python compile
+PASS: syntax for all 8 production playbooks
+Passed: 0 failure(s), 0 warning(s) in 38 files processed of 42 encountered; production profile
+PASS: exact 10-file documentation/test closure and unchanged protected deployable source
+PASS: exact two-file Kubernetes source closure; no chart, values, rendered YAML, or Argo object source
+PASS: local Markdown links, evidence hygiene, KIF-ARGO-02 traceability, git diff, and no staged files
+```
+
+The active virtual environment warning only stated that the separate application
+repository environment was ignored in favor of this repository's locked `.venv`.
+The exact render reproducibility, stable upstream API registration screen, and
+controller-side image closure pass. Exact k3s admission/runtime, node pullability,
+trust selection, reduced RBAC/default-deny networking, Secret recovery, private Git
+secret-zero, Namespace adoption, and all live approvals remain blocked. The chart and
+application remain **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**; Argo CD runtime is
+**NOT RUN**, and this evidence closes no manual QA case.
 
 ## Node version discovery source-only validation — 2026-08-06
 
@@ -1226,11 +1337,11 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "schema-v3 discovery plus Namespace check/first apply/idempotence passed",
-    "Argo 3.5 target-minor screen and candidate provenance contracts pass",
+    "Namespace idempotence plus Argo 3.5 online/static render/API/image readiness contracts pass",
+    "exact k3s admission/security/Secret/adoption/runtime and provider/state/backup pending",
     "all nine exact Kubernetes",
-    "Exact k3s/runtime\n  and rendered API/CRD compatibility",
-    "CANDIDATE —\n  NOT DEPLOYABLE — NOT SELECTED",
+    "Exact k3s\n  admission/runtime and node pullability remain unproven",
+    "CANDIDATE — NOT DEPLOYABLE — NOT SELECTED",
     "executed group-scoped k3s",
 ]:
     assert statement in status, statement

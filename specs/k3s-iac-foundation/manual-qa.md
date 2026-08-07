@@ -24,8 +24,9 @@ its fifth PVC scope was the then-current `shared-data` and it did not capture a
 Kubernetes version. The separately approved schema-v3 rerun passed read-only and
 confirmed kubelet `v1.36.2+k3s1`, all 15 bounded queries available, and the exact
 `shared-services` PVC query with count zero. Argo CD `3.5`'s official tested matrix
-contains target minor `1.36`, and chart `10.3.0` admits it; exact k3s/runtime and
-rendered API/CRD compatibility remain unproven. The same Tailscale/SSH path remained
+contains target minor `1.36`, and chart `10.3.0` admits it. Static render
+reproducibility and upstream API registration now pass; exact k3s admission/runtime
+and CRD structural/defaulting behavior remain unproven. The same Tailscale/SSH path remained
 available, closing MQA-01.
 The first replacement-host increment is documented offline: a
 secret-free runbook/register separates reboot from replacement, stops on old-host or
@@ -46,11 +47,13 @@ authentication with `changed=0`; its retry passed at
 post-state assertions passing, and service health preserved. These bounded
 checkpoints close no manual QA case. The source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
-is **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** and records no runtime evidence.
-The target-minor compatibility screen passed, but exact k3s/runtime and rendered
-API/CRD compatibility, signing-key trust/status, version selection/soak, internal
-Secret recovery, private Git secret-zero, exact image availability plus
-component flow controls, bootstrap ownership, and runtime approvals remain blocked.
+is **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** and records no live API or runtime
+evidence. Its exact render reproducibility, stable upstream API registration screen,
+and controller-side image closure passed online/static review. Exact k3s admission
+and runtime, node pullability, signing/index-to-child and Redis trust, wildcard/broad
+RBAC, ingress-only/unrestricted-egress policy, Secret recovery, private Git
+secret-zero, Namespace adoption, version selection/soak, and runtime approvals remain
+blocked. This online/static evidence closes no manual QA case.
 The separate source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 is also **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** with runtime **NOT RUN**. Its

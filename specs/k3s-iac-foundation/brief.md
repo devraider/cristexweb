@@ -93,15 +93,15 @@ items `ok`, exact post-state identity/label/Active assertions passing, and
 k3s/Tailscale running before and after. Argo CD, cloudflared, Infisical, Secrets,
 workloads, Services, and routes remain unrun. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
-records chart, captured signature/hash-binding, image, and ignored-render research
-for chart `10.3.0` and app `v3.5.0`, but is explicitly **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. It adds
-no chart, values, or Kubernetes object source. The captured target minor `1.36` is
-in Argo CD `3.5`'s official tested matrix and passes chart `10.3.0`'s semver gate;
-exact k3s/runtime and rendered API/CRD compatibility, human selection and soak,
-signing-key trust/status, generated/internal Secret ownership
-and recovery, private Git secret-zero, exact image availability plus component flow
-controls, bootstrap ownership, and all runtime approvals
-remain blocked. A separate source-only
+records chart, captured signature/hash-binding, image, and curated online/static
+readiness evidence for chart `10.3.0` and app `v3.5.0`, but is explicitly **CANDIDATE
+— NOT DEPLOYABLE — NOT SELECTED**. It adds no chart, values, or Kubernetes object
+source. The exact 44-document render reproduced at Kubernetes capability `1.36.2`,
+stable upstream API registration screened successfully, and controller-side image
+closure was reachable. Exact k3s admission/runtime and node pullability remain
+unproven; wildcard/broad RBAC, ingress-only/unrestricted-egress policy, signing and
+image trust, generated/internal Secret recovery, private Git secret-zero, Namespace
+adoption, human selection/soak, and all runtime approvals remain blocked. A separate source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 records release `2026.7.3`, unsigned source, immutable linux/amd64 image,
 token-file, readiness/health, and edge-transport evidence. It is **CANDIDATE — NOT

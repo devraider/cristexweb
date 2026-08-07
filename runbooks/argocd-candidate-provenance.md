@@ -37,8 +37,9 @@ adds reviewed desired state under the existing ownership and approval rules.
 Helm verified that the captured provenance signature is valid under the captured key
 fingerprint and binds the captured chart hash. This evidence does **not** independently
 establish the signing key's publisher identity, current authorization, trust path, or
-revocation status. That trust decision remains blocked, alongside full rendered-API
-and CRD compatibility, operational correctness, human selection, and soak.
+revocation status. That trust decision remains blocked, alongside exact k3s
+admission, CRD structural/defaulting/pruning/CEL behavior, operational correctness,
+human selection, and soak.
 
 ## Target-minor compatibility evidence
 
@@ -109,41 +110,129 @@ These topology facts are render inspection results, not an approval of the RBAC,
 CRDs, NetworkPolicies, resource sizing, security contexts, service exposure, Secret
 lifecycle, or one-replica failure characteristics.
 
+## Online readiness refresh
+
+Four read-only controller-side lanes refreshed official Argo CD, argo-helm,
+Kubernetes, GitHub, Quay, Docker Hub, and Docker Registry evidence between
+`2026-08-07T11:21:53Z` and `2026-08-07T11:27:54Z`. They used anonymous HTTPS and
+private temporary directories only. No inventory, SSH, become, kubeconfig,
+Kubernetes API, server-side dry-run, Secret, provider, installation, deployment, or
+runtime action occurred. The online reports are ignored research inputs; the durable
+facts needed to interpret this record are curated below so a clean clone does not
+depend on them.
+
+Fresh official responses reproduced the existing chart index, chart archive,
+provenance, Argo source, tested-version matrix, CI workflow, and Go module hashes in
+this record. Using the unchanged captured candidate values, Helm
+`v3.21.3+g1ad6e68` rendered chart `10.3.0` with release and Namespace
+`argocd`, and Kubernetes capability `1.36.2`; the resulting 44-document SHA-256 was
+again `51bb87262f6896d9621a05fb0a340ccf12cac0a45cdfb72516be821892c15480`.
+This is deterministic source/render evidence, not live API admission or runtime proof.
+
+## Static API, topology, RBAC, and network findings
+
+Every rendered built-in kind uses a stable API registered in upstream Kubernetes
+`v1.36.2`: core `v1`, `apps/v1`, `batch/v1`, `networking.k8s.io/v1`,
+`rbac.authorization.k8s.io/v1`, or `apiextensions.k8s.io/v1`. The three Argo CRDs
+use `apiextensions.k8s.io/v1`, include OpenAPI v3 schemas, have no conversion webhook,
+and each serves and stores one Argo-owned `argoproj.io/v1alpha1` version. This static
+registration screen does not prove exact k3s `v1.36.2+k3s1` admission, CRD structural
+schema, defaulting, pruning, CEL validation, admission warnings, or managed-field
+behavior. A later target-server admission checkpoint remains separately approval-gated.
+
+The render retains ApplicationSet because chart `10.3.0` has no effective parent
+disable gate. Its four Services are ClusterIP. It contains no Ingress, Gateway,
+route, NodePort, LoadBalancer, PVC, or hostPath. Retained containers render with
+non-root, read-only-root, no-privilege-escalation, capability-drop, and seccomp
+controls. These strengths do not compensate for the blocking security posture:
+
+- the application-controller ClusterRole grants wildcard cluster-wide API groups,
+  resources, verbs, and non-resource URLs;
+- the server ClusterRole grants broad cross-resource `delete`, `get`, and `patch`;
+- all four rendered NetworkPolicies are ingress-only and pod egress is unrestricted;
+- server ingress is allow-all, while ApplicationSet and the Redis secret-init Job
+  have no rendered NetworkPolicy; and
+- token mounts, unbounded writable volumes, active metrics listeners, exact RBAC,
+  and default-deny ingress/egress require redesign and validation.
+
+## Refreshed image trust and availability findings
+
+Fresh controller-side registry requests reproduced both candidate index, linux/amd64
+child, and config digests. All 17 referenced Argo config/layer blobs and all 8 Redis
+config/layer blobs were reachable at the recorded window. This time-bounded
+controller observation does not prove k3s-node/containerd pullability, registry
+availability during recovery, or an acceptable rate-limit and mirror policy.
+
+The Argo multi-platform index has an observed keyless Sigstore bundle and SLSA
+provenance associated with the official `v3.5.0` release workflow and source commit.
+The release SBOM identifies the exact linux/amd64 child and its layers. No direct
+signature was observed on that child digest, so a human must decide how the observed
+signed-index-to-child relationship is accepted while deployment remains child-digest
+pinned.
+Redis has index-bound SPDX and SLSA statements for the exact child, but no publisher
+signature was observed; Redis publisher trust remains unresolved.
+
+A time-bounded public Quay response for the exact Argo child reported `status=scanned`
+and 296 vulnerability occurrences: 14 Low, 163 Medium, and 119 Unknown, with no High
+or Critical occurrence in that response. It exposed no bounded scan time or database
+build time. This is not a clean bill of health, exploitability assessment, or
+deployment decision. Redis vulnerability status is **UNKNOWN — NOT RUN**.
+
+## Private Git and Namespace adoption findings
+
+Argo CD `v3.5.0` supports private Git through HTTPS, SSH, or GitHub App credentials.
+Version-pinned Argo documentation identifies repository `Contents: read-only` as the
+minimum GitHub App permission for this use. That is an available design, not a selected
+repository, credential type, App owner, permission set, or custody model. Repository
+credentials are Secret data and may never enter Git, output, diffs, command arguments,
+or logs. The temporary writer, Infisical cutover, successor-key rotation, revocation,
+off-node custody, and isolated recovery remain undecided.
+
+Argo defaults to annotation tracking. The existing
+`cristex.io/desired-owner=argocd` labels record intent only and are not Argo tracking
+or ownership. Live Namespace UIDs, managed fields, last-applied state, finalizers, and
+tracking metadata have not been queried for adoption. `CreateNamespace`, managed
+Namespace metadata, prune, cascading Application deletion, `Replace`, `Force`, and
+server-side apply can change or delete critical resources. Argo's exact option for
+disabling client-side apply migration is `ClientSideApplyMigration=false`. No apply
+mode, one-versus-two Application layout, prune protection, or adoption sequence is
+selected; successful sync evidence remains required before any ownership handoff.
+
 ## Blocking decisions and evidence
 
 All items below block deployable Argo CD source and runtime:
 
-1. **Full target Kubernetes compatibility:** the captured target minor `1.36` is in
-   Argo CD `3.5`'s official tested matrix and passes chart `10.3.0`'s declared
-   semver gate. This does not prove exact k3s patch/distribution behavior, rendered
-   API/CRD compatibility, RBAC, NetworkPolicy, Secret lifecycle, or operational
-   correctness. Offline render/schema review and separately approved target runtime
-   validation remain blocked.
-2. **Human trust, selection, and soak:** chart `10.3.0` and application `v3.5.0`
-   are only a candidate with captured signature/hash-binding evidence. A human must
-   independently accept or reject the signing-key trust/status, select or reject the
-   versions, and approve the required compatibility/soak policy.
-3. **Generated and internal Secret ownership/recovery:** decide the exact owner,
-   creation sequence, rotation, backup, and recovery for `argocd-secret`, the initial
-   admin credential, TLS/signing material, and the Redis secret initialized by the
-   `redis-secret-init` Job. No value may enter Git or logs.
-4. **Private Git secret-zero and recovery:** approve private repository credentials,
-   least privilege, off-node custody, rotation, and non-disclosing recovery before
-   Argo can read desired state.
-5. **Image acquisition and component traffic:** prove node/containerd availability
-   of the exact Quay and Docker Hub child digests, or approve a verified preload or
-   mirror. Define and test an explicit component flow matrix for Kubernetes API,
-   DNS, Redis, and the selected GitHub HTTPS or SSH transport, including negative
-   tests for unrelated control-plane, namespace, and public access. The captured
-   chart NetworkPolicies are ingress-only and do not establish egress default-deny.
-6. **Bootstrap ownership exception:** review the exact non-Argo objects needed to
-   install Argo, the bounded writer and rollback, Namespace adoption or Application
-   registration, and successful-sync evidence that completes handoff. Future-owner
-   labels alone do not establish Argo ownership.
-7. **Runtime approvals:** obtain separate approvals for Namespace check, Namespace
-   apply/idempotence, any persistent-object bootstrap, secret creation, and runtime
-   validation. Argo CD must remain private; no public route is authorized.
+1. **Trust and human selection:** accept or reject the argo-helm key, Argo tag signer,
+   GitHub Actions/Cosign identity, index-to-child trust model, and revocation
+   assumptions; then select or reject chart `10.3.0` and application `v3.5.0`.
+2. **Cryptographic replay and Redis trust:** replay the observed Sigstore/SLSA and
+   chart evidence with pinned trusted tools and roots, and decide whether the Redis
+   evidence is sufficient without an observed publisher signature.
+3. **Vulnerability policy:** define severity, fixed-version, exception, re-scan-age,
+   and Redis scanning requirements; online counts alone close no gate.
+4. **Kubernetes authorization:** replace wildcard/broad RBAC with reviewed cluster
+   read, exact namespace write, cluster-scoped permissions, and a narrowly scoped
+   AppProject/source/destination/resource design.
+5. **Network architecture:** select and prove default-deny ingress/egress, Kubernetes
+   host-process API reachability, DNS, Redis, and dynamic Git/OCI access without
+   committing private addresses or pretending standard NetworkPolicy matches FQDNs.
+6. **Private administration and identity:** choose a private admin path, TLS/gRPC
+   behavior, OIDC/Casbin policy, local-admin disablement, and break-glass recovery.
+7. **Secrets and secret-zero** — decide ownership, creation, rotation, backup, and
+   recovery for Argo internal Secrets, the initial admin, TLS/signing material, Redis,
+   private Git, and Infisical bootstrap/cutover writers without value disclosure.
+8. **Namespace adoption:** choose source layout, inspect live managed fields, define
+   prune/cascade protection, select first-sync apply behavior, and prove UID and
+   unrelated-metadata preservation before handoff.
+9. **ApplicationSet:** explicitly accept and harden the retained controller or select
+   another reviewed packaging strategy; it cannot be treated as disabled.
+10. **Runtime and recovery:** prove node image acquisition, exact k3s admission,
+    workloads, Secret lifecycle, component flows, restart/recovery, single-node
+    downtime acceptance, soak, and every separately approved runtime checkpoint.
 
-Until these gates close, the rollback for this increment is only a Git revert of
-this documentation and its offline contract test. There is no runtime rollback
-because Argo CD runtime is **NOT RUN**.
+No blocker above is closed by online documentation, registry reachability, or static
+rendering alone. No GitHub App, OIDC, port-forward, Traefik route, egress design,
+apply mode, adoption layout, chart, or application version is selected here. Until
+these gates close, rollback for this increment is only a Git revert of this
+documentation and its offline contract test. There is no runtime rollback because
+Argo CD runtime is **NOT RUN**.

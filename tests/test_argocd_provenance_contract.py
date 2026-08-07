@@ -161,29 +161,82 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
         self.assertNotIn("applicationSet.enabled: false", self.text)
         self.assertNotIn("ApplicationSet was disabled", self.text)
 
+    def test_online_render_and_api_screen_is_exact_and_narrow(self) -> None:
+        for required in (
+            "`2026-08-07T11:21:53Z`",
+            "`2026-08-07T11:27:54Z`",
+            "Helm `v3.21.3+g1ad6e68`",
+            "Kubernetes capability `1.36.2`",
+            "resulting 44-document SHA-256 was\nagain `51bb87262f6896d9621a05fb0a340ccf12cac0a45cdfb72516be821892c15480`",
+            "Every rendered built-in kind uses a stable API registered in upstream Kubernetes\n`v1.36.2`",
+            "three Argo CRDs\nuse `apiextensions.k8s.io/v1`",
+            "have no conversion webhook",
+            "each serves and stores one Argo-owned `argoproj.io/v1alpha1` version",
+            "does not prove exact k3s `v1.36.2+k3s1` admission",
+            "later target-server admission checkpoint remains separately approval-gated",
+        ):
+            self.assertIn(required, self.text)
+
+    def test_online_security_findings_remain_blockers(self) -> None:
+        for required in (
+            "retains ApplicationSet",
+            "four Services are ClusterIP",
+            "no Ingress, Gateway,\nroute, NodePort, LoadBalancer, PVC, or hostPath",
+            "application-controller ClusterRole grants wildcard cluster-wide",
+            "server ClusterRole grants broad cross-resource `delete`, `get`, and `patch`",
+            "all four rendered NetworkPolicies are ingress-only and pod egress is unrestricted",
+            "server ingress is allow-all",
+            "ApplicationSet and the Redis secret-init Job\n  have no rendered NetworkPolicy",
+            "do not compensate for the blocking security posture",
+        ):
+            self.assertIn(required, self.text)
+
+    def test_online_image_trust_and_vulnerability_boundaries_are_exact(self) -> None:
+        for required in (
+            "All 17 referenced Argo config/layer blobs and all 8 Redis\nconfig/layer blobs were reachable",
+            "does not prove k3s-node/containerd pullability",
+            "Argo multi-platform index has an observed keyless Sigstore bundle and SLSA\nprovenance",
+            "release SBOM identifies the exact linux/amd64 child",
+            "No direct\nsignature was observed on that child digest",
+            "Redis has index-bound SPDX and SLSA statements",
+            "no publisher\nsignature was observed",
+            "296 vulnerability occurrences: 14 Low, 163 Medium, and 119 Unknown",
+            "no High\nor Critical occurrence in that response",
+            "not a clean bill of health",
+            "Redis vulnerability status is **UNKNOWN — NOT RUN**",
+        ):
+            self.assertIn(required, self.text)
+
+    def test_private_git_and_adoption_remain_human_decisions(self) -> None:
+        for required in (
+            "supports private Git through HTTPS, SSH, or GitHub App credentials",
+            "`Contents: read-only` as the\nminimum GitHub App permission",
+            "available design, not a selected",
+            "Repository\ncredentials are Secret data and may never enter Git, output, diffs, command arguments,\nor logs",
+            "`cristex.io/desired-owner=argocd` labels record intent only",
+            "Live Namespace UIDs, managed fields, last-applied state, finalizers, and\ntracking metadata have not been queried",
+            "`ClientSideApplyMigration=false`",
+            "No apply\nmode, one-versus-two Application layout, prune protection, or adoption sequence is\nselected",
+        ):
+            self.assertIn(required, self.text)
+        self.assertNotIn("DisableClientSideApplyMigration=true", self.text)
+
     def test_blockers_and_source_only_boundary_are_truthful(self) -> None:
         for required in (
-            "Full target Kubernetes compatibility",
-            "captured target minor `1.36` is in\n   Argo CD `3.5`'s official tested matrix",
-            "does not prove exact k3s patch/distribution behavior, rendered\n   API/CRD compatibility",
-            "Offline render/schema review and separately approved target runtime\n   validation remain blocked",
-            "Human trust, selection, and soak",
-            "signing-key trust/status",
-            "Generated and internal Secret ownership/recovery",
-            "`argocd-secret`",
-            "initial\n   admin credential",
-            "TLS/signing material",
-            "`redis-secret-init` Job",
-            "Private Git secret-zero and recovery",
-            "Image acquisition and component traffic",
-            "exact Quay and Docker Hub child digests",
-            "component flow matrix for Kubernetes API,\n   DNS, Redis",
-            "NetworkPolicies are ingress-only and do not establish egress default-deny",
-            "Bootstrap ownership exception",
-            "Future-owner\n   labels alone do not establish Argo ownership",
-            "Runtime approvals",
-            "Argo CD must remain private",
+            "Trust and human selection",
+            "Cryptographic replay and Redis trust",
+            "Vulnerability policy",
+            "Kubernetes authorization",
+            "Network architecture",
+            "Private administration and identity",
+            "Secrets and secret-zero",
+            "Namespace adoption",
+            "ApplicationSet",
+            "Runtime and recovery",
+            "No blocker above is closed by online documentation, registry reachability, or static\nrendering alone",
+            "No GitHub App, OIDC, port-forward, Traefik route, egress design,\napply mode, adoption layout, chart, or application version is selected here",
             "does not select a\nrelease, authorize a bootstrap, or add a Helm chart, values file, Kubernetes object,\ncredential, or secret value",
+            "No inventory, SSH, become, kubeconfig,\nKubernetes API, server-side dry-run, Secret, provider, installation, deployment, or\nruntime action occurred",
         ):
             self.assertIn(required, self.text)
 
@@ -201,6 +254,8 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
 
     def test_candidate_record_contains_no_secret_or_private_address_material(self) -> None:
         self.assertNotIn("```", self.text)
+        self.assertNotIn(".pi-subagents", self.text)
+        self.assertNotRegex(self.text, r"\b[0-9a-f]{65}\b")
         forbidden_patterns = (
             r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
             r"\bghp_[A-Za-z0-9]+\b",
