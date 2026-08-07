@@ -133,7 +133,11 @@ class InfisicalOperatorCandidateProvenanceContractTests(unittest.TestCase):
         )
         for required in (
             "Human version, trust, and soak selection",
+            "approved schema-v3 discovery now captures target kubelet `v1.36.2+k3s1`",
+            "chart, CRD/API, and exact k3s compatibility remain unproven",
             "Target compatibility",
+            "approved schema-v3 discovery captured kubelet `v1.36.2+k3s1`",
+            "Review every rendered CRD/API version and prove exact chart and k3s compatibility",
             "Chart and image assurance",
             "Dedicated operator Namespace",
             "current Ansible exception can create only `argocd` and `platform-edge`",

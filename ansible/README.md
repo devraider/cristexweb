@@ -7,9 +7,11 @@ projection includes only the existing curated Node name/cluster scope plus exact
 `status.nodeInfo.kubeletVersion`; curated block-device, partition,
 mounted-filesystem-type, and mount-state indicators; exact StorageClass fields;
 bounded PersistentVolume metadata; and PersistentVolumeClaim metadata from five
-fixed namespaces. It does not configure the host, install dependencies, read
-filesystem contents, or prove compatibility, CNI behavior, or NetworkPolicy
-enforcement.
+fixed namespaces. The separately approved schema-v3 elevated rerun passed with only
+the ignored controller-local report changed; it captured kubelet `v1.36.2+k3s1`,
+all 15 bounded queries available, and the zero-count `shared-services` PVC query. It
+does not configure the host, install dependencies, read filesystem contents, or by
+itself prove component compatibility, CNI behavior, or NetworkPolicy enforcement.
 
 ## Controller environment
 
@@ -322,7 +324,7 @@ selected host:
 
 ```bash
 cd ansible
-uv run ansible-playbook playbooks/discover.yml --check --diff --limit crtxweb
+uv run ansible-playbook -i .ansible/inventory.local.yml playbooks/discover.yml --check --diff --limit crtxweb
 ```
 
 That default is non-elevated and cannot query the root-only k3s kubeconfig. A
@@ -330,7 +332,7 @@ separately approved elevated discovery requires both explicit flags:
 
 ```bash
 cd ansible
-uv run ansible-playbook playbooks/discover.yml --check --diff --limit crtxweb \
+uv run ansible-playbook -i .ansible/inventory.local.yml playbooks/discover.yml --check --diff --limit crtxweb \
   -e read_only_discovery_enable_elevated=true \
   -e read_only_discovery_elevated_approved=true \
   --ask-become-pass
@@ -342,6 +344,12 @@ load for authentication. The playbook never separately slurps, copies, registers
 logs, or renders kubeconfig content.
 
 ## Output and privacy
+
+The inventory argument is mandatory for operational discovery. The default
+`ansible.cfg` inventory contains only the neutral `crtxweb` alias and deliberately
+has no endpoint or SSH-user data. Omitting `-i .ansible/inventory.local.yml` caused a
+censored `UNREACHABLE` result before host discovery; it must not be treated as a host
+health result or retried by disabling host-key verification.
 
 The only write is a controller-local schema-v3 report at
 `inventory.local.ansible.json` in the repository root. It is ignored by Git,
@@ -360,9 +368,11 @@ labels, or annotations. Current source limits PVC queries to `default`,
 `kube-system`, `shared-services`, `cristexhub-dev`, and `cristexhub-prod`; no Secret,
 ConfigMap, Event, new API kind, or broad PVC query is made. The prior live extended
 report used `shared-data` as its fifth scope and did not capture a Kubernetes
-version. The schema-v3 kubelet-version projection and `shared-services` scope are
-offline-only pending one separately approved elevated read-only rerun. They do not
-yet prove target-cluster or Argo CD compatibility. Generated PV identifiers and
+version. The separately approved schema-v3 rerun now confirms kubelet
+`v1.36.2+k3s1`, the exact available `shared-services` PVC query with count zero, and
+all 15 bounded queries available. That curated result establishes the target minor
+for compatibility review but does not prove component runtime compatibility.
+Generated PV identifiers and
 backing paths are not rendered: placement is reduced to backend, node-affinity
 presence, and whether a host path is under the fixed k3s storage root.
 

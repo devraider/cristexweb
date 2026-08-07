@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: schema-v3 kubelet-version discovery and Namespace bootstrap pass offline; Argo/cloudflared/Infisical candidate provenance contracts pass; target version/compatibility and runtime/provider/state/backup/apply pending
+build: schema-v3 discovery passed live; Argo 3.5 target-minor screen and candidate provenance contracts pass; full compatibility and Namespace/runtime/provider/state/backup/apply pending
 date: 2026-08-07
 deploy_required_after_acceptance: yes
 
@@ -40,17 +40,26 @@ note: |
   ignored mode-`0600` controller report. Human review confirmed an unmounted 1 TB
   rotational disk with one partition, NVMe/root capacity, local-path StorageClass
   behavior, and zero current PV/PVC objects. That historical live report's fifth PVC
-  scope was `shared-data` and it did not capture a Kubernetes version. Current source
-  now queries `shared-services` and projects the exact kubelet version; both changes
-  pass offline only and remain NOT RUN pending one separately approved elevated
-  read-only rerun and human review. Argo CD compatibility is not established. The
+  scope was `shared-data` and it did not capture a Kubernetes version. The separately
+  approved schema-v3 elevated rerun generated the ignored report at
+  `2026-08-07T08:09:31Z` and passed at ok=17/changed=1/unreachable=0/failed=0/skipped=1;
+  the sole change was the controller-local report write and target discovery remained
+  read-only. Human review confirmed kubelet `v1.36.2+k3s1`, four existing Namespaces,
+  all 15 bounded Kubernetes queries available, and the exact `shared-services` PVC
+  query available with count zero. `argocd`, `platform-edge`, `shared-services`,
+  `cristexhub-dev`, and `cristexhub-prod` remain absent. The first attempt omitted
+  `-i .ansible/inventory.local.yml`, stopped at ok=3/changed=0/unreachable=1 before
+  discovery, and made no host or report change; every operational command now
+  explicitly loads the ignored local inventory. The
   source-only
   [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
   binds chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
   immutable linux/amd64 images, and ignored 44-document render evidence. It is **CANDIDATE —
   NOT DEPLOYABLE — NOT SELECTED**, adds no chart/values/Kubernetes source, and has
-  no runtime evidence. Target compatibility, signing-key trust/status, human
-  selection and soak, generated/internal Secret ownership and recovery, private Git
+  no Argo runtime evidence. The target Kubernetes minor `1.36` is in Argo CD `3.5`'s
+  official tested matrix and passes chart `10.3.0`'s semver gate. Exact k3s/runtime
+  and rendered API/CRD compatibility, signing-key trust/status, human selection and
+  soak, generated/internal Secret ownership and recovery, private Git
   secret-zero, exact image availability plus component flow controls, bootstrap
   ownership, and runtime approvals remain blockers. The separate source-only
   [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
@@ -67,8 +76,9 @@ note: |
   and image tag were not observed during the bounded capture, from the last observed
   version-aligned `v0.11.7` chart/source/image set. Both remain **CANDIDATE — NOT
   DEPLOYABLE — NOT SELECTED**, runtime is **NOT RUN**, and no chart, CRD, Kubernetes
-  object, credential, or Secret source was added. Actual compatibility, signer/build
-  trust, dedicated Namespace, scoped RBAC, Argo handoff, secret-zero/recovery,
+  object, credential, or Secret source was added. The actual target is now captured,
+  but chart/CRD/API compatibility, signer/build trust, dedicated Namespace, scoped
+  RBAC, Argo handoff, secret-zero/recovery,
   traffic policy, single-node acceptance, and runtime approvals remain blockers.
   The unmounted filesystem, disk health, contents, reuse decision, and off-node backup
   design remain unresolved; no disk mutation occurred.
@@ -117,7 +127,8 @@ note: |
   bootstrap writer and Argo CD only as future desired owner. Argo ownership remains
   pending installation, Namespace adoption or Application registration, and
   successful sync evidence; the label alone is not a handoff. Its cluster
-  check/live/idempotence are NOT RUN; Argo CD, cloudflared,
+  check/live/idempotence are NOT RUN; discovery evidence permits requesting only the
+  separately approved wrapper `check`. Argo CD, cloudflared,
   `shared-services`, DEV/PROD namespaces, Secrets, workloads, Services, and routes do
   not exist from this increment. The future shared service Namespace is named
   `shared-services`, but it is not created.

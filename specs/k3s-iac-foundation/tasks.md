@@ -56,9 +56,10 @@
   that emits only name, cluster scope, and `status.nodeInfo.kubeletVersion`, while
   retaining the current `shared-services` PVC scope and adding no query kind
   (`KIF-001`, `KIF-008`, `KIF-030`).
-- [ ] Separately approve one elevated read-only discovery rerun and human-review the
-  actual kubelet version plus `shared-services` scope before deciding Argo CD
-  compatibility; the historical live report captured neither current field
+- [x] Separately approve and run one schema-v3 elevated read-only discovery; human
+  review confirmed kubelet `v1.36.2+k3s1`, all 15 bounded queries available, and the
+  exact `shared-services` PVC query with count zero. Correct the initially omitted
+  local inventory argument and require it in every operational discovery command
   (`KIF-001`, `KIF-002`, `KIF-008`, `KIF-030`).
 - [x] Implement and offline-validate CNI/NetworkPolicy `plan`, `run`, and `cleanup`
   actions with check/diff and one-host gates, a Ready linux/amd64 node, readable
@@ -192,9 +193,10 @@ these checklist entries grant no live approval and waive no Stage 4 entry gate.
   single-node risk, and runtime approvals are resolved; add deployable source only in
   a separate reviewed change (`KIF-002`, `KIF-005`, `KIF-011`, `KIF-013`, `KIF-015`,
   `KIF-021`, `KIF-023`).
-- [ ] Human-select and soak the Argo CD chart/application candidate only after actual
-  target kubelet compatibility, signing-key trust/status, generated/internal Secret
-  ownership and recovery, private Git secret-zero/recovery, exact image availability
+- [ ] Human-select and soak the Argo CD chart/application candidate only after full
+  exact-k3s and rendered API/CRD compatibility beyond the passed target-minor screen,
+  signing-key trust/status, generated/internal Secret ownership and recovery,
+  private Git secret-zero/recovery, exact image availability
   plus component flow controls, bootstrap ownership, and runtime approval gates are
   resolved; then add and review deployable source
   separately (`KIF-002`, `KIF-005`, `KIF-013`, `KIF-015`, `KIF-023`).
@@ -206,9 +208,10 @@ these checklist entries grant no live approval and waive no Stage 4 entry gate.
   runtime, or deployment (`KIF-005`, `KIF-013`–`KIF-015`, `KIF-021`, `KIF-023`,
   `KIF-030`).
 - [ ] Pin and render a provenance-consistent Infisical operator version only after
-  actual kubelet/API compatibility, signer/build trust, dedicated Namespace,
-  explicit scope/RBAC, Argo handoff, secret-zero/recovery, traffic, single-node, and
-  runtime gates are resolved (`KIF-005`, `KIF-013`, `KIF-023`).
+  chart/CRD/API compatibility for the now-captured target, signer/build trust,
+  dedicated Namespace, explicit scope/RBAC, Argo handoff, secret-zero/recovery,
+  traffic, single-node, and runtime gates are resolved (`KIF-005`, `KIF-013`,
+  `KIF-023`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare secret-zero
   sequence (`KIF-014`, `KIF-015`).
 - [ ] Obtain explicit approval for bounded Argo CD bootstrap (`KIF-002`).

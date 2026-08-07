@@ -779,6 +779,29 @@ class AnsibleSafetyTests(unittest.TestCase):
         elevated = (ANSIBLE / "roles/read_only_discovery/tasks/kubernetes.yml").read_text()
         self.assertEqual(2, elevated.count("become: true"))
 
+    def test_operational_discovery_examples_require_local_inventory(self) -> None:
+        required = (
+            "uv run ansible-playbook -i .ansible/inventory.local.yml "
+            "playbooks/discover.yml --check --diff --limit crtxweb"
+        )
+        for relative in (
+            "README.md",
+            "ansible/README.md",
+            "specs/k3s-iac-foundation/testcases.md",
+        ):
+            normalized = " ".join((ROOT / relative).read_text().replace("\\\n", " ").split())
+            self.assertIn(required, normalized, relative)
+            self.assertNotIn(
+                "uv run ansible-playbook playbooks/discover.yml --check --diff --limit crtxweb",
+                normalized,
+                relative,
+            )
+        config = (ANSIBLE / "ansible.cfg").read_text()
+        self.assertIn("inventory = inventory/hosts.yml", config)
+        inventory = (ANSIBLE / "inventory/hosts.yml").read_text()
+        self.assertNotIn("ansible_host", inventory)
+        self.assertNotIn("ansible_user", inventory)
+
     def test_fact_cache_is_memory_only_and_no_install_task_exists(self) -> None:
         config = (ANSIBLE / "ansible.cfg").read_text()
         self.assertIn("fact_caching = memory", config)

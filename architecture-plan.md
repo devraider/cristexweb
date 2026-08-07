@@ -37,9 +37,13 @@ local-path StorageClass (`Delete`, `WaitForFirstConsumer`, no expansion), zero
 current PV/PVC objects, and curated kube-system workload indicators through the
 protected group-scoped kubeconfig. That historical live report did not capture a
 Kubernetes version and used `shared-data` rather than the current `shared-services`
-PVC scope. A schema-v3 exact Node kubelet-version projection now passes offline
-validation only; target version and Argo CD compatibility remain unproven until one
-separately approved elevated read-only rerun is human-reviewed. Reboot recovery,
+PVC scope. The separately approved schema-v3 rerun passed at
+`ok=17 changed=1 unreachable=0 failed=0 skipped=1`; the change was only the ignored
+controller-local report write. Human review confirmed kubelet `v1.36.2+k3s1`, all 15
+bounded queries available, and the exact `shared-services` PVC query with count zero.
+Argo CD `3.5` officially lists Kubernetes minor `1.36` in its tested matrix and chart
+`10.3.0` admits the target through its semver gate. This is target-minor screening,
+not k3s-specific runtime or rendered API/CRD compatibility proof. Reboot recovery,
 independent fallback access, CNI behavior, and NetworkPolicy enforcement are
 verified for the current
 single-node cluster; replacement-host recovery still requires separate verification.
@@ -58,8 +62,9 @@ from this increment yet. The source-only
 [Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 records chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
 immutable linux/amd64 images, and ignored 44-document render evidence. It is explicitly **CANDIDATE — NOT
-DEPLOYABLE — NOT SELECTED**; actual kubelet compatibility, human version selection
-and soak, signing-key trust/status, generated/internal Secret ownership and recovery,
+DEPLOYABLE — NOT SELECTED**. The target minor screen passes for Kubernetes `1.36`,
+but full k3s/rendered API/CRD compatibility, human version selection and soak,
+signing-key trust/status, generated/internal Secret ownership and recovery,
 private Git secret-zero, exact image availability plus component flow controls,
 bootstrap ownership, and runtime approvals remain blockers. It
 adds no chart, values, or Kubernetes object source. The separate source-only
@@ -281,9 +286,11 @@ verification must meet the declared RPO/RTO before PROD.
   `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
   dependencies, and post-install imports pass. The
   elevated report confirms the datastore and nine then-current available exact
-  Kubernetes queries. The schema-v3 kubelet-version and current `shared-services`
-  projections pass offline checks only; the historical live report contains neither
-  the version nor current PVC scope. Reboot recovery and the bounded
+  Kubernetes queries. The later schema-v3 elevated rerun confirms kubelet
+  `v1.36.2+k3s1`, all 15 bounded queries available, and the current
+  `shared-services` PVC query with count zero. The first attempt at that rerun omitted
+  the ignored local inventory and stopped unreachable before discovery; the corrected
+  explicit inventory command succeeded. Reboot recovery and the bounded
   CNI/NetworkPolicy probe passed; replacement-host recovery remains unproven.
 - Gate: human-reviewed local report and decision register update.
 - Stop: a task needs mutation, secret output, or elevated access beyond the two
@@ -335,8 +342,10 @@ verification must meet the declared RPO/RTO before PROD.
   binds public chart, captured signature/hash-binding, image metadata, and an ignored
   minimal render. The
   candidate retains ApplicationSet because chart `10.3.0` has no effective
-  `applicationSet.enabled` disable gate. This is not version selection, deployable
-  desired state, compatibility proof, or runtime evidence.
+  `applicationSet.enabled` disable gate. The captured target minor `1.36` appears in
+  Argo CD `3.5`'s official tested matrix and passes the chart semver gate, but this is
+  not version selection, deployable desired state, k3s-specific/runtime, or full
+  rendered API/CRD compatibility proof.
 - Current source-only cloudflared evidence: the
   [candidate provenance record](runbooks/cloudflared-candidate-provenance.md) binds
   release, unsigned source, architecture-specific image, token-file, health, and
@@ -347,7 +356,8 @@ verification must meet the declared RPO/RTO before PROD.
   [candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
   records the incomplete observed `v0.11.8` public distribution and last observed
   version-aligned `v0.11.7` set while leaving both **CANDIDATE — NOT DEPLOYABLE — NOT
-  SELECTED** with runtime **NOT RUN**. Compatibility, trust, Namespace, scoped-RBAC,
+  SELECTED** with runtime **NOT RUN**. The actual target kubelet is now captured, but
+  chart/CRD/API compatibility, trust, Namespace, scoped-RBAC,
   Argo handoff, secret-zero, traffic, recovery, and runtime gates remain blocked.
 - Entry: pinned component versions, human-reviewed target kubelet-version evidence,
   verified Kubernetes compatibility, and an approved secret-zero procedure.

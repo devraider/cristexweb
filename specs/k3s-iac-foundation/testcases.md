@@ -27,7 +27,8 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-ANS-10 | KIF-001, KIF-007, KIF-030 | Approved non-elevated host discovery | Ansible ping and exactly one check/diff-limited host run pass; only the ignored controller-local report changes and receives human review | PASS — ping changed=false; play recap ok=14, changed=1 local report, failed=0, unreachable=0, skipped=1; valid JSON mode 0600 reviewed; no become or Kubernetes query |
 | KIF-ANS-11 | KIF-001, KIF-008, KIF-030 | Elevated failure diagnosis | Human-reviewed elevated report and a bounded read-only import probe explain unavailable Kubernetes queries without emitting kubeconfig or secrets | PASS — datastore exists; nine queries unavailable; remote `kubernetes`, `yaml`, and `jsonpatch` imports all false |
 | KIF-ANS-12 | KIF-001, KIF-008, KIF-030 | Exact Node version projection offline contract | Schema v3 adds an exact existing-Node branch that emits only curated name/cluster scope and `status.nodeInfo.kubeletVersion`; missing metadata/status/nodeInfo safely fall back to `unknown`; raw resource/nodeInfo, other Node status, IDs, addresses, labels/annotations, kernel/container-runtime fields, and new query kinds remain absent | PASS — exact-branch static contract and a three-Node synthetic render (complete, missing status, missing nodeInfo) passed with sensitive fixture fields omitted and exact `unknown` fallbacks; full offline suite, syntax, and production lint passed without inventory or Kubernetes API access |
-| KIF-ANS-13 | KIF-001, KIF-002, KIF-008, KIF-030 | Target kubelet version and current PVC scope runtime | One separately approved elevated read-only check/diff rerun refreshes the ignored mode-0600 report; human review confirms actual kubelet version and `shared-services` scope before Argo CD compatibility is decided | NOT RUN — historical live report used `shared-data` and did not capture Kubernetes version; current schema-v3/source changes are offline-only and no compatibility claim is made |
+| KIF-ANS-13 | KIF-001, KIF-002, KIF-008, KIF-030 | Target kubelet version and current PVC scope runtime | One separately approved elevated read-only check/diff rerun refreshes the ignored mode-0600 report; human review confirms actual kubelet version and `shared-services` scope before Argo CD compatibility is decided | PASS — report `2026-08-07T08:09:31Z`, schema 3, ok=17/changed=1 local report/unreachable=0/failed=0/skipped=1; kubelet `v1.36.2+k3s1`, exactly 15 available queries, 4 Namespaces, and available zero-count `shared-services` PVC query reviewed; target remained read-only |
+| KIF-ANS-14 | KIF-001, KIF-007, KIF-030 | Operational inventory command contract | Every operational discovery example explicitly loads ignored `.ansible/inventory.local.yml`; default `ansible.cfg` remains the neutral alias-only inventory and no address/user/secret enters Git | PASS — first omitted-inventory attempt stopped before discovery at ok=3/changed=0/unreachable=1; corrected command passed; offline contract rejects the omission in root, Ansible, and testcase documentation |
 | KIF-DEP-01 | KIF-002, KIF-007 | Approved dependency bootstrap contract | Separate one-host playbook requires explicit approval and directly requests only `python3-kubernetes` and `python3-jsonpatch`; no cache refresh, shell, command, latest, upgrade, or other direct package exists | PASS — contract test, syntax check, and production-profile lint passed |
 | KIF-DEP-02 | KIF-002, KIF-007 | Dependency bootstrap execution | Check/diff package plan is reviewed before the approved actual installation; subsequent import probe and elevated discovery pass | PASS — incomplete first plan rejected; revised plan reviewed 37 new, 0 upgraded/removed; installation, package verification, imports, and elevated discovery passed |
 | KIF-ADM-01 | KIF-002, KIF-007 | Group-scoped admin access contract | Explicit approval and one-host limit gate an existing nonzero-UID account; exact dedicated group rejects GID 0, numeric aliases, and unexpected members; check-safe creation, no home creation, persistent `0640` settings, hidden diff, safe rollback baseline, conditional restart, polling, metadata assertions, and effective readability as the selected user are present | PASS — contract test, syntax check, and production-profile lint passed |
@@ -40,7 +41,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-NET-01 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional-probe contract | Plan/run/cleanup truth tables, immutable image and approval gates, API-generated names, fixed existing namespace, selectorless ClusterIP plus explicit EndpointSlice, hardened standalone Pods with exact terminal-state checks, private exact-UID ledger recovery, dual-label fixed-kind interruption discovery, UID-preconditioned non-cascading cleanup, zero residue, and no remote exec or Namespace mutation are enforced | PASS — focused contracts, syntax, and production lint passed offline; no inventory host, image registry, or Kubernetes API was accessed |
 | KIF-NET-02 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-021, KIF-030 | Temporary CNI/NetworkPolicy functional runtime | After independent image verification and a reviewed ownership exception plus separate create/delete approvals, baseline success, deny failure, selective allow/deny, rollback success, and exact cleanup pass | PASS — official BusyBox linux/amd64 digest and `httpd`/`wget` paths verified; run check ok=18/changed=0; eight phases passed; execution ok=225/changed=43/failed=0; 12 remaining identities removed after two policy deletes; post-cleanup check ok=20/changed=0/exact_identity_count=0 |
 | KIF-STO-01 | KIF-001, KIF-003, KIF-008, KIF-030 | Non-destructive storage discovery offline contract | Built-in facts project only curated device/partition size, rotational/removable state, direct mount state, and mounted filesystem types; exact StorageClass behavior fields, bounded PV placement booleans, and PVC metadata from five fixed namespaces omit device serials, UUIDs, addresses, backing paths, filesystem contents, Secret/ConfigMap kinds, and broad PVC queries | PASS — focused contracts, all 28 offline tests, collision-safe synthetic render, discovery syntax, and production lint passed; no inventory host, kubeconfig, Kubernetes API, or filesystem content was accessed |
-| KIF-STO-02 | KIF-001, KIF-008, KIF-030 | Extended storage discovery runtime | A separately approved one-host elevated check/diff run renders valid mode-0600 JSON and human review establishes actual curated device, StorageClass, PV, and PVC indicators without mutation or sensitive metadata | PASS — ok=17/changed=1 local report/failed=0; unmounted 1 TB rotational disk with one partition, NVMe/root capacity, local-path `Delete`/`WaitForFirstConsumer`/no expansion, and zero PV/PVC objects confirmed. Historical boundary: that live report's fifth PVC scope was `shared-data`; current source queries `shared-services`, and that scope change is offline-only pending a separately approved read-only rerun. Filesystem/content/health and reuse decision remain unknown; no disk mutation |
+| KIF-STO-02 | KIF-001, KIF-008, KIF-030 | Extended storage discovery runtime | A separately approved one-host elevated check/diff run renders valid mode-0600 JSON and human review establishes actual curated device, StorageClass, PV, and PVC indicators without mutation or sensitive metadata | PASS — ok=17/changed=1 local report/failed=0; unmounted 1 TB rotational disk with one partition, NVMe/root capacity, local-path `Delete`/`WaitForFirstConsumer`/no expansion, and zero PV/PVC objects confirmed. Historical boundary: that report's fifth PVC scope was `shared-data`; KIF-ANS-13 later live-verifies the current zero-count `shared-services` query. Filesystem/content/health and reuse decision remain unknown; no disk mutation |
 | KIF-REC-01 | KIF-002, KIF-003, KIF-013, KIF-015, KIF-028, KIF-030 | Replacement-host recovery first offline increment | Secret-free runbook/register truthfully separate same-host reboot from replacement, require old-host fencing and exclusive storage ownership, stop split brain, require exactly one preserve-existing or create-new identity decision, and leave datastore/version/token/storage/RPO/RTO/off-node prerequisites explicitly unknown without guessed commands | PASS — 5 focused offline recovery contracts and the full offline suite passed; documentation contains no executable recovery command or secret-shaped value and no host/provider/API was accessed |
 | KIF-REC-02 | KIF-007, KIF-015, KIF-026–KIF-030 | Replacement-host recovery rehearsal/runtime | An isolated, approved replacement follows an actual version/datastore/storage-specific plan; proves one authoritative cluster/storage writer, desired state, mutable data, encryption behavior, isolation, and measured RPO/RTO before public reactivation | NOT RUN/BLOCKED — identity model and datastore, exact version/config, token custody, storage, RPO/RTO, off-node artifacts, restore procedures, and approvals remain `UNKNOWN — STOP`; reboot success is not replacement proof |
 | KIF-TOFU-01 | KIF-002, KIF-005, KIF-006, KIF-013, KIF-030 | Pinned host installer offline contract | Source structurally requires default-false install and separate rollback approval, diff/one-host gates, Debian 13 x86_64, reviewed checksum-pinned archive/payload digests, an existing non-root operator without UID aliases, strict remote and controller-cache modes, symlink-safe controller preflight, controller-only download plus verified Ansible transfer, absent-only version extraction, an exact managed selector, protected state directory, service preservation, check-mode prediction, and selector-only state-preserving rollback | PASS — focused structural contracts, full offline suite, syntax, and production lint passed; controller transfer fix used no host/provider contact and negative runtime branches remain NOT RUN |
@@ -49,9 +50,102 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-TOFU-04 | KIF-013, KIF-028, KIF-030 | Local-state encryption and off-node recovery gate | Timestamped encrypted Google Drive copies, independent key custody, integrity verification, and isolated restore pass before the first apply | NOT RUN/BLOCKED — no state exists; encryption, Drive identity, copy, retention, key recovery, and restore remain `UNKNOWN — STOP` |
 | KIF-NS-01 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-030 | Bounded platform Namespace bootstrap offline contract | Exact committed `argocd` and `platform-edge` Namespace manifests are the sole definition and the architecture/task checklist places them in a documented pre-Stage-4 exception with separate check/apply/idempotence approvals that waives no Stage 4 entry gate; a non-passthrough entrypoint rejects `--start-at-task`, `--step`, and all extra arguments; the wrapper launches the repository `.venv` controller in an allowlisted clean environment and supplies a private random single-run attestation; the mutating task independently requires that attestation, reloads only literal manifest paths, and rejects extra top-level/metadata keys; a first-task internal-variable guard, canonical non-symlink ancestor/leaf validation, approval/diff/exact-limit/kubeconfig/protected-result gates, foreign-existing refusal, present-only reconciliation, exact post-verification, truthful ownership labels, executable closure, and no deletion/other-kind path are enforced | PASS — focused structural, stage-boundary, control-flow, and synthetic ancestor-symlink contracts, controller-only forged-extra-var rejection, full offline suite, syntax, synthetic discovery validation, and production lint passed without inventory or Kubernetes API contact |
 | KIF-NS-02 | KIF-002, KIF-005, KIF-010, KIF-030 | Platform Namespace bootstrap runtime | Reviewed check predicts exactly the two absent Namespaces; approved live run creates them, verifies labels/services, and second run converges changed=0 without installing Argo CD/cloudflared or creating a route | NOT RUN — no inventory, SSH, kubeconfig, Kubernetes API, Namespace mutation, Secret, workload, Service, or route operation occurred |
-| KIF-ARGO-01 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-023, KIF-030 | Source-only Argo CD candidate provenance | A secret-free record binds exact official chart index/archive, captured provenance signature/hash-binding, Helm verifier, architecture-specific immutable image, and ignored-render hashes/topology without claiming independent key trust; it is clearly candidate/non-deployable/not-selected, corrects ApplicationSet retention, preserves the exact two-Namespace Kubernetes source set, and blocks compatibility, signing-key trust/status, selection/soak, internal Secret recovery, private Git secret-zero/recovery, exact image availability plus component flow controls, bootstrap ownership, and runtime | PASS — 4 focused provenance contracts enforce exact table value-to-meaning associations, qualified signing-key trust, complete traffic/image blockers, and RFC1918/loopback sentinels; full offline validation passed; chart `10.3.0`/app `v3.5.0` remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no chart, values, Kubernetes object, secret, or deployment source was added |
+| KIF-ARGO-01 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-023, KIF-030 | Argo CD candidate provenance and target-minor screen | A secret-free record binds exact official chart/index/provenance/image/render evidence plus the approved target kubelet and official Argo CD tested-version sources; it narrowly concludes only that Kubernetes minor `1.36` is in Argo CD `3.5`'s tested matrix and passes chart `10.3.0`'s semver gate, while preserving the exact two-Namespace source set and blocking exact k3s/runtime, rendered API/CRD, trust, selection/soak, Secret, private Git, image/traffic, ownership, and runtime gates | PASS — 5 focused provenance contracts enforce exact associations and qualified boundaries; chart `10.3.0`/app `v3.5.0` remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; Argo runtime NOT RUN and no chart, values, Kubernetes object, secret, or deployment source was added |
 | KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, preserves exact two-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator candidate provenance | A secret-free record binds the latest `v0.11.8` source release and time-qualified public chart/image distribution gap separately from the last observed version-aligned `v0.11.7` chart/source/image set; association-sensitive evidence qualifies unverified chart provenance, observed SLSA content, missing SBOM observation, chart defaults, and exact architecture child digest while preserving the two-Namespace and zero-resource OpenTofu source sets and blocking selection/trust, compatibility, dedicated Namespace, scoped RBAC, Argo handoff, secret-zero/recovery, traffic, single-node, and runtime | PASS — 5 focused contracts enforce exact evidence associations, qualified trust/absence wording, source closure, operational-command hygiene, and effective RFC1918/loopback sentinels; both versions remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no chart, values, CRD, Kubernetes object, credential, Secret, or deployment source was added |
+
+## Schema-v3 elevated discovery and target-minor review — 2026-08-07
+
+The operator ran the separately approved elevated one-host read-only discovery. The
+first attempt omitted `-i .ansible/inventory.local.yml`; because `ansible.cfg`
+defaults only to the neutral alias-only inventory, it stopped before discovery at
+`ok=3 changed=0 unreachable=1` and made no host or report change. The corrected
+operational command explicitly loaded the ignored mode-`0600` local inventory. The
+become password was entered only at the local prompt and is not recorded.
+
+```bash
+cd ansible
+uv run ansible-playbook -i .ansible/inventory.local.yml \
+  playbooks/discover.yml \
+  --check --diff --limit crtxweb \
+  -e read_only_discovery_enable_elevated=true \
+  -e read_only_discovery_elevated_approved=true \
+  --ask-become-pass
+```
+
+Actual result and bounded human review:
+
+```text
+Play recap: ok=17 changed=1 unreachable=0 failed=0 skipped=1 rescued=0 ignored=0
+Only change: ignored controller-local inventory.local.ansible.json
+Report: regular non-symlink, mode 0600, schema_version=3
+Generated: 2026-08-07T08:09:31Z
+Services: k3s running; tailscaled running; k3s executable exists and is executable
+Kubernetes: exactly 15 bounded queries; all available
+Node: count=1; projection keys exactly name/namespace/kubelet_version
+Target kubelet: v1.36.2+k3s1
+Namespaces: count=4
+Target Namespaces absent: argocd, platform-edge, shared-services, cristexhub-dev, cristexhub-prod
+shared-services PVC query: available=true; count=0
+```
+
+`changed=1` is only the controller-local report write; host and Kubernetes discovery
+remained read-only. The ignored report and private inventory are not copied into Git.
+The result permits requesting a separately approved
+`ansible/bin/bootstrap-platform-namespaces check`; it does not authorize or execute
+that wrapper, Namespace mutation, Argo CD, Infisical, cloudflared, or any other
+persistent object.
+
+Official Argo CD `v3.5.0` source compatibility evidence was retrieved at
+`2026-08-07T08:13:26Z`. The source archive SHA-256 is
+`f63ae068404901496f8501f386386aa89566bce37b18d44b6026d01a23abfc24`.
+The official tested matrix SHA-256 is
+`5f32e19055811f9fea77e31e4f6f9bd1b5a809d845ffa4832162fc3dea9f65df`
+and lists Argo CD `3.5` with Kubernetes `v1.36`, `v1.35`, `v1.34`, and `v1.33`.
+The official CI file SHA-256
+`14ba51038ddc46a4e5ad7dbdbb2772662ebce13d116d61d53ba378ff04c742ef`
+includes k3s `v1.36.0`; the official `go.mod` SHA-256
+`c1dd593a09cccaf6e51a6a3cf64b9c2e2af6c4f453c8f8b9ced8f1b41fff3799`
+includes `k8s.io/kubernetes v1.36.1`. Chart `10.3.0` / app `v3.5.0` declares
+`kubeVersion: >=1.25.0-0`. Therefore only the target-minor screen passes: target
+minor `1.36` is in the official tested matrix and the chart semver gate admits the
+exact target. This is not k3s-specific runtime, rendered API/CRD, installation,
+trust, selection, Secret, egress, recovery, ownership, soak, or deployment proof.
+
+Offline source/evidence validation:
+
+```bash
+python3 -m unittest -v \
+  tests.test_ansible_contract.AnsibleSafetyTests.test_operational_discovery_examples_require_local_inventory \
+  tests.test_argocd_provenance_contract \
+  tests.test_infisical_operator_provenance_contract
+python3 -m unittest discover -s tests -v
+python3 -m compileall -q tests
+cd ansible
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-lint playbooks/discover.yml roles/read_only_discovery ../tests/validate_storage_report.yml
+uv run ansible-lint . ../tests/validate_storage_report.yml
+cd ..
+# Run the embedded documentation/traceability validation under
+# "Exact command and actual result" below.
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Ran 11 focused discovery/Argo/Infisical contracts — OK
+Ran 65 full offline tests — OK
+PASS: Python compile
+PASS: syntax for all 8 production playbooks
+Passed: 0 failure(s), 0 warning(s) in 9 files processed of 9 encountered; production profile
+Passed: 0 failure(s), 0 warning(s) in 38 files processed of 42 encountered; production profile
+PASS: embedded documentation/traceability validation
+PASS: exact source closure, git diff check, and no staged files
+```
 
 ## Infisical Operator candidate provenance source-only validation — 2026-08-07
 
@@ -100,9 +194,9 @@ PASS: exact Kubernetes/OpenTofu source closure, git diff check, and no staged fi
 
 The active virtual environment warning only states that the separate application
 repository environment is ignored in favor of this repository's locked `.venv`.
-Human version/trust selection, refreshed distribution evidence, actual kubelet and
-CRD/API compatibility, chart signature and signer authorization, image
-signature/SBOM/vulnerability/off-node availability, dedicated Namespace, scoped
+Human version/trust selection, refreshed distribution evidence, chart/CRD/API
+compatibility for the now-captured target, chart signature and signer authorization,
+image signature/SBOM/vulnerability/off-node availability, dedicated Namespace, scoped
 RBAC, Argo handoff, secret-zero/recovery/rotation/revocation, exact traffic policy,
 single-node acceptance, and every runtime approval remain blocked. No manual QA case
 is closed.
@@ -201,7 +295,8 @@ PASS: git diff check and no staged files
 
 The active virtual environment warning only stated that the separate application
 repository environment was ignored in favor of this repository's locked `.venv`.
-The actual target kubelet version/compatibility, signing-key trust/status, human
+The target-minor screen now passes through the later schema-v3 review above. Exact
+k3s/runtime and rendered API/CRD compatibility, signing-key trust/status, human
 candidate selection and soak, generated/internal Secret lifecycle and recovery,
 private Git secret-zero/recovery, exact image availability plus Kubernetes API/DNS/
 Redis/Git flow controls, bootstrap ownership exception, and all runtime approvals
@@ -253,9 +348,10 @@ PASS: git diff check and no staged files
 
 The active virtual environment warning only stated that the separate application
 repository environment was ignored in favor of this repository's locked `.venv`.
-The current target kubelet version, current `shared-services` live result, and Argo
-CD compatibility remain NOT RUN pending one separately approved elevated read-only
-rerun and human review.
+At the time of this source-only validation, target kubelet and `shared-services`
+runtime evidence were pending. The later schema-v3 validation above supersedes that
+boundary and records the passed target-minor screen without claiming full Argo CD
+compatibility.
 
 ## Replacement-host recovery first increment offline validation — 2026-08-05
 
@@ -464,10 +560,9 @@ PersistentVolumeClaims in five bounded namespaces: 0
 ```
 
 Historical scope boundary: the fifth PVC query in that approved live report was
-`shared-data`. Current committed source now uses `shared-services` instead. That
-source change has only offline test/syntax/lint evidence and must not be described as
-live-verified until a separately approved read-only discovery rerun succeeds. The
-ignored report was not edited.
+`shared-data`. The later separately approved schema-v3 rerun recorded above now
+live-verifies the current exact `shared-services` query with count zero. The
+historical report itself was not edited.
 
 Decision boundary: keep initial k3s workloads on the NVMe-backed local-path storage.
 Treat the separate disk only as a backup candidate until a separately approved
@@ -865,10 +960,10 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "schema-v3 kubelet-version discovery and Namespace bootstrap pass offline",
-    "Argo/cloudflared/Infisical candidate provenance contracts pass",
+    "schema-v3 discovery passed live",
+    "Argo 3.5 target-minor screen and candidate provenance contracts pass",
     "all nine exact Kubernetes",
-    "Argo CD compatibility is not established",
+    "Exact k3s/runtime\n  and rendered API/CRD compatibility",
     "CANDIDATE —\n  NOT DEPLOYABLE — NOT SELECTED",
     "executed group-scoped k3s",
 ]:
@@ -984,7 +1079,7 @@ printf '%s\n' 'PASS: ignore policy, git diff check, and no-staged-files check'
 Actual result (exit 0 on 2026-08-07):
 
 ```text
-Ran 63 tests
+Ran 65 tests
 OK
 PASS: Ansible/OpenTofu/Namespace layout, Argo/cloudflared/Infisical candidate provenance, links, 30 requirement IDs, 12 future cases, 1 passing and 12 pending manual cases, status/implementation boundary, and bounded source scan
 PASS: ignore policy, git diff check, and no-staged-files check

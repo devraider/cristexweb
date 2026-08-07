@@ -76,10 +76,12 @@
 to offline, integration, security, recovery, or manual evidence. The current
 Ansible discovery satisfies its offline, syntax/lint, approved host-access,
 dependency-bootstrap, curated host/cluster-indicator, and functional
-CNI/NetworkPolicy enforcement gates. The exact kubelet-version projection passes
-source-only validation, but the target value and compatibility gate remain NOT RUN.
-The source-only
-[Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
+CNI/NetworkPolicy enforcement gates. The separately approved schema-v3 discovery
+captured kubelet `v1.36.2+k3s1`, all 15 bounded queries available, and the current
+`shared-services` PVC query with count zero. Argo CD `3.5`'s official tested matrix
+contains target minor `1.36`, and chart `10.3.0` admits the target through its semver
+gate; exact k3s/runtime and rendered API/CRD compatibility remain unproven. The
+source-only [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, and ignored-render evidence for
 KIF-005, KIF-013, KIF-023, and KIF-030 without selecting a version or adding
 deployable source. The source-only
@@ -93,8 +95,9 @@ version and adds no deployable source. The source-only
 binds the observed `v0.11.8` public distribution gap and the last observed
 version-aligned `v0.11.7` chart/source/image evidence for KIF-005, KIF-013 through
 KIF-015, KIF-021, KIF-023, and KIF-030. It selects neither version, adds no deployable
-source, and leaves compatibility, trust, Namespace, scoped-RBAC, Argo handoff,
-secret-zero/recovery, traffic, single-node, and runtime gates blocked. Exact
+source, and leaves chart/CRD/API compatibility despite the now-captured target,
+trust, Namespace, scoped-RBAC, Argo handoff, secret-zero/recovery, traffic,
+single-node, and runtime gates blocked. Exact
 platform Namespace source and its bounded bootstrap pass offline contracts only;
 cluster execution remains pending. The foundation does not
 satisfy replacement-host recovery, general host-baseline, or later platform

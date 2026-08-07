@@ -18,9 +18,10 @@ user-scoped client-defaults playbook removes k3s multicall warnings without expo
 server configuration. The separately approved one-reboot recovery playbook passed
 with SSH/Tailscale return, running services, a Ready node, and preserved access.
 Discovery gathers curated host indicators with built-ins and exact Kubernetes
-kinds with `kubernetes.core.k8s_info`. Current source adds a bounded Node branch
-that projects only the existing curated name/cluster scope and exact kubelet
-version string; that changed schema has offline evidence only. A gated Ansible
+kinds with `kubernetes.core.k8s_info`. The separately approved schema-v3 elevated
+read-only rerun passed and projects only the existing curated Node name/cluster
+scope and kubelet `v1.36.2+k3s1`; all 15 bounded queries were available and the exact
+`shared-services` PVC query returned zero objects. A gated Ansible
 playbook pins the OpenTofu CLI. Its
 approved host check passed at `ok=27 changed=6 failed=0`; the first live attempt
 stopped at `ok=21 changed=2 failed=1` because the host had no route to GitHub, after
@@ -34,9 +35,11 @@ resources. Committed Kubernetes source now contains only the `argocd` and
 `platform-edge` Namespace manifests plus a gated Ansible bootstrap; runtime remains
 NOT RUN and no Argo CD, cloudflared, Infisical, Secret, workload, Service, or route
 exists. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
-binds public chart, captured signature/hash-binding, image, and ignored-render evidence while
-remaining explicitly **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. It adds no chart,
-values, or Kubernetes object source. A separate
+binds public chart, captured signature/hash-binding, image, ignored-render, and
+bounded target-minor evidence while remaining explicitly **CANDIDATE — NOT
+DEPLOYABLE — NOT SELECTED**. Kubernetes minor `1.36` passes Argo CD `3.5`'s official
+tested-matrix and chart-semver screen, but exact k3s/runtime and rendered API/CRD
+compatibility remain unproven. It adds no chart, values, or Kubernetes object source. A separate
 [source-only cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 binds official release, unsigned source, immutable linux/amd64 image, token-file,
 health, and edge-transport evidence. It is also **CANDIDATE — NOT DEPLOYABLE — NOT
@@ -46,8 +49,9 @@ object, secret, route, or deployment source. A third
 distinguishes the incomplete public `v0.11.8` distribution observation from the last
 observed version-aligned `v0.11.7` chart/source/image set. Both remain **CANDIDATE —
 NOT DEPLOYABLE — NOT SELECTED**, runtime is **NOT RUN**, and no chart, CRD,
-Kubernetes object, credential, or Secret source was added. No general host baseline
-or deployment exists. Python is used only for offline contract tests, not
+Kubernetes object, credential, or Secret source was added. The actual target is now
+captured, but Infisical chart/CRD/API compatibility remains unproven. No general host
+baseline or deployment exists. Python is used only for offline contract tests, not
 infrastructure automation.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
@@ -55,11 +59,12 @@ local report. The extended report confirms the unmounted 1 TB rotational disk,
 NVMe/root capacity, local-path behavior, and zero current PV/PVC objects without
 identifying the unmounted filesystem or touching disk contents. That historical
 live report queried `shared-data` as its fifth PVC scope and did not capture a
-Kubernetes version. Current source instead queries `shared-services`
-and projects `status.nodeInfo.kubeletVersion` from the existing exact Node query;
-both changes are offline-only until one separately approved elevated read-only
-discovery rerun. No Argo CD compatibility claim is made before that result is
-human-reviewed. An earlier
+Kubernetes version. The approved schema-v3 rerun instead queried `shared-services`
+and projected `status.nodeInfo.kubeletVersion` from the existing exact Node query.
+Human review confirmed Kubernetes minor `1.36`; Argo CD `3.5` lists that minor in
+its official tested matrix and chart `10.3.0` admits the exact target through its
+semver gate. This is only target-minor screening, not k3s-specific runtime, rendered
+API/CRD, trust, selection, or deployment evidence. An earlier
 approved elevated attempt identified missing remote Python dependencies. The
 bounded two-package Ansible bootstrap was reviewed and installed; post-install
 imports and the prior nine exact Kubernetes queries pass. That report confirms the
@@ -129,10 +134,17 @@ and a unique Run ID.
 
 The approved non-elevated discovery run passed and its curated host report was
 reviewed locally. It did not use become or query Kubernetes. Syntax and lint also
-passed. The source-only schema-v3 Node version projection also passes offline
-contracts, but has not refreshed the ignored report. Any further or elevated run
-still requires separate approval; command shapes are documented in
-[`ansible/README.md`](ansible/README.md).
+passed. The approved schema-v3 elevated rerun refreshed the ignored mode-`0600`
+report without target mutation. Operational discovery must explicitly load the
+ignored local inventory because the default inventory contains only the neutral
+alias. Use this one-line zsh shape only after the required approval:
+
+```zsh
+cd /Users/paul/Projects/cristexweb/ansible && uv run ansible-playbook -i .ansible/inventory.local.yml playbooks/discover.yml --check --diff --limit crtxweb -e read_only_discovery_enable_elevated=true -e read_only_discovery_elevated_approved=true --ask-become-pass
+```
+
+Any further or elevated run still requires separate approval; complete command
+contracts are documented in [`ansible/README.md`](ansible/README.md).
 
 ## Selected direction
 

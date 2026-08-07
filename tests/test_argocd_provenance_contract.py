@@ -87,6 +87,41 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
         ):
             self.assertIn(required, self.text)
 
+    def test_target_minor_screen_is_exact_and_narrowly_qualified(self) -> None:
+        self.assertEqual(
+            {
+                "Approved discovery report time": ("`2026-08-07T08:09:31Z`",),
+                "Target kubelet": ("`v1.36.2+k3s1`; Kubernetes minor `1.36`",),
+                "Compatibility evidence retrieval": ("`2026-08-07T08:13:26Z`",),
+                "Official Argo CD v3.5.0 source archive": (
+                    "SHA-256 `f63ae068404901496f8501f386386aa89566bce37b18d44b6026d01a23abfc24`",
+                ),
+                "Official tested-version matrix": (
+                    "SHA-256 `5f32e19055811f9fea77e31e4f6f9bd1b5a809d845ffa4832162fc3dea9f65df`; Argo CD `3.5` tested with Kubernetes `v1.36`, `v1.35`, `v1.34`, and `v1.33`",
+                ),
+                "Official CI workflow": (
+                    "SHA-256 `14ba51038ddc46a4e5ad7dbdbb2772662ebce13d116d61d53ba378ff04c742ef`; includes k3s `v1.36.0`",
+                ),
+                "Official Go module file": (
+                    "SHA-256 `c1dd593a09cccaf6e51a6a3cf64b9c2e2af6c4f453c8f8b9ced8f1b41fff3799`; includes `k8s.io/kubernetes v1.36.1`",
+                ),
+                "Chart semver gate": (
+                    "chart `10.3.0` / app `v3.5.0` declares `kubeVersion: >=1.25.0-0`",
+                ),
+            },
+            self.table("## Target-minor compatibility evidence"),
+        )
+        for required in (
+            "target Kubernetes minor `1.36` is in Argo CD `3.5`'s official tested\nmatrix",
+            "chart's declared semver gate admits target version\n`v1.36.2+k3s1`",
+            "closes only the candidate's target-minor screening",
+            "not proof that this\nexact k3s patch/distribution",
+            "rendered APIs and CRDs",
+            "No chart was installed or rendered against the live API",
+            "no Argo CD runtime\nvalidation succeeded or was attempted",
+        ):
+            self.assertIn(required, self.text)
+
     def test_ignored_render_is_bound_and_described_without_selection(self) -> None:
         self.assertEqual(
             {
@@ -104,7 +139,7 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
         )
         for required in (
             "**CANDIDATE — NOT DEPLOYABLE — NOT SELECTED.**",
-            "Runtime evidence is **NOT RUN**",
+            "Argo CD runtime evidence is **NOT RUN**",
             "candidate render contains 44 documents",
             "3 CustomResourceDefinitions",
             "4 Deployments, including the ApplicationSet controller",
@@ -128,8 +163,10 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
 
     def test_blockers_and_source_only_boundary_are_truthful(self) -> None:
         for required in (
-            "actual target kubelet version remains\n   unknown",
-            "separately approved elevated read-only rerun and human review are NOT RUN",
+            "Full target Kubernetes compatibility",
+            "captured target minor `1.36` is in\n   Argo CD `3.5`'s official tested matrix",
+            "does not prove exact k3s patch/distribution behavior, rendered\n   API/CRD compatibility",
+            "Offline render/schema review and separately approved target runtime\n   validation remain blocked",
             "Human trust, selection, and soak",
             "signing-key trust/status",
             "Generated and internal Secret ownership/recovery",
@@ -146,7 +183,7 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
             "Future-owner\n   labels alone do not establish Argo ownership",
             "Runtime approvals",
             "Argo CD must remain private",
-            "does not select a release, authorize a bootstrap, or\nadd a Helm chart, values file, Kubernetes object, credential, or secret value",
+            "does not select a\nrelease, authorize a bootstrap, or add a Helm chart, values file, Kubernetes object,\ncredential, or secret value",
         ):
             self.assertIn(required, self.text)
 

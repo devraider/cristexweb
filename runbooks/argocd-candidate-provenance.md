@@ -1,19 +1,22 @@
-# Argo CD candidate provenance — source-only evidence
+# Argo CD candidate provenance and bounded compatibility evidence
 
 ## Status and boundary
 
-**CANDIDATE — NOT DEPLOYABLE — NOT SELECTED.** Runtime evidence is **NOT RUN**.
+**CANDIDATE — NOT DEPLOYABLE — NOT SELECTED.** Argo CD runtime evidence is **NOT RUN**.
 
-This document records controller-side public-source research captured at
-`2026-08-07T05:42:22Z`. It does not select a release, authorize a bootstrap, or
-add a Helm chart, values file, Kubernetes object, credential, or secret value.
-The ignored research files are evidence inputs only; they are not committed
-installation source. No inventory, SSH, host, become, kubeconfig, Kubernetes API,
-provider, authenticated registry, secret store, deployment, or runtime operation
-was used by this source-only increment.
+This document records initial controller-side public-source research captured at
+`2026-08-07T05:42:22Z`, then a bounded target-minor compatibility review completed
+after the separately approved schema-v3 read-only discovery. It does not select a
+release, authorize a bootstrap, or add a Helm chart, values file, Kubernetes object,
+credential, or secret value. The ignored research files and curated local inventory
+report are evidence inputs only; they are not committed installation source. The
+initial candidate research used no inventory, SSH, host, become, kubeconfig,
+Kubernetes API, provider, authenticated registry, secret store, deployment, or
+runtime operation. The later target discovery was read-only and wrote only the
+ignored controller-local report; no Argo CD object or runtime was created.
 
-The candidate may become deployable source only after every blocker below is
-resolved, a human selects the chart/application versions, and a separate change
+The candidate may become deployable source only after every remaining blocker below
+is resolved, a human selects the chart/application versions, and a separate change
 adds reviewed desired state under the existing ownership and approval rules.
 
 ## Upstream chart and verification evidence
@@ -34,8 +37,30 @@ adds reviewed desired state under the existing ownership and approval rules.
 Helm verified that the captured provenance signature is valid under the captured key
 fingerprint and binds the captured chart hash. This evidence does **not** independently
 establish the signing key's publisher identity, current authorization, trust path, or
-revocation status. That trust decision remains blocked, alongside target-cluster
-compatibility, operational correctness, human selection, and soak.
+revocation status. That trust decision remains blocked, alongside full rendered-API
+and CRD compatibility, operational correctness, human selection, and soak.
+
+## Target-minor compatibility evidence
+
+| Item | Bounded evidence |
+|---|---|
+| Approved discovery report time | `2026-08-07T08:09:31Z` |
+| Target kubelet | `v1.36.2+k3s1`; Kubernetes minor `1.36` |
+| Compatibility evidence retrieval | `2026-08-07T08:13:26Z` |
+| Official Argo CD v3.5.0 source archive | SHA-256 `f63ae068404901496f8501f386386aa89566bce37b18d44b6026d01a23abfc24` |
+| Official tested-version matrix | SHA-256 `5f32e19055811f9fea77e31e4f6f9bd1b5a809d845ffa4832162fc3dea9f65df`; Argo CD `3.5` tested with Kubernetes `v1.36`, `v1.35`, `v1.34`, and `v1.33` |
+| Official CI workflow | SHA-256 `14ba51038ddc46a4e5ad7dbdbb2772662ebce13d116d61d53ba378ff04c742ef`; includes k3s `v1.36.0` |
+| Official Go module file | SHA-256 `c1dd593a09cccaf6e51a6a3cf64b9c2e2af6c4f453c8f8b9ced8f1b41fff3799`; includes `k8s.io/kubernetes v1.36.1` |
+| Chart semver gate | chart `10.3.0` / app `v3.5.0` declares `kubeVersion: >=1.25.0-0` |
+
+The captured target Kubernetes minor `1.36` is in Argo CD `3.5`'s official tested
+matrix, and the chart's declared semver gate admits target version
+`v1.36.2+k3s1`. This closes only the candidate's target-minor screening. The CI and
+Go module associations are supporting official-source evidence, not proof that this
+exact k3s patch/distribution, candidate values, rendered APIs and CRDs, RBAC,
+NetworkPolicies, storage-free topology, or single-node behavior work on the target.
+No chart was installed or rendered against the live API, and no Argo CD runtime
+validation succeeded or was attempted.
 
 ## Image provenance evidence
 
@@ -88,10 +113,12 @@ lifecycle, or one-replica failure characteristics.
 
 All items below block deployable Argo CD source and runtime:
 
-1. **Target Kubernetes compatibility:** the actual target kubelet version remains
-   unknown in committed evidence. Schema-v3 discovery can project it, but the
-   separately approved elevated read-only rerun and human review are NOT RUN.
-   The chart's `>=1.25.0-0` declaration is not a compatibility decision by itself.
+1. **Full target Kubernetes compatibility:** the captured target minor `1.36` is in
+   Argo CD `3.5`'s official tested matrix and passes chart `10.3.0`'s declared
+   semver gate. This does not prove exact k3s patch/distribution behavior, rendered
+   API/CRD compatibility, RBAC, NetworkPolicy, Secret lifecycle, or operational
+   correctness. Offline render/schema review and separately approved target runtime
+   validation remain blocked.
 2. **Human trust, selection, and soak:** chart `10.3.0` and application `v3.5.0`
    are only a candidate with captured signature/hash-binding evidence. A human must
    independently accept or reject the signing-key trust/status, select or reject the
@@ -119,4 +146,4 @@ All items below block deployable Argo CD source and runtime:
 
 Until these gates close, the rollback for this increment is only a Git revert of
 this documentation and its offline contract test. There is no runtime rollback
-because runtime is **NOT RUN**.
+because Argo CD runtime is **NOT RUN**.

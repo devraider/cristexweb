@@ -63,10 +63,12 @@ dependencies, and post-install imports plus all nine then-current exact Kubernet
 queries pass. The extended elevated report confirms the datastore, curated
 device/storage indicators, local-path behavior, and zero current PV/PVC objects
 without touching the unmounted disk. It did not capture a Kubernetes version and
-used `shared-data` as its fifth PVC scope. Current source projects only the exact
-Node kubelet version and uses `shared-services`; both changes pass offline only and
-need one separately approved elevated read-only rerun before any Argo CD
-compatibility claim. The separate
+used `shared-data` as its fifth PVC scope. The separately approved schema-v3 rerun
+passed with only the ignored local report changed. Human review confirmed kubelet
+`v1.36.2+k3s1`, all 15 bounded queries available, and the exact `shared-services`
+PVC query available with count zero. The first attempt omitted the ignored local
+inventory and stopped unreachable before discovery; operational commands now require
+it explicitly. The separate
 generated-name functional probe subsequently passed all live phases and exact-UID
 cleanup without Namespace create/delete. The locked local
 environment passes syntax and lint. A gated checksum-pinned OpenTofu CLI installer
@@ -82,8 +84,10 @@ remain unrun. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 records chart, captured signature/hash-binding, image, and ignored-render research
 for chart `10.3.0` and app `v3.5.0`, but is explicitly **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. It adds
-no chart, values, or Kubernetes object source. Actual kubelet compatibility, human
-selection and soak, signing-key trust/status, generated/internal Secret ownership
+no chart, values, or Kubernetes object source. The captured target minor `1.36` is
+in Argo CD `3.5`'s official tested matrix and passes chart `10.3.0`'s semver gate;
+exact k3s/runtime and rendered API/CRD compatibility, human selection and soak,
+signing-key trust/status, generated/internal Secret ownership
 and recovery, private Git secret-zero, exact image availability plus component flow
 controls, bootstrap ownership, and all runtime approvals
 remain blocked. A separate source-only
@@ -100,8 +104,9 @@ distinguishes latest source release `v0.11.8`, whose matching public Cloudsmith 
 entry/archive and Docker Hub image tag were not observed during the bounded capture,
 from the last observed version-aligned `v0.11.7` set. Both are **CANDIDATE — NOT
 DEPLOYABLE — NOT SELECTED**, runtime is **NOT RUN**, and no chart, CRD, Kubernetes
-object, credential, or Secret source was added. Compatibility, signer/build trust,
-dedicated Namespace, scoped RBAC, Argo handoff, secret-zero/recovery, traffic policy,
+object, credential, or Secret source was added. The target kubelet is now captured,
+but chart/CRD/API compatibility, signer/build trust, dedicated Namespace, scoped
+RBAC, Argo handoff, secret-zero/recovery, traffic policy,
 single-node risk, and runtime approvals remain blocked.
 Provider initialization, state, plan, and apply also remain unrun.
 Beyond the bounded public-source evidence reads, this deliverable performs no host

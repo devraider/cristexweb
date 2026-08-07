@@ -111,10 +111,11 @@ availability remain unresolved.
 | Pod hardening defaults | `runAsNonRoot: true`; `RuntimeDefault` seccomp |
 | Image template behavior | concatenates repository and tag; digest rendering must be proven before source |
 
-These are chart defaults, not runtime results. A missing compatibility declaration
-requires actual kubelet and CRD/API review. Cluster-wide watching and unscoped RBAC
-are not least-privilege defaults for this platform. Future values must use an
-explicit non-empty target scope or document and separately approve why cluster-wide
+These are chart defaults, not runtime results. The approved schema-v3 discovery now
+captures target kubelet `v1.36.2+k3s1`, but the missing compatibility declaration
+means chart, CRD/API, and exact k3s compatibility remain unproven. Cluster-wide
+watching and unscoped RBAC are not least-privilege defaults for this platform. Future
+values must use an explicit non-empty target scope or document and separately approve why cluster-wide
 access is required. The repository/tag template must be rendered offline to prove a
 reviewed `tag@linux/amd64-digest` reference works before deployable source is added.
 
@@ -126,9 +127,10 @@ Every item below blocks deployable Infisical Operator source and runtime:
    evidence, accept or reject the incomplete `v0.11.8` distribution and aligned
    `v0.11.7` candidate, record signer/build trust decisions, and approve a soak
    policy. Neither candidate is selected by this record.
-2. **Target compatibility:** capture the actual kubelet version through the approved
-   schema-v3 discovery, review all CRD/API versions, and prove compatibility. The
-   chart has no `kubeVersion` declaration.
+2. **Target compatibility:** the approved schema-v3 discovery captured kubelet
+   `v1.36.2+k3s1`, but the chart has no `kubeVersion` declaration. Review every
+   rendered CRD/API version and prove exact chart and k3s compatibility before any
+   selection or deployable source.
 3. **Chart and image assurance:** cryptographically verify the chart signature,
    establish independent Infisical key authorization and revocation status, verify
    image signature/attestation identity, obtain or disposition an SBOM and
