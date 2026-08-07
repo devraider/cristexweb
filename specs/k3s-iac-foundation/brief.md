@@ -86,7 +86,16 @@ no chart, values, or Kubernetes object source. Actual kubelet compatibility, hum
 selection and soak, signing-key trust/status, generated/internal Secret ownership
 and recovery, private Git secret-zero, exact image availability plus component flow
 controls, bootstrap ownership, and all runtime approvals
-remain blocked. Provider initialization, state, plan, and apply also remain unrun.
+remain blocked. A separate source-only
+[cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
+records release `2026.7.3`, unsigned source, immutable linux/amd64 image,
+token-file, readiness/health, and edge-transport evidence. It is **CANDIDATE — NOT
+DEPLOYABLE — NOT SELECTED**, runtime is **NOT RUN**, and adds no OpenTofu resource,
+Kubernetes object, secret, route, or deployment source. Publisher trust, image
+assurance/availability, container hardening, Infisical token recovery, OpenTofu
+state/resource gates, Argo handoff, exact DNS/Traefik/edge policy, route approval,
+single-node risk, soak, and runtime approvals remain blocked.
+Provider initialization, state, plan, and apply also remain unrun.
 This deliverable performs no other host mutation, Cloudflare, GitHub, Infisical,
 registry, database, storage,
 backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain

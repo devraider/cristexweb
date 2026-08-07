@@ -164,6 +164,19 @@ missing state recovery. Reverse changes only through another reviewed plan.
   [candidate provenance record](../../runbooks/argocd-candidate-provenance.md),
   explicitly without version selection, chart/values/Kubernetes source, secret,
   runtime, or deployment (`KIF-005`, `KIF-013`, `KIF-023`, `KIF-030`).
+- [x] Record official cloudflared release/source/image, token-file,
+  readiness/health, and edge-transport research in a source-only
+  [candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md),
+  explicitly without trust/version selection, OpenTofu resource, Kubernetes source,
+  secret, route, runtime, or deployment (`KIF-005`, `KIF-011`, `KIF-013`, `KIF-021`,
+  `KIF-023`, `KIF-030`).
+- [ ] Human-select and soak the cloudflared candidate only after publisher trust,
+  image signature/SBOM/vulnerability/off-node availability, container hardening,
+  Infisical token recovery/rotation, OpenTofu state and external-resource gates, Argo
+  handoff, exact DNS/Traefik/edge policy and negative tests, route approval,
+  single-node risk, and runtime approvals are resolved; add deployable source only in
+  a separate reviewed change (`KIF-002`, `KIF-005`, `KIF-011`, `KIF-013`, `KIF-015`,
+  `KIF-021`, `KIF-023`).
 - [ ] Human-select and soak the Argo CD chart/application candidate only after actual
   target kubelet compatibility, signing-key trust/status, generated/internal Secret
   ownership and recovery, private Git secret-zero/recovery, exact image availability

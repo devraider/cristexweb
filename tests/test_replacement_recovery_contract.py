@@ -24,6 +24,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "argocd-candidate-provenance.md",
+                "cloudflared-candidate-provenance.md",
                 "recovery-artifact-register.md",
                 "replacement-host-recovery.md",
             },
@@ -111,6 +112,10 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
             "isolated restore result",
         ):
             self.assertIn(required, self.register)
+        self.assertRegex(
+            self.register,
+            r"(?m)^\| cloudflared component artifact \|.*cloudflared-candidate-provenance\.md.*CANDIDATE EVIDENCE ONLY — STOP \|$",
+        )
         self.assertRegex(
             self.register,
             r"(?m)^\| Replacement execution plan \(Gate 4\) \|.*NOT AUTHORED — GATE 3 BLOCKED \|$",

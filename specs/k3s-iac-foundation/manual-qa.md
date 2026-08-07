@@ -40,8 +40,15 @@ RUN. The source-only
 is **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** and records no runtime evidence.
 Actual kubelet compatibility, signing-key trust/status, version selection/soak,
 internal Secret recovery, private Git secret-zero, exact image availability plus
-component flow controls, bootstrap ownership, and runtime approvals remain blocked. Argo CD, cloudflared, Secrets, workloads, Services, and
-routes are not installed, so this closes no manual case. No deployment, replacement
+component flow controls, bootstrap ownership, and runtime approvals remain blocked.
+The separate source-only
+[cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
+is also **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** with runtime **NOT RUN**. Its
+unsigned source, immutable image, token-file, health, and edge-transport evidence do
+not close publisher trust, image assurance/availability, hardening, Infisical token
+recovery, OpenTofu state/resource, Argo handoff, exact traffic-policy, route,
+single-node risk, soak, or runtime gates. Argo CD, cloudflared, Secrets, workloads,
+Services, and routes are not installed, so this closes no manual case. No deployment, replacement
 recovery proof, or complete manual runtime validation
 occurred. MQA-13 remains pending specifically
 because the managed-profile rollback path has not been executed and verified, even

@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: schema-v3 kubelet-version discovery and Namespace bootstrap pass offline; Argo candidate provenance contracts pass; target version/compatibility and runtime/provider/state/backup/apply pending
+build: schema-v3 kubelet-version discovery and Namespace bootstrap pass offline; Argo/cloudflared candidate provenance contracts pass; target version/compatibility and runtime/provider/state/backup/apply pending
 date: 2026-08-07
 deploy_required_after_acceptance: yes
 
@@ -52,7 +52,16 @@ note: |
   no runtime evidence. Target compatibility, signing-key trust/status, human
   selection and soak, generated/internal Secret ownership and recovery, private Git
   secret-zero, exact image availability plus component flow controls, bootstrap
-  ownership, and runtime approvals remain blockers.
+  ownership, and runtime approvals remain blockers. The separate source-only
+  [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
+  binds official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
+  image, token-file, health, and edge-transport evidence. It is **CANDIDATE — NOT
+  DEPLOYABLE — NOT SELECTED**, runtime is **NOT RUN**, and adds no OpenTofu resource,
+  Kubernetes object, secret, route, or deployment source. Publisher trust, image
+  assurance/off-node availability, container hardening, Infisical token recovery,
+  OpenTofu state/resource gates, Argo handoff, exact DNS/Traefik/edge policy and
+  negative tests, route approval, single-node risk, soak, and runtime approvals
+  remain blockers.
   The unmounted filesystem, disk health, contents, reuse decision, and off-node backup
   design remain unresolved; no disk mutation occurred.
   A bounded CNI/NetworkPolicy functional probe is implemented offline with separate

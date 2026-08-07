@@ -36,8 +36,14 @@ NOT RUN and no Argo CD, cloudflared, Secret, workload, Service, or route exists.
 [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, and ignored-render evidence while
 remaining explicitly **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. It adds no chart,
-values, or Kubernetes object source. No general host baseline or deployment exists.
-Python is used only for offline contract tests, not infrastructure automation.
+values, or Kubernetes object source. A separate
+[source-only cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
+binds official release, unsigned source, immutable linux/amd64 image, token-file,
+health, and edge-transport evidence. It is also **CANDIDATE — NOT DEPLOYABLE — NOT
+SELECTED**, with runtime **NOT RUN**, and adds no OpenTofu resource, Kubernetes
+object, secret, route, or deployment source. No general host baseline or deployment
+exists. Python is used only for offline contract tests, not infrastructure
+automation.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
 local report. The extended report confirms the unmounted 1 TB rotational disk,
@@ -70,7 +76,8 @@ gateway remain in the separate CristexHub application repository.
 3. [`ansible/README.md`](ansible/README.md) — discovery contract and approved command shape.
 4. [`runbooks/replacement-host-recovery.md`](runbooks/replacement-host-recovery.md) — replacement boundary, isolation gates, and decision-first recovery contract.
 5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source-only, non-deployable Argo CD candidate evidence and blockers.
-6. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+6. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
+7. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -155,6 +162,7 @@ runbooks/                # recovery docs plus source-only candidate provenance
   replacement-host-recovery.md
   recovery-artifact-register.md
   argocd-candidate-provenance.md
+  cloudflared-candidate-provenance.md
 tests/                   # offline contract tests only
 ```
 

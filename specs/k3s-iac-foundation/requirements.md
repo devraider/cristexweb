@@ -82,7 +82,13 @@ The source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, and ignored-render evidence for
 KIF-005, KIF-013, KIF-023, and KIF-030 without selecting a version or adding
-deployable source. Exact platform Namespace source and its bounded bootstrap pass
+deployable source. The source-only
+[cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
+binds exact release/source/image, token-file, health, and edge-transport evidence for
+KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, and KIF-030 while explicitly
+leaving publisher trust, image assurance/availability, hardening, secret recovery,
+external-resource state, policy, route, and runtime gates blocked. It selects no
+version and adds no deployable source. Exact platform Namespace source and its bounded bootstrap pass
 offline contracts only; cluster execution remains pending. The foundation does not
 satisfy replacement-host recovery, general host-baseline, or later platform
 mutation gates. Unresolved storage, secret bootstrap, and RPO/RTO

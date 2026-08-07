@@ -62,10 +62,18 @@ DEPLOYABLE — NOT SELECTED**; actual kubelet compatibility, human version selec
 and soak, signing-key trust/status, generated/internal Secret ownership and recovery,
 private Git secret-zero, exact image availability plus component flow controls,
 bootstrap ownership, and runtime approvals remain blockers. It
-adds no chart, values, or Kubernetes object source. No state file, provider
-initialization, plan, apply, Helm installation, Kustomize workload, GitHub Actions,
-or general host baseline exists yet. Debian plus Ansible is the selected
-host-configuration owner.
+adds no chart, values, or Kubernetes object source. The separate source-only
+[cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
+records official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
+image evidence, token-file precedence, connection-aware readiness, and required edge
+transport. It is **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**, runtime is **NOT
+RUN**, and publisher trust, image assurance/availability, container hardening,
+Infisical token recovery, OpenTofu state/resource gates, Argo handoff, exact
+DNS/Traefik/edge policy, route approval, soak, and runtime approvals remain blocked.
+It adds no OpenTofu resource, Kubernetes object, secret, route, or deployment source.
+No state file, provider initialization, plan, apply, Helm installation, Kustomize
+workload, GitHub Actions, or general host baseline exists yet. Debian plus Ansible is
+the selected host-configuration owner.
 
 ## Goals
 
@@ -301,6 +309,12 @@ verification must meet the declared RPO/RTO before PROD.
   candidate retains ApplicationSet because chart `10.3.0` has no effective
   `applicationSet.enabled` disable gate. This is not version selection, deployable
   desired state, compatibility proof, or runtime evidence.
+- Current source-only cloudflared evidence: the
+  [candidate provenance record](runbooks/cloudflared-candidate-provenance.md) binds
+  release, unsigned source, architecture-specific image, token-file, health, and
+  edge-transport facts while leaving trust, hardening, secret-zero, external-resource
+  state/recovery, component policy, route selection, and runtime blocked. It is not
+  deployable source or a version selection.
 - Entry: pinned component versions, human-reviewed target kubelet-version evidence,
   verified Kubernetes compatibility, and an approved secret-zero procedure.
 - Work: first create or reconcile only the committed `argocd` and `platform-edge`
@@ -367,7 +381,9 @@ Implementation is blocked until each relevant item is resolved:
 - Infisical Cloud bootstrap authentication, export/recovery, and machine-identity rotation;
 - Argo CD private-repository bootstrap and recovery;
 - OpenTofu host-local single-writer state encryption, Google Drive copy, key custody, integrity, and isolated recovery;
-- Cloudflare connector ownership and credential rotation;
+- cloudflared publisher/version trust, image assurance and off-node availability,
+  hardening compatibility, fixed metrics surface, connector ownership, token-file
+  secret-zero/recovery/rotation, and exact DNS/Traefik/edge policy;
 - current k3s datastore, CNI indicators, NetworkPolicy objects and later enforcement
   probes, DNS, Traefik, StorageClass, and firewall;
 - live PVC placement and approved use of the 1 TB disk;
