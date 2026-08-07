@@ -511,6 +511,111 @@ metadata:
                 self.assertNotIn(forbidden, text, (path, forbidden))
             self.assertEqual(2, text.count("kind: Namespace"))
 
+    def test_namespace_bootstrap_is_a_pre_stage_4_bounded_exception(self) -> None:
+        architecture = (ROOT / "architecture-plan.md").read_text()
+        exception_heading = (
+            "### Pre-Stage-4 — bounded platform Namespace bootstrap exception"
+        )
+        stage_heading = "### Stage 4 — minimal GitOps and secrets bootstrap"
+        self.assertLess(
+            architecture.index(exception_heading),
+            architecture.index(stage_heading),
+        )
+        exception = architecture.split(exception_heading, 1)[1].split(
+            stage_heading, 1
+        )[0]
+        for required in (
+            "`ansible/bin/bootstrap-platform-namespaces check`",
+            "`argocd` and `platform-edge` Namespace manifests",
+            "`state:\n  present`",
+            "No deletion or other persistent Kubernetes kind is authorized",
+            "separately approve the first `apply`",
+            "separately approve a\n  second `apply` and require `changed=0`",
+            "Ansible remains the bootstrap writer",
+            "a label alone is not a handoff",
+            "this exception does not waive the Stage 4 entry gates",
+            "does not\n  authorize Argo CD, Infisical, cloudflared, or any other "
+            "persistent Kubernetes\n  object",
+        ):
+            self.assertIn(required, exception)
+
+        stage = architecture.split(stage_heading, 1)[1].split(
+            "### Stage 5 — isolation and shared data", 1
+        )[0]
+        for required in (
+            "pinned component versions",
+            "human-reviewed target kubelet-version evidence",
+            "verified Kubernetes compatibility",
+            "an approved secret-zero procedure",
+            "only after every Stage 4 entry gate passes",
+        ):
+            self.assertIn(required, stage)
+        self.assertNotIn(
+            "first create or reconcile only the committed `argocd` and `platform-edge`",
+            stage,
+        )
+
+        tasks = (
+            ROOT / "specs" / "k3s-iac-foundation" / "tasks.md"
+        ).read_text()
+        tasks_exception_heading = (
+            "## Pre-Stage-4 — bounded platform Namespace bootstrap exception"
+        )
+        tasks_stage_heading = "## Stage 4 — GitOps and secret bootstrap"
+        self.assertLess(
+            tasks.index(tasks_exception_heading),
+            tasks.index(tasks_stage_heading),
+        )
+        tasks_exception = tasks.split(tasks_exception_heading, 1)[1].split(
+            tasks_stage_heading, 1
+        )[0]
+        normalized_exception = " ".join(tasks_exception.split())
+        for required in (
+            "Commit exact `argocd` and `platform-edge` Namespace source",
+            "`state: present`, no-delete Ansible bootstrap exception",
+            "separate human approval for only `ansible/bin/bootstrap-platform-namespaces check`",
+            "inspect its complete result before any mutation",
+            "separate human approval for the first "
+            "`ansible/bin/bootstrap-platform-namespaces apply`",
+            "reconcile exactly the two reviewed Namespaces",
+            "separate human approval for a second "
+            "`ansible/bin/bootstrap-platform-namespaces apply`",
+            "require `changed=0`",
+            "Runtime remains NOT RUN",
+            "grant no live approval and waive no Stage 4 entry gate",
+        ):
+            self.assertIn(required, normalized_exception)
+
+        tasks_stage = tasks.split(tasks_stage_heading, 1)[1].split(
+            "## Stage 5 — namespaces, policy, and shared data", 1
+        )[0]
+        normalized_tasks_stage = " ".join(tasks_stage.split())
+        for required in (
+            "Record public Argo CD chart",
+            "Record official cloudflared release/source/image",
+            "provenance-consistent Infisical operator version",
+        ):
+            self.assertIn(required, normalized_tasks_stage)
+        for stale in (
+            "Commit exact `argocd` and `platform-edge` Namespace source",
+            "`ansible/bin/bootstrap-platform-namespaces check`",
+            "`ansible/bin/bootstrap-platform-namespaces apply`",
+        ):
+            self.assertNotIn(stale, normalized_tasks_stage)
+
+        authority = " ".join((ROOT / "AGENTS.md").read_text().split())
+        for required in (
+            "This root `AGENTS.md` is authoritative for the entire repository",
+            "One additional bounded bootstrap exception may create or reconcile only "
+            "the committed `argocd` and `platform-edge` Namespaces with `state: present`",
+            "refuses foreign existing namespaces and has no deletion path",
+            "Its only authorized entrypoint is the committed non-passthrough wrapper",
+            "direct playbook invocation and task-skipping/selection controls are forbidden",
+            "a label alone is not a handoff",
+            "Ansible may not create any other persistent Kubernetes object",
+        ):
+            self.assertIn(required, authority)
+
     def test_authoritative_ownership_wording_has_no_stale_absolute_claims(self) -> None:
         authoritative = "\n".join(
             path.read_text()

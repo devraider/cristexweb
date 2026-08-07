@@ -300,6 +300,25 @@ verification must meet the declared RPO/RTO before PROD.
 - Stop: secret value in state/plan or destructive replacement.
 - Rollback: reviewed reverse plan; never blind destroy.
 
+### Pre-Stage-4 — bounded platform Namespace bootstrap exception
+
+- Entry: freeze and validate the exact reviewed source, then obtain a separate human
+  approval for `ansible/bin/bootstrap-platform-namespaces check`.
+- Work: through that non-passthrough wrapper only, inspect and then reconcile exactly
+  the committed `argocd` and `platform-edge` Namespace manifests with `state:
+  present`. No deletion or other persistent Kubernetes kind is authorized.
+- Gate: inspect the check result, separately approve the first `apply`, verify exact
+  identity, labels, Active phase, and service health, then separately approve a
+  second `apply` and require `changed=0`.
+- Stop: foreign ownership, an unexpected object or change, source drift, failed
+  verification, or nonzero change on the second apply.
+- Ownership: Ansible remains the bootstrap writer. Argo CD is only the future desired
+  owner until installation, adoption or Application registration, and successful
+  sync evidence; a label alone is not a handoff.
+- Boundary: this exception does not waive the Stage 4 entry gates and does not
+  authorize Argo CD, Infisical, cloudflared, or any other persistent Kubernetes
+  object.
+
 ### Stage 4 — minimal GitOps and secrets bootstrap
 
 - Current source-only evidence: the
@@ -317,9 +336,8 @@ verification must meet the declared RPO/RTO before PROD.
   deployable source or a version selection.
 - Entry: pinned component versions, human-reviewed target kubelet-version evidence,
   verified Kubernetes compatibility, and an approved secret-zero procedure.
-- Work: first create or reconcile only the committed `argocd` and `platform-edge`
-  Namespaces through the bounded Ansible exception, then bootstrap Argo CD, private
-  repository access, Infisical operator, and one non-sensitive demonstration secret.
+- Work: bootstrap Argo CD, private repository access, Infisical operator, and one
+  non-sensitive demonstration secret only after every Stage 4 entry gate passes.
 - Gate: Argo is private, reconciles a demo workload, and secret values remain absent
   from Git/logs.
 - Stop: admin endpoint becomes public or bootstrap credentials cannot be recovered.

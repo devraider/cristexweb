@@ -153,12 +153,27 @@ disk state. Restore preserved configuration before continuing.
 Stop gate: stop on secret-bearing state/plan, replacement/destroy outside scope, or
 missing state recovery. Reverse changes only through another reviewed plan.
 
-## Stage 4 — GitOps and secret bootstrap
+## Pre-Stage-4 — bounded platform Namespace bootstrap exception
 
 - [x] Commit exact `argocd` and `platform-edge` Namespace source plus the bounded
-  present-only, no-delete Ansible bootstrap exception (`KIF-002`, `KIF-005`).
-- [ ] Run the separately approved namespace bootstrap check/diff, execute only the
-  accepted two-Namespace plan, and prove second-run `changed=0` (`KIF-002`, `KIF-005`).
+  `state: present`, no-delete Ansible bootstrap exception (`KIF-002`, `KIF-005`).
+- [ ] Obtain separate human approval for only
+  `ansible/bin/bootstrap-platform-namespaces check`, then inspect its complete result
+  before any mutation (`KIF-002`, `KIF-005`).
+- [ ] After accepting the check result, obtain separate human approval for the first
+  `ansible/bin/bootstrap-platform-namespaces apply` and reconcile exactly the two
+  reviewed Namespaces (`KIF-002`, `KIF-005`).
+- [ ] Verify exact identity, labels, Active phase, and service health, then obtain
+  separate human approval for a second
+  `ansible/bin/bootstrap-platform-namespaces apply` and require `changed=0`
+  (`KIF-002`, `KIF-005`).
+
+Stop gate: stop on foreign ownership, source drift, any unexpected object or change,
+failed verification, or nonzero change on the second apply. Runtime remains NOT RUN;
+these checklist entries grant no live approval and waive no Stage 4 entry gate.
+
+## Stage 4 — GitOps and secret bootstrap
+
 - [x] Record public Argo CD chart, captured signature/hash-binding, image, and ignored
   minimal-render research in a source-only
   [candidate provenance record](../../runbooks/argocd-candidate-provenance.md),
