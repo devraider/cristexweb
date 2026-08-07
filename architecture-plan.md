@@ -54,9 +54,18 @@ recovery subsequently passed check, live installation, and a `changed=0` rerun; 
 pinned CLI and selector now exist without host egress. Committed Kubernetes desired
 state is limited to exact `argocd` and `platform-edge` Namespace manifests plus an
 offline-only bounded Ansible bootstrap; neither Namespace nor any workload exists
-from this increment yet. No state file, provider initialization, plan, apply, Helm,
-Kustomize workload, GitHub Actions, or general host baseline exists yet. Debian plus
-Ansible is the selected host-configuration owner.
+from this increment yet. The source-only
+[Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
+records chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
+immutable linux/amd64 images, and ignored 44-document render evidence. It is explicitly **CANDIDATE — NOT
+DEPLOYABLE — NOT SELECTED**; actual kubelet compatibility, human version selection
+and soak, signing-key trust/status, generated/internal Secret ownership and recovery,
+private Git secret-zero, exact image availability plus component flow controls,
+bootstrap ownership, and runtime approvals remain blockers. It
+adds no chart, values, or Kubernetes object source. No state file, provider
+initialization, plan, apply, Helm installation, Kustomize workload, GitHub Actions,
+or general host baseline exists yet. Debian plus Ansible is the selected
+host-configuration owner.
 
 ## Goals
 
@@ -285,6 +294,13 @@ verification must meet the declared RPO/RTO before PROD.
 
 ### Stage 4 — minimal GitOps and secrets bootstrap
 
+- Current source-only evidence: the
+  [Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
+  binds public chart, captured signature/hash-binding, image metadata, and an ignored
+  minimal render. The
+  candidate retains ApplicationSet because chart `10.3.0` has no effective
+  `applicationSet.enabled` disable gate. This is not version selection, deployable
+  desired state, compatibility proof, or runtime evidence.
 - Entry: pinned component versions, human-reviewed target kubelet-version evidence,
   verified Kubernetes compatibility, and an approved secret-zero procedure.
 - Work: first create or reconcile only the committed `argocd` and `platform-edge`

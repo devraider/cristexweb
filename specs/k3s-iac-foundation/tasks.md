@@ -159,7 +159,18 @@ missing state recovery. Reverse changes only through another reviewed plan.
   present-only, no-delete Ansible bootstrap exception (`KIF-002`, `KIF-005`).
 - [ ] Run the separately approved namespace bootstrap check/diff, execute only the
   accepted two-Namespace plan, and prove second-run `changed=0` (`KIF-002`, `KIF-005`).
-- [ ] Pin and render the minimal Argo CD and Infisical operator versions
+- [x] Record public Argo CD chart, captured signature/hash-binding, image, and ignored
+  minimal-render research in a source-only
+  [candidate provenance record](../../runbooks/argocd-candidate-provenance.md),
+  explicitly without version selection, chart/values/Kubernetes source, secret,
+  runtime, or deployment (`KIF-005`, `KIF-013`, `KIF-023`, `KIF-030`).
+- [ ] Human-select and soak the Argo CD chart/application candidate only after actual
+  target kubelet compatibility, signing-key trust/status, generated/internal Secret
+  ownership and recovery, private Git secret-zero/recovery, exact image availability
+  plus component flow controls, bootstrap ownership, and runtime approval gates are
+  resolved; then add and review deployable source
+  separately (`KIF-002`, `KIF-005`, `KIF-013`, `KIF-015`, `KIF-023`).
+- [ ] Pin and render a provenance-consistent Infisical operator version
   (`KIF-005`, `KIF-013`, `KIF-023`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare secret-zero
   sequence (`KIF-014`, `KIF-015`).

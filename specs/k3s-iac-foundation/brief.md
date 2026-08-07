@@ -78,7 +78,15 @@ reviewed controller-transfer recovery then passed check, live installation, and 
 manifests and a bounded present-only Ansible bootstrap are implemented offline. Its
 non-passthrough entrypoint rejects task-skipping controls; namespace runtime, Argo
 CD, cloudflared, Secrets, workloads, Services, and routes
-remain unrun. Provider initialization, state, plan, and apply also remain unrun.
+remain unrun. A source-only
+[Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
+records chart, captured signature/hash-binding, image, and ignored-render research
+for chart `10.3.0` and app `v3.5.0`, but is explicitly **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. It adds
+no chart, values, or Kubernetes object source. Actual kubelet compatibility, human
+selection and soak, signing-key trust/status, generated/internal Secret ownership
+and recovery, private Git secret-zero, exact image availability plus component flow
+controls, bootstrap ownership, and all runtime approvals
+remain blocked. Provider initialization, state, plan, and apply also remain unrun.
 This deliverable performs no other host mutation, Cloudflare, GitHub, Infisical,
 registry, database, storage,
 backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain

@@ -35,8 +35,13 @@ The protected state directory remains empty; state encryption/off-node restore,
 provider operations, and external ownership remain pending and close no manual
 case. Exact `argocd` and `platform-edge` Namespace manifests plus their present-only
 Ansible bootstrap pass offline contracts, but cluster check/live/idempotence are NOT
-RUN. Argo CD, cloudflared, Secrets, workloads, Services, and routes are not installed
-and this closes no manual case. No deployment, replacement
+RUN. The source-only
+[Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
+is **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** and records no runtime evidence.
+Actual kubelet compatibility, signing-key trust/status, version selection/soak,
+internal Secret recovery, private Git secret-zero, exact image availability plus
+component flow controls, bootstrap ownership, and runtime approvals remain blocked. Argo CD, cloudflared, Secrets, workloads, Services, and
+routes are not installed, so this closes no manual case. No deployment, replacement
 recovery proof, or complete manual runtime validation
 occurred. MQA-13 remains pending specifically
 because the managed-profile rollback path has not been executed and verified, even

@@ -2,8 +2,8 @@
 
 state: agent:in-progress
 phase: implementing
-build: schema-v3 kubelet-version discovery and Namespace bootstrap pass offline; target version/Argo compatibility and runtime/provider/state/backup/apply pending
-date: 2026-08-06
+build: schema-v3 kubelet-version discovery and Namespace bootstrap pass offline; Argo candidate provenance contracts pass; target version/compatibility and runtime/provider/state/backup/apply pending
+date: 2026-08-07
 deploy_required_after_acceptance: yes
 
 note: |
@@ -44,7 +44,16 @@ note: |
   now queries `shared-services` and projects the exact kubelet version; both changes
   pass offline only and remain NOT RUN pending one separately approved elevated
   read-only rerun and human review. Argo CD compatibility is not established. The
-  unmounted filesystem, disk health, contents, reuse decision, and off-node backup
+  source-only
+  [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
+  binds chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
+  immutable linux/amd64 images, and ignored 44-document render evidence. It is **CANDIDATE —
+  NOT DEPLOYABLE — NOT SELECTED**, adds no chart/values/Kubernetes source, and has
+  no runtime evidence. Target compatibility, signing-key trust/status, human
+  selection and soak, generated/internal Secret ownership and recovery, private Git
+  secret-zero, exact image availability plus component flow controls, bootstrap
+  ownership, and runtime approvals remain blockers.
+  The unmounted filesystem, disk health, contents, reuse decision, and off-node backup
   design remain unresolved; no disk mutation occurred.
   A bounded CNI/NetworkPolicy functional probe is implemented offline with separate
   plan, run, and cleanup paths. It uses an existing namespace, API-generated names,

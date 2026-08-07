@@ -78,8 +78,12 @@ Ansible discovery satisfies its offline, syntax/lint, approved host-access,
 dependency-bootstrap, curated host/cluster-indicator, and functional
 CNI/NetworkPolicy enforcement gates. The exact kubelet-version projection passes
 source-only validation, but the target value and compatibility gate remain NOT RUN.
-Exact platform Namespace source and its bounded
-bootstrap pass offline contracts only; cluster execution remains pending. The
-foundation does not satisfy replacement-host recovery, general host-baseline, or
-later platform mutation gates. Unresolved storage, secret bootstrap, and RPO/RTO
+The source-only
+[Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
+binds public chart, captured signature/hash-binding, image, and ignored-render evidence for
+KIF-005, KIF-013, KIF-023, and KIF-030 without selecting a version or adding
+deployable source. Exact platform Namespace source and its bounded bootstrap pass
+offline contracts only; cluster execution remains pending. The foundation does not
+satisfy replacement-host recovery, general host-baseline, or later platform
+mutation gates. Unresolved storage, secret bootstrap, and RPO/RTO
 choices remain decision gates rather than implied requirements.

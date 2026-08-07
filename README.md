@@ -32,9 +32,12 @@ The protected directory still contains no state file, and no provider operation 
 external resource exists. The root `opentofu/` source is Cloudflare-only and has zero
 resources. Committed Kubernetes source now contains only the `argocd` and
 `platform-edge` Namespace manifests plus a gated Ansible bootstrap; runtime remains
-NOT RUN and no Argo CD, cloudflared, Secret, workload, Service, or route exists. No
-general host baseline or deployment exists. Python is used only for offline contract
-tests, not infrastructure automation.
+NOT RUN and no Argo CD, cloudflared, Secret, workload, Service, or route exists. A
+[source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
+binds public chart, captured signature/hash-binding, image, and ignored-render evidence while
+remaining explicitly **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. It adds no chart,
+values, or Kubernetes object source. No general host baseline or deployment exists.
+Python is used only for offline contract tests, not infrastructure automation.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
 local report. The extended report confirms the unmounted 1 TB rotational disk,
@@ -66,7 +69,8 @@ gateway remain in the separate CristexHub application repository.
 2. [`architecture-plan.md`](architecture-plan.md) — target design, staged delivery, gates, rollback, and unresolved decisions.
 3. [`ansible/README.md`](ansible/README.md) — discovery contract and approved command shape.
 4. [`runbooks/replacement-host-recovery.md`](runbooks/replacement-host-recovery.md) — replacement boundary, isolation gates, and decision-first recovery contract.
-5. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source-only, non-deployable Argo CD candidate evidence and blockers.
+6. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -147,15 +151,16 @@ ansible/                 # discovery + bounded host changes + gated temporary QA
   roles/platform_namespace_bootstrap/
 opentofu/                # zero-resource Cloudflare-only scaffold
 kubernetes/              # exact platform Namespace source; future Argo desired state
-runbooks/                # decision-first recovery docs; no recovery automation
+runbooks/                # recovery docs plus source-only candidate provenance
   replacement-host-recovery.md
   recovery-artifact-register.md
+  argocd-candidate-provenance.md
 tests/                   # offline contract tests only
 ```
 
 Only `ansible/`, the zero-resource `opentofu/` scaffold, the two platform Namespace
-manifests under `kubernetes/`, the first documentation-only replacement recovery
-increment under `runbooks/`, and offline `tests/` currently exist. Kustomize remains intended for
+manifests under `kubernetes/`, documentation-only recovery and candidate-provenance
+records under `runbooks/`, and offline `tests/` currently exist. Kustomize remains intended for
 first-party application overlays; Helm is reserved for selected third-party
 components. Argo ownership remains pending until Argo CD is installed, the two
 Namespaces are adopted or registered through an Application, and successful sync

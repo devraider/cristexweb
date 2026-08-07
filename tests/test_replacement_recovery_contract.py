@@ -22,7 +22,11 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
         self.assertTrue(self.runbook_path.is_file())
         self.assertTrue(self.register_path.is_file())
         self.assertEqual(
-            {"recovery-artifact-register.md", "replacement-host-recovery.md"},
+            {
+                "argocd-candidate-provenance.md",
+                "recovery-artifact-register.md",
+                "replacement-host-recovery.md",
+            },
             {path.name for path in RUNBOOKS.iterdir() if path.is_file()},
         )
         self.assertNotIn("```", self.combined)
@@ -138,11 +142,24 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
             r"\bgithub_pat_[A-Za-z0-9_]+\b",
             r"(?im)^\s*(?:certificate-authority-data|client-certificate-data|client-key-data|token):\s*\S+",
             r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
-            r"\b(?:10|127|192\.168)\.(?:\d{1,3}\.){2}\d{1,3}\b",
+            r"\b(?:10|127)\.(?:\d{1,3}\.){2}\d{1,3}\b",
+            r"\b192\.168\.(?:\d{1,3}\.)\d{1,3}\b",
             r"\b172\.(?:1[6-9]|2\d|3[01])\.(?:\d{1,3}\.)\d{1,3}\b",
         )
         for pattern in forbidden_patterns:
             self.assertNotRegex(self.combined, pattern)
+        private_addresses = (
+            ".".join(("10", "1", "2", "3")),
+            ".".join(("127", "0", "0", "1")),
+            ".".join(("172", "16", "1", "2")),
+            ".".join(("172", "31", "255", "254")),
+            ".".join(("192", "168", "1", "1")),
+        )
+        for private_address in private_addresses:
+            self.assertTrue(
+                any(re.search(pattern, private_address) for pattern in forbidden_patterns),
+                private_address,
+            )
 
 
 if __name__ == "__main__":
