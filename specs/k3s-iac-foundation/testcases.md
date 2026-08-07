@@ -49,7 +49,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-TOFU-03 | KIF-004–KIF-006, KIF-013 | Cloudflare-only zero-resource scaffold | Exact OpenTofu/provider pins and local backend path exist with zero resources/data/modules/imports/variables/outputs and no forbidden provider, credential, lockfile, state, or plan | PASS — static contract passed; `tofu fmt/validate` and provider initialization are honestly NOT RUN because no approved controller binary/provider download exists |
 | KIF-TOFU-04 | KIF-013, KIF-028, KIF-030 | Local-state encryption and off-node recovery gate | Timestamped encrypted Google Drive copies, independent key custody, integrity verification, and isolated restore pass before the first apply | NOT RUN/BLOCKED — no state exists; encryption, Drive identity, copy, retention, key recovery, and restore remain `UNKNOWN — STOP` |
 | KIF-NS-01 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-030 | Bounded platform Namespace bootstrap offline contract | Exact committed `argocd` and `platform-edge` Namespace manifests are the sole definition and the architecture/task checklist places them in a documented pre-Stage-4 exception with separate check/apply/idempotence approvals that waives no Stage 4 entry gate; a non-passthrough entrypoint rejects `--start-at-task`, `--step`, and all extra arguments; the wrapper launches the repository `.venv` controller in an allowlisted clean environment and supplies a private random single-run attestation; the mutating task independently requires that attestation, reloads only literal manifest paths, and rejects extra top-level/metadata keys; a first-task internal-variable guard, canonical non-symlink ancestor/leaf validation, approval/diff/exact-limit/kubeconfig/protected-result gates, foreign-existing refusal, present-only reconciliation, exact post-verification, truthful ownership labels, executable closure, and no deletion/other-kind path are enforced | PASS — focused structural, stage-boundary, control-flow, and synthetic ancestor-symlink contracts, controller-only forged-extra-var rejection, full offline suite, syntax, synthetic discovery validation, and production lint passed without inventory or Kubernetes API contact |
-| KIF-NS-02 | KIF-002, KIF-005, KIF-010, KIF-030 | Platform Namespace bootstrap runtime | Reviewed check predicts exactly the two absent Namespaces; approved live run creates them, verifies labels/services, and second run converges changed=0 without installing Argo CD/cloudflared or creating a route | PARTIAL — wrapper check passed without mutation; separately approved first apply passed at ok=21/changed=1/unreachable=0/failed=0/skipped=0, changed exactly `argocd` plus `platform-edge`, and verified exact identities, reviewed labels, Active phase, and service health. Second idempotence apply remains NOT RUN and requires separate approval |
+| KIF-NS-02 | KIF-002, KIF-005, KIF-010, KIF-030 | Platform Namespace bootstrap runtime | Reviewed check predicts exactly the two absent Namespaces; approved live run creates them, verifies labels/services, and second run converges changed=0 without installing Argo CD/cloudflared or creating a route | PASS — wrapper check passed without mutation; separately approved first apply passed at ok=21/changed=1/unreachable=0/failed=0/skipped=0 and changed exactly `argocd` plus `platform-edge`. During the separately approved idempotence checkpoint, a local sudo authentication failure stopped the initial invocation before service preflight/reconciliation at ok=10/changed=0/unreachable=0/failed=1/skipped=0; the retry passed at ok=21/changed=0/unreachable=0/failed=0/skipped=0, both exact items were `ok`, post-state identity/labels/Active passed, and service health was preserved |
 | KIF-ARGO-01 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-023, KIF-030 | Argo CD candidate provenance and target-minor screen | A secret-free record binds exact official chart/index/provenance/image/render evidence plus the approved target kubelet and official Argo CD tested-version sources; it narrowly concludes only that Kubernetes minor `1.36` is in Argo CD `3.5`'s tested matrix and passes chart `10.3.0`'s semver gate, while preserving the exact two-Namespace source set and blocking exact k3s/runtime, rendered API/CRD, trust, selection/soak, Secret, private Git, image/traffic, ownership, and runtime gates | PASS — 5 focused provenance contracts enforce exact associations and qualified boundaries; chart `10.3.0`/app `v3.5.0` remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; Argo runtime NOT RUN and no chart, values, Kubernetes object, secret, or deployment source was added |
 | KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, preserves exact two-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator candidate provenance | A secret-free record binds the latest `v0.11.8` source release and time-qualified public chart/image distribution gap separately from the last observed version-aligned `v0.11.7` chart/source/image set; association-sensitive evidence qualifies unverified chart provenance, observed SLSA content, missing SBOM observation, chart defaults, and exact architecture child digest while preserving the two-Namespace and zero-resource OpenTofu source sets and blocking selection/trust, compatibility, dedicated Namespace, scoped RBAC, Argo handoff, secret-zero/recovery, traffic, single-node, and runtime | PASS — 5 focused contracts enforce exact evidence associations, qualified trust/absence wording, source closure, operational-command hygiene, and effective RFC1918/loopback sentinels; both versions remain CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no chart, values, CRD, Kubernetes object, credential, Secret, or deployment source was added |
@@ -848,10 +848,10 @@ The recap reports `changed=1` because one loop task predicted changes for both e
 items; it does not mean only one Namespace was predicted. The manifests remain
 present-only and authorize no deletion or other kind. The raw verbose output and
 controller-local username, UID, inode, timestamp, and path metadata are not copied
-into Git. At this checkpoint the check did not approve the first apply; both applies were
-**NOT RUN**. The later separately approved first-apply evidence below supersedes only
-that first-apply boundary. The second `changed=0` idempotence apply remains unrun and
-requires separate approval. Argo CD is still only the future desired owner; the
+into Git. At this historical checkpoint the check did not approve the first apply;
+both applies were **NOT RUN**. The later separately approved first-apply and
+idempotence evidence below supersedes both historical execution boundaries. Argo CD
+is still only the future desired owner; the
 labels are not an ownership handoff, and no Stage 4 gate is waived.
 
 Offline evidence-record validation:
@@ -952,9 +952,10 @@ manifests; no deletion or other kind was authorized. Argo CD, Infisical, cloudfl
 Secrets, workloads, Services, routes, and other persistent objects were not installed
 or created. Argo CD remains only the future desired owner: labels do not establish an
 ownership handoff. The raw verbose output and controller-local username, UID, inode,
-timestamp, and stat/path metadata are not copied into Git. The second idempotence
-apply remains **NOT RUN**, requires a new separate approval, and must report
-`changed=0`.
+timestamp, and stat/path metadata are not copied into Git. At this historical
+first-apply checkpoint, the second idempotence apply had not yet run and still needed
+its separate approval with `changed=0` required. The later idempotence section
+supersedes that execution boundary.
 
 Offline evidence-record validation:
 
@@ -1023,13 +1024,70 @@ Exact 11-file documentation/test-only source closure — PASS
 Git diff check and no-staged-files check — PASS
 ```
 
+## Platform Namespace idempotence apply — 2026-08-07
+
+The operator separately approved the idempotence checkpoint and used only the
+non-passthrough wrapper from the repository root:
+
+```bash
+# Run from the repository root.
+ansible/bin/bootstrap-platform-namespaces apply
+```
+
+The initial invocation passed controller-side internal-variable, approval,
+attestation, canonical-path, and exact manifest assertions, then stopped on failed
+local sudo authentication before service preflight or any Kubernetes pre-state or
+reconciliation task:
+
+```text
+Play recap: ok=10 changed=0 unreachable=0 failed=1 skipped=0 rescued=0 ignored=0
+Failure boundary: before service preflight and Kubernetes reconciliation
+Namespace or other Kubernetes-object mutation: none
+Idempotence proof from this attempt: none
+```
+
+No password or raw verbose output is recorded. Because this invocation did not reach
+Kubernetes reconciliation, its `changed=0` is only non-mutation evidence, not
+idempotence evidence.
+
+The operator retried the already separately approved idempotence checkpoint with the
+same exact wrapper command. The accepted bounded result was:
+
+```text
+Play recap: ok=21 changed=0 unreachable=0 failed=0 skipped=0 rescued=0 ignored=0
+Protected internal-variable/approval/attestation/path/manifest/service/kubeconfig/pre-state/foreign-existing assertions: PASS
+Manifest contract: exactly v1 Namespace argocd and platform-edge; exactly three reviewed labels each
+Labels: app.kubernetes.io/part-of=cristex-platform; cristex.io/bootstrap-writer=ansible; cristex.io/desired-owner=argocd
+Reconciliation: ok item=argocd; ok item=platform-edge
+Post-state requery: ok for both exact items
+Exact identity, all three labels, and status.phase=Active assertions: ok for both exact items under no_log
+k3s and tailscaled service assertions before/after: PASS
+Changed/skipped/failed/unreachable tasks: none
+Other persistent kind authorized or changed: none
+```
+
+The successful retry is the idempotence proof: the one present-only reconciliation
+task reported both exact items `ok` and the play recap reported `changed=0`. The
+wrapper authorized only the committed `argocd` and `platform-edge` Namespace
+manifests and has no deletion path. Argo CD remains only the future desired owner;
+no installation, adoption, Application registration, sync, or ownership handoff is
+claimed. No Argo CD, Infisical, cloudflared, Secret, workload, Service, route, other
+Namespace, or other persistent kind was authorized or created. The exact check,
+first apply, and idempotence checkpoints are complete, and this pre-Stage-4 bounded
+exception is closed without waiving any Stage 4 gate.
+
+The supplied verbose output included controller-local identity and stat/path
+metadata. Those values, the password, inventory, kubeconfig, host/address data, and
+raw output are deliberately not copied into Git; only the sanitized task boundaries
+and recaps above are retained.
+
 ## Documentation and traceability
 
 | ID | Requirements | Scenario | Expected | Actual |
 |---|---|---|---|---|
 | KIF-DOC-01 | KIF-004, KIF-030 | Required shape and links | Canonical root/spec documents, locked uv project files, Ansible discovery files, source-only Argo/cloudflared/Infisical candidate provenance, and offline contract tests exist; local Markdown links resolve | PASS — bounded offline documentation check passed |
 | KIF-DOC-02 | KIF-005, KIF-009, KIF-022 | Ownership consistency | Ansible/OpenTofu/Argo CD/Infisical/GitHub Actions have non-overlapping owners; the exact two-Namespace present-only exception truthfully records Ansible as bootstrap writer and Argo CD only as future desired owner pending install/adoption/Application/sync evidence; Traefik remains sole ingress | PASS — authoritative documents remain consistent; a label alone is not a handoff |
-| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Executed Ansible evidence distinguishes completed OpenTofu installation, the Namespace check and first apply, pending idempotence apply, and non-deployable Argo/cloudflared/Infisical candidate provenance; only the exact two Namespaces were created, with no controller install, state/provider operation, general host baseline, hosted runtime, or deployment claimed | PASS — repository scan and status wording passed |
+| KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Executed Ansible evidence distinguishes completed OpenTofu installation, completed Namespace check/first apply/idempotence checkpoints including the pre-reconciliation credential failure, and non-deployable Argo/cloudflared/Infisical candidate provenance; only the exact two Namespaces were created, with no controller install, state/provider operation, general host baseline, hosted runtime, or deployment claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
 | KIF-DOC-05 | KIF-016–KIF-021 | Shared-services and policy risk | Separate principals/backups/vhosts and negative tests remain required; object listings alone do not prove policy enforcement | PASS — functional probe evidence and remaining application-isolation QA are explicit |
 | KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, one manual case passes, and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
@@ -1037,8 +1095,9 @@ Git diff check and no-staged-files check — PASS
 All requirements KIF-001 through KIF-030 remain represented by the implementation,
 documentation, manual, or future-runtime cases in this file. Only the explicit live
 CNI, storage, and OpenTofu evidence above closes their bounded runtime gates; the
-platform Namespace bootstrap has a passed non-mutating wrapper check and first apply,
-while its idempotence apply remains unrun. Argo CD/cloudflared/Infisical candidate
+platform Namespace bootstrap has a passed non-mutating wrapper check, first apply,
+and `changed=0` idempotence retry after a pre-reconciliation credential failure.
+Argo CD/cloudflared/Infisical candidate
 provenance remains source-only with no runtime evidence. The candidate records are
 [`argocd-candidate-provenance.md`](../../runbooks/argocd-candidate-provenance.md),
 [`cloudflared-candidate-provenance.md`](../../runbooks/cloudflared-candidate-provenance.md),
@@ -1167,7 +1226,7 @@ status = (spec_dir / "status.md").read_text()
 for statement in [
     "state: agent:in-progress",
     "phase: implementing",
-    "schema-v3 discovery plus Namespace check/first apply passed",
+    "schema-v3 discovery plus Namespace check/first apply/idempotence passed",
     "Argo 3.5 target-minor screen and candidate provenance contracts pass",
     "all nine exact Kubernetes",
     "Exact k3s/runtime\n  and rendered API/CRD compatibility",
@@ -1182,7 +1241,7 @@ for statement in [
     "the first live run created only the exact managed parent and\nempty protected state directories",
     "reviewed controller-transfer recovery then passed check, live installation, and a\n`changed=0` rerun",
     "Exact `argocd` and `platform-edge` Namespace\nmanifests and a bounded present-only Ansible bootstrap are implemented. Its\nseparately approved non-passthrough wrapper check passed",
-    "The second idempotence apply remains unrun, requires separate approval, and\nmust report `changed=0`.",
+    "The retry passed at\n`ok=21 changed=0 unreachable=0 failed=0 skipped=0`",
     "Provider initialization, state, plan, and apply also remain unrun",
 ]:
     assert statement in brief, statement

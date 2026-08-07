@@ -168,14 +168,19 @@ missing state recovery. Reverse changes only through another reviewed plan.
   reviewed Namespaces (`KIF-002`, `KIF-005`).
 - [x] Verify exact identity, labels, Active phase, and k3s/Tailscale service health
   after the first apply (`KIF-002`, `KIF-005`).
-- [ ] Obtain separate human approval for a second
-  `ansible/bin/bootstrap-platform-namespaces apply` and require `changed=0`
-  (`KIF-002`, `KIF-005`).
+- [x] Obtain separate human approval for a second
+  `ansible/bin/bootstrap-platform-namespaces apply` and require `changed=0`; the
+  initial invocation stopped before service preflight and Kubernetes reconciliation
+  on failed local sudo authentication at
+  `ok=10 changed=0 unreachable=0 failed=1 skipped=0`, then the retry passed at
+  `ok=21 changed=0 unreachable=0 failed=0 skipped=0` with exact post-state and service
+  health verified (`KIF-002`, `KIF-005`).
 
-Stop gate: stop on foreign ownership, source drift, any unexpected object or change,
-failed verification, or nonzero change on the second apply. Check mode and first
-apply passed; the idempotence apply remains NOT RUN. These checklist entries grant no
-second-apply approval and waive no Stage 4 entry gate.
+Stop gate: foreign ownership, source drift, any unexpected object or change, failed
+verification, or nonzero change would have stopped the second apply. Check mode,
+first apply, and idempotence passed; the bounded exception is complete and closed.
+These checklist entries authorize no further bootstrap run and waive no Stage 4
+entry gate.
 
 ## Stage 4 — GitOps and secret bootstrap
 

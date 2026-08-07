@@ -58,8 +58,11 @@ recovery subsequently passed check, live installation, and a `changed=0` rerun; 
 pinned CLI and selector now exist without host egress. Committed Kubernetes desired
 state is limited to exact `argocd` and `platform-edge` Namespace manifests plus a
 bounded Ansible bootstrap. Its separately approved first apply created exactly those
-two Active Namespaces with the reviewed labels; no workload or other persistent kind
-exists from this increment. The source-only
+two Active Namespaces with the reviewed labels. The separately approved idempotence
+checkpoint first stopped before Kubernetes reconciliation on failed local sudo
+authentication at `changed=0`; its retry passed at `ok=21 changed=0 failed=0` with
+exact post-state and service-health verification. No workload or other persistent
+kind exists from this increment. The source-only
 [Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 records chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
 immutable linux/amd64 images, and ignored 44-document render evidence. It is explicitly **CANDIDATE — NOT
@@ -333,10 +336,18 @@ verification must meet the declared RPO/RTO before PROD.
   present`. Protected post-state assertions verified both exact identities, the
   reviewed labels, `Active` phase, and service health. No deletion or other persistent
   Kubernetes kind is authorized; none was changed.
-- Gate: separately approve a second wrapper `apply` and require `changed=0`; this
-  idempotence checkpoint remains unrun.
+- Idempotence evidence: during the separately approved second wrapper checkpoint, an
+  initial invocation stopped before service preflight and Kubernetes reconciliation
+  because local sudo authentication failed. It reported
+  `ok=10 changed=0 unreachable=0 failed=1 skipped=0`, made no mutation, and proved no
+  idempotence. The retry passed at
+  `ok=21 changed=0 unreachable=0 failed=0 skipped=0`; both exact reconciliation items
+  were `ok`, protected identity/label/`Active` assertions passed, and service health
+  remained verified before and after.
+- Gate result: the exact check, first apply, and idempotence checkpoints are complete;
+  the exception is closed and authorizes no further Namespace bootstrap execution.
 - Stop: foreign ownership, an unexpected object or change, source drift, failed
-  verification, or nonzero change on the second apply.
+  verification, or nonzero change would have stopped the checkpoint.
 - Ownership: Ansible remains the bootstrap writer. Argo CD is only the future desired
   owner until installation, adoption or Application registration, and successful
   sync evidence; a label alone is not a handoff.

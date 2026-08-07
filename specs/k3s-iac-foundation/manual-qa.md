@@ -39,9 +39,12 @@ case. Exact `argocd` and `platform-edge` Namespace manifests plus their present-
 Ansible bootstrap pass offline contracts. The separately approved wrapper check
 passed without mutation, and the separately approved first apply created and
 verified exactly those two Active Namespaces with the reviewed labels while
-preserving service health. The idempotence apply remains NOT RUN, requires separate
-approval, and must report `changed=0`. These bounded checkpoints close no manual QA
-case. The source-only
+preserving service health. The separately approved idempotence checkpoint initially
+stopped before service preflight and Kubernetes reconciliation on failed local sudo
+authentication with `changed=0`; its retry passed at
+`ok=21 changed=0 unreachable=0 failed=0 skipped=0`, with both exact items `ok`, exact
+post-state assertions passing, and service health preserved. These bounded
+checkpoints close no manual QA case. The source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 is **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** and records no runtime evidence.
 The target-minor compatibility screen passed, but exact k3s/runtime and rendered

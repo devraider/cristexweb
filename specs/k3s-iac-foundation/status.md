@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: schema-v3 discovery plus Namespace check/first apply passed; Argo 3.5 target-minor screen and candidate provenance contracts pass; Namespace idempotence/full compatibility/provider/state/backup pending
+build: schema-v3 discovery plus Namespace check/first apply/idempotence passed; Argo 3.5 target-minor screen and candidate provenance contracts pass; full compatibility/provider/state/backup pending
 date: 2026-08-07
 deploy_required_after_acceptance: yes
 
@@ -138,8 +138,14 @@ note: |
   loop task changed exactly `argocd` and `platform-edge`. Protected post-state
   queries and assertions verified both exact identities, all three reviewed labels,
   `Active` phase, and k3s/Tailscale service health. No other kind was authorized or
-  changed. The second idempotence apply remains NOT RUN, requires separate approval,
-  and must report `changed=0`. Argo CD, cloudflared, `shared-services`, DEV/PROD
+  changed. During the separately approved idempotence checkpoint, an initial
+  invocation stopped before service preflight and Kubernetes reconciliation because
+  local sudo authentication failed; it reported
+  `ok=10 changed=0 unreachable=0 failed=1 skipped=0`, made no mutation, and did not
+  prove idempotence. The retry passed at
+  `ok=21 changed=0 unreachable=0 failed=0 skipped=0`; both exact reconciliation items
+  were `ok`, protected identity/label/`Active` assertions passed, and k3s/Tailscale
+  remained running before and after. Argo CD, cloudflared, `shared-services`, DEV/PROD
   namespaces, Secrets, workloads, Services, and routes do not exist from this
   increment. The future shared service Namespace is named `shared-services`, but it
   is not created.

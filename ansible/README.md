@@ -435,9 +435,15 @@ The separately approved first
 changed exactly `argocd` and `platform-edge`; post-state queries and protected
 assertions verified both exact identities, all three reviewed labels, `Active` phase,
 and k3s/Tailscale health before and after. No other persistent kind was authorized or
-changed. A second separately approved `apply` remains unrun and must report
-`changed=0`. Never invoke this playbook directly and never use `--start-at-task`,
-`--step`, tags, or other task selection controls.
+changed. During the separately approved idempotence checkpoint, the initial
+invocation stopped before service preflight and Kubernetes reconciliation because
+local sudo authentication failed; it reported
+`ok=10 changed=0 unreachable=0 failed=1 skipped=0` and made no mutation. The retry
+passed at `ok=21 changed=0 unreachable=0 failed=0 skipped=0`: both exact Namespace
+reconciliation items were `ok`, protected post-state identity/label/Active
+assertions passed, and k3s/Tailscale remained running before and after. Never invoke
+this playbook directly and never use `--start-at-task`, `--step`, tags, or other task
+selection controls.
 
 ## Approved pinned OpenTofu CLI installation
 

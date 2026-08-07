@@ -84,9 +84,14 @@ those two items; check mode created nothing and skipped live post-state tasks by
 design. The separately approved first apply passed at
 `ok=21 changed=1 unreachable=0 failed=0 skipped=0`, changed exactly both Namespace
 items, and verified exact identity, reviewed labels, Active phase, and k3s/Tailscale
-health. The second idempotence apply remains unrun, requires separate approval, and
-must report `changed=0`. Argo CD, cloudflared, Infisical, Secrets, workloads,
-Services, and routes remain unrun. A source-only
+health. During the separately approved idempotence checkpoint, an initial invocation
+stopped before service preflight and Kubernetes reconciliation on failed local sudo
+authentication at `ok=10 changed=0 unreachable=0 failed=1 skipped=0`; it made no
+mutation and proved no idempotence. The retry passed at
+`ok=21 changed=0 unreachable=0 failed=0 skipped=0`, with both exact reconciliation
+items `ok`, exact post-state identity/label/Active assertions passing, and
+k3s/Tailscale running before and after. Argo CD, cloudflared, Infisical, Secrets,
+workloads, Services, and routes remain unrun. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 records chart, captured signature/hash-binding, image, and ignored-render research
 for chart `10.3.0` and app `v3.5.0`, but is explicitly **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. It adds
