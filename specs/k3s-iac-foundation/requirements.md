@@ -88,8 +88,15 @@ binds exact release/source/image, token-file, health, and edge-transport evidenc
 KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, and KIF-030 while explicitly
 leaving publisher trust, image assurance/availability, hardening, secret recovery,
 external-resource state, policy, route, and runtime gates blocked. It selects no
-version and adds no deployable source. Exact platform Namespace source and its bounded bootstrap pass
-offline contracts only; cluster execution remains pending. The foundation does not
+version and adds no deployable source. The source-only
+[Infisical Operator candidate provenance record](../../runbooks/infisical-operator-candidate-provenance.md)
+binds the observed `v0.11.8` public distribution gap and the last observed
+version-aligned `v0.11.7` chart/source/image evidence for KIF-005, KIF-013 through
+KIF-015, KIF-021, KIF-023, and KIF-030. It selects neither version, adds no deployable
+source, and leaves compatibility, trust, Namespace, scoped-RBAC, Argo handoff,
+secret-zero/recovery, traffic, single-node, and runtime gates blocked. Exact
+platform Namespace source and its bounded bootstrap pass offline contracts only;
+cluster execution remains pending. The foundation does not
 satisfy replacement-host recovery, general host-baseline, or later platform
 mutation gates. Unresolved storage, secret bootstrap, and RPO/RTO
 choices remain decision gates rather than implied requirements.

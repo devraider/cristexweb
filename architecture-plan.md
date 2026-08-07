@@ -71,6 +71,15 @@ RUN**, and publisher trust, image assurance/availability, container hardening,
 Infisical token recovery, OpenTofu state/resource gates, Argo handoff, exact
 DNS/Traefik/edge policy, route approval, soak, and runtime approvals remain blocked.
 It adds no OpenTofu resource, Kubernetes object, secret, route, or deployment source.
+The source-only
+[Infisical Operator candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
+distinguishes latest source release `v0.11.8`, whose matching public chart archive
+and image tag were not observed during the bounded capture, from the last observed
+version-aligned `v0.11.7` chart/source/image set. Neither is selected or deployable;
+runtime is **NOT RUN**. Actual compatibility, chart/image trust, dedicated Namespace,
+scoped RBAC, Argo handoff, secret-zero, network policy, recovery, and runtime
+approvals remain blocked. It adds no chart, CRD, Kubernetes object, credential, or
+Secret source.
 No state file, provider initialization, plan, apply, Helm installation, Kustomize
 workload, GitHub Actions, or general host baseline exists yet. Debian plus Ansible is
 the selected host-configuration owner.
@@ -152,7 +161,7 @@ Cloudflare and Tailscale do not replace application OIDC/JWT enforcement.
 |---|---|
 | `argocd` | Argo CD controllers and private UI/API |
 | `platform-edge` | Cloudflare Tunnel connector only; no route exists until separately approved |
-| Infisical operator namespace | Secret synchronization controller; exact name follows the selected chart |
+| Infisical operator namespace | Secret synchronization controller; exact dedicated name is a pending human decision |
 | `shared-services` | Shared PostgreSQL, MongoDB, and any retained shared RabbitMQ |
 | `cristexhub-dev` | DEV applications and environment-local dependencies |
 | `cristexhub-prod` | PROD applications and environment-local dependencies |
@@ -334,6 +343,12 @@ verification must meet the declared RPO/RTO before PROD.
   edge-transport facts while leaving trust, hardening, secret-zero, external-resource
   state/recovery, component policy, route selection, and runtime blocked. It is not
   deployable source or a version selection.
+- Current source-only Infisical evidence: the
+  [candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
+  records the incomplete observed `v0.11.8` public distribution and last observed
+  version-aligned `v0.11.7` set while leaving both **CANDIDATE — NOT DEPLOYABLE — NOT
+  SELECTED** with runtime **NOT RUN**. Compatibility, trust, Namespace, scoped-RBAC,
+  Argo handoff, secret-zero, traffic, recovery, and runtime gates remain blocked.
 - Entry: pinned component versions, human-reviewed target kubelet-version evidence,
   verified Kubernetes compatibility, and an approved secret-zero procedure.
 - Work: bootstrap Argo CD, private repository access, Infisical operator, and one

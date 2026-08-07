@@ -32,8 +32,8 @@ The protected directory still contains no state file, and no provider operation 
 external resource exists. The root `opentofu/` source is Cloudflare-only and has zero
 resources. Committed Kubernetes source now contains only the `argocd` and
 `platform-edge` Namespace manifests plus a gated Ansible bootstrap; runtime remains
-NOT RUN and no Argo CD, cloudflared, Secret, workload, Service, or route exists. A
-[source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
+NOT RUN and no Argo CD, cloudflared, Infisical, Secret, workload, Service, or route
+exists. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, and ignored-render evidence while
 remaining explicitly **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. It adds no chart,
 values, or Kubernetes object source. A separate
@@ -41,9 +41,14 @@ values, or Kubernetes object source. A separate
 binds official release, unsigned source, immutable linux/amd64 image, token-file,
 health, and edge-transport evidence. It is also **CANDIDATE — NOT DEPLOYABLE — NOT
 SELECTED**, with runtime **NOT RUN**, and adds no OpenTofu resource, Kubernetes
-object, secret, route, or deployment source. No general host baseline or deployment
-exists. Python is used only for offline contract tests, not infrastructure
-automation.
+object, secret, route, or deployment source. A third
+[source-only Infisical Operator candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
+distinguishes the incomplete public `v0.11.8` distribution observation from the last
+observed version-aligned `v0.11.7` chart/source/image set. Both remain **CANDIDATE —
+NOT DEPLOYABLE — NOT SELECTED**, runtime is **NOT RUN**, and no chart, CRD,
+Kubernetes object, credential, or Secret source was added. No general host baseline
+or deployment exists. Python is used only for offline contract tests, not
+infrastructure automation.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
 local report. The extended report confirms the unmounted 1 TB rotational disk,
@@ -77,7 +82,8 @@ gateway remain in the separate CristexHub application repository.
 4. [`runbooks/replacement-host-recovery.md`](runbooks/replacement-host-recovery.md) — replacement boundary, isolation gates, and decision-first recovery contract.
 5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source-only, non-deployable Argo CD candidate evidence and blockers.
 6. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
-7. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+7. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — source-only, non-deployable Infisical Operator candidate evidence and blockers.
+8. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -163,6 +169,7 @@ runbooks/                # recovery docs plus source-only candidate provenance
   recovery-artifact-register.md
   argocd-candidate-provenance.md
   cloudflared-candidate-provenance.md
+  infisical-operator-candidate-provenance.md
 tests/                   # offline contract tests only
 ```
 

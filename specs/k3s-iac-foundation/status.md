@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: schema-v3 kubelet-version discovery and Namespace bootstrap pass offline; Argo/cloudflared candidate provenance contracts pass; target version/compatibility and runtime/provider/state/backup/apply pending
+build: schema-v3 kubelet-version discovery and Namespace bootstrap pass offline; Argo/cloudflared/Infisical candidate provenance contracts pass; target version/compatibility and runtime/provider/state/backup/apply pending
 date: 2026-08-07
 deploy_required_after_acceptance: yes
 
@@ -61,7 +61,15 @@ note: |
   assurance/off-node availability, container hardening, Infisical token recovery,
   OpenTofu state/resource gates, Argo handoff, exact DNS/Traefik/edge policy and
   negative tests, route approval, single-node risk, soak, and runtime approvals
-  remain blockers.
+  remain blockers. The source-only
+  [Infisical Operator candidate provenance record](../../runbooks/infisical-operator-candidate-provenance.md)
+  distinguishes latest source release `v0.11.8`, whose matching public chart archive
+  and image tag were not observed during the bounded capture, from the last observed
+  version-aligned `v0.11.7` chart/source/image set. Both remain **CANDIDATE — NOT
+  DEPLOYABLE — NOT SELECTED**, runtime is **NOT RUN**, and no chart, CRD, Kubernetes
+  object, credential, or Secret source was added. Actual compatibility, signer/build
+  trust, dedicated Namespace, scoped RBAC, Argo handoff, secret-zero/recovery,
+  traffic policy, single-node acceptance, and runtime approvals remain blockers.
   The unmounted filesystem, disk health, contents, reuse decision, and off-node backup
   design remain unresolved; no disk mutation occurred.
   A bounded CNI/NetworkPolicy functional probe is implemented offline with separate

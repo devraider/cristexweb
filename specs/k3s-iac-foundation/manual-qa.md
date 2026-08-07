@@ -47,8 +47,14 @@ is also **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** with runtime **NOT RUN
 unsigned source, immutable image, token-file, health, and edge-transport evidence do
 not close publisher trust, image assurance/availability, hardening, Infisical token
 recovery, OpenTofu state/resource, Argo handoff, exact traffic-policy, route,
-single-node risk, soak, or runtime gates. Argo CD, cloudflared, Secrets, workloads,
-Services, and routes are not installed, so this closes no manual case. No deployment, replacement
+single-node risk, soak, or runtime gates. The source-only
+[Infisical Operator candidate provenance record](../../runbooks/infisical-operator-candidate-provenance.md)
+is also **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** with runtime **NOT RUN**. Its
+`v0.11.8` distribution-gap observation and version-aligned `v0.11.7` evidence close
+no compatibility, trust, Namespace, scoped-RBAC, Argo handoff, secret-zero,
+rotation/revocation, traffic, recovery, single-node, or runtime gate. Argo CD,
+cloudflared, Infisical, Secrets, workloads, Services, and routes are not installed,
+so this closes no manual case. No deployment, replacement
 recovery proof, or complete manual runtime validation
 occurred. MQA-13 remains pending specifically
 because the managed-profile rollback path has not been executed and verified, even

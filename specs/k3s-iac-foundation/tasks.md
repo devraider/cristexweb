@@ -198,8 +198,17 @@ these checklist entries grant no live approval and waive no Stage 4 entry gate.
   plus component flow controls, bootstrap ownership, and runtime approval gates are
   resolved; then add and review deployable source
   separately (`KIF-002`, `KIF-005`, `KIF-013`, `KIF-015`, `KIF-023`).
-- [ ] Pin and render a provenance-consistent Infisical operator version
-  (`KIF-005`, `KIF-013`, `KIF-023`).
+- [x] Record the latest Infisical Operator `v0.11.8` public distribution gap and
+  last observed version-aligned `v0.11.7` chart/source/image evidence in a
+  source-only
+  [candidate provenance record](../../runbooks/infisical-operator-candidate-provenance.md),
+  explicitly without version/trust selection, chart/CRD/Kubernetes source, secret,
+  runtime, or deployment (`KIF-005`, `KIF-013`–`KIF-015`, `KIF-021`, `KIF-023`,
+  `KIF-030`).
+- [ ] Pin and render a provenance-consistent Infisical operator version only after
+  actual kubelet/API compatibility, signer/build trust, dedicated Namespace,
+  explicit scope/RBAC, Argo handoff, secret-zero/recovery, traffic, single-node, and
+  runtime gates are resolved (`KIF-005`, `KIF-013`, `KIF-023`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare secret-zero
   sequence (`KIF-014`, `KIF-015`).
 - [ ] Obtain explicit approval for bounded Argo CD bootstrap (`KIF-002`).

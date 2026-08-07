@@ -25,6 +25,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
             {
                 "argocd-candidate-provenance.md",
                 "cloudflared-candidate-provenance.md",
+                "infisical-operator-candidate-provenance.md",
                 "recovery-artifact-register.md",
                 "replacement-host-recovery.md",
             },
@@ -115,6 +116,14 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
         self.assertRegex(
             self.register,
             r"(?m)^\| cloudflared component artifact \|.*cloudflared-candidate-provenance\.md.*CANDIDATE EVIDENCE ONLY — STOP \|$",
+        )
+        self.assertRegex(
+            self.register,
+            r"(?m)^\| Infisical Operator component artifact \|.*infisical-operator-candidate-provenance\.md.*CANDIDATE EVIDENCE ONLY — STOP \|$",
+        )
+        self.assertRegex(
+            self.register,
+            r"(?m)^\| Infisical bootstrap material \|.*UNKNOWN — STOP \|$",
         )
         self.assertRegex(
             self.register,

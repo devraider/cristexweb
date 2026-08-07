@@ -77,7 +77,7 @@ reviewed controller-transfer recovery then passed check, live installation, and 
 `changed=0` rerun without host egress. Exact `argocd` and `platform-edge` Namespace
 manifests and a bounded present-only Ansible bootstrap are implemented offline. Its
 non-passthrough entrypoint rejects task-skipping controls; namespace runtime, Argo
-CD, cloudflared, Secrets, workloads, Services, and routes
+CD, cloudflared, Infisical, Secrets, workloads, Services, and routes
 remain unrun. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 records chart, captured signature/hash-binding, image, and ignored-render research
@@ -94,9 +94,17 @@ DEPLOYABLE — NOT SELECTED**, runtime is **NOT RUN**, and adds no OpenTofu reso
 Kubernetes object, secret, route, or deployment source. Publisher trust, image
 assurance/availability, container hardening, Infisical token recovery, OpenTofu
 state/resource gates, Argo handoff, exact DNS/Traefik/edge policy, route approval,
-single-node risk, soak, and runtime approvals remain blocked.
+single-node risk, soak, and runtime approvals remain blocked. A third source-only
+[Infisical Operator candidate provenance record](../../runbooks/infisical-operator-candidate-provenance.md)
+distinguishes latest source release `v0.11.8`, whose matching public Cloudsmith chart
+entry/archive and Docker Hub image tag were not observed during the bounded capture,
+from the last observed version-aligned `v0.11.7` set. Both are **CANDIDATE — NOT
+DEPLOYABLE — NOT SELECTED**, runtime is **NOT RUN**, and no chart, CRD, Kubernetes
+object, credential, or Secret source was added. Compatibility, signer/build trust,
+dedicated Namespace, scoped RBAC, Argo handoff, secret-zero/recovery, traffic policy,
+single-node risk, and runtime approvals remain blocked.
 Provider initialization, state, plan, and apply also remain unrun.
-This deliverable performs no other host mutation, Cloudflare, GitHub, Infisical,
-registry, database, storage,
-backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain
+Beyond the bounded public-source evidence reads, this deliverable performs no host
+mutation, authenticated Cloudflare/GitHub/Infisical/registry operation, database,
+storage, backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain
 external application-repository concerns and are not copied here.
