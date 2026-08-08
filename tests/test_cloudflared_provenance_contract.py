@@ -138,6 +138,8 @@ class CloudflaredCandidateProvenanceContractTests(unittest.TestCase):
             {
                 "platform/namespaces/argocd.yaml",
                 "platform/namespaces/platform-edge.yaml",
+                "platform/namespaces/platform-secrets.yaml",
+                "platform/namespaces/platform-identity.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))

@@ -31,15 +31,14 @@ live recovery installed the verified CLI at `ok=39 changed=6 failed=0`, and the
 second run converged at `ok=30 changed=0 failed=0` without requiring host egress.
 The protected directory still contains no state file, and no provider operation or
 external resource exists. The root `opentofu/` source is Cloudflare-only and has zero
-resources. Committed Kubernetes source now contains only the `argocd` and
-`platform-edge` Namespace manifests plus a gated Ansible bootstrap. Its non-mutating
-wrapper check passed, and the separately approved first apply created exactly those
-two Active Namespaces with the reviewed labels. During the separately approved
-idempotence checkpoint, an initial invocation stopped before service preflight and
-Kubernetes reconciliation on failed local sudo authentication at `changed=0`; its
-retry passed at `ok=21 changed=0 unreachable=0 failed=0 skipped=0` and reverified
-both exact Namespaces and service health. No Argo CD, cloudflared, Infisical, Secret,
-workload, Service, or route exists. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
+resources. Committed Kubernetes source now contains exactly four Namespace manifests.
+The historical `argocd`/`platform-edge` wrapper check, first apply, and idempotence
+retry completed under separate approvals and that exception remains closed. Exact
+present-only source and a new dedicated guarded wrapper now exist for
+`platform-secrets` and `platform-identity`, but their check, first apply, and
+idempotence are **NOT RUN** and require separate approvals. No Argo CD, cloudflared,
+Infisical Operator, Keycloak, PostgreSQL, Secret, workload, Service, policy, PVC, or
+route exists from the new increment. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, and online/static
 readiness evidence while remaining explicitly **CANDIDATE — NOT DEPLOYABLE — NOT
 SELECTED**. The exact 44-document render was reproduced at Kubernetes capability
@@ -54,10 +53,10 @@ ApplicationSet, supplemental default-deny policy with an explicit ports-only
 `443`/`6443` weakness, phased least-privilege RBAC, one-repository read-only GitHub
 App credentials, value-free Infisical custody, and two independent Namespace-adoption
 Applications. It adds no deployable source. Ansible is now selected as the future
-bounded bootstrap installer and privileged lifecycle owner, while exact bootstrap
-source/credentials, the proposed future Namespace exception, resource inventory,
-Infisical recovery, Keycloak OIDC, adoption apply mode, candidate selection, and
-runtime remain unresolved. The companion
+bounded bootstrap installer and privileged lifecycle owner. The foundation Namespace
+source is implemented, while its runtime checkpoints, component source/credentials,
+resource inventory, Infisical recovery, Keycloak OIDC, adoption apply mode, candidate
+selection, and runtime remain unresolved. The companion
 [source-only Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md)
 selects one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and
 Argo CD as an architecture target only. It selects no release, image, database,
@@ -110,10 +109,11 @@ gateway remain in the separate CristexHub application repository.
 4. [`runbooks/replacement-host-recovery.md`](runbooks/replacement-host-recovery.md) — replacement boundary, isolation gates, and decision-first recovery contract.
 5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source-only, non-deployable Argo CD candidate evidence and blockers.
 6. [`runbooks/argocd-hardened-design.md`](runbooks/argocd-hardened-design.md) — source-only private-access, RBAC, network, secret-custody, and adoption design; not deployment authorization.
-7. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
-8. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
-9. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — source-only, non-deployable Infisical Operator candidate evidence and blockers.
-10. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+7. [`runbooks/foundation-namespace-bootstrap.md`](runbooks/foundation-namespace-bootstrap.md) — deployable-but-not-run exact present-only bootstrap for `platform-secrets` and `platform-identity`.
+8. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
+9. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
+10. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — source-only, non-deployable Infisical Operator candidate evidence and blockers.
+11. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -215,6 +215,7 @@ ansible/                 # discovery + bounded host changes + gated temporary QA
   roles/network_policy_probe/
   roles/opentofu_install/
   roles/platform_namespace_bootstrap/
+  roles/foundation_namespace_bootstrap/
 opentofu/                # zero-resource Cloudflare-only scaffold
 kubernetes/              # exact platform Namespace source; future Argo desired state
 runbooks/                # recovery docs plus source-only candidate/design records
@@ -222,17 +223,19 @@ runbooks/                # recovery docs plus source-only candidate/design recor
   recovery-artifact-register.md
   argocd-candidate-provenance.md
   argocd-hardened-design.md
+  foundation-namespace-bootstrap.md
   keycloak-oidc-bootstrap-design.md
   cloudflared-candidate-provenance.md
   infisical-operator-candidate-provenance.md
 tests/                   # offline contract tests only
 ```
 
-Only `ansible/`, the zero-resource `opentofu/` scaffold, the two platform Namespace
+Only `ansible/`, the zero-resource `opentofu/` scaffold, the four platform Namespace
 manifests under `kubernetes/`, documentation-only recovery, candidate-provenance,
 hardened-design, and Keycloak/OIDC design records under `runbooks/`, and offline
-`tests/` currently exist. The proposed `platform-secrets` and `platform-identity`
-Namespaces have no manifests and no runtime authorization. Kustomize remains intended for
+`tests/` currently exist. Exact manifests and a distinct guarded wrapper now exist
+for `platform-secrets` and `platform-identity`; check/apply/idempotence remain NOT RUN
+and have no runtime authorization. Kustomize remains intended for
 first-party application overlays; Helm is reserved for selected third-party
 components. Argo ownership remains pending until Argo CD is installed, the two
 Namespaces are adopted or registered through an Application, and successful sync

@@ -7,9 +7,9 @@ This root `AGENTS.md` is authoritative for the entire repository.
 - Operational implementation is limited to read-only Ansible discovery, the executed two-package dependency bootstrap, the executed group-scoped k3s administrator access playbook, the executed user-scoped kubectl client-defaults playbook, the executed single-node reboot recovery playbook, and the executed temporary NetworkPolicy probe under `ansible/`. Admin access, warning-free cluster listing, idempotence, reboot, SSH/Tailscale return, Ready node, kubeconfig recovery, current CNI behavior, NetworkPolicy enforcement, rollback, and zero-residue cleanup succeeded; replacement-host recovery remains pending. No general host baseline or deployment exists.
 - Python exists only in offline contract tests; it is not operational infrastructure automation.
 - This repository also contains a zero-resource Cloudflare-only OpenTofu scaffold and a gated pinned-CLI host installer. The first live attempt stopped when the host had no route to GitHub after creating only exact parent directories and the empty protected state directory. The reviewed controller-transfer recovery then passed check, installed the exact CLI without host egress, and converged at `changed=0`. The protected directory remains empty: no state file, provider initialization, plan, apply, or external resource exists.
-- No hosted runtime, general Ansible host baseline, Helm chart, or workflow exists here yet. Committed persistent Kubernetes source is limited to the `argocd` and `platform-edge` Namespace manifests. Their separately approved wrapper check passed without mutation, and the separately approved first apply created exactly those two Namespaces, verified both Active with the reviewed labels, and preserved k3s/Tailscale service health. During the separately approved idempotence checkpoint, an initial invocation stopped before service preflight and Kubernetes reconciliation because local sudo authentication failed; it reported `changed=0` and made no mutation. The retry passed at `changed=0`, reverified both exact Active Namespaces and service health, and completed the bounded exception. No Argo CD, cloudflared, Secret, workload, Service, route, or other persistent object exists from this increment.
+- No hosted runtime, general Ansible host baseline, Helm chart, or workflow exists here yet. Committed persistent Kubernetes source contains exactly four Namespace manifests. The historical wrapper check passed, the separately approved first apply created exactly those two Namespaces, and the idempotence retry passed at `changed=0` under separate approval; that exception remains closed. Exact present-only source plus a distinct bounded wrapper now exist for `platform-secrets` and `platform-identity`, but their wrapper check, first apply, and idempotence checkpoints are **NOT RUN** and require separate approvals. No Infisical Operator, Argo CD, cloudflared, Keycloak, PostgreSQL, Secret, workload, Service, policy, PVC, route, or other persistent kind exists from this new increment.
 - CristexHub application source, local Compose assets, development Keycloak realm/theme assets, and Browserless gateway remain external concerns in the CristexHub application repository and must not be copied here. A source-only design now selects one future self-hosted Keycloak as the shared identity architecture target without selecting a release, image, package, database, hostname, route, or deployable source.
-- Approved discovery, dependency installation, and the group-scoped k3s administrator access mutation have completed. The access playbook verified effective readability as the selected account and a second run was idempotent. Any other host mutation or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed. The accepted Ansible bootstrap direction authorizes no run and adds no executable bootstrap source.
+- Approved discovery, dependency installation, and the group-scoped k3s administrator access mutation have completed. The access playbook verified effective readability as the selected account and a second run was idempotent. Any other host mutation or later implementation remains blocked until its explicit approval gate. Offline validation remains allowed. The accepted Ansible bootstrap direction authorizes no run; executable source currently exists only for the two exact foundation Namespaces, while all controller/component bootstrap source remains absent.
 
 ## Ownership
 
@@ -45,15 +45,18 @@ or reused.
 Ansible is selected as the bounded bootstrap installer for future exact foundational
 Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted
 Keycloak, and privileged cluster-scoped prerequisites. Each component requires its
-own future exact source closure and separate check/apply/idempotence approvals; no
-such executable source or runtime approval exists yet. Ansible remains lifecycle
+own exact source closure and separate check/apply/idempotence approvals; foundation
+Namespace executable source exists, but no new runtime approval exists yet. Ansible remains lifecycle
 owner of foundation CRDs, ClusterRoles, ClusterRoleBindings, and Keycloak
 realm/client/group reconciliation unless a later explicit decision replaces it.
 Namespaced workload specifications may hand off to Argo one exact object set at a
 time only after Ansible stops reconciling those objects and registration, adoption,
 successful sync, and managed-field evidence pass. Dual reconciliation is forbidden.
-The proposed `platform-secrets` and `platform-identity` Namespace names are design
-only and have no manifest or runtime authorization. The source-only
+Exact present-only source and a dedicated guarded wrapper exist for
+`platform-secrets` and `platform-identity`; their check, first apply, and idempotence
+remain separately approved and **NOT RUN**. The historical wrapper remains closed.
+The [foundation Namespace bootstrap runbook](runbooks/foundation-namespace-bootstrap.md)
+defines that boundary. The source-only
 [Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md) records
 the production identity, database, recovery, exposure, and handoff gates.
 

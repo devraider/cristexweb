@@ -65,6 +65,26 @@ metadata:
     cristex.io/bootstrap-writer: ansible
     cristex.io/desired-owner: argocd
 """,
+            "platform/namespaces/platform-secrets.yaml": """---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-secrets
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+""",
+            "platform/namespaces/platform-identity.yaml": """---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-identity
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+""",
         }
         actual_files = {
             str(path.relative_to(KUBERNETES)): path.read_text()
@@ -126,7 +146,10 @@ metadata:
 
     def test_non_passthrough_entrypoint_rejects_task_skipping_controls(self) -> None:
         self.assertEqual(
-            {ENTRYPOINT},
+            {
+                ENTRYPOINT,
+                ANSIBLE / "bin/bootstrap-foundation-namespaces",
+            },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()},
         )
         entrypoint = ENTRYPOINT.read_text()
@@ -622,7 +645,7 @@ metadata:
             "That completed exception authorizes no other persistent Kubernetes object",
             "Ansible is selected as the bounded bootstrap installer for future exact "
             "foundational Namespaces",
-            "Each component requires its own future exact source closure and separate "
+            "Each component requires its own exact source closure and separate "
             "check/apply/idempotence approvals",
             "Dual reconciliation is forbidden",
         ):
@@ -744,6 +767,7 @@ metadata:
                 ROOT / "README.md",
                 ANSIBLE / "README.md",
                 ROOT / "architecture-plan.md",
+                ROOT / "specs/k3s-iac-foundation/status.md",
             )
         )
         for stale in (
@@ -751,6 +775,7 @@ metadata:
             "Argo CD remains the persistent Kubernetes-object owner",
             "Argo CD for all in-cluster desired state",
             "Argo CD is the intended persistent Kubernetes reconciler",
+            "Exact committed Namespace source now defines only `argocd` and `platform-edge`",
         ):
             self.assertNotIn(stale, authoritative)
         for required in (

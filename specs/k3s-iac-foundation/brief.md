@@ -91,8 +91,13 @@ authentication at `ok=10 changed=0 unreachable=0 failed=1 skipped=0`; it made no
 mutation and proved no idempotence. The retry passed at
 `ok=21 changed=0 unreachable=0 failed=0 skipped=0`, with both exact reconciliation
 items `ok`, exact post-state identity/label/Active assertions passing, and
-k3s/Tailscale running before and after. Argo CD, cloudflared, Infisical, Secrets,
-workloads, Services, and routes remain unrun. A source-only
+k3s/Tailscale running before and after. A distinct exact present-only
+[foundation Namespace bootstrap](../../runbooks/foundation-namespace-bootstrap.md)
+is now implemented for `platform-secrets` and `platform-identity` without modifying
+or reopening the historical wrapper. Its check, first apply, and idempotence remain
+separately approved and **NOT RUN**. Argo CD, cloudflared, Infisical Operator,
+Keycloak, PostgreSQL, Secrets, workloads, Services, policies, PVCs, and routes remain
+unrun. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 records chart, captured signature/hash-binding, image, and curated online/static
 readiness evidence for chart `10.3.0` and app `v3.5.0`, but is explicitly **CANDIDATE
@@ -110,8 +115,9 @@ ApplicationSet, supplemental default-deny with an explicit broad ports-only
 GitHub App credential shape, value-free Infisical custody, disabled Redis initializer,
 and two adoption Applications. It is **DESIGN ONLY**, adds no deployable source, and
 records Ansible as the selected bounded bootstrap installer and privileged lifecycle
-owner while leaving six exact bootstrap-closure, future-Namespace, resource-inventory,
-Infisical-recovery, adoption-apply, and stable-Keycloak-OIDC decisions open. The
+owner while leaving six component-bootstrap-closure, foundation-Namespace-runtime,
+resource-inventory, Infisical-recovery, adoption-apply, and stable-Keycloak-OIDC
+decisions open. The
 [source-only Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
 selects the shared self-hosted identity architecture target, direct Argo OIDC with
 Dex absent, private administration, dedicated PostgreSQL/recovery, Infisical-owned

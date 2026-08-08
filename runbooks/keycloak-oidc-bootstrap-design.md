@@ -31,10 +31,10 @@ and successful sync plus managed-field evidence passes. Ansible and Argo must ne
 reconcile the same object concurrently.
 
 The previously completed `argocd` and `platform-edge` Namespace exception remains
-closed. `platform-secrets` and `platform-identity` are proposed design names only.
-They have no manifest, do not exist by assertion, and require a new present-only,
-no-delete, foreign-existing-refusal exception with separate check, apply, and
-idempotence approvals. The old wrapper must not be reused or reopened.
+closed. `platform-secrets` and `platform-identity` now have exact present-only
+Namespace source and a distinct bounded Ansible wrapper. Its check, first apply, and
+idempotence checkpoints remain **NOT RUN** and require separate approvals. The old
+wrapper is unchanged and must not be reused or reopened.
 
 ## Authentication and authorization layers
 

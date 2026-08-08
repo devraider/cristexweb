@@ -243,7 +243,7 @@ rollback because no runtime action occurred.
 | ID | Decision | Why still open |
 |---|---|---|
 | D1 | Exact Ansible bootstrap closure and credentials | Installer and privileged lifecycle owner are selected, but exact source, objects, credential lifetime, escalation controls, and separate approvals remain undefined |
-| D2 | Future Ansible Namespace exception | `platform-secrets` and `platform-identity` are proposed only; Kubernetes RBAC cannot restrict create by name and the earlier exception remains closed |
+| D2 | Foundation Namespace runtime checkpoints | Exact `platform-secrets` and `platform-identity` source and a distinct present-only wrapper exist, but check, first apply, and idempotence remain separately approved and NOT RUN; the earlier exception remains closed |
 | D3 | Exact resource, GVR, and discovery inventory | Runtime Roles and Projects cannot be authored safely before every required kind and discovery path is enumerated |
 | D4 | Infisical authentication and independent recovery | Authentication method, scope, custodians, RPO/RTO, and isolated recovery remain unselected |
 | D5 | Live Namespace-adoption apply mode | Managed-field, tracking, last-applied, and diff evidence is unavailable until a separately approved read-only checkpoint |

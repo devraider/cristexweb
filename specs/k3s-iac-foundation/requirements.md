@@ -13,7 +13,7 @@
 | ID | Requirement |
 |---|---|
 | KIF-004 | Future infrastructure source and runbooks live at repository-root `ansible/`, `opentofu/`, `kubernetes/`, and `runbooks/`; application source and local-runtime assets remain external. |
-| KIF-005 | Ansible owns host configuration and is the selected bounded bootstrap installer for future exact foundational Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted Keycloak, privileged CRDs/cluster RBAC, and Keycloak realm/client/group reconciliation; OpenTofu owns approved external resources; Argo CD owns namespaced desired state only after object-by-object handoff; Infisical Cloud owns secret values. Each future bootstrap requires a component-specific exact source closure and separate check/apply/idempotence approvals. Ansible must stop reconciling an object before registration/adoption/successful-sync evidence transfers it to Argo; dual reconciliation is forbidden. The completed `argocd`/`platform-edge` present-only exception remains closed and authorizes no future component or Namespace. |
+| KIF-005 | Ansible owns host configuration and is the selected bounded bootstrap installer for exact foundational Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted Keycloak, privileged CRDs/cluster RBAC, and Keycloak realm/client/group reconciliation; OpenTofu owns approved external resources; Argo CD owns namespaced desired state only after object-by-object handoff; Infisical Cloud owns secret values. Exact present-only source and a distinct guarded wrapper exist for `platform-secrets` and `platform-identity`, but their check/apply/idempotence remain separately approved and NOT RUN. Every component bootstrap requires its own exact source closure and approvals. Ansible must stop reconciling an object before registration/adoption/successful-sync evidence transfers it to Argo; dual reconciliation is forbidden. The completed `argocd`/`platform-edge` exception remains closed. |
 | KIF-006 | The protective root `.gitignore` excludes the local `.venv`, Ansible collections/runtime data, generated state, plans, credentials, kubeconfigs, facts, local variable/override/crash files, and generated secrets, while `uv.lock` and `.terraform.lock.hcl` remain tracked. |
 
 ## Host and cluster
@@ -44,7 +44,7 @@
 
 | ID | Requirement |
 |---|---|
-| KIF-016 | The cluster uses separate `argocd`, `platform-edge`, future `shared-services`, `cristexhub-dev`, and `cristexhub-prod` namespaces; proposed `platform-secrets` and `platform-identity` names remain unapproved without manifests; applications retain separate DEV/PROD credentials, migrations, and backup paths. |
+| KIF-016 | The cluster uses separate `argocd`, `platform-edge`, future `shared-services`, `cristexhub-dev`, and `cristexhub-prod` namespaces; exact `platform-secrets` and `platform-identity` manifests exist but runtime remains separately approved and NOT RUN; applications retain separate DEV/PROD credentials, migrations, and backup paths. |
 | KIF-017 | Shared PostgreSQL provides separate DEV/PROD databases and owner roles; each role is denied access to the other environment. |
 | KIF-018 | Shared MongoDB provides separate DEV/PROD databases and users; each user is denied access to the other environment. |
 | KIF-019 | Shared-engine failure and contention risks are documented, bounded with requests/limits/connection limits, and accepted before PROD. |
@@ -82,7 +82,10 @@ captured kubelet `v1.36.2+k3s1`, all 15 bounded queries available, and the curre
 contains target minor `1.36`, chart `10.3.0` admits the target, the exact 44-document
 render reproduced at Kubernetes capability `1.36.2`, stable upstream API registration
 screened successfully, and controller-side image closure was reachable. Exact k3s
-admission/runtime and node pullability remain unproven. The source-only
+admission/runtime and node pullability remain unproven. The deployable-but-not-run
+[foundation Namespace bootstrap](../../runbooks/foundation-namespace-bootstrap.md)
+maps KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, and KIF-030 to exact present-only
+source while retaining separate check/apply/idempotence approvals. The source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, online/static API, RBAC,
 network, private-Git, and adoption evidence for KIF-005, KIF-008, KIF-010, KIF-013,
@@ -96,10 +99,11 @@ administration, quiescent retained ApplicationSet, supplemental default-deny wit
 truthful broad ports-only weakness, one-repository read-only GitHub App credentials,
 value-free Infisical custody, disabled Redis initialization, and two independent
 adoption Applications as design only. Ansible is selected as bounded bootstrap
-installer and privileged lifecycle owner. Exact bootstrap source/credentials, the
-proposed future Namespace exception, resource/GVR/discovery inventory, Infisical
-authentication/recovery, live adoption apply mode, and stable Keycloak OIDC remain
-six open architecture decisions; selection, source, admission, runtime, and handoff
+installer and privileged lifecycle owner. Component source/credentials, the
+separately approved NOT-RUN foundation Namespace checkpoints,
+resource/GVR/discovery inventory, Infisical authentication/recovery, live adoption
+apply mode, and stable Keycloak OIDC remain six open architecture decisions;
+selection, component source, admission, runtime, and handoff
 gates also remain open. The source-only
 [Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
 maps KIF-002, KIF-003, KIF-005, KIF-010, KIF-012 through KIF-016, KIF-021, KIF-023,

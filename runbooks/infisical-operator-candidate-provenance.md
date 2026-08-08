@@ -135,14 +135,17 @@ Every item below blocks deployable Infisical Operator source and runtime:
    establish independent Infisical key authorization and revocation status, verify
    image signature/attestation identity, obtain or disposition an SBOM and
    vulnerability review, and prove off-node availability of the exact child digest.
-4. **Dedicated operator Namespace:** decide a dedicated name and ownership model.
-   The current Ansible exception can create only `argocd` and `platform-edge`; it
-   cannot create an Infisical Namespace. Argo CD must later reconcile the dedicated
-   Namespace. Do not place the operator into `argocd`, `platform-edge`, shared-data,
-   `shared-services`, `cristexhub-dev`, or `cristexhub-prod` by default.
-5. **Argo installation and ownership handoff:** install and privately validate Argo
-   CD, register the desired-state source, and evidence successful reconciliation
-   before Argo owns the operator Namespace, CRDs, RBAC, or controller.
+4. **Dedicated operator Namespace:** exact present-only source and a distinct bounded
+   Ansible wrapper now exist for `platform-secrets`, but its check, first apply, and
+   idempotence checkpoints are separately approved and **NOT RUN**. The completed
+   `argocd`/`platform-edge` wrapper remains closed. Do not place the operator into
+   `argocd`, `platform-edge`, `platform-identity`, `shared-services`,
+   `cristexhub-dev`, or `cristexhub-prod` by default.
+5. **Ansible bootstrap and later ownership handoff:** Ansible is the selected bounded
+   installer and privileged lifecycle owner. Exact operator source, credentials, and
+   approvals remain absent. A namespaced object may hand off to Argo only after
+   Ansible stops reconciling it and registration/adoption, successful sync, and
+   managed-field evidence pass; dual reconciliation is forbidden.
 6. **Watch scope and least-privilege RBAC:** select explicit target Namespaces and
    prove scoped authorization plus negative cross-environment access. Any
    cluster-wide decision requires separate justification, review, and tests.
@@ -165,9 +168,10 @@ Every item below blocks deployable Infisical Operator source and runtime:
 11. **Single-node availability:** one replica on one physical node is a shared
     failure domain. Accept the availability risk and define restart, alerting,
     recovery, and soak expectations.
-12. **Runtime approvals:** separately approve Namespace desired state, Argo
-    reconciliation, CRDs/RBAC/controller creation, authentication bootstrap, one
-    non-sensitive sync, rotation, revocation, recovery, and any later upgrade.
+12. **Runtime approvals:** separately approve the foundation Namespace check, first
+    apply, and idempotence checkpoints; then separately approve operator
+    CRDs/RBAC/controller creation, authentication bootstrap, one non-sensitive sync,
+    rotation, revocation, recovery, any later Argo handoff, and any upgrade.
     Runtime remains **NOT RUN**.
 
 Until these gates close, rollback for this increment is only a Git revert of this

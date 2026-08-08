@@ -1,0 +1,15 @@
+---
+foundation_namespace_bootstrap_approved: false
+foundation_namespace_bootstrap_state: present
+foundation_namespace_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+foundation_namespace_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+foundation_namespace_bootstrap_repository_root: >-
+  {{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}
+foundation_namespace_bootstrap_controller_path_components:
+  - "{{ foundation_namespace_bootstrap_repository_root }}"
+  - "{{ foundation_namespace_bootstrap_repository_root }}/kubernetes"
+  - "{{ foundation_namespace_bootstrap_repository_root }}/kubernetes/platform"
+  - "{{ foundation_namespace_bootstrap_repository_root }}/kubernetes/platform/namespaces"
+foundation_namespace_bootstrap_manifest_paths:
+  - "{{ foundation_namespace_bootstrap_repository_root }}/kubernetes/platform/namespaces/platform-secrets.yaml"
+  - "{{ foundation_namespace_bootstrap_repository_root }}/kubernetes/platform/namespaces/platform-identity.yaml"

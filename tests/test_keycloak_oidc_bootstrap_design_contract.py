@@ -34,7 +34,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "Ansible remains lifecycle owner of foundation CRDs, ClusterRoles,\nClusterRoleBindings, and Keycloak realm, client, group, and group-claim\nreconciliation",
             "only after its exact writer is stopped",
             "Ansible and Argo must never\nreconcile the same object concurrently",
-            "old wrapper must not be reused or reopened",
+            "old\nwrapper is unchanged and must not be reused or reopened",
         ):
             self.assertIn(required, self.text)
 
@@ -102,12 +102,14 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         ):
             self.assertIn(required, self.text)
 
-    def test_proposed_namespaces_and_deployable_source_remain_absent(self) -> None:
-        self.assertIn("`platform-secrets` and `platform-identity` are proposed design names only", self.text)
+    def test_foundation_namespace_source_exists_without_runtime_or_workload_source(self) -> None:
+        self.assertIn("`platform-secrets` and `platform-identity` now have exact present-only\nNamespace source", self.text)
         self.assertEqual(
             {
                 "platform/namespaces/argocd.yaml",
                 "platform/namespaces/platform-edge.yaml",
+                "platform/namespaces/platform-secrets.yaml",
+                "platform/namespaces/platform-identity.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))

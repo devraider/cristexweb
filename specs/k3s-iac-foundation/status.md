@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: Namespace idempotence, Argo 3.5 online/static readiness, and source-only Argo/Keycloak architecture contracts pass; candidate selection, six architecture decisions, deployable security/Secret/adoption/runtime, and provider/state/backup pending
+build: historical Namespace idempotence plus deployable-but-NOT-RUN foundation Namespace source, Argo 3.5 readiness, and Argo/Keycloak architecture contracts pass; candidate selection, six architecture decisions, security/Secret/adoption/runtime, and provider/state/backup pending
 date: 2026-08-07
 deploy_required_after_acceptance: yes
 
@@ -75,12 +75,14 @@ note: |
   `v3.5.0` remain **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**, runtime remains
   **NOT RUN**, and no chart, values, policy, RBAC, AppProject, Secret, Application, or
   route source was added. Ansible is selected as the future bounded bootstrap
-  installer and lifecycle owner of privileged CRDs/cluster RBAC. Exact Ansible
-  bootstrap source/credentials, a new exception for the proposed `platform-secrets`
-  and `platform-identity` Namespaces, resource/GVR/discovery inventory, Infisical
-  authentication/recovery, live Namespace-adoption apply mode, and stable Keycloak
-  OIDC remain six open architecture decisions. The completed Namespace exception
-  stays closed. The source-only
+  installer and lifecycle owner of privileged CRDs/cluster RBAC. Exact present-only
+  [foundation Namespace source and guarded wrapper](../../runbooks/foundation-namespace-bootstrap.md)
+  now exist for `platform-secrets` and `platform-identity`, but check, first apply,
+  and idempotence remain separately
+  approved and **NOT RUN**. Component source/credentials, foundation Namespace
+  runtime, resource/GVR/discovery inventory, Infisical authentication/recovery, live
+  Namespace-adoption apply mode, and stable Keycloak OIDC remain six open
+  architecture decisions. The completed historical Namespace exception stays closed. The source-only
   [Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
   selects one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and
   Argo CD as the identity architecture target only. It distinguishes Keycloak
@@ -144,8 +146,9 @@ note: |
   remains empty; provider initialization/lockfile, state creation/encryption, Google
   Drive copy and restore, plan, apply, and every external resource remain NOT
   RUN/BLOCKED.
-  Exact committed Namespace source now defines only `argocd` and `platform-edge`.
-  The bounded Ansible bootstrap loads those manifests, requires state present and
+  Global committed Kubernetes source now defines exactly four Namespace manifests.
+  The closed historical bounded Ansible bootstrap defines and loads only `argocd`
+  and `platform-edge`, requires state present and
   exact bootstrap/future-owner labels, refuses forged internal results and foreign
   existing Namespaces, and has no delete path. Its non-passthrough wrapper rejects
   task-skipping controls, launches the repository `.venv` controller in an allowlisted
@@ -172,10 +175,10 @@ note: |
   `ok=21 changed=0 unreachable=0 failed=0 skipped=0`; both exact reconciliation items
   were `ok`, protected identity/label/`Active` assertions passed, and k3s/Tailscale
   remained running before and after. Argo CD, cloudflared, Infisical Operator,
-  Keycloak, `shared-services`, DEV/PROD, proposed `platform-secrets`/
-  `platform-identity` namespaces, Secrets, workloads, Services, and routes do not
-  exist from this increment. The future shared service Namespace is named
-  `shared-services`, while both platform identity names remain design-only; none is
-  created.
+  Keycloak, `shared-services`, DEV/PROD, Secrets, workloads, Services, policies,
+  PVCs, and routes do not exist from this increment. `platform-secrets` and
+  `platform-identity` now have deployable Namespace source, but no runtime existence
+  is claimed because their wrapper has not run. The future shared service Namespace
+  is named `shared-services`, but it is not created.
   No external-resource, secret, data, or deployment operation was performed. Object
   listings and offline tests do not prove replacement recovery.

@@ -450,19 +450,27 @@ for any future Namespace or component.
 
 Ansible is selected as the future bounded bootstrap installer for exact foundational
 Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted
-Keycloak, and privileged CRD/cluster-RBAC prerequisites. This is an architecture
-direction only: no component playbook, role, wrapper, chart, manifest, Secret, or
-runtime approval exists from that decision.
+Keycloak, and privileged CRD/cluster-RBAC prerequisites. Exact executable source now
+exists only for the two foundation Namespaces; no Infisical, Argo, Keycloak, chart,
+Secret, workload, or component runtime approval exists from that decision.
 
 Each future component requires a dedicated non-passthrough entrypoint and frozen
-source/object closure with separate check, apply, and idempotence approvals. The
-proposed `platform-secrets` and `platform-identity` Namespace names require a new
-present-only/no-delete exception; the completed wrapper above is neither broadened
-nor reopened. Ansible remains lifecycle owner of privileged CRDs,
-ClusterRoles/ClusterRoleBindings and Keycloak realm/client/group reconciliation.
-Namespaced specifications may hand off to Argo only after Ansible stops reconciling
-the exact objects and reviewed adoption/sync evidence passes. Dual reconciliation is
-forbidden. The source-only
+source/object closure with separate check, apply, and idempotence approvals. Exact
+present-only source and the distinct `bin/bootstrap-foundation-namespaces` entrypoint
+now exist for `platform-secrets` and `platform-identity`; none of its runtime
+checkpoints has run. The completed wrapper above is neither broadened nor reopened.
+Ansible remains lifecycle owner of privileged CRDs, ClusterRoles/ClusterRoleBindings
+and Keycloak realm/client/group reconciliation. Namespaced specifications may hand
+off to Argo only after Ansible stops reconciling the exact objects and reviewed
+adoption/sync evidence passes. Dual reconciliation is forbidden. The
+[foundation Namespace bootstrap runbook](../runbooks/foundation-namespace-bootstrap.md)
+defines separate future approvals for these exact one-line commands:
+
+- `ansible/bin/bootstrap-foundation-namespaces check`
+- `ansible/bin/bootstrap-foundation-namespaces apply`
+
+The first apply and later idempotence invocation use the same apply command but need
+distinct approvals. No command is authorized by this documentation. The source-only
 [Keycloak OIDC bootstrap design](../runbooks/keycloak-oidc-bootstrap-design.md)
 records the remaining release, database, secret, network, recovery, and runtime
 gates without authorizing cluster contact.

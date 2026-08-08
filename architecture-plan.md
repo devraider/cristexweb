@@ -55,9 +55,10 @@ offline-validated gated OpenTofu installer and zero-resource Cloudflare-only sou
 scaffold. The first live run stopped after two bounded directory tasks because the
 host had no route to GitHub. The reviewed controller-cache and Ansible-transfer
 recovery subsequently passed check, live installation, and a `changed=0` rerun; the
-pinned CLI and selector now exist without host egress. Committed Kubernetes desired
-state is limited to exact `argocd` and `platform-edge` Namespace manifests plus a
-bounded Ansible bootstrap. Its separately approved first apply created exactly those
+pinned CLI and selector now exist without host egress. Committed Kubernetes desired state now contains exactly four Namespace manifests.
+The closed historical bootstrap owns only `argocd` and `platform-edge`; a distinct
+present-only bootstrap is implemented but not run for `platform-secrets` and
+`platform-identity`. The separately approved historical first apply created exactly those
 two Active Namespaces with the reviewed labels. The separately approved idempotence
 checkpoint first stopped before Kubernetes reconciliation on failed local sudo
 authentication at `changed=0`; its retry passed at `ok=21 changed=0 failed=0` with
@@ -80,10 +81,10 @@ supplemental ingress/egress default-deny with an explicit broad ports-only
 read-only GitHub App credentials, value-free Infisical custody, and two independent
 Namespace-adoption Applications. It selects no candidate and adds no deployable
 source. Ansible is selected as the future bounded bootstrap installer and lifecycle
-owner of privileged CRDs/cluster RBAC. Exact bootstrap source and credentials, the
-proposed future Namespace exception, resource/GVR/discovery inventory, Infisical
-authentication/recovery, live adoption apply mode, and stable Keycloak OIDC remain
-six open architecture decisions. The source-only
+owner of privileged CRDs/cluster RBAC. The foundation Namespace source/exception is
+implemented but not run; exact controller bootstrap source and credentials,
+resource/GVR/discovery inventory, Infisical authentication/recovery, live adoption
+apply mode, and stable Keycloak OIDC remain open architecture decisions. The source-only
 [Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md) selects
 one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD as
 an architecture target only. It selects no release, image, database, hostname, route,
@@ -201,8 +202,8 @@ Tailscale do not replace application OIDC/JWT enforcement.
 |---|---|
 | `argocd` | Argo CD controllers and private UI/API |
 | `platform-edge` | Cloudflare Tunnel connector only; no route exists until separately approved |
-| proposed `platform-secrets` | Infisical Cloud Kubernetes Operator only; design name without manifest or approval |
-| proposed `platform-identity` | Future shared Keycloak and dedicated identity PostgreSQL; design name without manifest or approval |
+| `platform-secrets` | Exact present-only Namespace source and a distinct guarded wrapper exist for the future Infisical Cloud Kubernetes Operator; runtime NOT RUN |
+| `platform-identity` | Exact present-only Namespace source and a distinct guarded wrapper exist for future shared Keycloak and dedicated identity PostgreSQL; runtime NOT RUN |
 | `shared-services` | Shared application PostgreSQL, MongoDB, and any retained shared RabbitMQ |
 | `cristexhub-dev` | DEV applications and environment-local dependencies |
 | `cristexhub-prod` | PROD applications and environment-local dependencies |
@@ -392,6 +393,23 @@ verification must meet the declared RPO/RTO before PROD.
   authorize Argo CD, Infisical, cloudflared, or any other persistent Kubernetes
   object.
 
+### Pre-Stage-4B — bounded foundation Namespace source
+
+- Source: exact manifests and a distinct guarded Ansible bootstrap are implemented
+  for only `platform-secrets` and `platform-identity`; see the
+  [foundation Namespace bootstrap runbook](runbooks/foundation-namespace-bootstrap.md).
+- Separation: the historical wrapper, role, manifests, and evidence remain unchanged
+  and closed. The new wrapper has its own playbook, role, environment namespace, and
+  ephemeral single-run attestation.
+- Runtime: read-only discovery, wrapper check, first apply, and idempotence apply are
+  all **NOT RUN**. Each requires a separate approval and reviewed predecessor result.
+- Boundary: state is present-only; no delete path, Secret, ServiceAccount, workload,
+  Service, policy, PVC, chart, values, route, or other persistent kind exists in this
+  increment. Check mode predicts but makes no live post-state claim.
+- Ownership: Ansible is bootstrap writer and the Argo label is future intent only;
+  handoff requires later registration/adoption, successful sync, managed-field
+  evidence, and cessation of Ansible reconciliation.
+
 ### Stage 4 — minimal GitOps and secrets bootstrap
 
 - Current source-only evidence: the
@@ -421,12 +439,13 @@ verification must meet the declared RPO/RTO before PROD.
   manifest source exists from this design.
 - Updated hardened-design ownership: Ansible is selected as bounded bootstrap
   installer and lifecycle owner of privileged CRDs/cluster RBAC. Six decisions remain:
-  (1) exact Ansible source/object/credential closure and approvals, (2) a new Ansible
-  exception for the proposed `platform-secrets` and `platform-identity` Namespaces,
-  (3) exact resource/GVR/discovery inventory, (4) Infisical authentication and
-  independent recovery, (5) first-sync apply mode after live Namespace field evidence,
-  and (6) stable Keycloak issuer/callback/TLS plus direct OIDC/RBAC acceptance. The
-  completed Namespace exception remains closed and none of these items is runtime
+  (1) exact component Ansible source/object/credential closure and approvals, (2)
+  separately approved check, first apply, and idempotence runtime checkpoints for the
+  implemented `platform-secrets`/`platform-identity` present-only source, (3) exact
+  resource/GVR/discovery inventory, (4) Infisical authentication and independent
+  recovery, (5) first-sync apply mode after live Namespace field evidence, and (6)
+  stable Keycloak issuer/callback/TLS plus direct OIDC/RBAC acceptance. The completed
+  historical Namespace exception remains closed and none of these items is runtime
   approval.
 - Current source-only identity design: the
   [Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md) selects

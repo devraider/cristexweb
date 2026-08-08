@@ -208,7 +208,7 @@ entry gate.
 - [x] Record the
   [source-only Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md):
   one future shared self-hosted identity architecture target, Ansible bootstrap,
-  proposed `platform-secrets`/`platform-identity` names, direct Argo OIDC with Dex
+  the then-proposed `platform-secrets`/`platform-identity` names, direct Argo OIDC with Dex
   absent, independent Keycloak/Argo/Kubernetes authorization layers, dedicated
   PostgreSQL and recovery gates, private administration, Infisical-owned client
   secrets, and object-by-object handoff. Select no release/image/package, database
@@ -249,9 +249,15 @@ entry gate.
   `KIF-023`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare/Keycloak
   secret-zero sequence (`KIF-014`, `KIF-015`).
-- [ ] Design and separately approve a new present-only/no-delete Ansible exception
-  for only the proposed `platform-secrets` and `platform-identity` Namespaces; do not
-  reuse or reopen the completed wrapper (`KIF-002`, `KIF-005`, `KIF-016`).
+- [x] Implement the exact present-only/no-delete
+  [foundation Namespace bootstrap](../../runbooks/foundation-namespace-bootstrap.md)
+  for only `platform-secrets` and `platform-identity`; preserve the completed
+  wrapper unchanged and record all runtime checkpoints as NOT RUN (`KIF-002`,
+  `KIF-005`, `KIF-016`, `KIF-030`).
+- [ ] Obtain separate approval for
+  `ansible/bin/bootstrap-foundation-namespaces check`, review a prediction limited to
+  the two exact Namespaces, then obtain new separate approvals for first apply and a
+  later idempotence apply requiring `changed=0` (`KIF-002`, `KIF-005`, `KIF-016`).
 - [ ] Implement component-specific exact Ansible source closures and separate
   check/apply/idempotence approvals in this order: Infisical Operator and a
   non-sensitive sync/rotation/revocation/recovery proof, Infisical-materialized Argo
@@ -263,11 +269,12 @@ entry gate.
   disclosure (`KIF-013`–`KIF-015`).
 
 The completed hardened-design task is documentation only. It does not satisfy the
-unchecked candidate-selection, privileged-bootstrap, private-Git/Infisical,
-reconciliation, Secret, or runtime tasks above. Its six exact-bootstrap-closure, future-Namespace, exact-resource-inventory,
-Infisical-recovery, live-adoption-apply, and stable-Keycloak-OIDC decisions remain
-open. Installer and privileged lifecycle ownership are selected as Ansible, but no
-future bootstrap run is approved.
+unchecked candidate-selection, privileged-component-bootstrap, private-Git/Infisical,
+reconciliation, Secret, or runtime tasks above. Its six exact-component-closure,
+foundation-Namespace-runtime, exact-resource-inventory, Infisical-recovery,
+live-adoption-apply, and stable-Keycloak-OIDC decisions remain open. Installer and
+privileged lifecycle ownership are selected as Ansible, but no future bootstrap run
+is approved.
 
 Stop gate: stop if an admin surface becomes public, secret content appears in Git or
 logs, or bootstrap cannot be recovered.

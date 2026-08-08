@@ -1,0 +1,37 @@
+---
+- name: Prove forged foundation Namespace internals fail before API tasks
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+
+  tasks:
+    - name: Exercise the production role with externally forged internals
+      block:
+        - name: Include the production foundation Namespace bootstrap role
+          ansible.builtin.include_role:
+            name: foundation_namespace_bootstrap
+      rescue:
+        - name: Verify the unique internal-variable guard rejected the fixture
+          ansible.builtin.assert:
+            that:
+              - >-
+                ansible_failed_task.name ==
+                'Reject externally supplied foundation Namespace internal variables'
+              - >-
+                'INTERNAL_VARIABLE_GUARD' in
+                (ansible_failed_result | ansible.builtin.to_json)
+            fail_msg: >-
+              The forged internal variables did not fail at the unique first-task
+              internal-variable guard.
+
+        - name: Record successful fail-closed fixture behavior
+          ansible.builtin.set_fact:
+            foundation_namespace_fixture_guard_rejected: true
+
+    - name: Require the role to have failed closed at its first task
+      ansible.builtin.assert:
+        that:
+          - foundation_namespace_fixture_guard_rejected | default(false) | bool
+        fail_msg: >-
+          The role continued beyond its unique internal-variable guard.
