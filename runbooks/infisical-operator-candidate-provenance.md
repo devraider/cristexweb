@@ -2,13 +2,16 @@
 
 ## Status and boundary
 
-**CANDIDATE — NOT DEPLOYABLE — NOT SELECTED.** Runtime evidence is **NOT RUN**.
+**HISTORICAL CANDIDATE EVIDENCE — v0.11.7 SOURCE BASELINE SELECTED — NOT
+DEPLOYABLE.** The aligned `v0.11.7` set is selected only for offline source authoring
+in the [release selection](infisical-operator-release-selection.md). Runtime evidence
+is **NOT RUN/BLOCKED**.
 
 This document records controller-side public-source research captured from
 `2026-08-07T07:02:15Z` through `2026-08-07T07:29:40Z`. Twenty-four selected ignored
-evidence hashes verified. It distinguishes the latest source release from the last
-observed version-aligned public chart/image set without selecting either version.
-It does not add a chart, values file, CRD, Kubernetes object, OpenTofu resource,
+evidence hashes verified. It distinguishes the unselected latest source release from
+the version-aligned public chart/image set later selected only as the offline source
+baseline. It does not add values, CRD, Kubernetes object, OpenTofu resource,
 credential, secret value, or deployment source. The ignored evidence inputs remain
 outside Git; no raw attestation, public key, registry response, local path, or client
 metadata is copied here.
@@ -37,7 +40,7 @@ commit is source traceability, not runtime evidence.
 The source release is real, but the captured public distribution channels did not
 provide a matching chart archive or image tag during the bounded observation. This
 is a time-qualified observation, not proof of permanent absence. Mutable indexes and
-tags must be refreshed before any selection. GitHub's valid commit verification does
+tags must be refreshed before any future selection of `v0.11.8`. GitHub's valid commit verification does
 not independently establish release authorization or bind the source, chart,
 container image, and current publisher trust chain.
 
@@ -45,7 +48,7 @@ container image, and current publisher trust chain.
 
 | Item | Captured candidate evidence |
 |---|---|
-| Candidate status | last observed version-aligned set; not selected |
+| Candidate status | selected offline source baseline; not deployable or runtime-approved |
 | Release/chart/app/image | `v0.11.7` / `v0.11.7` / `v0.11.7` / `v0.11.7` |
 | Source commit | `64d2d81da3707d81dc271410da6fd88254b6c9b3` |
 | GitHub commit verification | `verified: true`; reason `valid` |
@@ -57,8 +60,8 @@ container image, and current publisher trust chain.
 | Config user and entrypoint | `65532:65532`; `/manager` |
 
 This set was version-aligned in the captured source, chart index/archive, and image
-registry. Alignment is useful candidate evidence, not human selection, target-cluster
-compatibility, publisher authorization, image assurance, or deployment approval.
+registry. Alignment supports the later offline source-baseline selection but is not
+target-cluster compatibility, publisher authorization, image assurance, or deployment approval.
 The tag and package index remain mutable; any future source must use the reviewed
 linux/amd64 child digest rather than a tag or index alone.
 
@@ -121,16 +124,15 @@ reviewed `tag@linux/amd64-digest` reference works before deployable source is ad
 
 ## Blocking decisions and evidence
 
-Every item below blocks deployable Infisical Operator source and runtime:
+Every item below still blocks deployable Infisical Operator controller source and runtime:
 
-1. **Human version, trust, and soak selection:** refresh mutable release/chart/image
-   evidence, accept or reject the incomplete `v0.11.8` distribution and aligned
-   `v0.11.7` candidate, record signer/build trust decisions, and approve a soak
-   policy. Neither candidate is selected by this record.
+1. **Trust and soak acceptance:** `v0.11.7` is selected only as the offline source
+   baseline. Refresh mutable release/chart/image evidence, record signer/build trust
+   decisions, and approve a soak policy before controller source or runtime.
 2. **Target compatibility:** the approved schema-v3 discovery captured kubelet
    `v1.36.2+k3s1`, but the chart has no `kubeVersion` declaration. Review every
    rendered CRD/API version and prove exact chart and k3s compatibility before any
-   selection or deployable source.
+   deployable controller source.
 3. **Chart and image assurance:** cryptographically verify the chart signature,
    establish independent Infisical key authorization and revocation status, verify
    image signature/attestation identity, obtain or disposition an SBOM and
@@ -155,8 +157,8 @@ Every item below blocks deployable Infisical Operator source and runtime:
 8. **Exact component traffic policy:** review and positively/negatively test only the
    required Kubernetes API, DNS, Infisical API, and private metrics flows. Deny
    unrelated namespace, control-plane, metadata, Internet, and public access.
-9. **Secret-zero, recovery, rotation, and revocation:** select the Infisical
-   authentication method, bootstrap identity, least privilege, off-node recovery,
+9. **Secret-zero, recovery, rotation, and revocation:** implement the selected
+   Universal Auth direction with an exact bootstrap identity, least privilege, off-node recovery,
    rotation, compromise response, and non-disclosing revocation proof. Argo owns
    committed CR/reference objects; Infisical owns generated Secret values. No
    bootstrap credential may enter Git, OpenTofu state/plan, command arguments,
@@ -174,6 +176,6 @@ Every item below blocks deployable Infisical Operator source and runtime:
     rotation, revocation, recovery, any later Argo handoff, and any upgrade.
     Runtime remains **NOT RUN**.
 
-Until these gates close, rollback for this increment is only a Git revert of this
-documentation and its offline contract test. There is no runtime rollback because no
-Infisical Namespace, CRD, controller, credential, Secret, or deployment was created.
+Until these gates close, rollback for this increment is only a Git revert of source.
+There is no runtime rollback because no Infisical Namespace, CRD, controller,
+credential, Secret, or deployment was created.

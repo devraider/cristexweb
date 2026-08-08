@@ -199,9 +199,10 @@ entry gate.
   covering private access, retained quiescent ApplicationSet, supplemental
   ingress/egress default-deny with an explicit ports-only weakness, phased RBAC and
   AppProjects, one-repository GitHub App credentials, value-free secret custody,
-  Redis initializer removal, two-Application Namespace adoption, and stop/rollback
-  without selecting a release candidate, adding deployable source, creating a
-  Secret, or contacting the cluster. The later source-only correction selects
+  Redis initializer removal, two-Application Namespace adoption, and stop/rollback.
+  At that historical checkpoint it selected no release candidate, added no
+  deployable source, created no Secret, and contacted no cluster. The later
+  source-only correction selects
   Ansible as bounded bootstrap installer and privileged lifecycle owner while
   preserving component-specific approvals (`KIF-002`, `KIF-003`, `KIF-005`,
   `KIF-008`, `KIF-010`, `KIF-013`–`KIF-015`, `KIF-021`, `KIF-030`).
@@ -211,9 +212,10 @@ entry gate.
   the then-proposed `platform-secrets`/`platform-identity` names, direct Argo OIDC with Dex
   absent, independent Keycloak/Argo/Kubernetes authorization layers, dedicated
   PostgreSQL and recovery gates, private administration, Infisical-owned client
-  secrets, and object-by-object handoff. Select no release/image/package, database
-  version, hostname, route, credential, manifest, or deployable source; authorize no
-  runtime (`KIF-002`, `KIF-003`, `KIF-005`, `KIF-010`, `KIF-012`–`KIF-016`,
+  secrets, and object-by-object handoff. At that historical checkpoint it selected
+  no release/image/package, database version, hostname, route, credential, manifest,
+  or deployable source and authorized no runtime (`KIF-002`, `KIF-003`, `KIF-005`,
+  `KIF-010`, `KIF-012`–`KIF-016`,
   `KIF-021`, `KIF-023`, `KIF-026`–`KIF-030`).
 - [x] Record official cloudflared release/source/image, token-file,
   readiness/health, and edge-transport research in a source-only
@@ -228,12 +230,15 @@ entry gate.
   single-node risk, and runtime approvals are resolved; add deployable source only in
   a separate reviewed change (`KIF-002`, `KIF-005`, `KIF-011`, `KIF-013`, `KIF-015`,
   `KIF-021`, `KIF-023`).
-- [ ] Human-select and soak the Argo CD chart/application candidate only after exact
-  k3s admission/runtime beyond the passed static API screen, signing/index-to-child
-  and Redis trust, vulnerability policy, reduced RBAC/default-deny networking,
-  generated/internal Secret recovery, private Git secret-zero, node image pullability,
-  Namespace adoption, bootstrap ownership, and runtime approval gates are resolved;
-  then add and review deployable source separately (`KIF-002`, `KIF-005`, `KIF-013`,
+- [x] Select Argo CD chart `10.3.0` / app `v3.5.0` only as an offline source
+  baseline; vendor the exact public chart/provenance/key inputs with SHA-256 closure
+  while adding no values, rendered objects, controller source, Secret, or runtime
+  approval (`KIF-005`, `KIF-013`, `KIF-023`, `KIF-030`).
+- [ ] Accept Argo signer/index-to-child and Redis trust, vulnerability policy, soak,
+  exact k3s admission/runtime, reduced RBAC/default-deny networking,
+  generated/internal Secret recovery, private Git secret-zero, node image
+  pullability, Namespace adoption, bootstrap closure, and runtime approvals before a
+  separate reviewed deployable-source change (`KIF-002`, `KIF-005`, `KIF-013`,
   `KIF-015`, `KIF-021`, `KIF-023`).
 - [x] Record the latest Infisical Operator `v0.11.8` public distribution gap and
   last observed version-aligned `v0.11.7` chart/source/image evidence in a
@@ -242,11 +247,15 @@ entry gate.
   explicitly without version/trust selection, chart/CRD/Kubernetes source, secret,
   runtime, or deployment (`KIF-005`, `KIF-013`–`KIF-015`, `KIF-021`, `KIF-023`,
   `KIF-030`).
-- [ ] Pin and render a provenance-consistent Infisical operator version only after
-  chart/CRD/API compatibility for the now-captured target, signer/build trust,
-  dedicated Namespace, explicit scope/RBAC, Argo handoff, secret-zero/recovery,
-  traffic, single-node, and runtime gates are resolved (`KIF-005`, `KIF-013`,
-  `KIF-023`).
+- [x] Select Infisical Operator `v0.11.7` only as an offline source baseline;
+  vendor exact public chart/provenance/key inputs with SHA-256 closure and select
+  Universal Auth as a value-free direction without adding a CRD, RBAC object,
+  controller source, credential, Secret, or runtime approval (`KIF-005`, `KIF-013`–
+  `KIF-015`, `KIF-023`, `KIF-030`).
+- [ ] Accept Infisical signer/build trust and render a deterministic digest-pinned
+  controller closure only after chart/CRD/API compatibility, dedicated Namespace,
+  explicit scope/RBAC, Argo handoff, Universal Auth recovery, traffic, single-node,
+  and runtime gates are resolved (`KIF-005`, `KIF-013`–`KIF-015`, `KIF-023`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare/Keycloak
   secret-zero sequence (`KIF-014`, `KIF-015`).
 - [x] Implement the exact present-only/no-delete
@@ -268,13 +277,13 @@ entry gate.
 - [ ] Prove one non-sensitive Infisical sync, rotation, and revocation without value
   disclosure (`KIF-013`–`KIF-015`).
 
-The completed hardened-design task is documentation only. It does not satisfy the
-unchecked candidate-selection, privileged-component-bootstrap, private-Git/Infisical,
-reconciliation, Secret, or runtime tasks above. Its six exact-component-closure,
-foundation-Namespace-runtime, exact-resource-inventory, Infisical-recovery,
-live-adoption-apply, and stable-Keycloak-OIDC decisions remain open. Installer and
-privileged lifecycle ownership are selected as Ansible, but no future bootstrap run
-is approved.
+The source-baseline selections satisfy version choice and public-input availability
+only. They do not satisfy trust/soak, privileged-component-bootstrap,
+private-Git/Infisical, reconciliation, Secret, or runtime tasks above. The six exact
+controller-closure, foundation-Namespace-runtime, exact-resource-inventory,
+Universal-Auth-recovery, live-adoption-apply, and selected-OIDC-activation decisions
+remain open. Installer and privileged lifecycle ownership are selected as Ansible,
+but no future bootstrap run is approved.
 
 Stop gate: stop if an admin surface becomes public, secret content appears in Git or
 logs, or bootstrap cannot be recovered.
@@ -292,10 +301,16 @@ logs, or bootstrap cannot be recovered.
   (`KIF-018`).
 - [ ] Create per-environment Redis; retain shared RabbitMQ only after separate
   user/vhost/limit tests (`KIF-020`).
-- [ ] Select exact Keycloak/PostgreSQL versions and immutable `linux/amd64` images;
-  design stable issuer/callback/TLS/proxy, private administration, exact
-  NetworkPolicy/probes/resources, and Infisical-owned credentials (`KIF-010`,
-  `KIF-013`–`KIF-015`, `KIF-021`, `KIF-023`).
+- [x] Select Keycloak `26.7.1` and PostgreSQL `17.10` immutable linux/amd64
+  children, realm `cristexhub`, stable issuer, default theme, exact client/group
+  templates, deny-default Argo mapping, Namespace trust, and Universal Auth direction
+  only for value-free offline source authoring (`KIF-005`, `KIF-010`, `KIF-013`–
+  `KIF-015`, `KIF-023`, `KIF-030`).
+- [ ] Accept Keycloak/PostgreSQL image trust and recovery; select exact
+  callbacks/origins, TLS/proxy policy, private administration,
+  NetworkPolicy/probes/resources, storage, and Infisical-owned material before any
+  executable source or runtime (`KIF-010`, `KIF-013`–`KIF-015`, `KIF-021`,
+  `KIF-023`).
 - [ ] Before the first private Keycloak bootstrap, approve dedicated PostgreSQL
   storage, backup tooling/destination/key custody, restore procedure, provisional
   RPO/RTO, and a non-authoritative controlled test-state plan (`KIF-002`, `KIF-026`–

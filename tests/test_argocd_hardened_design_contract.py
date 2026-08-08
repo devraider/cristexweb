@@ -37,11 +37,11 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
     def test_status_and_source_only_boundary(self) -> None:
         self.assertTrue(RUNBOOK.is_file())
         for required in (
-            "**DESIGN ONLY.**",
-            "Chart `10.3.0` and Argo CD `v3.5.0` remain **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**",
-            "Argo CD runtime remains **NOT RUN**",
-            "does not select a\nrelease, authorize bootstrap, contact the cluster",
-            "does not select a\nrelease, authorize bootstrap, contact the cluster, or add a chart, values file,\nrendered YAML, manifest, Secret, Application, AppProject, NetworkPolicy, RBAC object",
+            "**DESIGN ONLY — SOURCE BASELINE SELECTED.**",
+            "Chart `10.3.0` and Argo CD\n`v3.5.0` are selected only for offline source authoring",
+            "Argo CD runtime remains **NOT RUN/BLOCKED**",
+            "does not authorize\nbootstrap, contact the cluster",
+            "does not authorize\nbootstrap, contact the cluster, or add a values file,\nrendered YAML, manifest, Secret, Application, AppProject, NetworkPolicy, RBAC object",
             "Ansible is\nselected as the future bounded bootstrap installer and lifecycle owner of privileged\nCRDs and cluster RBAC",
             "There is no runtime\nrollback because no runtime action occurred",
         ):
@@ -64,7 +64,7 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         for required in (
             "Ansible is\nselected as the future bounded bootstrap installer",
             "lifecycle owner of privileged\nCRDs and cluster RBAC",
-            "Direct OIDC to the future selected shared Keycloak is the intended design",
+            "Direct OIDC to the selected shared Keycloak is the selected direction",
             "stable issuer,\ncallback, TLS, NetworkPolicy, Secret, and positive/negative authorization evidence",
             "Direct Keycloak OIDC client",
             "Infisical-owned client secret after OIDC positive/negative and recovery proof",
@@ -208,12 +208,12 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
             self.assertIn(required, self.text)
         self.assertEqual(
             {
-                "D1": ("Exact Ansible bootstrap closure and credentials", "Installer and privileged lifecycle owner are selected, but exact source, objects, credential lifetime, escalation controls, and separate approvals remain undefined"),
+                "D1": ("Exact Ansible controller bootstrap closure and credentials", "Vendored public chart inputs exist, but exact rendered objects, credential lifetime, escalation controls, and separate approvals remain undefined"),
                 "D2": ("Foundation Namespace runtime checkpoints", "Exact `platform-secrets` and `platform-identity` source and a distinct present-only wrapper exist, but check, first apply, and idempotence remain separately approved and NOT RUN; the earlier exception remains closed"),
                 "D3": ("Exact resource, GVR, and discovery inventory", "Runtime Roles and Projects cannot be authored safely before every required kind and discovery path is enumerated"),
-                "D4": ("Infisical authentication and independent recovery", "Authentication method, scope, custodians, RPO/RTO, and isolated recovery remain unselected"),
+                "D4": ("Infisical Universal Auth and independent recovery", "Universal Auth is selected as direction, but exact scope, custodians, rotation/revocation proof, RPO/RTO, and isolated recovery remain unproven"),
                 "D5": ("Live Namespace-adoption apply mode", "Managed-field, tracking, last-applied, and diff evidence is unavailable until a separately approved read-only checkpoint"),
-                "D6": ("Stable Keycloak issuer and Argo OIDC/RBAC", "Release, private callback, TLS, client secret, group mappings, negative authorization, logout, and recovery evidence remain absent"),
+                "D6": ("Activate selected Keycloak/Argo OIDC policy", "Issuer, client ID, groups, and deny-default mappings are selected; private callback/origin, TLS, materialized value, negative authorization, logout, and recovery evidence remain absent"),
             },
             self.table("## Open architecture decisions"),
         )
@@ -266,7 +266,13 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         combined_tofu = "\n".join(path.read_text() for path in OPENTOFU.glob("*.tf"))
         self.assertNotRegex(combined_tofu, r"(?m)^\s*(?:resource|data|module|import|variable|output)\s+")
         self.assertFalse((ROOT / ".github/workflows").exists())
-        self.assertFalse(any("argocd" in str(path.relative_to(ROOT / "ansible")) for path in (ROOT / "ansible").rglob("*") if path.is_file()))
+        operational = [
+            path
+            for root in (ROOT / "ansible/bin", ROOT / "ansible/playbooks", ROOT / "ansible/roles")
+            for path in root.rglob("*")
+            if path.is_file()
+        ]
+        self.assertFalse(any("argocd" in path.name.lower() for path in operational))
 
     def test_design_traceability_links(self) -> None:
         for relative in (

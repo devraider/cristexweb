@@ -32,6 +32,15 @@ class AnsibleLayoutTests(unittest.TestCase):
             "ansible.cfg",
             "requirements.yml",
             "README.md",
+            "files/policies/hosted-identity-authorization.yml",
+            "files/vendor/argocd/10.3.0/SHA256SUMS",
+            "files/vendor/argocd/10.3.0/argo-cd-10.3.0.tgz",
+            "files/vendor/argocd/10.3.0/argo-cd-10.3.0.tgz.prov",
+            "files/vendor/argocd/10.3.0/pgp_keys.asc",
+            "files/vendor/infisical-operator/0.11.7/SHA256SUMS",
+            "files/vendor/infisical-operator/0.11.7/cloudsmith-signing-key.asc",
+            "files/vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz",
+            "files/vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz.prov",
             "inventory/hosts.yml",
             "playbooks/discover.yml",
             "playbooks/bootstrap_dependencies.yml",
@@ -586,7 +595,9 @@ class AnsibleSafetyTests(unittest.TestCase):
         cls.all_ansible_text = "\n".join(
             path.read_text()
             for path in sorted(ANSIBLE.rglob("*"))
-            if path.is_file() and ".ansible" not in path.parts
+            if path.is_file()
+            and ".ansible" not in path.parts
+            and path.suffix != ".tgz"
         )
 
     def test_no_arbitrary_execution_module_is_used(self) -> None:

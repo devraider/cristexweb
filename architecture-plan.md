@@ -66,29 +66,34 @@ exact post-state and service-health verification. No workload or other persisten
 kind exists from this increment. The source-only
 [Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 records chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
-immutable linux/amd64 images, and curated online/static readiness evidence. It is
-explicitly **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. The exact 44-document
+immutable linux/amd64 images, and curated online/static readiness evidence. The
+separate release record selects that pair only for offline source authoring; it
+remains **NOT DEPLOYABLE**. The exact 44-document
 render was reproduced at Kubernetes capability `1.36.2`, stable upstream API
 registration screened successfully, and controller-side image closure was reachable.
 Exact k3s admission/runtime and node pullability remain unproven. Wildcard/broad
 RBAC, ingress-only/unrestricted-egress policy, image trust, Secret recovery, private
-Git secret-zero, Namespace adoption, human selection/soak, and runtime approvals
-remain blockers. It adds no chart, values, or Kubernetes object source. The
+Git secret-zero, Namespace adoption, trust/soak acceptance, and runtime approvals
+remain blockers. Only hash-bound non-executable public chart inputs are vendored; no
+values or Kubernetes object source exists. The
 [source-only hardened design](runbooks/argocd-hardened-design.md) accepts a private
 ClusterIP and loopback-only port-forward direction, retained quiescent ApplicationSet,
 supplemental ingress/egress default-deny with an explicit broad ports-only
 `443`/`6443` weakness, phased least-privilege RBAC/AppProjects, one-repository
 read-only GitHub App credentials, value-free Infisical custody, and two independent
-Namespace-adoption Applications. It selects no candidate and adds no deployable
-source. Ansible is selected as the future bounded bootstrap installer and lifecycle
+Namespace-adoption Applications. It accepts the selected offline baseline but adds
+no deployable controller source. Ansible is selected as the future bounded bootstrap installer and lifecycle
 owner of privileged CRDs/cluster RBAC. The foundation Namespace source/exception is
 implemented but not run; exact controller bootstrap source and credentials,
-resource/GVR/discovery inventory, Infisical authentication/recovery, live adoption
-apply mode, and stable Keycloak OIDC remain open architecture decisions. The source-only
+resource/GVR/discovery inventory, Infisical Universal Auth recovery, live adoption
+apply mode, and activation of selected Keycloak/Argo OIDC policy remain open
+architecture decisions. The source-only
 [Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md) selects
-one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD as
-an architecture target only. It selects no release, image, database, hostname, route,
-credential, or deployable source, and runtime is **NOT RUN**. The separate source-only
+one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD.
+Keycloak `26.7.1`, PostgreSQL `17.10`, realm `cristexhub`, and issuer
+`https://auth.cristex-soft.com/realms/cristexhub` are selected only for offline source
+authoring. No workload, Secret, route, or executable controller source is selected,
+and runtime is **NOT RUN/BLOCKED**. The separate source-only
 [cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 records official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
 image evidence, token-file precedence, connection-aware readiness, and required edge
@@ -100,9 +105,10 @@ It adds no OpenTofu resource, Kubernetes object, secret, route, or deployment so
 The source-only
 [Infisical Operator candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
 distinguishes latest source release `v0.11.8`, whose matching public chart archive
-and image tag were not observed during the bounded capture, from the last observed
-version-aligned `v0.11.7` chart/source/image set. Neither is selected or deployable;
-runtime is **NOT RUN**. Actual compatibility, chart/image trust, dedicated Namespace,
+and image tag were not observed during the bounded capture, from the version-aligned
+`v0.11.7` set. The separate release record selects `v0.11.7` only for offline source
+authoring and Universal Auth as direction; it remains not deployable and runtime is
+**NOT RUN/BLOCKED**. Actual compatibility, chart/image trust, dedicated Namespace,
 scoped RBAC, Argo handoff, secret-zero, network policy, recovery, and runtime
 approvals remain blocked. It adds no chart, CRD, Kubernetes object, credential, or
 Secret source.
@@ -434,9 +440,9 @@ verification must meet the declared RPO/RTO before PROD.
   selects the one-repository read-only GitHub App credential shape, value-free
   Infisical custody, Redis initializer removal, phased least-privilege direction, and
   two independent adoption Applications. This is **DESIGN ONLY**: chart `10.3.0` and
-  app `v3.5.0` remain **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**, runtime is **NOT
-  RUN**, and no RBAC, AppProject, policy, Secret, Application, chart, values, or
-  manifest source exists from this design.
+  app `v3.5.0` are selected only for offline source authoring and remain **NOT
+  DEPLOYABLE**; runtime is **NOT RUN/BLOCKED**, and no RBAC, AppProject, policy,
+  Secret, Application, values, or manifest source exists from this design.
 - Updated hardened-design ownership: Ansible is selected as bounded bootstrap
   installer and lifecycle owner of privileged CRDs/cluster RBAC. Six decisions remain:
   (1) exact component Ansible source/object/credential closure and approvals, (2)
@@ -452,9 +458,11 @@ verification must meet the declared RPO/RTO before PROD.
   one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD
   as the identity architecture target. Keycloak authenticates and emits groups; Argo
   RBAC authorizes Argo actions; Kubernetes RBAC independently constrains controller
-  ServiceAccounts. Direct Argo OIDC is intended and Dex remains absent. No Keycloak
-  release/image/package, PostgreSQL version/PVC, hostname, route, credential, manifest,
-  or deployable source is selected; runtime is **NOT RUN**.
+  ServiceAccounts. Direct Argo OIDC is selected and Dex remains absent. The issuer,
+  `argocd` client ID, `argocd-admin`/`argocd-readonly` groups, and deny-default
+  mapping are fixed by value-free policy. Exact private callback/origin, TLS,
+  materialized value, workload/PVC, route, database recovery, and runtime remain
+  blocked.
 - Current source-only cloudflared evidence: the
   [candidate provenance record](runbooks/cloudflared-candidate-provenance.md) binds
   release, unsigned source, architecture-specific image, token-file, health, and
@@ -463,9 +471,9 @@ verification must meet the declared RPO/RTO before PROD.
   deployable source or a version selection.
 - Current source-only Infisical evidence: the
   [candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
-  records the incomplete observed `v0.11.8` public distribution and last observed
-  version-aligned `v0.11.7` set while leaving both **CANDIDATE — NOT DEPLOYABLE — NOT
-  SELECTED** with runtime **NOT RUN**. The actual target kubelet is now captured, but
+  records the incomplete observed `v0.11.8` public distribution and version-aligned
+  `v0.11.7` set. The latter is selected only for offline source authoring and remains
+  not deployable, with runtime **NOT RUN/BLOCKED**. The actual target kubelet is now captured, but
   chart/CRD/API compatibility, trust, Namespace, scoped-RBAC,
   Argo handoff, secret-zero, traffic, recovery, and runtime gates remain blocked.
 - Entry: pinned component versions, human-reviewed target kubelet-version evidence,

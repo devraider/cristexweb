@@ -470,8 +470,15 @@ defines separate future approvals for these exact one-line commands:
 - `ansible/bin/bootstrap-foundation-namespaces apply`
 
 The first apply and later idempotence invocation use the same apply command but need
-distinct approvals. No command is authorized by this documentation. The source-only
-[Keycloak OIDC bootstrap design](../runbooks/keycloak-oidc-bootstrap-design.md)
+distinct approvals. No command is authorized by this documentation.
+
+Hash-bound public chart/provenance/public-key inputs now exist under `files/vendor/`
+for the Argo CD `10.3.0` and Infisical Operator `0.11.7` offline source baselines.
+`files/policies/hosted-identity-authorization.yml` is a value-free review policy, not
+an executable playbook, realm import, Kubernetes object, credential, or permission
+to render/install a controller. Release selection does not close signer trust,
+image assurance/recovery, scoped RBAC, secret-zero, admission, or runtime gates. The
+source-only [Keycloak OIDC bootstrap design](../runbooks/keycloak-oidc-bootstrap-design.md)
 records the remaining release, database, secret, network, recovery, and runtime
 gates without authorizing cluster contact.
 

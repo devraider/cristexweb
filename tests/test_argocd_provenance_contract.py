@@ -122,7 +122,7 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
         ):
             self.assertIn(required, self.text)
 
-    def test_ignored_render_is_bound_and_described_without_selection(self) -> None:
+    def test_ignored_render_is_bound_and_described_with_source_only_selection(self) -> None:
         self.assertEqual(
             {
                 "Minimal candidate values": (
@@ -138,8 +138,9 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
             self.table("## Ignored candidate render evidence"),
         )
         for required in (
-            "**CANDIDATE — NOT DEPLOYABLE — NOT SELECTED.**",
-            "Argo CD runtime evidence is **NOT RUN**",
+            "**HISTORICAL CANDIDATE EVIDENCE — SOURCE BASELINE SELECTED — NOT DEPLOYABLE.**",
+            "selected only for offline source authoring",
+            "Argo CD runtime evidence is **NOT\nRUN/BLOCKED**",
             "candidate render contains 44 documents",
             "3 CustomResourceDefinitions",
             "4 Deployments, including the ApplicationSet controller",
@@ -223,7 +224,9 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
 
     def test_blockers_and_source_only_boundary_are_truthful(self) -> None:
         for required in (
-            "Trust and human selection",
+            "Trust and deployable-use acceptance",
+            "already-selected offline baseline\n   may advance to deployable source",
+            "version selection remains closed only for\n   offline authoring",
             "Cryptographic replay and Redis trust",
             "Vulnerability policy",
             "Kubernetes authorization",
@@ -233,12 +236,16 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
             "Namespace adoption",
             "ApplicationSet",
             "Runtime and recovery",
-            "No blocker above is closed by online documentation, registry reachability, or static\nrendering alone",
-            "No GitHub App, OIDC, port-forward, Traefik route, egress design,\napply mode, adoption layout, chart, or application version is selected here",
-            "does not select a\nrelease, authorize a bootstrap, or add a Helm chart, values file, Kubernetes object,\ncredential, or secret value",
+            "No blocker above is closed by online documentation, registry reachability, static\nrendering, or offline source-baseline selection alone",
+            "No GitHub App, active OIDC\nclient, port-forward, Traefik route, final egress design, apply mode, or adoption\nlayout is selected here",
+            "does not authorize a\nbootstrap or add a values file, Kubernetes object, credential, or secret value",
+            "hash-bound public chart/provenance/key inputs are vendored as\nnon-executable clean-clone source",
             "No inventory, SSH, become, kubeconfig,\nKubernetes API, server-side dry-run, Secret, provider, installation, deployment, or\nruntime action occurred",
         ):
             self.assertIn(required, self.text)
+
+        self.assertNotIn("human selection, and soak", self.text)
+        self.assertNotIn("then select or reject chart", self.text)
 
         expected_kubernetes = {
             "platform/namespaces/argocd.yaml",

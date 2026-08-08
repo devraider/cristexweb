@@ -40,8 +40,9 @@ idempotence are **NOT RUN** and require separate approvals. No Argo CD, cloudfla
 Infisical Operator, Keycloak, PostgreSQL, Secret, workload, Service, policy, PVC, or
 route exists from the new increment. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, and online/static
-readiness evidence while remaining explicitly **CANDIDATE — NOT DEPLOYABLE — NOT
-SELECTED**. The exact 44-document render was reproduced at Kubernetes capability
+readiness evidence. The separate [release selection](runbooks/argocd-release-selection.md)
+selects chart `10.3.0` / app `v3.5.0` only for offline source authoring; it remains
+**NOT DEPLOYABLE**. The exact 44-document render was reproduced at Kubernetes capability
 `1.36.2`, stable upstream API registration screened successfully, and both image
 closures were reachable from the controller. Exact k3s admission/runtime and node
 pullability remain unproven; wildcard/broad RBAC, ineffective network isolation,
@@ -58,9 +59,12 @@ source is implemented, while its runtime checkpoints, component source/credentia
 resource inventory, Infisical recovery, Keycloak OIDC, adoption apply mode, candidate
 selection, and runtime remain unresolved. The companion
 [source-only Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md)
-selects one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and
-Argo CD as an architecture target only. It selects no release, image, database,
-hostname, route, credential, or deployable source; Keycloak runtime is **NOT RUN**.
+and [release selection](runbooks/keycloak-release-selection.md) select Keycloak
+`26.7.1`, PostgreSQL `17.10`, realm `cristexhub`, and issuer
+`https://auth.cristex-soft.com/realms/cristexhub` only for offline source authoring.
+The value-free hosted policy selects exact client IDs, environment role templates,
+Argo groups, deny-default authorization, Namespace trust, and Universal Auth
+direction. No workload, Secret, route, or runtime is approved.
 A separate
 [source-only cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 binds official release, unsigned source, immutable linux/amd64 image, token-file,
@@ -68,10 +72,12 @@ health, and edge-transport evidence. It is also **CANDIDATE — NOT DEPLOYABLE �
 SELECTED**, with runtime **NOT RUN**, and adds no OpenTofu resource, Kubernetes
 object, secret, route, or deployment source. A third
 [source-only Infisical Operator candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
-distinguishes the incomplete public `v0.11.8` distribution observation from the last
-observed version-aligned `v0.11.7` chart/source/image set. Both remain **CANDIDATE —
-NOT DEPLOYABLE — NOT SELECTED**, runtime is **NOT RUN**, and no chart, CRD,
-Kubernetes object, credential, or Secret source was added. The actual target is now
+distinguishes the incomplete public `v0.11.8` distribution observation from the
+version-aligned `v0.11.7` set. The separate
+[release selection](runbooks/infisical-operator-release-selection.md) selects
+`v0.11.7` only for offline source authoring and Universal Auth as direction. Runtime
+is **NOT RUN/BLOCKED**, and no CRD, Kubernetes object, credential, or Secret source
+was added. The actual target is now
 captured, but Infisical chart/CRD/API compatibility remains unproven. No general host
 baseline or deployment exists. Python is used only for offline contract tests, not
 infrastructure automation.
@@ -109,11 +115,14 @@ gateway remain in the separate CristexHub application repository.
 4. [`runbooks/replacement-host-recovery.md`](runbooks/replacement-host-recovery.md) — replacement boundary, isolation gates, and decision-first recovery contract.
 5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source-only, non-deployable Argo CD candidate evidence and blockers.
 6. [`runbooks/argocd-hardened-design.md`](runbooks/argocd-hardened-design.md) — source-only private-access, RBAC, network, secret-custody, and adoption design; not deployment authorization.
-7. [`runbooks/foundation-namespace-bootstrap.md`](runbooks/foundation-namespace-bootstrap.md) — deployable-but-not-run exact present-only bootstrap for `platform-secrets` and `platform-identity`.
-8. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
-9. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
-10. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — source-only, non-deployable Infisical Operator candidate evidence and blockers.
-11. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+7. [`runbooks/argocd-release-selection.md`](runbooks/argocd-release-selection.md) — source-baseline selection and vendored-input boundary.
+8. [`runbooks/foundation-namespace-bootstrap.md`](runbooks/foundation-namespace-bootstrap.md) — deployable-but-not-run exact present-only bootstrap for `platform-secrets` and `platform-identity`.
+9. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
+10. [`runbooks/keycloak-release-selection.md`](runbooks/keycloak-release-selection.md) — immutable Keycloak/PostgreSQL and issuer source selection.
+11. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
+12. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
+13. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
+14. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -216,6 +225,8 @@ ansible/                 # discovery + bounded host changes + gated temporary QA
   roles/opentofu_install/
   roles/platform_namespace_bootstrap/
   roles/foundation_namespace_bootstrap/
+  files/vendor/            # hash-bound public chart/provenance/key inputs only
+  files/policies/          # value-free hosted identity/authorization policy
 opentofu/                # zero-resource Cloudflare-only scaffold
 kubernetes/              # exact platform Namespace source; future Argo desired state
 runbooks/                # recovery docs plus source-only candidate/design records
@@ -223,10 +234,13 @@ runbooks/                # recovery docs plus source-only candidate/design recor
   recovery-artifact-register.md
   argocd-candidate-provenance.md
   argocd-hardened-design.md
+  argocd-release-selection.md
   foundation-namespace-bootstrap.md
   keycloak-oidc-bootstrap-design.md
+  keycloak-release-selection.md
   cloudflared-candidate-provenance.md
   infisical-operator-candidate-provenance.md
+  infisical-operator-release-selection.md
 tests/                   # offline contract tests only
 ```
 

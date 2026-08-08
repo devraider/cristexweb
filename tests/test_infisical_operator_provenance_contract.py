@@ -56,17 +56,17 @@ class InfisicalOperatorCandidateProvenanceContractTests(unittest.TestCase):
         )
         for required in (
             "time-qualified observation, not proof of permanent absence",
-            "Mutable indexes and tags must be refreshed before any selection",
+            "Mutable indexes and tags must be refreshed before any future selection of `v0.11.8`",
             "does not independently establish release authorization or bind the source, chart, container image, and current publisher trust chain",
-            "**CANDIDATE — NOT DEPLOYABLE — NOT SELECTED.**",
-            "Runtime evidence is **NOT RUN**",
+            "**HISTORICAL CANDIDATE EVIDENCE — v0.11.7 SOURCE BASELINE SELECTED — NOT DEPLOYABLE.**",
+            "Runtime evidence is **NOT RUN/BLOCKED**",
         ):
             self.assertIn(required, self.normalized)
 
     def test_v0117_version_aligned_candidate_evidence_is_exact(self) -> None:
         self.assertEqual(
             {
-                "Candidate status": "last observed version-aligned set; not selected",
+                "Candidate status": "selected offline source baseline; not deployable or runtime-approved",
                 "Release/chart/app/image": "`v0.11.7` / `v0.11.7` / `v0.11.7` / `v0.11.7`",
                 "Source commit": "`64d2d81da3707d81dc271410da6fd88254b6c9b3`",
                 "GitHub commit verification": "`verified: true`; reason `valid`",
@@ -80,7 +80,7 @@ class InfisicalOperatorCandidateProvenanceContractTests(unittest.TestCase):
             self.table("## Last observed version-aligned v0.11.7 candidate"),
         )
         for required in (
-            "Alignment is useful candidate evidence, not human selection, target-cluster compatibility, publisher authorization, image assurance, or deployment approval",
+            "Alignment supports the later offline source-baseline selection but is not target-cluster compatibility, publisher authorization, image assurance, or deployment approval",
             "reviewed linux/amd64 child digest rather than a tag or index alone",
         ):
             self.assertIn(required, self.normalized)
@@ -132,7 +132,7 @@ class InfisicalOperatorCandidateProvenanceContractTests(unittest.TestCase):
             self.table("## Chart defaults and runtime implications"),
         )
         for required in (
-            "Human version, trust, and soak selection",
+            "Trust and soak acceptance",
             "approved schema-v3 discovery now captures target kubelet `v1.36.2+k3s1`",
             "chart, CRD/API, and exact k3s compatibility remain unproven",
             "Target compatibility",
@@ -150,6 +150,7 @@ class InfisicalOperatorCandidateProvenanceContractTests(unittest.TestCase):
             "Exact component traffic policy",
             "Kubernetes API, DNS, Infisical API, and private metrics flows",
             "Secret-zero, recovery, rotation, and revocation",
+            "implement the selected Universal Auth direction",
             "Argo owns committed CR/reference objects; Infisical owns generated Secret values",
             "No bootstrap credential may enter Git, OpenTofu state/plan, command arguments, environment examples, CI logs, or review artifacts",
             "Environment separation and bootstrap circularity",

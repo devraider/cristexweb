@@ -623,7 +623,7 @@ metadata:
         for required in (
             "Record public Argo CD chart",
             "Record official cloudflared release/source/image",
-            "provenance-consistent Infisical operator version",
+            "Select Infisical Operator `v0.11.7` only as an offline source baseline",
         ):
             self.assertIn(required, normalized_tasks_stage)
         for stale in (

@@ -47,8 +47,9 @@ authentication with `changed=0`; its retry passed at
 post-state assertions passing, and service health preserved. These bounded
 checkpoints close no manual QA case. The source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
-is **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** and records no live API or runtime
-evidence. Its exact render reproducibility, stable upstream API registration screen,
+retains historical evidence; the release record selects chart `10.3.0` / app
+`v3.5.0` only for offline source authoring. It remains **NOT DEPLOYABLE**, with no live
+API or runtime evidence. Its exact render reproducibility, stable upstream API registration screen,
 and controller-side image closure passed online/static review. Exact k3s admission
 and runtime, node pullability, signing/index-to-child and Redis trust, wildcard/broad
 RBAC, ingress-only/unrestricted-egress policy, Secret recovery, private Git
@@ -60,8 +61,9 @@ ApplicationSet, supplemental default-deny, a documented broad ports-only weaknes
 phased least privilege, value-free secret custody, and two independent adoption
 Applications without implementing or proving any of them. The companion
 [source-only Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
-selects a shared identity architecture target without selecting release/deployable
-source or proving Ansible bootstrap, PostgreSQL recovery, stable issuer, direct OIDC,
+and release record select Keycloak `26.7.1`, PostgreSQL `17.10`, the stable issuer,
+direct OIDC, and value-free RBAC policy only for offline authoring. They do not add
+executable source or prove Ansible bootstrap, database recovery, callbacks, runtime
 RBAC, or private exposure. MQA-02 private administration and identity authorization,
 MQA-03 Infisical rotation, and MQA-12 rollback safety remain **PENDING**; these
 designs close no manual QA case.
@@ -73,7 +75,8 @@ not close publisher trust, image assurance/availability, hardening, Infisical to
 recovery, OpenTofu state/resource, Argo handoff, exact traffic-policy, route,
 single-node risk, soak, or runtime gates. The source-only
 [Infisical Operator candidate provenance record](../../runbooks/infisical-operator-candidate-provenance.md)
-is also **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** with runtime **NOT RUN**. Its
+retains historical evidence; the release record selects `v0.11.7` only for offline
+source authoring. It remains **NOT DEPLOYABLE** with runtime **NOT RUN/BLOCKED**. Its
 `v0.11.8` distribution-gap observation and version-aligned `v0.11.7` evidence close
 no chart/CRD/API compatibility despite the captured target, trust, Namespace,
 scoped-RBAC, Argo handoff, secret-zero,

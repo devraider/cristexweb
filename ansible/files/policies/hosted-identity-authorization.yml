@@ -1,0 +1,163 @@
+---
+policy_schema: cristex-hosted-identity-v1
+policy_status: source-selected-runtime-blocked
+realm:
+  name: cristexhub
+  issuer: https://auth.cristex-soft.com/realms/cristexhub
+  organizations_enabled: true
+  registration_enabled: false
+  direct_access_grants_enabled: false
+  seeded_users_allowed: false
+  seeded_credentials_allowed: false
+  production_theme: keycloak-default
+images:
+  keycloak:
+    repository: quay.io/keycloak/keycloak
+    version: 26.7.1
+    linux_amd64_digest: sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2
+    pull_reference: quay.io/keycloak/keycloak@sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2
+  postgresql:
+    repository: docker.io/library/postgres
+    version: "17.10"
+    linux_amd64_digest: sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b
+    pull_reference: docker.io/library/postgres@sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b
+clients:
+  browser:
+    - id: cristexhub-dev
+      namespace: cristexhub-dev
+      activation: blocked-pending-exact-origin
+      callback_selected: false
+    - id: cristexhub-prod
+      namespace: cristexhub-prod
+      activation: blocked-pending-exact-origin
+      callback_selected: false
+    - id: reactive-resume-dev
+      namespace: cristexhub-dev
+      activation: blocked-pending-exact-origin
+      callback_selected: false
+    - id: reactive-resume-prod
+      namespace: cristexhub-prod
+      activation: blocked-pending-exact-origin
+      callback_selected: false
+    - id: argocd
+      namespace: argocd
+      activation: blocked-pending-exact-private-origin
+      callback_selected: false
+  service:
+    - id: cristexhub-admin-svc-dev
+      namespace: cristexhub-dev
+      browser_flow_allowed: false
+    - id: cristexhub-admin-svc-prod
+      namespace: cristexhub-prod
+      browser_flow_allowed: false
+claims:
+  roles: groups
+  organizations: organization
+  required_identity:
+    - sub
+    - email
+    - email_verified
+    - preferred_username
+  groups_use_full_path: false
+roles:
+  cristexhub:
+    values:
+      - admin
+      - hr
+      - viewer
+      - interviewer
+    dev_group_template: cristexhub-dev-<organization-alias>-<role>
+    prod_group_template: cristexhub-prod-<organization-alias>-<role>
+    dev_super_admin_group: cristexhub-dev-super-admin
+    prod_super_admin_group: cristexhub-prod-super-admin
+    missing_or_ambiguous_group: deny
+    dynamic_organization_group_owner: cristexhub-application
+  argocd:
+    administrator_group: argocd-admin
+    readonly_group: argocd-readonly
+    ungrouped_default: deny
+    readonly_permissions:
+      - applications:get
+      - projects:get
+    readonly_projects:
+      - namespace-adoption
+      - platform-edge
+      - shared-services
+      - cristexhub-dev
+      - cristexhub-prod
+    readonly_forbidden:
+      - logs
+      - sync
+      - action
+      - override
+      - delete
+      - exec
+      - configuration-mutation
+    dex_enabled: false
+secrets:
+  value_owner: infisical-cloud
+  operator_authentication: universal-auth
+  bootstrap_custody: encrypted-off-node-independent
+  values_allowed_in_source: false
+namespaces:
+  platform-identity:
+    allows:
+      - keycloak-runtime
+      - dedicated-identity-postgresql
+      - identity-backup-restore
+    denies:
+      - application-database-credentials
+  platform-secrets:
+    allows:
+      - infisical-kubernetes-operator
+    denies:
+      - keycloak-realm-lifecycle
+  argocd:
+    allows:
+      - argocd-oidc-client-materialized-by-infisical
+    denies:
+      - keycloak-administration-credential
+  cristexhub-dev:
+    allows:
+      - dev-oidc-client
+      - dev-admin-service
+      - dev-reactive-resume-client
+    denies:
+      - prod-credentials
+  cristexhub-prod:
+    allows:
+      - prod-oidc-client
+      - prod-admin-service
+      - prod-reactive-resume-client
+    denies:
+      - dev-credentials
+  shared-services:
+    allows:
+      - application-databases
+    denies:
+      - keycloak-postgresql
+ownership:
+  ansible:
+    - static-realm-settings
+    - static-clients
+    - static-claim-mappers
+    - argocd-groups
+    - privileged-crds
+    - privileged-cluster-rbac
+  cristexhub-application:
+    - organizations
+    - organization-memberships
+    - dynamic-organization-role-groups
+  argocd-after-evidenced-handoff:
+    - exact-namespaced-object-sets
+  infisical-cloud:
+    - runtime-secret-values
+blocked:
+  - exact-browser-and-private-client-origins
+  - client-activation
+  - infisical-universal-auth-recovery-proof
+  - keycloak-postgresql-backup-and-isolated-restore
+  - public-browser-auth-route-approval
+  - argocd-oidc-positive-negative-runtime-evidence
+  - controller-bootstrap-source
+  - all-runtime-check-apply-idempotence

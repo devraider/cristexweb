@@ -19,7 +19,7 @@ recover DEV and PROD without presenting a single node as highly available.
 - OpenTofu owns Cloudflare and GitHub resources, not Kubernetes objects.
 - Argo CD owns namespaced desired state only after Ansible stops reconciling the exact object set and registration/adoption, successful sync, and managed-field evidence pass; dual reconciliation is forbidden.
 - Infisical Cloud initially owns runtime secret values; only its Kubernetes Operator is bootstrapped and self-hosting Infisical is out of scope for the foundation.
-- One future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD is selected as an identity architecture target only. Keycloak authenticates/emits groups, Argo RBAC authorizes Argo actions, and Kubernetes RBAC constrains controllers.
+- One future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD is selected as the identity target. Keycloak `26.7.1`, PostgreSQL `17.10`, realm `cristexhub`, the stable issuer, direct Argo OIDC, and value-free authorization policy are selected only for offline source authoring; executable source and runtime remain blocked. Keycloak authenticates/emits groups, Argo RBAC authorizes Argo actions, and Kubernetes RBAC constrains controllers.
 - GitHub Actions validates/builds and publishes immutable images to private GHCR.
 - Bundled k3s Traefik remains the sole ingress controller.
 - DEV and administration remain private through host Tailscale.
@@ -99,31 +99,32 @@ separately approved and **NOT RUN**. Argo CD, cloudflared, Infisical Operator,
 Keycloak, PostgreSQL, Secrets, workloads, Services, policies, PVCs, and routes remain
 unrun. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
-records chart, captured signature/hash-binding, image, and curated online/static
-readiness evidence for chart `10.3.0` and app `v3.5.0`, but is explicitly **CANDIDATE
-— NOT DEPLOYABLE — NOT SELECTED**. It adds no chart, values, or Kubernetes object
-source. The exact 44-document render reproduced at Kubernetes capability `1.36.2`,
+retains historical chart, signature/hash-binding, image, and online/static readiness
+evidence for chart `10.3.0` and app `v3.5.0`. The release record selects that pair
+only for offline source authoring; it remains **NOT DEPLOYABLE** and adds no values or
+Kubernetes object source. The exact 44-document render reproduced at Kubernetes capability `1.36.2`,
 stable upstream API registration screened successfully, and controller-side image
 closure was reachable. Exact k3s admission/runtime and node pullability remain
 unproven; wildcard/broad RBAC, ingress-only/unrestricted-egress policy, signing and
 image trust, generated/internal Secret recovery, private Git secret-zero, Namespace
-adoption, human selection/soak, and all runtime approvals remain blocked. The
+adoption, trust/soak acceptance, and all runtime approvals remain blocked. The
 [source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
 accepts only a private ClusterIP/loopback-port-forward direction, retained quiescent
 ApplicationSet, supplemental default-deny with an explicit broad ports-only
 `443`/`6443` weakness, phased least privilege, an exact one-repository read-only
 GitHub App credential shape, value-free Infisical custody, disabled Redis initializer,
-and two adoption Applications. It is **DESIGN ONLY**, adds no deployable source, and
-records Ansible as the selected bounded bootstrap installer and privileged lifecycle
-owner while leaving six component-bootstrap-closure, foundation-Namespace-runtime,
-resource-inventory, Infisical-recovery, adoption-apply, and stable-Keycloak-OIDC
-decisions open. The
+and two adoption Applications. It remains design-only, adds no deployable source,
+and records Ansible as the selected bounded bootstrap installer and privileged
+lifecycle owner while leaving six controller-closure, foundation-Namespace-runtime,
+resource-inventory, Universal-Auth-recovery, adoption-apply, and selected-OIDC
+activation decisions open. The
 [source-only Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
 selects the shared self-hosted identity architecture target, direct Argo OIDC with
 Dex absent, private administration, dedicated PostgreSQL/recovery, Infisical-owned
-client secret, and object-by-object handoff directions. It selects no Keycloak
-release/image/package, database version, hostname, route, credential, manifest, or
-deployable source; runtime is **NOT RUN**. A separate source-only
+client secret, and object-by-object handoff directions. The release record selects
+Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, default theme, clients, and
+group policy only for offline source authoring; executable source, callbacks,
+credentials, routes, recovery proof, and runtime remain **NOT RUN/BLOCKED**. A separate source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 records release `2026.7.3`, unsigned source, immutable linux/amd64 image,
 token-file, readiness/health, and edge-transport evidence. It is **CANDIDATE — NOT
@@ -135,9 +136,10 @@ single-node risk, soak, and runtime approvals remain blocked. A third source-onl
 [Infisical Operator candidate provenance record](../../runbooks/infisical-operator-candidate-provenance.md)
 distinguishes latest source release `v0.11.8`, whose matching public Cloudsmith chart
 entry/archive and Docker Hub image tag were not observed during the bounded capture,
-from the last observed version-aligned `v0.11.7` set. Both are **CANDIDATE — NOT
-DEPLOYABLE — NOT SELECTED**, runtime is **NOT RUN**, and no chart, CRD, Kubernetes
-object, credential, or Secret source was added. The target kubelet is now captured,
+from the version-aligned `v0.11.7` set. The release record selects `v0.11.7` only
+for offline source authoring and Universal Auth as direction; it remains **NOT
+DEPLOYABLE**, runtime is **NOT RUN/BLOCKED**, and no CRD, Kubernetes object,
+credential, or Secret source was added. The target kubelet is now captured,
 but chart/CRD/API compatibility, signer/build trust, dedicated Namespace, scoped
 RBAC, Argo handoff, secret-zero/recovery, traffic policy,
 single-node risk, and runtime approvals remain blocked.

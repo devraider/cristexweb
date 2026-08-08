@@ -16,14 +16,14 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.text = RUNBOOK.read_text()
 
-    def test_design_only_target_without_release_or_runtime_selection(self) -> None:
+    def test_source_policy_selection_remains_without_controller_source_or_runtime(self) -> None:
         for required in (
-            "**DESIGN ONLY.**",
-            "One future self-hosted Keycloak shared by CristexHub, Reactive\nResume, and Argo CD is selected as the identity architecture target",
-            "No Keycloak\nrelease, image tag or digest, package, operator, chart, database version, hostname,\nroute, manifest, values file, credential, or deployable source is selected",
-            "Keycloak\nruntime remains **NOT RUN**",
+            "**SOURCE POLICY SELECTED — CONTROLLER SOURCE AND RUNTIME BLOCKED.**",
+            "One future\nself-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD remains the\nidentity architecture target",
+            "Keycloak `26.7.1`, PostgreSQL `17.10`, realm\n`cristexhub`, and issuer `https://auth.cristex-soft.com/realms/cristexhub` are\nselected for offline source authoring",
+            "No workload,\nService, PVC, route, Secret, executable Ansible component, or deployable controller\nsource is selected",
+            "Keycloak runtime remains **NOT RUN/BLOCKED**",
             "authorizes no discovery, check, installation, Secret operation, database\nmutation, route, or cluster contact",
-            "CANDIDATE — NOT DEPLOYABLE — NOT SELECTED",
         ):
             self.assertIn(required, self.text)
 
@@ -44,7 +44,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "Argo CD RBAC | Map exact Keycloak groups to Argo administrator or read-only capabilities",
             "Kubernetes RBAC | Limit Argo ServiceAccounts",
             "Keycloak administrator group never implies Kubernetes administrator access",
-            "Direct\nArgo OIDC is the intended design and Dex remains absent",
+            "Direct\nArgo OIDC is the selected direction and Dex remains absent",
             "OIDC client secret is an Infisical-owned value",
             "Local Argo authentication is one-time bootstrap",
             "read-only mutation denial, ungrouped denial, invalid and\nexpired token denial, logout behavior, and break-glass recovery all pass",
@@ -62,8 +62,8 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
 
     def test_production_database_backup_and_restore_gates_fail_closed(self) -> None:
         for required in (
-            "selected immutable `linux/amd64` image and production\nstartup, never `start-dev`",
-            "dedicated external PostgreSQL database, database principal, and\nPVC",
+            "selected official `26.7.1` linux/amd64 child\ndigest `sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2`\nand production startup, never `start-dev`",
+            "a dedicated external database, database principal, and PVC",
             "Before\nthe first private bootstrap, the database/storage design, backup tooling and\ndestination, encryption/key custody, integrity procedure, restore procedure, and\nprovisional RPO/RTO must be reviewed and approved",
             "first separately approved\nbootstrap remains non-authoritative: it creates only controlled test identity state",
             "application-consistent `pg_dump` backup rather than live-volume synchronization",
@@ -78,7 +78,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
 
     def test_stable_issuer_private_admin_and_later_public_auth_are_separate(self) -> None:
         for required in (
-            "one stable TLS identity from the first accepted login",
+            "one stable TLS identity from\nthe first accepted login",
             "Keycloak administration and its management health/metrics surface remain private",
             "No public Keycloak route is\nauthorized now",
             "later public browser-auth route may expose only the reviewed authentication surface",
@@ -125,14 +125,38 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         combined_tofu = "\n".join(path.read_text() for path in OPENTOFU.glob("*.tf"))
         self.assertNotRegex(combined_tofu, r"(?m)^\s*(?:resource|data|module|import|variable|output)\s+")
         self.assertFalse((ROOT / ".github/workflows").exists())
-        ansible_files = {
-            str(path.relative_to(ROOT / "ansible"))
-            for path in (ROOT / "ansible").rglob("*")
+        operational = [
+            path
+            for root in (ROOT / "ansible/bin", ROOT / "ansible/playbooks", ROOT / "ansible/roles")
+            for path in root.rglob("*")
             if path.is_file()
+        ]
+        self.assertFalse(
+            any(
+                component in path.name.lower()
+                for path in operational
+                for component in ("keycloak", "argocd", "infisical", "postgres")
+            )
+        )
+        expected_public_inputs = {
+            "policies/hosted-identity-authorization.yml",
+            "vendor/argocd/10.3.0/SHA256SUMS",
+            "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz",
+            "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz.prov",
+            "vendor/argocd/10.3.0/pgp_keys.asc",
+            "vendor/infisical-operator/0.11.7/SHA256SUMS",
+            "vendor/infisical-operator/0.11.7/cloudsmith-signing-key.asc",
+            "vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz",
+            "vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz.prov",
         }
-        self.assertFalse(any("keycloak" in path.lower() for path in ansible_files))
-        self.assertFalse(any("argocd" in path.lower() for path in ansible_files))
-        self.assertFalse(any("infisical" in path.lower() for path in ansible_files))
+        self.assertEqual(
+            expected_public_inputs,
+            {
+                str(path.relative_to(ROOT / "ansible/files"))
+                for path in (ROOT / "ansible/files").rglob("*")
+                if path.is_file()
+            },
+        )
 
     def test_secret_address_command_and_traceability_hygiene(self) -> None:
         self.assertNotIn("```", self.text)

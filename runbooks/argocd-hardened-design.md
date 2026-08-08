@@ -2,10 +2,12 @@
 
 ## Status and boundary
 
-**DESIGN ONLY.** Chart `10.3.0` and Argo CD `v3.5.0` remain **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**. Argo CD runtime remains **NOT RUN**.
+**DESIGN ONLY — SOURCE BASELINE SELECTED.** Chart `10.3.0` and Argo CD
+`v3.5.0` are selected only for offline source authoring. They remain **NOT
+DEPLOYABLE**, and Argo CD runtime remains **NOT RUN/BLOCKED**.
 
-This source-only record accepts a hardened design direction. It does not select a
-release, authorize bootstrap, contact the cluster, or add a chart, values file,
+This source-only record accepts a hardened design direction. It does not authorize
+bootstrap, contact the cluster, or add a values file,
 rendered YAML, manifest, Secret, Application, AppProject, NetworkPolicy, RBAC object,
 GitHub resource, Infisical resource, route, or other deployable source. Ansible is
 selected as the future bounded bootstrap installer and lifecycle owner of privileged
@@ -30,7 +32,7 @@ not an assumed success.
 
 Dex and notifications remain absent. Metrics Services and ServiceMonitors remain
 absent. UI exec, extensions, public webhooks, and public administration remain
-disabled. Direct OIDC to the future selected shared Keycloak is the intended design,
+disabled. Direct OIDC to the selected shared Keycloak is the selected direction,
 but external identity-provider egress remains disabled until its stable issuer,
 callback, TLS, NetworkPolicy, Secret, and positive/negative authorization evidence
 are separately designed and approved.
@@ -242,12 +244,12 @@ rollback because no runtime action occurred.
 
 | ID | Decision | Why still open |
 |---|---|---|
-| D1 | Exact Ansible bootstrap closure and credentials | Installer and privileged lifecycle owner are selected, but exact source, objects, credential lifetime, escalation controls, and separate approvals remain undefined |
+| D1 | Exact Ansible controller bootstrap closure and credentials | Vendored public chart inputs exist, but exact rendered objects, credential lifetime, escalation controls, and separate approvals remain undefined |
 | D2 | Foundation Namespace runtime checkpoints | Exact `platform-secrets` and `platform-identity` source and a distinct present-only wrapper exist, but check, first apply, and idempotence remain separately approved and NOT RUN; the earlier exception remains closed |
 | D3 | Exact resource, GVR, and discovery inventory | Runtime Roles and Projects cannot be authored safely before every required kind and discovery path is enumerated |
-| D4 | Infisical authentication and independent recovery | Authentication method, scope, custodians, RPO/RTO, and isolated recovery remain unselected |
+| D4 | Infisical Universal Auth and independent recovery | Universal Auth is selected as direction, but exact scope, custodians, rotation/revocation proof, RPO/RTO, and isolated recovery remain unproven |
 | D5 | Live Namespace-adoption apply mode | Managed-field, tracking, last-applied, and diff evidence is unavailable until a separately approved read-only checkpoint |
-| D6 | Stable Keycloak issuer and Argo OIDC/RBAC | Release, private callback, TLS, client secret, group mappings, negative authorization, logout, and recovery evidence remain absent |
+| D6 | Activate selected Keycloak/Argo OIDC policy | Issuer, client ID, groups, and deny-default mappings are selected; private callback/origin, TLS, materialized value, negative authorization, logout, and recovery evidence remain absent |
 
 ## Closure
 
@@ -255,6 +257,7 @@ The private ClusterIP/loopback-only administration model, quiescent retained
 ApplicationSet, supplemental default-deny policy model, explicit ports-only weakness,
 phased least-privilege direction, exact one-repository GitHub App model, value-free
 secret custody, and two-Application adoption recommendation are accepted design
-directions only. Trust and version selection, the exact deployable RBAC/policy
-inventory, the six decisions above, target admission, node pullability, installation,
-runtime behavior, recovery rehearsal, and ownership handoff remain open.
+directions only. Version choice and public chart-byte availability are resolved for
+offline source authoring; trust acceptance, exact deployable RBAC/policy inventory,
+the six decisions above, target admission, node pullability, installation, runtime
+behavior, recovery rehearsal, and ownership handoff remain open.

@@ -25,10 +25,13 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
             {
                 "argocd-candidate-provenance.md",
                 "argocd-hardened-design.md",
+                "argocd-release-selection.md",
                 "cloudflared-candidate-provenance.md",
                 "foundation-namespace-bootstrap.md",
                 "infisical-operator-candidate-provenance.md",
+                "infisical-operator-release-selection.md",
                 "keycloak-oidc-bootstrap-design.md",
+                "keycloak-release-selection.md",
                 "recovery-artifact-register.md",
                 "replacement-host-recovery.md",
             },

@@ -37,7 +37,7 @@
 | ID | Requirement |
 |---|---|
 | KIF-013 | Git, OpenTofu state/plans, Argo parameters, CI logs, examples, and documentation contain no plaintext runtime secret values. |
-| KIF-014 | Infisical Cloud initially provides separate DEV, PROD, and infrastructure scopes/identities with least-privilege Kubernetes service accounts; only its Kubernetes Operator is bootstrapped and self-hosted Infisical is deferred. Keycloak authenticates and emits groups, Argo RBAC authorizes Argo actions, and Kubernetes RBAC independently constrains controllers; direct Argo OIDC is intended with Dex absent. |
+| KIF-014 | Infisical Cloud initially provides separate DEV, PROD, and infrastructure scopes/identities with least-privilege Kubernetes service accounts; only its Kubernetes Operator is bootstrapped and self-hosted Infisical is deferred. Keycloak authenticates and emits groups, Argo RBAC authorizes Argo actions, and Kubernetes RBAC independently constrains controllers; direct Argo OIDC is selected with Dex absent. |
 | KIF-015 | Bootstrap credentials, Keycloak administrator and OIDC client material, Infisical machine authentication, and application encryption keys have documented, off-node, tested recovery and rotation procedures. |
 
 ## Environment and data isolation
@@ -89,8 +89,9 @@ source while retaining separate check/apply/idempotence approvals. The source-on
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, online/static API, RBAC,
 network, private-Git, and adoption evidence for KIF-005, KIF-008, KIF-010, KIF-013,
-KIF-015, KIF-021, KIF-023, and KIF-030 without selecting a version, closing its
-security/Secret/adoption gates, or adding deployable source. The separate
+KIF-015, KIF-021, KIF-023, and KIF-030. The separate release record selects chart
+`10.3.0` / app `v3.5.0` only for offline source authoring without closing trust,
+security/Secret/adoption, admission, recovery, or runtime gates. The separate
 [source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
 maps the private exposure, stop/rollback, ownership, RBAC, policy, secret-custody,
 and evidence direction to KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013
@@ -101,19 +102,21 @@ value-free Infisical custody, disabled Redis initialization, and two independent
 adoption Applications as design only. Ansible is selected as bounded bootstrap
 installer and privileged lifecycle owner. Component source/credentials, the
 separately approved NOT-RUN foundation Namespace checkpoints,
-resource/GVR/discovery inventory, Infisical authentication/recovery, live adoption
-apply mode, and stable Keycloak OIDC remain six open architecture decisions;
-selection, component source, admission, runtime, and handoff
-gates also remain open. The source-only
+resource/GVR/discovery inventory, Infisical Universal Auth recovery, live adoption
+apply mode, and activation of the selected Keycloak/Argo OIDC policy remain six open
+architecture decisions; deployable component source, trust, admission, runtime, and
+handoff gates also remain open. The source-only
 [Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
 maps KIF-002, KIF-003, KIF-005, KIF-010, KIF-012 through KIF-016, KIF-021, KIF-023,
 and KIF-026 through KIF-030 to one future shared self-hosted identity architecture
 target. It distinguishes Keycloak authentication/groups, Argo RBAC, and Kubernetes
 RBAC; retains direct OIDC with Dex absent, private administration, Infisical-owned
 client secrets, dedicated PostgreSQL, encrypted off-node backup/isolated restore,
-and object-by-object handoff. It selects no Keycloak release/image/package,
-database version, hostname, route, credential, or deployable source; runtime remains
-**NOT RUN**. The source-only
+and object-by-object handoff. The release record selects Keycloak `26.7.1`,
+PostgreSQL `17.10`, realm `cristexhub`, and stable issuer
+`https://auth.cristex-soft.com/realms/cristexhub` only for offline source authoring.
+Exact callbacks/origins, trust/recovery, executable source, routes, credentials, and
+runtime remain **NOT RUN/BLOCKED**. The source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 binds exact release/source/image, token-file, health, and edge-transport evidence for
 KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, and KIF-030 while explicitly
@@ -123,10 +126,17 @@ version and adds no deployable source. The source-only
 [Infisical Operator candidate provenance record](../../runbooks/infisical-operator-candidate-provenance.md)
 binds the observed `v0.11.8` public distribution gap and the last observed
 version-aligned `v0.11.7` chart/source/image evidence for KIF-005, KIF-013 through
-KIF-015, KIF-021, KIF-023, and KIF-030. It selects neither version, adds no deployable
-source, and leaves chart/CRD/API compatibility despite the now-captured target,
+KIF-015, KIF-021, KIF-023, and KIF-030. The release record selects `v0.11.7` only as
+the offline source baseline and Universal Auth as direction, adds no deployable
+controller source, and leaves chart/CRD/API compatibility despite the captured target,
 trust, Namespace, scoped-RBAC, Argo handoff, secret-zero/recovery, traffic,
-single-node, and runtime gates blocked. Exact
+single-node, and runtime gates blocked. The
+[Argo](../../runbooks/argocd-release-selection.md),
+[Infisical](../../runbooks/infisical-operator-release-selection.md), and
+[Keycloak/PostgreSQL](../../runbooks/keycloak-release-selection.md) selection records
+plus `ansible/files/policies/hosted-identity-authorization.yml` map KIF-005,
+KIF-010, and KIF-013 through KIF-015 to exact value-free offline inputs while
+preserving every deployment and runtime gate. Exact
 platform Namespace source and its bounded bootstrap pass offline contracts; the
 separately approved wrapper check predicted exactly `argocd` and `platform-edge`
 without mutation, and the separately approved first apply created and verified those

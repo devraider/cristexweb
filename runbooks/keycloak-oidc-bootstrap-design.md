@@ -2,16 +2,19 @@
 
 ## Status and boundary
 
-**DESIGN ONLY.** One future self-hosted Keycloak shared by CristexHub, Reactive
-Resume, and Argo CD is selected as the identity architecture target. No Keycloak
-release, image tag or digest, package, operator, chart, database version, hostname,
-route, manifest, values file, credential, or deployable source is selected. Keycloak
-runtime remains **NOT RUN**.
+**SOURCE POLICY SELECTED — CONTROLLER SOURCE AND RUNTIME BLOCKED.** One future
+self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD remains the
+identity architecture target. Keycloak `26.7.1`, PostgreSQL `17.10`, realm
+`cristexhub`, and issuer `https://auth.cristex-soft.com/realms/cristexhub` are
+selected for offline source authoring. The exact release identities are recorded in
+the [Keycloak release selection](keycloak-release-selection.md). No workload,
+Service, PVC, route, Secret, executable Ansible component, or deployable controller
+source is selected. Keycloak runtime remains **NOT RUN/BLOCKED**.
 
 This record authorizes no discovery, check, installation, Secret operation, database
-mutation, route, or cluster contact. The Argo CD `v3.5.0` / chart `10.3.0` and
-Infisical Operator `v0.11.8` / `v0.11.7` release candidates retain their independent
-**CANDIDATE — NOT DEPLOYABLE — NOT SELECTED** boundaries.
+mutation, route, or cluster contact. Argo CD chart `10.3.0` / app `v3.5.0` and
+Infisical Operator `v0.11.7` are independently selected only as offline source
+baselines; their controller source and runtime remain blocked.
 
 ## Bounded bootstrap ownership
 
@@ -47,15 +50,43 @@ The three enforcement layers remain independent:
 | Kubernetes RBAC | Limit Argo ServiceAccounts to the exact cluster and namespaced operations they require | Equal to or narrower than Argo Project policy |
 
 A Keycloak administrator group never implies Kubernetes administrator access. Direct
-Argo OIDC is the intended design and Dex remains absent. Exact administrator,
-read-only, and ungrouped-denial mappings are future source and require positive and
-negative acceptance. The OIDC client secret is an Infisical-owned value and is never
+Argo OIDC is the selected direction and Dex remains absent. The value-free hosted policy fixes `argocd-admin`, `argocd-readonly`, and an
+ungrouped deny default. Read-only is limited to application/project get for the exact
+reviewed project set and receives no logs, sync, action, override, delete, exec, or
+configuration mutation. These mappings still require positive and negative runtime
+acceptance. The OIDC client secret is an Infisical-owned value and is never
 stored in Git, Ansible variables, OpenTofu state, Argo parameters, examples, or logs.
 
 Local Argo authentication is one-time bootstrap and independently recoverable
 break-glass access only. Routine local authentication may be disabled only after
 OIDC administrator access, read-only mutation denial, ungrouped denial, invalid and
 expired token denial, logout behavior, and break-glass recovery all pass.
+
+## Hosted client, group, and Namespace policy
+
+The exact value-free policy source is
+`ansible/files/policies/hosted-identity-authorization.yml`. It is neither a realm
+import nor a Kubernetes object. Client IDs are `cristexhub-dev`, `cristexhub-prod`,
+`reactive-resume-dev`, `reactive-resume-prod`, `argocd`,
+`cristexhub-admin-svc-dev`, and `cristexhub-admin-svc-prod`. Every browser client is
+inactive until an exact callback/origin is selected; no hostname or route is
+invented.
+
+Dynamic organization role groups use the exact templates
+`cristexhub-dev-<organization-alias>-<role>` and
+`cristexhub-prod-<organization-alias>-<role>` for roles `admin`, `hr`, `viewer`, and
+`interviewer`. Environment super-administrator groups are
+`cristexhub-dev-super-admin` and `cristexhub-prod-super-admin`. Missing or ambiguous
+role groups deny access. The application owns dynamic Organizations, memberships,
+and organization role groups; Ansible owns static realm settings, client/mappers,
+and the static Argo groups.
+
+Namespace trust is explicit: `platform-identity` contains Keycloak plus its dedicated
+PostgreSQL and identity backup/restore scope; `platform-secrets` contains only the
+Infisical Operator; `argocd` receives only its materialized OIDC client value;
+`cristexhub-dev` and `cristexhub-prod` receive only their own environment identities;
+and `shared-services` never contains Keycloak PostgreSQL. DEV and PROD credentials
+must never cross.
 
 ## External application-asset boundary
 
@@ -73,14 +104,18 @@ credentials are forbidden.
 
 ## Production Keycloak and database gates
 
-Production Keycloak must use a selected immutable `linux/amd64` image and production
-startup, never `start-dev`. Its exact writable paths, shutdown behavior, startup,
+Production Keycloak must use the selected official `26.7.1` linux/amd64 child
+digest `sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2`
+and production startup, never `start-dev`. The first bootstrap uses the selected
+official default theme; a branded theme requires a separately selected immutable
+derived image. Its exact writable paths, shutdown behavior, startup,
 liveness and readiness probes, CPU and memory requests/limits, image trust,
 vulnerability policy, and admission behavior must be established before deployment.
 One replica on one node is explicitly not high availability.
 
-Keycloak requires a dedicated external PostgreSQL database, database principal, and
-PVC. The database version must be supported by the selected Keycloak release. Before
+Keycloak requires PostgreSQL `17.10` at linux/amd64 child digest
+`sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b`,
+a dedicated external database, database principal, and PVC. The database version must be supported by the selected Keycloak release. Before
 the first private bootstrap, the database/storage design, backup tooling and
 destination, encryption/key custody, integrity procedure, restore procedure, and
 provisional RPO/RTO must be reviewed and approved. The first separately approved
@@ -105,8 +140,10 @@ routine rollback.
 
 ## Stable issuer and private-first exposure
 
-The production issuer, callback, certificate, DNS, proxy-header trust, and Traefik
-configuration must use one stable TLS identity from the first accepted login. A
+The selected production issuer,
+`https://auth.cristex-soft.com/realms/cristexhub`, is the one stable TLS identity from
+the first accepted login. Every callback, certificate, DNS, proxy-header trust, and
+Traefik configuration must use it. A
 session-local or development issuer cannot later be substituted without token and
 client breakage. The Argo callback must match the future private administration URL
 exactly, while CristexHub and Reactive Resume receive separate exact clients and
@@ -147,9 +184,10 @@ remain future evidence.
 ## Secret-zero and recovery
 
 Infisical Cloud remains the secret-value owner; only its Kubernetes Operator is in
-the bootstrap scope. Self-hosted Infisical is not selected. Its machine credential
-has separate out-of-band, encrypted, off-node custody and cannot depend only on the
-operator it unlocks.
+the bootstrap scope. Self-hosted Infisical is not selected. Universal Auth is the
+selected bootstrap direction. Its machine identity and credential values have
+separate out-of-band, encrypted, off-node custody and cannot depend only on the
+operator they unlock.
 
 Infisical eventually owns Keycloak database credentials, bootstrap-administrator
 successor material, Argo OIDC client secret, application OIDC client secrets, TLS
@@ -206,17 +244,17 @@ acceptance.
 
 ## Open decisions
 
-- exact Keycloak release, immutable image identity, trust evidence, and packaging;
-- supported PostgreSQL version, storage placement, resource budget, backup identity,
-  retention, and RPO/RTO;
-- stable private-first issuer, exact callbacks, TLS source, DNS, proxy trust, and later
-  browser-auth route;
-- exact proposed Namespace approval and source closure;
-- Infisical Operator release, authentication, scope, and independent recovery;
-- exact Keycloak groups, Argo RBAC mappings, realm/client reconciliation inventory,
-  and negative tests; and
+- Keycloak and PostgreSQL image trust, SBOM/vulnerability disposition, and off-node
+  OCI recovery for the selected children;
+- storage placement, resource budget, backup identity, retention, and RPO/RTO;
+- exact client callbacks/origins, TLS source, proxy trust, and later browser-auth
+  route for the selected stable issuer;
+- completion of the existing foundation Namespace runtime checkpoints;
+- Infisical Operator scoped RBAC, Universal Auth recovery, and exact target scope;
+- exact realm/client reconciliation implementation and runtime negative tests for
+  the selected group/RBAC policy; and
 - exact object-by-object Ansible-to-Argo handoff inventory and field ownership.
 
-Until these decisions, candidate selection, deployable source, separate approvals,
-and runtime evidence exist, Keycloak remains an architecture target only and nothing
-new is installed in k3s.
+Until these decisions, deployable controller source, separate approvals, and runtime
+evidence exist, the selected policy remains source-only and nothing new is installed
+in k3s.

@@ -1,0 +1,54 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+annotations:
+  artifacthub.io/changes: |
+    - kind: changed
+      description: Upgrade Redis to 8.6.4
+  artifacthub.io/signKey: |
+    fingerprint: 2B8F22F57260EFA67BE1C5824B11F800CD9D2252
+    url: https://argoproj.github.io/argo-helm/pgp_keys.asc
+apiVersion: v2
+appVersion: v3.5.0
+dependencies:
+- - condition: redis-ha.enabled
+  name: redis-ha
+  repository: https://dandydeveloper.github.io/charts/
+  version: 4.38.0
+description: A Helm chart for Argo CD, a declarative, GitOps continuous delivery tool
+  for Kubernetes.
+home: https://github.com/argoproj/argo-helm
+icon: https://argo-cd.readthedocs.io/en/stable/assets/logo.png
+keywords:
+- - argoproj
+- - argocd
+- - gitops
+kubeVersion: '>=1.25.0-0'
+maintainers:
+- - name: argoproj
+  url: https://argoproj.github.io/
+name: argo-cd
+sources:
+- - https://github.com/argoproj/argo-cd
+- - https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
+version: 10.3.0
+
+...
+files:
+  argo-cd-10.3.0.tgz: sha256:d08882d22d0c76e3174e005cc09abe300c70ba556aec76725a4410d172b9c1f3
+-----BEGIN PGP SIGNATURE-----
+
+wsFcBAEBCgAQBQJqcx3gCRBLEfgAzZ0iUgAAdvUQAAJhSHLUDcqT7PutdfoweNdP
+yfyXy45R8laMa6sAcrTj6X71WTs7taJIeW4gEsdbSNYFYnq5VGzLQMgzv/C0ho9g
+3YZJ7jxlcuCtF2vncmamiggNCmCejeoGdrO4uLSqgqLoC6bROKCVK/SohpTpIYIt
+dIGjYQT/+AbNTvzw2s1n6PYoT4Ok3QBHl1srieDxXv9tOdA3Z2P7kyC29xlGt1wO
+6MO6Fm61ByMw6trFyLgCKkVm87SFM5V8g+TBPSfqSyZ4U2ZM06OCYTb1YQAwp3/u
+JFPEBioQiEsyiSq8dXzpf+DHFi6JXTYdqcT9dGLamq7DjxXejLapJhr+q+ghnu/g
+MEJtgP1kgBPNriDfEKT4sLf0S7xpxmaAlTMIVVY613c7fpsUV/6uMnJrj0c1PTA+
+RADJ4+rIaBvjhNyxzGvos/ljeJ6u63xMMSDgT9dTz+NCcQvgYvKxwRcccPWnWSUr
+PEcKIa80NMVrA4HTVNho0WgHXAOiwDgLCdQtbhEP5TUtdjxj8hVnJ9E2ZdxHLJLd
+Tho4jBHOIx//fhcRev46vAypm1YLQAatT97ZDS3XUoiRJvyNl1hrUj+t514o4kWG
+OaD15yyUxLB7kB4AodtWbSXfohVZTdqWd81uSEHIks15DgvkJ/3C4ldyCEp4ucFx
+tD5/UEOuac5TsasRkhrY
+=11Tv
+-----END PGP SIGNATURE-----

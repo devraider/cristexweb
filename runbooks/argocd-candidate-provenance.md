@@ -2,22 +2,26 @@
 
 ## Status and boundary
 
-**CANDIDATE — NOT DEPLOYABLE — NOT SELECTED.** Argo CD runtime evidence is **NOT RUN**.
+**HISTORICAL CANDIDATE EVIDENCE — SOURCE BASELINE SELECTED — NOT DEPLOYABLE.**
+Chart `10.3.0` / app `v3.5.0` is selected only for offline source authoring in the
+[release selection](argocd-release-selection.md). Argo CD runtime evidence is **NOT
+RUN/BLOCKED**.
 
 This document records initial controller-side public-source research captured at
 `2026-08-07T05:42:22Z`, then a bounded target-minor compatibility review completed
-after the separately approved schema-v3 read-only discovery. It does not select a
-release, authorize a bootstrap, or add a Helm chart, values file, Kubernetes object,
-credential, or secret value. The ignored research files and curated local inventory
-report are evidence inputs only; they are not committed installation source. The
+after the separately approved schema-v3 read-only discovery. It does not authorize a
+bootstrap or add a values file, Kubernetes object, credential, or secret value. The
+ignored research files and curated local inventory report are evidence inputs only;
+the separately hash-bound public chart/provenance/key inputs are vendored as
+non-executable clean-clone source. The
 initial candidate research used no inventory, SSH, host, become, kubeconfig,
 Kubernetes API, provider, authenticated registry, secret store, deployment, or
 runtime operation. The later target discovery was read-only and wrote only the
 ignored controller-local report; no Argo CD object or runtime was created.
 
-The candidate may become deployable source only after every remaining blocker below
-is resolved, a human selects the chart/application versions, and a separate change
-adds reviewed desired state under the existing ownership and approval rules.
+The selected baseline may become deployable source only after every remaining
+blocker below is resolved, trust and soak are accepted, and a separate change adds
+reviewed desired state under the existing ownership and approval rules.
 
 ## Upstream chart and verification evidence
 
@@ -39,7 +43,7 @@ fingerprint and binds the captured chart hash. This evidence does **not** indepe
 establish the signing key's publisher identity, current authorization, trust path, or
 revocation status. That trust decision remains blocked, alongside exact k3s
 admission, CRD structural/defaulting/pruning/CEL behavior, operational correctness,
-human selection, and soak.
+deployable-use acceptance, and soak.
 
 ## Target-minor compatibility evidence
 
@@ -202,9 +206,11 @@ selected; successful sync evidence remains required before any ownership handoff
 
 All items below block deployable Argo CD source and runtime:
 
-1. **Trust and human selection:** accept or reject the argo-helm key, Argo tag signer,
-   GitHub Actions/Cosign identity, index-to-child trust model, and revocation
-   assumptions; then select or reject chart `10.3.0` and application `v3.5.0`.
+1. **Trust and deployable-use acceptance:** accept or reject the argo-helm key,
+   Argo tag signer, GitHub Actions/Cosign identity, index-to-child trust model, and
+   revocation assumptions; then decide whether the already-selected offline baseline
+   may advance to deployable source. The version selection remains closed only for
+   offline authoring.
 2. **Cryptographic replay and Redis trust:** replay the observed Sigstore/SLSA and
    chart evidence with pinned trusted tools and roots, and decide whether the Redis
    evidence is sufficient without an observed publisher signature.
@@ -230,9 +236,9 @@ All items below block deployable Argo CD source and runtime:
     workloads, Secret lifecycle, component flows, restart/recovery, single-node
     downtime acceptance, soak, and every separately approved runtime checkpoint.
 
-No blocker above is closed by online documentation, registry reachability, or static
-rendering alone. No GitHub App, OIDC, port-forward, Traefik route, egress design,
-apply mode, adoption layout, chart, or application version is selected here. Until
-these gates close, rollback for this increment is only a Git revert of this
-documentation and its offline contract test. There is no runtime rollback because
-Argo CD runtime is **NOT RUN**.
+No blocker above is closed by online documentation, registry reachability, static
+rendering, or offline source-baseline selection alone. No GitHub App, active OIDC
+client, port-forward, Traefik route, final egress design, apply mode, or adoption
+layout is selected here. Until these gates close, rollback for this increment is only
+a Git revert of source. There is no runtime rollback because Argo CD runtime is
+**NOT RUN/BLOCKED**.
