@@ -1,0 +1,62 @@
+---
+policy_schema: cristex-reactive-resume-v1
+policy_status: source-policy-only-runtime-blocked
+mvp_scope: included-private-dev
+environments:
+  dev:
+    namespace: cristexhub-dev
+    identity_client: reactive-resume-dev
+    activation: blocked
+  prod:
+    namespace: cristexhub-prod
+    identity_client: reactive-resume-prod
+    activation: blocked
+image_source:
+  selection: unselected
+  repository: null
+  version: null
+  linux_amd64_digest: null
+  trust_accepted: false
+  github_actions_build_owner: upstream-not-rebuilt
+identity:
+  issuer: https://auth.cristex-soft.com/realms/cristexhub
+  exact_callbacks_selected: false
+  exact_web_origins_selected: false
+  administrator_surface: private-only
+  local_development_inputs_allowed: false
+database:
+  policy_path: ansible/files/policies/shared-database-architecture.yml
+  engine: postgresql
+  consumer_scopes:
+    dev: reactive-resume-dev
+    prod: reactive-resume-prod
+  separate_engine_or_pvc_per_environment: false
+secrets:
+  value_owner: infisical-cloud
+  values_allowed_in_source: false
+  environment_scopes_separate: true
+exposure:
+  current_scope: private-only
+  service_identity: unselected
+  ports: unselected
+  forbidden:
+    - public-route
+    - NodePort
+    - LoadBalancer
+    - public-administration
+ownership:
+  bootstrap_installer: ansible
+  future_namespaced_reconciler: argocd-after-evidenced-handoff
+  runtime_value_owner: infisical-cloud
+promotion_gates:
+  immutable_image_selected: false
+  image_trust_and_recovery_accepted: false
+  exact_callbacks_and_origins_selected: false
+  database_storage_accepted: false
+  database_backup_and_restore_proved: false
+  infisical_bootstrap_recovery_proved: false
+  resources_and_probes_accepted: false
+  network_policy_accepted: false
+  one_writer_handoff_proved: false
+  private_dev_runtime_approved: false
+executable_source_allowed: false

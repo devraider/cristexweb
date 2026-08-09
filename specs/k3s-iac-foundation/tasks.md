@@ -288,6 +288,10 @@ entry gate.
   (`KIF-010`, `KIF-022`).
 - [ ] Prove one non-sensitive Infisical sync, rotation, and revocation without value
   disclosure (`KIF-013`–`KIF-015`).
+- [x] Add one SHA-pinned, read-only GitHub-hosted infrastructure CI workflow with
+  exact branch/job/permission/tool/test closure and no package-write, Secret,
+  registry, provider, host, cluster, or deploy path; keep push/runner evidence
+  separately NOT RUN (`KIF-005`, `KIF-022`, `KIF-030`).
 
 The source-baseline selections satisfy version choice and public-input availability
 only. They do not satisfy trust/soak, privileged-component-bootstrap,
@@ -313,6 +317,10 @@ logs, or bootstrap cannot be recovered.
   deny-first authorization, private-only exposure, Infisical value ownership, and
   closed promotion gates without adding executable objects (`KIF-005`, `KIF-013`,
   `KIF-016`–`KIF-019`, `KIF-021`, `KIF-026`–`KIF-030`).
+- [x] Add a value-free Reactive Resume hosted policy/runbook that includes private
+  DEV in the MVP, reserves separate DEV/PROD OIDC and PostgreSQL scopes, and keeps
+  image/callback/object/Secret/recovery/runtime gates false (`KIF-012`–`KIF-017`,
+  `KIF-021`, `KIF-023`, `KIF-026`–`KIF-030`).
 - [ ] Create one general PostgreSQL instance with separate DEV, PROD, and Keycloak
   logical databases/owner roles, no separate Keycloak PostgreSQL workload/PVC, and
   bidirectional negative cross-database access tests (`KIF-017`).
@@ -357,8 +365,10 @@ pressure, or inability to preserve encryption keys. Never delete PVCs as rollbac
   `KIF-024`).
 - [ ] Validate OIDC/auth, API, worker, exactly-one Beat, migration, WebSocket, and
   private routing behavior (`KIF-010`, `KIF-021`, `KIF-025`).
-- [ ] Measure capacity before adding Reactive Resume, Browserless, or other optional
-  components (`KIF-019`, `KIF-029`).
+- [ ] After the minimal slice passes a capacity checkpoint, add the MVP's private
+  environment-local Reactive Resume and Browserless/gateway by reviewed immutable
+  image digests and exact resource/network limits (`KIF-016`, `KIF-019`, `KIF-021`,
+  `KIF-023`, `KIF-029`).
 - [ ] Prove Git/digest rollback and complete the approved soak (`KIF-024`, `KIF-025`,
   `KIF-030`).
 

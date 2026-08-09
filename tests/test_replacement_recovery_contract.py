@@ -33,6 +33,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "infisical-operator-release-selection.md",
                 "keycloak-oidc-bootstrap-design.md",
                 "keycloak-release-selection.md",
+                "reactive-resume-hosted-architecture.md",
                 "shared-database-architecture.md",
                 "recovery-artifact-register.md",
                 "replacement-host-recovery.md",

@@ -20,14 +20,15 @@ The accepted resource-saving model uses exactly one engine of each technology in
 
 | Engine | Logical consumers |
 |---|---|
-| PostgreSQL | CristexHub DEV, CristexHub PROD, and Keycloak |
+| PostgreSQL | Reactive Resume DEV, Reactive Resume PROD, and Keycloak |
 | MongoDB | CristexHub DEV and CristexHub PROD |
 
 Keycloak remains a separate deployment. It receives one dedicated PostgreSQL logical
 database, owner role, Infisical-owned credential, migration scope, and backup scope;
-it receives no separate PostgreSQL engine or PVC and no MongoDB scope. DEV and PROD
-receive distinct logical databases, principals, credentials, migrations, and backup
-scopes on each application engine. Application tenants remain application-level
+it receives no separate PostgreSQL engine or PVC and no MongoDB scope. Reactive
+Resume DEV/PROD receive distinct PostgreSQL scopes, while CristexHub DEV/PROD receive
+distinct MongoDB scopes. Every consumer has separate logical databases, principals,
+credentials, migrations, and backups. Application tenants remain application-level
 concerns inside the environment scope; they do not receive engines or PVCs.
 
 Both engines are shared failure and contention domains on a single node. Logical

@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: historical Namespace evidence preserved; source-only one-PostgreSQL/one-MongoDB shared-services policy passes 56 focused/124 full tests, 9 syntax checks, production lint, hashes, 25-file links/hygiene, and exact source closure; Mongo source/topology, stateful objects, trust, storage, Secret, provisioning, backup/restore, handoff, and runtime pending
+build: historical Namespace evidence preserved; SHA-pinned read-only CI plus Reactive Resume/private-MVP and shared-database policies pass 48 focused/135 full tests, 9 syntax checks, production lint, hashes, links/hygiene, and exact source closure; runner/publication and all image/callback/object/Secret/storage/recovery/handoff/runtime gates pending
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -104,7 +104,14 @@ note: |
   value ownership, private-only exposure, and closed promotion gates. It adds no
   database image beyond the existing PostgreSQL baseline, no executable object, and
   no runtime claim; MongoDB source/topology, storage, provisioning, backup/restore,
-  RPO/RTO, and all approvals remain unselected or blocked. The separate source-only
+  RPO/RTO, and all approvals remain unselected or blocked. The value-free
+  [Reactive Resume hosted architecture](../../runbooks/reactive-resume-hosted-architecture.md)
+  includes private DEV in the MVP with separate future PROD, OIDC clients, and
+  dedicated shared-PostgreSQL consumer scopes. Upstream image selection, callbacks,
+  resources, Secrets, recovery, handoff, and runtime remain blocked. One SHA-pinned,
+  read-only GitHub-hosted CI workflow now exists as source and the application
+  publisher is disabled; neither workflow has been pushed/run and no image was
+  published. The separate source-only
   [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
   binds official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
   image, token-file, health, and edge-transport evidence. It is **CANDIDATE — NOT
@@ -202,5 +209,8 @@ note: |
   never applied by their wrapper. `platform-edge` is reserved for cloudflared;
   Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one
   shared MongoDB engine belong in `shared-services`.
-  No external-resource, secret, data, or deployment operation was performed. Object
-  listings and offline tests do not prove replacement recovery.
+  No external-resource, secret, data, image-publication, GitHub-runner, or deployment
+  operation was performed. The only network access in this increment was bounded
+  unauthenticated `git ls-remote` resolution of public GitHub Action tags to the exact
+  committed SHAs. Object listings and offline tests do not prove replacement
+  recovery.

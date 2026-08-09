@@ -48,8 +48,11 @@ independent fallback access, CNI behavior, and NetworkPolicy enforcement are
 verified for the current
 single-node cluster; replacement-host recovery still requires separate verification.
 
-The external CristexHub application repository publishes backend, frontend, and
-code-runner images to GHCR. This repository implements seven executed bounded
+The external CristexHub application repository now has SHA-pinned, read-only source
+CI for backend, frontend, and code-runner; its previous untrusted GHCR publisher is
+disabled until immutable build inputs and digest/SBOM/provenance evidence pass. This
+repository also has one SHA-pinned read-only CI workflow as source, but neither
+workflow has been pushed or run. This repository implements seven executed bounded
 Ansible workflows, including the temporary functional probe. It now has an
 offline-validated gated OpenTofu installer and zero-resource Cloudflare-only source
 scaffold. The first live run stopped after two bounded directory tasks because the
@@ -96,7 +99,12 @@ one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo 
 Keycloak `26.7.1`, PostgreSQL `17.10`, realm `cristexhub`, and issuer
 `https://auth.cristex-soft.com/realms/cristexhub` are selected only for offline source
 authoring. No workload, Secret, route, or executable controller source is selected,
-and runtime is **NOT RUN/BLOCKED**. The separate source-only
+and runtime is **NOT RUN/BLOCKED**. The value-free
+[Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
+includes private DEV in the MVP, reserves a separate future PROD instance, and binds
+each to a dedicated PostgreSQL and OIDC consumer scope. Its upstream image,
+callbacks, resources, Secrets, recovery, and runtime remain unselected or blocked.
+The separate source-only
 [cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 records official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
 image evidence, token-file precedence, connection-aware readiness, and required edge
@@ -116,7 +124,9 @@ scoped RBAC, Argo handoff, secret-zero, network policy, recovery, and runtime
 approvals remain blocked. It adds no chart, CRD, Kubernetes object, credential, or
 Secret source.
 No state file, provider initialization, plan, apply, Helm installation, Kustomize
-workload, GitHub Actions, or general host baseline exists yet. Debian plus Ansible is
+workload, GitHub runner execution, image publication, or general host baseline exists
+yet. The committed CI source has no package-write, Secret, provider, host, cluster,
+or deployment path. Debian plus Ansible is
 the selected host-configuration owner.
 
 ## Goals
@@ -147,7 +157,7 @@ the selected host-configuration owner.
 | Cloudflare and GitHub resources | OpenTofu | configuration under `opentofu/`; protected host-local single-writer state plus mandatory encrypted off-node recovery |
 | Namespaced Kubernetes desired state after evidenced handoff | Argo CD | manifests and Helm values under `kubernetes/` |
 | Secret values and rotation | Infisical Cloud initially | separate DEV, PROD, and infrastructure scopes |
-| CI and image publication | GitHub Actions | workflows and immutable GHCR digests |
+| CI and image publication | GitHub Actions | read-only source CI now; future immutable GHCR digests only after separate trust/publication approval |
 | Approvals and recovery | Human operator | reviewed evidence and runbooks |
 
 One resource has one owner. OpenTofu must not reconcile Kubernetes resources also
@@ -228,11 +238,13 @@ explicitly accepted shared failure and contention domain. The value-free
 is the canonical source-only topology and authorization contract; its promotion
 gates are all closed and it is not executable workload source.
 
-PostgreSQL requires separate logical databases and owner roles, including dedicated
-DEV, PROD, and Keycloak scopes. Keycloak remains a separate deployment from the one
+PostgreSQL requires separate logical databases and owner roles for Reactive Resume
+DEV, Reactive Resume PROD, and Keycloak. Keycloak remains a separate deployment from the one
 general PostgreSQL instance and receives its own database, owner role, credential,
-and backup scope; it does not receive another PostgreSQL workload or PVC. MongoDB
-requires separate databases and users with privileges limited to their own database.
+and backup scope; it does not receive another PostgreSQL workload or PVC. Reactive
+Resume DEV/PROD receive separate PostgreSQL credentials, migrations, and backups.
+MongoDB requires CristexHub DEV/PROD databases and users with privileges limited to
+their own database.
 DEV and PROD never share an application credential, encryption key, migration target,
 or backup prefix. MongoDB repository/version/digest and standalone-versus-replica-set
 topology remain unselected.
@@ -538,8 +550,9 @@ verification must meet the declared RPO/RTO before PROD.
 ### Stage 6 — DEV
 
 - Entry: shared-services gate passes.
-- Work: deploy the minimum CristexHub DEV slice privately and add services only after
-  measuring capacity.
+- Work: deploy the minimum CristexHub DEV slice privately, measure capacity, then add
+  the MVP's environment-local Reactive Resume and Browserless/gateway under the same
+  private, digest-pinned, resource-bounded acceptance sequence.
 - Gate: authentication, API, workers, migrations, resource headroom, and rollback to
   a prior digest pass during soak.
 - Stop: migration ambiguity, excessive pressure, or any public DEV route.

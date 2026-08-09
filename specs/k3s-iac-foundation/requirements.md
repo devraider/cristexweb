@@ -44,8 +44,8 @@
 
 | ID | Requirement |
 |---|---|
-| KIF-016 | Committed source contains `argocd`, cloudflared-only `platform-edge`, and future `shared-services`; later `cristexhub-dev` and `cristexhub-prod` remain separate. `shared-services` is the placement for the Infisical Operator, separate Keycloak deployment, one general PostgreSQL engine, and one shared MongoDB engine, but its Namespace/runtime checkpoints remain separately approved and NOT RUN. Applications retain separate DEV/PROD credentials, migrations, and backup paths. |
-| KIF-017 | One general PostgreSQL engine provides separate DEV, PROD, and Keycloak logical databases, principals, Infisical-owned credentials, migration scopes, and backup scopes. Keycloak receives no separate PostgreSQL deployment/PVC; `PUBLIC` connection/schema privileges are revoked where unwanted, every workload role is denied cross-database access, and application/Keycloak roles cannot create databases or roles. |
+| KIF-016 | Committed source contains `argocd`, cloudflared-only `platform-edge`, and future `shared-services`; later `cristexhub-dev` and `cristexhub-prod` remain separate. `shared-services` is the placement for the Infisical Operator, separate Keycloak deployment, one general PostgreSQL engine, and one shared MongoDB engine, but its Namespace/runtime checkpoints remain separately approved and NOT RUN. Private DEV MVP includes an environment-local Reactive Resume deployment with its own OIDC/database/Secret scopes; future PROD remains separate. Applications retain separate DEV/PROD credentials, migrations, and backup paths. |
+| KIF-017 | One general PostgreSQL engine provides separate Reactive Resume DEV, Reactive Resume PROD, and Keycloak logical databases, owner roles, Infisical-owned credentials, migration scopes, and backup scopes. Keycloak and Reactive Resume receive no separate PostgreSQL deployment/PVC; `PUBLIC` connection/schema privileges are revoked where unwanted, every workload role is denied cross-database access, and workload roles cannot create databases or roles. |
 | KIF-018 | One shared MongoDB engine provides separate DEV/PROD databases, database-scoped users, Infisical-owned credentials, migration scopes, and backup scopes. Each workload user is denied the other environment plus broad any-database and user/role-administration privileges; MongoDB source and topology remain unselected before separate approval. |
 | KIF-019 | Shared-engine failure and contention risks are documented, bounded with requests/limits/connection limits, and accepted before PROD. No environment, tenant, or Keycloak consumer receives a separate engine or PVC; exact storage, provisioning, backup/restore, and RPO/RTO gates must close before executable stateful source. |
 | KIF-020 | Redis is environment-local; any shared RabbitMQ uses separate users/vhosts, limits, and negative cross-access tests. |
@@ -55,9 +55,9 @@
 
 | ID | Requirement |
 |---|---|
-| KIF-022 | GitHub Actions validates and builds but does not deploy directly; Argo CD reconciles reviewed Git desired state. |
-| KIF-023 | Workloads deploy immutable image digests or commit-SHA references and never deploy `latest`. |
-| KIF-024 | The same built image digest is validated in DEV before reviewed promotion to PROD. |
+| KIF-022 | The infrastructure repository has one SHA-pinned, read-only GitHub-hosted CI workflow for source validation only. Application CI validates backend, frontend, and code-runner; no current workflow can publish packages, read Secrets, contact infrastructure, or deploy. Argo CD alone reconciles reviewed Git desired state after handoff. |
+| KIF-023 | Future CristexHub-owned publication requires reviewed immutable build inputs, exact commit/digest evidence, SBOM/provenance, collision handling, and recovery. Upstream Reactive Resume and platform images are selected by immutable digest rather than rebuilt; workloads never deploy `latest`. |
+| KIF-024 | A CristexHub-owned image is built once, its immutable digest is validated in DEV, and reviewed PROD promotion reuses that exact digest without rebuilding. |
 | KIF-025 | DEV acceptance and soak precede PROD creation; private PROD acceptance precedes Cloudflare public cutover. |
 
 ## Backup, recovery, and operations
@@ -121,7 +121,14 @@ runtime remain **NOT RUN/BLOCKED**. The value-free
 KIF-005, KIF-013, KIF-016 through KIF-019, KIF-021, and KIF-026 through KIF-030 to
 an exact one-PostgreSQL/one-MongoDB source-only policy. It closes no image trust,
 storage, provisioning, backup, restore, RPO/RTO, object-source, or runtime gate; all
-promotion flags remain false. The source-only
+promotion flags remain false. The value-free
+[Reactive Resume hosted architecture](../../runbooks/reactive-resume-hosted-architecture.md)
+maps KIF-012 through KIF-017, KIF-019, KIF-021, KIF-023, and KIF-026 through KIF-030
+to the private DEV MVP/future separate PROD direction without selecting an image,
+callback, object, Secret, database runtime, or route. The SHA-pinned source-CI
+workflow maps KIF-005, KIF-022 through KIF-025, and KIF-030 to local source
+validation only; runner execution and publication remain separate evidence. The
+source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 binds exact release/source/image, token-file, health, and edge-transport evidence for
 KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, and KIF-030 while explicitly
@@ -144,7 +151,8 @@ promotion gates without adding a valid Kubernetes or operational Ansible source.
 [Infisical](../../runbooks/infisical-operator-release-selection.md), and
 [Keycloak/PostgreSQL](../../runbooks/keycloak-release-selection.md) selection records
 plus `ansible/files/policies/hosted-identity-authorization.yml` and
-`ansible/files/policies/shared-database-architecture.yml` map KIF-005,
+`ansible/files/policies/shared-database-architecture.yml`, and
+`ansible/files/policies/reactive-resume-architecture.yml` map KIF-005,
 KIF-010, and KIF-013 through KIF-015 to exact value-free offline inputs while
 preserving every deployment and runtime gate. Exact
 platform Namespace source and its bounded bootstrap pass offline contracts; the

@@ -264,7 +264,14 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         )
         combined_tofu = "\n".join(path.read_text() for path in OPENTOFU.glob("*.tf"))
         self.assertNotRegex(combined_tofu, r"(?m)^\s*(?:resource|data|module|import|variable|output)\s+")
-        self.assertFalse((ROOT / ".github/workflows").exists())
+        self.assertEqual(
+            {"ci.yml"},
+            {
+                path.name
+                for path in (ROOT / ".github/workflows").iterdir()
+                if path.is_file()
+            },
+        )
         operational = [
             path
             for root in (ROOT / "ansible/bin", ROOT / "ansible/playbooks", ROOT / "ansible/roles")

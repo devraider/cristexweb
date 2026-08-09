@@ -69,9 +69,12 @@ Argo groups, deny-default authorization, Namespace trust, and Universal Auth
 direction. The separate [shared database architecture](runbooks/shared-database-architecture.md)
 freezes one PostgreSQL and one MongoDB engine in `shared-services`, dedicated
 consumer scopes, Infisical value ownership, private-only exposure, and closed
-promotion gates. MongoDB source/topology, storage, provisioning, recovery,
-executable objects, and runtime remain unselected or blocked. No workload, Secret,
-route, or runtime is approved.
+promotion gates. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
+includes private DEV in the MVP with dedicated PostgreSQL and OIDC scopes while its
+image, callbacks, objects, Secrets, and runtime remain unselected or blocked.
+MongoDB source/topology, storage, provisioning, recovery, executable objects, and
+runtime remain unselected or blocked. No workload, Secret, route, or runtime is
+approved.
 A separate
 [source-only cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 binds official release, unsigned source, immutable linux/amd64 image, token-file,
@@ -108,8 +111,11 @@ bounded two-package Ansible bootstrap was reviewed and installed; post-install
 imports and the prior nine exact Kubernetes queries pass. That report confirms the
 k3s datastore and curated cluster indicators; it predates the extended StorageClass,
 PV, and namespace-bounded PVC projection. Hosted application runtime, OpenTofu
-provider initialization/state/plan/apply, Helm chart, workflow, deployment, DNS
-route, tunnel, database, backup, and replacement recovery remain unexecuted. The
+provider initialization/state/plan/apply, Helm chart, GitHub runner execution,
+image publication, deployment, DNS route, tunnel, database, backup, and replacement
+recovery remain unexecuted. One SHA-pinned read-only CI workflow now exists as
+source; it has no package-write, Secret, registry, provider, host, cluster, or deploy
+path and has not been pushed or run. The
 first replacement-host increment is documentation-only: it adds a secret-free
 runbook and artifact register with fail-closed decision gates, not recovery
 automation or runtime proof. Debian plus Ansible is the host-management owner.
@@ -130,11 +136,12 @@ gateway remain in the separate CristexHub application repository.
 9. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
 10. [`runbooks/keycloak-release-selection.md`](runbooks/keycloak-release-selection.md) — immutable Keycloak/PostgreSQL and issuer source selection.
 11. [`runbooks/shared-database-architecture.md`](runbooks/shared-database-architecture.md) — value-free PostgreSQL/MongoDB topology, isolation, and closed deployment gates.
-12. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
-13. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
-14. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
-15. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
-16. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+12. [`runbooks/reactive-resume-hosted-architecture.md`](runbooks/reactive-resume-hosted-architecture.md) — private-DEV MVP placement, dedicated database/OIDC scopes, and closed image/runtime gates.
+13. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
+14. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
+15. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
+16. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
+17. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -220,7 +227,7 @@ contracts are documented in [`ansible/README.md`](ansible/README.md).
 | Cluster reconciliation | Argo CD for namespaced desired state only after Ansible stops each exact object set and evidenced adoption/sync completes; no dual reconciliation |
 | Identity | One future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD; architecture target only, with direct Argo OIDC and private administration |
 | Secrets | Infisical Cloud plus its Kubernetes Operator initially; no self-hosted Infisical and no plaintext values in Git or OpenTofu state |
-| CI and images | GitHub Actions and private GHCR images addressed immutably |
+| CI and images | SHA-pinned read-only GitHub Actions source CI now; private GHCR publication remains blocked pending immutable application build inputs and digest evidence |
 | Environments | `cristexhub-dev` and `cristexhub-prod` |
 | Shared services | Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL instance, MongoDB, and any retained RabbitMQ in `shared-services`; Keycloak uses its own logical database, owner role, credentials, and backup scope on the shared PostgreSQL engine |
 | Other data services | Redis per environment; RabbitMQ may be shared only with separate users/vhosts and limits |
@@ -229,6 +236,7 @@ contracts are documented in [`ansible/README.md`](ansible/README.md).
 ## Repository layout
 
 ```text
+.github/workflows/       # read-only source CI only; no publish or deploy path
 ansible/                 # discovery + bounded host changes + gated temporary QA probe
   inventory/
   playbooks/
@@ -238,7 +246,7 @@ ansible/                 # discovery + bounded host changes + gated temporary QA
   roles/platform_namespace_bootstrap/
   roles/foundation_namespace_bootstrap/
   files/vendor/            # hash-bound public chart/provenance/key inputs only
-  files/policies/          # value-free identity and shared-database policies
+  files/policies/          # value-free identity, shared-database, and Reactive Resume policies
 opentofu/                # zero-resource Cloudflare-only scaffold
 kubernetes/              # exact platform Namespace source; future Argo desired state
 runbooks/                # recovery docs plus source-only candidate/design records
@@ -251,6 +259,7 @@ runbooks/                # recovery docs plus source-only candidate/design recor
   keycloak-oidc-bootstrap-design.md
   keycloak-release-selection.md
   shared-database-architecture.md
+  reactive-resume-hosted-architecture.md
   cloudflared-candidate-provenance.md
   infisical-operator-candidate-provenance.md
   infisical-operator-release-selection.md

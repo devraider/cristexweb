@@ -33,6 +33,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "requirements.yml",
             "README.md",
             "files/policies/hosted-identity-authorization.yml",
+            "files/policies/reactive-resume-architecture.yml",
             "files/policies/shared-database-architecture.yml",
             "files/vendor/argocd/10.3.0/SHA256SUMS",
             "files/vendor/argocd/10.3.0/argo-cd-10.3.0.tgz",

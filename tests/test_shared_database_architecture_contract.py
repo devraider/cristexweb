@@ -35,7 +35,7 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
         self.assertEqual(1, postgresql["instance_count"])
         self.assertEqual("shared-services", postgresql["namespace"])
         self.assertEqual(
-            {"cristexhub-dev", "cristexhub-prod", "keycloak"},
+            {"reactive-resume-dev", "reactive-resume-prod", "keycloak"},
             set(postgresql["consumers"]),
         )
         self.assertTrue(postgresql["no_consumer_specific_engine_or_pvc"])

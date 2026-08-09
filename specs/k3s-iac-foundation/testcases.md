@@ -55,7 +55,9 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-ARGO-02 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Argo CD online/static readiness refresh | A secret-free record curates deterministic render, upstream API registration, RBAC/network, image trust/availability/vulnerability, private-Git, and Namespace-adoption evidence while all live admission/runtime gates remain blocked | PASS — focused provenance contracts preserve the 44-document render and security blockers; no values, rendered YAML, Kubernetes object, credential, or deployable controller source was added |
 | KIF-ARGO-03 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013–KIF-015, KIF-021, KIF-030 | Argo CD source-only hardened design | A secret-free design fixes private ClusterIP/loopback-only administration, retained quiescent ApplicationSet, supplemental default-deny, phased least privilege, one-repository GitHub App credentials, value-free secret custody, selected direct OIDC direction, two-Application adoption, stop/rollback, Ansible ownership, and six open decisions without adding deployable source | PASS — hardened-design contracts accept only the offline version baseline; trust, exact controller closure, admission, Secrets, recovery, handoff, and runtime remain blocked |
 | KIF-IDP-01 | KIF-002, KIF-003, KIF-005, KIF-010, KIF-012–KIF-017, KIF-021, KIF-023, KIF-026–KIF-030 | Source-only Ansible bootstrap and Keycloak OIDC architecture | Ansible is the selected bounded bootstrap installer and privileged lifecycle owner with no dual reconciliation; direct Argo OIDC separates Keycloak authentication/groups, Argo RBAC, and Kubernetes RBAC while preserving private administration, Infisical-owned values, a dedicated Keycloak logical database/role on the general shared PostgreSQL engine, stable issuer, exact approvals, and handoff gates | PASS — Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, clients, group templates, default theme, separate deployment, and shared-engine isolation policy are selected only for offline authoring; no executable component source, credential, route, or runtime was added |
-| KIF-DB-01 | KIF-005, KIF-013, KIF-016–KIF-019, KIF-021, KIF-026–KIF-030 | Shared database source-only architecture | One PostgreSQL and one MongoDB engine are placed in `shared-services`; DEV/PROD and Keycloak receive exact engine-appropriate logical scopes, Infisical-owned credentials, backups, deny-first authorization, and private-only exposure while MongoDB source/topology, stateful objects, storage, provisioning, recovery, handoff, and runtime remain blocked | PASS — value-free canonical policy/runbook and exact offline contracts pass; PostgreSQL keeps its selected-but-untrusted baseline, MongoDB remains unselected, all promotion gates are false, exact three-Namespace closure is unchanged, and no executable database source or runtime operation was added |
+| KIF-DB-01 | KIF-005, KIF-013, KIF-016–KIF-019, KIF-021, KIF-026–KIF-030 | Shared database source-only architecture | One PostgreSQL and one MongoDB engine are placed in `shared-services`; Reactive Resume DEV/PROD and Keycloak receive PostgreSQL scopes while CristexHub DEV/PROD receive MongoDB scopes; all use Infisical-owned credentials, dedicated backups, deny-first authorization, and private-only exposure while MongoDB source/topology, stateful objects, storage, provisioning, recovery, handoff, and runtime remain blocked | PASS — value-free canonical policy/runbook and exact offline contracts pass; PostgreSQL keeps its selected-but-untrusted baseline, MongoDB remains unselected, all promotion gates are false, exact three-Namespace closure is unchanged, and no executable database source or runtime operation was added |
+| KIF-GHA-01 | KIF-005, KIF-022–KIF-025, KIF-030 | GitHub-hosted infrastructure source CI | Exactly one workflow uses SHA-pinned actions, a fixed runner, read-only permission, bounded triggers/timeouts/concurrency, frozen controller dependencies, and exact offline tests without Secret/package/registry/provider/host/cluster/deploy access | PASS SOURCE-ONLY — focused/full contracts and YAML passed; public action tags were resolved to exact SHAs, but workflow push, runner execution, branch protection, GHCR publication, digest evidence, and deployment are NOT RUN/BLOCKED |
+| KIF-RR-01 | KIF-012–KIF-017, KIF-019, KIF-021, KIF-023, KIF-026–KIF-030 | Reactive Resume private-MVP source architecture | Include environment-local Reactive Resume DEV in the private MVP, reserve separate PROD, bind exact OIDC clients and dedicated shared-PostgreSQL scopes, keep Infisical value ownership/private exposure, and block image/callback/object/Secret/recovery/handoff/runtime promotion | PASS SOURCE-ONLY — value-free policy/runbook and exact contracts pass; no local Compose input was promoted and no upstream image, callback, object, Secret, database, route, or runtime was selected or created |
 | KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, reserves `platform-edge` for cloudflared within the exact current three-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator provenance and selection boundary | Historical evidence distinguishes unselected `v0.11.8` distribution observations from the aligned `v0.11.7` set selected only as the offline baseline; trust, compatibility, scoped RBAC, Universal Auth recovery, traffic, and runtime remain blocked | PASS — focused contracts enforce exact evidence associations, qualified trust wording, immutable child direction, and no deployable controller source or Secret |
 | KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—to the vendored chart while every promotion gate stays false and no valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source appears | PASS — focused archive/policy/design contracts plus full offline validation; runtime remains NOT RUN/BLOCKED |
@@ -2376,6 +2378,107 @@ NetworkPolicy, Ansible component wrapper/role/playbook, Helm source, Argo object
 provider resource, or route was added. No host, SSH, registry, Kubernetes API,
 Infisical, Secret, provider, Helm, database, or runtime operation occurred. This
 source-only policy closes no manual QA case.
+
+## GitHub source CI and Reactive Resume private-MVP policy — 2026-08-09
+
+This increment adds one infrastructure source-CI workflow and a value-free Reactive
+Resume hosted policy. The workflow validates repository source only: it has no
+Secret, package-write, registry, provider, host, cluster, or deploy path. Reactive
+Resume DEV is now included in private MVP intent with a separate future PROD
+instance, exact OIDC clients, and dedicated PostgreSQL scopes. Its upstream image,
+callbacks, objects, Secrets, recovery, and runtime remain unselected or blocked.
+
+```bash
+git ls-remote https://github.com/actions/checkout.git \
+  refs/tags/v4.2.2
+git ls-remote https://github.com/actions/setup-python.git \
+  refs/tags/v5.6.0
+git ls-remote https://github.com/actions/setup-node.git \
+  refs/tags/v4.4.0
+.venv/bin/python -m unittest -v \
+  tests.test_github_actions_contract \
+  tests.test_reactive_resume_architecture_contract \
+  tests.test_shared_database_architecture_contract \
+  tests.test_hosted_auth_source_selection_contract \
+  tests.test_keycloak_oidc_bootstrap_design_contract \
+  tests.test_argocd_hardened_design_contract
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m compileall -q tests
+python3 - <<'PY'
+from pathlib import Path
+import yaml
+workflow_paths = list(Path('.github/workflows').glob('*.yml'))
+assert [path.name for path in workflow_paths] == ['ci.yml']
+workflow = yaml.safe_load(workflow_paths[0].read_text())
+assert set(workflow['on']) == {'push', 'pull_request'}
+for path in (
+    Path('ansible/files/policies/reactive-resume-architecture.yml'),
+    Path('ansible/files/policies/shared-database-architecture.yml'),
+):
+    assert isinstance(yaml.safe_load(path.read_text()), dict)
+PY
+cd ansible
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-lint . ../tests/validate_storage_report.yml
+cd ..
+(cd ansible/files/vendor/argocd/10.3.0 && shasum -a 256 -c SHA256SUMS)
+(cd ansible/files/vendor/infisical-operator/0.11.7 && shasum -a 256 -c SHA256SUMS)
+.venv/bin/python - <<'PY'
+from pathlib import Path
+import re
+excluded = {'.git', '.venv', '.pi-subagents', 'vendor', '.ansible'}
+paths = [path for path in Path('.').rglob('*.md') if excluded.isdisjoint(path.parts)]
+for path in paths:
+    text = path.read_text()
+    assert not any(line.endswith((' ', '\t')) for line in text.splitlines()), path
+    for target in re.findall(r'\[[^]]+\]\(([^)]+)\)', text):
+        if '://' in target or target.startswith('#'):
+            continue
+        local = target.split('#', 1)[0]
+        if local:
+            assert (path.parent / local).resolve().exists(), (path, target)
+print(f'PASS: {len(paths)} Markdown files')
+PY
+git diff --exit-code -- \
+  kubernetes/platform/namespaces/argocd.yaml \
+  kubernetes/platform/namespaces/platform-edge.yaml \
+  ansible/bin/bootstrap-platform-namespaces \
+  ansible/playbooks/bootstrap_platform_namespaces.yml \
+  ansible/roles/platform_namespace_bootstrap
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Test-first red checkpoint: missing workflow/policy produced 2 expected setup errors
+Ran 48 focused workflow/Reactive Resume/database/identity/Argo contracts — OK
+Ran 135 full offline tests — OK
+PASS: Python compile, exact one-workflow closure, and policy/workflow YAML
+PASS: all 9 production playbook syntax checks
+PASS: production-profile Ansible lint
+PASS: Argo and Infisical vendored SHA-256 closures
+PASS: repository-scoped Markdown links/trailing whitespace
+PASS: exact three-Namespace and no-executable-component closure
+PASS: closed historical argocd/platform-edge bootstrap source remains untouched
+PASS: diff hygiene and no staged files
+PASS: bounded independent final security/workflow review — APPROVED
+```
+
+Public action-tag resolution returned checkout `v4.2.2` commit
+`11bd71901bbe5b1630ceea73d27597364c9af683`, setup-python `v5.6.0` commit
+`a26af69be951a213d495a4c3e4e4022e16d87065`, and setup-node `v4.4.0` commit
+`49933ea5288caeca8642d1e84afbd3f7d6820020`. Only checkout/setup-python are
+used here; setup-node is used by the separately validated application source CI.
+This bounded unauthenticated public Git lookup was the only network operation.
+
+No workflow was pushed or run. No GitHub setting, registry login, Docker build, image
+publication, digest, SBOM/provenance, Secret, provider, host, Kubernetes API,
+Infisical, database, route, or runtime operation occurred. The workflow and Reactive
+Resume policy close no manual QA case.
 
 ## Future validation contract
 

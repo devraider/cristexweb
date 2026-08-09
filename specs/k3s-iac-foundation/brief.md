@@ -20,12 +20,12 @@ recover DEV and PROD without presenting a single node as highly available.
 - Argo CD owns namespaced desired state only after Ansible stops reconciling the exact object set and registration/adoption, successful sync, and managed-field evidence pass; dual reconciliation is forbidden.
 - Infisical Cloud initially owns runtime secret values; only its Kubernetes Operator is bootstrapped and self-hosting Infisical is out of scope for the foundation.
 - One future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD is selected as the identity target. Keycloak `26.7.1`, PostgreSQL `17.10`, realm `cristexhub`, the stable issuer, direct Argo OIDC, and value-free authorization policy are selected only for offline source authoring; executable source and runtime remain blocked. Keycloak authenticates/emits groups, Argo RBAC authorizes Argo actions, and Kubernetes RBAC constrains controllers.
-- GitHub Actions validates/builds and publishes immutable images to private GHCR.
+- GitHub Actions owns source validation and future immutable private-GHCR publication but never deploys. Current infrastructure/application workflows are SHA-pinned read-only CI only; package publication is disabled pending trusted build inputs and digest evidence.
 - Bundled k3s Traefik remains the sole ingress controller.
 - DEV and administration remain private through host Tailscale.
 - Only approved PROD application routes become public through Cloudflare Tunnel.
 - Application namespaces are `cristexhub-dev` and `cristexhub-prod`.
-- `platform-edge` is reserved for cloudflared. `shared-services` hosts the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL engine, one shared MongoDB engine, and any retained RabbitMQ. Keycloak uses a dedicated logical database, owner role, credential, and backup scope on the shared PostgreSQL engine; DEV/PROD retain separate databases, principals, credentials, migrations, limits, and backups. The canonical database policy is value-free and runtime-blocked; MongoDB source/topology, storage, provisioning, and recovery remain unselected.
+- `platform-edge` is reserved for cloudflared. `shared-services` hosts the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL engine, one shared MongoDB engine, and any retained RabbitMQ. Keycloak and environment-local Reactive Resume DEV/PROD use dedicated logical databases, owner roles, credentials, and backup scopes on the shared PostgreSQL engine; MongoDB retains separate CristexHub DEV/PROD scopes. The canonical database and Reactive Resume policies are value-free and runtime-blocked; upstream images, callbacks, storage, provisioning, and recovery remain unselected.
 - Redis remains per environment.
 
 ## Constraints
@@ -104,6 +104,11 @@ routes remain unrun. The source-only
 records exact engine/consumer closure, deny-first authorization, private exposure,
 Infisical value ownership, and closed promotion gates without adding executable
 objects. A source-only
+[Reactive Resume hosted architecture](../../runbooks/reactive-resume-hosted-architecture.md)
+includes private DEV in the MVP and reserves separate DEV/PROD PostgreSQL and OIDC
+scopes while image, callback, Secret, object, recovery, and runtime gates remain
+false. One SHA-pinned read-only infrastructure CI workflow also exists as source;
+it has not been pushed or run and can neither publish nor deploy. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 retains historical chart, signature/hash-binding, image, and online/static readiness
 evidence for chart `10.3.0` and app `v3.5.0`. The release record selects that pair
