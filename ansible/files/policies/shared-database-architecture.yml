@@ -98,6 +98,17 @@ engines:
         - prod-user-to-dev-database
         - workload-user-administration
         - workload-role-administration
+future_consumer_admission:
+  mode: reviewed-exact-policy-change
+  wildcard_or_dynamic_consumers_allowed: false
+  required_evidence:
+    - exact-engine-and-consumer-identifier
+    - dedicated-database-and-principal
+    - dedicated-infisical-credential
+    - dedicated-migration-and-backup-scopes
+    - capacity-review
+    - negative-cross-database-tests
+    - policy-test-and-runbook-update
 exposure:
   future_scope: cluster-internal-only
   service_identity: unselected
@@ -123,6 +134,7 @@ provisioning:
   administrator_credential_value_owner: infisical-cloud
   administrator_credential_available_to_workloads: false
 backup_and_restore:
+  policy_path: ansible/files/policies/shared-stateful-backup-architecture.yml
   tooling: unselected
   schedule: unselected
   retention: unselected

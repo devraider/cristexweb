@@ -35,6 +35,8 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "keycloak-release-selection.md",
                 "reactive-resume-hosted-architecture.md",
                 "shared-database-architecture.md",
+                "shared-rabbitmq-architecture.md",
+                "shared-stateful-backup-architecture.md",
                 "recovery-artifact-register.md",
                 "replacement-host-recovery.md",
             },

@@ -222,7 +222,7 @@ Tailscale do not replace application OIDC/JWT enforcement.
 |---|---|
 | `argocd` | Argo CD controllers and private UI/API |
 | `platform-edge` | Cloudflare Tunnel connector only; no Keycloak, Infisical Operator, database, or route exists; every route remains separately approved |
-| `shared-services` | Exact present-only Namespace source and a distinct guarded wrapper exist; future placement for the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL instance, MongoDB, and any retained shared RabbitMQ; runtime NOT RUN |
+| `shared-services` | Exact present-only Namespace source and a distinct guarded wrapper exist; future placement for the Infisical Cloud Operator, separate Keycloak, one PostgreSQL, one MongoDB, and one shared RabbitMQ engine; runtime NOT RUN |
 | `cristexhub-dev` | DEV applications and environment-local dependencies |
 | `cristexhub-prod` | PROD applications and environment-local dependencies |
 | Optional backup/monitoring namespaces | Added only when their first workload is approved |
@@ -260,9 +260,11 @@ approved operator are only candidates. Its administrator credential must remain
 Infisical-owned and unavailable to application or Keycloak pods.
 
 Redis remains per environment because Redis database numbers are not sufficient
-security isolation. A shared RabbitMQ is permitted only with distinct users,
-virtual hosts, limits, and negative access tests. A later capacity decision may
-separate it.
+security isolation. One shared RabbitMQ engine belongs in `shared-services`.
+CristexHub DEV/PROD receive distinct users, virtual hosts, permissions, limits, and
+recovery scopes with negative cross-vhost tests. Future consumers require reviewed
+exact policy/test changes; wildcard or dynamic admission is forbidden. A later
+capacity decision may separate the engine.
 
 NetworkPolicy must allow each application namespace and the Keycloak workload to
 reach only the shared database Services and other exact approved endpoints, while
@@ -315,12 +317,15 @@ after Ansible stops reconciling it and installation, registration/adoption,
 successful sync, and managed-field evidence pass. Ansible retains lifecycle ownership
 of privileged CRDs and cluster RBAC.
 
-Backups require database-consistent PostgreSQL and MongoDB dumps, separate DEV/PROD
-paths, compression, encryption, integrity checks, local retention, and an encrypted
-off-host copy. The intended off-host target is Google Drive through containerized
-`rclone copy`, not destructive `sync`. k3s datastore and recovery token, OpenTofu
-state, Infisical recovery credentials, and runbooks require separate recovery
-coverage.
+Backups require database-consistent PostgreSQL and MongoDB dumps, protected RabbitMQ
+definitions, separate consumer/purpose paths, compression, encryption, integrity
+checks, local retention, and an encrypted off-host copy. The intended off-host target
+is Google Drive through containerized `rclone copy`, not destructive `sync`.
+Operator access uses a private authenticated metadata-only catalog plus a simple
+list/retrieve/verify workflow; no public or anonymous link is allowed. RabbitMQ
+definitions recovery does not prove queued-message recovery, so application
+reconciliation remains mandatory. k3s datastore and recovery token, OpenTofu state,
+Infisical recovery credentials, and runbooks require separate recovery coverage.
 
 A successful backup job is not acceptance. An isolated restore and application
 verification must meet the declared RPO/RTO before PROD.

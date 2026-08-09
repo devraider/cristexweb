@@ -48,7 +48,7 @@
 | KIF-017 | One general PostgreSQL engine provides separate CristexHub DEV, CristexHub PROD, Reactive Resume DEV, Reactive Resume PROD, and Keycloak logical databases, owner roles, Infisical-owned credentials, migration scopes, and backup scopes. No consumer receives a separate PostgreSQL deployment/PVC; `PUBLIC` connection/schema privileges are revoked where unwanted, every workload role is denied cross-database access, and workload roles cannot create databases or roles. |
 | KIF-018 | One shared MongoDB engine provides separate DEV/PROD databases, database-scoped users, Infisical-owned credentials, migration scopes, and backup scopes. Each workload user is denied the other environment plus broad any-database and user/role-administration privileges; MongoDB source and topology remain unselected before separate approval. |
 | KIF-019 | Shared-engine failure and contention risks are documented, bounded with requests/limits/connection limits, and accepted before PROD. No environment, tenant, or Keycloak consumer receives a separate engine or PVC; exact storage, provisioning, backup/restore, and RPO/RTO gates must close before executable stateful source. |
-| KIF-020 | Redis is environment-local; any shared RabbitMQ uses separate users/vhosts, limits, and negative cross-access tests. |
+| KIF-020 | Redis is environment-local. Exactly one shared RabbitMQ engine belongs in `shared-services`; CristexHub DEV/PROD receive dedicated users, vhosts, permissions, limits, Infisical-owned credentials, and recovery scopes with negative cross-vhost/admin/public-management tests. Future consumers require reviewed exact policy/test/runbook changes; wildcard or dynamic admission is forbidden. |
 | KIF-021 | NetworkPolicy and RBAC deny unapproved cross-namespace and control-plane access while allowing required DNS and service flows. |
 
 ## Delivery
@@ -64,9 +64,9 @@
 
 | ID | Requirement |
 |---|---|
-| KIF-026 | Database-consistent, encrypted backups are separated by environment or identity purpose, retained locally and off-node, integrity checked, and copied without destructive mirror semantics; Keycloak uses application-consistent `pg_dump`, not live-volume synchronization or realm export as backup. |
-| KIF-027 | An isolated restore proves the declared RPO/RTO before PROD acceptance; a successful backup exit code alone is insufficient. |
-| KIF-028 | Recovery covers k3s datastore/token, protected host-local single-writer OpenTofu state through encrypted timestamped off-node copies and independent key custody, Infisical bootstrap material, Keycloak database/realm/admin/OIDC material, application encryption keys, desired state, and mutable application data. |
+| KIF-026 | Application-consistent encrypted backups are separated by service, environment, or identity purpose, retained locally and off-node, integrity checked, and copied without destructive mirror semantics; Keycloak uses `pg_dump`, not live-volume synchronization or realm export. The Google Drive/containerized-`rclone copy` direction remains unapproved until exact identities/images are selected. |
+| KIF-027 | Private authenticated operators can list metadata, retrieve, verify, and restore predictable timestamped archives without public/anonymous links. An isolated restore proves the declared RPO/RTO before PROD acceptance; a successful backup exit code alone is insufficient. RabbitMQ definitions restore is distinct from queued-message reconciliation. |
+| KIF-028 | Recovery covers k3s datastore/token, protected host-local single-writer OpenTofu state through encrypted timestamped off-node copies and independent key custody, Infisical bootstrap material, Keycloak database/realm/admin/OIDC material, application encryption keys, desired state, mutable application data, RabbitMQ definitions, and proof that non-authoritative queued work reconciles from application state. |
 | KIF-029 | Resource headroom, disk usage, certificate/tunnel health, workload health, and backup freshness have bounded monitoring before public PROD. |
 | KIF-030 | Every phase records actual commands/results, revisions/digests, residual risks, and rollback evidence without leaking sensitive values. |
 
@@ -122,6 +122,14 @@ KIF-005, KIF-013, KIF-016 through KIF-019, KIF-021, and KIF-026 through KIF-030 
 an exact one-PostgreSQL/one-MongoDB source-only policy. It closes no image trust,
 storage, provisioning, backup, restore, RPO/RTO, object-source, or runtime gate; all
 promotion flags remain false. The value-free
+[shared RabbitMQ architecture](../../runbooks/shared-rabbitmq-architecture.md) maps
+KIF-005, KIF-013, KIF-016, KIF-019 through KIF-021, KIF-023, and KIF-026 through
+KIF-030 to one exact source-only shared broker with DEV/PROD isolation and reviewed
+future admission. The [shared backup architecture](../../runbooks/shared-stateful-backup-architecture.md)
+maps KIF-005, KIF-013, KIF-017 through KIF-020, and KIF-026 through KIF-030 to
+private operator catalog/retrieval, encrypted non-destructive copies, integrity, and
+isolated restore semantics. Both leave images, identities, paths, schedules,
+retention, RPO/RTO, executable source, and runtime blocked. The value-free
 [Reactive Resume hosted architecture](../../runbooks/reactive-resume-hosted-architecture.md)
 maps KIF-012 through KIF-017, KIF-019, KIF-021, KIF-023, and KIF-026 through KIF-030
 to the private DEV MVP/future separate PROD direction without selecting an image,
@@ -151,7 +159,9 @@ promotion gates without adding a valid Kubernetes or operational Ansible source.
 [Infisical](../../runbooks/infisical-operator-release-selection.md), and
 [Keycloak/PostgreSQL](../../runbooks/keycloak-release-selection.md) selection records
 plus `ansible/files/policies/hosted-identity-authorization.yml` and
-`ansible/files/policies/shared-database-architecture.yml`, and
+`ansible/files/policies/shared-database-architecture.yml`,
+`ansible/files/policies/shared-rabbitmq-architecture.yml`,
+`ansible/files/policies/shared-stateful-backup-architecture.yml`, and
 `ansible/files/policies/reactive-resume-architecture.yml` map KIF-005,
 KIF-010, and KIF-013 through KIF-015 to exact value-free offline inputs while
 preserving every deployment and runtime gate. Exact

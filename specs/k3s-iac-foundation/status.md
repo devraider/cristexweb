@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: historical Namespace evidence preserved; corrected five-PostgreSQL/two-MongoDB consumer closure plus Reactive Resume and read-only CI pass 53 focused/135 full tests, 9 syntax checks, production lint, YAML/compile, links/hygiene, and exact source closure; infrastructure run 31311995461 passed on e200efd; publication and all image/callback/object/Secret/storage/recovery/handoff/runtime gates pending
+build: historical Namespace evidence preserved; source-only database/RabbitMQ/backup/Reactive Resume contracts pass 55 focused/152 full tests, 9 syntax checks, production lint, YAML/compile, links/hygiene, and exact source closure; infrastructure run 31311995461 passed on e200efd; images/storage/destination identities/restore/publication/handoff/runtime gates pending
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -106,7 +106,17 @@ note: |
   remain closed. It adds no
   database image beyond the existing PostgreSQL baseline, no executable object, and
   no runtime claim; MongoDB source/topology, storage, provisioning, backup/restore,
-  RPO/RTO, and all approvals remain unselected or blocked. The value-free
+  RPO/RTO, and all approvals remain unselected or blocked. The separate value-free
+  [shared RabbitMQ architecture](../../runbooks/shared-rabbitmq-architecture.md)
+  fixes one future engine in `shared-services`, exact isolated DEV/PROD vhost/user/
+  permission/limit/recovery scopes, deny-first future consumer admission, and private
+  management. The [shared backup architecture](../../runbooks/shared-stateful-backup-architecture.md)
+  requires private authenticated metadata/list/retrieve/verify access, encrypted
+  timestamped non-destructive off-node copies, integrity and isolated restore, and
+  distinguishes RabbitMQ definitions from queued-message recovery. RabbitMQ image,
+  topology, storage, Service/ports, limits, backup identities/tooling/schedules/
+  retention/RPO/RTO, restore, and all runtime gates remain unselected or blocked.
+  The value-free
   [Reactive Resume hosted architecture](../../runbooks/reactive-resume-hosted-architecture.md)
   includes private DEV in the MVP with separate future PROD, OIDC clients, and
   dedicated shared-PostgreSQL consumer scopes. Upstream image selection, callbacks,

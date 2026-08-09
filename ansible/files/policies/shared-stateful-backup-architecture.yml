@@ -1,0 +1,92 @@
+---
+policy_schema: cristex-shared-stateful-backup-v1
+policy_status: source-policy-only-runtime-blocked
+credential_value_owner: infisical-cloud
+operator_access:
+  scope: private-authenticated-only
+  catalog: metadata-only
+  archive_layout: service/consumer-or-purpose/timestamp
+  list_retrieve_verify_workflow_required: true
+  redacted_status_required: true
+  public_endpoint_allowed: false
+  anonymous_share_allowed: false
+  live_data_mount_allowed: false
+archive_contract:
+  copy_semantics: timestamped-immutable-copy
+  transfer_semantics: copy-not-sync
+  compression_required: true
+  encryption_required: true
+  independent_key_custody_required: true
+  checksum_manifest_required: true
+  integrity_verification_required: true
+  isolated_restore_required: true
+  separate_consumer_paths_required: true
+  destructive_mirror_allowed: false
+destination:
+  direction: google-drive
+  selection_status: intended-not-approved
+  tool_direction: containerized-rclone-copy
+  container_image: null
+  linux_amd64_digest: null
+  remote_identity: null
+  root_folder_identity: null
+  credential_value_owner: infisical-cloud
+  credential_in_git_allowed: false
+  rclone_sync_allowed: false
+local_staging:
+  path: null
+  capacity: null
+  retention: null
+  live_data_path_allowed: false
+schedule_and_retention:
+  schedule: null
+  local_retention: null
+  off_node_retention: null
+  rpo: null
+  rto: null
+services:
+  postgresql:
+    backup_method_direction: application-consistent-logical-dumps
+    separate_consumer_archives_required: true
+    roles_and_ownership_recreation_required: true
+    isolated_restore_required: true
+  mongodb:
+    backup_method_direction: application-consistent-logical-dumps
+    separate_consumer_archives_required: true
+    users_and_roles_recreation_required: true
+    topology_compatibility_required: true
+    isolated_restore_required: true
+  rabbitmq:
+    definitions_scope: definitions-and-policies
+    definitions_export_contains_sensitive_material: true
+    queued_message_disposition: non-authoritative-reconcilable-direction
+    application_reconciliation_proof_required: true
+    definitions_only_claims_message_recovery: false
+    isolated_definitions_restore_required: true
+future_consumer_admission:
+  mode: reviewed-exact-policy-change
+  wildcard_or_dynamic_paths_allowed: false
+  required_evidence:
+    - exact-service-and-consumer-or-purpose
+    - dedicated-archive-path
+    - retention-and-capacity-review
+    - integrity-check
+    - isolated-restore-plan
+    - rpo-rto-disposition
+    - policy-test-and-runbook-update
+promotion_gates:
+  backup_tool_image_selected: false
+  destination_identity_accepted: false
+  credential_recovery_proved: false
+  encryption_key_recovery_proved: false
+  staging_capacity_and_path_accepted: false
+  schedules_and_retention_accepted: false
+  integrity_verification_proved: false
+  isolated_postgresql_restore_proved: false
+  isolated_mongodb_restore_proved: false
+  isolated_rabbitmq_definitions_restore_proved: false
+  rabbitmq_message_reconciliation_proved: false
+  rpo_rto_accepted: false
+  operator_retrieval_workflow_proved: false
+  runtime_approved: false
+executable_source_allowed: false

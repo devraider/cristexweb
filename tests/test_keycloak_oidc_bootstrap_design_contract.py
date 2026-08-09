@@ -159,6 +159,8 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "policies/hosted-identity-authorization.yml",
             "policies/reactive-resume-architecture.yml",
             "policies/shared-database-architecture.yml",
+            "policies/shared-rabbitmq-architecture.yml",
+            "policies/shared-stateful-backup-architecture.yml",
             "policies/infisical-operator-privileged-prerequisites.yml",
             "vendor/argocd/10.3.0/SHA256SUMS",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz",

@@ -1,0 +1,107 @@
+---
+policy_schema: cristex-shared-rabbitmq-v1
+policy_status: source-policy-only-runtime-blocked
+namespace: shared-services
+credential_value_owner: infisical-cloud
+engine:
+  instance_count: 1
+  namespace: shared-services
+  model: one-shared-engine
+  source:
+    selection: unselected
+    repository: null
+    version: null
+    linux_amd64_digest: null
+    trust_accepted: false
+  topology: unselected
+  consumers:
+    cristexhub-dev:
+      vhost: dedicated-vhost
+      principal: dedicated-workload-user
+      credential_value_owner: infisical-cloud
+      permissions_scope: dedicated-vhost-only
+      limits_scope: dedicated
+      recovery_scope: dedicated
+    cristexhub-prod:
+      vhost: dedicated-vhost
+      principal: dedicated-workload-user
+      credential_value_owner: infisical-cloud
+      permissions_scope: dedicated-vhost-only
+      limits_scope: dedicated
+      recovery_scope: dedicated
+future_consumer_admission:
+  mode: reviewed-exact-policy-change
+  wildcard_or_dynamic_consumers_allowed: false
+  required_evidence:
+    - exact-consumer-identifier
+    - dedicated-vhost
+    - dedicated-principal-and-infisical-credential
+    - dedicated-permissions-and-limits
+    - capacity-review
+    - negative-cross-vhost-tests
+    - backup-and-recovery-disposition
+    - policy-test-and-runbook-update
+authorization:
+  cross_vhost_access_default: deny
+  workload_user_administration: deny
+  workload_vhost_administration: deny
+  workload_policy_administration: deny
+  default_guest_access: disabled
+  management_access: private-only
+  required_negative_tests:
+    - dev-user-to-prod-vhost
+    - prod-user-to-dev-vhost
+    - workload-user-administration
+    - workload-vhost-administration
+    - workload-policy-administration
+    - public-management-access
+exposure:
+  future_scope: cluster-internal-only
+  service_identity: null
+  amqp_port: null
+  management_port: null
+  management_route: private-authenticated-only
+  forbidden:
+    - Ingress
+    - NodePort
+    - LoadBalancer
+    - CloudflareTunnel
+    - public-route
+    - public-management
+storage:
+  storage_class: unselected
+  capacity: unselected
+  access_mode: unselected
+  data_path: unselected
+  retention_and_reclaim: unselected
+resources:
+  requests: unselected
+  limits: unselected
+  connection_limits: unselected
+  queue_limits: unselected
+  vhost_limits: unselected
+tls:
+  required: true
+  certificate_value_owner: infisical-cloud
+  exact_identity_selected: false
+backup_and_restore:
+  policy_path: ansible/files/policies/shared-stateful-backup-architecture.yml
+  definitions_scope: definitions-and-policies
+  queued_message_disposition: non-authoritative-reconcilable-direction
+  application_reconciliation_proof_required: true
+  definitions_restore_proved: false
+  message_reconciliation_proved: false
+promotion_gates:
+  immutable_source_selected: false
+  image_trust_and_recovery_accepted: false
+  topology_accepted: false
+  storage_design_accepted: false
+  resources_and_limits_accepted: false
+  tls_design_accepted: false
+  network_policy_accepted: false
+  infisical_bootstrap_recovery_proved: false
+  definitions_restore_proved: false
+  message_reconciliation_proved: false
+  one_writer_handoff_proved: false
+  runtime_approved: false
+executable_source_allowed: false

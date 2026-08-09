@@ -108,6 +108,7 @@ namespaces:
       - keycloak-runtime
       - shared-postgresql-engine
       - shared-mongodb-engine
+      - shared-rabbitmq-engine
       - application-databases
   argocd:
     allows:
@@ -134,6 +135,7 @@ namespaces:
       - keycloak-runtime
       - shared-postgresql-engine
       - shared-mongodb-engine
+      - shared-rabbitmq-engine
       - application-databases
       - keycloak-dedicated-database
       - keycloak-dedicated-database-role
@@ -151,6 +153,12 @@ database_architecture:
   policy_schema: cristex-shared-databases-v1
   keycloak_consumer: keycloak
   keycloak_deployment_separate_from_postgresql: true
+rabbitmq_architecture:
+  policy_path: ansible/files/policies/shared-rabbitmq-architecture.yml
+  policy_schema: cristex-shared-rabbitmq-v1
+backup_architecture:
+  policy_path: ansible/files/policies/shared-stateful-backup-architecture.yml
+  policy_schema: cristex-shared-stateful-backup-v1
 ownership:
   ansible:
     - static-realm-settings

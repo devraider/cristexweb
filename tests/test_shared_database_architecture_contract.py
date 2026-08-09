@@ -76,6 +76,27 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
             ],
         )
 
+    def test_future_consumers_and_backup_link_require_reviewed_exact_changes(self) -> None:
+        admission = self.policy["future_consumer_admission"]
+        self.assertEqual("reviewed-exact-policy-change", admission["mode"])
+        self.assertFalse(admission["wildcard_or_dynamic_consumers_allowed"])
+        self.assertEqual(
+            {
+                "exact-engine-and-consumer-identifier",
+                "dedicated-database-and-principal",
+                "dedicated-infisical-credential",
+                "dedicated-migration-and-backup-scopes",
+                "capacity-review",
+                "negative-cross-database-tests",
+                "policy-test-and-runbook-update",
+            },
+            set(admission["required_evidence"]),
+        )
+        self.assertEqual(
+            "ansible/files/policies/shared-stateful-backup-architecture.yml",
+            self.policy["backup_and_restore"]["policy_path"],
+        )
+
     def test_postgresql_authorization_is_deny_first(self) -> None:
         authorization = self.policy["engines"]["postgresql"]["authorization"]
         self.assertEqual("deny", authorization["cross_database_access_default"])

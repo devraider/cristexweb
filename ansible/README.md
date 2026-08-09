@@ -457,9 +457,14 @@ exists from that decision. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 future PostgreSQL and one future MongoDB engine in `shared-services`. CristexHub
 DEV/PROD have isolated scopes on both engines; Reactive Resume DEV/PROD and Keycloak
-have dedicated PostgreSQL scopes. The policy is not an Ansible role, playbook,
-wrapper, manifest, image selection, or runtime approval. The separate
-[Reactive Resume policy](../runbooks/reactive-resume-hosted-architecture.md) includes
+have dedicated PostgreSQL scopes. The separate value-free
+[shared RabbitMQ policy](../runbooks/shared-rabbitmq-architecture.md) fixes one future
+engine, exact DEV/PROD vhost/user/limit scopes, and reviewed future-consumer
+admission. The [shared backup policy](../runbooks/shared-stateful-backup-architecture.md)
+requires private authenticated operator retrieval, encrypted timestamped archives,
+non-destructive off-node copy, integrity checks, and isolated restore. These policies
+are not Ansible roles, playbooks, wrappers, manifests, image selections, or runtime
+approvals. The separate [Reactive Resume policy](../runbooks/reactive-resume-hosted-architecture.md) includes
 private DEV in MVP intent while keeping its image, callbacks, objects, Secrets, and
 runtime blocked. GitHub CI may run only syntax/lint and offline contracts from this
 source; it supplies no inventory and invokes no operational wrapper.

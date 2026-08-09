@@ -70,7 +70,13 @@ direction. The separate [shared database architecture](runbooks/shared-database-
 freezes one PostgreSQL and one MongoDB engine in `shared-services`: CristexHub
 DEV/PROD receive isolated scopes on both engines, while Reactive Resume DEV/PROD and
 Keycloak receive dedicated PostgreSQL scopes. Infisical owns credential values,
-exposure is private-only, and promotion gates remain closed. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
+exposure is private-only, and promotion gates remain closed. The
+[shared RabbitMQ architecture](runbooks/shared-rabbitmq-architecture.md) fixes one
+future broker with exact isolated DEV/PROD scopes and reviewed future-consumer
+admission. The [shared backup architecture](runbooks/shared-stateful-backup-architecture.md)
+requires private authenticated catalog/retrieval, encrypted timestamped archives,
+non-destructive off-node copy, integrity checks, and isolated restore. Both remain
+policy-only with all runtime gates closed. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
 includes private DEV in the MVP with dedicated PostgreSQL and OIDC scopes while its
 image, callbacks, objects, Secrets, and runtime remain unselected or blocked.
 MongoDB source/topology, storage, provisioning, recovery, executable objects, and
@@ -138,12 +144,14 @@ gateway remain in the separate CristexHub application repository.
 9. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
 10. [`runbooks/keycloak-release-selection.md`](runbooks/keycloak-release-selection.md) — immutable Keycloak/PostgreSQL and issuer source selection.
 11. [`runbooks/shared-database-architecture.md`](runbooks/shared-database-architecture.md) — value-free PostgreSQL/MongoDB topology, isolation, and closed deployment gates.
-12. [`runbooks/reactive-resume-hosted-architecture.md`](runbooks/reactive-resume-hosted-architecture.md) — private-DEV MVP placement, dedicated database/OIDC scopes, and closed image/runtime gates.
-13. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
-14. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
-15. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
-16. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
-17. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+12. [`runbooks/shared-rabbitmq-architecture.md`](runbooks/shared-rabbitmq-architecture.md) — value-free shared broker isolation, future-consumer admission, and recovery boundary.
+13. [`runbooks/shared-stateful-backup-architecture.md`](runbooks/shared-stateful-backup-architecture.md) — private operator backup access, non-destructive off-node copy, integrity, and restore gates.
+14. [`runbooks/reactive-resume-hosted-architecture.md`](runbooks/reactive-resume-hosted-architecture.md) — private-DEV MVP placement, dedicated database/OIDC scopes, and closed image/runtime gates.
+15. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
+16. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
+17. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
+18. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
+19. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -231,9 +239,9 @@ contracts are documented in [`ansible/README.md`](ansible/README.md).
 | Secrets | Infisical Cloud plus its Kubernetes Operator initially; no self-hosted Infisical and no plaintext values in Git or OpenTofu state |
 | CI and images | SHA-pinned read-only GitHub Actions source CI now; private GHCR publication remains blocked pending immutable application build inputs and digest evidence |
 | Environments | `cristexhub-dev` and `cristexhub-prod` |
-| Shared services | Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL instance, MongoDB, and any retained RabbitMQ in `shared-services`; Keycloak uses its own logical database, owner role, credentials, and backup scope on the shared PostgreSQL engine |
-| Other data services | Redis per environment; RabbitMQ may be shared only with separate users/vhosts and limits |
-| Backups | Application-consistent local dumps plus encrypted off-host copy; restore required before PROD |
+| Shared services | Infisical Cloud Operator, separate Keycloak, one PostgreSQL, one MongoDB, and one RabbitMQ engine in `shared-services`; every consumer retains isolated logical scopes and Infisical-owned credentials |
+| Other data services | Redis per environment; shared RabbitMQ uses exact dedicated users/vhosts/permissions/limits, with future consumers admitted only by reviewed policy changes |
+| Backups | Application-consistent encrypted archives, metadata-only private operator catalog/retrieval, non-destructive off-host Google Drive copy direction, and isolated restore before PROD |
 
 ## Repository layout
 
@@ -261,6 +269,8 @@ runbooks/                # recovery docs plus source-only candidate/design recor
   keycloak-oidc-bootstrap-design.md
   keycloak-release-selection.md
   shared-database-architecture.md
+  shared-rabbitmq-architecture.md
+  shared-stateful-backup-architecture.md
   reactive-resume-hosted-architecture.md
   cloudflared-candidate-provenance.md
   infisical-operator-candidate-provenance.md

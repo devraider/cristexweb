@@ -177,6 +177,7 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
                 "keycloak-runtime",
                 "shared-postgresql-engine",
                 "shared-mongodb-engine",
+                "shared-rabbitmq-engine",
                 "application-databases",
             },
             set(edge["denies"]),
@@ -188,6 +189,7 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
                 "keycloak-runtime",
                 "shared-postgresql-engine",
                 "shared-mongodb-engine",
+                "shared-rabbitmq-engine",
                 "application-databases",
                 "keycloak-dedicated-database",
                 "keycloak-dedicated-database-role",
@@ -220,6 +222,20 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
         )
         self.assertEqual("keycloak", database["keycloak_consumer"])
         self.assertTrue(database["keycloak_deployment_separate_from_postgresql"])
+        self.assertEqual(
+            {
+                "policy_path": "ansible/files/policies/shared-rabbitmq-architecture.yml",
+                "policy_schema": "cristex-shared-rabbitmq-v1",
+            },
+            self.policy["rabbitmq_architecture"],
+        )
+        self.assertEqual(
+            {
+                "policy_path": "ansible/files/policies/shared-stateful-backup-architecture.yml",
+                "policy_schema": "cristex-shared-stateful-backup-v1",
+            },
+            self.policy["backup_architecture"],
+        )
         self.assertEqual(
             "dedicated-owner-role",
             self.database_policy["engines"]["postgresql"]["consumers"]["keycloak"][

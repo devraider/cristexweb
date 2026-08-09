@@ -32,6 +32,12 @@ principals, credentials, migrations, and backups even though the engines are sha
 Application tenants remain application-level concerns inside the environment scope;
 they do not receive engines or PVCs.
 
+Future consumers require a reviewed exact policy change. Wildcard, dynamic, default,
+or implicit admission is forbidden. Every addition identifies the engine and
+consumer, creates dedicated database/principal/Infisical credential/migration/backup
+scopes, reviews capacity, adds negative cross-database tests, and updates policy,
+tests, and this runbook together.
+
 Both engines are shared failure and contention domains on a single node. Logical
 separation does not provide availability, performance, or kernel isolation. Resource,
 connection, storage, upgrade, and recovery limits must be reviewed before PROD.
@@ -86,10 +92,13 @@ PVC topology, access mode, capacity, data path, filesystem ownership, reclaim po
 resource limits, probes, connection limits, and disruption behavior also remain
 unselected.
 
-Backup tooling, schedules, retention, destination, encryption-key custody, and
-provisional RPO/RTO remain unknown. Acceptance requires application-consistent
-PostgreSQL and MongoDB dumps, separate consumer scopes, encrypted non-destructive
-off-node copies, integrity verification, and isolated restore proof. PostgreSQL role
+The canonical [shared backup architecture](shared-stateful-backup-architecture.md)
+requires private authenticated operator catalog/retrieval, predictable per-consumer
+paths, encrypted timestamped non-destructive off-node copies, integrity verification,
+and isolated restore. Exact backup tooling, schedules, retention, destination
+identities, encryption-key custody, and provisional RPO/RTO remain unknown.
+Acceptance requires application-consistent PostgreSQL and MongoDB dumps, separate
+consumer scopes, and isolated restore proof. PostgreSQL role
 and ownership recreation must be proven without leaking credential hashes. A
 successful backup job alone is not recovery evidence.
 

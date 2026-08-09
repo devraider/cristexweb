@@ -331,8 +331,13 @@ logs, or bootstrap cannot be recovered.
 - [ ] Select MongoDB topology and exact immutable trusted source, then create one
   shared MongoDB engine with separate databases/users and negative access tests
   (`KIF-018`, `KIF-023`).
-- [ ] Create per-environment Redis; retain shared RabbitMQ only after separate
-  user/vhost/limit tests (`KIF-020`).
+- [x] Add value-free source-only policies/runbooks for exactly one shared RabbitMQ
+  in `shared-services`, dedicated DEV/PROD vhost/user/permission/limit/recovery
+  scopes, reviewed exact future-consumer admission, and private management
+  (`KIF-020`, `KIF-021`, `KIF-030`).
+- [ ] Select RabbitMQ topology and exact immutable trusted source, storage, TLS,
+  limits, NetworkPolicy, definitions restore, and message reconciliation proof before
+  adding executable objects; Redis remains per environment (`KIF-020`, `KIF-023`).
 - [x] Select Keycloak `26.7.1` and PostgreSQL `17.10` immutable linux/amd64
   children, realm `cristexhub`, stable issuer, default theme, exact client/group
   templates, deny-default Argo mapping, Namespace trust, and Universal Auth direction
@@ -357,8 +362,13 @@ logs, or bootstrap cannot be recovered.
 - [ ] Prove direct Argo OIDC administrator/read-only/ungrouped/invalid-token/logout/
   break-glass cases before disabling routine local authentication (`KIF-002`,
   `KIF-005`, `KIF-010`, `KIF-012`–`KIF-015`).
-- [ ] Complete backup and isolated restore tests before application or identity data
-  is accepted (`KIF-026`–`KIF-028`).
+- [x] Add a value-free shared backup policy/runbook for private authenticated
+  metadata catalog/list/retrieve/verify workflows, encrypted timestamped archives,
+  non-destructive Google Drive/`rclone copy` direction, exact future archive
+  admission, and separate RabbitMQ definitions/message recovery semantics.
+- [ ] Select the backup image/digest, Google Drive identity/folder, staging path,
+  schedules, retention, credential/key recovery, and RPO/RTO; complete isolated
+  restore tests before application or identity data is accepted (`KIF-026`–`KIF-028`).
 
 Stop gate: stop on cross-access, public data exposure, failed restore, unsafe node
 pressure, or inability to preserve encryption keys. Never delete PVCs as rollback.
