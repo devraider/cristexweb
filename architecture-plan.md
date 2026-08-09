@@ -124,9 +124,10 @@ scoped RBAC, Argo handoff, secret-zero, network policy, recovery, and runtime
 approvals remain blocked. It adds no chart, CRD, Kubernetes object, credential, or
 Secret source.
 No state file, provider initialization, plan, apply, Helm installation, Kustomize
-workload, GitHub runner execution, image publication, or general host baseline exists
-yet. The committed CI source has no package-write, Secret, provider, host, cluster,
-or deployment path. Debian plus Ansible is
+workload, image publication, or general host baseline exists yet. The committed CI
+source has no package-write, Secret, provider, host, cluster, or deployment path;
+source-only run `31311995461` passed exact commit
+`e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`. Debian plus Ansible is
 the selected host-configuration owner.
 
 ## Goals

@@ -7,9 +7,9 @@ environment, redacted evidence location, result, and rollback outcome. Never pas
 passwords, tokens, cookies, kubeconfigs, connection strings, private keys, database
 rows, personal data, or full secret-bearing command output.
 
-MQA-01 now **PASSES**; the other twelve cases remain **PENDING** because their
-hosted-runtime, rollback, isolation, recovery, or exposure evidence does not yet
-exist. Separate approved non-elevated and elevated Ansible runs produced reviewed
+MQA-01 now **PASSES** and MQA-14 is **PARTIAL**; the other thirteen cases remain
+**PENDING** because their hosted-runtime, rollback, isolation, recovery, or exposure
+evidence does not yet exist. Separate approved non-elevated and elevated Ansible runs produced reviewed
 host and cluster-indicator reports. A
 separately approved two-package dependency bootstrap completed and all nine exact
 Kubernetes queries now pass. Persistent group-scoped kubectl access and the
@@ -97,8 +97,11 @@ Operator, separate Keycloak deployment, one general PostgreSQL engine, and one
 shared MongoDB engine in `shared-services`. The value-free database policy closes no
 manual case: MongoDB source/topology, storage, provisioning, authorization, backup,
 restore, and runtime evidence remain pending. The SHA-pinned CI and Reactive Resume
-policy source also close no manual case: neither workflow has run, no image was
-published, and no Reactive Resume image/callback/object/Secret/runtime is selected.
+policy source also closes no full manual case. Infrastructure CI run `31311995461`
+passed for exact commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`; the private
+application run is not observable with the available unauthenticated API, no image
+was published, and no Reactive Resume image/callback/object/Secret/runtime is
+selected.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|
@@ -115,7 +118,7 @@ published, and no Reactive Resume image/callback/object/Secret/runtime is select
 | MQA-11 | KIF-019, KIF-029 | Single-node pressure | Database and application limits preserve control-plane headroom; alerts arrive for disk/resource/backup failure | PENDING |
 | MQA-12 | KIF-003, KIF-030 | Rollback safety | Git, image, route, secret, and host rollback avoid namespace/PVC deletion and blind external destroy | PENDING |
 | MQA-13 | KIF-007 | Warning-free kubectl client | A genuinely fresh selected-user session inherits client-only defaults; node and all-namespace queries succeed without server-config warnings; root-only config remains protected; rollback removes only managed profile blocks | PENDING |
-| MQA-14 | KIF-022–KIF-024 | GitHub-hosted delivery containment | Reviewed infrastructure and application CI runs pass on the exact revision with read-only permissions, no Secret/package/deploy path, and future publication emits immutable digest/SBOM/provenance evidence without rebuilding for PROD | PENDING — workflow source exists locally; runner and publication evidence are NOT RUN/BLOCKED |
+| MQA-14 | KIF-022–KIF-024 | GitHub-hosted delivery containment | Reviewed infrastructure and application CI runs pass on the exact revision with read-only permissions, no Secret/package/deploy path, and future publication emits immutable digest/SBOM/provenance evidence without rebuilding for PROD | PARTIAL — infrastructure run `31311995461` passed exact commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`; private application-run result is unobserved and publication remains BLOCKED |
 | MQA-15 | KIF-012–KIF-017, KIF-021 | Private Reactive Resume DEV | Digest-pinned DEV instance uses the exact private Keycloak client and its dedicated PostgreSQL scope; cross-environment/database access and public/admin exposure fail closed; backup/restore succeeds | PENDING — source policy only; image, callbacks, objects, Secrets, database, and runtime are blocked |
 
 ## Public exposure checklist

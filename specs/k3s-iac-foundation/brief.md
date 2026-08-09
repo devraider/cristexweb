@@ -107,8 +107,9 @@ objects. A source-only
 [Reactive Resume hosted architecture](../../runbooks/reactive-resume-hosted-architecture.md)
 includes private DEV in the MVP and reserves separate DEV/PROD PostgreSQL and OIDC
 scopes while image, callback, Secret, object, recovery, and runtime gates remain
-false. One SHA-pinned read-only infrastructure CI workflow also exists as source;
-it has not been pushed or run and can neither publish nor deploy. A source-only
+false. One SHA-pinned read-only infrastructure CI workflow can neither publish nor
+deploy; exact source-only run `31311995461` passed commit
+`e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 retains historical chart, signature/hash-binding, image, and online/static readiness
 evidence for chart `10.3.0` and app `v3.5.0`. The release record selects that pair

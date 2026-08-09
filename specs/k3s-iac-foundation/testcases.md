@@ -56,7 +56,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-ARGO-03 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013–KIF-015, KIF-021, KIF-030 | Argo CD source-only hardened design | A secret-free design fixes private ClusterIP/loopback-only administration, retained quiescent ApplicationSet, supplemental default-deny, phased least privilege, one-repository GitHub App credentials, value-free secret custody, selected direct OIDC direction, two-Application adoption, stop/rollback, Ansible ownership, and six open decisions without adding deployable source | PASS — hardened-design contracts accept only the offline version baseline; trust, exact controller closure, admission, Secrets, recovery, handoff, and runtime remain blocked |
 | KIF-IDP-01 | KIF-002, KIF-003, KIF-005, KIF-010, KIF-012–KIF-017, KIF-021, KIF-023, KIF-026–KIF-030 | Source-only Ansible bootstrap and Keycloak OIDC architecture | Ansible is the selected bounded bootstrap installer and privileged lifecycle owner with no dual reconciliation; direct Argo OIDC separates Keycloak authentication/groups, Argo RBAC, and Kubernetes RBAC while preserving private administration, Infisical-owned values, a dedicated Keycloak logical database/role on the general shared PostgreSQL engine, stable issuer, exact approvals, and handoff gates | PASS — Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, clients, group templates, default theme, separate deployment, and shared-engine isolation policy are selected only for offline authoring; no executable component source, credential, route, or runtime was added |
 | KIF-DB-01 | KIF-005, KIF-013, KIF-016–KIF-019, KIF-021, KIF-026–KIF-030 | Shared database source-only architecture | One PostgreSQL and one MongoDB engine are placed in `shared-services`; Reactive Resume DEV/PROD and Keycloak receive PostgreSQL scopes while CristexHub DEV/PROD receive MongoDB scopes; all use Infisical-owned credentials, dedicated backups, deny-first authorization, and private-only exposure while MongoDB source/topology, stateful objects, storage, provisioning, recovery, handoff, and runtime remain blocked | PASS — value-free canonical policy/runbook and exact offline contracts pass; PostgreSQL keeps its selected-but-untrusted baseline, MongoDB remains unselected, all promotion gates are false, exact three-Namespace closure is unchanged, and no executable database source or runtime operation was added |
-| KIF-GHA-01 | KIF-005, KIF-022–KIF-025, KIF-030 | GitHub-hosted infrastructure source CI | Exactly one workflow uses SHA-pinned actions, a fixed runner, read-only permission, bounded triggers/timeouts/concurrency, frozen controller dependencies, and exact offline tests without Secret/package/registry/provider/host/cluster/deploy access | PASS SOURCE-ONLY — focused/full contracts and YAML passed; public action tags were resolved to exact SHAs, but workflow push, runner execution, branch protection, GHCR publication, digest evidence, and deployment are NOT RUN/BLOCKED |
+| KIF-GHA-01 | KIF-005, KIF-022–KIF-025, KIF-030 | GitHub-hosted infrastructure source CI | Exactly one workflow uses SHA-pinned actions, a fixed runner, read-only permission, bounded triggers/timeouts/concurrency, frozen controller dependencies, and exact offline tests without Secret/package/registry/provider/host/cluster/deploy access | PASS SOURCE AND HOSTED CI — focused/full contracts passed; run `31311995461` and job `93241094377` completed successfully for exact commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`; branch protection, GHCR publication, digest evidence, and deployment remain NOT RUN/BLOCKED |
 | KIF-RR-01 | KIF-012–KIF-017, KIF-019, KIF-021, KIF-023, KIF-026–KIF-030 | Reactive Resume private-MVP source architecture | Include environment-local Reactive Resume DEV in the private MVP, reserve separate PROD, bind exact OIDC clients and dedicated shared-PostgreSQL scopes, keep Infisical value ownership/private exposure, and block image/callback/object/Secret/recovery/handoff/runtime promotion | PASS SOURCE-ONLY — value-free policy/runbook and exact contracts pass; no local Compose input was promoted and no upstream image, callback, object, Secret, database, route, or runtime was selected or created |
 | KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, reserves `platform-edge` for cloudflared within the exact current three-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator provenance and selection boundary | Historical evidence distinguishes unselected `v0.11.8` distribution observations from the aligned `v0.11.7` set selected only as the offline baseline; trust, compatibility, scoped RBAC, Universal Auth recovery, traffic, and runtime remain blocked | PASS — focused contracts enforce exact evidence associations, qualified trust wording, immutable child direction, and no deployable controller source or Secret |
@@ -1525,7 +1525,7 @@ and recaps above are retained.
 | KIF-DOC-03 | KIF-001–KIF-003, KIF-006 | Honest implementation boundary | Executed Ansible evidence distinguishes completed OpenTofu installation, completed Namespace check/first apply/idempotence checkpoints including the pre-reconciliation credential failure, and non-deployable Argo/cloudflared/Infisical candidate provenance; only the exact two Namespaces were created, with no controller install, state/provider operation, general host baseline, hosted runtime, or deployment claimed | PASS — repository scan and status wording passed |
 | KIF-DOC-04 | KIF-013–KIF-015 | No committed secret/address material | Repository source contains no private-key block, provider token, kubeconfig content, credential value, or private IPv4 address | PASS — bounded source scan passed |
 | KIF-DOC-05 | KIF-016–KIF-021 | Shared-services and policy risk | Separate principals/backups/vhosts and negative tests remain required; object listings alone do not prove policy enforcement | PASS — functional probe evidence and remaining application-isolation QA are explicit |
-| KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, one manual case passes, and twelve manual cases remain PENDING | PASS — counts and status assertions passed |
+| KIF-DOC-06 | KIF-023–KIF-030 | Honest future evidence | One future discovery case is PARTIAL, eleven future runtime cases remain NOT RUN, one manual case passes, one manual case is PARTIAL, and thirteen manual cases remain PENDING | PASS — counts and status assertions passed |
 
 All requirements KIF-001 through KIF-030 remain represented by the implementation,
 documentation, manual, or future-runtime cases in this file. Only the explicit live
@@ -1661,7 +1661,8 @@ found_ids = set(re.findall(r"KIF-\d{3}", (spec_dir / "testcases.md").read_text()
 assert found_ids == expected_ids, sorted(expected_ids - found_ids)
 assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| NOT RUN —", (spec_dir / "testcases.md").read_text(), re.MULTILINE)) == 11
 assert len(re.findall(r"^\| KIF-FUT-\d{2} .* \| PARTIAL —", (spec_dir / "testcases.md").read_text(), re.MULTILINE)) == 1
-assert len(re.findall(r"^\| MQA-\d{2} .* \| PENDING \|$", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) == 12
+assert len(re.findall(r"^\| MQA-\d{2} .* \| PENDING(?: —[^|]*)? \|$", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) == 13
+assert len(re.findall(r"^\| MQA-\d{2} .* \| PARTIAL —", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) == 1
 assert len(re.findall(r"^\| MQA-\d{2} .* \| PASS —", (spec_dir / "manual-qa.md").read_text(), re.MULTILINE)) == 1
 assert re.search(
     r"^\| KIF-ADM-05 .* \| PASS —",
@@ -2473,12 +2474,65 @@ Public action-tag resolution returned checkout `v4.2.2` commit
 `a26af69be951a213d495a4c3e4e4022e16d87065`, and setup-node `v4.4.0` commit
 `49933ea5288caeca8642d1e84afbd3f7d6820020`. Only checkout/setup-python are
 used here; setup-node is used by the separately validated application source CI.
-This bounded unauthenticated public Git lookup was the only network operation.
+At this source-authoring checkpoint the bounded unauthenticated public Git lookup
+was the only network operation. No workflow had yet been pushed or run, and no
+GitHub setting, registry login, Docker build, image publication, digest,
+SBOM/provenance, Secret, provider, host, Kubernetes API, Infisical, database, route,
+or runtime operation occurred.
 
-No workflow was pushed or run. No GitHub setting, registry login, Docker build, image
-publication, digest, SBOM/provenance, Secret, provider, host, Kubernetes API,
-Infisical, database, route, or runtime operation occurred. The workflow and Reactive
-Resume policy close no manual QA case.
+## First hosted infrastructure source-CI evidence — 2026-08-09
+
+```bash
+git rev-parse HEAD
+git push origin develop
+curl --fail --silent --show-error \
+  -H 'Accept: application/vnd.github+json' \
+  -H 'X-GitHub-Api-Version: 2022-11-28' \
+  'https://api.github.com/repos/devraider/cristexweb/actions/runs/31311995461'
+curl --fail --silent --show-error \
+  -H 'Accept: application/vnd.github+json' \
+  -H 'X-GitHub-Api-Version: 2022-11-28' \
+  'https://api.github.com/repos/devraider/cristexweb/actions/runs/31311995461/jobs?per_page=20'
+.venv/bin/python -m unittest -v \
+  tests.test_github_actions_contract \
+  tests.test_reactive_resume_architecture_contract \
+  tests.test_shared_database_architecture_contract \
+  tests.test_hosted_auth_source_selection_contract \
+  tests.test_keycloak_oidc_bootstrap_design_contract \
+  tests.test_argocd_hardened_design_contract
+.venv/bin/python -m unittest discover -s tests
+git diff --check
+git diff --cached --quiet
+git status --short --branch
+git rev-parse HEAD
+git rev-parse origin/develop
+```
+
+Actual result:
+
+```text
+Initial local SHA precondition: STOPPED before git push because the unverified full
+  SHA literal did not equal HEAD; no remote operation occurred
+Verified HEAD: e200efd8f294a04df8d3c5ea84fd90b8a24e01d1
+Push: eed3f84..e200efd develop -> develop
+Run 31311995461: completed / success / push / exact verified HEAD
+Job 93241094377: validate / completed / success
+Evidence-doc validation: 48 focused and 135 full tests — OK
+Manual-QA ledger: initial exact-PENDING-only count check failed; corrected living
+  regex includes annotated PENDING rows and proves 1 PASS / 1 PARTIAL / 13 PENDING
+Diff hygiene and no staged files: PASS
+Repository before evidence edits: develop synchronized with origin/develop; clean tree
+```
+
+Run URL: <https://github.com/devraider/cristexweb/actions/runs/31311995461>.
+The approved push and read-only public API observation proved only infrastructure
+source CI. The private `cristexhub` push also succeeded, but its unauthenticated
+repository/API and badge endpoints returned HTTP 404; its runner result is therefore
+**UNOBSERVED**, not PASS or FAIL. Local `gh` was unavailable (`gh: command not
+found`), and no token or browser credential was introduced. No GitHub setting,
+registry login, Docker build, image publication, digest, SBOM/provenance, Secret,
+provider, host, Kubernetes API, Infisical, database, route, or deployment operation
+occurred. MQA-14 is PARTIAL; publication and application-run review remain open.
 
 ## Future validation contract
 

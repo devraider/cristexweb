@@ -111,11 +111,12 @@ bounded two-package Ansible bootstrap was reviewed and installed; post-install
 imports and the prior nine exact Kubernetes queries pass. That report confirms the
 k3s datastore and curated cluster indicators; it predates the extended StorageClass,
 PV, and namespace-bounded PVC projection. Hosted application runtime, OpenTofu
-provider initialization/state/plan/apply, Helm chart, GitHub runner execution,
-image publication, deployment, DNS route, tunnel, database, backup, and replacement
-recovery remain unexecuted. One SHA-pinned read-only CI workflow now exists as
-source; it has no package-write, Secret, registry, provider, host, cluster, or deploy
-path and has not been pushed or run. The
+provider initialization/state/plan/apply, Helm chart, image publication, deployment,
+DNS route, tunnel, database, backup, and replacement recovery remain unexecuted. One
+SHA-pinned read-only CI workflow has no package-write, Secret, registry, provider,
+host, cluster, or deploy path; exact infrastructure run `31311995461` passed commit
+`e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`. The private application-run outcome
+remains unobserved. The
 first replacement-host increment is documentation-only: it adds a secret-free
 runbook and artifact register with fail-closed decision gates, not recovery
 automation or runtime proof. Debian plus Ansible is the host-management owner.

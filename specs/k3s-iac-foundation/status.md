@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: historical Namespace evidence preserved; SHA-pinned read-only CI plus Reactive Resume/private-MVP and shared-database policies pass 48 focused/135 full tests, 9 syntax checks, production lint, hashes, links/hygiene, and exact source closure; runner/publication and all image/callback/object/Secret/storage/recovery/handoff/runtime gates pending
+build: historical Namespace evidence preserved; SHA-pinned read-only CI plus Reactive Resume/private-MVP and shared-database policies pass 48 focused/135 full tests, 9 syntax checks, production lint, hashes, links/hygiene, and exact source closure; infrastructure run 31311995461 passed on e200efd; publication and all image/callback/object/Secret/storage/recovery/handoff/runtime gates pending
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -109,9 +109,10 @@ note: |
   includes private DEV in the MVP with separate future PROD, OIDC clients, and
   dedicated shared-PostgreSQL consumer scopes. Upstream image selection, callbacks,
   resources, Secrets, recovery, handoff, and runtime remain blocked. One SHA-pinned,
-  read-only GitHub-hosted CI workflow now exists as source and the application
-  publisher is disabled; neither workflow has been pushed/run and no image was
-  published. The separate source-only
+  read-only GitHub-hosted CI workflow now exists and the application publisher is
+  disabled. Commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1` was pushed to
+  `develop`; GitHub Actions run `31311995461` completed successfully with the sole
+  `validate` job successful. No image was built or published. The separate source-only
   [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
   binds official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
   image, token-file, health, and edge-transport evidence. It is **CANDIDATE — NOT
@@ -209,8 +210,9 @@ note: |
   never applied by their wrapper. `platform-edge` is reserved for cloudflared;
   Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one
   shared MongoDB engine belong in `shared-services`.
-  No external-resource, secret, data, image-publication, GitHub-runner, or deployment
-  operation was performed. The only network access in this increment was bounded
-  unauthenticated `git ls-remote` resolution of public GitHub Action tags to the exact
-  committed SHAs. Object listings and offline tests do not prove replacement
+  No external-resource, secret, data, image-publication, or deployment operation was
+  performed. Network access in this increment was bounded to public action-tag
+  resolution, the approved Git push, and read-only public GitHub Actions API
+  observation of exact run `31311995461`. The hosted runner validated repository
+  source only. Object listings and source/hosted CI do not prove replacement
   recovery.

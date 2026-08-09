@@ -290,8 +290,11 @@ entry gate.
   disclosure (`KIF-013`–`KIF-015`).
 - [x] Add one SHA-pinned, read-only GitHub-hosted infrastructure CI workflow with
   exact branch/job/permission/tool/test closure and no package-write, Secret,
-  registry, provider, host, cluster, or deploy path; keep push/runner evidence
-  separately NOT RUN (`KIF-005`, `KIF-022`, `KIF-030`).
+  registry, provider, host, cluster, or deploy path (`KIF-005`, `KIF-022`, `KIF-030`).
+- [x] Push exact infrastructure commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`
+  and record successful source-only run `31311995461` separately from publication.
+- [ ] Observe and review the private application CI run for exact commit
+  `55d3ee403fb573f84d69a303430c1c15643827d7`; unauthenticated API access is denied.
 
 The source-baseline selections satisfy version choice and public-input availability
 only. They do not satisfy trust/soak, privileged-component-bootstrap,
