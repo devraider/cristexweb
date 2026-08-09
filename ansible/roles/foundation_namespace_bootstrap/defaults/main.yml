@@ -11,5 +11,4 @@ foundation_namespace_bootstrap_controller_path_components:
   - "{{ foundation_namespace_bootstrap_repository_root }}/kubernetes/platform"
   - "{{ foundation_namespace_bootstrap_repository_root }}/kubernetes/platform/namespaces"
 foundation_namespace_bootstrap_manifest_paths:
-  - "{{ foundation_namespace_bootstrap_repository_root }}/kubernetes/platform/namespaces/platform-secrets.yaml"
-  - "{{ foundation_namespace_bootstrap_repository_root }}/kubernetes/platform/namespaces/platform-identity.yaml"
+  - "{{ foundation_namespace_bootstrap_repository_root }}/kubernetes/platform/namespaces/shared-services.yaml"

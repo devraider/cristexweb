@@ -90,7 +90,11 @@ recovery proof, or complete manual runtime validation
 occurred. MQA-13 remains pending specifically
 because the managed-profile rollback path has not been executed and verified, even
 though warning-free fresh-session behavior passed. These results do not satisfy the
-remaining manual cases.
+remaining manual cases. The offline `shared-services` source correction adds no live
+Namespace, workload, database, credential, or route and therefore closes no manual
+case. Future placement is cloudflared-only `platform-edge`, with the Infisical
+Operator, separate Keycloak deployment, and general PostgreSQL instance in
+`shared-services`.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|
@@ -98,7 +102,7 @@ remaining manual cases.
 | MQA-02 | KIF-005, KIF-009, KIF-010, KIF-012–KIF-015, KIF-021 | Private administration and identity authorization | Argo CD and k3s API work through the approved private path; Keycloak administration/management and Argo remain publicly unreachable; direct OIDC grants exact administrator/read-only groups, denies read-only mutation and ungrouped/invalid/expired identities, and preserves tested local break-glass recovery | PENDING |
 | MQA-03 | KIF-013–KIF-015 | Infisical rotation | A test secret rotates and revokes without plaintext in Git/logs; recovery credential remains usable | PENDING |
 | MQA-04 | KIF-016–KIF-021 | DEV isolation | DEV reaches only its databases/services and cannot authenticate to or connect to PROD resources | PENDING |
-| MQA-05 | KIF-017, KIF-018 | Database authorization | DEV PostgreSQL/MongoDB principals receive explicit denial against PROD data, and vice versa | PENDING |
+| MQA-05 | KIF-017, KIF-018 | Database authorization | DEV and PROD PostgreSQL/MongoDB principals receive bidirectional denial; the dedicated Keycloak role reaches only its logical database, application roles cannot reach it, and no application/Keycloak role can create databases or roles | PENDING |
 | MQA-06 | KIF-022–KIF-025 | DEV promotion and rollback | Argo deploys a reviewed immutable digest and Git revert restores the prior verified digest | PENDING |
 | MQA-07 | KIF-026–KIF-028 | Backup and isolated restore | Encrypted off-node backup restores into isolation within RPO/RTO and application validation passes | PENDING |
 | MQA-08 | KIF-025 | Private PROD acceptance | PROD auth, API, workers, migration, data isolation, resource headroom, backup, and rollback pass before public routing | PENDING |
@@ -136,8 +140,8 @@ blocked on unknown prerequisites. A later rehearsal must prove recovery of:
 - pinned host/k3s configuration;
 - Argo CD repository access;
 - Infisical bootstrap access and environment identities;
-- Keycloak PostgreSQL/realm state, administrator recovery, TLS, and OIDC client
-  material;
+- the dedicated Keycloak logical database/role/realm state on the shared PostgreSQL
+  engine, administrator recovery, TLS, and OIDC client material;
 - OpenTofu state and external-resource ownership;
 - application encryption keys;
 - PostgreSQL and MongoDB data;

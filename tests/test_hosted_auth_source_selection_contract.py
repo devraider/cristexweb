@@ -86,7 +86,7 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
                 self.assertFalse(member.issym() or member.islnk(), member.name)
 
     def test_selected_realm_clients_groups_and_images_are_exact(self) -> None:
-        self.assertEqual("cristex-hosted-identity-v1", self.policy["policy_schema"])
+        self.assertEqual("cristex-hosted-identity-v2", self.policy["policy_schema"])
         self.assertEqual("source-selected-runtime-blocked", self.policy["policy_status"])
         self.assertEqual("cristexhub", self.policy["realm"]["name"])
         self.assertEqual(
@@ -159,8 +159,7 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
         self.assertFalse(argo["dex_enabled"])
         self.assertEqual(
             {
-                "platform-identity",
-                "platform-secrets",
+                "platform-edge",
                 "argocd",
                 "cristexhub-dev",
                 "cristexhub-prod",
@@ -168,11 +167,59 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
             },
             set(self.policy["namespaces"]),
         )
+        edge = self.policy["namespaces"]["platform-edge"]
+        self.assertEqual(["cloudflared"], edge["allows"])
+        self.assertEqual(
+            {
+                "infisical-kubernetes-operator",
+                "keycloak-runtime",
+                "shared-postgresql-engine",
+                "application-databases",
+            },
+            set(edge["denies"]),
+        )
+        shared = self.policy["namespaces"]["shared-services"]
+        self.assertEqual(
+            {
+                "infisical-kubernetes-operator",
+                "keycloak-runtime",
+                "shared-postgresql-engine",
+                "application-databases",
+                "keycloak-dedicated-database",
+                "keycloak-dedicated-database-role",
+                "keycloak-dedicated-database-credential",
+                "keycloak-dedicated-backup-scope",
+            },
+            set(shared["allows"]),
+        )
+        self.assertEqual(
+            {
+                "keycloak-role-access-to-application-databases",
+                "application-role-access-to-keycloak-database",
+                "keycloak-role-create-database",
+                "keycloak-role-create-role",
+                "application-role-create-database",
+                "application-role-create-role",
+            },
+            set(shared["denies"]),
+        )
         self.assertIn("prod-credentials", self.policy["namespaces"]["cristexhub-dev"]["denies"])
         self.assertIn("dev-credentials", self.policy["namespaces"]["cristexhub-prod"]["denies"])
-        self.assertIn(
-            "keycloak-postgresql", self.policy["namespaces"]["shared-services"]["denies"]
+
+        database = self.policy["database_isolation"]
+        self.assertEqual("shared-services", database["engine_namespace"])
+        self.assertEqual("one-general-postgresql-instance", database["engine_model"])
+        self.assertTrue(database["keycloak_deployment_separate_from_postgresql"])
+        self.assertEqual("dedicated-logical-database", database["keycloak_database"])
+        self.assertEqual("dedicated-owner-role", database["keycloak_database_role"])
+        self.assertEqual("dedicated", database["keycloak_database_credential"])
+        self.assertEqual(
+            "dedicated-logical-database", database["keycloak_backup_scope"]
         )
+        self.assertEqual("infisical-cloud", database["credential_value_owner"])
+        self.assertFalse(database["separate_keycloak_postgresql_instance"])
+        self.assertFalse(database["separate_keycloak_postgresql_pvc"])
+        self.assertEqual("deny", database["cross_database_access_default"])
 
     def test_universal_auth_and_ownership_are_value_free(self) -> None:
         self.assertEqual("infisical-cloud", self.policy["secrets"]["value_owner"])
@@ -214,8 +261,7 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
             {
                 "platform/namespaces/argocd.yaml",
                 "platform/namespaces/platform-edge.yaml",
-                "platform/namespaces/platform-identity.yaml",
-                "platform/namespaces/platform-secrets.yaml",
+                "platform/namespaces/shared-services.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))

@@ -41,7 +41,7 @@ readonly status=$?
 set -e
 
 [[ $status -ne 0 ]]
-[[ $(grep -Ec 'skipping: \[crtxweb\].*item=(platform-secrets|platform-identity)' "$output_file") -eq 2 ]]
-! grep -Eq 'changed: \[crtxweb\].*item=(platform-secrets|platform-identity)' "$output_file"
+[[ $(grep -Ec 'skipping: \[crtxweb\].*item=shared-services' "$output_file") -eq 1 ]]
+! grep -Eq 'changed: \[crtxweb\].*item=shared-services' "$output_file"
 ! grep -Fq 'INTERNAL_VARIABLE_GUARD' "$output_file"
 printf '%s\n' 'PASS: forged wrapper-format attestation cannot bypass the protected in-run preflight binding'

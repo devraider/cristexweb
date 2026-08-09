@@ -13,7 +13,7 @@
 | ID | Requirement |
 |---|---|
 | KIF-004 | Future infrastructure source and runbooks live at repository-root `ansible/`, `opentofu/`, `kubernetes/`, and `runbooks/`; application source and local-runtime assets remain external. |
-| KIF-005 | Ansible owns host configuration and is the selected bounded bootstrap installer for exact foundational Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted Keycloak, privileged CRDs/cluster RBAC, and Keycloak realm/client/group reconciliation; OpenTofu owns approved external resources; Argo CD owns namespaced desired state only after object-by-object handoff; Infisical Cloud owns secret values. Exact present-only source and a distinct guarded wrapper exist for `platform-secrets` and `platform-identity`, but their check/apply/idempotence remain separately approved and NOT RUN. Every component bootstrap requires its own exact source closure and approvals. Ansible must stop reconciling an object before registration/adoption/successful-sync evidence transfers it to Argo; dual reconciliation is forbidden. The completed `argocd`/`platform-edge` exception remains closed. |
+| KIF-005 | Ansible owns host configuration and is the selected bounded bootstrap installer for exact foundational Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted Keycloak, privileged CRDs/cluster RBAC, and Keycloak realm/client/group reconciliation; OpenTofu owns approved external resources; Argo CD owns namespaced desired state only after object-by-object handoff; Infisical Cloud owns secret values. Exact present-only source and a distinct guarded wrapper exist for `shared-services`, but its check/apply/idempotence remain separately approved and NOT RUN. The superseded `platform-secrets`/`platform-identity` source was never run and its removal is not a cluster deletion. Every component bootstrap requires its own exact source closure and approvals. Ansible must stop reconciling an object before registration/adoption/successful-sync evidence transfers it to Argo; dual reconciliation is forbidden. The completed `argocd`/`platform-edge` exception remains closed. |
 | KIF-006 | The protective root `.gitignore` excludes the local `.venv`, Ansible collections/runtime data, generated state, plans, credentials, kubeconfigs, facts, local variable/override/crash files, and generated secrets, while `uv.lock` and `.terraform.lock.hcl` remain tracked. |
 
 ## Host and cluster
@@ -37,15 +37,15 @@
 | ID | Requirement |
 |---|---|
 | KIF-013 | Git, OpenTofu state/plans, Argo parameters, CI logs, examples, and documentation contain no plaintext runtime secret values. |
-| KIF-014 | Infisical Cloud initially provides separate DEV, PROD, and infrastructure scopes/identities with least-privilege Kubernetes service accounts; only its Kubernetes Operator is bootstrapped and self-hosted Infisical is deferred. Keycloak authenticates and emits groups, Argo RBAC authorizes Argo actions, and Kubernetes RBAC independently constrains controllers; direct Argo OIDC is selected with Dex absent. |
+| KIF-014 | Infisical Cloud initially provides separate DEV, PROD, and infrastructure scopes/identities with least-privilege Kubernetes service accounts; only its Kubernetes Operator is bootstrapped, in `shared-services`, and self-hosted Infisical is deferred. Keycloak is a separate deployment in `shared-services`; it authenticates and emits groups, Argo RBAC authorizes Argo actions, and Kubernetes RBAC independently constrains controllers; direct Argo OIDC is selected with Dex absent. |
 | KIF-015 | Bootstrap credentials, Keycloak administrator and OIDC client material, Infisical machine authentication, and application encryption keys have documented, off-node, tested recovery and rotation procedures. |
 
 ## Environment and data isolation
 
 | ID | Requirement |
 |---|---|
-| KIF-016 | The cluster uses separate `argocd`, `platform-edge`, future `shared-services`, `cristexhub-dev`, and `cristexhub-prod` namespaces; exact `platform-secrets` and `platform-identity` manifests exist but runtime remains separately approved and NOT RUN; applications retain separate DEV/PROD credentials, migrations, and backup paths. |
-| KIF-017 | Shared PostgreSQL provides separate DEV/PROD databases and owner roles; each role is denied access to the other environment. |
+| KIF-016 | Committed source contains `argocd`, cloudflared-only `platform-edge`, and future `shared-services`; later `cristexhub-dev` and `cristexhub-prod` remain separate. `shared-services` is the placement for the Infisical Operator, separate Keycloak deployment, and general PostgreSQL instance, but its Namespace/runtime checkpoints remain separately approved and NOT RUN. Applications retain separate DEV/PROD credentials, migrations, and backup paths. |
+| KIF-017 | One general PostgreSQL instance provides separate DEV, PROD, and Keycloak logical databases and owner roles. Keycloak receives no separate PostgreSQL deployment/PVC; every role is denied cross-database access and application/Keycloak roles cannot create databases or roles. |
 | KIF-018 | Shared MongoDB provides separate DEV/PROD databases and users; each user is denied access to the other environment. |
 | KIF-019 | Shared-engine failure and contention risks are documented, bounded with requests/limits/connection limits, and accepted before PROD. |
 | KIF-020 | Redis is environment-local; any shared RabbitMQ uses separate users/vhosts, limits, and negative cross-access tests. |
@@ -107,12 +107,12 @@ apply mode, and activation of the selected Keycloak/Argo OIDC policy remain six 
 architecture decisions; deployable component source, trust, admission, runtime, and
 handoff gates also remain open. The source-only
 [Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
-maps KIF-002, KIF-003, KIF-005, KIF-010, KIF-012 through KIF-016, KIF-021, KIF-023,
+maps KIF-002, KIF-003, KIF-005, KIF-010, KIF-012 through KIF-017, KIF-021, KIF-023,
 and KIF-026 through KIF-030 to one future shared self-hosted identity architecture
 target. It distinguishes Keycloak authentication/groups, Argo RBAC, and Kubernetes
 RBAC; retains direct OIDC with Dex absent, private administration, Infisical-owned
-client secrets, dedicated PostgreSQL, encrypted off-node backup/isolated restore,
-and object-by-object handoff. The release record selects Keycloak `26.7.1`,
+client secrets, a dedicated Keycloak database/role on the shared PostgreSQL engine,
+encrypted off-node backup/isolated restore, and object-by-object handoff. The release record selects Keycloak `26.7.1`,
 PostgreSQL `17.10`, realm `cristexhub`, and stable issuer
 `https://auth.cristex-soft.com/realms/cristexhub` only for offline source authoring.
 Exact callbacks/origins, trust/recovery, executable source, routes, credentials, and

@@ -245,8 +245,7 @@ class InfisicalPrivilegedPrerequisitesDesignContractTests(unittest.TestCase):
             {
                 "platform/namespaces/argocd.yaml",
                 "platform/namespaces/platform-edge.yaml",
-                "platform/namespaces/platform-identity.yaml",
-                "platform/namespaces/platform-secrets.yaml",
+                "platform/namespaces/shared-services.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))

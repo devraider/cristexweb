@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: historical Namespace idempotence, deployable-but-NOT-RUN foundation Namespace source, offline Argo/Infisical/Keycloak source-baseline contracts, and inert Infisical privileged-prerequisite inventory pass; controller trust/source, security/Secret/adoption/runtime, and provider/state/backup pending
+build: historical Namespace idempotence preserved; offline shared-services placement correction and deployable-but-NOT-RUN singleton Namespace source pass 78 focused/115 full tests, 9 syntax checks, production lint, fixtures, hashes, links, and hygiene; controller trust/source, security/Secret/adoption/runtime, and provider/state/backup pending
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -78,9 +78,10 @@ note: |
   route source was added. Ansible is selected as the future bounded bootstrap
   installer and lifecycle owner of privileged CRDs/cluster RBAC. Exact present-only
   [foundation Namespace source and guarded wrapper](../../runbooks/foundation-namespace-bootstrap.md)
-  now exist for `platform-secrets` and `platform-identity`, but check, first apply,
-  and idempotence remain separately
-  approved and **NOT RUN**. Component source/credentials, foundation Namespace
+  now exist for `shared-services`, but check, first apply, and idempotence remain
+  separately approved and **NOT RUN**. The superseded
+  `platform-secrets`/`platform-identity` source never ran, and this offline correction
+  performs no live rename or deletion. Component source/credentials, foundation Namespace
   runtime, resource/GVR/discovery inventory, Infisical Universal Auth recovery, live
   Namespace-adoption apply mode, and activation of the selected Keycloak/Argo OIDC
   policy remain six open architecture decisions. The completed historical Namespace exception stays closed. The source-only
@@ -89,8 +90,11 @@ note: |
   Argo CD as the identity architecture target only. It distinguishes Keycloak
   authentication/groups, Argo RBAC, and Kubernetes RBAC; retains direct OIDC with
   Dex absent, local break-glass, private administration, Infisical-owned client
-  secrets, dedicated PostgreSQL, encrypted off-node backup/isolated restore, and
-  object-by-object handoff. The release record selects Keycloak `26.7.1`, PostgreSQL
+  secrets, and a dedicated logical Keycloak database/owner role on the one general
+  PostgreSQL instance in `shared-services`. Keycloak remains a separate deployment;
+  it receives no separate PostgreSQL workload/PVC. Encrypted off-node backup,
+  isolated restore, negative cross-database tests, and object-by-object handoff
+  remain required. The release record selects Keycloak `26.7.1`, PostgreSQL
   `17.10`, realm `cristexhub`, stable issuer, and default theme only for offline
   source authoring; exact callbacks, trust/recovery, executable source, routes,
   credentials, and runtime remain **NOT RUN/BLOCKED**. The separate source-only
@@ -114,8 +118,9 @@ note: |
   binds the seven raw CRD templates, ownership boundaries, and known
   manager/metrics/user-RBAC defects to the vendored archive while approving no
   object or permission and keeping all promotion gates closed. The actual target is
-  now captured, but chart/CRD/API compatibility, signer/build trust, dedicated
-  Namespace, scoped RBAC, Argo handoff, secret-zero/recovery, traffic policy,
+  now captured, but chart/CRD/API compatibility, signer/build trust,
+  `shared-services` placement with separate ServiceAccount/scoped RBAC, Argo handoff,
+  secret-zero/recovery, traffic policy,
   single-node acceptance, and runtime approvals remain blockers.
   The unmounted filesystem, disk health, contents, reuse decision, and off-node backup
   design remain unresolved; no disk mutation occurred.
@@ -153,7 +158,8 @@ note: |
   remains empty; provider initialization/lockfile, state creation/encryption, Google
   Drive copy and restore, plan, apply, and every external resource remain NOT
   RUN/BLOCKED.
-  Global committed Kubernetes source now defines exactly four Namespace manifests.
+  Global committed Kubernetes source now defines exactly three Namespace manifests:
+  `argocd`, `platform-edge`, and `shared-services`.
   The closed historical bounded Ansible bootstrap defines and loads only `argocd`
   and `platform-edge`, requires state present and
   exact bootstrap/future-owner labels, refuses forged internal results and foreign
@@ -183,9 +189,11 @@ note: |
   were `ok`, protected identity/label/`Active` assertions passed, and k3s/Tailscale
   remained running before and after. Argo CD, cloudflared, Infisical Operator,
   Keycloak, `shared-services`, DEV/PROD, Secrets, workloads, Services, policies,
-  PVCs, and routes do not exist from this increment. `platform-secrets` and
-  `platform-identity` now have deployable Namespace source, but no runtime existence
-  is claimed because their wrapper has not run. The future shared service Namespace
-  is named `shared-services`, but it is not created.
+  PVCs, and routes do not exist from that historical increment. Exact present-only
+  source now targets only `shared-services`, but no runtime existence is claimed
+  because its wrapper has not run. The two superseded Namespace source files were
+  never applied by their wrapper. `platform-edge` is reserved for cloudflared;
+  Infisical Operator, separate Keycloak, and general PostgreSQL placement belongs in
+  `shared-services`.
   No external-resource, secret, data, or deployment operation was performed. Object
   listings and offline tests do not prove replacement recovery.

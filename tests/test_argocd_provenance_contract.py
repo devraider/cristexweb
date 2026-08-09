@@ -250,8 +250,7 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
         expected_kubernetes = {
             "platform/namespaces/argocd.yaml",
             "platform/namespaces/platform-edge.yaml",
-            "platform/namespaces/platform-secrets.yaml",
-            "platform/namespaces/platform-identity.yaml",
+            "platform/namespaces/shared-services.yaml",
         }
         actual_kubernetes = {
             str(path.relative_to(KUBERNETES))

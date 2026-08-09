@@ -25,7 +25,7 @@ recover DEV and PROD without presenting a single node as highly available.
 - DEV and administration remain private through host Tailscale.
 - Only approved PROD application routes become public through Cloudflare Tunnel.
 - Application namespaces are `cristexhub-dev` and `cristexhub-prod`.
-- `shared-services` hosts shared PostgreSQL, MongoDB, and any retained RabbitMQ, with separate databases, principals, credentials, migrations, virtual hosts, limits, and backups per environment.
+- `platform-edge` is reserved for cloudflared. `shared-services` hosts the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL instance, MongoDB, and any retained RabbitMQ. Keycloak uses a dedicated logical database, owner role, credential, and backup scope on the shared PostgreSQL engine; DEV/PROD retain separate databases, principals, credentials, migrations, limits, and backups.
 - Redis remains per environment.
 
 ## Constraints
@@ -93,9 +93,11 @@ mutation and proved no idempotence. The retry passed at
 items `ok`, exact post-state identity/label/Active assertions passing, and
 k3s/Tailscale running before and after. A distinct exact present-only
 [foundation Namespace bootstrap](../../runbooks/foundation-namespace-bootstrap.md)
-is now implemented for `platform-secrets` and `platform-identity` without modifying
-or reopening the historical wrapper. Its check, first apply, and idempotence remain
-separately approved and **NOT RUN**. Argo CD, cloudflared, Infisical Operator,
+is now implemented for `shared-services` without modifying or reopening the
+historical wrapper. Its check, first apply, and idempotence remain separately
+approved and **NOT RUN**. The superseded `platform-secrets`/`platform-identity`
+source was never run; this source correction does not claim a live rename or
+deletion. Argo CD, cloudflared, Infisical Operator,
 Keycloak, PostgreSQL, Secrets, workloads, Services, policies, PVCs, and routes remain
 unrun. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
@@ -120,8 +122,9 @@ resource-inventory, Universal-Auth-recovery, adoption-apply, and selected-OIDC
 activation decisions open. The
 [source-only Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
 selects the shared self-hosted identity architecture target, direct Argo OIDC with
-Dex absent, private administration, dedicated PostgreSQL/recovery, Infisical-owned
-client secret, and object-by-object handoff directions. The release record selects
+Dex absent, private administration, a dedicated Keycloak database/role on the shared
+PostgreSQL engine, recovery, Infisical-owned client secret, and object-by-object
+handoff directions. The release record selects
 Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, default theme, clients, and
 group policy only for offline source authoring; executable source, callbacks,
 credentials, routes, recovery proof, and runtime remain **NOT RUN/BLOCKED**. A separate source-only

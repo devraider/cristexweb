@@ -34,10 +34,11 @@ and successful sync plus managed-field evidence passes. Ansible and Argo must ne
 reconcile the same object concurrently.
 
 The previously completed `argocd` and `platform-edge` Namespace exception remains
-closed. `platform-secrets` and `platform-identity` now have exact present-only
-Namespace source and a distinct bounded Ansible wrapper. Its check, first apply, and
-idempotence checkpoints remain **NOT RUN** and require separate approvals. The old
-wrapper is unchanged and must not be reused or reopened.
+closed. `shared-services` now has exact present-only Namespace source and a distinct
+bounded Ansible wrapper. Its check, first apply, and idempotence checkpoints remain
+**NOT RUN** and require separate approvals. The superseded `platform-secrets` and
+`platform-identity` source was never run; its removal is not a live deletion. The old
+historical wrapper is unchanged and must not be reused or reopened.
 
 ## Authentication and authorization layers
 
@@ -81,12 +82,13 @@ role groups deny access. The application owns dynamic Organizations, memberships
 and organization role groups; Ansible owns static realm settings, client/mappers,
 and the static Argo groups.
 
-Namespace trust is explicit: `platform-identity` contains Keycloak plus its dedicated
-PostgreSQL and identity backup/restore scope; `platform-secrets` contains only the
-Infisical Operator; `argocd` receives only its materialized OIDC client value;
-`cristexhub-dev` and `cristexhub-prod` receive only their own environment identities;
-and `shared-services` never contains Keycloak PostgreSQL. DEV and PROD credentials
-must never cross.
+Namespace trust is explicit: `platform-edge` is reserved for cloudflared only;
+`shared-services` contains the Infisical Cloud Operator, a separate Keycloak
+deployment, and the one general PostgreSQL instance; `argocd` receives only its
+materialized OIDC client value; and `cristexhub-dev` and `cristexhub-prod` receive
+only their own environment identities. Keycloak receives a dedicated logical
+database, dedicated owner role, and dedicated credential values inside that shared
+PostgreSQL engine. DEV and PROD credentials must never cross.
 
 ## External application-asset boundary
 
@@ -115,10 +117,13 @@ One replica on one node is explicitly not high availability.
 
 Keycloak requires PostgreSQL `17.10` at linux/amd64 child digest
 `sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b`,
-a dedicated external database, database principal, and PVC. The database version must be supported by the selected Keycloak release. Before
-the first private bootstrap, the database/storage design, backup tooling and
-destination, encryption/key custody, integrity procedure, restore procedure, and
-provisional RPO/RTO must be reviewed and approved. The first separately approved
+a dedicated logical database and dedicated owner role on the one general shared
+PostgreSQL instance. Keycloak remains a separate deployment from PostgreSQL. No
+separate Keycloak PostgreSQL deployment or PVC is selected; the shared engine and
+PVC remain a shared failure domain. The database version must be supported by the
+selected Keycloak release. Before the first private bootstrap, the database/storage
+design, backup tooling and destination, encryption/key custody, integrity procedure,
+restore procedure, and provisional RPO/RTO must be reviewed and approved. The first separately approved
 bootstrap remains non-authoritative: it creates only controlled test identity state.
 Before authoritative identity state is accepted or OIDC is enabled, the design
 requires:
@@ -135,8 +140,10 @@ requires:
 
 StorageClass, placement, capacity, backup identity, backup destination, database TLS,
 connection limits, migration sequencing, and recovery custodians remain unresolved.
-PVC deletion, database recreation, realm re-import, and release downgrade are never
-routine rollback.
+The Keycloak role cannot access application databases, and application roles cannot
+access the Keycloak database; negative grant tests are mandatory. The Keycloak role
+must not create databases or roles. PVC deletion, database recreation, realm
+re-import, and release downgrade are never routine rollback.
 
 ## Stable issuer and private-first exposure
 
@@ -167,13 +174,14 @@ A future default-deny design must prove only these classes of traffic:
 | Flow | Purpose |
 |---|---|
 | reviewed browser or private operator path to Keycloak application listener | Authentication only |
-| Keycloak to dedicated PostgreSQL | Identity-state persistence |
+| Keycloak to the general PostgreSQL Service using only its dedicated database and role | Identity-state persistence |
 | Keycloak and approved OIDC clients to CoreDNS | Name resolution |
 | Argo server to selected stable OIDC issuer | Discovery, authorization-code exchange, and key retrieval |
 | approved application gateways to selected stable OIDC issuer | Application SSO |
 | approved internal administration client to exact Keycloak administration surface | Bounded realm/client/group reconciliation |
 
-PostgreSQL accepts only Keycloak and bounded backup/restore identities. The Keycloak
+The Keycloak database accepts only the dedicated Keycloak role and bounded
+backup/restore identities; application database roles are denied. The Keycloak
 management listener accepts only exact private probes and approved monitoring after
 its labels and ports are verified. Egress to arbitrary destinations, public
 administration, direct database exposure, cross-environment identity credentials,

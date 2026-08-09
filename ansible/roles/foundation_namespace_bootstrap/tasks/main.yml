@@ -52,13 +52,11 @@
       - >-
         foundation_namespace_bootstrap_manifest_paths ==
         [foundation_namespace_bootstrap_repository_root ~
-           '/kubernetes/platform/namespaces/platform-secrets.yaml',
-         foundation_namespace_bootstrap_repository_root ~
-           '/kubernetes/platform/namespaces/platform-identity.yaml']
+           '/kubernetes/platform/namespaces/shared-services.yaml']
     fail_msg: >-
       Foundation Namespace bootstrap requires its non-passthrough controller entrypoint,
       explicit approval, --diff, the exact one-host limit, state present, the protected
-      k3s kubeconfig, and exact canonical paths for the two committed manifests.
+      k3s kubeconfig, and the exact canonical path for the committed manifest.
   changed_when: false
 
 - name: Inspect the ephemeral Namespace bootstrap entrypoint attestation
@@ -190,22 +188,22 @@
 - name: Require the exact bounded Namespace manifest contract
   ansible.builtin.assert:
     that:
-      - foundation_namespace_bootstrap_internal_manifests | length == 2
+      - foundation_namespace_bootstrap_internal_manifests | length == 1
       - >-
         foundation_namespace_bootstrap_internal_manifests |
-        map(attribute='metadata.name') | list == ['platform-secrets', 'platform-identity']
+        map(attribute='metadata.name') | list == ['shared-services']
       - item.keys() | list | sort == ['apiVersion', 'kind', 'metadata']
       - item.apiVersion == 'v1'
       - item.kind == 'Namespace'
       - item.metadata.keys() | list | sort == ['labels', 'name']
-      - item.metadata.name in ['platform-secrets', 'platform-identity']
+      - item.metadata.name == 'shared-services'
       - item.metadata.labels['app.kubernetes.io/part-of'] == 'cristex-platform'
       - item.metadata.labels['cristex.io/bootstrap-writer'] == 'ansible'
       - item.metadata.labels['cristex.io/desired-owner'] == 'argocd'
       - item.metadata.labels | length == 3
     fail_msg: >-
-      Refusing a manifest outside the exact platform-secrets/platform-identity Namespace,
-      Ansible bootstrap-writer, and future Argo CD desired-owner contract.
+      Refusing a manifest outside the exact shared-services Namespace, Ansible
+      bootstrap-writer, and future Argo CD desired-owner contract.
   loop: "{{ foundation_namespace_bootstrap_internal_manifests }}"
   loop_control:
     label: "{{ item.metadata.name }}"
@@ -289,8 +287,8 @@
           'cristex.io/desired-owner', '') ==
           item.item.metadata.labels['cristex.io/desired-owner'])
     fail_msg: >-
-      An existing platform-secrets or platform-identity Namespace lacks the exact reviewed
-      bootstrap and future-owner labels; refusing silent adoption.
+      An existing shared-services Namespace lacks the exact reviewed bootstrap and
+      future-owner labels; refusing silent adoption.
   loop: "{{ foundation_namespace_bootstrap_internal_prestate.results }}"
   loop_control:
     label: "{{ item.item.metadata.name }}"
@@ -333,12 +331,7 @@
       {{ lookup('ansible.builtin.file',
                 (playbook_dir | ansible.builtin.dirname |
                  ansible.builtin.dirname) ~
-                '/kubernetes/platform/namespaces/platform-secrets.yaml') | from_yaml }}
-    - >-
-      {{ lookup('ansible.builtin.file',
-                (playbook_dir | ansible.builtin.dirname |
-                 ansible.builtin.dirname) ~
-                '/kubernetes/platform/namespaces/platform-identity.yaml') | from_yaml }}
+                '/kubernetes/platform/namespaces/shared-services.yaml') | from_yaml }}
   loop_control:
     label: "{{ item.metadata.name }}"
   when:
@@ -363,12 +356,12 @@
        ansible.builtin.hash('sha256'))
     - >-
       foundation_namespace_bootstrap_internal_preflight_binding.manifest_names ==
-      ['platform-secrets', 'platform-identity']
+      ['shared-services']
     - >-
       foundation_namespace_bootstrap_internal_preflight_binding.prestate_names ==
-      ['platform-secrets', 'platform-identity']
+      ['shared-services']
     - foundation_namespace_bootstrap_internal_preflight_binding.controller_path_count == 4
-    - foundation_namespace_bootstrap_internal_preflight_binding.manifest_path_count == 2
+    - foundation_namespace_bootstrap_internal_preflight_binding.manifest_path_count == 1
     - foundation_namespace_bootstrap_internal_preflight_binding.kubeconfig_contract | bool
     - foundation_namespace_bootstrap_internal_preflight_binding.service_contract | bool
     - foundation_namespace_bootstrap_approved | bool
@@ -380,7 +373,7 @@
     - item.apiVersion == 'v1'
     - item.kind == 'Namespace'
     - item.metadata.keys() | list | sort == ['labels', 'name']
-    - item.metadata.name in ['platform-secrets', 'platform-identity']
+    - item.metadata.name == 'shared-services'
     - item.metadata.labels['app.kubernetes.io/part-of'] == 'cristex-platform'
     - item.metadata.labels['cristex.io/bootstrap-writer'] == 'ansible'
     - item.metadata.labels['cristex.io/desired-owner'] == 'argocd'

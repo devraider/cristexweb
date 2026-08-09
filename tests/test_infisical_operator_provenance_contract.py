@@ -139,8 +139,8 @@ class InfisicalOperatorCandidateProvenanceContractTests(unittest.TestCase):
             "approved schema-v3 discovery captured kubelet `v1.36.2+k3s1`",
             "Review every rendered CRD/API version and prove exact chart and k3s compatibility",
             "Chart and image assurance",
-            "Dedicated operator Namespace",
-            "exact present-only source and a distinct bounded Ansible wrapper now exist for `platform-secrets`",
+            "Shared operator Namespace",
+            "exact present-only source and a distinct bounded Ansible wrapper now exist for `shared-services`",
             "check, first apply, and idempotence checkpoints are separately approved and **NOT RUN**",
             "completed `argocd`/`platform-edge` wrapper remains closed",
             "Ansible bootstrap and later ownership handoff",
@@ -202,8 +202,7 @@ class InfisicalOperatorCandidateProvenanceContractTests(unittest.TestCase):
             {
                 "platform/namespaces/argocd.yaml",
                 "platform/namespaces/platform-edge.yaml",
-                "platform/namespaces/platform-secrets.yaml",
-                "platform/namespaces/platform-identity.yaml",
+                "platform/namespaces/shared-services.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))
@@ -215,10 +214,7 @@ class InfisicalOperatorCandidateProvenanceContractTests(unittest.TestCase):
             any(
                 path.name in {"Chart.yaml", "values.yaml"}
                 or "crd" in path.name.lower()
-                or (
-                    "secret" in path.name.lower()
-                    and path.name != "platform-secrets.yaml"
-                )
+                or "secret" in path.name.lower()
                 for path in KUBERNETES.rglob("*")
                 if path.is_file()
             )

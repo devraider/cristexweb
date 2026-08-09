@@ -65,21 +65,11 @@ metadata:
     cristex.io/bootstrap-writer: ansible
     cristex.io/desired-owner: argocd
 """,
-            "platform/namespaces/platform-secrets.yaml": """---
+            "platform/namespaces/shared-services.yaml": """---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: platform-secrets
-  labels:
-    app.kubernetes.io/part-of: cristex-platform
-    cristex.io/bootstrap-writer: ansible
-    cristex.io/desired-owner: argocd
-""",
-            "platform/namespaces/platform-identity.yaml": """---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: platform-identity
+  name: shared-services
   labels:
     app.kubernetes.io/part-of: cristex-platform
     cristex.io/bootstrap-writer: ansible

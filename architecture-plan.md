@@ -55,10 +55,13 @@ offline-validated gated OpenTofu installer and zero-resource Cloudflare-only sou
 scaffold. The first live run stopped after two bounded directory tasks because the
 host had no route to GitHub. The reviewed controller-cache and Ansible-transfer
 recovery subsequently passed check, live installation, and a `changed=0` rerun; the
-pinned CLI and selector now exist without host egress. Committed Kubernetes desired state now contains exactly four Namespace manifests.
-The closed historical bootstrap owns only `argocd` and `platform-edge`; a distinct
-present-only bootstrap is implemented but not run for `platform-secrets` and
-`platform-identity`. The separately approved historical first apply created exactly those
+pinned CLI and selector now exist without host egress. Committed Kubernetes desired
+state now contains exactly three Namespace manifests: `argocd`, `platform-edge`, and
+`shared-services`. The closed historical bootstrap owns only `argocd` and
+`platform-edge`; a distinct present-only bootstrap is implemented but not run for
+`shared-services`. The superseded `platform-secrets`/`platform-identity` source never
+ran, and its removal is not a live rename or deletion. The separately approved
+historical first apply created exactly those
 two Active Namespaces with the reviewed labels. The separately approved idempotence
 checkpoint first stopped before Kubernetes reconciliation on failed local sudo
 authentication at `changed=0`; its retry passed at `ok=21 changed=0 failed=0` with
@@ -207,10 +210,8 @@ Tailscale do not replace application OIDC/JWT enforcement.
 | Namespace | Purpose |
 |---|---|
 | `argocd` | Argo CD controllers and private UI/API |
-| `platform-edge` | Cloudflare Tunnel connector only; no route exists until separately approved |
-| `platform-secrets` | Exact present-only Namespace source and a distinct guarded wrapper exist for the future Infisical Cloud Kubernetes Operator; runtime NOT RUN |
-| `platform-identity` | Exact present-only Namespace source and a distinct guarded wrapper exist for future shared Keycloak and dedicated identity PostgreSQL; runtime NOT RUN |
-| `shared-services` | Shared application PostgreSQL, MongoDB, and any retained shared RabbitMQ |
+| `platform-edge` | Cloudflare Tunnel connector only; no Keycloak, Infisical Operator, database, or route exists; every route remains separately approved |
+| `shared-services` | Exact present-only Namespace source and a distinct guarded wrapper exist; future placement for the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL instance, MongoDB, and any retained shared RabbitMQ; runtime NOT RUN |
 | `cristexhub-dev` | DEV applications and environment-local dependencies |
 | `cristexhub-prod` | PROD applications and environment-local dependencies |
 | Optional backup/monitoring namespaces | Added only when their first workload is approved |
@@ -224,26 +225,33 @@ connectivity tests provide the enforceable controls.
 A single PostgreSQL engine and a single MongoDB engine save memory. This is an
 explicitly accepted shared failure and contention domain.
 
-PostgreSQL requires separate databases and owner roles, including at minimum
-`cristexhub_dev` and `cristexhub_prod`. MongoDB requires separate databases and
-users with privileges limited to their own database. DEV and PROD never share an
-application credential, encryption key, migration target, or backup prefix.
+PostgreSQL requires separate logical databases and owner roles, including dedicated
+DEV, PROD, and Keycloak scopes. Keycloak remains a separate deployment from the one
+general PostgreSQL instance and receives its own database, owner role, credential,
+and backup scope; it does not receive another PostgreSQL workload or PVC. MongoDB
+requires separate databases and users with privileges limited to their own database.
+DEV and PROD never share an application credential, encryption key, migration target,
+or backup prefix.
 
-The application role must not create roles or databases. A bounded, idempotent,
+Application and Keycloak roles must not create roles or databases. The Keycloak role
+cannot access application databases, and application roles cannot access the
+Keycloak database; those denials require negative grant tests. A bounded, idempotent,
 Argo-managed provisioning job or a later approved operator creates principals from
 Infisical references. Its administrator credential is not available to application
-pods.
+or Keycloak pods.
 
 Redis remains per environment because Redis database numbers are not sufficient
 security isolation. A shared RabbitMQ is permitted only with distinct users,
 virtual hosts, limits, and negative access tests. A later capacity decision may
 separate it.
 
-NetworkPolicy must allow each application namespace to reach only its own approved
-database endpoints and deny cross-environment application traffic. Database engines
-remain ClusterIP-only. Keycloak uses a separate PostgreSQL database, principal, PVC,
-backup set, connection policy, and recovery acceptance; it does not share an
-application database credential.
+NetworkPolicy must allow each application namespace and the Keycloak workload to
+reach only the shared PostgreSQL Service and other exact approved endpoints, while
+denying cross-environment application traffic. NetworkPolicy cannot isolate logical
+databases on one endpoint, so PostgreSQL grants and negative authorization tests are
+mandatory. Database engines remain ClusterIP-only. The general PostgreSQL engine/PVC
+is a shared failure domain even though Keycloak has a separate database, role,
+credential, backup scope, connection policy, and recovery acceptance.
 
 ## Secrets
 
@@ -401,8 +409,9 @@ verification must meet the declared RPO/RTO before PROD.
 
 ### Pre-Stage-4B — bounded foundation Namespace source
 
-- Source: exact manifests and a distinct guarded Ansible bootstrap are implemented
-  for only `platform-secrets` and `platform-identity`; see the
+- Source: one exact manifest and a distinct guarded Ansible bootstrap are implemented
+  for only `shared-services`; the superseded two-Namespace source never ran and was
+  removed without contacting the cluster; see the
   [foundation Namespace bootstrap runbook](runbooks/foundation-namespace-bootstrap.md).
 - Separation: the historical wrapper, role, manifests, and evidence remain unchanged
   and closed. The new wrapper has its own playbook, role, environment namespace, and
@@ -447,7 +456,7 @@ verification must meet the declared RPO/RTO before PROD.
   installer and lifecycle owner of privileged CRDs/cluster RBAC. Six decisions remain:
   (1) exact component Ansible source/object/credential closure and approvals, (2)
   separately approved check, first apply, and idempotence runtime checkpoints for the
-  implemented `platform-secrets`/`platform-identity` present-only source, (3) exact
+  implemented `shared-services` present-only source, (3) exact
   resource/GVR/discovery inventory, (4) Infisical authentication and independent
   recovery, (5) first-sync apply mode after live Namespace field evidence, and (6)
   stable Keycloak issuer/callback/TLS plus direct OIDC/RBAC acceptance. The completed
@@ -500,12 +509,13 @@ verification must meet the declared RPO/RTO before PROD.
 - Entry: StorageClass, capacity, backup, and resource-limit decisions approved.
 - Work: namespaces, service accounts, RBAC, NetworkPolicy, PostgreSQL, MongoDB,
   principals, environment-local Redis, and the stateful Keycloak prerequisites.
-  Keycloak requires a selected immutable `linux/amd64` image, production startup,
-  dedicated PostgreSQL database/principal/PVC, stable issuer/callback/TLS/proxy
-  design, private administration/management, exact policies/probes/resources, and
-  independently recoverable secret-zero.
-- Gate: before the first private Keycloak bootstrap, approve the image, dedicated
-  database/storage, backup tooling/destination/key custody, restore procedure,
+  Keycloak requires a selected immutable `linux/amd64` image, production startup, a
+  dedicated logical database and owner role on the one general PostgreSQL instance,
+  stable issuer/callback/TLS/proxy design, private administration/management, exact
+  policies/probes/resources, and independently recoverable secret-zero. It remains a
+  separate deployment and receives no separate PostgreSQL workload or PVC.
+- Gate: before the first private Keycloak bootstrap, approve the image, shared-engine
+  storage plus dedicated database/role, backup tooling/destination/key custody, restore procedure,
   provisional RPO/RTO, stable issuer, and private exposure. That separately approved
   bootstrap is non-authoritative and creates only controlled test identity state.
   Encrypted application-consistent `pg_dump`, non-destructive off-node copy, integrity
@@ -573,9 +583,10 @@ Implementation is blocked until each relevant item is resolved:
 - live PVC placement and approved use of the 1 TB disk;
 - backup retention, encryption, Google Drive identity, RPO, and RTO;
 - private GHCR pull authentication and image retention;
-- selected Keycloak release/image/package, dedicated PostgreSQL/storage/backup and
-  isolated restore, stable private-first issuer/callback/TLS/proxy design, proposed
-  identity/secrets Namespaces, direct Argo OIDC groups/RBAC, and later separately
+- selected Keycloak release/image/package, shared PostgreSQL storage plus dedicated
+  Keycloak database/role/backup and isolated restore, stable private-first
+  issuer/callback/TLS/proxy design, the `shared-services` Namespace, direct Argo OIDC
+  groups/RBAC, and later separately
   approved browser-auth route;
 - exact initial CristexHub service slice and code-runner disposition;
 - private DEV naming: tailnet name or custom private DNS.

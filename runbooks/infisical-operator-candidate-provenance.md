@@ -137,12 +137,14 @@ Every item below still blocks deployable Infisical Operator controller source an
    establish independent Infisical key authorization and revocation status, verify
    image signature/attestation identity, obtain or disposition an SBOM and
    vulnerability review, and prove off-node availability of the exact child digest.
-4. **Dedicated operator Namespace:** exact present-only source and a distinct bounded
-   Ansible wrapper now exist for `platform-secrets`, but its check, first apply, and
+4. **Shared operator Namespace:** exact present-only source and a distinct bounded
+   Ansible wrapper now exist for `shared-services`, but its check, first apply, and
    idempotence checkpoints are separately approved and **NOT RUN**. The completed
-   `argocd`/`platform-edge` wrapper remains closed. Do not place the operator into
-   `argocd`, `platform-edge`, `platform-identity`, `shared-services`,
-   `cristexhub-dev`, or `cristexhub-prod` by default.
+   `argocd`/`platform-edge` wrapper remains closed. The Operator is intentionally
+   co-located with separate Keycloak and PostgreSQL deployments, but still requires
+   its own ServiceAccount, exact scoped RBAC, watch scope, resource limits, and
+   pod-selective NetworkPolicy. It must not be placed in `platform-edge`, `argocd`,
+   `cristexhub-dev`, or `cristexhub-prod`.
 5. **Ansible bootstrap and later ownership handoff:** Ansible is the selected bounded
    installer and privileged lifecycle owner. Exact operator source, credentials, and
    approvals remain absent. A namespaced object may hand off to Argo only after

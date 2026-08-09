@@ -34,7 +34,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "Ansible remains lifecycle owner of foundation CRDs, ClusterRoles,\nClusterRoleBindings, and Keycloak realm, client, group, and group-claim\nreconciliation",
             "only after its exact writer is stopped",
             "Ansible and Argo must never\nreconcile the same object concurrently",
-            "old\nwrapper is unchanged and must not be reused or reopened",
+            "old\nhistorical wrapper is unchanged and must not be reused or reopened",
         ):
             self.assertIn(required, self.text)
 
@@ -63,8 +63,12 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
     def test_production_database_backup_and_restore_gates_fail_closed(self) -> None:
         for required in (
             "selected official `26.7.1` linux/amd64 child\ndigest `sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2`\nand production startup, never `start-dev`",
-            "a dedicated external database, database principal, and PVC",
-            "Before\nthe first private bootstrap, the database/storage design, backup tooling and\ndestination, encryption/key custody, integrity procedure, restore procedure, and\nprovisional RPO/RTO must be reviewed and approved",
+            "a dedicated logical database and dedicated owner role on the one general shared\nPostgreSQL instance",
+            "Keycloak remains a separate deployment from PostgreSQL",
+            "No\nseparate Keycloak PostgreSQL deployment or PVC is selected",
+            "the shared engine and\nPVC remain a shared failure domain",
+            "Keycloak role cannot access application databases, and application roles cannot\naccess the Keycloak database",
+            "Before the first private bootstrap, the database/storage\ndesign, backup tooling and destination, encryption/key custody, integrity procedure,\nrestore procedure, and provisional RPO/RTO must be reviewed and approved",
             "first separately approved\nbootstrap remains non-authoritative: it creates only controlled test identity state",
             "application-consistent `pg_dump` backup rather than live-volume synchronization",
             "timestamped non-destructive off-node copy",
@@ -72,7 +76,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "isolated restore rehearsal covering database, roles, controlled test realm\n  state, and clients",
             "declared and measured RPO/RTO",
             "Before authoritative identity state is accepted or OIDC is enabled",
-            "PVC deletion, database recreation, realm re-import, and release downgrade are never\nroutine rollback",
+            "PVC deletion, database recreation, realm\nre-import, and release downgrade are never routine rollback",
         ):
             self.assertIn(required, self.text)
 
@@ -84,7 +88,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "later public browser-auth route may expose only the reviewed authentication surface",
             "Public authentication never makes the admin console, management\nlistener, database, Argo CD, k3s API, or host publicly reachable",
             "Argo server to selected stable OIDC issuer",
-            "PostgreSQL accepts only Keycloak and bounded backup/restore identities",
+            "The Keycloak database accepts only the dedicated Keycloak role and bounded\nbackup/restore identities; application database roles are denied",
         ):
             self.assertIn(required, self.text)
 
@@ -103,13 +107,12 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             self.assertIn(required, self.text)
 
     def test_foundation_namespace_source_exists_without_runtime_or_workload_source(self) -> None:
-        self.assertIn("`platform-secrets` and `platform-identity` now have exact present-only\nNamespace source", self.text)
+        self.assertIn("`shared-services` now has exact present-only Namespace source", self.text)
         self.assertEqual(
             {
                 "platform/namespaces/argocd.yaml",
                 "platform/namespaces/platform-edge.yaml",
-                "platform/namespaces/platform-secrets.yaml",
-                "platform/namespaces/platform-identity.yaml",
+                "platform/namespaces/shared-services.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))

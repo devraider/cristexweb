@@ -1,5 +1,5 @@
 ---
-policy_schema: cristex-hosted-identity-v1
+policy_schema: cristex-hosted-identity-v2
 policy_status: source-selected-runtime-blocked
 realm:
   name: cristexhub
@@ -100,18 +100,14 @@ secrets:
   bootstrap_custody: encrypted-off-node-independent
   values_allowed_in_source: false
 namespaces:
-  platform-identity:
+  platform-edge:
     allows:
-      - keycloak-runtime
-      - dedicated-identity-postgresql
-      - identity-backup-restore
+      - cloudflared
     denies:
-      - application-database-credentials
-  platform-secrets:
-    allows:
       - infisical-kubernetes-operator
-    denies:
-      - keycloak-realm-lifecycle
+      - keycloak-runtime
+      - shared-postgresql-engine
+      - application-databases
   argocd:
     allows:
       - argocd-oidc-client-materialized-by-infisical
@@ -133,9 +129,33 @@ namespaces:
       - dev-credentials
   shared-services:
     allows:
+      - infisical-kubernetes-operator
+      - keycloak-runtime
+      - shared-postgresql-engine
       - application-databases
+      - keycloak-dedicated-database
+      - keycloak-dedicated-database-role
+      - keycloak-dedicated-database-credential
+      - keycloak-dedicated-backup-scope
     denies:
-      - keycloak-postgresql
+      - keycloak-role-access-to-application-databases
+      - application-role-access-to-keycloak-database
+      - keycloak-role-create-database
+      - keycloak-role-create-role
+      - application-role-create-database
+      - application-role-create-role
+database_isolation:
+  engine_namespace: shared-services
+  engine_model: one-general-postgresql-instance
+  keycloak_deployment_separate_from_postgresql: true
+  keycloak_database: dedicated-logical-database
+  keycloak_database_role: dedicated-owner-role
+  keycloak_database_credential: dedicated
+  keycloak_backup_scope: dedicated-logical-database
+  credential_value_owner: infisical-cloud
+  separate_keycloak_postgresql_instance: false
+  separate_keycloak_postgresql_pvc: false
+  cross_database_access_default: deny
 ownership:
   ansible:
     - static-realm-settings

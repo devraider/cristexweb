@@ -131,6 +131,8 @@ class CloudflaredCandidateProvenanceContractTests(unittest.TestCase):
             "Runtime approvals",
             "deny unrelated namespace, control-plane, metadata, metrics, debug, quick-tunnel, configuration, and public access",
             "does not select a release, authorize a Cloudflare resource, approve a route or hostname, or add an OpenTofu resource, Kubernetes object, chart, values file, credential, or secret value",
+            "Any future cloudflared namespaced objects belong only in `platform-edge`",
+            "Keycloak, PostgreSQL, and the Infisical Operator belong in `shared-services`, not `platform-edge`",
         ):
             self.assertIn(required, self.normalized)
 
@@ -138,8 +140,7 @@ class CloudflaredCandidateProvenanceContractTests(unittest.TestCase):
             {
                 "platform/namespaces/argocd.yaml",
                 "platform/namespaces/platform-edge.yaml",
-                "platform/namespaces/platform-secrets.yaml",
-                "platform/namespaces/platform-identity.yaml",
+                "platform/namespaces/shared-services.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))

@@ -31,12 +31,14 @@ live recovery installed the verified CLI at `ok=39 changed=6 failed=0`, and the
 second run converged at `ok=30 changed=0 failed=0` without requiring host egress.
 The protected directory still contains no state file, and no provider operation or
 external resource exists. The root `opentofu/` source is Cloudflare-only and has zero
-resources. Committed Kubernetes source now contains exactly four Namespace manifests.
-The historical `argocd`/`platform-edge` wrapper check, first apply, and idempotence
-retry completed under separate approvals and that exception remains closed. Exact
-present-only source and a new dedicated guarded wrapper now exist for
-`platform-secrets` and `platform-identity`, but their check, first apply, and
-idempotence are **NOT RUN** and require separate approvals. No Argo CD, cloudflared,
+resources. Committed Kubernetes source now contains exactly three Namespace
+manifests: `argocd`, `platform-edge`, and `shared-services`. The historical
+`argocd`/`platform-edge` wrapper check, first apply, and idempotence retry completed
+under separate approvals and that exception remains closed. Exact present-only
+source and a new dedicated guarded wrapper now exist for `shared-services`, but its
+check, first apply, and idempotence are **NOT RUN** and require separate approvals.
+The superseded `platform-secrets`/`platform-identity` source was never run; removing
+it does not claim a live rename or deletion. No Argo CD, cloudflared,
 Infisical Operator, Keycloak, PostgreSQL, Secret, workload, Service, policy, PVC, or
 route exists from the new increment. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, and online/static
@@ -119,7 +121,7 @@ gateway remain in the separate CristexHub application repository.
 5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source-only, non-deployable Argo CD candidate evidence and blockers.
 6. [`runbooks/argocd-hardened-design.md`](runbooks/argocd-hardened-design.md) — source-only private-access, RBAC, network, secret-custody, and adoption design; not deployment authorization.
 7. [`runbooks/argocd-release-selection.md`](runbooks/argocd-release-selection.md) — source-baseline selection and vendored-input boundary.
-8. [`runbooks/foundation-namespace-bootstrap.md`](runbooks/foundation-namespace-bootstrap.md) — deployable-but-not-run exact present-only bootstrap for `platform-secrets` and `platform-identity`.
+8. [`runbooks/foundation-namespace-bootstrap.md`](runbooks/foundation-namespace-bootstrap.md) — deployable-but-not-run exact present-only bootstrap for `shared-services`.
 9. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
 10. [`runbooks/keycloak-release-selection.md`](runbooks/keycloak-release-selection.md) — immutable Keycloak/PostgreSQL and issuer source selection.
 11. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
@@ -214,7 +216,7 @@ contracts are documented in [`ansible/README.md`](ansible/README.md).
 | Secrets | Infisical Cloud plus its Kubernetes Operator initially; no self-hosted Infisical and no plaintext values in Git or OpenTofu state |
 | CI and images | GitHub Actions and private GHCR images addressed immutably |
 | Environments | `cristexhub-dev` and `cristexhub-prod` |
-| Shared services | PostgreSQL, MongoDB, and any retained shared RabbitMQ in `shared-services`, with separate environment databases, principals, credentials, vhosts, limits, and backups |
+| Shared services | Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL instance, MongoDB, and any retained RabbitMQ in `shared-services`; Keycloak uses its own logical database, owner role, credentials, and backup scope on the shared PostgreSQL engine |
 | Other data services | Redis per environment; RabbitMQ may be shared only with separate users/vhosts and limits |
 | Backups | Application-consistent local dumps plus encrypted off-host copy; restore required before PROD |
 
@@ -248,16 +250,18 @@ runbooks/                # recovery docs plus source-only candidate/design recor
 tests/                   # offline contract tests only
 ```
 
-Only `ansible/`, the zero-resource `opentofu/` scaffold, the four platform Namespace
+Only `ansible/`, the zero-resource `opentofu/` scaffold, the three platform Namespace
 manifests under `kubernetes/`, documentation-only recovery, candidate-provenance,
 hardened-design, and Keycloak/OIDC design records under `runbooks/`, and offline
-`tests/` currently exist. Exact manifests and a distinct guarded wrapper now exist
-for `platform-secrets` and `platform-identity`; check/apply/idempotence remain NOT RUN
-and have no runtime authorization. Kustomize remains intended for
-first-party application overlays; Helm is reserved for selected third-party
-components. Argo ownership remains pending until Argo CD is installed, the two
-Namespaces are adopted or registered through an Application, and successful sync
-evidence exists; the future-owner label alone is not a handoff.
+`tests/` currently exist. An exact manifest and a distinct guarded wrapper now exist
+for `shared-services`; check/apply/idempotence remain NOT RUN and have no runtime
+authorization. `platform-edge` is reserved for future cloudflared namespaced objects;
+Infisical Operator, separate Keycloak, and general PostgreSQL placement belongs in
+`shared-services`. Kustomize remains intended for first-party application overlays;
+Helm is reserved for selected third-party components. Argo ownership remains pending
+until Argo CD is installed, `shared-services` is adopted or registered through an
+Application, and successful sync evidence exists; the future-owner label alone is
+not a handoff.
 
 ## Repository hygiene
 

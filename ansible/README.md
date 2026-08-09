@@ -451,14 +451,17 @@ for any future Namespace or component.
 Ansible is selected as the future bounded bootstrap installer for exact foundational
 Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted
 Keycloak, and privileged CRD/cluster-RBAC prerequisites. Exact executable source now
-exists only for the two foundation Namespaces; no Infisical, Argo, Keycloak, chart,
-Secret, workload, or component runtime approval exists from that decision.
+exists only for the one `shared-services` foundation Namespace; no Infisical, Argo,
+Keycloak, PostgreSQL, chart, Secret, workload, or component runtime approval exists
+from that decision.
 
 Each future component requires a dedicated non-passthrough entrypoint and frozen
 source/object closure with separate check, apply, and idempotence approvals. Exact
 present-only source and the distinct `bin/bootstrap-foundation-namespaces` entrypoint
-now exist for `platform-secrets` and `platform-identity`; none of its runtime
-checkpoints has run. The completed wrapper above is neither broadened nor reopened.
+now exist for `shared-services`; none of its runtime checkpoints has run. The
+superseded `platform-secrets`/`platform-identity` source was never run and its removal
+does not delete a live Namespace. The completed wrapper above is neither broadened
+nor reopened.
 Ansible remains lifecycle owner of privileged CRDs, ClusterRoles/ClusterRoleBindings
 and Keycloak realm/client/group reconciliation. Namespaced specifications may hand
 off to Argo only after Ansible stops reconciling the exact objects and reviewed

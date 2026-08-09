@@ -30,10 +30,13 @@ storage, database TLS, backup, restore, or runtime gates.
 
 No image layer is vendored in Git. Before the first private non-authoritative
 bootstrap, an exact OCI recovery path must preserve the selected children off-node,
-verify integrity, and prove restore/import or pull on the target node. The dedicated
-identity PostgreSQL database, principal, PVC, application-consistent encrypted
-`pg_dump`, independent key custody, non-destructive off-node copy, isolated restore,
-and measured RPO/RTO remain mandatory.
+verify integrity, and prove restore/import or pull on the target node. The selected
+PostgreSQL child is intended for one general instance in `shared-services`, not a
+separate Keycloak database server. Keycloak requires its own logical database, owner
+role, credential, database-scoped application-consistent encrypted `pg_dump`,
+independent key custody, non-destructive off-node copy, isolated restore, and
+measured RPO/RTO. The shared PostgreSQL engine and PVC remain a common failure
+domain.
 
 ## Hosted identity policy
 

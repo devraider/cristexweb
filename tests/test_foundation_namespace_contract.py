@@ -65,21 +65,11 @@ metadata:
     cristex.io/bootstrap-writer: ansible
     cristex.io/desired-owner: argocd
 """,
-            "platform/namespaces/platform-secrets.yaml": """---
+            "platform/namespaces/shared-services.yaml": """---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: platform-secrets
-  labels:
-    app.kubernetes.io/part-of: cristex-platform
-    cristex.io/bootstrap-writer: ansible
-    cristex.io/desired-owner: argocd
-""",
-            "platform/namespaces/platform-identity.yaml": """---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: platform-identity
+  name: shared-services
   labels:
     app.kubernetes.io/part-of: cristex-platform
     cristex.io/bootstrap-writer: ansible
@@ -196,7 +186,7 @@ metadata:
             "/usr/bin/openssl rand -hex 32",
             "--start-at-task",
             "Create or reconcile only the approved foundation Namespaces",
-            "item=(platform-secrets|platform-identity)",
+            "item=shared-services",
             "status -ne 0",
             "forged wrapper-format attestation cannot bypass the protected in-run preflight binding",
         ):
@@ -302,8 +292,7 @@ metadata:
             "foundation_namespace_bootstrap_repository_root ==",
             "foundation_namespace_bootstrap_controller_path_components ==",
             "foundation_namespace_bootstrap_manifest_paths ==",
-            "kubernetes/platform/namespaces/platform-secrets.yaml",
-            "kubernetes/platform/namespaces/platform-identity.yaml",
+            "kubernetes/platform/namespaces/shared-services.yaml",
         ):
             self.assertIn(required, self.operational + approval)
 
@@ -346,7 +335,7 @@ metadata:
             self.assertIn(required, load)
         contract = self.task("Require the exact bounded Namespace manifest contract")
         for required in (
-            "['platform-secrets', 'platform-identity']",
+            "['shared-services']",
             "item.keys() | list | sort == ['apiVersion', 'kind', 'metadata']",
             "item.apiVersion == 'v1'",
             "item.kind == 'Namespace'",
@@ -411,10 +400,10 @@ metadata:
             repository.mkdir()
             outside_namespace_dir = outside / "platform/namespaces"
             outside_namespace_dir.mkdir(parents=True)
-            outside_manifest = outside_namespace_dir / "platform-secrets.yaml"
+            outside_manifest = outside_namespace_dir / "shared-services.yaml"
             outside_manifest.write_text("kind: Namespace\n")
             (repository / "kubernetes").symlink_to(outside, target_is_directory=True)
-            expected_manifest = repository / "kubernetes/platform/namespaces/platform-secrets.yaml"
+            expected_manifest = repository / "kubernetes/platform/namespaces/shared-services.yaml"
 
             components = (
                 repository,
@@ -503,7 +492,7 @@ metadata:
             "foundation_namespace_bootstrap_internal_preflight_binding.manifest_names",
             "foundation_namespace_bootstrap_internal_preflight_binding.prestate_names",
             "foundation_namespace_bootstrap_internal_preflight_binding.controller_path_count == 4",
-            "foundation_namespace_bootstrap_internal_preflight_binding.manifest_path_count == 2",
+            "foundation_namespace_bootstrap_internal_preflight_binding.manifest_path_count == 1",
             "foundation_namespace_bootstrap_approved | bool",
             "foundation_namespace_bootstrap_state == 'present'",
             "ansible_diff_mode",
@@ -513,13 +502,12 @@ metadata:
             "item.apiVersion == 'v1'",
             "item.kind == 'Namespace'",
             "item.metadata.keys() | list | sort == ['labels', 'name']",
-            "item.metadata.name in ['platform-secrets', 'platform-identity']",
+            "item.metadata.name == 'shared-services'",
             "item.metadata.labels | length == 3",
-            "kubernetes/platform/namespaces/platform-secrets.yaml",
-            "kubernetes/platform/namespaces/platform-identity.yaml",
+            "kubernetes/platform/namespaces/shared-services.yaml",
         ):
             self.assertIn(required, apply)
-        self.assertEqual(3, apply.count("lookup('ansible.builtin.file'"))
+        self.assertEqual(2, apply.count("lookup('ansible.builtin.file'"))
         self.assertNotIn("foundation_namespace_bootstrap_internal_manifests", apply)
         for forbidden in ("state: absent", "force: true", "delete_all:"):
             self.assertNotIn(forbidden, self.tasks)

@@ -259,20 +259,26 @@ entry gate.
   runtime gate closed and add no valid Kubernetes or operational Ansible source
   (`KIF-005`, `KIF-013`–`KIF-015`, `KIF-021`, `KIF-023`, `KIF-030`).
 - [ ] Accept Infisical signer/build trust and render a deterministic digest-pinned
-  controller closure only after chart/CRD/API compatibility, dedicated Namespace,
-  explicit scope/RBAC, Argo handoff, Universal Auth recovery, traffic, single-node,
+  controller closure only after chart/CRD/API compatibility, `shared-services`
+  placement with separate ServiceAccount/RBAC, explicit watch scope, Argo handoff,
+  Universal Auth recovery, traffic, single-node,
   and runtime gates are resolved (`KIF-005`, `KIF-013`–`KIF-015`, `KIF-023`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare/Keycloak
   secret-zero sequence (`KIF-014`, `KIF-015`).
-- [x] Implement the exact present-only/no-delete
+- [x] Historical source checkpoint: implement an exact present-only/no-delete
+  foundation bootstrap for `platform-secrets` and `platform-identity`. It never ran
+  and was superseded before any cluster contact (`KIF-002`, `KIF-005`, `KIF-016`,
+  `KIF-030`).
+- [x] Correct the
   [foundation Namespace bootstrap](../../runbooks/foundation-namespace-bootstrap.md)
-  for only `platform-secrets` and `platform-identity`; preserve the completed
-  wrapper unchanged and record all runtime checkpoints as NOT RUN (`KIF-002`,
-  `KIF-005`, `KIF-016`, `KIF-030`).
+  to only `shared-services`, remove the two never-run source leaves, preserve the
+  completed historical wrapper unchanged, and record this as source migration rather
+  than live deletion (`KIF-002`, `KIF-005`, `KIF-016`, `KIF-030`).
 - [ ] Obtain separate approval for
   `ansible/bin/bootstrap-foundation-namespaces check`, review a prediction limited to
-  the two exact Namespaces, then obtain new separate approvals for first apply and a
-  later idempotence apply requiring `changed=0` (`KIF-002`, `KIF-005`, `KIF-016`).
+  the one exact `shared-services` Namespace, then obtain new separate approvals for
+  first apply and a later idempotence apply requiring `changed=0` (`KIF-002`,
+  `KIF-005`, `KIF-016`).
 - [ ] Implement component-specific exact Ansible source closures and separate
   check/apply/idempotence approvals in this order: Infisical Operator and a
   non-sensitive sync/rotation/revocation/recovery proof, Infisical-materialized Argo
@@ -298,11 +304,13 @@ logs, or bootstrap cannot be recovered.
 
 - [ ] Approve StorageClass, live-data path, backup path, capacity, and any destructive
   disk preparation separately (`KIF-002`, `KIF-003`, `KIF-019`, `KIF-026`).
-- [ ] Add DEV, PROD, and shared-services namespaces, service accounts, RBAC, quotas,
-  limits, and default-deny policies (`KIF-016`, `KIF-019`, `KIF-021`).
+- [ ] Add DEV and PROD Namespaces; after the separate `shared-services` Namespace
+  checkpoint, add component-specific service accounts, RBAC, quotas, limits, and
+  default-deny policies (`KIF-016`, `KIF-019`, `KIF-021`).
 - [ ] Obtain explicit approval before creating stateful services (`KIF-002`).
-- [ ] Create shared PostgreSQL with separate databases/roles and negative access
-  tests (`KIF-017`).
+- [ ] Create one general PostgreSQL instance with separate DEV, PROD, and Keycloak
+  logical databases/owner roles, no separate Keycloak PostgreSQL workload/PVC, and
+  bidirectional negative cross-database access tests (`KIF-017`).
 - [ ] Create shared MongoDB with separate databases/users and negative access tests
   (`KIF-018`).
 - [ ] Create per-environment Redis; retain shared RabbitMQ only after separate
@@ -317,9 +325,10 @@ logs, or bootstrap cannot be recovered.
   NetworkPolicy/probes/resources, storage, and Infisical-owned material before any
   executable source or runtime (`KIF-010`, `KIF-013`–`KIF-015`, `KIF-021`,
   `KIF-023`).
-- [ ] Before the first private Keycloak bootstrap, approve dedicated PostgreSQL
-  storage, backup tooling/destination/key custody, restore procedure, provisional
-  RPO/RTO, and a non-authoritative controlled test-state plan (`KIF-002`, `KIF-026`–
+- [ ] Before the first private Keycloak bootstrap, approve the general PostgreSQL
+  storage/failure domain, dedicated Keycloak database/owner role, database-scoped
+  backup tooling/destination/key custody, restore procedure, provisional RPO/RTO,
+  and a non-authoritative controlled test-state plan (`KIF-002`, `KIF-026`–
   `KIF-028`).
 - [ ] Obtain separate Ansible check/apply/idempotence approvals for a private,
   non-authoritative Keycloak bootstrap; create only controlled test identity state,

@@ -50,15 +50,16 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-TOFU-04 | KIF-013, KIF-028, KIF-030 | Local-state encryption and off-node recovery gate | Timestamped encrypted Google Drive copies, independent key custody, integrity verification, and isolated restore pass before the first apply | NOT RUN/BLOCKED — no state exists; encryption, Drive identity, copy, retention, key recovery, and restore remain `UNKNOWN — STOP` |
 | KIF-NS-01 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-030 | Bounded platform Namespace bootstrap offline contract | Exact committed `argocd` and `platform-edge` Namespace manifests are the sole object definitions consumed by the closed historical bootstrap, and the architecture/task checklist places them in a documented pre-Stage-4 exception with separate check/apply/idempotence approvals that waives no Stage 4 entry gate; a non-passthrough entrypoint rejects `--start-at-task`, `--step`, and all extra arguments; the wrapper launches the repository `.venv` controller in an allowlisted clean environment and supplies a private random single-run attestation; the mutating task independently requires that attestation, reloads only literal manifest paths, and rejects extra top-level/metadata keys; a first-task internal-variable guard, canonical non-symlink ancestor/leaf validation, approval/diff/exact-limit/kubeconfig/protected-result gates, foreign-existing refusal, present-only reconciliation, exact post-verification, truthful ownership labels, executable closure, and no deletion/other-kind path are enforced | PASS — focused structural, stage-boundary, control-flow, and synthetic ancestor-symlink contracts, controller-only forged-extra-var rejection, full offline suite, syntax, synthetic discovery validation, and production lint passed without inventory or Kubernetes API contact |
 | KIF-NS-02 | KIF-002, KIF-005, KIF-010, KIF-030 | Platform Namespace bootstrap runtime | Reviewed check predicts exactly the two absent Namespaces; approved live run creates them, verifies labels/services, and second run converges changed=0 without installing Argo CD/cloudflared or creating a route | PASS — wrapper check passed without mutation; separately approved first apply passed at ok=21/changed=1/unreachable=0/failed=0/skipped=0 and changed exactly `argocd` plus `platform-edge`. During the separately approved idempotence checkpoint, a local sudo authentication failure stopped the initial invocation before service preflight/reconciliation at ok=10/changed=0/unreachable=0/failed=1/skipped=0; the retry passed at ok=21/changed=0/unreachable=0/failed=0/skipped=0, both exact items were `ok`, post-state identity/labels/Active passed, and service health was preserved |
-| KIF-NS-03 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-030 | Foundation Namespace deployable source | Exact `platform-secrets` and `platform-identity` manifests plus a distinct non-passthrough present-only wrapper freeze schema/labels, canonical source, clean controller, single-run attestation, foreign-existing refusal, protected kubeconfig/services, exact post-state, and no-delete/other-kind boundaries without changing the closed historical wrapper | PASS — 10 focused new, 59 affected, and 101 full offline contracts plus 9 syntax checks, lint, shell/synthetic validators, links/hygiene, and exact 31-file source closure passed; check, first apply, idempotence, and runtime remain NOT RUN and separately approved |
+| KIF-NS-03 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-030 | Historical foundation Namespace source checkpoint | Exact `platform-secrets` and `platform-identity` source plus a guarded present-only wrapper passed offline validation, but the wrapper never ran and the placement was superseded before runtime | SUPERSEDED SOURCE-ONLY — historical validation remains truthful; no cluster object was created or deleted by this checkpoint |
 | KIF-ARGO-01 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-023, KIF-030 | Argo CD candidate provenance and target-minor screen | Historical secret-free evidence binds exact official chart/index/provenance/image/render inputs plus target kubelet and tested-version sources while the separate release record now selects chart `10.3.0` / app `v3.5.0` only for offline source authoring | PASS — focused provenance contracts preserve exact associations and target-minor qualification; selection remains NOT DEPLOYABLE and Argo runtime remains NOT RUN/BLOCKED |
 | KIF-ARGO-02 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Argo CD online/static readiness refresh | A secret-free record curates deterministic render, upstream API registration, RBAC/network, image trust/availability/vulnerability, private-Git, and Namespace-adoption evidence while all live admission/runtime gates remain blocked | PASS — focused provenance contracts preserve the 44-document render and security blockers; no values, rendered YAML, Kubernetes object, credential, or deployable controller source was added |
 | KIF-ARGO-03 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013–KIF-015, KIF-021, KIF-030 | Argo CD source-only hardened design | A secret-free design fixes private ClusterIP/loopback-only administration, retained quiescent ApplicationSet, supplemental default-deny, phased least privilege, one-repository GitHub App credentials, value-free secret custody, selected direct OIDC direction, two-Application adoption, stop/rollback, Ansible ownership, and six open decisions without adding deployable source | PASS — hardened-design contracts accept only the offline version baseline; trust, exact controller closure, admission, Secrets, recovery, handoff, and runtime remain blocked |
-| KIF-IDP-01 | KIF-002, KIF-003, KIF-005, KIF-010, KIF-012–KIF-016, KIF-021, KIF-023, KIF-026–KIF-030 | Source-only Ansible bootstrap and Keycloak OIDC architecture | Ansible is the selected bounded bootstrap installer and privileged lifecycle owner with no dual reconciliation; direct Argo OIDC separates Keycloak authentication/groups, Argo RBAC, and Kubernetes RBAC while preserving private administration, Infisical-owned values, dedicated PostgreSQL recovery, stable issuer, exact approvals, and handoff gates | PASS — Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, clients, group templates, and default theme are selected only for offline authoring; no executable source, credential, route, or runtime was added |
-| KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, preserves exact two-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
+| KIF-IDP-01 | KIF-002, KIF-003, KIF-005, KIF-010, KIF-012–KIF-017, KIF-021, KIF-023, KIF-026–KIF-030 | Source-only Ansible bootstrap and Keycloak OIDC architecture | Ansible is the selected bounded bootstrap installer and privileged lifecycle owner with no dual reconciliation; direct Argo OIDC separates Keycloak authentication/groups, Argo RBAC, and Kubernetes RBAC while preserving private administration, Infisical-owned values, a dedicated Keycloak logical database/role on the general shared PostgreSQL engine, stable issuer, exact approvals, and handoff gates | PASS — Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, clients, group templates, default theme, separate deployment, and shared-engine isolation policy are selected only for offline authoring; no executable component source, credential, route, or runtime was added |
+| KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, reserves `platform-edge` for cloudflared within the exact current three-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator provenance and selection boundary | Historical evidence distinguishes unselected `v0.11.8` distribution observations from the aligned `v0.11.7` set selected only as the offline baseline; trust, compatibility, scoped RBAC, Universal Auth recovery, traffic, and runtime remain blocked | PASS — focused contracts enforce exact evidence associations, qualified trust wording, immutable child direction, and no deployable controller source or Secret |
 | KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—to the vendored chart while every promotion gate stays false and no valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source appears | PASS — focused archive/policy/design contracts plus full offline validation; runtime remains NOT RUN/BLOCKED |
-| KIF-SRC-01 | KIF-005, KIF-010, KIF-013–KIF-015, KIF-023, KIF-030 | Deterministic hosted source-baseline closure | Exact release records, value-free identity/authorization policy, chart/provenance/public-key bytes, SHA256SUMS, safe chart roots, exact four-Namespace closure, and absence of component operational source are enforced offline | PASS — 8 focused source-selection contracts plus affected provenance/design/layout contracts pass; exact hashes verified; no live/network operation or staged file |
+| KIF-SRC-01 | KIF-005, KIF-010, KIF-013–KIF-015, KIF-023, KIF-030 | Deterministic hosted source-baseline closure | Exact release records, value-free identity/authorization policy, chart/provenance/public-key bytes, SHA256SUMS, safe chart roots, exact three-Namespace closure, and absence of component operational source are enforced offline | PASS — source-selection plus affected provenance/design/layout contracts pass; exact hashes verified; no live/runtime operation or staged file |
+| KIF-NS-04 | KIF-002, KIF-003, KIF-005, KIF-013–KIF-017, KIF-021, KIF-026–KIF-030 | Shared-services placement correction | Replace never-run `platform-secrets`/`platform-identity` source with one exact present-only `shared-services` Namespace; reserve `platform-edge` for cloudflared; place Infisical Operator, separate Keycloak, and one general PostgreSQL instance in commons intent; give Keycloak only a dedicated logical database/role/credential on that engine | PASS — 78 focused and 115 full offline tests, 9 syntax checks, production lint, fail-closed fixtures, archive hashes, links, closure, hygiene, and historical-source preservation passed; no discovery, check, apply, deletion, workload, Secret, database, route, or runtime operation |
 
 ## Schema-v3 elevated discovery and target-minor review — 2026-08-07
 
@@ -677,10 +678,11 @@ PASS: local Markdown links, secret/address/command hygiene, one KIF-ARGO-03, one
 
 Ansible is selected as the future bounded bootstrap installer and privileged
 lifecycle owner, but this record authorizes no run. Keycloak is an architecture
-target, not a selected release or deployment. A later exact increment now adds only
-present-only `platform-secrets` and `platform-identity` Namespace source; their
-runtime remains NOT RUN. All Argo/Infisical candidate and runtime boundaries remain
-unchanged, and MQA-02 remains pending.
+target, not a selected release or deployment. At this historical checkpoint, a later
+increment added present-only `platform-secrets` and `platform-identity` Namespace
+source. That wrapper never ran, and KIF-NS-04 subsequently superseded the source
+before runtime. All Argo/Infisical candidate and runtime boundaries remained
+unchanged, and MQA-02 remained pending.
 
 ## Foundation Namespace deployable-source validation — 2026-08-07
 
@@ -2032,8 +2034,10 @@ Signer authorization/revocation and image trust/SBOM/vulnerability/recovery rema
 blocked. Infisical chart cryptographic verification remains NOT RUN. Exact rendered
 controller objects, scoped RBAC, secret-zero recovery, callbacks/origins, k3s
 admission, check/apply/idempotence, and all runtime evidence remain NOT RUN/BLOCKED.
-The exact four Namespace manifests are unchanged, and `platform-secrets` plus
-`platform-identity` runtime remains NOT RUN under separate approvals.
+At this 2026-08-08 checkpoint, the exact four Namespace manifests were unchanged,
+and `platform-secrets` plus `platform-identity` runtime remained NOT RUN. KIF-NS-04
+later superseded those two never-run source leaves with `shared-services`; it did not
+rewrite or imply runtime evidence for this historical validation.
 
 ### Independent source-policy review fixes — 2026-08-08
 
@@ -2139,6 +2143,127 @@ RBAC, Universal Auth recovery, image trust/SBOM/vulnerability/off-node recovery,
 traffic policy, foundation Namespace runtime, and all component/runtime approvals
 remain **NOT RUN/BLOCKED**. This design closes no manual QA case.
 
+## Shared-services placement source correction — 2026-08-09
+
+This offline-only correction supersedes the never-run `platform-secrets` and
+`platform-identity` intent with one exact `shared-services` Namespace manifest and
+retargets the guarded foundation wrapper to that singleton. It does not rename or
+delete a live Namespace. `platform-edge` is reserved for cloudflared; the Infisical
+Cloud Operator, separate Keycloak deployment, and one general PostgreSQL instance
+belong in `shared-services`. Keycloak receives a dedicated logical database, owner
+role, credential, and backup scope on that shared engine, not another PostgreSQL
+workload or PVC.
+
+```bash
+.venv/bin/python -m unittest -v \
+  tests.test_foundation_namespace_contract \
+  tests.test_platform_namespace_contract \
+  tests.test_hosted_auth_source_selection_contract \
+  tests.test_keycloak_oidc_bootstrap_design_contract \
+  tests.test_infisical_operator_provenance_contract \
+  tests.test_infisical_operator_privileged_prerequisites_contract \
+  tests.test_argocd_hardened_design_contract \
+  tests.test_argocd_provenance_contract \
+  tests.test_cloudflared_provenance_contract
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m compileall -q tests
+sh -n ansible/bin/bootstrap-foundation-namespaces
+bash -n tests/reject_foundation_namespace_task_start.sh
+sh -n tests/validate_foundation_namespace_clean_controller.sh
+tests/reject_foundation_namespace_task_start.sh
+tests/validate_foundation_namespace_clean_controller.sh
+cd ansible
+uv run ansible-playbook ../tests/reject_foundation_namespace_internal_injection.yml \
+  -e foundation_namespace_bootstrap_internal_prestate=forged
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-lint . ../tests/validate_storage_report.yml
+cd ..
+(cd ansible/files/vendor/argocd/10.3.0 && shasum -a 256 -c SHA256SUMS)
+(cd ansible/files/vendor/infisical-operator/0.11.7 && shasum -a 256 -c SHA256SUMS)
+.venv/bin/python - <<'PY'
+from pathlib import Path
+import re
+
+excluded = {'.git', '.venv', '.pi-subagents', 'vendor', '.ansible'}
+paths = [path for path in Path('.').rglob('*.md') if excluded.isdisjoint(path.parts)]
+for path in paths:
+    for target in re.findall(r'\[[^]]+\]\(([^)]+)\)', path.read_text()):
+        if '://' in target or target.startswith('#'):
+            continue
+        local = target.split('#', 1)[0]
+        if local:
+            assert (path.parent / local).resolve().exists(), (path, target)
+print(f'PASS: local Markdown links in {len(paths)} files')
+PY
+python3 - <<'PY'
+from pathlib import Path
+
+expected = {
+    'platform/namespaces/argocd.yaml',
+    'platform/namespaces/platform-edge.yaml',
+    'platform/namespaces/shared-services.yaml',
+}
+actual = {
+    str(path.relative_to('kubernetes'))
+    for path in Path('kubernetes').rglob('*')
+    if path.is_file()
+}
+assert actual == expected
+foundation = '\n'.join(
+    path.read_text()
+    for path in Path('ansible/roles/foundation_namespace_bootstrap').rglob('*')
+    if path.is_file()
+)
+assert 'shared-services' in foundation
+assert 'platform-secrets' not in foundation
+assert 'platform-identity' not in foundation
+print('PASS: exact three-Namespace source and singleton foundation target')
+PY
+git diff --exit-code -- \
+  kubernetes/platform/namespaces/argocd.yaml \
+  kubernetes/platform/namespaces/platform-edge.yaml \
+  ansible/bin/bootstrap-platform-namespaces \
+  ansible/playbooks/bootstrap_platform_namespaces.yml \
+  ansible/roles/platform_namespace_bootstrap
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Observed incremental red checkpoint: 78 focused tests ran with 16 source/placement failures
+Ran 78 focused placement/closure contracts — OK
+Ran 115 full offline tests — OK
+PASS: Python compile and wrapper/fixture shell syntax
+PASS: forged internal-variable and direct task-start fixtures fail closed
+PASS: wrapper-equivalent clean-controller validation
+PASS: all 9 production playbook syntax checks
+PASS: production-profile Ansible lint, 0 failures/warnings in 44 files processed of 57 encountered
+PASS: Argo and Infisical vendored SHA-256 closures
+PASS: exact three-Namespace closure and singleton shared-services foundation target
+PASS: closed historical argocd/platform-edge bootstrap source remains untouched
+PASS: 24 scoped local Markdown documents, secret hygiene, diff, and no staged files
+```
+
+The incremental 16-failure red checkpoint was captured while tests were being changed
+in bounded steps; it is not claimed as a clean final-tests-over-`HEAD` reconstruction
+and no raw log is committed. Independent review reconstructed that different state
+and observed 18 failures, so both counts are retained with their scopes rather than
+presented as identical evidence.
+
+The first all-recursive Markdown-link check incorrectly entered the ignored `.venv`
+and failed on an installed ansible-lint documentation link. Restricting the check to
+repository-owned Markdown passed all 24 files; no repository link was broken. No
+inventory, SSH, become, kubeconfig, Kubernetes API, Namespace check/apply, database,
+Secret, provider, registry, Helm, Infisical, Cloudflare, route, or runtime operation
+occurred. `shared-services` existence remains unproved and its check, first apply,
+and idempotence require separate approvals. If later read-only discovery finds either
+superseded Namespace, stop; do not delete it. This source correction closes no manual
+QA case.
+
 ## Future validation contract
 
 | ID | Requirements | Scenario | Expected | Actual |
@@ -2149,7 +2274,7 @@ remain **NOT RUN/BLOCKED**. This design closes no manual QA case.
 | KIF-FUT-04 | KIF-005, KIF-009, KIF-022, KIF-023 | Render and GitOps reconciliation | Helm/Kustomize/schema checks pass; Argo reconciles private desired state and restores controlled drift | NOT RUN — runtime gate remains pending |
 | KIF-FUT-05 | KIF-010, KIF-011, KIF-012, KIF-021 | Network exposure | Required private/public routes work and all DEV/admin/data negative public checks fail closed | NOT RUN — runtime gate remains pending |
 | KIF-FUT-06 | KIF-013, KIF-014, KIF-015 | Secret lifecycle | Infisical sync/rotation/revocation and bootstrap recovery pass without plaintext disclosure | NOT RUN — runtime gate remains pending |
-| KIF-FUT-07 | KIF-016, KIF-017, KIF-019, KIF-021 | PostgreSQL isolation | Each environment role reaches only its database; cross-environment access is denied and bounded | NOT RUN — runtime gate remains pending |
+| KIF-FUT-07 | KIF-016, KIF-017, KIF-019, KIF-021 | PostgreSQL isolation | DEV, PROD, and Keycloak roles reach only their own logical databases on the general engine; bidirectional cross-access and role/database creation are denied | NOT RUN — runtime gate remains pending |
 | KIF-FUT-08 | KIF-016, KIF-018, KIF-019, KIF-021 | MongoDB isolation | Each environment user reaches only its database; cross-environment access is denied and bounded | NOT RUN — runtime gate remains pending |
 | KIF-FUT-09 | KIF-020, KIF-021 | Redis/RabbitMQ isolation | Redis is environment-local; RabbitMQ users/vhosts and limits prevent cross-environment access | NOT RUN — runtime gate remains pending |
 | KIF-FUT-10 | KIF-022, KIF-023, KIF-024, KIF-025 | Immutable build and promotion | CI publishes once, DEV deploys a digest, and reviewed PROD promotion uses the identical digest | NOT RUN — runtime gate remains pending |

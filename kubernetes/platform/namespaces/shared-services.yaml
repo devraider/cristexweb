@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: platform-identity
+  name: shared-services
   labels:
     app.kubernetes.io/part-of: cristex-platform
     cristex.io/bootstrap-writer: ansible
