@@ -476,8 +476,13 @@ Hash-bound public chart/provenance/public-key inputs now exist under `files/vend
 for the Argo CD `10.3.0` and Infisical Operator `0.11.7` offline source baselines.
 `files/policies/hosted-identity-authorization.yml` is a value-free review policy, not
 an executable playbook, realm import, Kubernetes object, credential, or permission
-to render/install a controller. Release selection does not close signer trust,
-image assurance/recovery, scoped RBAC, secret-zero, admission, or runtime gates. The
+to render/install a controller. The separate
+[`infisical-operator-privileged-prerequisites.yml`](files/policies/infisical-operator-privileged-prerequisites.yml)
+and [design record](../runbooks/infisical-operator-privileged-prerequisites-design.md)
+inventory seven raw CRD templates and upstream RBAC seams only. They add no valid
+CRD/RBAC source, values, rendered object, wrapper, playbook, role, or permission to
+contact a cluster. Release selection does not close signer trust, image
+assurance/recovery, scoped RBAC, secret-zero, admission, or runtime gates. The
 source-only [Keycloak OIDC bootstrap design](../runbooks/keycloak-oidc-bootstrap-design.md)
 records the remaining release, database, secret, network, recovery, and runtime
 gates without authorizing cluster contact.

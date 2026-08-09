@@ -29,6 +29,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "cloudflared-candidate-provenance.md",
                 "foundation-namespace-bootstrap.md",
                 "infisical-operator-candidate-provenance.md",
+                "infisical-operator-privileged-prerequisites-design.md",
                 "infisical-operator-release-selection.md",
                 "keycloak-oidc-bootstrap-design.md",
                 "keycloak-release-selection.md",

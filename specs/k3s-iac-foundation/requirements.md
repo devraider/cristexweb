@@ -130,7 +130,11 @@ KIF-015, KIF-021, KIF-023, and KIF-030. The release record selects `v0.11.7` onl
 the offline source baseline and Universal Auth as direction, adds no deployable
 controller source, and leaves chart/CRD/API compatibility despite the captured target,
 trust, Namespace, scoped-RBAC, Argo handoff, secret-zero/recovery, traffic,
-single-node, and runtime gates blocked. The
+single-node, and runtime gates blocked. The inert
+[Infisical privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
+maps KIF-005, KIF-013 through KIF-015, KIF-021, KIF-023, and KIF-030 to the exact
+seven raw CRD templates, ownership boundaries, known RBAC defects, and closed
+promotion gates without adding a valid Kubernetes or operational Ansible source. The
 [Argo](../../runbooks/argocd-release-selection.md),
 [Infisical](../../runbooks/infisical-operator-release-selection.md), and
 [Keycloak/PostgreSQL](../../runbooks/keycloak-release-selection.md) selection records

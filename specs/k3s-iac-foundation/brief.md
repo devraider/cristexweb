@@ -139,9 +139,12 @@ entry/archive and Docker Hub image tag were not observed during the bounded capt
 from the version-aligned `v0.11.7` set. The release record selects `v0.11.7` only
 for offline source authoring and Universal Auth as direction; it remains **NOT
 DEPLOYABLE**, runtime is **NOT RUN/BLOCKED**, and no CRD, Kubernetes object,
-credential, or Secret source was added. The target kubelet is now captured,
-but chart/CRD/API compatibility, signer/build trust, dedicated Namespace, scoped
-RBAC, Argo handoff, secret-zero/recovery, traffic policy,
+credential, or Secret source was added. The inert
+[privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
+now records the seven raw CRD templates and manager/metrics/user-RBAC defects without
+promoting a valid object, permission, values file, render, or Ansible entrypoint. The
+target kubelet is now captured, but chart/CRD/API compatibility, signer/build trust,
+dedicated Namespace, scoped RBAC, Argo handoff, secret-zero/recovery, traffic policy,
 single-node risk, and runtime approvals remain blocked.
 Provider initialization, state, plan, and apply also remain unrun.
 Beyond the bounded public-source evidence reads, this deliverable performs no host

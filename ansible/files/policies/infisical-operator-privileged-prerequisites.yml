@@ -1,0 +1,110 @@
+policy_schema: cristex-infisical-privileged-prerequisites-v1
+policy_status: design-only-not-deployable-runtime-blocked
+capability: inert-inventory-and-promotion-contract
+source:
+  component: infisical-kubernetes-operator
+  selected_offline_baseline: v0.11.7
+  chart_archive: ansible/files/vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz
+  chart_archive_sha256: 7f8846c4f6b1cdca2cea23cf00a29d12a38f42eb8da8e125dc196a1e5683aea8
+  chart_root: secrets-operator
+  archive_member_count: 23
+  observation_only: true
+crd_inventory:
+  template_count: 7
+  upstream_definition_api: apiextensions.k8s.io/v1
+  api_group: secrets.infisical.com
+  resources:
+    - definition_name: clustergenerators.secrets.infisical.com
+      resource_kind: ClusterGenerator
+      resource_scope: Cluster
+      served_storage_version: v1alpha1
+      template_path: secrets-operator/templates/clustergenerator-crd.yaml
+    - definition_name: infisicalauths.secrets.infisical.com
+      resource_kind: InfisicalAuth
+      resource_scope: Namespaced
+      served_storage_version: v1beta1
+      template_path: secrets-operator/templates/infisicalauth-crd.yaml
+    - definition_name: infisicalconnections.secrets.infisical.com
+      resource_kind: InfisicalConnection
+      resource_scope: Namespaced
+      served_storage_version: v1beta1
+      template_path: secrets-operator/templates/infisicalconnection-crd.yaml
+    - definition_name: infisicaldynamicsecrets.secrets.infisical.com
+      resource_kind: InfisicalDynamicSecret
+      resource_scope: Namespaced
+      served_storage_version: v1alpha1
+      template_path: secrets-operator/templates/infisicaldynamicsecret-crd.yaml
+    - definition_name: infisicalpushsecrets.secrets.infisical.com
+      resource_kind: InfisicalPushSecret
+      resource_scope: Namespaced
+      served_storage_version: v1alpha1
+      template_path: secrets-operator/templates/infisicalpushsecret-crd.yaml
+    - definition_name: infisicalsecrets.secrets.infisical.com
+      resource_kind: InfisicalSecret
+      resource_scope: Namespaced
+      served_storage_version: v1alpha1
+      template_path: secrets-operator/templates/infisicalsecret-crd.yaml
+    - definition_name: infisicalstaticsecrets.secrets.infisical.com
+      resource_kind: InfisicalStaticSecret
+      resource_scope: Namespaced
+      served_storage_version: v1beta1
+      template_path: secrets-operator/templates/infisicalstaticsecret-crd.yaml
+observed_upstream_rbac:
+  approved_for_promotion: false
+  manager_scope_helper_supports_plural_namespaces: true
+  scoped_manager_emits_roles_per_namespace: true
+  scoped_manager_contains_ineffective_cluster_permissions:
+    - authentication.k8s.io/tokenreviews
+    - secrets.infisical.com/clustergenerators
+  plural_scope_metrics_templates_use_deprecated_singular_condition: true
+  deprecated_singular_metrics_mode_emits_ineffective_namespaced_review_role: true
+  metrics_cluster_permissions_observed:
+    - authentication.k8s.io/tokenreviews
+    - authorization.k8s.io/subjectaccessreviews
+  optional_aggregate_user_cluster_roles_observed: true
+  aggregate_role_labels_observed:
+    - rbac.authorization.k8s.io/aggregate-to-admin
+    - rbac.authorization.k8s.io/aggregate-to-edit
+    - rbac.authorization.k8s.io/aggregate-to-view
+    - rbac.authorization.k8s.io/aggregate-to-cluster-reader
+  default_cluster_wide_manager_observed: true
+  final_permissions_selected: false
+ownership:
+  future_crd_lifecycle_owner: ansible
+  future_privileged_rbac_lifecycle_owner: ansible
+  future_namespaced_reference_owner_before_handoff: ansible
+  future_namespaced_reference_owner_after_evidenced_handoff: argocd
+  generated_secret_value_owner: infisical-cloud
+  dual_reconciliation_allowed: false
+authentication_direction:
+  mechanism: universal-auth
+  bootstrap_identity_selected: false
+  bootstrap_credential_source_allowed: false
+  token_review_requirement_selected: false
+  subject_access_review_requirement_selected: false
+  off_node_recovery_proved: false
+promotion_gates:
+  chart_signature_cryptographically_verified: false
+  signer_authorization_and_revocation_accepted: false
+  exact_crd_schema_review_complete: false
+  kubernetes_1_36_compatibility_proved: false
+  crd_upgrade_storage_rollback_policy_selected: false
+  initial_watch_namespaces_selected: false
+  least_privilege_rbac_selected: false
+  deterministic_digest_render_proved: false
+  image_trust_sbom_vulnerability_disposition_accepted: false
+  encrypted_off_node_image_recovery_proved: false
+  universal_auth_rotation_revocation_recovery_proved: false
+  generated_secret_lifecycle_selected: false
+  exact_traffic_policy_selected: false
+  single_node_risk_and_soak_accepted: false
+  foundation_namespace_runtime_proved: false
+  component_check_apply_idempotence_approved: false
+prohibited_by_this_increment:
+  - custom-resource-definition-source
+  - cluster-rbac-source
+  - helm-values
+  - rendered-kubernetes-source
+  - ansible-wrapper-playbook-or-role
+  - controller-or-secret-source
+  - network-provider-or-runtime-operation

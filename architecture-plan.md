@@ -473,9 +473,14 @@ verification must meet the declared RPO/RTO before PROD.
   [candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
   records the incomplete observed `v0.11.8` public distribution and version-aligned
   `v0.11.7` set. The latter is selected only for offline source authoring and remains
-  not deployable, with runtime **NOT RUN/BLOCKED**. The actual target kubelet is now captured, but
-  chart/CRD/API compatibility, trust, Namespace, scoped-RBAC,
-  Argo handoff, secret-zero, traffic, recovery, and runtime gates remain blocked.
+  not deployable, with runtime **NOT RUN/BLOCKED**. The inert
+  [privileged-prerequisites inventory](runbooks/infisical-operator-privileged-prerequisites-design.md)
+  binds the seven raw CRD templates and known manager/metrics/user-RBAC seams to the
+  vendored archive while approving no object or permission and keeping every
+  promotion gate closed. It adds no CRD, RBAC, values, rendered object, or Ansible
+  execution source. The actual target kubelet is now captured, but chart/CRD/API
+  compatibility, trust, Namespace, scoped-RBAC, Argo handoff, secret-zero, traffic,
+  recovery, and runtime gates remain blocked.
 - Entry: pinned component versions, human-reviewed target kubelet-version evidence,
   verified Kubernetes compatibility, and an approved secret-zero procedure.
 - Work sequence: a new bounded Ansible Namespace exception; selected Infisical Cloud

@@ -57,6 +57,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-IDP-01 | KIF-002, KIF-003, KIF-005, KIF-010, KIF-012–KIF-016, KIF-021, KIF-023, KIF-026–KIF-030 | Source-only Ansible bootstrap and Keycloak OIDC architecture | Ansible is the selected bounded bootstrap installer and privileged lifecycle owner with no dual reconciliation; direct Argo OIDC separates Keycloak authentication/groups, Argo RBAC, and Kubernetes RBAC while preserving private administration, Infisical-owned values, dedicated PostgreSQL recovery, stable issuer, exact approvals, and handoff gates | PASS — Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, clients, group templates, and default theme are selected only for offline authoring; no executable source, credential, route, or runtime was added |
 | KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, preserves exact two-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator provenance and selection boundary | Historical evidence distinguishes unselected `v0.11.8` distribution observations from the aligned `v0.11.7` set selected only as the offline baseline; trust, compatibility, scoped RBAC, Universal Auth recovery, traffic, and runtime remain blocked | PASS — focused contracts enforce exact evidence associations, qualified trust wording, immutable child direction, and no deployable controller source or Secret |
+| KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—to the vendored chart while every promotion gate stays false and no valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source appears | PASS — focused archive/policy/design contracts plus full offline validation; runtime remains NOT RUN/BLOCKED |
 | KIF-SRC-01 | KIF-005, KIF-010, KIF-013–KIF-015, KIF-023, KIF-030 | Deterministic hosted source-baseline closure | Exact release records, value-free identity/authorization policy, chart/provenance/public-key bytes, SHA256SUMS, safe chart roots, exact four-Namespace closure, and absence of component operational source are enforced offline | PASS — 8 focused source-selection contracts plus affected provenance/design/layout contracts pass; exact hashes verified; no live/network operation or staged file |
 
 ## Schema-v3 elevated discovery and target-minor review — 2026-08-07
@@ -2072,6 +2073,71 @@ broad literal metadata scan then matched negative test assertions and the docume
 `.pi-subagents` exclusion itself; the corrected content-aware scan of the selected
 runbooks and policy passed. No network, server, Kubernetes, registry, secret,
 provider, or runtime operation was performed.
+
+## Infisical privileged-prerequisites design inventory — 2026-08-09
+
+The [design record](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
+and inert policy bind seven raw CRD templates plus observed manager/metrics/user-RBAC
+seams to the hash-verified vendored `v0.11.7` chart. The contract correlates the
+cluster-scoped `ClusterGenerator` and TokenReview rules with their ineffective
+namespaced manager Role placement, records the singular metrics Role and plural
+metrics ClusterRole failure modes, and freezes the four aggregate-role labels. They
+do not add a valid CRD,
+RBAC object, values file, rendered object, Ansible entrypoint, controller, Secret, or
+runtime approval. No network, inventory, SSH, host, kubeconfig, Kubernetes API,
+registry, Infisical account, provider, secret store, Helm operation, or mutation was
+used.
+
+```bash
+python3 -m unittest -v \
+  tests.test_infisical_operator_privileged_prerequisites_contract \
+  tests.test_infisical_operator_provenance_contract \
+  tests.test_hosted_auth_source_selection_contract
+python3 -m unittest discover -s tests -v
+python3 -m compileall -q tests
+(
+  cd ansible/files/vendor/infisical-operator/0.11.7
+  shasum -a 256 -c SHA256SUMS
+)
+cd ansible
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-lint . ../tests/validate_storage_report.yml
+cd ..
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Ran 19 focused Infisical/source-selection contracts — OK
+Ran 115 full offline tests — OK
+PASS: Python compile
+PASS: all 9 production playbook syntax checks
+PASS: production-profile Ansible lint
+PASS: exact vendored Infisical SHA-256 closure
+PASS: exact seven-template CRD inventory, cluster-scope correlation, metrics failure-mode, and aggregate-label sentinels
+PASS: exact four-Namespace Kubernetes source and absence of Infisical operational source
+PASS: local links, evidence/value hygiene, git diff check, and no staged files
+```
+
+The first test-driven focused invocation occurred before documentation links were
+added: five new cases passed and only the intentionally missing-link case failed.
+The first full run then exposed three exact source-closure expectations that had not
+yet admitted the new inert policy/runbook; those tests were updated, and the second
+full run passed all 115 cases. Independent review then found that the scoped manager
+Role inventory named TokenReview but omitted its equally ineffective cluster-scoped
+`ClusterGenerator` permission and did not freeze the singular metrics Role failure
+or four aggregate labels. The policy, design, and contract now cover those seams;
+19 focused and 115 full tests passed again. The completed closure passed the commands
+above. GPG and Helm remain unavailable on
+the controller, so chart-signature replay and deterministic rendering are honestly
+**NOT RUN**. Signer authorization/revocation, CRD/API compatibility, exact scope and
+RBAC, Universal Auth recovery, image trust/SBOM/vulnerability/off-node recovery,
+traffic policy, foundation Namespace runtime, and all component/runtime approvals
+remain **NOT RUN/BLOCKED**. This design closes no manual QA case.
 
 ## Future validation contract
 

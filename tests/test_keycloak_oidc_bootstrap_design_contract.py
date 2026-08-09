@@ -140,6 +140,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         )
         expected_public_inputs = {
             "policies/hosted-identity-authorization.yml",
+            "policies/infisical-operator-privileged-prerequisites.yml",
             "vendor/argocd/10.3.0/SHA256SUMS",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz.prov",

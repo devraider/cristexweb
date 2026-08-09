@@ -79,9 +79,12 @@ retains historical evidence; the release record selects `v0.11.7` only for offli
 source authoring. It remains **NOT DEPLOYABLE** with runtime **NOT RUN/BLOCKED**. Its
 `v0.11.8` distribution-gap observation and version-aligned `v0.11.7` evidence close
 no chart/CRD/API compatibility despite the captured target, trust, Namespace,
-scoped-RBAC, Argo handoff, secret-zero,
-rotation/revocation, traffic, recovery, single-node, or runtime gate. Argo CD,
-cloudflared, Infisical, Secrets, workloads, Services, and routes are not installed,
+scoped-RBAC, Argo handoff, secret-zero, rotation/revocation, traffic, recovery,
+single-node, or runtime gate. The inert
+[privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
+records seven raw CRD templates and known RBAC defects only; it approves no object or
+permission and closes no manual case. Argo CD, cloudflared, Infisical, Secrets,
+workloads, Services, and routes are not installed,
 so this closes no manual case. No deployment, replacement
 recovery proof, or complete manual runtime validation
 occurred. MQA-13 remains pending specifically

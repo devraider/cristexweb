@@ -252,6 +252,12 @@ entry gate.
   Universal Auth as a value-free direction without adding a CRD, RBAC object,
   controller source, credential, Secret, or runtime approval (`KIF-005`, `KIF-013`–
   `KIF-015`, `KIF-023`, `KIF-030`).
+- [x] Inventory the seven hash-bound raw CRD templates, ownership boundaries, and
+  manager/metrics/user-RBAC seams in an inert
+  [promotion contract](../../runbooks/infisical-operator-privileged-prerequisites-design.md); keep every trust,
+  compatibility, scope, authentication, recovery, traffic, source-promotion, and
+  runtime gate closed and add no valid Kubernetes or operational Ansible source
+  (`KIF-005`, `KIF-013`–`KIF-015`, `KIF-021`, `KIF-023`, `KIF-030`).
 - [ ] Accept Infisical signer/build trust and render a deterministic digest-pinned
   controller closure only after chart/CRD/API compatibility, dedicated Namespace,
   explicit scope/RBAC, Argo handoff, Universal Auth recovery, traffic, single-node,

@@ -53,6 +53,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "playbooks/bootstrap_foundation_namespaces.yml",
             "bin/bootstrap-platform-namespaces",
             "bin/bootstrap-foundation-namespaces",
+            "files/policies/infisical-operator-privileged-prerequisites.yml",
             "roles/opentofu_install/defaults/main.yml",
             "roles/opentofu_install/tasks/main.yml",
             "roles/platform_namespace_bootstrap/defaults/main.yml",

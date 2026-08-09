@@ -75,12 +75,15 @@ object, secret, route, or deployment source. A third
 distinguishes the incomplete public `v0.11.8` distribution observation from the
 version-aligned `v0.11.7` set. The separate
 [release selection](runbooks/infisical-operator-release-selection.md) selects
-`v0.11.7` only for offline source authoring and Universal Auth as direction. Runtime
-is **NOT RUN/BLOCKED**, and no CRD, Kubernetes object, credential, or Secret source
-was added. The actual target is now
-captured, but Infisical chart/CRD/API compatibility remains unproven. No general host
-baseline or deployment exists. Python is used only for offline contract tests, not
-infrastructure automation.
+`v0.11.7` only for offline source authoring and Universal Auth as direction. The
+[inert privileged-prerequisites inventory](runbooks/infisical-operator-privileged-prerequisites-design.md)
+binds the seven raw CRD templates and known RBAC/scoping defects to the vendored
+archive while keeping every promotion gate closed. Runtime is **NOT RUN/BLOCKED**,
+and no CRD, RBAC, values, rendered Kubernetes object, Ansible entrypoint, credential,
+or Secret source was added. The actual target is now captured, but Infisical
+chart/CRD/API compatibility remains unproven. No general host baseline or deployment
+exists. Python is used only for offline contract tests, not infrastructure
+automation.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
 local report. The extended report confirms the unmounted 1 TB rotational disk,
@@ -122,7 +125,8 @@ gateway remain in the separate CristexHub application repository.
 11. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
 12. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
 13. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
-14. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+14. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
+15. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 

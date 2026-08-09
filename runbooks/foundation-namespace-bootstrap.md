@@ -94,7 +94,7 @@ this bootstrap intentionally has no deletion implementation.
 - separate wrapper check and reviewed prediction;
 - separate first apply and post-state review;
 - separate idempotence apply requiring `changed=0`;
-- later Infisical Operator version selection and component-specific source;
+- later promotion from the selected offline Infisical Operator `v0.11.7` baseline through the inert [privileged-prerequisites inventory](infisical-operator-privileged-prerequisites-design.md) to separately reviewed component-specific source;
 - secret-zero and non-sensitive synchronization/recovery evidence; and
 - Argo, Keycloak/PostgreSQL, OIDC, stateful recovery, and every route/runtime gate.
 

@@ -2,8 +2,8 @@
 
 state: agent:in-progress
 phase: implementing
-build: historical Namespace idempotence, deployable-but-NOT-RUN foundation Namespace source, and offline Argo/Infisical/Keycloak source-baseline policy contracts pass; controller trust/source, security/Secret/adoption/runtime, and provider/state/backup pending
-date: 2026-08-08
+build: historical Namespace idempotence, deployable-but-NOT-RUN foundation Namespace source, offline Argo/Infisical/Keycloak source-baseline contracts, and inert Infisical privileged-prerequisite inventory pass; controller trust/source, security/Secret/adoption/runtime, and provider/state/backup pending
+date: 2026-08-09
 deploy_required_after_acceptance: yes
 
 note: |
@@ -109,10 +109,14 @@ note: |
   `v0.11.7` chart/source/image set. The release record selects `v0.11.7` only for
   offline source authoring and Universal Auth as direction; it remains **NOT
   DEPLOYABLE**, runtime is **NOT RUN/BLOCKED**, and no CRD, Kubernetes object,
-  credential, or Secret source was added. The actual target is now captured,
-  but chart/CRD/API compatibility, signer/build trust, dedicated Namespace, scoped
-  RBAC, Argo handoff, secret-zero/recovery,
-  traffic policy, single-node acceptance, and runtime approvals remain blockers.
+  credential, or Secret source was added. The inert
+  [privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
+  binds the seven raw CRD templates, ownership boundaries, and known
+  manager/metrics/user-RBAC defects to the vendored archive while approving no
+  object or permission and keeping all promotion gates closed. The actual target is
+  now captured, but chart/CRD/API compatibility, signer/build trust, dedicated
+  Namespace, scoped RBAC, Argo handoff, secret-zero/recovery, traffic policy,
+  single-node acceptance, and runtime approvals remain blockers.
   The unmounted filesystem, disk health, contents, reuse decision, and off-node backup
   design remain unresolved; no disk mutation occurred.
   A bounded CNI/NetworkPolicy functional probe is implemented offline with separate
