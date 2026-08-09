@@ -138,11 +138,19 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             any(
                 component in path.name.lower()
                 for path in operational
-                for component in ("keycloak", "argocd", "infisical", "postgres")
+                for component in (
+                    "keycloak",
+                    "argocd",
+                    "infisical",
+                    "postgres",
+                    "mongo",
+                    "mongodb",
+                )
             )
         )
         expected_public_inputs = {
             "policies/hosted-identity-authorization.yml",
+            "policies/shared-database-architecture.yml",
             "policies/infisical-operator-privileged-prerequisites.yml",
             "vendor/argocd/10.3.0/SHA256SUMS",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz",

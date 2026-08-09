@@ -44,10 +44,10 @@
 
 | ID | Requirement |
 |---|---|
-| KIF-016 | Committed source contains `argocd`, cloudflared-only `platform-edge`, and future `shared-services`; later `cristexhub-dev` and `cristexhub-prod` remain separate. `shared-services` is the placement for the Infisical Operator, separate Keycloak deployment, and general PostgreSQL instance, but its Namespace/runtime checkpoints remain separately approved and NOT RUN. Applications retain separate DEV/PROD credentials, migrations, and backup paths. |
-| KIF-017 | One general PostgreSQL instance provides separate DEV, PROD, and Keycloak logical databases and owner roles. Keycloak receives no separate PostgreSQL deployment/PVC; every role is denied cross-database access and application/Keycloak roles cannot create databases or roles. |
-| KIF-018 | Shared MongoDB provides separate DEV/PROD databases and users; each user is denied access to the other environment. |
-| KIF-019 | Shared-engine failure and contention risks are documented, bounded with requests/limits/connection limits, and accepted before PROD. |
+| KIF-016 | Committed source contains `argocd`, cloudflared-only `platform-edge`, and future `shared-services`; later `cristexhub-dev` and `cristexhub-prod` remain separate. `shared-services` is the placement for the Infisical Operator, separate Keycloak deployment, one general PostgreSQL engine, and one shared MongoDB engine, but its Namespace/runtime checkpoints remain separately approved and NOT RUN. Applications retain separate DEV/PROD credentials, migrations, and backup paths. |
+| KIF-017 | One general PostgreSQL engine provides separate DEV, PROD, and Keycloak logical databases, principals, Infisical-owned credentials, migration scopes, and backup scopes. Keycloak receives no separate PostgreSQL deployment/PVC; `PUBLIC` connection/schema privileges are revoked where unwanted, every workload role is denied cross-database access, and application/Keycloak roles cannot create databases or roles. |
+| KIF-018 | One shared MongoDB engine provides separate DEV/PROD databases, database-scoped users, Infisical-owned credentials, migration scopes, and backup scopes. Each workload user is denied the other environment plus broad any-database and user/role-administration privileges; MongoDB source and topology remain unselected before separate approval. |
+| KIF-019 | Shared-engine failure and contention risks are documented, bounded with requests/limits/connection limits, and accepted before PROD. No environment, tenant, or Keycloak consumer receives a separate engine or PVC; exact storage, provisioning, backup/restore, and RPO/RTO gates must close before executable stateful source. |
 | KIF-020 | Redis is environment-local; any shared RabbitMQ uses separate users/vhosts, limits, and negative cross-access tests. |
 | KIF-021 | NetworkPolicy and RBAC deny unapproved cross-namespace and control-plane access while allowing required DNS and service flows. |
 
@@ -116,7 +116,12 @@ encrypted off-node backup/isolated restore, and object-by-object handoff. The re
 PostgreSQL `17.10`, realm `cristexhub`, and stable issuer
 `https://auth.cristex-soft.com/realms/cristexhub` only for offline source authoring.
 Exact callbacks/origins, trust/recovery, executable source, routes, credentials, and
-runtime remain **NOT RUN/BLOCKED**. The source-only
+runtime remain **NOT RUN/BLOCKED**. The value-free
+[shared database architecture](../../runbooks/shared-database-architecture.md) maps
+KIF-005, KIF-013, KIF-016 through KIF-019, KIF-021, and KIF-026 through KIF-030 to
+an exact one-PostgreSQL/one-MongoDB source-only policy. It closes no image trust,
+storage, provisioning, backup, restore, RPO/RTO, object-source, or runtime gate; all
+promotion flags remain false. The source-only
 [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
 binds exact release/source/image, token-file, health, and edge-transport evidence for
 KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, and KIF-030 while explicitly
@@ -138,7 +143,8 @@ promotion gates without adding a valid Kubernetes or operational Ansible source.
 [Argo](../../runbooks/argocd-release-selection.md),
 [Infisical](../../runbooks/infisical-operator-release-selection.md), and
 [Keycloak/PostgreSQL](../../runbooks/keycloak-release-selection.md) selection records
-plus `ansible/files/policies/hosted-identity-authorization.yml` map KIF-005,
+plus `ansible/files/policies/hosted-identity-authorization.yml` and
+`ansible/files/policies/shared-database-architecture.yml` map KIF-005,
 KIF-010, and KIF-013 through KIF-015 to exact value-free offline inputs while
 preserving every deployment and runtime gate. Exact
 platform Namespace source and its bounded bootstrap pass offline contracts; the

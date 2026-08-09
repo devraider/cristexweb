@@ -55,6 +55,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-ARGO-02 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Argo CD online/static readiness refresh | A secret-free record curates deterministic render, upstream API registration, RBAC/network, image trust/availability/vulnerability, private-Git, and Namespace-adoption evidence while all live admission/runtime gates remain blocked | PASS — focused provenance contracts preserve the 44-document render and security blockers; no values, rendered YAML, Kubernetes object, credential, or deployable controller source was added |
 | KIF-ARGO-03 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013–KIF-015, KIF-021, KIF-030 | Argo CD source-only hardened design | A secret-free design fixes private ClusterIP/loopback-only administration, retained quiescent ApplicationSet, supplemental default-deny, phased least privilege, one-repository GitHub App credentials, value-free secret custody, selected direct OIDC direction, two-Application adoption, stop/rollback, Ansible ownership, and six open decisions without adding deployable source | PASS — hardened-design contracts accept only the offline version baseline; trust, exact controller closure, admission, Secrets, recovery, handoff, and runtime remain blocked |
 | KIF-IDP-01 | KIF-002, KIF-003, KIF-005, KIF-010, KIF-012–KIF-017, KIF-021, KIF-023, KIF-026–KIF-030 | Source-only Ansible bootstrap and Keycloak OIDC architecture | Ansible is the selected bounded bootstrap installer and privileged lifecycle owner with no dual reconciliation; direct Argo OIDC separates Keycloak authentication/groups, Argo RBAC, and Kubernetes RBAC while preserving private administration, Infisical-owned values, a dedicated Keycloak logical database/role on the general shared PostgreSQL engine, stable issuer, exact approvals, and handoff gates | PASS — Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, clients, group templates, default theme, separate deployment, and shared-engine isolation policy are selected only for offline authoring; no executable component source, credential, route, or runtime was added |
+| KIF-DB-01 | KIF-005, KIF-013, KIF-016–KIF-019, KIF-021, KIF-026–KIF-030 | Shared database source-only architecture | One PostgreSQL and one MongoDB engine are placed in `shared-services`; DEV/PROD and Keycloak receive exact engine-appropriate logical scopes, Infisical-owned credentials, backups, deny-first authorization, and private-only exposure while MongoDB source/topology, stateful objects, storage, provisioning, recovery, handoff, and runtime remain blocked | PASS — value-free canonical policy/runbook and exact offline contracts pass; PostgreSQL keeps its selected-but-untrusted baseline, MongoDB remains unselected, all promotion gates are false, exact three-Namespace closure is unchanged, and no executable database source or runtime operation was added |
 | KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, reserves `platform-edge` for cloudflared within the exact current three-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator provenance and selection boundary | Historical evidence distinguishes unselected `v0.11.8` distribution observations from the aligned `v0.11.7` set selected only as the offline baseline; trust, compatibility, scoped RBAC, Universal Auth recovery, traffic, and runtime remain blocked | PASS — focused contracts enforce exact evidence associations, qualified trust wording, immutable child direction, and no deployable controller source or Secret |
 | KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—to the vendored chart while every promotion gate stays false and no valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source appears | PASS — focused archive/policy/design contracts plus full offline validation; runtime remains NOT RUN/BLOCKED |
@@ -2263,6 +2264,118 @@ occurred. `shared-services` existence remains unproved and its check, first appl
 and idempotence require separate approvals. If later read-only discovery finds either
 superseded Namespace, stop; do not delete it. This source correction closes no manual
 QA case.
+
+## Shared database source-only architecture — 2026-08-09
+
+This offline-only increment adds a value-free canonical contract for exactly one
+PostgreSQL and one MongoDB engine in `shared-services`. PostgreSQL has isolated DEV,
+PROD, and Keycloak consumer scopes; MongoDB has isolated DEV and PROD scopes only.
+All credentials remain Infisical-owned, database exposure remains private-only, and
+engine-specific negative authorization tests are mandatory. MongoDB source and
+topology, stateful objects, storage, provisioning, backup/restore, RPO/RTO, handoff,
+and runtime remain unselected or blocked.
+
+```bash
+.venv/bin/python -m unittest -v \
+  tests.test_shared_database_architecture_contract \
+  tests.test_hosted_auth_source_selection_contract \
+  tests.test_keycloak_oidc_bootstrap_design_contract \
+  tests.test_cloudflared_provenance_contract \
+  tests.test_foundation_namespace_contract \
+  tests.test_platform_namespace_contract
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m compileall -q tests
+python3 - <<'PY'
+from pathlib import Path
+import yaml
+for path in (
+    Path('ansible/files/policies/hosted-identity-authorization.yml'),
+    Path('ansible/files/policies/shared-database-architecture.yml'),
+):
+    assert isinstance(yaml.safe_load(path.read_text()), dict), path
+PY
+cd ansible
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-lint . ../tests/validate_storage_report.yml
+cd ..
+(cd ansible/files/vendor/argocd/10.3.0 && shasum -a 256 -c SHA256SUMS)
+(cd ansible/files/vendor/infisical-operator/0.11.7 && shasum -a 256 -c SHA256SUMS)
+.venv/bin/python - <<'PY'
+from pathlib import Path
+import re
+excluded = {'.git', '.venv', '.pi-subagents', 'vendor', '.ansible'}
+paths = [path for path in Path('.').rglob('*.md') if excluded.isdisjoint(path.parts)]
+for path in paths:
+    text = path.read_text()
+    assert not any(line.endswith((' ', '\t')) for line in text.splitlines()), path
+    for target in re.findall(r'\[[^]]+\]\(([^)]+)\)', text):
+        if '://' in target or target.startswith('#'):
+            continue
+        local = target.split('#', 1)[0]
+        if local:
+            assert (path.parent / local).resolve().exists(), (path, target)
+print(f'PASS: local Markdown links and trailing whitespace in {len(paths)} files')
+PY
+python3 - <<'PY'
+from pathlib import Path
+expected = {
+    'platform/namespaces/argocd.yaml',
+    'platform/namespaces/platform-edge.yaml',
+    'platform/namespaces/shared-services.yaml',
+}
+actual = {
+    str(path.relative_to('kubernetes'))
+    for path in Path('kubernetes').rglob('*')
+    if path.is_file()
+}
+assert actual == expected
+operational = [
+    path
+    for root in ('ansible/bin', 'ansible/playbooks', 'ansible/roles')
+    for path in Path(root).rglob('*')
+    if path.is_file()
+]
+assert not any(
+    token in path.name.lower()
+    for path in operational
+    for token in ('postgres', 'mongo', 'database')
+)
+PY
+git diff --exit-code -- \
+  kubernetes/platform/namespaces/argocd.yaml \
+  kubernetes/platform/namespaces/platform-edge.yaml \
+  ansible/bin/bootstrap-platform-namespaces \
+  ansible/playbooks/bootstrap_platform_namespaces.yml \
+  ansible/roles/platform_namespace_bootstrap
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Test-first red checkpoint: 47 tests ran; 1 expected error because the canonical policy was absent
+Ran 56 focused shared-database/identity/placement contracts — OK
+Ran 124 full offline tests — OK
+PASS: Python compile and both value-free policy files parse as YAML
+PASS: all 9 production playbook syntax checks
+PASS: production-profile Ansible lint, 0 failures/warnings in 45 files processed of 58 encountered
+PASS: Argo and Infisical vendored SHA-256 closures
+PASS: local Markdown links and trailing whitespace in 25 repository files
+PASS: exact three-Namespace closure and no executable database source
+PASS: closed historical argocd/platform-edge bootstrap source remains untouched
+PASS: diff hygiene and no staged files
+```
+
+No MongoDB repository, version, digest, topology, database/user name, Service/port,
+storage value, credential reference/value, provisioning writer, or backup tool was
+invented. No StatefulSet, Deployment, Service, PVC, Secret, Job, CronJob,
+NetworkPolicy, Ansible component wrapper/role/playbook, Helm source, Argo object,
+provider resource, or route was added. No host, SSH, registry, Kubernetes API,
+Infisical, Secret, provider, Helm, database, or runtime operation occurred. This
+source-only policy closes no manual QA case.
 
 ## Future validation contract
 

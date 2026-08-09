@@ -25,7 +25,7 @@ recover DEV and PROD without presenting a single node as highly available.
 - DEV and administration remain private through host Tailscale.
 - Only approved PROD application routes become public through Cloudflare Tunnel.
 - Application namespaces are `cristexhub-dev` and `cristexhub-prod`.
-- `platform-edge` is reserved for cloudflared. `shared-services` hosts the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL instance, MongoDB, and any retained RabbitMQ. Keycloak uses a dedicated logical database, owner role, credential, and backup scope on the shared PostgreSQL engine; DEV/PROD retain separate databases, principals, credentials, migrations, limits, and backups.
+- `platform-edge` is reserved for cloudflared. `shared-services` hosts the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL engine, one shared MongoDB engine, and any retained RabbitMQ. Keycloak uses a dedicated logical database, owner role, credential, and backup scope on the shared PostgreSQL engine; DEV/PROD retain separate databases, principals, credentials, migrations, limits, and backups. The canonical database policy is value-free and runtime-blocked; MongoDB source/topology, storage, provisioning, and recovery remain unselected.
 - Redis remains per environment.
 
 ## Constraints
@@ -98,8 +98,12 @@ historical wrapper. Its check, first apply, and idempotence remain separately
 approved and **NOT RUN**. The superseded `platform-secrets`/`platform-identity`
 source was never run; this source correction does not claim a live rename or
 deletion. Argo CD, cloudflared, Infisical Operator,
-Keycloak, PostgreSQL, Secrets, workloads, Services, policies, PVCs, and routes remain
-unrun. A source-only
+Keycloak, PostgreSQL, MongoDB, Secrets, workloads, Services, policies, PVCs, and
+routes remain unrun. The source-only
+[shared database architecture](../../runbooks/shared-database-architecture.md)
+records exact engine/consumer closure, deny-first authorization, private exposure,
+Infisical value ownership, and closed promotion gates without adding executable
+objects. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 retains historical chart, signature/hash-binding, image, and online/static readiness
 evidence for chart `10.3.0` and app `v3.5.0`. The release record selects that pair

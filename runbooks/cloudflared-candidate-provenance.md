@@ -19,8 +19,8 @@ and a separate change adds reviewed desired state under the existing ownership a
 approval rules.
 
 Any future cloudflared namespaced objects belong only in `platform-edge`.
-Keycloak, PostgreSQL, and the Infisical Operator belong in `shared-services`, not
-`platform-edge`. This placement statement adds no component source or runtime
+Keycloak, PostgreSQL, MongoDB, and the Infisical Operator belong in
+`shared-services`, not `platform-edge`. This placement statement adds no component source or runtime
 approval.
 
 ## Release and source provenance evidence

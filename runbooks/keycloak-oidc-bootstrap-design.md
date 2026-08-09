@@ -84,7 +84,8 @@ and the static Argo groups.
 
 Namespace trust is explicit: `platform-edge` is reserved for cloudflared only;
 `shared-services` contains the Infisical Cloud Operator, a separate Keycloak
-deployment, and the one general PostgreSQL instance; `argocd` receives only its
+deployment, one general PostgreSQL engine, and one shared MongoDB engine; `argocd`
+receives only its
 materialized OIDC client value; and `cristexhub-dev` and `cristexhub-prod` receive
 only their own environment identities. Keycloak receives a dedicated logical
 database, dedicated owner role, and dedicated credential values inside that shared
@@ -118,7 +119,9 @@ One replica on one node is explicitly not high availability.
 Keycloak requires PostgreSQL `17.10` at linux/amd64 child digest
 `sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b`,
 a dedicated logical database and dedicated owner role on the one general shared
-PostgreSQL instance. Keycloak remains a separate deployment from PostgreSQL. No
+PostgreSQL instance. The canonical value-free consumer/isolation contract is
+[`shared-database-architecture.yml`](../ansible/files/policies/shared-database-architecture.yml);
+Keycloak has no MongoDB consumer scope. Keycloak remains a separate deployment from PostgreSQL. No
 separate Keycloak PostgreSQL deployment or PVC is selected; the shared engine and
 PVC remain a shared failure domain. The database version must be supported by the
 selected Keycloak release. Before the first private bootstrap, the database/storage

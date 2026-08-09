@@ -36,14 +36,19 @@ separate Keycloak database server. Keycloak requires its own logical database, o
 role, credential, database-scoped application-consistent encrypted `pg_dump`,
 independent key custody, non-destructive off-node copy, isolated restore, and
 measured RPO/RTO. The shared PostgreSQL engine and PVC remain a common failure
-domain.
+domain. The value-free
+[shared database architecture](shared-database-architecture.md) is canonical for
+PostgreSQL/MongoDB consumers and isolation. MongoDB repository, version, immutable
+digest, topology, and trust are deliberately unselected; this Keycloak/PostgreSQL
+record must not be treated as a MongoDB source selection.
 
 ## Hosted identity policy
 
 The value-free policy at
 `ansible/files/policies/hosted-identity-authorization.yml` freezes the exact realm,
-issuer, images, client IDs, environment group templates, Argo mappings, Namespace
-trust boundaries, ownership, and Infisical Universal Auth direction. It is data for
+issuer, selected Keycloak/PostgreSQL images, client IDs, environment group templates,
+Argo mappings, Namespace trust boundaries, ownership, and Infisical Universal Auth
+direction, and references the separate canonical database topology policy. It is data for
 review and later Ansible reconciliation; it is not a Keycloak realm import,
 Kubernetes object, executable playbook, credential, or runtime approval.
 

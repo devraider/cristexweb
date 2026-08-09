@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ANSIBLE = ROOT / "ansible"
 KUBERNETES = ROOT / "kubernetes"
 POLICY = ANSIBLE / "files/policies/hosted-identity-authorization.yml"
+DATABASE_POLICY = ANSIBLE / "files/policies/shared-database-architecture.yml"
 
 ARGO_VENDOR = ANSIBLE / "files/vendor/argocd/10.3.0"
 INFISICAL_VENDOR = ANSIBLE / "files/vendor/infisical-operator/0.11.7"
@@ -40,6 +41,7 @@ class HostedAuthSourceSelectionContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.policy_text = POLICY.read_text()
         cls.policy = yaml.safe_load(cls.policy_text)
+        cls.database_policy = yaml.safe_load(DATABASE_POLICY.read_text())
 
     def test_exact_vendor_closure_and_hashes(self) -> None:
         actual = {
@@ -86,7 +88,7 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
                 self.assertFalse(member.issym() or member.islnk(), member.name)
 
     def test_selected_realm_clients_groups_and_images_are_exact(self) -> None:
-        self.assertEqual("cristex-hosted-identity-v2", self.policy["policy_schema"])
+        self.assertEqual("cristex-hosted-identity-v3", self.policy["policy_schema"])
         self.assertEqual("source-selected-runtime-blocked", self.policy["policy_status"])
         self.assertEqual("cristexhub", self.policy["realm"]["name"])
         self.assertEqual(
@@ -174,6 +176,7 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
                 "infisical-kubernetes-operator",
                 "keycloak-runtime",
                 "shared-postgresql-engine",
+                "shared-mongodb-engine",
                 "application-databases",
             },
             set(edge["denies"]),
@@ -184,6 +187,7 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
                 "infisical-kubernetes-operator",
                 "keycloak-runtime",
                 "shared-postgresql-engine",
+                "shared-mongodb-engine",
                 "application-databases",
                 "keycloak-dedicated-database",
                 "keycloak-dedicated-database-role",
@@ -206,20 +210,22 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
         self.assertIn("prod-credentials", self.policy["namespaces"]["cristexhub-dev"]["denies"])
         self.assertIn("dev-credentials", self.policy["namespaces"]["cristexhub-prod"]["denies"])
 
-        database = self.policy["database_isolation"]
-        self.assertEqual("shared-services", database["engine_namespace"])
-        self.assertEqual("one-general-postgresql-instance", database["engine_model"])
-        self.assertTrue(database["keycloak_deployment_separate_from_postgresql"])
-        self.assertEqual("dedicated-logical-database", database["keycloak_database"])
-        self.assertEqual("dedicated-owner-role", database["keycloak_database_role"])
-        self.assertEqual("dedicated", database["keycloak_database_credential"])
+        database = self.policy["database_architecture"]
         self.assertEqual(
-            "dedicated-logical-database", database["keycloak_backup_scope"]
+            "ansible/files/policies/shared-database-architecture.yml",
+            database["policy_path"],
         )
-        self.assertEqual("infisical-cloud", database["credential_value_owner"])
-        self.assertFalse(database["separate_keycloak_postgresql_instance"])
-        self.assertFalse(database["separate_keycloak_postgresql_pvc"])
-        self.assertEqual("deny", database["cross_database_access_default"])
+        self.assertEqual(
+            self.database_policy["policy_schema"], database["policy_schema"]
+        )
+        self.assertEqual("keycloak", database["keycloak_consumer"])
+        self.assertTrue(database["keycloak_deployment_separate_from_postgresql"])
+        self.assertEqual(
+            "dedicated-owner-role",
+            self.database_policy["engines"]["postgresql"]["consumers"]["keycloak"][
+                "principal"
+            ],
+        )
 
     def test_universal_auth_and_ownership_are_value_free(self) -> None:
         self.assertEqual("infisical-cloud", self.policy["secrets"]["value_owner"])
@@ -279,7 +285,14 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
             any(
                 component in path.name.lower()
                 for path in operational
-                for component in ("argocd", "infisical", "keycloak", "postgres")
+                for component in (
+                    "argocd",
+                    "infisical",
+                    "keycloak",
+                    "postgres",
+                    "mongo",
+                    "mongodb",
+                )
             )
         )
 

@@ -93,8 +93,10 @@ though warning-free fresh-session behavior passed. These results do not satisfy 
 remaining manual cases. The offline `shared-services` source correction adds no live
 Namespace, workload, database, credential, or route and therefore closes no manual
 case. Future placement is cloudflared-only `platform-edge`, with the Infisical
-Operator, separate Keycloak deployment, and general PostgreSQL instance in
-`shared-services`.
+Operator, separate Keycloak deployment, one general PostgreSQL engine, and one
+shared MongoDB engine in `shared-services`. The value-free database policy closes no
+manual case: MongoDB source/topology, storage, provisioning, authorization, backup,
+restore, and runtime evidence remain pending.
 
 | ID | Requirements | Scenario | Expected | Status |
 |---|---|---|---|---|
@@ -102,7 +104,7 @@ Operator, separate Keycloak deployment, and general PostgreSQL instance in
 | MQA-02 | KIF-005, KIF-009, KIF-010, KIF-012–KIF-015, KIF-021 | Private administration and identity authorization | Argo CD and k3s API work through the approved private path; Keycloak administration/management and Argo remain publicly unreachable; direct OIDC grants exact administrator/read-only groups, denies read-only mutation and ungrouped/invalid/expired identities, and preserves tested local break-glass recovery | PENDING |
 | MQA-03 | KIF-013–KIF-015 | Infisical rotation | A test secret rotates and revokes without plaintext in Git/logs; recovery credential remains usable | PENDING |
 | MQA-04 | KIF-016–KIF-021 | DEV isolation | DEV reaches only its databases/services and cannot authenticate to or connect to PROD resources | PENDING |
-| MQA-05 | KIF-017, KIF-018 | Database authorization | DEV and PROD PostgreSQL/MongoDB principals receive bidirectional denial; the dedicated Keycloak role reaches only its logical database, application roles cannot reach it, and no application/Keycloak role can create databases or roles | PENDING |
+| MQA-05 | KIF-017, KIF-018 | Database authorization | DEV and PROD PostgreSQL/MongoDB principals receive bidirectional denial; unwanted PostgreSQL `PUBLIC` connection/schema privileges are absent; the dedicated Keycloak role reaches only its logical database; application/Keycloak roles cannot create databases or roles; MongoDB workload users have no any-database, user-admin, role-admin, or out-of-scope write authority | PENDING |
 | MQA-06 | KIF-022–KIF-025 | DEV promotion and rollback | Argo deploys a reviewed immutable digest and Git revert restores the prior verified digest | PENDING |
 | MQA-07 | KIF-026–KIF-028 | Backup and isolated restore | Encrypted off-node backup restores into isolation within RPO/RTO and application validation passes | PENDING |
 | MQA-08 | KIF-025 | Private PROD acceptance | PROD auth, API, workers, migration, data isolation, resource headroom, backup, and rollback pass before public routing | PENDING |

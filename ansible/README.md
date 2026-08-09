@@ -452,8 +452,11 @@ Ansible is selected as the future bounded bootstrap installer for exact foundati
 Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted
 Keycloak, and privileged CRD/cluster-RBAC prerequisites. Exact executable source now
 exists only for the one `shared-services` foundation Namespace; no Infisical, Argo,
-Keycloak, PostgreSQL, chart, Secret, workload, or component runtime approval exists
-from that decision.
+Keycloak, PostgreSQL, MongoDB, chart, Secret, workload, or component runtime approval
+exists from that decision. The value-free
+[shared database policy](../runbooks/shared-database-architecture.md) records one
+future PostgreSQL and one future MongoDB engine in `shared-services`, but it is not
+an Ansible role, playbook, wrapper, manifest, image selection, or runtime approval.
 
 Each future component requires a dedicated non-passthrough entrypoint and frozen
 source/object closure with separate check, apply, and idempotence approvals. Exact

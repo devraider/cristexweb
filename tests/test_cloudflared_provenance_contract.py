@@ -132,7 +132,7 @@ class CloudflaredCandidateProvenanceContractTests(unittest.TestCase):
             "deny unrelated namespace, control-plane, metadata, metrics, debug, quick-tunnel, configuration, and public access",
             "does not select a release, authorize a Cloudflare resource, approve a route or hostname, or add an OpenTofu resource, Kubernetes object, chart, values file, credential, or secret value",
             "Any future cloudflared namespaced objects belong only in `platform-edge`",
-            "Keycloak, PostgreSQL, and the Infisical Operator belong in `shared-services`, not `platform-edge`",
+            "Keycloak, PostgreSQL, MongoDB, and the Infisical Operator belong in `shared-services`, not `platform-edge`",
         ):
             self.assertIn(required, self.normalized)
 

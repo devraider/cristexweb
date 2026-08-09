@@ -223,7 +223,10 @@ connectivity tests provide the enforceable controls.
 ## Shared data design
 
 A single PostgreSQL engine and a single MongoDB engine save memory. This is an
-explicitly accepted shared failure and contention domain.
+explicitly accepted shared failure and contention domain. The value-free
+[`shared-database-architecture.yml`](ansible/files/policies/shared-database-architecture.yml)
+is the canonical source-only topology and authorization contract; its promotion
+gates are all closed and it is not executable workload source.
 
 PostgreSQL requires separate logical databases and owner roles, including dedicated
 DEV, PROD, and Keycloak scopes. Keycloak remains a separate deployment from the one
@@ -231,14 +234,16 @@ general PostgreSQL instance and receives its own database, owner role, credentia
 and backup scope; it does not receive another PostgreSQL workload or PVC. MongoDB
 requires separate databases and users with privileges limited to their own database.
 DEV and PROD never share an application credential, encryption key, migration target,
-or backup prefix.
+or backup prefix. MongoDB repository/version/digest and standalone-versus-replica-set
+topology remain unselected.
 
 Application and Keycloak roles must not create roles or databases. The Keycloak role
 cannot access application databases, and application roles cannot access the
-Keycloak database; those denials require negative grant tests. A bounded, idempotent,
-Argo-managed provisioning job or a later approved operator creates principals from
-Infisical references. Its administrator credential is not available to application
-or Keycloak pods.
+Keycloak database; those denials require negative grant tests. MongoDB workload users must have no broad any-database or
+user/role-administration roles and must fail bidirectional cross-database tests.
+The provisioning owner remains unselected; a bounded Argo-managed job or a later
+approved operator are only candidates. Its administrator credential must remain
+Infisical-owned and unavailable to application or Keycloak pods.
 
 Redis remains per environment because Redis database numbers are not sufficient
 security isolation. A shared RabbitMQ is permitted only with distinct users,
@@ -246,10 +251,10 @@ virtual hosts, limits, and negative access tests. A later capacity decision may
 separate it.
 
 NetworkPolicy must allow each application namespace and the Keycloak workload to
-reach only the shared PostgreSQL Service and other exact approved endpoints, while
+reach only the shared database Services and other exact approved endpoints, while
 denying cross-environment application traffic. NetworkPolicy cannot isolate logical
-databases on one endpoint, so PostgreSQL grants and negative authorization tests are
-mandatory. Database engines remain ClusterIP-only. The general PostgreSQL engine/PVC
+databases on a shared endpoint, so PostgreSQL/MongoDB authorization and negative
+tests are mandatory. Database engines remain ClusterIP-only. The general PostgreSQL engine/PVC
 is a shared failure domain even though Keycloak has a separate database, role,
 credential, backup scope, connection policy, and recovery acceptance.
 

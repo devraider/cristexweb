@@ -39,8 +39,8 @@ source and a new dedicated guarded wrapper now exist for `shared-services`, but 
 check, first apply, and idempotence are **NOT RUN** and require separate approvals.
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
 it does not claim a live rename or deletion. No Argo CD, cloudflared,
-Infisical Operator, Keycloak, PostgreSQL, Secret, workload, Service, policy, PVC, or
-route exists from the new increment. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
+Infisical Operator, Keycloak, PostgreSQL, MongoDB, Secret, workload, Service,
+policy, PVC, or route exists from the new increment. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 binds public chart, captured signature/hash-binding, image, and online/static
 readiness evidence. The separate [release selection](runbooks/argocd-release-selection.md)
 selects chart `10.3.0` / app `v3.5.0` only for offline source authoring; it remains
@@ -66,7 +66,12 @@ and [release selection](runbooks/keycloak-release-selection.md) select Keycloak
 `https://auth.cristex-soft.com/realms/cristexhub` only for offline source authoring.
 The value-free hosted policy selects exact client IDs, environment role templates,
 Argo groups, deny-default authorization, Namespace trust, and Universal Auth
-direction. No workload, Secret, route, or runtime is approved.
+direction. The separate [shared database architecture](runbooks/shared-database-architecture.md)
+freezes one PostgreSQL and one MongoDB engine in `shared-services`, dedicated
+consumer scopes, Infisical value ownership, private-only exposure, and closed
+promotion gates. MongoDB source/topology, storage, provisioning, recovery,
+executable objects, and runtime remain unselected or blocked. No workload, Secret,
+route, or runtime is approved.
 A separate
 [source-only cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 binds official release, unsigned source, immutable linux/amd64 image, token-file,
@@ -124,11 +129,12 @@ gateway remain in the separate CristexHub application repository.
 8. [`runbooks/foundation-namespace-bootstrap.md`](runbooks/foundation-namespace-bootstrap.md) — deployable-but-not-run exact present-only bootstrap for `shared-services`.
 9. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
 10. [`runbooks/keycloak-release-selection.md`](runbooks/keycloak-release-selection.md) — immutable Keycloak/PostgreSQL and issuer source selection.
-11. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
-12. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
-13. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
-14. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
-15. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+11. [`runbooks/shared-database-architecture.md`](runbooks/shared-database-architecture.md) — value-free PostgreSQL/MongoDB topology, isolation, and closed deployment gates.
+12. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
+13. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
+14. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
+15. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
+16. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -232,7 +238,7 @@ ansible/                 # discovery + bounded host changes + gated temporary QA
   roles/platform_namespace_bootstrap/
   roles/foundation_namespace_bootstrap/
   files/vendor/            # hash-bound public chart/provenance/key inputs only
-  files/policies/          # value-free hosted identity/authorization policy
+  files/policies/          # value-free identity and shared-database policies
 opentofu/                # zero-resource Cloudflare-only scaffold
 kubernetes/              # exact platform Namespace source; future Argo desired state
 runbooks/                # recovery docs plus source-only candidate/design records
@@ -244,6 +250,7 @@ runbooks/                # recovery docs plus source-only candidate/design recor
   foundation-namespace-bootstrap.md
   keycloak-oidc-bootstrap-design.md
   keycloak-release-selection.md
+  shared-database-architecture.md
   cloudflared-candidate-provenance.md
   infisical-operator-candidate-provenance.md
   infisical-operator-release-selection.md
@@ -256,8 +263,9 @@ hardened-design, and Keycloak/OIDC design records under `runbooks/`, and offline
 `tests/` currently exist. An exact manifest and a distinct guarded wrapper now exist
 for `shared-services`; check/apply/idempotence remain NOT RUN and have no runtime
 authorization. `platform-edge` is reserved for future cloudflared namespaced objects;
-Infisical Operator, separate Keycloak, and general PostgreSQL placement belongs in
-`shared-services`. Kustomize remains intended for first-party application overlays;
+Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one shared
+MongoDB engine belong in `shared-services`. The database policy is inert: it adds no
+StatefulSet, Service, PVC, Secret, provisioning object, or runtime approval. Kustomize remains intended for first-party application overlays;
 Helm is reserved for selected third-party components. Argo ownership remains pending
 until Argo CD is installed, `shared-services` is adopted or registered through an
 Application, and successful sync evidence exists; the future-owner label alone is

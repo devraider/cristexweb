@@ -1,0 +1,138 @@
+---
+policy_schema: cristex-shared-databases-v1
+policy_status: source-policy-only-runtime-blocked
+namespace: shared-services
+credential_value_owner: infisical-cloud
+engines:
+  postgresql:
+    instance_count: 1
+    namespace: shared-services
+    model: one-general-engine
+    source:
+      selection: selected-offline-only
+      reference: "ansible/files/policies/hosted-identity-authorization.yml#images.postgresql"
+      trust_accepted: false
+    consumers:
+      cristexhub-dev:
+        database: dedicated-logical-database
+        principal: dedicated-owner-role
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+      cristexhub-prod:
+        database: dedicated-logical-database
+        principal: dedicated-owner-role
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+      keycloak:
+        database: dedicated-logical-database
+        principal: dedicated-owner-role
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+    no_consumer_specific_engine_or_pvc: true
+    authorization:
+      cross_database_access_default: deny
+      public_connect: revoke
+      public_schema_create: revoke
+      workload_create_database: deny
+      workload_create_role: deny
+      required_negative_tests:
+        - dev-role-to-prod-database
+        - prod-role-to-dev-database
+        - application-roles-to-keycloak-database
+        - keycloak-role-to-application-databases
+        - workload-role-create-database
+        - workload-role-create-role
+  mongodb:
+    instance_count: 1
+    namespace: shared-services
+    model: one-general-engine
+    source:
+      selection: unselected
+      repository: null
+      version: null
+      linux_amd64_digest: null
+      trust_accepted: false
+    topology: unselected
+    consumers:
+      cristexhub-dev:
+        database: dedicated-logical-database
+        principal: dedicated-database-user
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+      cristexhub-prod:
+        database: dedicated-logical-database
+        principal: dedicated-database-user
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+    no_consumer_specific_engine_or_pvc: true
+    authorization:
+      cross_database_access_default: deny
+      workload_user_administration: deny
+      workload_role_administration: deny
+      writes_outside_authorized_database: deny
+      forbidden_builtin_roles:
+        - readAnyDatabase
+        - readWriteAnyDatabase
+        - dbAdminAnyDatabase
+        - userAdminAnyDatabase
+        - root
+      required_negative_tests:
+        - dev-user-to-prod-database
+        - prod-user-to-dev-database
+        - workload-user-administration
+        - workload-role-administration
+exposure:
+  future_scope: cluster-internal-only
+  service_identity: unselected
+  ports: unselected
+  forbidden:
+    - Ingress
+    - NodePort
+    - LoadBalancer
+    - CloudflareTunnel
+    - public-route
+storage:
+  storage_class: unselected
+  pvc_topology: unselected
+  capacities: unselected
+  access_modes: unselected
+  data_paths: unselected
+  retention_and_reclaim: unselected
+provisioning:
+  owner: unselected
+  candidate_owners:
+    - bounded-argocd-job
+    - approved-operator
+  administrator_credential_value_owner: infisical-cloud
+  administrator_credential_available_to_workloads: false
+backup_and_restore:
+  tooling: unselected
+  schedule: unselected
+  retention: unselected
+  destination: unselected
+  encryption_key_custody: unselected
+  rpo: unselected
+  rto: unselected
+  application_consistent_dumps_required: true
+  encrypted_off_node_copy_required: true
+  integrity_verification_required: true
+  isolated_restore_required: true
+promotion_gates:
+  mongodb_immutable_source_selected: false
+  image_trust_and_recovery_accepted: false
+  storage_design_accepted: false
+  tls_design_accepted: false
+  resources_and_probes_accepted: false
+  network_policy_accepted: false
+  infisical_bootstrap_recovery_proved: false
+  provisioning_owner_selected: false
+  backup_and_restore_proved: false
+  rpo_rto_accepted: false
+  one_writer_handoff_proved: false
+  runtime_approved: false
+executable_source_allowed: false

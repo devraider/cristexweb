@@ -308,11 +308,17 @@ logs, or bootstrap cannot be recovered.
   checkpoint, add component-specific service accounts, RBAC, quotas, limits, and
   default-deny policies (`KIF-016`, `KIF-019`, `KIF-021`).
 - [ ] Obtain explicit approval before creating stateful services (`KIF-002`).
+- [x] Add a canonical value-free shared-database policy and runbook for exactly one
+  PostgreSQL and one MongoDB engine in `shared-services`, dedicated consumer scopes,
+  deny-first authorization, private-only exposure, Infisical value ownership, and
+  closed promotion gates without adding executable objects (`KIF-005`, `KIF-013`,
+  `KIF-016`–`KIF-019`, `KIF-021`, `KIF-026`–`KIF-030`).
 - [ ] Create one general PostgreSQL instance with separate DEV, PROD, and Keycloak
   logical databases/owner roles, no separate Keycloak PostgreSQL workload/PVC, and
   bidirectional negative cross-database access tests (`KIF-017`).
-- [ ] Create shared MongoDB with separate databases/users and negative access tests
-  (`KIF-018`).
+- [ ] Select MongoDB topology and exact immutable trusted source, then create one
+  shared MongoDB engine with separate databases/users and negative access tests
+  (`KIF-018`, `KIF-023`).
 - [ ] Create per-environment Redis; retain shared RabbitMQ only after separate
   user/vhost/limit tests (`KIF-020`).
 - [x] Select Keycloak `26.7.1` and PostgreSQL `17.10` immutable linux/amd64
@@ -320,7 +326,8 @@ logs, or bootstrap cannot be recovered.
   templates, deny-default Argo mapping, Namespace trust, and Universal Auth direction
   only for value-free offline source authoring (`KIF-005`, `KIF-010`, `KIF-013`–
   `KIF-015`, `KIF-023`, `KIF-030`).
-- [ ] Accept Keycloak/PostgreSQL image trust and recovery; select exact
+- [ ] Accept Keycloak/PostgreSQL image trust and recovery; independently select and
+  accept MongoDB immutable source/topology/trust/recovery; select exact
   callbacks/origins, TLS/proxy policy, private administration,
   NetworkPolicy/probes/resources, storage, and Infisical-owned material before any
   executable source or runtime (`KIF-010`, `KIF-013`–`KIF-015`, `KIF-021`,

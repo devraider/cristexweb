@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: historical Namespace idempotence preserved; offline shared-services placement correction and deployable-but-NOT-RUN singleton Namespace source pass 78 focused/115 full tests, 9 syntax checks, production lint, fixtures, hashes, links, and hygiene; controller trust/source, security/Secret/adoption/runtime, and provider/state/backup pending
+build: historical Namespace evidence preserved; source-only one-PostgreSQL/one-MongoDB shared-services policy passes 56 focused/124 full tests, 9 syntax checks, production lint, hashes, 25-file links/hygiene, and exact source closure; Mongo source/topology, stateful objects, trust, storage, Secret, provisioning, backup/restore, handoff, and runtime pending
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -97,7 +97,14 @@ note: |
   remain required. The release record selects Keycloak `26.7.1`, PostgreSQL
   `17.10`, realm `cristexhub`, stable issuer, and default theme only for offline
   source authoring; exact callbacks, trust/recovery, executable source, routes,
-  credentials, and runtime remain **NOT RUN/BLOCKED**. The separate source-only
+  credentials, and runtime remain **NOT RUN/BLOCKED**. The separate value-free
+  [shared database architecture](../../runbooks/shared-database-architecture.md)
+  freezes exactly one PostgreSQL and one MongoDB engine in `shared-services`,
+  dedicated consumer scopes, deny-first engine-specific authorization, Infisical
+  value ownership, private-only exposure, and closed promotion gates. It adds no
+  database image beyond the existing PostgreSQL baseline, no executable object, and
+  no runtime claim; MongoDB source/topology, storage, provisioning, backup/restore,
+  RPO/RTO, and all approvals remain unselected or blocked. The separate source-only
   [cloudflared candidate provenance record](../../runbooks/cloudflared-candidate-provenance.md)
   binds official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
   image, token-file, health, and edge-transport evidence. It is **CANDIDATE — NOT
@@ -188,12 +195,12 @@ note: |
   `ok=21 changed=0 unreachable=0 failed=0 skipped=0`; both exact reconciliation items
   were `ok`, protected identity/label/`Active` assertions passed, and k3s/Tailscale
   remained running before and after. Argo CD, cloudflared, Infisical Operator,
-  Keycloak, `shared-services`, DEV/PROD, Secrets, workloads, Services, policies,
-  PVCs, and routes do not exist from that historical increment. Exact present-only
+  Keycloak, PostgreSQL, MongoDB, `shared-services`, DEV/PROD, Secrets, workloads,
+  Services, policies, PVCs, and routes do not exist from that historical increment. Exact present-only
   source now targets only `shared-services`, but no runtime existence is claimed
   because its wrapper has not run. The two superseded Namespace source files were
   never applied by their wrapper. `platform-edge` is reserved for cloudflared;
-  Infisical Operator, separate Keycloak, and general PostgreSQL placement belongs in
-  `shared-services`.
+  Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one
+  shared MongoDB engine belong in `shared-services`.
   No external-resource, secret, data, or deployment operation was performed. Object
   listings and offline tests do not prove replacement recovery.
