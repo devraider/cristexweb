@@ -72,5 +72,6 @@ Argo Application, route, generated credential, or backup command.
 Stop before executable source until immutable image trust and recovery, topology,
 storage, resources and limits, TLS, private NetworkPolicy, Infisical secret-zero
 recovery, definitions restore, message reconciliation, one-writer handoff, and
-runtime approval all pass. `shared-services` check/apply/idempotence remains a
-separate NOT RUN approval sequence.
+runtime approval all pass. The `shared-services` Namespace check and separately
+approved first apply passed; Namespace idempotence and every RabbitMQ runtime gate
+remain separately approved and **NOT RUN**.

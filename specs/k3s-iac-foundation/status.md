@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: shared-services interactive check retry passed at ok=20 changed=1 failed=0 and predicted exactly that Namespace without mutation after an earlier missing-sudo stop at ok=10 changed=0 failed=1; first apply/idempotence NOT RUN; source-only contracts pass 152 full tests
+build: shared-services first apply passed at ok=22 changed=1 failed=0, exact labels/Active and k3s/Tailscale post-state verified; idempotence NOT RUN; prior check passed at ok=20 changed=1 failed=0; current evidence/source contracts pass 153 full tests
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -48,8 +48,10 @@ note: |
   all 15 bounded Kubernetes queries available, and the exact `shared-services` PVC
   query available with count zero. At that discovery checkpoint, `argocd`,
   `platform-edge`, `shared-services`, `cristexhub-dev`, and `cristexhub-prod` were
-  absent. After the later first Namespace apply, `argocd` and `platform-edge` exist;
-  `shared-services`, `cristexhub-dev`, and `cristexhub-prod` remain absent. The first attempt omitted
+  absent. After the historical first Namespace apply, `argocd` and `platform-edge`
+  existed while `shared-services`, `cristexhub-dev`, and `cristexhub-prod` remained
+  absent. The later separately approved foundation apply created `shared-services`;
+  `cristexhub-dev` and `cristexhub-prod` remain absent. The first attempt omitted
   `-i .ansible/inventory.local.yml`, stopped at ok=3/changed=0/unreachable=1 before
   discovery, and made no host or report change; every operational command now
   explicitly loads the ignored local inventory. The
@@ -83,8 +85,10 @@ note: |
   (`ok=10 changed=0 unreachable=0 failed=1 skipped=0`). The interactive retry passed
   at `ok=20 changed=1 unreachable=0 failed=0 skipped=2`; exact source closure proves
   the single changed prediction was the one `shared-services` Namespace. Check mode
-  made no mutation. First apply and idempotence remain separately approved and **NOT
-  RUN**. The superseded
+  made no mutation. The separately approved first apply then passed at
+  `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created exactly that Namespace,
+  verified exact identity/labels/`Active`, and preserved k3s/Tailscale health.
+  Idempotence remains separately approved and **NOT RUN**. The superseded
   `platform-secrets`/`platform-identity` source never ran, and this offline correction
   performs no live rename or deletion. Component source/credentials, foundation Namespace
   runtime, resource/GVR/discovery inventory, Infisical Universal Auth recovery, live
@@ -227,8 +231,9 @@ note: |
   remained running before and after. Argo CD, cloudflared, Infisical Operator,
   Keycloak, PostgreSQL, MongoDB, `shared-services`, DEV/PROD, Secrets, workloads,
   Services, policies, PVCs, and routes do not exist from that historical increment. Exact present-only
-  source now targets only `shared-services`. Its wrapper check has run successfully,
-  but apply has not run, so no runtime existence is claimed. The two superseded Namespace source files were
+  source now targets only `shared-services`. Its wrapper check and separately
+  approved first apply passed, so exact Namespace runtime existence is claimed;
+  idempotence remains pending. The two superseded Namespace source files were
   never applied by their wrapper. `platform-edge` is reserved for cloudflared;
   Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one
   shared MongoDB engine belong in `shared-services`.

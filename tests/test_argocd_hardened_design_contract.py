@@ -209,7 +209,7 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "D1": ("Exact Ansible controller bootstrap closure and credentials", "Vendored public chart inputs exist, but exact rendered objects, credential lifetime, escalation controls, and separate approvals remain undefined"),
-                "D2": ("Foundation Namespace runtime checkpoints", "Exact `shared-services` source and a distinct present-only wrapper exist, but check, first apply, and idempotence remain separately approved and NOT RUN; the earlier exception remains closed"),
+                "D2": ("Foundation Namespace runtime checkpoints", "Exact `shared-services` check and separately approved first apply passed; idempotence remains separately approved and NOT RUN, every component remains undeployed, and the earlier exception remains closed"),
                 "D3": ("Exact resource, GVR, and discovery inventory", "Runtime Roles and Projects cannot be authored safely before every required kind and discovery path is enumerated"),
                 "D4": ("Infisical Universal Auth and independent recovery", "Universal Auth is selected as direction, but exact scope, custodians, rotation/revocation proof, RPO/RTO, and isolated recovery remain unproven"),
                 "D5": ("Live Namespace-adoption apply mode", "Managed-field, tracking, last-applied, and diff evidence is unavailable until a separately approved read-only checkpoint"),

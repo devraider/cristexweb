@@ -7,11 +7,14 @@ are implemented. The first non-interactive check attempt stopped before service
 preflight or Kubernetes reconciliation because sudo input was unavailable
 (`ok=10 changed=0 unreachable=0 failed=1 skipped=0`). The interactive retry passed at
 `ok=20 changed=1 unreachable=0 failed=0 skipped=2`: the sole change-capable task
-predicted creation of exactly `shared-services`. Check mode made no mutation. First
-apply/idempotence are **NOT RUN**. The earlier `platform-secrets` and `platform-identity` source was superseded
+predicted creation of exactly `shared-services`. Check mode made no mutation. The
+separately approved first apply passed at
+`ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created exactly that Namespace,
+verified its three exact labels and `Active` phase, and preserved k3s/Tailscale
+health. Idempotence is **NOT RUN**. The earlier `platform-secrets` and `platform-identity` source was superseded
 before its wrapper ever ran; removing those files is not evidence of a live rename or
-deletion. This record authorizes no discovery, wrapper check, apply, idempotence run,
-Secret operation, workload, route, or cluster contact.
+deletion. This record authorizes no idempotence run, Secret operation, workload,
+route, component deployment, or further cluster mutation.
 
 The completed `argocd`/`platform-edge` bootstrap remains closed and unchanged. Its
 wrapper, role, manifests, approvals, and evidence are not reused or reopened.
@@ -39,7 +42,7 @@ increment.
 
 ## Guarded execution contract
 
-The only future entrypoint is `ansible/bin/bootstrap-foundation-namespaces`. It
+The sole entrypoint is `ansible/bin/bootstrap-foundation-namespaces`. It
 accepts exactly one mode, `check` or `apply`, uses the explicit local inventory and
 one-host limit, enables diff, prompts for the local become password, and launches the
 repository controller in an allowlisted clean environment. It supplies an ephemeral,
@@ -74,9 +77,8 @@ is not a handoff.
 Each command below is a one-line zsh command and is documentation only:
 
 1. Completed: the separately approved wrapper check predicted only `shared-services`.
-2. Request a new, separate approval for `ansible/bin/bootstrap-foundation-namespaces apply`.
-3. Review exact post-state and service-health evidence.
-4. Request another separate approval for `ansible/bin/bootstrap-foundation-namespaces apply` and require `changed=0` as the idempotence checkpoint.
+2. Completed: the separately approved first apply created and verified only `shared-services`.
+3. Request another separate approval for `ansible/bin/bootstrap-foundation-namespaces apply` and require `changed=0` as the idempotence checkpoint.
 
 Discovery and mutation never share approval. A check result never authorizes the
 first apply, and the first apply never authorizes idempotence. No approval is inferred
@@ -95,12 +97,12 @@ this bootstrap intentionally has no deletion implementation.
 
 ## Remaining blockers
 
-- separate first apply and post-state review;
-- separate idempotence apply requiring `changed=0`;
+- separate idempotence apply requiring `changed=0`; runtime post-state from the first
+  apply already passed;
 - later promotion from the selected offline Infisical Operator `v0.11.7` baseline through the inert [privileged-prerequisites inventory](infisical-operator-privileged-prerequisites-design.md) to separately reviewed component-specific source;
 - secret-zero and non-sensitive synchronization/recovery evidence; and
 - Argo, Keycloak/PostgreSQL, OIDC, stateful recovery, and every route/runtime gate.
 
-Until those checkpoints pass, the `shared-services` Namespace runtime state remains
-**NOT RUN** and no new cluster object is claimed. A later discovery must stop rather
+The `shared-services` Namespace now exists and passed exact post-state verification;
+idempotence and all component/runtime checkpoints remain **NOT RUN**. A later discovery must stop rather
 than delete anything if either superseded Namespace unexpectedly exists.

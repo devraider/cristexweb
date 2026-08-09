@@ -472,7 +472,8 @@ source; it supplies no inventory and invokes no operational wrapper.
 Each future component requires a dedicated non-passthrough entrypoint and frozen
 source/object closure with separate check, apply, and idempotence approvals. Exact
 present-only source and the distinct `bin/bootstrap-foundation-namespaces` entrypoint
-now exist for `shared-services`; none of its runtime checkpoints has run. The
+exist for `shared-services`; check and separately approved first apply passed, while
+idempotence remains separately approved and **NOT RUN**. The
 superseded `platform-secrets`/`platform-identity` source was never run and its removal
 does not delete a live Namespace. The completed wrapper above is neither broadened
 nor reopened.

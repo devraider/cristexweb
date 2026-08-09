@@ -43,6 +43,34 @@ class FoundationNamespaceBootstrapContractTests(unittest.TestCase):
         self.assertIn(name, self.task_blocks)
         return self.task_blocks[name]
 
+    def test_current_docs_record_first_apply_without_inferring_components(self) -> None:
+        expected_fragments = {
+            ROOT / "README.md": "check/first-apply evidence and pending idempotence gate",
+            ANSIBLE / "README.md": "check and separately approved first apply passed",
+            ROOT / "architecture-plan.md": "wrapper check and separately approved first apply passed",
+            ROOT / "runbooks/keycloak-oidc-bootstrap-design.md": "check and separately approved first apply passed",
+            ROOT / "runbooks/shared-rabbitmq-architecture.md": "Namespace check and separately approved first apply passed",
+            ROOT / "specs/k3s-iac-foundation/requirements.md": "check and separately approved first apply passed",
+        }
+        for path, fragment in expected_fragments.items():
+            text = path.read_text()
+            normalized = " ".join(text.split())
+            self.assertIn(fragment, normalized, path)
+            self.assertIn("idempotence", normalized, path)
+        joined = "\n".join(path.read_text() for path in expected_fragments)
+        for stale in (
+            "none of its runtime checkpoints has run",
+            "wrapper check, first apply, and idempotence apply are\n  all **NOT RUN**",
+            "Its check, first apply, and idempotence checkpoints remain\n**NOT RUN**",
+            "`shared-services` check/apply/idempotence remains a\nseparate NOT RUN approval sequence",
+            "deployable-but-not-run exact present-only bootstrap for `shared-services`",
+            "present-only bootstrap is implemented but not run for\n`shared-services`",
+            "foundation Namespace source/exception is\nimplemented but not run",
+            "foundation Namespace\nsource is implemented, while its runtime checkpoints",
+            "deployable-but-not-run\n[foundation Namespace bootstrap]",
+        ):
+            self.assertNotIn(stale, joined)
+
     def test_exact_namespace_source_set_and_truthful_content(self) -> None:
         expected = {
             "platform/namespaces/argocd.yaml": """---

@@ -278,9 +278,12 @@ entry gate.
   limited to the one exact `shared-services` Namespace. After a non-interactive
   missing-sudo stop (`ok=10 changed=0 failed=1`), the interactive retry passed at
   `ok=20 changed=1 failed=0`; check mode made no mutation.
-- [ ] Obtain a new separate approval for first apply and, after post-state review,
-  another approval for an idempotence apply requiring `changed=0` (`KIF-002`,
-  `KIF-005`, `KIF-016`).
+- [x] Run the separately approved first apply; it passed at
+  `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created only
+  `shared-services`, verified exact identity/labels/`Active`, and preserved
+  k3s/Tailscale health.
+- [ ] Obtain a separate approval for the idempotence apply and require `changed=0`
+  (`KIF-002`, `KIF-005`, `KIF-016`).
 - [ ] Implement component-specific exact Ansible source closures and separate
   check/apply/idempotence approvals in this order: Infisical Operator and a
   non-sensitive sync/rotation/revocation/recovery proof, Infisical-materialized Argo

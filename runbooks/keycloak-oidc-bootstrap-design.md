@@ -34,9 +34,9 @@ and successful sync plus managed-field evidence passes. Ansible and Argo must ne
 reconcile the same object concurrently.
 
 The previously completed `argocd` and `platform-edge` Namespace exception remains
-closed. `shared-services` now has exact present-only Namespace source and a distinct
-bounded Ansible wrapper. Its check, first apply, and idempotence checkpoints remain
-**NOT RUN** and require separate approvals. The superseded `platform-secrets` and
+closed. `shared-services` now exists through its distinct bounded Ansible wrapper;
+check and separately approved first apply passed, while idempotence remains
+separately approved and **NOT RUN**. The superseded `platform-secrets` and
 `platform-identity` source was never run; its removal is not a live deletion. The old
 historical wrapper is unchanged and must not be reused or reopened.
 
@@ -214,10 +214,10 @@ Ansible realm/client/group reconciliation source.
 
 ## Non-circular bootstrap sequence
 
-The future sequence is fixed but authorizes no step:
+The remaining sequence is fixed but this design authorizes no additional step:
 
-1. a new bounded Ansible exception creates only separately approved foundational
-   Namespaces;
+1. completed foundation checkpoint: the bounded Ansible exception created only the
+   separately approved `shared-services` Namespace;
 2. Ansible bootstraps the selected Infisical Cloud Kubernetes Operator, followed by
    separate secret-zero injection and one non-sensitive sync, rotation, revocation,
    and recovery proof;
@@ -260,7 +260,7 @@ acceptance.
 - storage placement, resource budget, backup identity, retention, and RPO/RTO;
 - exact client callbacks/origins, TLS source, proxy trust, and later browser-auth
   route for the selected stable issuer;
-- completion of the existing foundation Namespace runtime checkpoints;
+- completion of the remaining foundation Namespace idempotence checkpoint;
 - Infisical Operator scoped RBAC, Universal Auth recovery, and exact target scope;
 - exact realm/client reconciliation implementation and runtime negative tests for
   the selected group/RBAC policy; and

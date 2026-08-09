@@ -97,7 +97,8 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "Infisical Cloud remains the secret-value owner; only its Kubernetes Operator",
             "Self-hosted Infisical is not selected",
             "successor must pass fresh behavior, scope, disclosure, rotation, and recovery checks",
-            "future sequence is fixed but authorizes no step",
+            "remaining sequence is fixed but this design authorizes no additional step",
+            "completed foundation checkpoint: the bounded Ansible exception created only the\n   separately approved `shared-services` Namespace",
             "Infisical materializes the exact precreated Argo Secrets",
             "separately approved private, non-authoritative Ansible bootstrap creates only\n   controlled test identity state",
             "restored in isolation with measured RPO/RTO before authoritative identity state\n   is accepted or OIDC is enabled",
@@ -106,8 +107,11 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         ):
             self.assertIn(required, self.text)
 
-    def test_foundation_namespace_source_exists_without_runtime_or_workload_source(self) -> None:
-        self.assertIn("`shared-services` now has exact present-only Namespace source", self.text)
+    def test_foundation_namespace_exists_without_component_or_workload_source(self) -> None:
+        normalized = " ".join(self.text.split())
+        self.assertIn("`shared-services` now exists through its distinct bounded Ansible wrapper", normalized)
+        self.assertIn("check and separately approved first apply passed", normalized)
+        self.assertIn("idempotence remains separately approved and **NOT RUN**", normalized)
         self.assertEqual(
             {
                 "platform/namespaces/argocd.yaml",
