@@ -25,7 +25,7 @@ recover DEV and PROD without presenting a single node as highly available.
 - DEV and administration remain private through host Tailscale.
 - Only approved PROD application routes become public through Cloudflare Tunnel.
 - Application namespaces are `cristexhub-dev` and `cristexhub-prod`.
-- `platform-edge` is reserved for cloudflared. Future `shared-services` placement is the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL engine, one shared MongoDB engine, and one shared RabbitMQ engine; the exact Namespace now exists after passed check/first apply, while idempotence and every component runtime remain NOT RUN. CristexHub DEV/PROD use dedicated scopes on both shared engines; Keycloak and environment-local Reactive Resume DEV/PROD use dedicated PostgreSQL logical databases, owner roles, credentials, migrations, and backup scopes. The canonical database, RabbitMQ, backup, and Reactive Resume policies are value-free and runtime-blocked. RabbitMQ DEV/PROD consumers have dedicated vhost/user/permission/limit/recovery scopes; future consumers require reviewed exact changes. Backup access is private/authenticated through a metadata-only catalog and non-destructive encrypted off-node copy direction. The database source profile fixes NVMe `local-path`, 40/80 GiB PVCs, bounded resources, standard private Services/TLS, daily archives, 14-day retention, RPO 24h, and RTO 4h; images, RabbitMQ storage/ports, exact destination identities, implementation, and recovery proof remain unselected.
+- `platform-edge` is reserved for cloudflared. Future `shared-services` placement is the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL engine, one shared MongoDB engine, and one shared RabbitMQ engine; the exact Namespace now exists after passed check/first apply/idempotence, with final `changed=0`, while every component runtime remains NOT RUN. CristexHub DEV/PROD use dedicated scopes on both shared engines; Keycloak and environment-local Reactive Resume DEV/PROD use dedicated PostgreSQL logical databases, owner roles, credentials, migrations, and backup scopes. The canonical database, RabbitMQ, backup, and Reactive Resume policies are value-free and runtime-blocked. RabbitMQ DEV/PROD consumers have dedicated vhost/user/permission/limit/recovery scopes; future consumers require reviewed exact changes. Backup access is private/authenticated through a metadata-only catalog and non-destructive encrypted off-node copy direction. The database source profile fixes NVMe `local-path`, 40/80 GiB PVCs, bounded resources, standard private Services/TLS, daily archives, 14-day retention, RPO 24h, and RTO 4h; images, RabbitMQ storage/ports, exact destination identities, implementation, and recovery proof remain unselected.
 - Redis remains per environment.
 
 ## Constraints
@@ -94,8 +94,8 @@ items `ok`, exact post-state identity/label/Active assertions passing, and
 k3s/Tailscale running before and after. A distinct exact present-only
 [foundation Namespace bootstrap](../../runbooks/foundation-namespace-bootstrap.md)
 is now implemented for `shared-services` without modifying or reopening the
-historical wrapper. Its check and separately approved first apply passed;
-idempotence remains separately approved and **NOT RUN**. The superseded `platform-secrets`/`platform-identity`
+historical wrapper. Its check, separately approved first apply, and separately
+approved idempotence passed, with final `changed=0`. The superseded `platform-secrets`/`platform-identity`
 source was never run; this source correction does not claim a live rename or
 deletion. Argo CD, cloudflared, Infisical Operator,
 Keycloak, PostgreSQL, MongoDB, Secrets, workloads, Services, policies, PVCs, and

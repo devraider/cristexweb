@@ -209,13 +209,13 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "D1": ("Exact Ansible controller bootstrap closure and credentials", "Vendored public chart inputs exist, but exact rendered objects, credential lifetime, escalation controls, and separate approvals remain undefined"),
-                "D2": ("Foundation Namespace runtime checkpoints", "Exact `shared-services` check and separately approved first apply passed; idempotence remains separately approved and NOT RUN, every component remains undeployed, and the earlier exception remains closed"),
+                "D2": ("Foundation Namespace runtime checkpoints — CLOSED", "Exact `shared-services` check, separately approved first apply, and separately approved idempotence passed; final changed=0, every component remains undeployed, and the earlier exception remains closed"),
                 "D3": ("Exact resource, GVR, and discovery inventory", "Runtime Roles and Projects cannot be authored safely before every required kind and discovery path is enumerated"),
                 "D4": ("Infisical Universal Auth and independent recovery", "Universal Auth is selected as direction, but exact scope, custodians, rotation/revocation proof, RPO/RTO, and isolated recovery remain unproven"),
                 "D5": ("Live Namespace-adoption apply mode", "Managed-field, tracking, last-applied, and diff evidence is unavailable until a separately approved read-only checkpoint"),
                 "D6": ("Activate selected Keycloak/Argo OIDC policy", "Issuer, client ID, groups, and deny-default mappings are selected; private callback/origin, TLS, materialized value, negative authorization, logout, and recovery evidence remain absent"),
             },
-            self.table("## Open architecture decisions"),
+            self.table("## Architecture decision and evidence register"),
         )
 
     def test_secret_address_command_and_source_hygiene(self) -> None:

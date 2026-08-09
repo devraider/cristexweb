@@ -62,7 +62,8 @@ pinned CLI and selector now exist without host egress. Committed Kubernetes desi
 state now contains exactly three Namespace manifests: `argocd`, `platform-edge`, and
 `shared-services`. The closed historical bootstrap owns only `argocd` and
 `platform-edge`; the distinct present-only `shared-services` bootstrap passed check
-and separately approved first apply, while idempotence remains NOT RUN. The superseded `platform-secrets`/`platform-identity` source never
+and separately approved first apply/idempotence; the final run converged at
+`changed=0`. The superseded `platform-secrets`/`platform-identity` source never
 ran, and its removal is not a live rename or deletion. The separately approved
 historical first apply created exactly those
 two Active Namespaces with the reviewed labels. The separately approved idempotence
@@ -90,7 +91,8 @@ read-only GitHub App credentials, value-free Infisical custody, and two independ
 Namespace-adoption Applications. It accepts the selected offline baseline but adds
 no deployable controller source. Ansible is selected as the future bounded bootstrap installer and lifecycle
 owner of privileged CRDs/cluster RBAC. The foundation Namespace check/first apply
-passed and only idempotence remains NOT RUN; exact controller bootstrap source and credentials,
+passed and the separately approved idempotence run converged at `changed=0`; exact
+controller bootstrap source and credentials,
 resource/GVR/discovery inventory, Infisical Universal Auth recovery, live adoption
 apply mode, and activation of selected Keycloak/Argo OIDC policy remain open
 architecture decisions. The source-only
@@ -222,7 +224,7 @@ Tailscale do not replace application OIDC/JWT enforcement.
 |---|---|
 | `argocd` | Argo CD controllers and private UI/API |
 | `platform-edge` | Cloudflare Tunnel connector only; no Keycloak, Infisical Operator, database, or route exists; every route remains separately approved |
-| `shared-services` | Exact present-only Namespace exists after passed check/first apply; idempotence NOT RUN; future placement for the Infisical Cloud Operator, separate Keycloak, one PostgreSQL, one MongoDB, and one shared RabbitMQ engine remains undeployed |
+| `shared-services` | Exact present-only Namespace exists after passed check/first apply/idempotence; future placement for the Infisical Cloud Operator, separate Keycloak, one PostgreSQL, one MongoDB, and one shared RabbitMQ engine remains undeployed |
 | `cristexhub-dev` | DEV applications and environment-local dependencies |
 | `cristexhub-prod` | PROD applications and environment-local dependencies |
 | Optional backup/monitoring namespaces | Added only when their first workload is approved |
@@ -441,8 +443,8 @@ verification must meet the declared RPO/RTO before PROD.
 - Separation: the historical wrapper, role, manifests, and evidence remain unchanged
   and closed. The new wrapper has its own playbook, role, environment namespace, and
   ephemeral single-run attestation.
-- Runtime: wrapper check and separately approved first apply passed; idempotence is
-  **NOT RUN** and requires a separate approval. No component was deployed.
+- Runtime: wrapper check, separately approved first apply, and separately approved
+  idempotence passed; the final run converged at `changed=0`. No component was deployed.
 - Boundary: state is present-only; no delete path, Secret, ServiceAccount, workload,
   Service, policy, PVC, chart, values, route, or other persistent kind exists in this
   increment. Check mode predicts but makes no live post-state claim.
@@ -478,13 +480,12 @@ verification must meet the declared RPO/RTO before PROD.
   DEPLOYABLE**; runtime is **NOT RUN/BLOCKED**, and no RBAC, AppProject, policy,
   Secret, Application, values, or manifest source exists from this design.
 - Updated hardened-design ownership: Ansible is selected as bounded bootstrap
-  installer and lifecycle owner of privileged CRDs/cluster RBAC. Six decisions remain:
+  installer and lifecycle owner of privileged CRDs/cluster RBAC. Five decisions remain:
   (1) exact component Ansible source/object/credential closure and approvals, (2)
-  separately approved idempotence checkpoint after the passed check/first apply for
-  the implemented `shared-services` present-only source, (3) exact
-  resource/GVR/discovery inventory, (4) Infisical authentication and independent
-  recovery, (5) first-sync apply mode after live Namespace field evidence, and (6)
-  stable Keycloak issuer/callback/TLS plus direct OIDC/RBAC acceptance. The completed
+  exact resource/GVR/discovery inventory, (3) Infisical authentication and independent
+  recovery, (4) first-sync apply mode after live Namespace field evidence, and (5)
+  stable Keycloak issuer/callback/TLS plus direct OIDC/RBAC acceptance. Completed
+  `shared-services` check/first apply/idempotence is retained as prerequisite evidence. The completed
   historical Namespace exception remains closed and none of these items is runtime
   approval.
 - Current source-only identity design: the

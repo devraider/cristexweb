@@ -110,8 +110,8 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
     def test_foundation_namespace_exists_without_component_or_workload_source(self) -> None:
         normalized = " ".join(self.text.split())
         self.assertIn("`shared-services` now exists through its distinct bounded Ansible wrapper", normalized)
-        self.assertIn("check and separately approved first apply passed", normalized)
-        self.assertIn("idempotence remains separately approved and **NOT RUN**", normalized)
+        self.assertIn("check and separately approved first apply/idempotence passed", normalized)
+        self.assertIn("final run at `changed=0`", normalized)
         self.assertEqual(
             {
                 "platform/namespaces/argocd.yaml",

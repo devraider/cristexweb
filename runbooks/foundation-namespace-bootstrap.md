@@ -11,10 +11,12 @@ predicted creation of exactly `shared-services`. Check mode made no mutation. Th
 separately approved first apply passed at
 `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created exactly that Namespace,
 verified its three exact labels and `Active` phase, and preserved k3s/Tailscale
-health. Idempotence is **NOT RUN**. The earlier `platform-secrets` and `platform-identity` source was superseded
+health. The separately approved idempotence apply passed at
+`ok=22 changed=0 unreachable=0 failed=0 skipped=0`; exact identity/labels/`Active`
+and k3s/Tailscale health remained valid. The Namespace checkpoint is complete. The earlier `platform-secrets` and `platform-identity` source was superseded
 before its wrapper ever ran; removing those files is not evidence of a live rename or
-deletion. This record authorizes no idempotence run, Secret operation, workload,
-route, component deployment, or further cluster mutation.
+deletion. This record authorizes no further Namespace run, Secret operation,
+workload, route, component deployment, or cluster mutation.
 
 The completed `argocd`/`platform-edge` bootstrap remains closed and unchanged. Its
 wrapper, role, manifests, approvals, and evidence are not reused or reopened.
@@ -72,13 +74,13 @@ Argo ownership requires a later object-specific registration/adoption, successfu
 sync, managed-field evidence, and cessation of Ansible reconciliation. A label alone
 is not a handoff.
 
-## Future approval sequence
+## Completed approval sequence
 
-Each command below is a one-line zsh command and is documentation only:
+The guarded sequence completed under three separate approvals:
 
 1. Completed: the separately approved wrapper check predicted only `shared-services`.
 2. Completed: the separately approved first apply created and verified only `shared-services`.
-3. Request another separate approval for `ansible/bin/bootstrap-foundation-namespaces apply` and require `changed=0` as the idempotence checkpoint.
+3. Completed: the separately approved idempotence apply converged at `changed=0` and reverified exact post-state/service health.
 
 Discovery and mutation never share approval. A check result never authorizes the
 first apply, and the first apply never authorizes idempotence. No approval is inferred
@@ -91,18 +93,16 @@ source/path/ownership/mode drift, task-selection attempt, missing attestation,
 kubeconfig drift, service-health failure, failed exact post-state assertion, Secret
 or workload appearance, or output containing sensitive/controller metadata.
 
-Source-only rollback is Git revert. Future routine runtime rollback does not delete a
+Source rollback is Git revert. Future routine runtime rollback does not delete a
 Namespace. Namespace deletion requires a separate destructive design and approval;
 this bootstrap intentionally has no deletion implementation.
 
 ## Remaining blockers
 
-- separate idempotence apply requiring `changed=0`; runtime post-state from the first
-  apply already passed;
 - later promotion from the selected offline Infisical Operator `v0.11.7` baseline through the inert [privileged-prerequisites inventory](infisical-operator-privileged-prerequisites-design.md) to separately reviewed component-specific source;
 - secret-zero and non-sensitive synchronization/recovery evidence; and
 - Argo, Keycloak/PostgreSQL, OIDC, stateful recovery, and every route/runtime gate.
 
-The `shared-services` Namespace now exists and passed exact post-state verification;
-idempotence and all component/runtime checkpoints remain **NOT RUN**. A later discovery must stop rather
+The `shared-services` Namespace now exists and passed check, first apply, and
+idempotence; all component/runtime checkpoints remain **NOT RUN**. A later discovery must stop rather
 than delete anything if either superseded Namespace unexpectedly exists.

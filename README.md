@@ -40,7 +40,9 @@ non-interactive missing-sudo stop (`ok=10 changed=0 failed=1`), the interactive 
 passed at `ok=20 changed=1 failed=0` and predicted exactly that one Namespace without
 mutation. The separately approved first apply passed at `ok=22 changed=1 failed=0`,
 created and verified exact labels/`Active`, and preserved k3s/Tailscale health.
-Idempotence is **NOT RUN** and requires separate approval.
+The separately approved idempotence apply passed at
+`ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the exact Namespace checkpoint is
+complete.
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
 it does not claim a live rename or deletion. No Argo CD, cloudflared,
 Infisical Operator, Keycloak, PostgreSQL, MongoDB, Secret, workload, Service,
@@ -61,7 +63,7 @@ ApplicationSet, supplemental default-deny policy with an explicit ports-only
 App credentials, value-free Infisical custody, and two independent Namespace-adoption
 Applications. It adds no deployable source. Ansible is now selected as the future
 bounded bootstrap installer and privileged lifecycle owner. The foundation Namespace
-check/first apply passed, while idempotence, component source/credentials, resource
+check/first apply/idempotence passed, while component source/credentials, resource
 inventory, Infisical recovery, Keycloak OIDC, adoption apply mode, candidate
 selection, and component runtime remain unresolved. The companion
 [source-only Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md)
@@ -146,7 +148,7 @@ gateway remain in the separate CristexHub application repository.
 5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source-only, non-deployable Argo CD candidate evidence and blockers.
 6. [`runbooks/argocd-hardened-design.md`](runbooks/argocd-hardened-design.md) — source-only private-access, RBAC, network, secret-custody, and adoption design; not deployment authorization.
 7. [`runbooks/argocd-release-selection.md`](runbooks/argocd-release-selection.md) — source-baseline selection and vendored-input boundary.
-8. [`runbooks/foundation-namespace-bootstrap.md`](runbooks/foundation-namespace-bootstrap.md) — exact `shared-services` Namespace check/first-apply evidence and pending idempotence gate.
+8. [`runbooks/foundation-namespace-bootstrap.md`](runbooks/foundation-namespace-bootstrap.md) — completed exact `shared-services` Namespace check/first-apply/idempotence evidence.
 9. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
 10. [`runbooks/keycloak-release-selection.md`](runbooks/keycloak-release-selection.md) — immutable Keycloak/PostgreSQL and issuer source selection.
 11. [`runbooks/shared-database-architecture.md`](runbooks/shared-database-architecture.md) — value-free PostgreSQL/MongoDB topology, isolation, and closed deployment gates.
@@ -289,8 +291,8 @@ manifests under `kubernetes/`, documentation-only recovery, candidate-provenance
 hardened-design, and Keycloak/OIDC design records under `runbooks/`, and offline
 `tests/` currently exist. An exact manifest and a distinct guarded wrapper now exist
 for `shared-services`; its interactive check retry predicted exactly that one
-Namespace and the separately approved first apply created and verified it.
-Idempotence remains NOT RUN and has no runtime authorization. `platform-edge` is reserved for future cloudflared namespaced objects;
+Namespace, the separately approved first apply created and verified it, and the
+separately approved idempotence apply converged at `changed=0`. `platform-edge` is reserved for future cloudflared namespaced objects;
 Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one shared
 MongoDB engine belong in `shared-services`. The database policy is inert: it adds no
 StatefulSet, Service, PVC, Secret, provisioning object, or runtime approval. Kustomize remains intended for first-party application overlays;

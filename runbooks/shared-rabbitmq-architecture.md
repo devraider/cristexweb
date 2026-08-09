@@ -73,5 +73,5 @@ Stop before executable source until immutable image trust and recovery, topology
 storage, resources and limits, TLS, private NetworkPolicy, Infisical secret-zero
 recovery, definitions restore, message reconciliation, one-writer handoff, and
 runtime approval all pass. The `shared-services` Namespace check and separately
-approved first apply passed; Namespace idempotence and every RabbitMQ runtime gate
-remain separately approved and **NOT RUN**.
+approved first apply/idempotence passed, with final `changed=0`; every RabbitMQ
+runtime gate remains separately approved and **NOT RUN**.

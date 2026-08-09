@@ -53,7 +53,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-NS-03 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-030 | Historical foundation Namespace source checkpoint | Exact `platform-secrets` and `platform-identity` source plus a guarded present-only wrapper passed offline validation, but the wrapper never ran and the placement was superseded before runtime | SUPERSEDED SOURCE-ONLY — historical validation remains truthful; no cluster object was created or deleted by this checkpoint |
 | KIF-ARGO-01 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-023, KIF-030 | Argo CD candidate provenance and target-minor screen | Historical secret-free evidence binds exact official chart/index/provenance/image/render inputs plus target kubelet and tested-version sources while the separate release record now selects chart `10.3.0` / app `v3.5.0` only for offline source authoring | PASS — focused provenance contracts preserve exact associations and target-minor qualification; selection remains NOT DEPLOYABLE and Argo runtime remains NOT RUN/BLOCKED |
 | KIF-ARGO-02 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Argo CD online/static readiness refresh | A secret-free record curates deterministic render, upstream API registration, RBAC/network, image trust/availability/vulnerability, private-Git, and Namespace-adoption evidence while all live admission/runtime gates remain blocked | PASS — focused provenance contracts preserve the 44-document render and security blockers; no values, rendered YAML, Kubernetes object, credential, or deployable controller source was added |
-| KIF-ARGO-03 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013–KIF-015, KIF-021, KIF-030 | Argo CD source-only hardened design | A secret-free design fixes private ClusterIP/loopback-only administration, retained quiescent ApplicationSet, supplemental default-deny, phased least privilege, one-repository GitHub App credentials, value-free secret custody, selected direct OIDC direction, two-Application adoption, stop/rollback, Ansible ownership, and six open decisions without adding deployable source | PASS — hardened-design contracts accept only the offline version baseline; trust, exact controller closure, admission, Secrets, recovery, handoff, and runtime remain blocked |
+| KIF-ARGO-03 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013–KIF-015, KIF-021, KIF-030 | Argo CD source-only hardened design | A secret-free design fixes private ClusterIP/loopback-only administration, retained quiescent ApplicationSet, supplemental default-deny, phased least privilege, one-repository GitHub App credentials, value-free secret custody, selected direct OIDC direction, two-Application adoption, stop/rollback, Ansible ownership, five open decisions, and one closed foundation-Namespace evidence item without adding deployable source | PASS — hardened-design contracts accept only the offline version baseline; trust, exact controller closure, admission, Secrets, recovery, handoff, and runtime remain blocked |
 | KIF-IDP-01 | KIF-002, KIF-003, KIF-005, KIF-010, KIF-012–KIF-017, KIF-021, KIF-023, KIF-026–KIF-030 | Source-only Ansible bootstrap and Keycloak OIDC architecture | Ansible is the selected bounded bootstrap installer and privileged lifecycle owner with no dual reconciliation; direct Argo OIDC separates Keycloak authentication/groups, Argo RBAC, and Kubernetes RBAC while preserving private administration, Infisical-owned values, a dedicated Keycloak logical database/role on the general shared PostgreSQL engine, stable issuer, exact approvals, and handoff gates | PASS — Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, clients, group templates, default theme, separate deployment, and shared-engine isolation policy are selected only for offline authoring; no executable component source, credential, route, or runtime was added |
 | KIF-DB-01 | KIF-005, KIF-013, KIF-016–KIF-019, KIF-021, KIF-026–KIF-030 | Shared database source-only architecture | One PostgreSQL and one MongoDB engine are placed in `shared-services`; exact consumers remain isolated and the approved source profile fixes NVMe `local-path`, 40/80 GiB PVCs, bounded resources, private standard Services/TLS, Ansible→Argo ownership direction, and daily/14-day/24h/4h backup targets | PASS SOURCE-ONLY — exact consumer/profile contracts pass; PostgreSQL keeps its selected-but-untrusted baseline, MongoDB source/topology and implementation details remain unselected, all promotion gates are false, exact three-Namespace closure is unchanged, and no executable database source or runtime operation was added |
 | KIF-MQ-01 | KIF-005, KIF-013, KIF-016, KIF-019–KIF-021, KIF-026–KIF-030 | Shared RabbitMQ source-only architecture | Exactly one future RabbitMQ engine belongs in `shared-services`; DEV/PROD have dedicated vhost/user/Infisical credential/permission/limit/recovery scopes, deny-first cross-vhost/admin/public-management rules, and future consumers require reviewed exact changes | PASS SOURCE-ONLY — canonical value-free policy/runbook and fail-closed contracts pass; image/topology/storage/ports/resources/TLS/NetworkPolicy/restore/runtime remain unselected and no executable source was added |
@@ -65,7 +65,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—to the vendored chart while every promotion gate stays false and no valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source appears | PASS — focused archive/policy/design contracts plus full offline validation; runtime remains NOT RUN/BLOCKED |
 | KIF-SRC-01 | KIF-005, KIF-010, KIF-013–KIF-015, KIF-023, KIF-030 | Deterministic hosted source-baseline closure | Exact release records, value-free identity/authorization policy, chart/provenance/public-key bytes, SHA256SUMS, safe chart roots, exact three-Namespace closure, and absence of component operational source are enforced offline | PASS — source-selection plus affected provenance/design/layout contracts pass; exact hashes verified; no live/runtime operation or staged file |
 | KIF-NS-04 | KIF-002, KIF-003, KIF-005, KIF-013–KIF-017, KIF-021, KIF-026–KIF-030 | Shared-services placement correction | Replace never-run `platform-secrets`/`platform-identity` source with one exact present-only `shared-services` Namespace; reserve `platform-edge` for cloudflared; place Infisical Operator, separate Keycloak, and one general PostgreSQL instance in commons intent; give Keycloak only a dedicated logical database/role/credential on that engine | PASS — 78 focused and 115 full offline tests, 9 syntax checks, production lint, fail-closed fixtures, archive hashes, links, closure, hygiene, and historical-source preservation passed; no discovery, check, apply, deletion, workload, Secret, database, route, or runtime operation |
-| KIF-NS-05 | KIF-002, KIF-005, KIF-016, KIF-030 | Shared-services Namespace runtime | A successful wrapper check predicts only the absent exact `shared-services` Namespace; separately approved first apply creates/verifies it; separately approved idempotence converges at changed=0 | FIRST APPLY PASS — check retry passed at `ok=20 changed=1 failed=0`; first apply passed at `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created only `shared-services`, verified exact identity/three labels/`Active`, and preserved k3s/Tailscale health. Idempotence NOT RUN |
+| KIF-NS-05 | KIF-002, KIF-005, KIF-016, KIF-030 | Shared-services Namespace runtime | A successful wrapper check predicts only the absent exact `shared-services` Namespace; separately approved first apply creates/verifies it; separately approved idempotence converges at changed=0 | PASS — check retry passed at `ok=20 changed=1 failed=0`; first apply passed at `ok=22 changed=1 failed=0`; separately approved idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact identity/three labels/`Active` and k3s/Tailscale health preserved. No component was deployed |
 
 ## Schema-v3 elevated discovery and target-minor review — 2026-08-07
 
@@ -2775,6 +2775,31 @@ first apply was NOT RUN; all were corrected and a cross-document regression cont
 was added. Final validation passed 36 affected contracts and 153 full offline tests,
 plus Python compile, 27 repository-owned Markdown links/hygiene, diff check, and no
 staged files.
+
+## Shared-services Namespace idempotence apply — 2026-08-09
+
+The operator separately approved the idempotence checkpoint and ran only:
+
+```bash
+ansible/bin/bootstrap-foundation-namespaces apply
+```
+
+Actual result:
+
+```text
+PLAY RECAP: ok=22 changed=0 unreachable=0 failed=0 skipped=0
+```
+
+This is the idempotence proof: the exact present-only reconciliation changed nothing,
+post-state verification passed again, and k3s/Tailscale remained running. The
+`shared-services` Namespace check/first-apply/idempotence sequence is complete. No
+Infisical Operator, Argo CD, Keycloak, PostgreSQL, MongoDB, RabbitMQ, Secret,
+workload, Service, PVC, policy, route, or application Namespace was created by this
+run. Independent review found that two current summaries still counted completed
+foundation Namespace runtime among six open decisions; they were corrected to five
+open component decisions plus closed D2 evidence. Rereview returned **APPROVED** and
+final validation passed 36 affected/153 full tests, compile, Markdown, and diff
+checks.
 
 ## Future validation contract
 

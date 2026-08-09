@@ -45,18 +45,19 @@ class FoundationNamespaceBootstrapContractTests(unittest.TestCase):
 
     def test_current_docs_record_first_apply_without_inferring_components(self) -> None:
         expected_fragments = {
-            ROOT / "README.md": "check/first-apply evidence and pending idempotence gate",
-            ANSIBLE / "README.md": "check and separately approved first apply passed",
-            ROOT / "architecture-plan.md": "wrapper check and separately approved first apply passed",
-            ROOT / "runbooks/keycloak-oidc-bootstrap-design.md": "check and separately approved first apply passed",
-            ROOT / "runbooks/shared-rabbitmq-architecture.md": "Namespace check and separately approved first apply passed",
-            ROOT / "specs/k3s-iac-foundation/requirements.md": "check and separately approved first apply passed",
+            ROOT / "README.md": "completed exact `shared-services` Namespace check/first-apply/idempotence evidence",
+            ANSIBLE / "README.md": "check, separately approved first apply, and separately approved idempotence all passed",
+            ROOT / "architecture-plan.md": "wrapper check, separately approved first apply, and separately approved idempotence passed",
+            ROOT / "runbooks/keycloak-oidc-bootstrap-design.md": "check and separately approved first apply/idempotence passed",
+            ROOT / "runbooks/shared-rabbitmq-architecture.md": "approved first apply/idempotence passed",
+            ROOT / "specs/k3s-iac-foundation/requirements.md": "check, separately approved first apply, and separately approved idempotence passed",
         }
         for path, fragment in expected_fragments.items():
             text = path.read_text()
             normalized = " ".join(text.split())
             self.assertIn(fragment, normalized, path)
             self.assertIn("idempotence", normalized, path)
+            self.assertIn("changed=0", normalized, path)
         joined = "\n".join(path.read_text() for path in expected_fragments)
         for stale in (
             "none of its runtime checkpoints has run",
@@ -68,6 +69,9 @@ class FoundationNamespaceBootstrapContractTests(unittest.TestCase):
             "foundation Namespace source/exception is\nimplemented but not run",
             "foundation Namespace\nsource is implemented, while its runtime checkpoints",
             "deployable-but-not-run\n[foundation Namespace bootstrap]",
+            "Idempotence is **NOT RUN**",
+            "idempotence remains separately approved and **NOT RUN**",
+            "pending idempotence gate",
         ):
             self.assertNotIn(stale, joined)
 

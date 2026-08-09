@@ -472,8 +472,8 @@ source; it supplies no inventory and invokes no operational wrapper.
 Each future component requires a dedicated non-passthrough entrypoint and frozen
 source/object closure with separate check, apply, and idempotence approvals. Exact
 present-only source and the distinct `bin/bootstrap-foundation-namespaces` entrypoint
-exist for `shared-services`; check and separately approved first apply passed, while
-idempotence remains separately approved and **NOT RUN**. The
+exist for `shared-services`; check, separately approved first apply, and separately
+approved idempotence all passed, with the final run converging at `changed=0`. The
 superseded `platform-secrets`/`platform-identity` source was never run and its removal
 does not delete a live Namespace. The completed wrapper above is neither broadened
 nor reopened.
@@ -482,13 +482,13 @@ and Keycloak realm/client/group reconciliation. Namespaced specifications may ha
 off to Argo only after Ansible stops reconciling the exact objects and reviewed
 adoption/sync evidence passes. Dual reconciliation is forbidden. The
 [foundation Namespace bootstrap runbook](../runbooks/foundation-namespace-bootstrap.md)
-defines separate future approvals for these exact one-line commands:
+records the completed separately approved sequence using these exact one-line commands:
 
 - `ansible/bin/bootstrap-foundation-namespaces check`
 - `ansible/bin/bootstrap-foundation-namespaces apply`
 
-The first apply and later idempotence invocation use the same apply command but need
-distinct approvals. No command is authorized by this documentation.
+The first apply and idempotence invocation used the same apply command under distinct
+approvals. No further command is authorized by this documentation.
 
 Hash-bound public chart/provenance/public-key inputs now exist under `files/vendor/`
 for the Argo CD `10.3.0` and Infisical Operator `0.11.7` offline source baselines.

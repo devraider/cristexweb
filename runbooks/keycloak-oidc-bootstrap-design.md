@@ -35,8 +35,8 @@ reconcile the same object concurrently.
 
 The previously completed `argocd` and `platform-edge` Namespace exception remains
 closed. `shared-services` now exists through its distinct bounded Ansible wrapper;
-check and separately approved first apply passed, while idempotence remains
-separately approved and **NOT RUN**. The superseded `platform-secrets` and
+check and separately approved first apply/idempotence passed, with the final run at
+`changed=0`. The superseded `platform-secrets` and
 `platform-identity` source was never run; its removal is not a live deletion. The old
 historical wrapper is unchanged and must not be reused or reopened.
 
@@ -260,7 +260,7 @@ acceptance.
 - storage placement, resource budget, backup identity, retention, and RPO/RTO;
 - exact client callbacks/origins, TLS source, proxy trust, and later browser-auth
   route for the selected stable issuer;
-- completion of the remaining foundation Namespace idempotence checkpoint;
+- completed foundation Namespace check/first-apply/idempotence evidence;
 - Infisical Operator scoped RBAC, Universal Auth recovery, and exact target scope;
 - exact realm/client reconciliation implementation and runtime negative tests for
   the selected group/RBAC policy; and

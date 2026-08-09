@@ -139,8 +139,8 @@ Every item below still blocks deployable Infisical Operator controller source an
    vulnerability review, and prove off-node availability of the exact child digest.
 4. **Shared operator Namespace:** exact present-only source and a distinct bounded
    Ansible wrapper exist for `shared-services`; check and separately approved first
-   apply passed, while idempotence and all Operator checkpoints remain separately
-   approved and **NOT RUN**. The completed
+   apply/idempotence passed, with final `changed=0`; all Operator checkpoints remain
+   separately approved and **NOT RUN**. The completed
    `argocd`/`platform-edge` wrapper remains closed. The Operator is intentionally
    co-located with separate Keycloak and PostgreSQL deployments, but still requires
    its own ServiceAccount, exact scoped RBAC, watch scope, resource limits, and
@@ -173,8 +173,8 @@ Every item below still blocks deployable Infisical Operator controller source an
 11. **Single-node availability:** one replica on one physical node is a shared
     failure domain. Accept the availability risk and define restart, alerting,
     recovery, and soak expectations.
-12. **Runtime approvals:** the foundation Namespace check and first apply are
-    complete; separately approve its idempotence checkpoint, then separately approve operator
+12. **Runtime approvals:** the foundation Namespace check, first apply, and
+    idempotence are complete; separately approve operator
     CRDs/RBAC/controller creation, authentication bootstrap, one non-sensitive sync,
     rotation, revocation, recovery, any later Argo handoff, and any upgrade.
     Runtime remains **NOT RUN**.

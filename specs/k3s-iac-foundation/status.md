@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: shared-services first apply passed at ok=22 changed=1 failed=0, exact labels/Active and k3s/Tailscale post-state verified; idempotence NOT RUN; prior check passed at ok=20 changed=1 failed=0; current evidence/source contracts pass 153 full tests
+build: shared-services check/first apply/idempotence complete; final ok=22 changed=0 failed=0 with exact labels/Active and k3s/Tailscale verified; current evidence/source contracts pass 153 full tests
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -88,12 +88,15 @@ note: |
   made no mutation. The separately approved first apply then passed at
   `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created exactly that Namespace,
   verified exact identity/labels/`Active`, and preserved k3s/Tailscale health.
-  Idempotence remains separately approved and **NOT RUN**. The superseded
+  The separately approved idempotence apply passed at
+  `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; exact identity/labels/`Active`
+  and k3s/Tailscale health remained valid. The Namespace checkpoint is complete. The superseded
   `platform-secrets`/`platform-identity` source never ran, and this offline correction
-  performs no live rename or deletion. Component source/credentials, foundation Namespace
-  runtime, resource/GVR/discovery inventory, Infisical Universal Auth recovery, live
+  performs no live rename or deletion. Component source/credentials,
+  resource/GVR/discovery inventory, Infisical Universal Auth recovery, live
   Namespace-adoption apply mode, and activation of the selected Keycloak/Argo OIDC
-  policy remain six open architecture decisions. The completed historical Namespace exception stays closed. The source-only
+  policy remain five open architecture decisions; foundation Namespace runtime is
+  completed evidence. The completed historical Namespace exception stays closed. The source-only
   [Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
   selects one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and
   Argo CD as the identity architecture target only. It distinguishes Keycloak
@@ -232,8 +235,8 @@ note: |
   Keycloak, PostgreSQL, MongoDB, `shared-services`, DEV/PROD, Secrets, workloads,
   Services, policies, PVCs, and routes do not exist from that historical increment. Exact present-only
   source now targets only `shared-services`. Its wrapper check and separately
-  approved first apply passed, so exact Namespace runtime existence is claimed;
-  idempotence remains pending. The two superseded Namespace source files were
+  approved first apply/idempotence passed, so exact Namespace runtime existence and
+  convergence at `changed=0` are claimed. The two superseded Namespace source files were
   never applied by their wrapper. `platform-edge` is reserved for cloudflared;
   Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one
   shared MongoDB engine belong in `shared-services`.
