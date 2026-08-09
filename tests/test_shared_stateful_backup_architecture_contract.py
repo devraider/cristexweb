@@ -105,13 +105,14 @@ class SharedStatefulBackupArchitectureContractTests(unittest.TestCase):
             set(admission["required_evidence"]),
         )
 
-    def test_runtime_values_and_promotion_gates_remain_blocked(self) -> None:
+    def test_approved_schedule_profile_and_runtime_gates_are_exact(self) -> None:
         schedule = self.policy["schedule_and_retention"]
-        self.assertIsNone(schedule["schedule"])
-        self.assertIsNone(schedule["local_retention"])
-        self.assertIsNone(schedule["off_node_retention"])
-        self.assertIsNone(schedule["rpo"])
-        self.assertIsNone(schedule["rto"])
+        self.assertEqual("daily", schedule["schedule"])
+        self.assertEqual("14d", schedule["local_retention"])
+        self.assertEqual("14d", schedule["off_node_retention"])
+        self.assertEqual("24h", schedule["rpo"])
+        self.assertEqual("4h", schedule["rto"])
+        self.assertEqual("14d", self.policy["local_staging"]["retention"])
         self.assertIsNone(self.policy["local_staging"]["path"])
         self.assertTrue(
             all(value is False for value in self.policy["promotion_gates"].values())

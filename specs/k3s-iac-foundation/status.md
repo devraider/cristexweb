@@ -105,8 +105,12 @@ note: |
   Infisical owns credential values, exposure is private-only, and all promotion gates
   remain closed. It adds no
   database image beyond the existing PostgreSQL baseline, no executable object, and
-  no runtime claim; MongoDB source/topology, storage, provisioning, backup/restore,
-  RPO/RTO, and all approvals remain unselected or blocked. The separate value-free
+  no runtime claim. The approved database source profile fixes NVMe `local-path`,
+  40/80 GiB PVCs, per-engine 500m/1 GiB requests and 2 CPU/3 GiB limits, private
+  standard Services, mandatory TLS, Ansible-bootstrap→Argo-handoff direction, daily
+  archives, 14-day retention, RPO 24h, and RTO 4h. MongoDB source/topology, exact
+  paths/reclaim/probes/connection limits, implementation, backup/restore proof, and
+  all runtime approvals remain unselected or blocked. The separate value-free
   [shared RabbitMQ architecture](../../runbooks/shared-rabbitmq-architecture.md)
   fixes one future engine in `shared-services`, exact isolated DEV/PROD vhost/user/
   permission/limit/recovery scopes, deny-first future consumer admission, and private
@@ -114,8 +118,9 @@ note: |
   requires private authenticated metadata/list/retrieve/verify access, encrypted
   timestamped non-destructive off-node copies, integrity and isolated restore, and
   distinguishes RabbitMQ definitions from queued-message recovery. RabbitMQ image,
-  topology, storage, Service/ports, limits, backup identities/tooling/schedules/
-  retention/RPO/RTO, restore, and all runtime gates remain unselected or blocked.
+  topology, storage, Service/ports, limits, backup image/identities/staging path,
+  schedule implementation, retention/RPO/RTO proof, restore, and all runtime gates
+  remain unselected or blocked.
   The value-free
   [Reactive Resume hosted architecture](../../runbooks/reactive-resume-hosted-architecture.md)
   includes private DEV in the MVP with separate future PROD, OIDC clients, and

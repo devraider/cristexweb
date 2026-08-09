@@ -309,8 +309,12 @@ logs, or bootstrap cannot be recovered.
 
 ## Stage 5 — namespaces, policy, and shared data
 
-- [ ] Approve StorageClass, live-data path, backup path, capacity, and any destructive
-  disk preparation separately (`KIF-002`, `KIF-003`, `KIF-019`, `KIF-026`).
+- [x] Approve the database source profile: NVMe `local-path`, one `ReadWriteOnce` PVC
+  per engine, PostgreSQL 40 GiB, MongoDB 80 GiB, per-engine 500m/1 GiB requests and
+  2 CPU/3 GiB limits, private standard Services, and mandatory TLS.
+- [ ] Select exact data paths, reclaim behavior, probes, connection limits, TLS
+  identities, and any destructive disk preparation separately (`KIF-002`, `KIF-003`,
+  `KIF-019`, `KIF-026`).
 - [ ] Add DEV and PROD Namespaces; after the separate `shared-services` Namespace
   checkpoint, add component-specific service accounts, RBAC, quotas, limits, and
   default-deny policies (`KIF-016`, `KIF-019`, `KIF-021`).
@@ -366,9 +370,12 @@ logs, or bootstrap cannot be recovered.
   metadata catalog/list/retrieve/verify workflows, encrypted timestamped archives,
   non-destructive Google Drive/`rclone copy` direction, exact future archive
   admission, and separate RabbitMQ definitions/message recovery semantics.
+- [x] Fix the backup source profile at daily archives, 14-day local/off-node
+  retention, RPO 24h, RTO 4h, and independent encryption-key custody.
 - [ ] Select the backup image/digest, Google Drive identity/folder, staging path,
-  schedules, retention, credential/key recovery, and RPO/RTO; complete isolated
-  restore tests before application or identity data is accepted (`KIF-026`–`KIF-028`).
+  schedule implementation, retention enforcement, credential/key recovery, and prove
+  RPO/RTO through isolated restore before accepting application or identity data
+  (`KIF-026`–`KIF-028`).
 
 Stop gate: stop on cross-access, public data exposure, failed restore, unsafe node
 pressure, or inability to preserve encryption keys. Never delete PVCs as rollback.

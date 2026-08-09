@@ -158,13 +158,27 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
         self.assertIsNone(mongodb_source["linux_amd64_digest"])
         self.assertFalse(mongodb_source["trust_accepted"])
 
-        self.assertEqual("unselected", self.policy["storage"]["storage_class"])
-        self.assertEqual("unselected", self.policy["storage"]["pvc_topology"])
-        self.assertEqual("unselected", self.policy["storage"]["capacities"])
-        self.assertEqual("unselected", self.policy["provisioning"]["owner"])
+        self.assertEqual("local-path", self.policy["storage"]["storage_class"])
+        self.assertEqual("one-pvc-per-engine", self.policy["storage"]["pvc_topology"])
+        self.assertEqual(
+            {"postgresql": "40Gi", "mongodb": "80Gi"},
+            self.policy["storage"]["capacities"],
+        )
+        self.assertEqual("ReadWriteOnce", self.policy["storage"]["access_mode"])
+        self.assertEqual(
+            {
+                "requests": {"cpu": "500m", "memory": "1Gi"},
+                "limits": {"cpu": "2", "memory": "3Gi"},
+            },
+            self.policy["resources"]["per_engine"],
+        )
+        self.assertEqual(
+            "ansible-bootstrap-then-argocd-handoff",
+            self.policy["provisioning"]["owner"],
+        )
         self.assertEqual("unselected", self.policy["backup_and_restore"]["tooling"])
-        self.assertEqual("unselected", self.policy["backup_and_restore"]["rpo"])
-        self.assertEqual("unselected", self.policy["backup_and_restore"]["rto"])
+        self.assertEqual("24h", self.policy["backup_and_restore"]["rpo"])
+        self.assertEqual("4h", self.policy["backup_and_restore"]["rto"])
         self.assertTrue(
             all(value is False for value in self.policy["promotion_gates"].values())
         )
@@ -173,6 +187,26 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
     def test_private_only_exposure_and_admin_separation_are_exact(self) -> None:
         exposure = self.policy["exposure"]
         self.assertEqual("cluster-internal-only", exposure["future_scope"])
+        self.assertEqual(
+            {
+                "postgresql": {
+                    "identity": "shared-postgresql",
+                    "type": "ClusterIP",
+                    "port": 5432,
+                },
+                "mongodb": {
+                    "identity": "shared-mongodb",
+                    "type": "ClusterIP",
+                    "port": 27017,
+                },
+            },
+            exposure["services"],
+        )
+        self.assertTrue(self.policy["tls"]["required"])
+        self.assertEqual(
+            "infisical-cloud", self.policy["tls"]["certificate_value_owner"]
+        )
+        self.assertFalse(self.policy["tls"]["exact_identities_selected"])
         self.assertEqual(
             {"Ingress", "NodePort", "LoadBalancer", "CloudflareTunnel", "public-route"},
             set(exposure["forbidden"]),

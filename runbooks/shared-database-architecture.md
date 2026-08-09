@@ -71,33 +71,36 @@ Infisical Cloud owns all database credential values. Git may contain only value-
 policy and, after later approval, reviewed references. Workload and Keycloak pods
 must never receive the provisioning administrator credential.
 
-The one provisioning writer remains unselected. A bounded Argo-managed Job or a later
-approved operator are only candidates; neither is authorized here. The selected
-writer must be idempotent, use recoverable Infisical-backed administrator material,
-stop before handing off objects to another reconciler, and prove exact grants with
-negative tests. Dual reconciliation is forbidden.
+The selected ownership direction is an idempotent Ansible bootstrap followed by an
+object-by-object Argo handoff. Ansible must use recoverable Infisical-backed
+administrator material, prove exact grants with negative tests, and stop reconciling
+each handed-off object before Argo starts. The workflow remains unimplemented and
+unproved; dual reconciliation is forbidden.
 
 ## Exposure boundary
 
-Future database Services must remain cluster-internal. Ingress, NodePort,
-LoadBalancer, Cloudflare Tunnel, and any public route are forbidden. Exact Service
-names, selectors, ports, TLS identities, and NetworkPolicy flows remain unselected.
-No database or administrative endpoint may become public.
+Future `shared-postgresql:5432` and `shared-mongodb:27017` Services are ClusterIP-only.
+Ingress, NodePort, LoadBalancer, Cloudflare Tunnel, and any public route are
+forbidden. TLS is mandatory and certificate values remain Infisical-owned; exact TLS
+identities, selectors, and NetworkPolicy flows remain unselected. No database or
+administrative endpoint may become public.
 
 ## Storage and recovery blockers
 
 MongoDB topology remains unselected; standalone versus replica-set behavior affects
-transactions, upgrade strategy, and application-consistent recovery. StorageClass,
-PVC topology, access mode, capacity, data path, filesystem ownership, reclaim policy,
-resource limits, probes, connection limits, and disruption behavior also remain
-unselected.
+transactions, upgrade strategy, and application-consistent recovery. The approved
+source profile uses NVMe `local-path`, one `ReadWriteOnce` PVC per engine, `40Gi` for
+PostgreSQL and `80Gi` for MongoDB, and per-engine requests of `500m` CPU/`1Gi` memory
+with limits of `2` CPU/`3Gi` memory. Exact data paths, filesystem ownership, reclaim
+behavior, probes, connection limits, and disruption behavior remain unselected.
 
 The canonical [shared backup architecture](shared-stateful-backup-architecture.md)
 requires private authenticated operator catalog/retrieval, predictable per-consumer
 paths, encrypted timestamped non-destructive off-node copies, integrity verification,
-and isolated restore. Exact backup tooling, schedules, retention, destination
-identities, encryption-key custody, and provisional RPO/RTO remain unknown.
-Acceptance requires application-consistent PostgreSQL and MongoDB dumps, separate
+and isolated restore. The approved source profile uses daily archives, 14-day local
+and off-node retention, RPO `24h`, RTO `4h`, and independent encryption-key custody.
+Exact backup tooling/image, destination identity/folder, staging path, credentials,
+and restore implementation remain unknown. Acceptance requires application-consistent PostgreSQL and MongoDB dumps, separate
 consumer scopes, and isolated restore proof. PostgreSQL role
 and ownership recreation must be proven without leaking credential hashes. A
 successful backup job alone is not recovery evidence.

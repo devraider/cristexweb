@@ -111,37 +111,59 @@ future_consumer_admission:
     - policy-test-and-runbook-update
 exposure:
   future_scope: cluster-internal-only
-  service_identity: unselected
-  ports: unselected
+  services:
+    postgresql:
+      identity: shared-postgresql
+      type: ClusterIP
+      port: 5432
+    mongodb:
+      identity: shared-mongodb
+      type: ClusterIP
+      port: 27017
   forbidden:
     - Ingress
     - NodePort
     - LoadBalancer
     - CloudflareTunnel
     - public-route
+tls:
+  required: true
+  certificate_value_owner: infisical-cloud
+  exact_identities_selected: false
 storage:
-  storage_class: unselected
-  pvc_topology: unselected
-  capacities: unselected
-  access_modes: unselected
+  storage_class: local-path
+  placement: nvme
+  pvc_topology: one-pvc-per-engine
+  capacities:
+    postgresql: 40Gi
+    mongodb: 80Gi
+  access_mode: ReadWriteOnce
   data_paths: unselected
   retention_and_reclaim: unselected
+resources:
+  per_engine:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 3Gi
+  probes: unselected
+  connection_limits: unselected
 provisioning:
-  owner: unselected
-  candidate_owners:
-    - bounded-argocd-job
-    - approved-operator
+  owner: ansible-bootstrap-then-argocd-handoff
   administrator_credential_value_owner: infisical-cloud
   administrator_credential_available_to_workloads: false
 backup_and_restore:
   policy_path: ansible/files/policies/shared-stateful-backup-architecture.yml
   tooling: unselected
-  schedule: unselected
-  retention: unselected
-  destination: unselected
-  encryption_key_custody: unselected
-  rpo: unselected
-  rto: unselected
+  schedule: daily
+  retention: 14d
+  destination_direction: google-drive
+  destination_identity: unselected
+  encryption_key_custody: independent-from-backup-credential
+  rpo: 24h
+  rto: 4h
   application_consistent_dumps_required: true
   encrypted_off_node_copy_required: true
   integrity_verification_required: true
@@ -154,9 +176,9 @@ promotion_gates:
   resources_and_probes_accepted: false
   network_policy_accepted: false
   infisical_bootstrap_recovery_proved: false
-  provisioning_owner_selected: false
+  provisioning_workflow_proved: false
   backup_and_restore_proved: false
-  rpo_rto_accepted: false
+  rpo_rto_restore_proved: false
   one_writer_handoff_proved: false
   runtime_approved: false
 executable_source_allowed: false

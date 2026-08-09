@@ -47,7 +47,7 @@
 | KIF-016 | Committed source contains `argocd`, cloudflared-only `platform-edge`, and future `shared-services`; later `cristexhub-dev` and `cristexhub-prod` remain separate. `shared-services` is the placement for the Infisical Operator, separate Keycloak deployment, one general PostgreSQL engine, and one shared MongoDB engine, but its Namespace/runtime checkpoints remain separately approved and NOT RUN. Private DEV MVP includes an environment-local Reactive Resume deployment with its own OIDC/database/Secret scopes; future PROD remains separate. Applications retain separate DEV/PROD credentials, migrations, and backup paths. |
 | KIF-017 | One general PostgreSQL engine provides separate CristexHub DEV, CristexHub PROD, Reactive Resume DEV, Reactive Resume PROD, and Keycloak logical databases, owner roles, Infisical-owned credentials, migration scopes, and backup scopes. No consumer receives a separate PostgreSQL deployment/PVC; `PUBLIC` connection/schema privileges are revoked where unwanted, every workload role is denied cross-database access, and workload roles cannot create databases or roles. |
 | KIF-018 | One shared MongoDB engine provides separate DEV/PROD databases, database-scoped users, Infisical-owned credentials, migration scopes, and backup scopes. Each workload user is denied the other environment plus broad any-database and user/role-administration privileges; MongoDB source and topology remain unselected before separate approval. |
-| KIF-019 | Shared-engine failure and contention risks are documented, bounded with requests/limits/connection limits, and accepted before PROD. No environment, tenant, or Keycloak consumer receives a separate engine or PVC; exact storage, provisioning, backup/restore, and RPO/RTO gates must close before executable stateful source. |
+| KIF-019 | Shared-engine failure and contention risks are documented. The database source profile fixes NVMe `local-path`, one `ReadWriteOnce` PVC per engine, PostgreSQL 40 GiB, MongoDB 80 GiB, and per-engine 500m/1 GiB requests plus 2 CPU/3 GiB limits. No consumer receives a separate engine/PVC; exact paths/reclaim/probes/connection limits, implementation, and recovery gates must close before executable source. |
 | KIF-020 | Redis is environment-local. Exactly one shared RabbitMQ engine belongs in `shared-services`; CristexHub DEV/PROD receive dedicated users, vhosts, permissions, limits, Infisical-owned credentials, and recovery scopes with negative cross-vhost/admin/public-management tests. Future consumers require reviewed exact policy/test/runbook changes; wildcard or dynamic admission is forbidden. |
 | KIF-021 | NetworkPolicy and RBAC deny unapproved cross-namespace and control-plane access while allowing required DNS and service flows. |
 
@@ -119,9 +119,10 @@ Exact callbacks/origins, trust/recovery, executable source, routes, credentials,
 runtime remain **NOT RUN/BLOCKED**. The value-free
 [shared database architecture](../../runbooks/shared-database-architecture.md) maps
 KIF-005, KIF-013, KIF-016 through KIF-019, KIF-021, and KIF-026 through KIF-030 to
-an exact one-PostgreSQL/one-MongoDB source-only policy. It closes no image trust,
-storage, provisioning, backup, restore, RPO/RTO, object-source, or runtime gate; all
-promotion flags remain false. The value-free
+an exact one-PostgreSQL/one-MongoDB source-only policy. It fixes the approved
+storage/resource/private-Service/TLS/ownership/backup profile but closes no image
+trust, implementation, provisioning proof, restore, object-source, or runtime gate;
+all promotion flags remain false. The value-free
 [shared RabbitMQ architecture](../../runbooks/shared-rabbitmq-architecture.md) maps
 KIF-005, KIF-013, KIF-016, KIF-019 through KIF-021, KIF-023, and KIF-026 through
 KIF-030 to one exact source-only shared broker with DEV/PROD isolation and reviewed

@@ -255,9 +255,10 @@ Application and Keycloak roles must not create roles or databases. The Keycloak 
 cannot access application databases, and application roles cannot access the
 Keycloak database; those denials require negative grant tests. MongoDB workload users must have no broad any-database or
 user/role-administration roles and must fail bidirectional cross-database tests.
-The provisioning owner remains unselected; a bounded Argo-managed job or a later
-approved operator are only candidates. Its administrator credential must remain
-Infisical-owned and unavailable to application or Keycloak pods.
+The selected ownership direction is idempotent Ansible bootstrap followed by exact
+object-by-object Argo handoff. The workflow remains unimplemented and unproved. Its
+administrator credential must remain Infisical-owned and unavailable to application
+or Keycloak pods.
 
 Redis remains per environment because Redis database numbers are not sufficient
 security isolation. One shared RabbitMQ engine belongs in `shared-services`.

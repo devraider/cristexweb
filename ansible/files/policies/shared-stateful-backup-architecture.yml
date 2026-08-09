@@ -36,14 +36,14 @@ destination:
 local_staging:
   path: null
   capacity: null
-  retention: null
+  retention: 14d
   live_data_path_allowed: false
 schedule_and_retention:
-  schedule: null
-  local_retention: null
-  off_node_retention: null
-  rpo: null
-  rto: null
+  schedule: daily
+  local_retention: 14d
+  off_node_retention: 14d
+  rpo: 24h
+  rto: 4h
 services:
   postgresql:
     backup_method_direction: application-consistent-logical-dumps

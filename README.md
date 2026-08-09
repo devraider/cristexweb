@@ -79,8 +79,10 @@ non-destructive off-node copy, integrity checks, and isolated restore. Both rema
 policy-only with all runtime gates closed. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
 includes private DEV in the MVP with dedicated PostgreSQL and OIDC scopes while its
 image, callbacks, objects, Secrets, and runtime remain unselected or blocked.
-MongoDB source/topology, storage, provisioning, recovery, executable objects, and
-runtime remain unselected or blocked. No workload, Secret, route, or runtime is
+MongoDB source/topology, exact data paths/reclaim behavior, probes, connection
+limits, provisioning proof, recovery, executable objects, and runtime remain
+unselected or blocked; the database source profile now fixes NVMe `local-path`,
+40/80 GiB PVCs, bounded resources, private standard Services, and mandatory TLS. No workload, Secret, route, or runtime is
 approved.
 A separate
 [source-only cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
