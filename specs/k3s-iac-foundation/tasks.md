@@ -274,10 +274,12 @@ entry gate.
   to only `shared-services`, remove the two never-run source leaves, preserve the
   completed historical wrapper unchanged, and record this as source migration rather
   than live deletion (`KIF-002`, `KIF-005`, `KIF-016`, `KIF-030`).
-- [ ] Obtain separate approval for
-  `ansible/bin/bootstrap-foundation-namespaces check`, review a prediction limited to
-  the one exact `shared-services` Namespace, then obtain new separate approvals for
-  first apply and a later idempotence apply requiring `changed=0` (`KIF-002`,
+- [x] Run `ansible/bin/bootstrap-foundation-namespaces check` and review a prediction
+  limited to the one exact `shared-services` Namespace. After a non-interactive
+  missing-sudo stop (`ok=10 changed=0 failed=1`), the interactive retry passed at
+  `ok=20 changed=1 failed=0`; check mode made no mutation.
+- [ ] Obtain a new separate approval for first apply and, after post-state review,
+  another approval for an idempotence apply requiring `changed=0` (`KIF-002`,
   `KIF-005`, `KIF-016`).
 - [ ] Implement component-specific exact Ansible source closures and separate
   check/apply/idempotence approvals in this order: Infisical Operator and a

@@ -3,8 +3,12 @@
 ## Status and boundary
 
 The exact source for `shared-services` and a dedicated bounded Ansible bootstrap
-are implemented. The source is deployable, but every runtime checkpoint is **NOT
-RUN**. The earlier `platform-secrets` and `platform-identity` source was superseded
+are implemented. The first non-interactive check attempt stopped before service
+preflight or Kubernetes reconciliation because sudo input was unavailable
+(`ok=10 changed=0 unreachable=0 failed=1 skipped=0`). The interactive retry passed at
+`ok=20 changed=1 unreachable=0 failed=0 skipped=2`: the sole change-capable task
+predicted creation of exactly `shared-services`. Check mode made no mutation. First
+apply/idempotence are **NOT RUN**. The earlier `platform-secrets` and `platform-identity` source was superseded
 before its wrapper ever ran; removing those files is not evidence of a live rename or
 deletion. This record authorizes no discovery, wrapper check, apply, idempotence run,
 Secret operation, workload, route, or cluster contact.
@@ -69,11 +73,10 @@ is not a handoff.
 
 Each command below is a one-line zsh command and is documentation only:
 
-1. After a separately approved read-only discovery, request separate approval for `ansible/bin/bootstrap-foundation-namespaces check`.
-2. Review the complete check/diff result and require that only `shared-services` is predicted.
-3. Request a new, separate approval for `ansible/bin/bootstrap-foundation-namespaces apply`.
-4. Review exact post-state and service-health evidence.
-5. Request another separate approval for `ansible/bin/bootstrap-foundation-namespaces apply` and require `changed=0` as the idempotence checkpoint.
+1. Completed: the separately approved wrapper check predicted only `shared-services`.
+2. Request a new, separate approval for `ansible/bin/bootstrap-foundation-namespaces apply`.
+3. Review exact post-state and service-health evidence.
+4. Request another separate approval for `ansible/bin/bootstrap-foundation-namespaces apply` and require `changed=0` as the idempotence checkpoint.
 
 Discovery and mutation never share approval. A check result never authorizes the
 first apply, and the first apply never authorizes idempotence. No approval is inferred
@@ -92,8 +95,6 @@ this bootstrap intentionally has no deletion implementation.
 
 ## Remaining blockers
 
-- separately approved read-only live discovery;
-- separate wrapper check and reviewed prediction;
 - separate first apply and post-state review;
 - separate idempotence apply requiring `changed=0`;
 - later promotion from the selected offline Infisical Operator `v0.11.7` baseline through the inert [privileged-prerequisites inventory](infisical-operator-privileged-prerequisites-design.md) to separately reviewed component-specific source;

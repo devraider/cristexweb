@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: historical Namespace evidence preserved; source-only database/RabbitMQ/backup/Reactive Resume contracts pass 55 focused/152 full tests, 9 syntax checks, production lint, YAML/compile, links/hygiene, and exact source closure; infrastructure run 31311995461 passed on e200efd; images/storage/destination identities/restore/publication/handoff/runtime gates pending
+build: shared-services interactive check retry passed at ok=20 changed=1 failed=0 and predicted exactly that Namespace without mutation after an earlier missing-sudo stop at ok=10 changed=0 failed=1; first apply/idempotence NOT RUN; source-only contracts pass 152 full tests
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -78,8 +78,13 @@ note: |
   route source was added. Ansible is selected as the future bounded bootstrap
   installer and lifecycle owner of privileged CRDs/cluster RBAC. Exact present-only
   [foundation Namespace source and guarded wrapper](../../runbooks/foundation-namespace-bootstrap.md)
-  now exist for `shared-services`, but check, first apply, and idempotence remain
-  separately approved and **NOT RUN**. The superseded
+  now exist for `shared-services`. The first non-interactive check attempt stopped
+  before service preflight/reconciliation for missing sudo
+  (`ok=10 changed=0 unreachable=0 failed=1 skipped=0`). The interactive retry passed
+  at `ok=20 changed=1 unreachable=0 failed=0 skipped=2`; exact source closure proves
+  the single changed prediction was the one `shared-services` Namespace. Check mode
+  made no mutation. First apply and idempotence remain separately approved and **NOT
+  RUN**. The superseded
   `platform-secrets`/`platform-identity` source never ran, and this offline correction
   performs no live rename or deletion. Component source/credentials, foundation Namespace
   runtime, resource/GVR/discovery inventory, Infisical Universal Auth recovery, live
@@ -222,8 +227,8 @@ note: |
   remained running before and after. Argo CD, cloudflared, Infisical Operator,
   Keycloak, PostgreSQL, MongoDB, `shared-services`, DEV/PROD, Secrets, workloads,
   Services, policies, PVCs, and routes do not exist from that historical increment. Exact present-only
-  source now targets only `shared-services`, but no runtime existence is claimed
-  because its wrapper has not run. The two superseded Namespace source files were
+  source now targets only `shared-services`. Its wrapper check has run successfully,
+  but apply has not run, so no runtime existence is claimed. The two superseded Namespace source files were
   never applied by their wrapper. `platform-edge` is reserved for cloudflared;
   Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one
   shared MongoDB engine belong in `shared-services`.

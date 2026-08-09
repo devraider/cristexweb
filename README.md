@@ -35,8 +35,10 @@ resources. Committed Kubernetes source now contains exactly three Namespace
 manifests: `argocd`, `platform-edge`, and `shared-services`. The historical
 `argocd`/`platform-edge` wrapper check, first apply, and idempotence retry completed
 under separate approvals and that exception remains closed. Exact present-only
-source and a new dedicated guarded wrapper now exist for `shared-services`, but its
-check, first apply, and idempotence are **NOT RUN** and require separate approvals.
+source and a new dedicated guarded wrapper now exist for `shared-services`. After a
+non-interactive missing-sudo stop (`ok=10 changed=0 failed=1`), the interactive check
+passed at `ok=20 changed=1 failed=0` and predicted exactly that one Namespace without
+mutation. First apply and idempotence are **NOT RUN** and require separate approvals.
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
 it does not claim a live rename or deletion. No Argo CD, cloudflared,
 Infisical Operator, Keycloak, PostgreSQL, MongoDB, Secret, workload, Service,
@@ -284,7 +286,8 @@ Only `ansible/`, the zero-resource `opentofu/` scaffold, the three platform Name
 manifests under `kubernetes/`, documentation-only recovery, candidate-provenance,
 hardened-design, and Keycloak/OIDC design records under `runbooks/`, and offline
 `tests/` currently exist. An exact manifest and a distinct guarded wrapper now exist
-for `shared-services`; check/apply/idempotence remain NOT RUN and have no runtime
+for `shared-services`; its interactive check retry passed and predicted exactly that
+one Namespace without mutation. Apply/idempotence remain NOT RUN and have no runtime
 authorization. `platform-edge` is reserved for future cloudflared namespaced objects;
 Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one shared
 MongoDB engine belong in `shared-services`. The database policy is inert: it adds no

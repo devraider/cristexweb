@@ -65,6 +65,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—to the vendored chart while every promotion gate stays false and no valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source appears | PASS — focused archive/policy/design contracts plus full offline validation; runtime remains NOT RUN/BLOCKED |
 | KIF-SRC-01 | KIF-005, KIF-010, KIF-013–KIF-015, KIF-023, KIF-030 | Deterministic hosted source-baseline closure | Exact release records, value-free identity/authorization policy, chart/provenance/public-key bytes, SHA256SUMS, safe chart roots, exact three-Namespace closure, and absence of component operational source are enforced offline | PASS — source-selection plus affected provenance/design/layout contracts pass; exact hashes verified; no live/runtime operation or staged file |
 | KIF-NS-04 | KIF-002, KIF-003, KIF-005, KIF-013–KIF-017, KIF-021, KIF-026–KIF-030 | Shared-services placement correction | Replace never-run `platform-secrets`/`platform-identity` source with one exact present-only `shared-services` Namespace; reserve `platform-edge` for cloudflared; place Infisical Operator, separate Keycloak, and one general PostgreSQL instance in commons intent; give Keycloak only a dedicated logical database/role/credential on that engine | PASS — 78 focused and 115 full offline tests, 9 syntax checks, production lint, fail-closed fixtures, archive hashes, links, closure, hygiene, and historical-source preservation passed; no discovery, check, apply, deletion, workload, Secret, database, route, or runtime operation |
+| KIF-NS-05 | KIF-002, KIF-005, KIF-016, KIF-030 | Shared-services Namespace runtime | A successful wrapper check predicts only the absent exact `shared-services` Namespace before separately approved first apply and idempotence | CHECK PASS — after a non-interactive missing-sudo stop at `ok=10 changed=0 failed=1`, the interactive retry passed at `ok=20 changed=1 unreachable=0 failed=0 skipped=2`; the exact one-manifest/one-reconcile-task closure proves the sole prediction was `shared-services`, and check mode made no mutation. First apply/idempotence NOT RUN |
 
 ## Schema-v3 elevated discovery and target-minor review — 2026-08-07
 
@@ -2718,7 +2719,31 @@ backup, restore, Secret, StatefulSet, Service, PVC, Job, CronJob, route, or runt
 operation occurred. RabbitMQ source/topology/storage/ports/resources/TLS and backup
 image/identities/staging path/schedule implementation/retention enforcement/RPO/RTO
 restore proof remain unselected or unproved.
-`shared-services` check/apply/idempotence remains separately approved and **NOT RUN**.
+`shared-services` first apply/idempotence remain separately approved and **NOT RUN**.
+
+## Shared-services Namespace first check attempt — 2026-08-09
+
+Approved command:
+
+```bash
+ansible/bin/bootstrap-foundation-namespaces check
+```
+
+Actual result:
+
+```text
+Non-interactive attempt: ok=10 changed=0 unreachable=0 failed=1 skipped=0
+Failure: Missing sudo password before service preflight/reconciliation
+Interactive retry: ok=20 changed=1 unreachable=0 failed=0 skipped=2
+```
+
+The first attempt made no mutation. The interactive retry passed all protected
+preflight gates. Committed source contains exactly one manifest and the role contains
+exactly one change-capable reconciliation item, both naming `shared-services`; the
+single check-mode change therefore predicts creation of only that Namespace. The two
+post-state tasks were skipped in check mode as designed, and no object was created or
+modified. First apply requires a new explicit mutation approval; idempotence requires
+another approval after post-state review.
 
 ## Future validation contract
 
