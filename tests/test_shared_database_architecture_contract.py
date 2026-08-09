@@ -35,7 +35,13 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
         self.assertEqual(1, postgresql["instance_count"])
         self.assertEqual("shared-services", postgresql["namespace"])
         self.assertEqual(
-            {"reactive-resume-dev", "reactive-resume-prod", "keycloak"},
+            {
+                "cristexhub-dev",
+                "cristexhub-prod",
+                "reactive-resume-dev",
+                "reactive-resume-prod",
+                "keycloak",
+            },
             set(postgresql["consumers"]),
         )
         self.assertTrue(postgresql["no_consumer_specific_engine_or_pvc"])
@@ -163,6 +169,11 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
         for required in (
             "POLICY ONLY — RUNTIME BLOCKED",
             "one PostgreSQL engine and one MongoDB engine",
+            (
+                "CristexHub DEV, CristexHub PROD, Reactive Resume DEV, "
+                "Reactive Resume PROD, and Keycloak"
+            ),
+            "CristexHub DEV/PROD receive distinct scopes on both shared engines",
             "shared failure and contention domains",
             "NetworkPolicy cannot enforce logical-database isolation",
             "MongoDB topology remains unselected",

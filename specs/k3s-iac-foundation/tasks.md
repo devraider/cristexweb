@@ -324,9 +324,10 @@ logs, or bootstrap cannot be recovered.
   DEV in the MVP, reserves separate DEV/PROD OIDC and PostgreSQL scopes, and keeps
   image/callback/object/Secret/recovery/runtime gates false (`KIF-012`–`KIF-017`,
   `KIF-021`, `KIF-023`, `KIF-026`–`KIF-030`).
-- [ ] Create one general PostgreSQL instance with separate DEV, PROD, and Keycloak
-  logical databases/owner roles, no separate Keycloak PostgreSQL workload/PVC, and
-  bidirectional negative cross-database access tests (`KIF-017`).
+- [ ] Create one general PostgreSQL instance with separate CristexHub DEV/PROD,
+  Reactive Resume DEV/PROD, and Keycloak logical databases/owner roles, no
+  consumer-specific PostgreSQL workload/PVC, and bidirectional negative
+  cross-database access tests (`KIF-017`).
 - [ ] Select MongoDB topology and exact immutable trusted source, then create one
   shared MongoDB engine with separate databases/users and negative access tests
   (`KIF-018`, `KIF-023`).

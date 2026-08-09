@@ -13,6 +13,18 @@ engines:
       reference: "ansible/files/policies/hosted-identity-authorization.yml#images.postgresql"
       trust_accepted: false
     consumers:
+      cristexhub-dev:
+        database: dedicated-logical-database
+        principal: dedicated-owner-role
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+      cristexhub-prod:
+        database: dedicated-logical-database
+        principal: dedicated-owner-role
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
       reactive-resume-dev:
         database: dedicated-logical-database
         principal: dedicated-owner-role

@@ -67,9 +67,10 @@ and [release selection](runbooks/keycloak-release-selection.md) select Keycloak
 The value-free hosted policy selects exact client IDs, environment role templates,
 Argo groups, deny-default authorization, Namespace trust, and Universal Auth
 direction. The separate [shared database architecture](runbooks/shared-database-architecture.md)
-freezes one PostgreSQL and one MongoDB engine in `shared-services`, dedicated
-consumer scopes, Infisical value ownership, private-only exposure, and closed
-promotion gates. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
+freezes one PostgreSQL and one MongoDB engine in `shared-services`: CristexHub
+DEV/PROD receive isolated scopes on both engines, while Reactive Resume DEV/PROD and
+Keycloak receive dedicated PostgreSQL scopes. Infisical owns credential values,
+exposure is private-only, and promotion gates remain closed. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
 includes private DEV in the MVP with dedicated PostgreSQL and OIDC scopes while its
 image, callbacks, objects, Secrets, and runtime remain unselected or blocked.
 MongoDB source/topology, storage, provisioning, recovery, executable objects, and

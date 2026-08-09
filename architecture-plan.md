@@ -239,13 +239,14 @@ explicitly accepted shared failure and contention domain. The value-free
 is the canonical source-only topology and authorization contract; its promotion
 gates are all closed and it is not executable workload source.
 
-PostgreSQL requires separate logical databases and owner roles for Reactive Resume
-DEV, Reactive Resume PROD, and Keycloak. Keycloak remains a separate deployment from the one
-general PostgreSQL instance and receives its own database, owner role, credential,
-and backup scope; it does not receive another PostgreSQL workload or PVC. Reactive
-Resume DEV/PROD receive separate PostgreSQL credentials, migrations, and backups.
-MongoDB requires CristexHub DEV/PROD databases and users with privileges limited to
-their own database.
+PostgreSQL requires separate logical databases and owner roles for CristexHub DEV,
+CristexHub PROD, Reactive Resume DEV, Reactive Resume PROD, and Keycloak. Keycloak
+remains a separate deployment from the one general PostgreSQL instance and receives
+its own database, owner role, credential, and backup scope; no consumer receives
+another PostgreSQL workload or PVC. CristexHub and Reactive Resume DEV/PROD receive
+separate PostgreSQL credentials, migrations, and backups. MongoDB requires
+CristexHub DEV/PROD databases and users with privileges limited to their own
+database.
 DEV and PROD never share an application credential, encryption key, migration target,
 or backup prefix. MongoDB repository/version/digest and standalone-versus-replica-set
 topology remain unselected.

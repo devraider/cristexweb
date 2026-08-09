@@ -55,7 +55,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-ARGO-02 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Argo CD online/static readiness refresh | A secret-free record curates deterministic render, upstream API registration, RBAC/network, image trust/availability/vulnerability, private-Git, and Namespace-adoption evidence while all live admission/runtime gates remain blocked | PASS — focused provenance contracts preserve the 44-document render and security blockers; no values, rendered YAML, Kubernetes object, credential, or deployable controller source was added |
 | KIF-ARGO-03 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013–KIF-015, KIF-021, KIF-030 | Argo CD source-only hardened design | A secret-free design fixes private ClusterIP/loopback-only administration, retained quiescent ApplicationSet, supplemental default-deny, phased least privilege, one-repository GitHub App credentials, value-free secret custody, selected direct OIDC direction, two-Application adoption, stop/rollback, Ansible ownership, and six open decisions without adding deployable source | PASS — hardened-design contracts accept only the offline version baseline; trust, exact controller closure, admission, Secrets, recovery, handoff, and runtime remain blocked |
 | KIF-IDP-01 | KIF-002, KIF-003, KIF-005, KIF-010, KIF-012–KIF-017, KIF-021, KIF-023, KIF-026–KIF-030 | Source-only Ansible bootstrap and Keycloak OIDC architecture | Ansible is the selected bounded bootstrap installer and privileged lifecycle owner with no dual reconciliation; direct Argo OIDC separates Keycloak authentication/groups, Argo RBAC, and Kubernetes RBAC while preserving private administration, Infisical-owned values, a dedicated Keycloak logical database/role on the general shared PostgreSQL engine, stable issuer, exact approvals, and handoff gates | PASS — Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, clients, group templates, default theme, separate deployment, and shared-engine isolation policy are selected only for offline authoring; no executable component source, credential, route, or runtime was added |
-| KIF-DB-01 | KIF-005, KIF-013, KIF-016–KIF-019, KIF-021, KIF-026–KIF-030 | Shared database source-only architecture | One PostgreSQL and one MongoDB engine are placed in `shared-services`; Reactive Resume DEV/PROD and Keycloak receive PostgreSQL scopes while CristexHub DEV/PROD receive MongoDB scopes; all use Infisical-owned credentials, dedicated backups, deny-first authorization, and private-only exposure while MongoDB source/topology, stateful objects, storage, provisioning, recovery, handoff, and runtime remain blocked | PASS — value-free canonical policy/runbook and exact offline contracts pass; PostgreSQL keeps its selected-but-untrusted baseline, MongoDB remains unselected, all promotion gates are false, exact three-Namespace closure is unchanged, and no executable database source or runtime operation was added |
+| KIF-DB-01 | KIF-005, KIF-013, KIF-016–KIF-019, KIF-021, KIF-026–KIF-030 | Shared database source-only architecture | One PostgreSQL and one MongoDB engine are placed in `shared-services`; CristexHub DEV/PROD receive isolated PostgreSQL and MongoDB scopes while Reactive Resume DEV/PROD and Keycloak receive dedicated PostgreSQL scopes; all use Infisical-owned credentials, dedicated migrations/backups, deny-first authorization, and private-only exposure while MongoDB source/topology, stateful objects, storage, provisioning, recovery, handoff, and runtime remain blocked | PASS — exact five-consumer PostgreSQL/two-consumer MongoDB value-free policy/runbook and offline contracts pass; PostgreSQL keeps its selected-but-untrusted baseline, MongoDB remains unselected, all promotion gates are false, exact three-Namespace closure is unchanged, and no executable database source or runtime operation was added |
 | KIF-GHA-01 | KIF-005, KIF-022–KIF-025, KIF-030 | GitHub-hosted infrastructure source CI | Exactly one workflow uses SHA-pinned actions, a fixed runner, read-only permission, bounded triggers/timeouts/concurrency, frozen controller dependencies, and exact offline tests without Secret/package/registry/provider/host/cluster/deploy access | PASS SOURCE AND HOSTED CI — focused/full contracts passed; run `31311995461` and job `93241094377` completed successfully for exact commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`; branch protection, GHCR publication, digest evidence, and deployment remain NOT RUN/BLOCKED |
 | KIF-RR-01 | KIF-012–KIF-017, KIF-019, KIF-021, KIF-023, KIF-026–KIF-030 | Reactive Resume private-MVP source architecture | Include environment-local Reactive Resume DEV in the private MVP, reserve separate PROD, bind exact OIDC clients and dedicated shared-PostgreSQL scopes, keep Infisical value ownership/private exposure, and block image/callback/object/Secret/recovery/handoff/runtime promotion | PASS SOURCE-ONLY — value-free policy/runbook and exact contracts pass; no local Compose input was promoted and no upstream image, callback, object, Secret, database, route, or runtime was selected or created |
 | KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, reserves `platform-edge` for cloudflared within the exact current three-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
@@ -2533,6 +2533,83 @@ found`), and no token or browser credential was introduced. No GitHub setting,
 registry login, Docker build, image publication, digest, SBOM/provenance, Secret,
 provider, host, Kubernetes API, Infisical, database, route, or deployment operation
 occurred. MQA-14 is PARTIAL; publication and application-run review remain open.
+
+## Shared database all-environment consumer correction — 2026-08-09
+
+The approved closure keeps one shared PostgreSQL engine and one shared MongoDB
+engine in `shared-services`. CristexHub DEV/PROD receive isolated logical scopes on
+both engines; Reactive Resume DEV/PROD and Keycloak receive dedicated PostgreSQL
+scopes. Sharing an engine does not share databases, principals, credential values,
+migration scopes, or backup scopes.
+
+```bash
+.venv/bin/python -m unittest -v \
+  tests.test_shared_database_architecture_contract \
+  tests.test_reactive_resume_architecture_contract \
+  tests.test_hosted_auth_source_selection_contract \
+  tests.test_keycloak_oidc_bootstrap_design_contract \
+  tests.test_foundation_namespace_contract \
+  tests.test_argocd_hardened_design_contract
+.venv/bin/python -m unittest discover -s tests
+.venv/bin/python -m compileall -q tests
+.venv/bin/python - <<'PY'
+from pathlib import Path
+import yaml
+policy = yaml.safe_load(
+    Path('ansible/files/policies/shared-database-architecture.yml').read_text()
+)
+assert set(policy['engines']['postgresql']['consumers']) == {
+    'cristexhub-dev',
+    'cristexhub-prod',
+    'reactive-resume-dev',
+    'reactive-resume-prod',
+    'keycloak',
+}
+assert set(policy['engines']['mongodb']['consumers']) == {
+    'cristexhub-dev',
+    'cristexhub-prod',
+}
+assert policy['namespace'] == 'shared-services'
+assert policy['executable_source_allowed'] is False
+assert all(value is False for value in policy['promotion_gates'].values())
+PY
+cd ansible
+for playbook in playbooks/*.yml; do
+  uv run ansible-playbook "$playbook" --syntax-check
+done
+uv run ansible-lint . ../tests/validate_storage_report.yml
+cd ..
+git diff --exit-code -- \
+  kubernetes/platform/namespaces/argocd.yaml \
+  kubernetes/platform/namespaces/platform-edge.yaml \
+  kubernetes/platform/namespaces/shared-services.yaml \
+  ansible/bin/bootstrap-platform-namespaces \
+  ansible/playbooks/bootstrap_platform_namespaces.yml \
+  ansible/roles/platform_namespace_bootstrap
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Test-first red checkpoint: exact PostgreSQL closure failed with missing
+  cristexhub-dev and cristexhub-prod — expected
+First integrated rerun: shared policy passed; Reactive Resume cross-contract and
+  full suite each exposed one stale exact-three-consumer assertion — corrected
+Final focused contracts: 53 passed
+Final full offline suite: 135 passed
+PASS: exact five PostgreSQL / two MongoDB consumer closure
+PASS: every consumer has dedicated value-free database/principal/migration/backup
+PASS: Python compile; all 9 Ansible syntax checks; production-profile lint
+PASS: 26 repository Markdown files; exact Namespace/historical source preserved
+PASS: diff hygiene and no staged files
+```
+
+No database role, playbook, wrapper, manifest, StatefulSet, Service, PVC, Secret,
+provisioning job, image selection, host access, Kubernetes API, Infisical, registry,
+or runtime operation was added or run. The `shared-services` Namespace remains
+source-defined but its check/apply/idempotence evidence remains **NOT RUN**.
 
 ## Future validation contract
 

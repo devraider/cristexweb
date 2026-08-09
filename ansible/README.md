@@ -455,9 +455,10 @@ exists only for the one `shared-services` foundation Namespace; no Infisical, Ar
 Keycloak, PostgreSQL, MongoDB, chart, Secret, workload, or component runtime approval
 exists from that decision. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
-future PostgreSQL and one future MongoDB engine in `shared-services`, including
-Reactive Resume DEV/PROD plus Keycloak PostgreSQL scopes, but it is not an Ansible
-role, playbook, wrapper, manifest, image selection, or runtime approval. The separate
+future PostgreSQL and one future MongoDB engine in `shared-services`. CristexHub
+DEV/PROD have isolated scopes on both engines; Reactive Resume DEV/PROD and Keycloak
+have dedicated PostgreSQL scopes. The policy is not an Ansible role, playbook,
+wrapper, manifest, image selection, or runtime approval. The separate
 [Reactive Resume policy](../runbooks/reactive-resume-hosted-architecture.md) includes
 private DEV in MVP intent while keeping its image, callbacks, objects, Secrets, and
 runtime blocked. GitHub CI may run only syntax/lint and offline contracts from this

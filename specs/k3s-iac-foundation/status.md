@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: historical Namespace evidence preserved; SHA-pinned read-only CI plus Reactive Resume/private-MVP and shared-database policies pass 48 focused/135 full tests, 9 syntax checks, production lint, hashes, links/hygiene, and exact source closure; infrastructure run 31311995461 passed on e200efd; publication and all image/callback/object/Secret/storage/recovery/handoff/runtime gates pending
+build: historical Namespace evidence preserved; corrected five-PostgreSQL/two-MongoDB consumer closure plus Reactive Resume and read-only CI pass 53 focused/135 full tests, 9 syntax checks, production lint, YAML/compile, links/hygiene, and exact source closure; infrastructure run 31311995461 passed on e200efd; publication and all image/callback/object/Secret/storage/recovery/handoff/runtime gates pending
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -99,9 +99,11 @@ note: |
   source authoring; exact callbacks, trust/recovery, executable source, routes,
   credentials, and runtime remain **NOT RUN/BLOCKED**. The separate value-free
   [shared database architecture](../../runbooks/shared-database-architecture.md)
-  freezes exactly one PostgreSQL and one MongoDB engine in `shared-services`,
-  dedicated consumer scopes, deny-first engine-specific authorization, Infisical
-  value ownership, private-only exposure, and closed promotion gates. It adds no
+  freezes exactly one PostgreSQL and one MongoDB engine in `shared-services`.
+  CristexHub DEV/PROD have isolated scopes on both engines; Reactive Resume DEV/PROD
+  and Keycloak have dedicated PostgreSQL scopes. Authorization is deny-first,
+  Infisical owns credential values, exposure is private-only, and all promotion gates
+  remain closed. It adds no
   database image beyond the existing PostgreSQL baseline, no executable object, and
   no runtime claim; MongoDB source/topology, storage, provisioning, backup/restore,
   RPO/RTO, and all approvals remain unselected or blocked. The value-free

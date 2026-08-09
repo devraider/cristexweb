@@ -76,7 +76,13 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         )
         consumers = self.database_policy["engines"]["postgresql"]["consumers"]
         self.assertEqual(
-            {"reactive-resume-dev", "reactive-resume-prod", "keycloak"},
+            {
+                "cristexhub-dev",
+                "cristexhub-prod",
+                "reactive-resume-dev",
+                "reactive-resume-prod",
+                "keycloak",
+            },
             set(consumers),
         )
         for scope in ("reactive-resume-dev", "reactive-resume-prod"):

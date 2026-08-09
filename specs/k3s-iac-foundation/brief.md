@@ -25,7 +25,7 @@ recover DEV and PROD without presenting a single node as highly available.
 - DEV and administration remain private through host Tailscale.
 - Only approved PROD application routes become public through Cloudflare Tunnel.
 - Application namespaces are `cristexhub-dev` and `cristexhub-prod`.
-- `platform-edge` is reserved for cloudflared. `shared-services` hosts the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL engine, one shared MongoDB engine, and any retained RabbitMQ. Keycloak and environment-local Reactive Resume DEV/PROD use dedicated logical databases, owner roles, credentials, and backup scopes on the shared PostgreSQL engine; MongoDB retains separate CristexHub DEV/PROD scopes. The canonical database and Reactive Resume policies are value-free and runtime-blocked; upstream images, callbacks, storage, provisioning, and recovery remain unselected.
+- `platform-edge` is reserved for cloudflared. `shared-services` hosts the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL engine, one shared MongoDB engine, and any retained RabbitMQ. CristexHub DEV/PROD use dedicated scopes on both shared engines; Keycloak and environment-local Reactive Resume DEV/PROD use dedicated PostgreSQL logical databases, owner roles, credentials, migrations, and backup scopes. The canonical database and Reactive Resume policies are value-free and runtime-blocked; upstream images, callbacks, storage, provisioning, and recovery remain unselected.
 - Redis remains per environment.
 
 ## Constraints
