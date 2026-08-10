@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: cristexhub-dev check passed at ok=20 changed=1 unreachable=0 failed=0 skipped=2 with one exact prediction/no mutation; 6 focused/159 full tests and rereview APPROVED; first apply/idempotence NOT RUN; PROD absent
+build: cristexhub-dev first apply passed at ok=22 changed=1 unreachable=0 failed=0 skipped=0 with exact labels/Active and service health; 6 focused/159 full tests and review APPROVED; idempotence NOT RUN; PROD absent
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -97,7 +97,9 @@ note: |
   guarded wrapper/action; the action reads controller CLI task-selection context and
   rejects argument drift before the Kubernetes module. Its separately approved check
   passed at `ok=20 changed=1 unreachable=0 failed=0 skipped=2`, predicting only the
-  exact Namespace without mutation. First apply/idempotence are NOT RUN, no policy/
+  exact Namespace without mutation. Its first apply passed at
+  `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created/verified all four labels
+  and `Active`, and preserved k3s/Tailscale health. Idempotence is NOT RUN, no policy/
   workload/Secret/PVC/route exists, and `cristexhub-prod` remains absent. The superseded
   `platform-secrets`/`platform-identity` source never ran, and this offline correction
   performs no live rename or deletion. Component source/credentials,

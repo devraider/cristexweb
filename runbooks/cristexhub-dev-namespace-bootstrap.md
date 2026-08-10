@@ -2,7 +2,7 @@
 
 ## Status and boundary
 
-**CHECK PASSED — NO MUTATION; APPLY NOT RUN.** This increment defines only the exact
+**FIRST APPLY PASSED — IDEMPOTENCE NOT RUN.** This increment defines only the exact
 `cristexhub-dev` Namespace and a dedicated guarded Ansible bootstrap. It does not
 reuse or reopen the completed platform or `shared-services` Namespace wrappers.
 `cristexhub-prod` remains absent and is blocked until DEV validation, recovery, and
@@ -64,14 +64,21 @@ crtxweb : ok=20 changed=1 unreachable=0 failed=0 skipped=2 rescued=0 ignored=0
 The exact committed closure has one change-capable loop item and one Namespace
 manifest, so the single check-mode change predicted only creation of
 `cristexhub-dev`. The two skipped tasks are live post-state query/verification; check
-mode made no mutation. First apply and idempotence remain blocked behind distinct
-approvals:
+mode made no mutation.
 
-1. separately approve and run the first apply;
-2. review exact post-state and service health; and
-3. separately approve the idempotence apply and require `changed=0`.
+The first apply then passed:
 
-No apply approval is inferred from the passed check or this source. A successful Namespace checkpoint does not
+```text
+crtxweb : ok=22 changed=1 unreachable=0 failed=0 skipped=0 rescued=0 ignored=0
+```
+
+The one exact mutation created `cristexhub-dev`; zero skipped/failed tasks prove the
+protected post-state and service checks ran successfully. The role verified all four
+labels, `Active` phase, and preserved k3s/Tailscale health. Idempotence remains NOT
+RUN and must converge at `changed=0` before this Namespace checkpoint closes.
+
+The passed check and first apply authorize neither idempotence drift nor any follow-on
+object. A successful Namespace checkpoint does not
 authorize policies, Secrets, workloads, data services, routes, Argo adoption, or
 PROD.
 
