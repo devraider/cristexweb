@@ -3314,11 +3314,11 @@ recorded below.
 Commands:
 
 ```bash
-grep -nE "research → plan → implement → test → review → fix → next task|six concurrently running subagents|gpt-5.6-luna|own git worktree|fastest reversible solution" AGENTS.md
+grep -nE "research → plan → implement → test → review → fix → next task|six concurrently running subagents|gpt-5.6-luna|thinking=max|own git worktree|fastest reversible solution" AGENTS.md
 git diff --check
 ```
 
 Actual result: **PASS** — `AGENTS.md` records the full recurring task loop,
-autonomous unblocking, the six-subagent floor and required model, isolated worktrees,
+autonomous unblocking, the six-subagent floor, required model and max thinking, isolated worktrees,
 iteration-speed priority, and the bounded one-time operational exception. The
 exception explicitly preserves all infrastructure Safety gates and operator approvals.
