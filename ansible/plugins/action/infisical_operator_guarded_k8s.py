@@ -1,0 +1,153 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import stat
+from pathlib import Path
+from typing import Any
+
+from ansible import context
+from ansible_collections.kubernetes.core.plugins.action.k8s import (
+    ActionModule as KubernetesActionModule,
+)
+
+_EXPECTED_OBJECT_HASHES = {
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-auth-boundary'): 'a0d80a5bad4c3c52fdf95dfae20b912db7e3488f4a1be90f409f00895938b6d5',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-auth-boundary'): 'e88892bbdc180e4b2924c23e64e1abcfd0192ff5047860b9e49f30568c26c3fb',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-connection-boundary'): '56280a16a89f4b512b3f92a91d2fa7f4402399bdff69cfb0c340839f08ce85c5',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-connection-boundary'): '76319803c2d15bacbf7fcc81ed3e161228612d3f3e6aea5b4209bea9e0c37a22',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-dynamic-secret-boundary'): '2537e670376a526f41f43347a2ae5037052929a8ba981ee4f91aef57820a0994',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-dynamic-secret-boundary'): '16ff041a377381b5ef2e33957d3c8b05229627b524211b672fb1f29045f3679d',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-push-secret-boundary'): 'abb1279c9b9bd85b8ba01ee2bd7e86fb49901c708762e20d05a946860463e90f',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-push-secret-boundary'): '9dea8b15d24e0e5694151e8a9c8ad22b8ef458a78e3a4c164a5d15db1f3ada9d',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-secret-boundary'): '57f31bf17d21b487d9e1b671dc7b1362aaa87f026ba89f000c6ff81f74a9ccae',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-secret-boundary'): 'a3455e6da757471bb063ccfa6b657b24412da6a99f285bf1c02dd1ff7e4f6dfc',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-static-secret-boundary'): '832215eddbb15d770c1796439a2b44cfb9089950a68c91629f2d780b08d82ad6',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-static-secret-boundary'): '9077d2b464665bb5f7de442ea51b7285e940d166cbaf2d119096f0ccceb8244e',
+    ('apps/v1', 'Deployment', 'shared-services', 'infisical-operator-controller'): 'ac70091417f528c52b55c19909d89b8c6f3cc08887c9a7b05eeb0fbd27c6b980',
+    ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalauths.secrets.infisical.com'): '7f42a95da11f97758214bb8d6d1a177a848d02d42e9c6154fb8f84724c234326',
+    ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalconnections.secrets.infisical.com'): '41e6e2c61260de61229d997f67426c26fcddcb4e584cef45485646111ca69181',
+    ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicaldynamicsecrets.secrets.infisical.com'): 'b95d44aef7023641d00a552e3dbc9b14667de82983d8911a2fd73bcf25ab5f91',
+    ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalpushsecrets.secrets.infisical.com'): '0c54458642f347452e3c1e307e896d2ea5c1a22c5f1768b332afc99621b7b70e',
+    ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalsecrets.secrets.infisical.com'): 'c6c6ec44ebc89ec80d231892300bc43bc2bd2fe185b6e835c8a3c9db0b0b68c5',
+    ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalstaticsecrets.secrets.infisical.com'): '057ab7cb5b343dac044d627350c396056798bb2f4bb7096b87bbc7544eee45ad',
+    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-allow-api'): '1bb14b20a9170c739b56e6ca6068f31398cfdf3cf3ffb45d49a2a08245607200',
+    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-allow-dns'): '704e12ee3f8194423adb402329348ed0d97a368c7a46625ccd8458da99df139b',
+    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-allow-proxy'): '084c4f4e3958d10974120001b27db3d3b6f76649bc7937d085443948b568fe0f',
+    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-default-deny'): '61e257689c071585b4de18a8ae75566890376411ce3748f4834adc42c4e93af3',
+    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-proxy-allow-dns'): '8527d992addb62e7e87cd63c6fa8650440ada048ea35426eb6f79fcf87af6b0a',
+    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-proxy-allow-external-https'): '9dc44e4314ca42eb1d563535730ae20c811e9ae7ff99c8a5f875a9447f472e23',
+    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-proxy-allow-operator'): 'cbb771d5776b96882f18204d1b75b37cc01be3ba650ed88f4e69bde5756c7ee0',
+    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-proxy-default-deny'): '5e0ea313a3c00a2aaa59a9e19617d275d085f6c891370818091e72ac907b78a3',
+    ('v1', 'ConfigMap', 'shared-services', 'infisical-egress-proxy'): '7ad69c24d6a704d3e8fd6ce88480e61910a632148fb469ab0ee89c3bc63f6b24',
+    ('apps/v1', 'Deployment', 'shared-services', 'infisical-egress-proxy'): '7361d75e44463c631320c5a52c8637999fd4aaf69a2ede054f4e1f5922192240',
+    ('v1', 'Service', 'shared-services', 'infisical-egress-proxy'): 'bab34babc51d833e660dca64ddfd72850932f5c5c00fcb7294cbbce8b9f6de6e',
+    ('v1', 'ServiceAccount', 'shared-services', 'infisical-operator-controller'): 'bf36af4af47dc8c8b8df12c4b41855b036882180098131352634fc387920b792',
+    ('rbac.authorization.k8s.io/v1', 'Role', 'shared-services', 'infisical-operator-leader-election'): 'd5218ad9fc5e308d583f0d7aee1281bfd494ff59dc53d73b2ea5ea112f88c007',
+    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'shared-services', 'infisical-operator-leader-election'): 'dd46e7a333843000d89acfadddb4721fbbc76fb013d96f519b080e442786bfed',
+    ('rbac.authorization.k8s.io/v1', 'Role', 'argocd', 'infisical-operator-manager'): '3cfdec9ae3381288a8ee1f38c3ee767e0927b7b52e1a422093c4336b566c2cf6',
+    ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-dev', 'infisical-operator-manager'): 'fc7b9bec413011bebc7cb594c1dd879a45bd583f9f6b3ce79da796d405687d2f',
+    ('rbac.authorization.k8s.io/v1', 'Role', 'shared-services', 'infisical-operator-manager'): '93d4c93736c897f417d4b4852c60321869ce66a87a1460133a017adff0dd2c2f',
+    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'argocd', 'infisical-operator-manager'): '2c345c7df6437be34e1c720181b77541e3b81f657bcf42ab36c8c53884d1cf87',
+    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-dev', 'infisical-operator-manager'): '8da014ed8d1b35011c4fc0a0ef32a8a640d04827be6b339b912dc3b4ab7d08c6',
+    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'shared-services', 'infisical-operator-manager'): '9d6333a5979cdf887d1f13e1663c60b007d5b141d7da0ad74512d60eca61a26c',
+    ('v1', 'ServiceAccount', 'shared-services', 'infisical-egress-proxy'): 'f55214941e54d1215e8c9c8b9e383bc48248b753f707c3dd9436464fb4629ed4',
+}
+_EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
+_EXPECTED_TASK_SOURCE = (
+    "/Users/paul/Projects/cristexweb/ansible/roles/"
+    "infisical_operator_bootstrap/tasks/main.yml"
+)
+
+
+def _canonical_hash(value: dict[str, Any]) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+class ActionModule(KubernetesActionModule):
+    """Permit only the exact present-only Infisical idle closure."""
+
+    def run(self, tmp: str | None = None, task_vars: dict[str, Any] | None = None) -> dict[str, Any]:
+        start_at_task = context.CLIARGS.get("start_at_task")
+        step = bool(context.CLIARGS.get("step"))
+        tags = list(context.CLIARGS.get("tags") or [])
+        skip_tags = list(context.CLIARGS.get("skip_tags") or [])
+        task_source = str(self._task.get_path()).rsplit(":", 1)[0]
+        if task_source != _EXPECTED_TASK_SOURCE:
+            return {
+                "changed": False,
+                "failed": True,
+                "msg": (
+                    "ENTRYPOINT_GUARD: refusing Infisical mutation outside the "
+                    "canonical guarded role task source"
+                ),
+            }
+        args = self._task.args
+        definition = args.get("definition")
+        task_vars = task_vars or {}
+        token = os.environ.get("CRISTEXWEB_INFISICAL_BOOTSTRAP_TOKEN", "")
+        attestation_path = os.environ.get(
+            "CRISTEXWEB_INFISICAL_BOOTSTRAP_ATTESTATION_FILE", ""
+        )
+        binding = task_vars.get(
+            "infisical_operator_bootstrap_internal_preflight_binding", {}
+        )
+        try:
+            attestation_state = os.stat(attestation_path, follow_symlinks=False)
+            attestation_content = Path(attestation_path).read_text().strip()
+        except (OSError, ValueError):
+            attestation_state = None
+            attestation_content = ""
+        expected_attestation_sha256 = hashlib.sha256(token.encode()).hexdigest()
+        valid_binding = (
+            isinstance(binding, dict)
+            and binding.get("attestation_sha256") == expected_attestation_sha256
+            and int(binding.get("object_count", -1)) == 40
+            and int(binding.get("crd_count", -1)) == 6
+            and int(binding.get("prestate_count", -1)) == 40
+            and int(binding.get("proxy_secret_count", -1)) == 3
+            and binding.get("api_service_contract") is True
+            and binding.get("service_contract") is True
+        )
+        valid_attestation = (
+            os.environ.get("CRISTEXWEB_INFISICAL_BOOTSTRAP_ENTRYPOINT") == "v1"
+            and re.fullmatch(r"[0-9a-f]{64}", token) is not None
+            and attestation_state is not None
+            and stat.S_ISREG(attestation_state.st_mode)
+            and not stat.S_ISLNK(attestation_state.st_mode)
+            and stat.S_IMODE(attestation_state.st_mode) == 0o600
+            and attestation_state.st_uid == os.getuid()
+            and attestation_content == f"{token}:entrypoint"
+        )
+        if (
+            not valid_attestation
+            or not valid_binding
+            or task_vars.get("infisical_operator_bootstrap_approved") is not True
+            or task_vars.get("infisical_operator_bootstrap_state") != "present"
+        ):
+            return {
+                "changed": False,
+                "failed": True,
+                "msg": (
+                    "ENTRYPOINT_GUARD: refusing Infisical mutation without the "
+                    "validated wrapper attestation and complete preflight binding"
+                ),
+            }
+        definition = args.get("definition")
+        if set(args) != _EXPECTED_ARGUMENT_KEYS or args.get("state") != "present" or args.get("kubeconfig") != "/etc/rancher/k3s/k3s.yaml" or args.get("wait") is not False or args.get("wait_timeout") != 60 or not isinstance(definition, dict):
+            return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: refusing arguments outside the exact present-only Infisical closure"}
+        metadata = definition.get("metadata") or {}
+        identity = (definition.get("apiVersion"), definition.get("kind"), metadata.get("namespace", ""), metadata.get("name"))
+        if definition.get("kind") == "Secret" or _EXPECTED_OBJECT_HASHES.get(identity) != _canonical_hash(definition):
+            return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: refusing an unknown, changed, or Secret Infisical object"}
+        if start_at_task or step or tags not in ([], ["all"]) or skip_tags:
+            return {"changed": False, "failed": True, "msg": "TASK_SELECTION_GUARD: refusing Infisical mutation under task selection"}
+        original_action = self._task.action
+        self._task.action = "kubernetes.core.k8s"
+        try:
+            return super().run(tmp=tmp, task_vars=task_vars)
+        finally:
+            self._task.action = original_action

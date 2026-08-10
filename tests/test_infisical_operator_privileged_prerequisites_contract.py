@@ -251,7 +251,7 @@ class InfisicalPrivilegedPrerequisitesDesignContractTests(unittest.TestCase):
             {"apiVersion", "kind", "metadata", "spec"}.isdisjoint(self.policy)
         )
 
-    def test_no_deployable_source_or_operational_entrypoint_was_added(self) -> None:
+    def test_separate_promoted_source_preserves_namespace_closure(self) -> None:
         self.assertEqual(
             {
                 "platform/namespaces/argocd.yaml",
@@ -275,11 +275,19 @@ class InfisicalPrivilegedPrerequisitesDesignContractTests(unittest.TestCase):
             for path in root.rglob("*")
             if path.is_file()
         ]
-        self.assertFalse(
-            any("infisical" in path.name.lower() for path in operational), operational
+        self.assertEqual(
+            {
+                "bootstrap-infisical-operator",
+                "bootstrap-infisical-proxy-secrets",
+                "bootstrap_infisical_operator.yml",
+                "bootstrap_infisical_proxy_secrets.yml",
+                "main.yml",
+            },
+            {path.name for path in operational if "infisical" in str(path).lower()},
         )
         component_root = ROOT / "ansible/files/components/infisical-operator"
-        self.assertFalse(component_root.exists())
+        self.assertTrue(component_root.is_dir())
+        self.assertEqual(40, len(list(component_root.rglob("*.yaml"))))
 
     def test_runbook_and_references_preserve_design_only_boundary(self) -> None:
         normalized = " ".join(self.runbook.split())

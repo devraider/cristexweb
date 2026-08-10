@@ -1,0 +1,30 @@
+---
+- name: Reject direct Infisical action-only mutation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    infisical_operator_bootstrap_approved: true
+    infisical_operator_bootstrap_state: present
+    infisical_operator_bootstrap_internal_preflight_binding:
+      attestation_sha256: >-
+        {{ lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_BOOTSTRAP_TOKEN') |
+           ansible.builtin.hash('sha256') }}
+      object_count: 40
+      crd_count: 6
+      prestate_count: 40
+      proxy_secret_count: 3
+      api_service_contract: true
+      service_contract: true
+  tasks:
+    - name: Attempt one exact object without the guarded wrapper preflight
+      infisical_operator_guarded_k8s:
+        state: present
+        definition: >-
+          {{ lookup('ansible.builtin.file',
+                    playbook_dir ~
+                    '/../ansible/files/components/infisical-operator/crds/infisicalauths.yaml') |
+             from_yaml }}
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        wait: false
+        wait_timeout: 60

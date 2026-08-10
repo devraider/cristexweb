@@ -451,17 +451,16 @@ for any future Namespace or component.
 Ansible is selected as the future bounded bootstrap installer for exact foundational
 Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted
 Keycloak, and privileged CRD/cluster-RBAC prerequisites. Exact executable Namespace
-source exists for completed `shared-services` and idempotent `cristexhub-dev`; no
-Infisical, Argo, Keycloak,
-PostgreSQL, MongoDB, chart, Secret,
-workload, or component runtime approval exists from that decision. The source-only
+source exists for completed Namespaces. The
 [Infisical implementation profile](../runbooks/infisical-operator-implementation-profile.md)
-binds the official `v0.11.7` controller commit and selects exact watch Namespaces,
-separate identity intent with same-Namespace reference enforcement still blocked,
-metrics-off/no-ClusterGenerator privilege, authenticated-proxy egress, age/Drive
-secret-zero recovery direction, and a non-sensitive ConfigMap proof. Its full source
-archive is quarantined evidence only; it promotes no operational role/playbook/
-wrapper, Kubernetes object, proxy, credential, or runtime approval. The value-free
+remains canonical policy, and a dedicated guarded [Infisical bootstrap](../runbooks/infisical-operator-bootstrap.md) now promotes the
+exact 40-object idle closure: six namespaced CRDs, fail-closed same-Namespace
+admission, least-privilege namespaced RBAC, one metrics-off controller, authenticated
+TLS Squid, and eight NetworkPolicies. The archive remains quarantined evidence and is
+never consumed at runtime. No Secret value or Infisical CR is committed. Runtime is
+unrun and the wrapper fails before mutation until exact separately recovered proxy
+Secret metadata exists. Argo, Keycloak, PostgreSQL, MongoDB, and application runtime
+remain absent. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 future PostgreSQL and one future MongoDB engine in `shared-services`. CristexHub
 DEV/PROD have isolated scopes on both engines; Reactive Resume DEV/PROD and Keycloak
@@ -477,8 +476,14 @@ private DEV in MVP intent while keeping its image, callbacks, objects, Secrets, 
 runtime blocked. GitHub CI may run only syntax/lint and offline contracts from this
 source; it supplies no inventory and invokes no operational wrapper.
 
-Each future component requires a dedicated non-passthrough entrypoint and frozen
-source/object closure with separate check, apply, and idempotence approvals. Exact
+Each component requires a dedicated non-passthrough entrypoint and frozen
+source/object closure with separate check, apply, and idempotence evidence. For the
+Infisical idle closure, first use only
+`bin/bootstrap-infisical-proxy-secrets apply` to generate, age-encrypt, copy, restore-
+verify, and write the three circular proxy bootstrap values. Then use only
+`bin/bootstrap-infisical-operator check` followed by a separately reviewed `apply`;
+the same `apply` must later converge at `changed=0`. Both use existing `k3s-admin`
+kubeconfig access without sudo and accept no passthrough. Exact
 present-only source and the distinct `bin/bootstrap-foundation-namespaces` entrypoint
 exist for `shared-services`; check, separately approved first apply, and separately
 approved idempotence all passed, with the final run converging at `changed=0`. The

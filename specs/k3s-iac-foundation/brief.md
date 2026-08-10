@@ -56,7 +56,9 @@ reboot recovery playbook, and the executed temporary NetworkPolicy probe under
 `ansible/`. Effective-user readability, warning-free
 fresh-session cluster listing, both idempotence checks, SSH/Tailscale return, Ready
 node, and kubeconfig recovery passed.
-Python is used only for offline contract tests. One
+Python is used for offline contract tests and the three reviewed exact-scope Ansible
+action plugins that enforce mutation boundaries; no general-purpose operational
+Python or infrastructure collector exists. One
 approved non-elevated check/diff run produced
 a locally reviewed host report. A separately approved playbook directly requested
 only `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
@@ -156,23 +158,18 @@ single-node risk, soak, and runtime approvals remain blocked. A third source-onl
 [Infisical Operator candidate provenance record](../../runbooks/infisical-operator-candidate-provenance.md)
 distinguishes latest source release `v0.11.8`, whose matching public Cloudsmith chart
 entry/archive and Docker Hub image tag were not observed during the bounded capture,
-from the version-aligned `v0.11.7` set. The release record selects `v0.11.7` only
-for offline source authoring and Universal Auth as direction; it remains **NOT
-DEPLOYABLE**, runtime is **NOT RUN/BLOCKED**, and no CRD, Kubernetes object,
-credential, or Secret source was added. The inert
+from the version-aligned `v0.11.7` set. The inert
 [privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
-records the seven raw CRD templates and manager/metrics/user-RBAC defects without
-promoting a valid object, permission, values file, render, or Ansible entrypoint. The
-[implementation profile](../../runbooks/infisical-operator-implementation-profile.md)
-binds the official `v0.11.7` controller source and selects exact
-`shared-services`/`argocd`/`cristexhub-dev` watch and separate identity intent,
-metrics-off/no-ClusterGenerator privilege, authenticated Squid egress, age/Drive
-secret-zero recovery direction, and a non-sensitive ConfigMap proof. The full source
-archive is quarantined evidence only. Foundation Namespaces are complete, but
-chart/CRD/API compatibility, signer/build trust, exact RBAC/rendering, same-Namespace
-reference enforcement, proxy image/config, Argo handoff, secret-zero recovery,
-traffic proof, single-node risk, and runtime remain blocked; no embedded archive
-artifact is promoted as operational source.
+remains historical evidence. The [implementation profile](../../runbooks/infisical-operator-implementation-profile.md)
+binds the official source, and the guarded
+[idle bootstrap](../../runbooks/infisical-operator-bootstrap.md) promotes exactly 40
+value-free objects: six namespaced CRDs, six native admission policies/bindings,
+exact namespaced RBAC, one metrics-off controller, authenticated TLS Squid, and eight
+NetworkPolicies. The archive remains quarantined and is not a runtime input. Runtime
+is **NOT RUN/BLOCKED** until the separately recovered proxy Secrets and guarded
+check/apply/idempotence, live admission/RBAC/traffic, and idle health pass. No
+Infisical CR, Universal Auth value, application Secret, PROD scope, or self-hosted
+Infisical server is included.
 Provider initialization, state, plan, and apply also remain unrun.
 Beyond the bounded public-source evidence reads, this deliverable performs no host
 mutation, authenticated Cloudflare/GitHub/Infisical/registry operation, database,

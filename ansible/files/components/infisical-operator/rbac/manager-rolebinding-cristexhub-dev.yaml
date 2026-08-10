@@ -1,0 +1,18 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: infisical-operator-manager
+  namespace: cristexhub-dev
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: infisical-operator-manager
+subjects:
+  - kind: ServiceAccount
+    name: infisical-operator-controller
+    namespace: shared-services

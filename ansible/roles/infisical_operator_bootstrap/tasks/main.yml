@@ -1,0 +1,412 @@
+---
+- name: Reject externally supplied Infisical bootstrap internal variables
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied Infisical bootstrap
+      internal variable {{ item }}.
+  loop:
+    - infisical_operator_bootstrap_internal_attestation_state
+    - infisical_operator_bootstrap_internal_manifest_states
+    - infisical_operator_bootstrap_internal_manifests
+    - infisical_operator_bootstrap_internal_crds
+    - infisical_operator_bootstrap_internal_runtime_objects
+    - infisical_operator_bootstrap_internal_service_facts_before
+    - infisical_operator_bootstrap_internal_kubeconfig_state
+    - infisical_operator_bootstrap_internal_api_service
+    - infisical_operator_bootstrap_internal_proxy_secrets
+    - infisical_operator_bootstrap_internal_prestate
+    - infisical_operator_bootstrap_internal_preflight_binding
+    - infisical_operator_bootstrap_internal_crd_apply
+    - infisical_operator_bootstrap_internal_crd_state
+    - infisical_operator_bootstrap_internal_runtime_apply
+    - infisical_operator_bootstrap_internal_poststate
+    - infisical_operator_bootstrap_internal_controller_state
+    - infisical_operator_bootstrap_internal_proxy_state
+    - infisical_operator_bootstrap_internal_service_facts_after
+  changed_when: false
+
+- name: Require the Infisical bootstrap approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - infisical_operator_bootstrap_approved | bool
+      - infisical_operator_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - infisical_operator_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - infisical_operator_bootstrap_repository_root == (playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname)
+      - infisical_operator_bootstrap_manifest_paths | length == infisical_operator_bootstrap_object_count
+      - infisical_operator_bootstrap_object_count == 40
+      - infisical_operator_bootstrap_crd_count == 6
+    fail_msg: >-
+      Infisical bootstrap requires the exact wrapper, present-only approval,
+      --diff, one-host limit, protected kubeconfig, and 40-object closure.
+  changed_when: false
+
+- name: Inspect the ephemeral Infisical bootstrap attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_BOOTSTRAP_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: infisical_operator_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run Infisical bootstrap attestation
+  ansible.builtin.assert:
+    that:
+      - infisical_operator_bootstrap_internal_attestation_state.stat.exists | default(false)
+      - infisical_operator_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (infisical_operator_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - infisical_operator_bootstrap_internal_attestation_state.stat.pw_name == infisical_operator_bootstrap_controller_user
+      - infisical_operator_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_INFISICAL_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing a missing, reusable, foreign-owned, symlinked, or invalid attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect every exact Infisical manifest leaf
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ infisical_operator_bootstrap_manifest_paths }}"
+  register: infisical_operator_bootstrap_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+
+- name: Require canonical hash-bound Infisical manifest leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == infisical_operator_bootstrap_controller_user
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - item.stat.checksum == infisical_operator_bootstrap_expected_hashes[item.item]
+      - >-
+        item.item.startswith(infisical_operator_bootstrap_repository_root ~
+        '/ansible/files/components/infisical-operator/')
+    fail_msg: Refusing missing, unsafe, mode-drifted, or hash-drifted Infisical source.
+  loop: "{{ infisical_operator_bootstrap_internal_manifest_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  delegate_to: localhost
+  changed_when: false
+
+- name: Load the exact Infisical object closure
+  ansible.builtin.set_fact:
+    infisical_operator_bootstrap_internal_manifests: >-
+      {{ (infisical_operator_bootstrap_internal_manifests | default([])) +
+         [(lookup('ansible.builtin.file', item) | from_yaml)] }}
+  loop: "{{ infisical_operator_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact CRD and runtime object partitions
+  ansible.builtin.set_fact:
+    infisical_operator_bootstrap_internal_crds: >-
+      {{ infisical_operator_bootstrap_internal_manifests |
+         selectattr('kind', 'equalto', 'CustomResourceDefinition') | list }}
+    infisical_operator_bootstrap_internal_runtime_objects: >-
+      {{ infisical_operator_bootstrap_internal_manifests |
+         rejectattr('kind', 'equalto', 'CustomResourceDefinition') | list }}
+  changed_when: false
+  no_log: true
+
+- name: Require the exact value-free Infisical object inventory
+  ansible.builtin.assert:
+    that:
+      - infisical_operator_bootstrap_internal_manifests | length == 40
+      - infisical_operator_bootstrap_internal_crds | length == 6
+      - infisical_operator_bootstrap_internal_runtime_objects | length == 34
+      - infisical_operator_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - infisical_operator_bootstrap_internal_manifests | selectattr('metadata.name', 'search', 'clustergenerator') | list | length == 0
+      - infisical_operator_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ClusterRole') | list | length == 0
+      - infisical_operator_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ClusterRoleBinding') | list | length == 0
+    fail_msg: Refusing Infisical source outside the exact 40-object value-free closure.
+  changed_when: false
+
+- name: Capture service facts before Infisical bootstrap
+  ansible.builtin.service_facts:
+  register: infisical_operator_bootstrap_internal_service_facts_before
+
+- name: Require k3s and Tailscale before Infisical bootstrap
+  ansible.builtin.assert:
+    that:
+      - infisical_operator_bootstrap_internal_service_facts_before.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - infisical_operator_bootstrap_internal_service_facts_before.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: k3s and tailscaled must already be running.
+  changed_when: false
+
+- name: Inspect the protected k3s kubeconfig
+  ansible.builtin.stat:
+    path: "{{ infisical_operator_bootstrap_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: infisical_operator_bootstrap_internal_kubeconfig_state
+  no_log: true
+
+- name: Require group-scoped k3s administrator access without sudo
+  ansible.builtin.assert:
+    that:
+      - infisical_operator_bootstrap_internal_kubeconfig_state.stat.exists | default(false)
+      - infisical_operator_bootstrap_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (infisical_operator_bootstrap_internal_kubeconfig_state.stat.islnk | default(false))
+      - infisical_operator_bootstrap_internal_kubeconfig_state.stat.pw_name == 'root'
+      - infisical_operator_bootstrap_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+      - infisical_operator_bootstrap_internal_kubeconfig_state.stat.mode == '0640'
+    fail_msg: Refusing bootstrap without the established root:k3s-admin mode-0640 kubeconfig.
+  changed_when: false
+  no_log: true
+
+- name: Query the Kubernetes API Service identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Service
+    namespace: default
+    name: kubernetes
+    kubeconfig: "{{ infisical_operator_bootstrap_kubeconfig }}"
+  register: infisical_operator_bootstrap_internal_api_service
+  changed_when: false
+  no_log: true
+
+- name: Require the policy-bound Kubernetes API Service address
+  ansible.builtin.assert:
+    that:
+      - infisical_operator_bootstrap_internal_api_service.resources | length == 1
+      - infisical_operator_bootstrap_internal_api_service.resources[0].spec.clusterIP == '10.43.0.1'
+      - 443 in (infisical_operator_bootstrap_internal_api_service.resources[0].spec.ports | map(attribute='port') | list)
+    fail_msg: Refusing API egress policy against a drifted Kubernetes Service address.
+  changed_when: false
+  no_log: true
+
+- name: Query exact proxy bootstrap Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: shared-services
+    name: "{{ item.key }}"
+    kubeconfig: "{{ infisical_operator_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_operator_bootstrap_proxy_secret_contract | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: infisical_operator_bootstrap_internal_proxy_secrets
+  changed_when: false
+  no_log: true
+
+- name: Require precreated exact proxy bootstrap Secret keys
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.namespace == 'shared-services'
+      - (item.resources[0].data | default({})).keys() | list | sort == item.item.value | sort
+      - >-
+        item.item.key != 'infisical-egress-proxy-tls' or
+        item.resources[0].type == 'kubernetes.io/tls'
+      - >-
+        item.item.key == 'infisical-egress-proxy-tls' or
+        item.resources[0].type == 'Opaque'
+    fail_msg: >-
+      Proxy bootstrap Secret metadata is absent or drifted. Values must be created
+      by the separate interactive secret-zero procedure before check/apply.
+  loop: "{{ infisical_operator_bootstrap_internal_proxy_secrets.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  changed_when: false
+  no_log: true
+
+- name: Query exact Infisical object pre-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace | default(omit) }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ infisical_operator_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_operator_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.namespace | default('cluster') }}/{{ item.metadata.name }}"
+  register: infisical_operator_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Refuse foreign existing Infisical objects
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - >-
+        item.resources | length == 0 or
+        ((item.resources[0].metadata.labels | default({})).get(
+        'app.kubernetes.io/managed-by', '') == 'ansible' and
+        (item.resources[0].metadata.labels | default({})).get(
+        'cristex.io/component', '') == 'infisical-operator')
+    fail_msg: Refusing silent adoption of a foreign Infisical object.
+  loop: "{{ infisical_operator_bootstrap_internal_prestate.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind the protected Infisical preflight to this run
+  ansible.builtin.set_fact:
+    infisical_operator_bootstrap_internal_preflight_binding:
+      attestation_sha256: >-
+        {{ lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_BOOTSTRAP_TOKEN') |
+           ansible.builtin.hash('sha256') }}
+      object_count: "{{ infisical_operator_bootstrap_internal_manifests | length }}"
+      crd_count: "{{ infisical_operator_bootstrap_internal_crds | length }}"
+      prestate_count: "{{ infisical_operator_bootstrap_internal_prestate.results | length }}"
+      proxy_secret_count: "{{ infisical_operator_bootstrap_internal_proxy_secrets.results | length }}"
+      api_service_contract: true
+      service_contract: true
+  changed_when: false
+  no_log: true
+
+- name: Reconcile only the six approved Infisical CRDs
+  infisical_operator_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    wait: false
+    wait_timeout: 60
+  loop: "{{ infisical_operator_bootstrap_internal_crds }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: infisical_operator_bootstrap_internal_crd_apply
+  when:
+    - infisical_operator_bootstrap_internal_preflight_binding.object_count | int == 40
+    - infisical_operator_bootstrap_internal_preflight_binding.crd_count | int == 6
+    - infisical_operator_bootstrap_internal_preflight_binding.prestate_count | int == 40
+    - infisical_operator_bootstrap_internal_preflight_binding.proxy_secret_count | int == 3
+    - infisical_operator_bootstrap_internal_preflight_binding.api_service_contract | bool
+    - infisical_operator_bootstrap_internal_preflight_binding.service_contract | bool
+    - infisical_operator_bootstrap_approved | bool
+    - infisical_operator_bootstrap_state == 'present'
+    - ansible_diff_mode
+
+- name: Wait for the six Infisical CRDs to become established
+  kubernetes.core.k8s_info:
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ infisical_operator_bootstrap_kubeconfig }}"
+    wait: true
+    wait_timeout: 60
+    wait_condition:
+      type: Established
+      status: "True"
+  loop: "{{ infisical_operator_bootstrap_internal_crds }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: infisical_operator_bootstrap_internal_crd_state
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Reconcile only the approved Infisical runtime objects
+  infisical_operator_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    wait: false
+    wait_timeout: 60
+  loop: "{{ infisical_operator_bootstrap_internal_runtime_objects }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.namespace | default('cluster') }}/{{ item.metadata.name }}"
+  register: infisical_operator_bootstrap_internal_runtime_apply
+  when:
+    - infisical_operator_bootstrap_internal_preflight_binding.object_count | int == 40
+    - infisical_operator_bootstrap_internal_preflight_binding.crd_count | int == 6
+    - infisical_operator_bootstrap_internal_preflight_binding.prestate_count | int == 40
+    - infisical_operator_bootstrap_internal_preflight_binding.proxy_secret_count | int == 3
+    - infisical_operator_bootstrap_approved | bool
+    - infisical_operator_bootstrap_state == 'present'
+    - ansible_diff_mode
+
+- name: Requery exact Infisical object post-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace | default(omit) }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ infisical_operator_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_operator_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: infisical_operator_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require every exact Infisical object after apply
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.metadata.name
+      - (item.resources[0].metadata.labels | default({})).get('app.kubernetes.io/managed-by', '') == 'ansible'
+      - (item.resources[0].metadata.labels | default({})).get('cristex.io/component', '') == 'infisical-operator'
+    fail_msg: The exact Infisical object closure was not preserved after apply.
+  loop: "{{ infisical_operator_bootstrap_internal_poststate.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Wait for the Infisical controller to become Available
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: shared-services
+    name: infisical-operator-controller
+    kubeconfig: "{{ infisical_operator_bootstrap_kubeconfig }}"
+    wait: true
+    wait_timeout: 180
+    wait_condition:
+      type: Available
+      status: "True"
+  register: infisical_operator_bootstrap_internal_controller_state
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Wait for the Infisical egress proxy to become Available
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: shared-services
+    name: infisical-egress-proxy
+    kubeconfig: "{{ infisical_operator_bootstrap_kubeconfig }}"
+    wait: true
+    wait_timeout: 180
+    wait_condition:
+      type: Available
+      status: "True"
+  register: infisical_operator_bootstrap_internal_proxy_state
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Capture service facts after Infisical bootstrap
+  ansible.builtin.service_facts:
+  register: infisical_operator_bootstrap_internal_service_facts_after
+
+- name: Require k3s and Tailscale after Infisical bootstrap
+  ansible.builtin.assert:
+    that:
+      - infisical_operator_bootstrap_internal_service_facts_after.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - infisical_operator_bootstrap_internal_service_facts_after.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: Infisical bootstrap must not stop k3s or tailscaled.
+  changed_when: false

@@ -113,7 +113,7 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
 
     def test_selected_profile_is_exact_separated_and_fail_closed(self) -> None:
         self.assertEqual(
-            "source-readiness-decisions-selected-runtime-blocked",
+            "deployable-idle-source-selected-runtime-blocked",
             self.policy["policy_status"],
         )
         self.assertEqual(SOURCE_COMMIT, self.policy["source"]["commit"])
@@ -178,7 +178,7 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
         self.assertTrue(boundary["same_namespace_credential_reference_required"])
         self.assertTrue(boundary["same_namespace_source_and_target_required"])
         self.assertFalse(boundary["cross_namespace_references_allowed"])
-        self.assertFalse(boundary["enforcement_source_selected"])
+        self.assertTrue(boundary["enforcement_source_selected"])
         self.assertFalse(boundary["negative_cross_namespace_tests_proved"])
 
     def test_proxy_secret_zero_and_smoke_profiles_are_selected_but_not_deployable(self) -> None:
@@ -186,7 +186,8 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
         self.assertEqual("separate-authenticated-squid-proxy", egress["architecture"])
         self.assertEqual("app.infisical.com", egress["allowed_hostname"])
         self.assertEqual(443, egress["allowed_port"])
-        self.assertFalse(egress["proxy_image_selected"])
+        self.assertTrue(egress["proxy_image_selected"])
+        self.assertTrue(egress["proxy_config_selected"])
         self.assertFalse(egress["broad_direct_443_allowed"])
 
         secret_zero = self.policy["secret_zero_profile"]
@@ -208,6 +209,10 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
                 "foundation_namespaces_proved",
                 "source_controller_audit_complete",
                 "technical_profile_selected",
+                "proxy_image_and_config_selected",
+                "same_namespace_reference_enforcement_source_selected",
+                "deployable_kubernetes_source_allowed",
+                "operational_ansible_source_allowed",
             },
             {key for key, value in gates.items() if value is True},
         )
@@ -220,11 +225,15 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
                     "foundation_namespaces_proved",
                     "source_controller_audit_complete",
                     "technical_profile_selected",
+                    "proxy_image_and_config_selected",
+                    "same_namespace_reference_enforcement_source_selected",
+                    "deployable_kubernetes_source_allowed",
+                    "operational_ansible_source_allowed",
                 }
             )
         )
 
-    def test_no_deployable_source_and_docs_preserve_runtime_boundary(self) -> None:
+    def test_deployable_source_preserves_namespace_and_runtime_boundaries(self) -> None:
         self.assertEqual(
             {
                 "platform/namespaces/argocd.yaml",
@@ -249,14 +258,25 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
             for path in root.rglob("*")
             if path.is_file() and "__pycache__" not in path.parts
         ]
-        self.assertFalse(
-            any("infisical" in path.name.lower() for path in operational), operational
+        self.assertEqual(
+            {
+                "bootstrap-infisical-operator",
+                "bootstrap-infisical-proxy-secrets",
+                "bootstrap_infisical_operator.yml",
+                "bootstrap_infisical_proxy_secrets.yml",
+                "main.yml",
+                "infisical_operator_guarded_k8s.py",
+                "infisical_proxy_secret_zero_guarded_k8s.py",
+            },
+            {path.name for path in operational if "infisical" in str(path).lower()},
         )
-        self.assertFalse((ROOT / "ansible/files/components/infisical-operator").exists())
+        component_root = ROOT / "ansible/files/components/infisical-operator"
+        self.assertTrue(component_root.is_dir())
+        self.assertEqual(40, len(list(component_root.rglob("*.yaml"))))
 
         normalized = " ".join(self.runbook.split())
         for required in (
-            "TECHNICAL PROFILE SELECTED — DEPLOYABLE SOURCE BLOCKED",
+            "GUARDED IDLE SOURCE READY — RUNTIME NOT RUN/BLOCKED",
             "shared-services`, `argocd`, and `cristexhub-dev",
             "separate identity and credential scope",
             "ClusterGenerator has no reconciler or eager watch",
@@ -266,7 +286,7 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
             "separate authenticated Squid proxy",
             "age-encrypted off-node copy",
             "non-sensitive ConfigMap",
-            "No promoted or repository-operational Kubernetes object or Ansible source",
+            "40 hash-bound objects",
         ):
             self.assertIn(required, normalized)
         for relative in (

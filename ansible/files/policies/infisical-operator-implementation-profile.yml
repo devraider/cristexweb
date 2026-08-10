@@ -1,5 +1,6 @@
+---
 policy_schema: cristex-infisical-operator-implementation-profile-v1
-policy_status: source-readiness-decisions-selected-runtime-blocked
+policy_status: deployable-idle-source-selected-runtime-blocked
 capability: exact-technical-profile-and-commit-source-audit
 source:
   component: infisical-kubernetes-operator
@@ -14,6 +15,9 @@ source:
   evidence_archive_operational_input_allowed: false
   chart_version: v0.11.7
   chart_archive_sha256: 7f8846c4f6b1cdca2cea23cf00a29d12a38f42eb8da8e125dc196a1e5683aea8
+  promoted_manifest_root: ansible/files/components/infisical-operator
+  promoted_object_count: 40
+  promoted_crd_count: 6
 runtime_profile:
   controller_namespace: shared-services
   watched_namespaces:
@@ -102,7 +106,7 @@ reference_boundary:
   same_namespace_source_and_target_required: true
   cross_namespace_references_allowed: false
   restricted_cr_authorship_required: true
-  enforcement_source_selected: false
+  enforcement_source_selected: true
   negative_cross_namespace_tests_proved: false
 secret_zero_profile:
   authentication_mechanism: universal-auth
@@ -123,9 +127,11 @@ egress_profile:
   broad_direct_443_allowed: false
   operator_direct_internet_allowed: false
   private_and_special_destination_denies_required: true
-  proxy_image_selected: false
+  proxy_image_selected: true
   proxy_authentication_material_selected: false
-  exact_network_policy_source_allowed: false
+  exact_network_policy_source_allowed: true
+  proxy_image: docker.io/ubuntu/squid@sha256:94f844158e12b52f51b4ae996515e37e8fb3e8d85e1c86caba1a297376e4ec4f
+  proxy_config_selected: true
 smoke_profile:
   namespace: cristexhub-dev
   identity_access: read-only
@@ -152,20 +158,20 @@ promotion_gates:
   image_signature_or_attestation_identity_verified: false
   image_sbom_vulnerability_disposition_accepted: false
   encrypted_off_node_image_recovery_proved: false
-  proxy_image_and_config_selected: false
+  proxy_image_and_config_selected: true
   proxy_compatibility_proved: false
   secret_zero_recovery_proved: false
   generated_value_rotation_revocation_proved: false
   same_namespace_reference_enforcement_proved: false
-  deployable_kubernetes_source_allowed: false
-  operational_ansible_source_allowed: false
+  deployable_kubernetes_source_allowed: true
+  operational_ansible_source_allowed: true
   runtime_allowed: false
+  same_namespace_reference_enforcement_source_selected: true
 prohibited_by_this_increment:
-  - promoted-or-repository-operational-valid-kubernetes-object-source
-  - evidence-archive-use-as-runtime-input
-  - operational-ansible-wrapper-playbook-role-or-action
-  - credential-or-secret-value
-  - infisical-custom-resource
-  - proxy-runtime-source
-  - network-policy-runtime-source
-  - cluster-api-or-infisical-runtime-operation
+  - credential-or-secret-value-in-git
+  - infisical-custom-resource-before-secret-zero-proof
+  - cluster-generator-crd-reference-or-permission
+  - metrics-service-or-authorization
+  - prod-namespace-scope-or-credential
+  - cluster-api-or-infisical-runtime-operation-without-guarded-entrypoint
+  - self-hosted-infisical-server

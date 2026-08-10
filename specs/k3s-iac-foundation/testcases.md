@@ -64,7 +64,9 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator provenance and selection boundary | Historical evidence distinguishes unselected `v0.11.8` distribution observations from the aligned `v0.11.7` set selected only as the offline baseline; trust, compatibility, scoped RBAC, Universal Auth recovery, traffic, and runtime remain blocked | PASS — focused contracts enforce exact evidence associations, qualified trust wording, immutable child direction, and no deployable controller source or Secret |
 | KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—without adding valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source | PASS — inventory remains inert; completed foundation Namespaces and the separately selected watch profile are now truthful gates while all deployable/runtime gates remain false |
 | KIF-INF-03 | KIF-005, KIF-013–KIF-016, KIF-021, KIF-023, KIF-030 | Infisical source audit and implementation profile | Hash-bind official `v0.11.7` controller commit as quarantined evidence and prove controller/auth/ClusterGenerator behavior; select exact three-Namespace separate-identity intent, metrics-off, no cluster manager/generator/review-token permission, authenticated Squid direction, age/Drive secret-zero direction, and non-sensitive ConfigMap proof while same-Namespace enforcement remains blocked | PASS SOURCE-ONLY — 6 focused/64 affected/165 full contracts, source hashes, compile, Markdown, and diff checks pass; no embedded artifact is promoted as Kubernetes/Ansible/proxy/credential/runtime source |
-| KIF-SRC-01 | KIF-005, KIF-010, KIF-013–KIF-015, KIF-023, KIF-030 | Deterministic hosted source-baseline closure | Exact release records, value-free identity/authorization policy, chart/provenance/public-key bytes, SHA256SUMS, safe chart roots, exact four-Namespace closure, and absence of component operational source are enforced offline | PASS — source-selection plus affected provenance/design/layout contracts pass; exact hashes verified; no live/runtime operation or staged file |
+| KIF-INF-04 | KIF-005, KIF-013–KIF-016, KIF-021, KIF-023, KIF-030 | Guarded Infisical idle deployable closure | Promote exactly six hash-mapped namespaced CRDs, six fail-closed same-Namespace admission policies/bindings, exact three-Namespace read-only target RBAC, metrics-off digest-pinned Operator, authenticated TLS Squid, proxy-only egress, and a 40-object guarded check/apply path; commit no Secret value, Infisical CR, PROD scope, or self-hosted server | PASS SOURCE / RUNTIME NOT RUN — 15 focused/180 full contracts, 12 syntax checks, production lint, Operator/proxy action-only, task-start/injection fixtures, hashes/docs/diff pass; live check/apply/idempotence remain required |
+| KIF-INF-05 | KIF-005, KIF-013–KIF-015, KIF-023, KIF-027, KIF-030 | Infisical proxy secret-zero recovery and write | Generate exact TLS/Basic/client material only in a private temp directory; age-encrypt it, copy and read-back verify it off-node, then write exactly three no-log Secrets through a guarded action | STOPPED BEFORE KUBERNETES — first run exposed a late-cleanup defect; residue/artifacts were removed unread. An unused age identity exposed during local debugging was revoked/regenerated before upload or Kubernetes. Hardened retry proved cleanup, encrypted-pending resume, Keychain copy, and zero Kubernetes Secrets, then stopped on Drive `invalid_grant` |
+| KIF-SRC-01 | KIF-005, KIF-010, KIF-013–KIF-015, KIF-023, KIF-030 | Deterministic hosted source-baseline closure | Exact release records, value-free identity/authorization policy, chart/provenance/public-key bytes, SHA256SUMS, safe chart roots, exact four-Namespace manifest closure, and exact allowlisted component source are enforced offline | PASS — source-selection plus affected provenance/design/layout contracts pass; exact hashes verified; no live/runtime operation or staged file |
 | KIF-NS-04 | KIF-002, KIF-003, KIF-005, KIF-013–KIF-017, KIF-021, KIF-026–KIF-030 | Shared-services placement correction | Replace never-run `platform-secrets`/`platform-identity` source with one exact present-only `shared-services` Namespace; reserve `platform-edge` for cloudflared; place Infisical Operator, separate Keycloak, and one general PostgreSQL instance in commons intent; give Keycloak only a dedicated logical database/role/credential on that engine | PASS — 78 focused and 115 full offline tests, 9 syntax checks, production lint, fail-closed fixtures, archive hashes, links, closure, hygiene, and historical-source preservation passed; no discovery, check, apply, deletion, workload, Secret, database, route, or runtime operation |
 | KIF-NS-05 | KIF-002, KIF-005, KIF-016, KIF-030 | Shared-services Namespace runtime | A successful wrapper check predicts only the absent exact `shared-services` Namespace; separately approved first apply creates/verifies it; separately approved idempotence converges at changed=0 | PASS — check retry passed at `ok=20 changed=1 failed=0`; first apply passed at `ok=22 changed=1 failed=0`; separately approved idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact identity/three labels/`Active` and k3s/Tailscale health preserved. No component was deployed |
 | KIF-NS-06 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub DEV Namespace source and runtime | Dedicated guarded source reconciles only `cristexhub-dev` with four approved labels and present-only semantics; check predicts only that Namespace without mutation; first apply creates/verifies it; idempotence converges; PROD and all other kinds remain absent | PASS — check passed at `ok=20 changed=1 failed=0 skipped=2`; first apply passed at `ok=22 changed=1 failed=0 skipped=0`; idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact labels/`Active` and service health preserved |
@@ -3039,6 +3041,88 @@ cross-Namespace reference-isolation overclaim, release-selection closure, comple
 gate regression, and ClusterGenerator lazy-informer wording. Final rereview confirmed
 exactly three true gates, no operational archive consumer, and blocked deployable/
 runtime source and returned **APPROVED**.
+
+## Infisical guarded idle deployable-source validation — 2026-08-10
+
+The [guarded bootstrap runbook](../../runbooks/infisical-operator-bootstrap.md)
+records the exact value-free closure. This checkpoint authored source only. It used no
+inventory, SSH, kubeconfig, Kubernetes API, Infisical account/API, Google Drive,
+Secret value, check, apply, or runtime mutation.
+
+```text
+.venv/bin/python -m unittest -v tests.test_infisical_operator_bootstrap_contract
+PASS: 15 focused contracts
+
+.venv/bin/python -m unittest discover -s tests
+PASS: 180 full offline contracts
+
+cd ansible
+for playbook in playbooks/*.yml; do
+  ../.venv/bin/ansible-playbook "$playbook" --syntax-check
+done
+PASS: 12 playbook syntax checks
+
+cd ansible && ../.venv/bin/ansible-lint --profile production
+PASS: 0 failures, 0 warnings; production profile
+
+.venv/bin/python -m py_compile \
+  ansible/plugins/action/infisical_operator_guarded_k8s.py \
+  ansible/plugins/action/infisical_proxy_secret_zero_guarded_k8s.py \
+  tests/test_infisical_operator_bootstrap_contract.py
+sh -n ansible/bin/bootstrap-infisical-operator \
+  ansible/bin/bootstrap-infisical-proxy-secrets \
+  tests/validate_infisical_operator_clean_controller.sh
+bash -n tests/reject_infisical_operator_task_start.sh
+PASS: Python and shell syntax
+
+tests/validate_infisical_operator_clean_controller.sh
+tests/reject_infisical_operator_task_start.sh
+cd ansible && ../.venv/bin/ansible-playbook -i localhost, \
+  ../tests/reject_infisical_operator_internal_injection.yml \
+  -e infisical_operator_bootstrap_internal_preflight_binding=forged
+PASS: clean controller, direct action-only guard, combined task-start/injected
+binding, and first-task internal-variable fixtures
+
+YAML parse and inventory contract
+PASS: 40 single-document objects; exact kind/name/namespace closure; zero Secret,
+ClusterRole, ClusterRoleBinding, ClusterGenerator, metrics Service, route, or PROD
+object
+
+CRD source mapping and MANIFESTS.sha256
+PASS: six promoted namespaced CRDs map to exact hash-bound chart templates; all 40
+manifest hashes match; action guard contains 40 canonical object hashes
+
+Markdown links/hygiene and git diff --check
+PASS: documentation links resolve, no trailing whitespace, no staged files
+```
+
+The source selects six CRDs, six `failurePolicy: Fail` admission policies and six
+Deny bindings, three manager Roles/Bindings, exact leader-election RBAC, two
+ServiceAccounts, one authenticated TLS Squid ConfigMap/Service/Deployment, one
+metrics-off Operator Deployment, and eight NetworkPolicies. The controller watches
+only `shared-services`, `argocd`, and `cristexhub-dev`; ClusterGenerator,
+review/token permissions, metrics, direct Internet 443, self-hosted Infisical, and
+PROD remain absent.
+
+The install check intentionally fails before mutation until the runtime-only proxy
+TLS, NCSA, and authenticated URL Secrets exist with exact metadata. The guarded
+secret-zero writer source generates these values, requires age-encrypted local and
+Google Drive recovery verification before mutation, and exposes no check/diff mode.
+Its first live attempt stopped before Ansible/Kubernetes because the existing Drive
+OAuth refresh returned `invalid_grant`. Independent review found that the original
+cleanup trap was installed too late; the exact mode-0700 plaintext temp residue and
+unused encrypted artifact/checksum were removed without reading their content. A
+subsequent local debug trace disclosed the unused age identity; it was immediately
+revoked and regenerated before any archive upload or Kubernetes mutation, and the
+trace was removed. The hardened retry again stopped on `invalid_grant` but proved its
+early cleanup, one encrypted pending bundle/checksum, redundant login-Keychain
+identity, and zero Kubernetes Secrets. The writer now resumes that exact bundle,
+verifies downloaded ciphertext/checksum/decrypt and TLS/key/auth relationships,
+refuses foreign Secret adoption and implicit rotation, and has direct Operator/proxy
+action negatives. Drive OAuth reauthorization remains the only recovery-write blocker. Live CRD/CEL
+admission, image pull/behavior, proxy TLS/auth, NetworkPolicy, controller readiness,
+RBAC negatives, check, first apply, idempotence, Universal Auth, and ConfigMap sync
+are **NOT RUN/BLOCKED** at this source checkpoint.
 
 ## Future validation contract
 

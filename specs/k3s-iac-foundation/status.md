@@ -2,15 +2,17 @@
 
 state: agent:in-progress
 phase: implementing
-build: Infisical source-only implementation profile passes 6 focused/64 affected/165 full contracts and review APPROVED; exact source/hash/profile evidence; deployable source/runtime blocked
-date: 2026-08-09
+build: guarded Infisical idle/secret-zero source passes 15 focused/180 full contracts, 12 syntax checks, production lint, fixtures, hashes/docs/diff; hardened Drive OAuth retry cleaned/resumed and stopped before Kubernetes
+date: 2026-08-10
 deploy_required_after_acceptance: yes
 
 note: |
   Operational implementation is limited to read-only Ansible discovery, the
   executed two-package dependency bootstrap, executed group-scoped k3s administrator
   access, executed user-scoped kubectl client defaults, and the executed one-reboot
-  recovery verifier; Python is limited to offline contract tests. One
+  recovery verifier. Python is limited to offline tests plus the three reviewed
+  exact-scope Ansible mutation-guard action plugins; no general operational Python
+  or collector exists. One
   explicitly approved SSH ping and
   non-elevated one-host check/diff run passed and generated the ignored mode-0600
   host-only report. The approved bootstrap directly requested only
@@ -168,23 +170,32 @@ note: |
   [Infisical Operator candidate provenance record](../../runbooks/infisical-operator-candidate-provenance.md)
   distinguishes latest source release `v0.11.8`, whose matching public chart archive
   and image tag were not observed during the bounded capture, from the version-aligned
-  `v0.11.7` chart/source/image set. The release record selects `v0.11.7` only for
-  offline source authoring and Universal Auth as direction; it remains **NOT
-  DEPLOYABLE**, runtime is **NOT RUN/BLOCKED**, and no CRD, Kubernetes object,
-  credential, or Secret source was added. The inert
+  `v0.11.7` chart/source/image set. The release and inert
   [privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
-  binds the seven raw CRD templates, ownership boundaries, and known
-  manager/metrics/user-RBAC defects to the vendored archive while approving no
-  object or permission. The source-only
+  remain historical evidence. The
   [implementation profile](../../runbooks/infisical-operator-implementation-profile.md)
-  binds the official controller commit as a quarantined evidence archive and selects
-  the exact three-Namespace watch/separate-identity intent, metrics-off/no-
-  ClusterGenerator privilege, authenticated Squid egress direction, age/Drive secret-
-  zero recovery direction, and non-sensitive ConfigMap proof. Foundation Namespace,
-  source-audit, and technical-profile gates are evidenced; chart/CRD/API
-  compatibility, signer/build trust, exact RBAC/render, same-Namespace reference
-  enforcement, proxy image/config, Argo handoff, secret-zero recovery, traffic proof,
-  single-node acceptance, and runtime remain blockers.
+  binds the official controller source and selected three-Namespace, Universal Auth,
+  metrics-off, no-ClusterGenerator, proxy, recovery, and ConfigMap-proof profile.
+  The quarantined source archive remains forbidden as an operational input.
+  The separate guarded
+  [bootstrap closure](../../runbooks/infisical-operator-bootstrap.md) now contains six
+  hash-mapped namespaced CRDs, six fail-closed admission policies and bindings,
+  exact three-Namespace RBAC, one metrics-off digest-pinned controller, authenticated
+  TLS Squid, eight NetworkPolicies, and a 40-object action guard. No Secret or
+  Infisical CR is committed. The first local secret-zero run generated private
+  recovery material and reached Google Drive OAuth, then stopped before Ansible/
+  Kubernetes on `invalid_grant`. The discovered plaintext temp residue and unused
+  encrypted artifact were removed without reading values. The corrected writer now
+  cleans plaintext on every exit, retains/resumes one encrypted pending bundle,
+  verifies the retrieved checksum/decrypt and TLS/key/auth relationships, stores the
+  separate age identity in both a private file and login Keychain, and refuses
+  implicit rotation. An unused age identity exposed during local debug tracing was
+  revoked/regenerated before upload or Kubernetes, and the trace was removed. A
+  hardened retry proved zero plaintext-temp residue, retained one encrypted pending
+  bundle/checksum and Keychain copy, and zero Kubernetes Secrets, then stopped on the
+  same expired Drive OAuth. Runtime remains unrun pending Drive reauthorization,
+  exact proxy Secret recovery/write, check/apply/idempotence, and live admission/
+  RBAC/traffic proof.
   The unmounted filesystem, disk health, contents, reuse decision, and off-node backup
   design remain unresolved; no disk mutation occurred.
   A bounded CNI/NetworkPolicy functional probe is implemented offline with separate
@@ -259,9 +270,10 @@ note: |
   never applied by their wrapper. `platform-edge` is reserved for cloudflared;
   Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one
   shared MongoDB engine belong in `shared-services`.
-  No external-resource, secret, data, image-publication, or deployment operation was
-  performed. Network access in this increment was bounded to public action-tag
-  resolution, the approved Git push, and read-only public GitHub Actions API
-  observation of exact run `31311995461`. The hosted runner validated repository
+  No external infrastructure resource, Kubernetes Secret/data, image publication,
+  or component deployment operation was completed. In addition to historical public
+  source/Actions reads, the recorded proxy secret-zero attempt generated local
+  private material and made one failed Google Drive OAuth refresh request; it stopped
+  before upload or Kubernetes mutation and its plaintext residue was removed. The hosted runner validated repository
   source only. Object listings and source/hosted CI do not prove replacement
   recovery.

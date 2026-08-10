@@ -2,13 +2,16 @@
 
 ## Status and boundary
 
-**TECHNICAL PROFILE SELECTED — DEPLOYABLE SOURCE BLOCKED.**
+**GUARDED IDLE SOURCE READY — RUNTIME NOT RUN/BLOCKED.**
 
-This increment binds the official Infisical Kubernetes Operator `v0.11.7` controller
-source and records the selected platform profile. It does not deploy or authorize the
-Operator. No promoted or repository-operational Kubernetes object or Ansible source
-is added. Existing Namespaces, workloads, credentials, Secrets, routes, policies, and
-external resources are unchanged.
+The repository now promotes an exact value-free Infisical Kubernetes Operator
+`v0.11.7` idle closure. It contains 40 hash-bound objects under
+`ansible/files/components/infisical-operator`, a dedicated present-only guarded
+Ansible entrypoint, six native same-Namespace admission policies, and an authenticated
+TLS Squid proxy. It does not deploy Infisical Cloud itself. No credential value,
+Infisical custom resource, PROD scope, route, or external resource is added. Runtime
+still requires the separately created proxy bootstrap Secrets and guarded check,
+first apply, and idempotence evidence.
 
 The machine-readable contract is
 [`infisical-operator-implementation-profile.yml`](../ansible/files/policies/infisical-operator-implementation-profile.yml).
@@ -42,11 +45,11 @@ The source audit establishes facts that raw chart RBAC could not:
 - `--metrics-bind-address=0` disables metrics, while the chart overrides that safer
   binary default.
 
-The implementation profile therefore preserves startup list/watch rights for all six
-namespaced custom-resource APIs, omits ClusterGenerator permissions, TokenReview,
+The promoted manager Roles preserve startup list/watch rights for all six namespaced
+custom-resource APIs and omit ClusterGenerator permissions, TokenReview,
 SubjectAccessReview, service-account token creation, aggregate roles, manager
-ClusterRoles, and metrics authorization RBAC. This is a source-derived future RBAC
-profile, not permission to create it.
+ClusterRoles, and metrics authorization RBAC. Runtime proof remains required; a
+permission error stops the bootstrap instead of authorizing wildcard widening.
 
 ## Namespace and secret-scope model
 
@@ -64,31 +67,34 @@ The selected intent is that credentials are never shared between these scopes. T
 stock APIs permit explicit Namespace fields, while one controller ServiceAccount can
 read all three watched Namespaces; namespaced Roles alone therefore cannot prevent a
 CR author from referencing another watched Namespace's auth, connection, credential,
-source, or target. Promotion requires same-Namespace reference enforcement through a
-reviewed admission/source-validation control, restricted CR authorship, and negative
-cross-Namespace tests. Until that gate closes, logical identity names are design intent,
-not proven isolation. Future components inside `shared-services` still require
+source, or target. Six `admissionregistration.k8s.io/v1` ValidatingAdmissionPolicies and bindings now
+enforce Universal Auth, exact Infisical Cloud API use, same-Namespace auth,
+connection, credential, source, target, and TLS references, and no generator
+references with `failurePolicy: Fail` and `Deny`. Restricted CR authorship remains
+mandatory. Kubernetes 1.36 admission and negative cross-Namespace runtime tests are
+still required before logical identity names become proven isolation. Future components inside `shared-services` still require
 separate reviewed sub-scopes and permissions; the Namespace-level identity is not
 wildcard admission for databases, Keycloak, RabbitMQ, or any later consumer. PROD requires a new exact identity, source change, isolation
 proof, and technical review before it can be watched.
 
 ## Controller and CRD direction
 
-The future controller remains one replica on the single node, pinned to the selected
+The promoted controller is one replica on the single node, pinned to the selected
 linux/amd64 image reference, with explicit requests and limits. Metrics and its
 Service/ServiceMonitor remain absent by selecting `--metrics-bind-address=0`.
 Leader election remains enabled in `shared-services` with exact namespaced Lease and
 event permissions.
 
 Ansible remains lifecycle owner of accepted CRDs and privileged prerequisites. The
-chart will never install CRDs. Six namespaced CRDs are selected for future exact
-source because the stock binary registers all six corresponding controllers.
+chart is never installed at runtime. Six complete namespaced CRDs are promoted from
+the hash-bound chart with a template-to-file SHA-256 mapping because the stock binary
+registers all six corresponding controllers.
 ClusterGenerator has no reconciler or eager watch and is not required for startup.
 Its cluster CRD, permissions, and all generator references are excluded; an explicit
 reference could trigger a cache-backed lazy informer and must fail source/admission
 validation before runtime. CRD deletion is never routine rollback. Kubernetes
-`1.36` admission, storage, upgrade, backup, and non-deletion recovery remain blocked
-before valid CRD source.
+`1.36` admission, storage, upgrade, backup, and non-deletion recovery remain live
+acceptance gates; valid CRD source is now present.
 
 ## Egress profile
 
@@ -100,10 +106,13 @@ TLS-protected authenticated client. The proxy will allow only CONNECT to
 `app.infisical.com:443`, reject IP literals and private/special resolved destinations,
 and deny everything else without TLS interception.
 
-A CONNECT proxy enforces host and port, not the encrypted `/api` path. A selected
-immutable Squid image, publisher/source evidence, TLS/auth compatibility, exact ACL
-syntax, NetworkPolicy behavior on k3s, DNS-rebinding negatives, and rollback remain
-required. No proxy source is authorized by this profile.
+A CONNECT proxy enforces host and port, not the encrypted `/api` path. The proxy is pinned to Canonical's reviewed linux/amd64 child digest. Its selected
+configuration uses `https_port`, NCSA Basic authentication, exact CONNECT host/port
+ACLs, private/special destination denies, no interception, and deny-all termination.
+Three runtime-created Secrets provide proxy TLS, the NCSA file, and the authenticated
+proxy URL; their values are never committed. Exact image behavior, TLS/auth
+compatibility, NetworkPolicy behavior on k3s, DNS-rebinding negatives, and rollback
+remain live gates.
 
 ## Secret-zero and first proof
 
@@ -131,21 +140,23 @@ value-free namespaced references only after Ansible stops reconciling them and e
 registration, successful sync, managed fields, rollback, and soak evidence pass.
 Dual reconciliation and Git-authored generated Secrets are forbidden.
 
-The required order remains: close trust/render/compatibility/recovery gates; author
-and validate exact prerequisite source; author an idle controller and proxy closure;
-run their guarded check/apply/idempotence sequences; prove negative RBAC and network
-access; establish secret-zero recovery; then perform one non-sensitive ConfigMap
-sync. Failure never widens RBAC, egress, watch scope, or credential sharing.
+The required order is now: create and recover the three proxy bootstrap Secrets; run
+the dedicated guarded check; review its exact 40-object prediction; run first apply
+and idempotence; prove admission, negative RBAC, proxy-only egress, and idle health;
+establish separate Infisical Universal Auth recovery; then perform one non-sensitive
+ConfigMap sync. Failure never widens RBAC, egress, watch scope, or credential sharing.
 
 ## Remaining blockers
 
-Promoted Kubernetes and operational Ansible source remain blocked by chart signer
-authorization, cryptographic verification, deterministic rendering, CRD admission and
-storage recovery, image SBOM/vulnerability disposition and off-node recovery, exact
-same-Namespace reference enforcement, Squid image/config selection, proxy
-compatibility, exact k3s traffic proof, secret-zero custody/recovery,
-rotation/revocation, and single-node soak.
+Runtime remains blocked until the proxy bootstrap values have independent recovery,
+the guarded check predicts only the exact closure, Kubernetes accepts every CRD/CEL
+expression, both workloads pull and become Available, proxy-only traffic is proved,
+and first apply/idempotence finish without an unexpected object or writer. Image
+signer/SBOM/vulnerability and off-node OCI recovery remain explicit private-MVP risk
+acceptance items; secret-zero recovery, rotation/revocation, and single-node soak
+remain mandatory before application values or PROD.
 
-Rollback for this source-readiness increment is Git revert. There is no runtime
-rollback because it creates no cluster object, credential, Secret, provider resource,
-or external change.
+Before first apply, rollback is Git revert. After apply, rollback preserves CRDs and
+bootstrap Secrets and stops only the exact controller/proxy workloads through a
+separately reviewed present-state change; it never deletes Namespaces, CRDs, Secrets,
+or PVCs.

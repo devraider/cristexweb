@@ -266,10 +266,19 @@ entry gate.
   age/Drive secret-zero recovery direction, and a non-sensitive ConfigMap proof.
   Quarantine the full source archive as evidence; promote no Kubernetes/operational
   Ansible source. Keep same-Namespace reference enforcement and runtime blocked.
-- [ ] Accept Infisical signer/build trust and render a deterministic digest-pinned
-  controller closure only after chart/CRD/API compatibility, exact RBAC, Argo
-  handoff, proxy image/config, Universal Auth recovery, traffic proof, single-node,
-  and runtime gates are resolved (`KIF-005`, `KIF-013`–`KIF-015`, `KIF-023`).
+- [x] Promote the exact guarded
+  [Infisical idle closure](../../runbooks/infisical-operator-bootstrap.md): six
+  namespaced CRDs with hash mapping, native same-Namespace admission, three manager
+  Roles, metrics-off digest-pinned controller, authenticated TLS Squid, proxy-only
+  NetworkPolicy, 40-object action guard, and dedicated check/apply wrapper. Commit no
+  Secret value, Infisical CR, PROD scope, or self-hosted server (`KIF-005`,
+  `KIF-013`–`KIF-016`, `KIF-021`, `KIF-023`, `KIF-030`).
+- [ ] Create and independently recover the three proxy bootstrap Secrets with the
+  guarded age/Drive writer, then run the guarded Infisical check, separately reviewed
+  first apply, live admission/RBAC/traffic negatives, and idempotence before Universal
+  Auth. The first writer run stopped before Kubernetes on expired Drive OAuth; run
+  `rclone config reconnect drive:` and retry (`KIF-005`, `KIF-013`–`KIF-016`,
+  `KIF-021`, `KIF-023`, `KIF-027`, `KIF-030`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare/Keycloak
   secret-zero sequence (`KIF-014`, `KIF-015`).
 - [x] Historical source checkpoint: implement an exact present-only/no-delete

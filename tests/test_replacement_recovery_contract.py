@@ -29,6 +29,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "cloudflared-candidate-provenance.md",
                 "cristexhub-dev-namespace-bootstrap.md",
                 "foundation-namespace-bootstrap.md",
+                "infisical-operator-bootstrap.md",
                 "infisical-operator-candidate-provenance.md",
                 "infisical-operator-implementation-profile.md",
                 "infisical-operator-privileged-prerequisites-design.md",

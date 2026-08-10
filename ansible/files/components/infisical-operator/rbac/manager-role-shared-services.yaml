@@ -1,0 +1,64 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: infisical-operator-manager
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-operator
+rules:
+  - apiGroups:
+      - secrets.infisical.com
+    resources:
+      - infisicalsecrets
+      - infisicalpushsecrets
+      - infisicaldynamicsecrets
+      - infisicalconnections
+      - infisicalauths
+      - infisicalstaticsecrets
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - secrets.infisical.com
+    resources:
+      - infisicalsecrets/status
+      - infisicalpushsecrets/status
+      - infisicaldynamicsecrets/status
+      - infisicalconnections/status
+      - infisicalauths/status
+      - infisicalstaticsecrets/status
+    verbs:
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - secrets.infisical.com
+    resources:
+      - infisicalsecrets/finalizers
+      - infisicalpushsecrets/finalizers
+      - infisicaldynamicsecrets/finalizers
+      - infisicalstaticsecrets/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch

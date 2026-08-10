@@ -75,17 +75,24 @@ not close publisher trust, image assurance/availability, hardening, Infisical to
 recovery, OpenTofu state/resource, Argo handoff, exact traffic-policy, route,
 single-node risk, soak, or runtime gates. The source-only
 [Infisical Operator candidate provenance record](../../runbooks/infisical-operator-candidate-provenance.md)
-retains historical evidence; the release record selects `v0.11.7` only for offline
-source authoring. It remains **NOT DEPLOYABLE** with runtime **NOT RUN/BLOCKED**. Its
-`v0.11.8` distribution-gap observation and version-aligned `v0.11.7` evidence close
-no chart/CRD/API compatibility despite the captured target, trust, Namespace,
-scoped-RBAC, Argo handoff, secret-zero, rotation/revocation, traffic, recovery,
-single-node, or runtime gate. The inert
+retains historical evidence. The inert
 [privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
-records seven raw CRD templates and known RBAC defects only; it approves no object or
-permission and closes no manual case. Argo CD, cloudflared, Infisical, Secrets,
-workloads, Services, and routes are not installed,
-so this closes no manual case. No deployment, replacement
+remains the raw-chart defect record, while the
+[implementation profile](../../runbooks/infisical-operator-implementation-profile.md)
+remains canonical policy. The guarded [Infisical idle bootstrap](../../runbooks/infisical-operator-bootstrap.md) now provides
+exact deployable source for six CRDs, native same-Namespace admission, scoped RBAC,
+the metrics-off Operator, authenticated TLS proxy, and NetworkPolicy. It contains no
+committed Secret value or Infisical CR and Operator runtime is still **NOT
+RUN/BLOCKED**. The first local secret-zero/Drive attempt stopped before Kubernetes on
+expired OAuth; its plaintext residue and unused encrypted artifact were removed
+without reading values. An unused debug-exposed age identity was revoked/regenerated
+before upload/Kubernetes. The hardened retry proved early cleanup, encrypted-pending
+resume and a Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the
+same expired OAuth. MQA-03 remains pending until Drive reauthorization, proxy
+Secret recovery/write, check/apply/idempotence, live admission/RBAC/traffic,
+Universal Auth, ConfigMap sync, rotation, revocation, and recovery pass.
+Argo CD, cloudflared, Infisical runtime, databases, application workloads, and routes
+are not installed, so this source increment closes no manual case. No deployment, replacement
 recovery proof, or complete manual runtime validation
 occurred. MQA-13 remains pending specifically
 because the managed-profile rollback path has not been executed and verified, even

@@ -281,7 +281,7 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertIn("quay.io/keycloak/keycloak@sha256:", keycloak)
         self.assertIn("docker.io/library/postgres@sha256:", keycloak)
 
-    def test_no_controller_or_kubernetes_source_widening(self) -> None:
+    def test_only_infisical_controller_source_widens_outside_kubernetes_tree(self) -> None:
         self.assertEqual(
             {
                 "platform/namespaces/argocd.yaml",
@@ -301,19 +301,19 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
             for path in root.rglob("*")
             if path.is_file()
         ]
+        forbidden = ("argocd", "keycloak", "postgres", "mongo", "mongodb")
         self.assertFalse(
-            any(
-                component in path.name.lower()
-                for path in operational
-                for component in (
-                    "argocd",
-                    "infisical",
-                    "keycloak",
-                    "postgres",
-                    "mongo",
-                    "mongodb",
-                )
-            )
+            any(component in path.name.lower() for path in operational for component in forbidden)
+        )
+        self.assertEqual(
+            {
+                "bootstrap-infisical-operator",
+                "bootstrap-infisical-proxy-secrets",
+                "bootstrap_infisical_operator.yml",
+                "bootstrap_infisical_proxy_secrets.yml",
+                "main.yml",
+            },
+            {path.name for path in operational if "infisical" in str(path).lower()},
         )
 
     def test_policy_and_selection_hygiene(self) -> None:

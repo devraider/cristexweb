@@ -25,16 +25,19 @@ class AnsibleLayoutTests(unittest.TestCase):
             and "__pycache__" not in path.parts
         ]
         self.assertTrue(source_python)
-        allowed_action_plugin = Path(
-            "ansible/plugins/action/cristexhub_dev_namespace_guarded_k8s.py"
-        )
+        allowed_action_plugins = {
+            Path("ansible/plugins/action/cristexhub_dev_namespace_guarded_k8s.py"),
+            Path("ansible/plugins/action/infisical_operator_guarded_k8s.py"),
+            Path("ansible/plugins/action/infisical_proxy_secret_zero_guarded_k8s.py"),
+        }
         self.assertTrue(
-            all(path.parts[0] == "tests" or path == allowed_action_plugin for path in source_python),
+            all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
         )
 
     def test_minimal_ansible_layout_exists(self) -> None:
         required = [
+            ".ansible-lint",
             "ansible.cfg",
             "requirements.yml",
             "README.md",
@@ -63,10 +66,16 @@ class AnsibleLayoutTests(unittest.TestCase):
             "playbooks/bootstrap_platform_namespaces.yml",
             "playbooks/bootstrap_foundation_namespaces.yml",
             "playbooks/bootstrap_cristexhub_dev_namespace.yml",
+            "playbooks/bootstrap_infisical_operator.yml",
+            "playbooks/bootstrap_infisical_proxy_secrets.yml",
             "plugins/action/cristexhub_dev_namespace_guarded_k8s.py",
+            "plugins/action/infisical_operator_guarded_k8s.py",
+            "plugins/action/infisical_proxy_secret_zero_guarded_k8s.py",
             "bin/bootstrap-platform-namespaces",
             "bin/bootstrap-foundation-namespaces",
             "bin/bootstrap-cristexhub-dev-namespace",
+            "bin/bootstrap-infisical-operator",
+            "bin/bootstrap-infisical-proxy-secrets",
             "files/policies/infisical-operator-privileged-prerequisites.yml",
             "files/policies/infisical-operator-implementation-profile.yml",
             "roles/opentofu_install/defaults/main.yml",
@@ -77,6 +86,10 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/foundation_namespace_bootstrap/tasks/main.yml",
             "roles/cristexhub_dev_namespace_bootstrap/defaults/main.yml",
             "roles/cristexhub_dev_namespace_bootstrap/tasks/main.yml",
+            "roles/infisical_operator_bootstrap/defaults/main.yml",
+            "roles/infisical_operator_bootstrap/tasks/main.yml",
+            "roles/infisical_proxy_secret_zero/defaults/main.yml",
+            "roles/infisical_proxy_secret_zero/tasks/main.yml",
             "roles/network_policy_probe/defaults/main.yml",
             "roles/network_policy_probe/tasks/cleanup.yml",
             "roles/network_policy_probe/tasks/delete_object.yml",
@@ -97,6 +110,11 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/read_only_discovery/tasks/report.yml",
             "roles/read_only_discovery/templates/report.json.j2",
         ]
+        required.extend(
+            str(path.relative_to(ANSIBLE))
+            for path in sorted((ANSIBLE / "files/components/infisical-operator").rglob("*"))
+            if path.is_file()
+        )
         self.assertEqual([], [path for path in required if not (ANSIBLE / path).is_file()])
         actual = {
             str(path.relative_to(ANSIBLE))

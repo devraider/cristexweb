@@ -1,0 +1,19 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: infisical-operator-default-deny
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-operator
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: infisical-operator-controller
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []

@@ -125,18 +125,17 @@ The source-only
 [Infisical Operator candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
 distinguishes latest source release `v0.11.8`, whose matching public chart archive
 and image tag were not observed during the bounded capture, from the version-aligned
-`v0.11.7` set. The separate release record selects `v0.11.7` only for offline source
-authoring and Universal Auth as direction; it remains not deployable and runtime is
-**NOT RUN/BLOCKED**. The completed `shared-services` Namespace and the source-only
-[implementation profile](runbooks/infisical-operator-implementation-profile.md) now
-bind the official controller commit and select the exact
-`shared-services`/`argocd`/`cristexhub-dev` cache, separate identity intent,
-metrics-off, no ClusterGenerator privilege, authenticated-proxy egress, age/Drive
-recovery direction, and a non-sensitive ConfigMap proof. The full source archive is
-quarantined evidence only. CRD admission/storage recovery, chart/image trust, exact
-RBAC/rendering, same-Namespace reference enforcement, proxy image/config, secret-zero
-recovery, Argo handoff, and runtime remain blocked. No chart, CRD, Kubernetes object,
-proxy, credential, or Secret is promoted as operational source.
+`v0.11.7` set. The completed `shared-services` Namespace and the
+[implementation profile](runbooks/infisical-operator-implementation-profile.md) bind
+the official controller commit. The guarded
+[idle bootstrap](runbooks/infisical-operator-bootstrap.md) promotes a 40-object,
+value-free closure with six namespaced CRDs, native same-Namespace admission, exact
+three-Namespace RBAC/cache, metrics off, no ClusterGenerator privilege, one
+authenticated TLS proxy, and proxy-only Operator egress. The full source archive is
+quarantined evidence only and is not an operational input. Runtime remains **NOT
+RUN/BLOCKED** until exact recovered proxy Secrets, check/apply/idempotence, live
+admission, image, RBAC, and traffic proof pass. No Infisical CR, Universal Auth value,
+application Secret, PROD scope, or self-hosted server is added.
 No state file, provider initialization, plan, apply, Helm installation, Kustomize
 workload, image publication, or general host baseline exists yet. The committed CI
 source has no package-write, Secret, provider, host, cluster, or deployment path;
@@ -518,20 +517,16 @@ verification must meet the declared RPO/RTO before PROD.
   deployable source or a version selection.
 - Current source-only Infisical evidence: the
   [candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
-  records the incomplete observed `v0.11.8` public distribution and version-aligned
-  `v0.11.7` set. The latter is selected only for offline source authoring and remains
-  not deployable, with runtime **NOT RUN/BLOCKED**. The inert
+  records the incomplete observed `v0.11.8` distribution and version-aligned
+  `v0.11.7` evidence. The inert
   [privileged-prerequisites inventory](runbooks/infisical-operator-privileged-prerequisites-design.md)
-  binds the seven raw CRD templates and known manager/metrics/user-RBAC seams to the
-  vendored archive while approving no object or permission. The
-  [implementation profile](runbooks/infisical-operator-implementation-profile.md)
-  quarantines the full official source archive and records completed foundation
-  Namespaces, the exact three-Namespace watch/separate-identity intent, source-audited
-  controller/Universal-Auth/ClusterGenerator behavior, metrics-off, proxy, recovery,
-  and ConfigMap-proof directions. Only foundation, source-audit, and technical-profile
-  gates are true. Chart/CRD/API compatibility, trust, exact RBAC/rendering,
-  same-Namespace reference enforcement, Argo handoff, secret-zero recovery, proxy/
-  traffic, and runtime remain blocked; no embedded source is operational input.
+  remains historical evidence. The [implementation profile](runbooks/infisical-operator-implementation-profile.md)
+  quarantines the archive, while the separate guarded
+  [bootstrap closure](runbooks/infisical-operator-bootstrap.md) promotes exactly 40
+  reviewed value-free objects and one non-passthrough Ansible path. Same-Namespace
+  admission source, exact RBAC, proxy image/config, and deployable source gates are
+  selected. Live CRD/CEL admission, proxy Secret recovery, image behavior, traffic,
+  check/apply/idempotence, Universal Auth, and runtime remain blocked/unrun.
 - Entry: pinned component versions, human-reviewed target kubelet-version evidence,
   verified Kubernetes compatibility, and an approved secret-zero procedure.
 - Work sequence: exact Ansible-owned prerequisites; idle Operator/proxy closure;
@@ -543,8 +538,8 @@ verification must meet the declared RPO/RTO before PROD.
 - Gate: Argo is private, reconciles a demo workload after explicit handoff, and secret
   values remain absent from Git/logs.
 - Stop: admin endpoint becomes public or bootstrap credentials cannot be recovered.
-- Rollback: uninstall only newly bootstrapped stateless controllers after evidence
-  capture; preserve data and access.
+- Rollback: never uninstall the release or delete CRDs/Secrets/Namespaces. Preserve
+  APIs and values; stop only exact workloads through a separately reviewed change.
 
 ### Stage 5 — isolation and shared data
 

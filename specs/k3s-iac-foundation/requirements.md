@@ -168,9 +168,12 @@ a valid Kubernetes or operational Ansible source. The
 binds the official controller commit as quarantined evidence and maps the confirmed
 exact watch/separate-identity intent, metrics, ClusterGenerator, authenticated-proxy,
 secret-zero, and ConfigMap-proof choices to KIF-005 and KIF-013 through KIF-016.
-Foundation Namespace, source-audit, and technical-profile gates are evidenced;
-promoted deployable source, trust, compatibility, same-Namespace reference
-enforcement, proxy/recovery, and runtime gates remain closed. The
+Foundation Namespace, source-audit, technical-profile, native same-Namespace
+admission source, proxy image/config, and guarded deployable-source gates are now
+evidenced by the exact 40-object
+[bootstrap closure](../../runbooks/infisical-operator-bootstrap.md). Live CRD/CEL
+admission, proxy Secret recovery, image behavior, RBAC/traffic negatives,
+check/apply/idempotence, Universal Auth, and runtime remain closed. The
 [Argo](../../runbooks/argocd-release-selection.md),
 [Infisical](../../runbooks/infisical-operator-release-selection.md), and
 [Keycloak/PostgreSQL](../../runbooks/keycloak-release-selection.md) selection records

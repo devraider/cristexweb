@@ -151,6 +151,8 @@ metadata:
                 ENTRYPOINT,
                 ANSIBLE / "bin/bootstrap-foundation-namespaces",
                 ANSIBLE / "bin/bootstrap-cristexhub-dev-namespace",
+                ANSIBLE / "bin/bootstrap-infisical-operator",
+                ANSIBLE / "bin/bootstrap-infisical-proxy-secrets",
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()},
         )

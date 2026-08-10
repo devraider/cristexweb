@@ -112,16 +112,24 @@ version-aligned `v0.11.7` set. The separate
 [inert privileged-prerequisites inventory](runbooks/infisical-operator-privileged-prerequisites-design.md)
 binds the seven raw CRD templates and known RBAC/scoping defects to the vendored
 archive. The [implementation profile](runbooks/infisical-operator-implementation-profile.md)
-binds the official controller commit and selects exact watch/separate-identity intent,
-metrics, ClusterGenerator, proxy-egress, secret-zero, and non-sensitive proof
-directions while same-Namespace reference enforcement remains blocked. The full
-source archive is quarantined evidence only. Foundation Namespace and technical-
-profile gates are evidenced; deployable source/runtime remain **NOT RUN/BLOCKED**, and
-no CRD, RBAC, rendered Kubernetes object, proxy, Ansible entrypoint, credential, or
-Secret is promoted as operational source. The actual target is now captured, but Infisical
-chart/CRD/API compatibility remains unproven. No general host baseline or deployment
-exists. Python is used only for offline contract tests, not infrastructure
-automation.
+binds the official controller commit and selected security profile. The guarded
+[idle bootstrap closure](runbooks/infisical-operator-bootstrap.md) now promotes exactly
+40 value-free objects: six namespaced CRDs, six fail-closed admission policies and
+bindings, exact namespaced RBAC, one metrics-off digest-pinned controller, one
+authenticated TLS Squid proxy, and eight policies. The quarantined archive is never a
+runtime input. Runtime remains **NOT RUN/BLOCKED** until three separately recovered
+proxy Secrets exist and check/apply/idempotence plus admission/RBAC/traffic evidence
+pass. The first local age/Drive writer attempt stopped before Kubernetes on expired
+Drive OAuth; its plaintext residue and unused encrypted artifact were removed without
+reading values. An unused debug-exposed age identity was revoked/regenerated before
+upload/Kubernetes. The hardened retry proved cleanup, encrypted-pending resume and a
+Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the same expired
+OAuth. No Infisical CR, Kubernetes Secret, Universal Auth value, application Secret,
+PROD scope, or
+self-hosted Infisical server is added. No general host baseline or deployment
+exists. Python is otherwise test-only; the three exact-scope Ansible action plugins
+are the reviewed focused exception used solely to enforce mutation boundaries. No
+general-purpose operational Python or infrastructure collector exists.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
 local report. The extended report confirms the unmounted 1 TB rotational disk,
@@ -172,8 +180,9 @@ gateway remain in the separate CristexHub application repository.
 16. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
 17. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
 18. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
-19. [`runbooks/infisical-operator-implementation-profile.md`](runbooks/infisical-operator-implementation-profile.md) — commit-bound controller audit and selected watch/identity/egress/secret-zero profile; deployable source remains blocked.
-20. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+19. [`runbooks/infisical-operator-implementation-profile.md`](runbooks/infisical-operator-implementation-profile.md) — commit-bound controller audit and selected watch/identity/egress/secret-zero profile.
+20. [`runbooks/infisical-operator-bootstrap.md`](runbooks/infisical-operator-bootstrap.md) — guarded 40-object idle closure, proxy Secret prerequisites, validation, and rollback.
+21. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
