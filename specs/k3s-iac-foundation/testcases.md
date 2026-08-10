@@ -3308,3 +3308,17 @@ recorded below.
 | KIF-ARGO-08 | KIF-002, KIF-005, KIF-030 | Non-passthrough guarded mutation | Only check/apply wrapper, private attestation, canonical task source, exact canonical hashes, present-only, foreign-object refusal, task-selection/injection negatives | PASS OFFLINE — wrapper approval is native boolean; direct valid-attestation action and combined start-at-task/injection fail closed before Kubernetes; default-role smoke reaches only host prerequisites |
 | KIF-ARGO-09 | KIF-002, KIF-010, KIF-012, KIF-015 | Live check/apply/readiness/idempotence/private login/recovery | Separate reviewed check, first apply, Ready/TLS/login/traffic negatives, Git read, second apply changed=0, recovery | NOT RUN/BLOCKED — requires exact Infisical-owned Secrets and parent approvals |
 | KIF-ARGO-10 | KIF-005, KIF-008, KIF-010, KIF-021 | Empty-install default project startup | A committed `AppProject/default` exists before workloads, denies every source/destination/resource, server/controller may read it, neither can mutate projects, first check tolerates absent discovery without mutation, and apply waits for Established CRDs | PASS OFFLINE — exact deny-all project, non-mutating project RBAC, one-object check deferral, and CRD wait contract are hash/task-bound; live startup remains part of KIF-ARGO-09 |
+
+## Autonomous workflow policy — 2026-08-10
+
+Commands:
+
+```bash
+grep -nE "research → plan → implement → test → review → fix → next task|six concurrently running subagents|gpt-5.6-luna|own git worktree|fastest reversible solution" AGENTS.md
+git diff --check
+```
+
+Actual result: **PASS** — `AGENTS.md` records the full recurring task loop,
+autonomous unblocking, the six-subagent floor and required model, isolated worktrees,
+iteration-speed priority, and the bounded one-time operational exception. The
+exception explicitly preserves all infrastructure Safety gates and operator approvals.
