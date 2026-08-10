@@ -59,11 +59,13 @@ scaffold. The first live run stopped after two bounded directory tasks because t
 host had no route to GitHub. The reviewed controller-cache and Ansible-transfer
 recovery subsequently passed check, live installation, and a `changed=0` rerun; the
 pinned CLI and selector now exist without host egress. Committed Kubernetes desired
-state now contains exactly three Namespace manifests: `argocd`, `platform-edge`, and
-`shared-services`. The closed historical bootstrap owns only `argocd` and
+state now contains exactly four Namespace manifests: `argocd`, `platform-edge`,
+`shared-services`, and source-only `cristexhub-dev`. The closed historical bootstrap owns only `argocd` and
 `platform-edge`; the distinct present-only `shared-services` bootstrap passed check
 and separately approved first apply/idempotence; the final run converged at
-`changed=0`. The superseded `platform-secrets`/`platform-identity` source never
+`changed=0`. A dedicated [CristexHub DEV Namespace bootstrap](runbooks/cristexhub-dev-namespace-bootstrap.md)
+is exact present-only source with four approved labels; its runtime remains NOT RUN
+and `cristexhub-prod` is absent. The superseded `platform-secrets`/`platform-identity` source never
 ran, and its removal is not a live rename or deletion. The separately approved
 historical first apply created exactly those
 two Active Namespaces with the reviewed labels. The separately approved idempotence
@@ -225,8 +227,8 @@ Tailscale do not replace application OIDC/JWT enforcement.
 | `argocd` | Argo CD controllers and private UI/API |
 | `platform-edge` | Cloudflare Tunnel connector only; no Keycloak, Infisical Operator, database, or route exists; every route remains separately approved |
 | `shared-services` | Exact present-only Namespace exists after passed check/first apply/idempotence; future placement for the Infisical Cloud Operator, separate Keycloak, one PostgreSQL, one MongoDB, and one shared RabbitMQ engine remains undeployed |
-| `cristexhub-dev` | DEV applications and environment-local dependencies |
-| `cristexhub-prod` | PROD applications and environment-local dependencies |
+| `cristexhub-dev` | Exact present-only source exists with approved application/environment/bootstrap/future-owner labels; check/apply/idempotence NOT RUN; future DEV applications and environment-local dependencies remain undeployed |
+| `cristexhub-prod` | Absent and without executable Namespace source; blocked until DEV validation, recovery, and soak |
 | Optional backup/monitoring namespaces | Added only when their first workload is approved |
 
 Namespace names organize ownership but are not a hard security boundary. Service

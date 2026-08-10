@@ -117,6 +117,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
                 "platform/namespaces/argocd.yaml",
                 "platform/namespaces/platform-edge.yaml",
                 "platform/namespaces/shared-services.yaml",
+                "applications/namespaces/cristexhub-dev.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))

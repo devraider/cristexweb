@@ -27,6 +27,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "argocd-hardened-design.md",
                 "argocd-release-selection.md",
                 "cloudflared-candidate-provenance.md",
+                "cristexhub-dev-namespace-bootstrap.md",
                 "foundation-namespace-bootstrap.md",
                 "infisical-operator-candidate-provenance.md",
                 "infisical-operator-privileged-prerequisites-design.md",

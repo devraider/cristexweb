@@ -284,6 +284,7 @@ a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operat
                 "platform/namespaces/argocd.yaml",
                 "platform/namespaces/platform-edge.yaml",
                 "platform/namespaces/shared-services.yaml",
+                "applications/namespaces/cristexhub-dev.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))

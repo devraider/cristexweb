@@ -1,0 +1,72 @@
+#!/bin/sh
+set -eu
+
+usage='usage: ansible/bin/bootstrap-cristexhub-dev-namespace check|apply'
+
+if [ "$#" -ne 1 ] || { [ "$1" != check ] && [ "$1" != apply ]; }; then
+  printf '%s\n' "$usage" >&2
+  printf '%s\n' 'refusing passthrough arguments, --start-at-task, --step, or task selection' >&2
+  exit 64
+fi
+
+mode=$1
+script_path=$0
+if [ -L "$script_path" ]; then
+  printf '%s\n' 'refusing a symlinked Namespace bootstrap entrypoint' >&2
+  exit 66
+fi
+
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
+controller_home="$(CDPATH= cd -- "$repository_root/../.." && pwd -P)"
+controller_user="$(/usr/bin/id -un)"
+if [ "$repository_root" != "$controller_home/Projects/cristexweb" ]; then
+  printf '%s\n' 'refusing a Namespace bootstrap repository outside the pinned controller path' >&2
+  exit 78
+fi
+controller="$repository_root/.venv/bin/ansible-playbook"
+if [ ! -f "$controller" ] || [ ! -x "$controller" ] || [ -L "$controller" ]; then
+  printf '%s\n' 'refusing an absent, non-executable, or symlinked pinned Ansible controller' >&2
+  exit 69
+fi
+cd -- "$repository_root/ansible"
+
+umask 077
+attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-cristexhub-dev-namespace-bootstrap.XXXXXX")"
+attestation_token="$(/usr/bin/openssl rand -hex 32)"
+printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+cleanup() {
+  /bin/rm -f -- "$attestation_file"
+}
+trap cleanup EXIT HUP INT TERM
+
+set -- \
+  "$controller" \
+  -i .ansible/inventory.local.yml \
+  playbooks/bootstrap_cristexhub_dev_namespace.yml \
+  --diff \
+  --limit crtxweb \
+  --extra-vars cristexhub_dev_namespace_bootstrap_approved=true \
+  --ask-become-pass
+if [ "$mode" = check ]; then
+  set -- "$@" --check
+fi
+
+run_controller() {
+  if [ -n "${SSH_AUTH_SOCK:-}" ]; then
+    set -- "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" "$@"
+  fi
+  /usr/bin/env -i \
+    "HOME=$controller_home" \
+    "USER=$controller_user" \
+    "LOGNAME=$controller_user" \
+    'PATH=/usr/bin:/bin:/usr/sbin:/sbin' \
+    'LC_ALL=C.UTF-8' \
+    "ANSIBLE_CONFIG=$PWD/ansible.cfg" \
+    'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_ENTRYPOINT=v1' \
+    "CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_TOKEN=$attestation_token" \
+    "CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE=$attestation_file" \
+    "$@"
+}
+
+run_controller "$@"

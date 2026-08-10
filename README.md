@@ -31,8 +31,9 @@ live recovery installed the verified CLI at `ok=39 changed=6 failed=0`, and the
 second run converged at `ok=30 changed=0 failed=0` without requiring host egress.
 The protected directory still contains no state file, and no provider operation or
 external resource exists. The root `opentofu/` source is Cloudflare-only and has zero
-resources. Committed Kubernetes source now contains exactly three Namespace
-manifests: `argocd`, `platform-edge`, and `shared-services`. The historical
+resources. Committed Kubernetes source now contains exactly four Namespace
+manifests: `argocd`, `platform-edge`, `shared-services`, and source-only
+`cristexhub-dev`. The historical
 `argocd`/`platform-edge` wrapper check, first apply, and idempotence retry completed
 under separate approvals and that exception remains closed. Exact present-only
 source and a new dedicated guarded wrapper now exist for `shared-services`. After a
@@ -42,7 +43,9 @@ mutation. The separately approved first apply passed at `ok=22 changed=1 failed=
 created and verified exact labels/`Active`, and preserved k3s/Tailscale health.
 The separately approved idempotence apply passed at
 `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the exact Namespace checkpoint is
-complete.
+complete. Dedicated [CristexHub DEV Namespace source](runbooks/cristexhub-dev-namespace-bootstrap.md)
+is present-only and fail-closed, but check/apply/idempotence are NOT RUN and
+`cristexhub-prod` remains absent.
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
 it does not claim a live rename or deletion. No Argo CD, cloudflared,
 Infisical Operator, Keycloak, PostgreSQL, MongoDB, Secret, workload, Service,
@@ -286,8 +289,9 @@ runbooks/                # recovery docs plus source-only candidate/design recor
 tests/                   # offline contract tests only
 ```
 
-Only `ansible/`, the zero-resource `opentofu/` scaffold, the three platform Namespace
-manifests under `kubernetes/`, documentation-only recovery, candidate-provenance,
+Only `ansible/`, the zero-resource `opentofu/` scaffold, three platform Namespace
+manifests plus the source-only `cristexhub-dev` application Namespace under
+`kubernetes/`, documentation-only recovery, candidate-provenance,
 hardened-design, and Keycloak/OIDC design records under `runbooks/`, and offline
 `tests/` currently exist. An exact manifest and a distinct guarded wrapper now exist
 for `shared-services`; its interactive check retry predicted exactly that one

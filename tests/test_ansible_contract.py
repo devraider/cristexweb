@@ -25,7 +25,13 @@ class AnsibleLayoutTests(unittest.TestCase):
             and "__pycache__" not in path.parts
         ]
         self.assertTrue(source_python)
-        self.assertTrue(all(path.parts[0] == "tests" for path in source_python), source_python)
+        allowed_action_plugin = Path(
+            "ansible/plugins/action/cristexhub_dev_namespace_guarded_k8s.py"
+        )
+        self.assertTrue(
+            all(path.parts[0] == "tests" or path == allowed_action_plugin for path in source_python),
+            source_python,
+        )
 
     def test_minimal_ansible_layout_exists(self) -> None:
         required = [
@@ -55,8 +61,11 @@ class AnsibleLayoutTests(unittest.TestCase):
             "playbooks/install_opentofu.yml",
             "playbooks/bootstrap_platform_namespaces.yml",
             "playbooks/bootstrap_foundation_namespaces.yml",
+            "playbooks/bootstrap_cristexhub_dev_namespace.yml",
+            "plugins/action/cristexhub_dev_namespace_guarded_k8s.py",
             "bin/bootstrap-platform-namespaces",
             "bin/bootstrap-foundation-namespaces",
+            "bin/bootstrap-cristexhub-dev-namespace",
             "files/policies/infisical-operator-privileged-prerequisites.yml",
             "roles/opentofu_install/defaults/main.yml",
             "roles/opentofu_install/tasks/main.yml",
@@ -64,6 +73,8 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/platform_namespace_bootstrap/tasks/main.yml",
             "roles/foundation_namespace_bootstrap/defaults/main.yml",
             "roles/foundation_namespace_bootstrap/tasks/main.yml",
+            "roles/cristexhub_dev_namespace_bootstrap/defaults/main.yml",
+            "roles/cristexhub_dev_namespace_bootstrap/tasks/main.yml",
             "roles/network_policy_probe/defaults/main.yml",
             "roles/network_policy_probe/tasks/cleanup.yml",
             "roles/network_policy_probe/tasks/delete_object.yml",
@@ -88,7 +99,9 @@ class AnsibleLayoutTests(unittest.TestCase):
         actual = {
             str(path.relative_to(ANSIBLE))
             for path in ANSIBLE.rglob("*")
-            if path.is_file() and ".ansible" not in path.parts
+            if path.is_file()
+            and ".ansible" not in path.parts
+            and "__pycache__" not in path.parts
         }
         self.assertEqual(set(required), actual)
 
@@ -102,6 +115,7 @@ class AnsibleLayoutTests(unittest.TestCase):
         self.assertIn(".ansible/", ignore_rules)
         config = (ANSIBLE / "ansible.cfg").read_text()
         self.assertIn("collections_path = .ansible/collections", config)
+        self.assertIn("action_plugins = plugins/action", config)
 
     def test_dependency_bootstrap_is_bounded_and_approved(self) -> None:
         playbook = (ANSIBLE / "playbooks/bootstrap_dependencies.yml").read_text()
@@ -602,6 +616,7 @@ class AnsibleSafetyTests(unittest.TestCase):
             for path in sorted(ANSIBLE.rglob("*"))
             if path.is_file()
             and ".ansible" not in path.parts
+            and "__pycache__" not in path.parts
             and path.suffix != ".tgz"
         )
 

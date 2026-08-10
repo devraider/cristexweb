@@ -446,13 +446,14 @@ this playbook directly and never use `--start-at-task`, `--step`, tags, or other
 selection controls. This completed exception remains closed and must not be reused
 for any future Namespace or component.
 
-## Future bounded foundation bootstrap direction
+## Bounded Namespace and future component bootstrap direction
 
 Ansible is selected as the future bounded bootstrap installer for exact foundational
 Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted
-Keycloak, and privileged CRD/cluster-RBAC prerequisites. Exact executable source now
-exists only for the one `shared-services` foundation Namespace; no Infisical, Argo,
-Keycloak, PostgreSQL, MongoDB, chart, Secret, workload, or component runtime approval
+Keycloak, and privileged CRD/cluster-RBAC prerequisites. Exact executable Namespace
+source exists for completed `shared-services` and source-ready-but-NOT-RUN
+`cristexhub-dev`; no Infisical, Argo, Keycloak, PostgreSQL, MongoDB, chart, Secret,
+workload, or component runtime approval
 exists from that decision. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 future PostgreSQL and one future MongoDB engine in `shared-services`. CristexHub
@@ -488,7 +489,13 @@ records the completed separately approved sequence using these exact one-line co
 - `ansible/bin/bootstrap-foundation-namespaces apply`
 
 The first apply and idempotence invocation used the same apply command under distinct
-approvals. No further command is authorized by this documentation.
+approvals. No further foundation command is authorized by this documentation.
+
+The dedicated [CristexHub DEV Namespace bootstrap](../runbooks/cristexhub-dev-namespace-bootstrap.md)
+owns only `cristexhub-dev` with four approved labels. Its guarded wrapper is distinct,
+and its dedicated action rejects controller task-selection context plus any mutation
+argument drift before delegating to the pinned Kubernetes module. `cristexhub-prod`
+remains absent, and check/first-apply/idempotence are all NOT RUN.
 
 Hash-bound public chart/provenance/public-key inputs now exist under `files/vendor/`
 for the Argo CD `10.3.0` and Infisical Operator `0.11.7` offline source baselines.

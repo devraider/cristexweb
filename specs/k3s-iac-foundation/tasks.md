@@ -322,9 +322,17 @@ logs, or bootstrap cannot be recovered.
 - [ ] Select exact data paths, reclaim behavior, probes, connection limits, TLS
   identities, and any destructive disk preparation separately (`KIF-002`, `KIF-003`,
   `KIF-019`, `KIF-026`).
-- [ ] Add DEV and PROD Namespaces; after the separate `shared-services` Namespace
-  checkpoint, add component-specific service accounts, RBAC, quotas, limits, and
-  default-deny policies (`KIF-016`, `KIF-019`, `KIF-021`).
+- [x] Add dedicated exact present-only
+  [CristexHub DEV Namespace source](../../runbooks/cristexhub-dev-namespace-bootstrap.md)
+  with the four approved labels, a distinct guarded wrapper/exact-scope mutation
+  action, no PROD/policy/workload/Secret/PVC/route source, and all runtime checkpoints
+  NOT RUN.
+- [ ] Obtain separate check, first-apply, and idempotence approvals for only
+  `cristexhub-dev` (`KIF-002`, `KIF-005`, `KIF-016`, `KIF-030`).
+- [ ] Select exact DEV service accounts, RBAC, quota, limit, and default-deny/allow
+  policy values before adding those object kinds (`KIF-016`, `KIF-019`, `KIF-021`).
+- [ ] Keep `cristexhub-prod` absent until DEV validation, recovery, and soak satisfy
+  KIF-025 and a separate PROD Namespace approval is granted.
 - [ ] Obtain explicit approval before creating stateful services (`KIF-002`).
 - [x] Add a canonical value-free shared-database policy and runbook for exactly one
   PostgreSQL and one MongoDB engine in `shared-services`, dedicated consumer scopes,

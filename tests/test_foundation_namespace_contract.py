@@ -107,6 +107,17 @@ metadata:
     cristex.io/bootstrap-writer: ansible
     cristex.io/desired-owner: argocd
 """,
+            "applications/namespaces/cristexhub-dev.yaml": """---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cristexhub-dev
+  labels:
+    app.kubernetes.io/part-of: cristexhub
+    cristex.io/environment: dev
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+""",
         }
         actual_files = {
             str(path.relative_to(KUBERNETES)): path.read_text()
@@ -187,6 +198,7 @@ metadata:
             {
                 ANSIBLE / "bin/bootstrap-platform-namespaces",
                 ENTRYPOINT,
+                ANSIBLE / "bin/bootstrap-cristexhub-dev-namespace",
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()},
         )

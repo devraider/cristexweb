@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: shared-services check/first apply/idempotence complete; final ok=22 changed=0 failed=0 with exact labels/Active and k3s/Tailscale verified; current evidence/source contracts pass 153 full tests
+build: source-only cristexhub-dev closure passes 6 focused/159 full contracts, combined task-selection/injection guard fixture, 10 playbook syntax checks, and production lint; independent rereview APPROVED; runtime NOT RUN; PROD absent
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -90,7 +90,14 @@ note: |
   verified exact identity/labels/`Active`, and preserved k3s/Tailscale health.
   The separately approved idempotence apply passed at
   `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; exact identity/labels/`Active`
-  and k3s/Tailscale health remained valid. The Namespace checkpoint is complete. The superseded
+  and k3s/Tailscale health remained valid. The Namespace checkpoint is complete. A
+  dedicated exact present-only
+  [CristexHub DEV Namespace bootstrap](../../runbooks/cristexhub-dev-namespace-bootstrap.md)
+  now contains only `cristexhub-dev` with the four approved labels and a distinct
+  guarded wrapper/action; the action reads controller CLI task-selection context and
+  rejects argument drift before the Kubernetes module. Check/apply/idempotence are
+  NOT RUN, no policy/workload/Secret/PVC/route exists, and `cristexhub-prod` remains
+  absent. The superseded
   `platform-secrets`/`platform-identity` source never ran, and this offline correction
   performs no live rename or deletion. Component source/credentials,
   resource/GVR/discovery inventory, Infisical Universal Auth recovery, live
@@ -202,8 +209,8 @@ note: |
   remains empty; provider initialization/lockfile, state creation/encryption, Google
   Drive copy and restore, plan, apply, and every external resource remain NOT
   RUN/BLOCKED.
-  Global committed Kubernetes source now defines exactly three Namespace manifests:
-  `argocd`, `platform-edge`, and `shared-services`.
+  Global committed Kubernetes source now defines exactly four Namespace manifests:
+  `argocd`, `platform-edge`, `shared-services`, and source-only `cristexhub-dev`.
   The closed historical bounded Ansible bootstrap defines and loads only `argocd`
   and `platform-edge`, requires state present and
   exact bootstrap/future-owner labels, refuses forged internal results and foreign
