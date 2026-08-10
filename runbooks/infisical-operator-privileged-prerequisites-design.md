@@ -9,7 +9,12 @@ Infisical Kubernetes Operator `v0.11.7` chart selected for offline source author
 It does not promote any chart object, approve a permission, prove compatibility, or
 add executable infrastructure. The machine-readable companion is the inert
 [`infisical-operator-privileged-prerequisites.yml`](../ansible/files/policies/infisical-operator-privileged-prerequisites.yml)
-promotion contract.
+promotion contract. The later
+[implementation profile](infisical-operator-implementation-profile.md) binds the
+official controller source and closes only the completed-foundation, exact-watch-
+profile, and source-audit gates; every deployable source, trust, compatibility,
+recovery, proxy, and
+runtime gate below remains blocked.
 
 There is no CustomResourceDefinition, ClusterRole, ClusterRoleBinding, Helm values,
 rendered Kubernetes document, controller object, Secret, Ansible wrapper, playbook,
@@ -112,7 +117,8 @@ following are independently accepted:
 3. exact schema and Kubernetes `1.36` compatibility review for all seven CRDs;
 4. CRD install, upgrade, storage, backup, non-deletion rollback, and ownership policy;
 5. deterministic render with a pinned offline renderer and immutable child digest;
-6. exact initial watch Namespaces and a least-privilege positive/negative RBAC matrix;
+6. the selected initial watch Namespaces plus a least-privilege positive/negative
+   RBAC matrix;
 7. explicit disposition of manager review rules, metrics cluster rules, and aggregate roles;
 8. Universal Auth bootstrap, rotation, revocation, compromise, and recovery proof;
 9. image signature or attestation identity, SBOM and vulnerability disposition,

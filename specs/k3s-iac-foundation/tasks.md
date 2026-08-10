@@ -254,14 +254,21 @@ entry gate.
   `KIF-015`, `KIF-023`, `KIF-030`).
 - [x] Inventory the seven hash-bound raw CRD templates, ownership boundaries, and
   manager/metrics/user-RBAC seams in an inert
-  [promotion contract](../../runbooks/infisical-operator-privileged-prerequisites-design.md); keep every trust,
+  [promotion contract](../../runbooks/infisical-operator-privileged-prerequisites-design.md); at that checkpoint keep every trust,
   compatibility, scope, authentication, recovery, traffic, source-promotion, and
   runtime gate closed and add no valid Kubernetes or operational Ansible source
   (`KIF-005`, `KIF-013`–`KIF-015`, `KIF-021`, `KIF-023`, `KIF-030`).
+- [x] Bind the official `v0.11.7` controller commit and record the confirmed
+  [implementation profile](../../runbooks/infisical-operator-implementation-profile.md):
+  exact `shared-services`/`argocd`/`cristexhub-dev` watch scopes with separate
+  identity intent, all-six namespaced-controller startup behavior, no ClusterGenerator
+  or review/token permissions, metrics off, authenticated Squid egress direction,
+  age/Drive secret-zero recovery direction, and a non-sensitive ConfigMap proof.
+  Quarantine the full source archive as evidence; promote no Kubernetes/operational
+  Ansible source. Keep same-Namespace reference enforcement and runtime blocked.
 - [ ] Accept Infisical signer/build trust and render a deterministic digest-pinned
-  controller closure only after chart/CRD/API compatibility, `shared-services`
-  placement with separate ServiceAccount/RBAC, explicit watch scope, Argo handoff,
-  Universal Auth recovery, traffic, single-node,
+  controller closure only after chart/CRD/API compatibility, exact RBAC, Argo
+  handoff, proxy image/config, Universal Auth recovery, traffic proof, single-node,
   and runtime gates are resolved (`KIF-005`, `KIF-013`–`KIF-015`, `KIF-023`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare/Keycloak
   secret-zero sequence (`KIF-014`, `KIF-015`).

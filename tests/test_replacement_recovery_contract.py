@@ -30,6 +30,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "cristexhub-dev-namespace-bootstrap.md",
                 "foundation-namespace-bootstrap.md",
                 "infisical-operator-candidate-provenance.md",
+                "infisical-operator-implementation-profile.md",
                 "infisical-operator-privileged-prerequisites-design.md",
                 "infisical-operator-release-selection.md",
                 "keycloak-oidc-bootstrap-design.md",

@@ -162,8 +162,15 @@ trust, Namespace, scoped-RBAC, Argo handoff, secret-zero/recovery, traffic,
 single-node, and runtime gates blocked. The inert
 [Infisical privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
 maps KIF-005, KIF-013 through KIF-015, KIF-021, KIF-023, and KIF-030 to the exact
-seven raw CRD templates, ownership boundaries, known RBAC defects, and closed
-promotion gates without adding a valid Kubernetes or operational Ansible source. The
+seven raw CRD templates, ownership boundaries, and known RBAC defects without adding
+a valid Kubernetes or operational Ansible source. The
+[Infisical implementation profile](../../runbooks/infisical-operator-implementation-profile.md)
+binds the official controller commit as quarantined evidence and maps the confirmed
+exact watch/separate-identity intent, metrics, ClusterGenerator, authenticated-proxy,
+secret-zero, and ConfigMap-proof choices to KIF-005 and KIF-013 through KIF-016.
+Foundation Namespace, source-audit, and technical-profile gates are evidenced;
+promoted deployable source, trust, compatibility, same-Namespace reference
+enforcement, proxy/recovery, and runtime gates remain closed. The
 [Argo](../../runbooks/argocd-release-selection.md),
 [Infisical](../../runbooks/infisical-operator-release-selection.md), and
 [Keycloak/PostgreSQL](../../runbooks/keycloak-release-selection.md) selection records

@@ -222,8 +222,19 @@ class InfisicalPrivilegedPrerequisitesDesignContractTests(unittest.TestCase):
         self.assertEqual(
             "universal-auth", self.policy["authentication_direction"]["mechanism"]
         )
+        gates = self.policy["promotion_gates"]
+        self.assertTrue(gates["initial_watch_namespaces_selected"])
+        self.assertTrue(gates["foundation_namespace_runtime_proved"])
         self.assertTrue(
-            all(value is False for value in self.policy["promotion_gates"].values())
+            all(
+                value is False
+                for key, value in gates.items()
+                if key
+                not in {
+                    "initial_watch_namespaces_selected",
+                    "foundation_namespace_runtime_proved",
+                }
+            )
         )
         self.assertTrue(
             {

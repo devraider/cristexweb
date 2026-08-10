@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: cristexhub-dev idempotence passed at ok=22 changed=0 unreachable=0 failed=0 skipped=0 with exact post-state/service health; 6 focused/159 full tests and review APPROVED; checkpoint complete; PROD absent
+build: Infisical source-only implementation profile passes 6 focused/64 affected/165 full contracts and review APPROVED; exact source/hash/profile evidence; deployable source/runtime blocked
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -175,11 +175,16 @@ note: |
   [privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
   binds the seven raw CRD templates, ownership boundaries, and known
   manager/metrics/user-RBAC defects to the vendored archive while approving no
-  object or permission and keeping all promotion gates closed. The actual target is
-  now captured, but chart/CRD/API compatibility, signer/build trust,
-  `shared-services` placement with separate ServiceAccount/scoped RBAC, Argo handoff,
-  secret-zero/recovery, traffic policy,
-  single-node acceptance, and runtime approvals remain blockers.
+  object or permission. The source-only
+  [implementation profile](../../runbooks/infisical-operator-implementation-profile.md)
+  binds the official controller commit as a quarantined evidence archive and selects
+  the exact three-Namespace watch/separate-identity intent, metrics-off/no-
+  ClusterGenerator privilege, authenticated Squid egress direction, age/Drive secret-
+  zero recovery direction, and non-sensitive ConfigMap proof. Foundation Namespace,
+  source-audit, and technical-profile gates are evidenced; chart/CRD/API
+  compatibility, signer/build trust, exact RBAC/render, same-Namespace reference
+  enforcement, proxy image/config, Argo handoff, secret-zero recovery, traffic proof,
+  single-node acceptance, and runtime remain blockers.
   The unmounted filesystem, disk health, contents, reuse decision, and off-node backup
   design remain unresolved; no disk mutation occurred.
   A bounded CNI/NetworkPolicy functional probe is implemented offline with separate

@@ -454,8 +454,14 @@ Keycloak, and privileged CRD/cluster-RBAC prerequisites. Exact executable Namesp
 source exists for completed `shared-services` and idempotent `cristexhub-dev`; no
 Infisical, Argo, Keycloak,
 PostgreSQL, MongoDB, chart, Secret,
-workload, or component runtime approval
-exists from that decision. The value-free
+workload, or component runtime approval exists from that decision. The source-only
+[Infisical implementation profile](../runbooks/infisical-operator-implementation-profile.md)
+binds the official `v0.11.7` controller commit and selects exact watch Namespaces,
+separate identity intent with same-Namespace reference enforcement still blocked,
+metrics-off/no-ClusterGenerator privilege, authenticated-proxy egress, age/Drive
+secret-zero recovery direction, and a non-sensitive ConfigMap proof. Its full source
+archive is quarantined evidence only; it promotes no operational role/playbook/
+wrapper, Kubernetes object, proxy, credential, or runtime approval. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 future PostgreSQL and one future MongoDB engine in `shared-services`. CristexHub
 DEV/PROD have isolated scopes on both engines; Reactive Resume DEV/PROD and Keycloak

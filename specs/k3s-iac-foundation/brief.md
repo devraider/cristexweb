@@ -161,11 +161,18 @@ for offline source authoring and Universal Auth as direction; it remains **NOT
 DEPLOYABLE**, runtime is **NOT RUN/BLOCKED**, and no CRD, Kubernetes object,
 credential, or Secret source was added. The inert
 [privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
-now records the seven raw CRD templates and manager/metrics/user-RBAC defects without
+records the seven raw CRD templates and manager/metrics/user-RBAC defects without
 promoting a valid object, permission, values file, render, or Ansible entrypoint. The
-target kubelet is now captured, but chart/CRD/API compatibility, signer/build trust,
-dedicated Namespace, scoped RBAC, Argo handoff, secret-zero/recovery, traffic policy,
-single-node risk, and runtime approvals remain blocked.
+[implementation profile](../../runbooks/infisical-operator-implementation-profile.md)
+binds the official `v0.11.7` controller source and selects exact
+`shared-services`/`argocd`/`cristexhub-dev` watch and separate identity intent,
+metrics-off/no-ClusterGenerator privilege, authenticated Squid egress, age/Drive
+secret-zero recovery direction, and a non-sensitive ConfigMap proof. The full source
+archive is quarantined evidence only. Foundation Namespaces are complete, but
+chart/CRD/API compatibility, signer/build trust, exact RBAC/rendering, same-Namespace
+reference enforcement, proxy image/config, Argo handoff, secret-zero recovery,
+traffic proof, single-node risk, and runtime remain blocked; no embedded archive
+artifact is promoted as operational source.
 Provider initialization, state, plan, and apply also remain unrun.
 Beyond the bounded public-source evidence reads, this deliverable performs no host
 mutation, authenticated Cloudflare/GitHub/Infisical/registry operation, database,

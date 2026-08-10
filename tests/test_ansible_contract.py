@@ -49,6 +49,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "files/vendor/argocd/10.3.0/pgp_keys.asc",
             "files/vendor/infisical-operator/0.11.7/SHA256SUMS",
             "files/vendor/infisical-operator/0.11.7/cloudsmith-signing-key.asc",
+            "files/vendor/infisical-operator/0.11.7/kubernetes-operator-64d2d81.tar.gz",
             "files/vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz",
             "files/vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz.prov",
             "inventory/hosts.yml",
@@ -67,6 +68,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "bin/bootstrap-foundation-namespaces",
             "bin/bootstrap-cristexhub-dev-namespace",
             "files/policies/infisical-operator-privileged-prerequisites.yml",
+            "files/policies/infisical-operator-implementation-profile.yml",
             "roles/opentofu_install/defaults/main.yml",
             "roles/opentofu_install/tasks/main.yml",
             "roles/platform_namespace_bootstrap/defaults/main.yml",
@@ -617,7 +619,7 @@ class AnsibleSafetyTests(unittest.TestCase):
             if path.is_file()
             and ".ansible" not in path.parts
             and "__pycache__" not in path.parts
-            and path.suffix != ".tgz"
+            and not path.name.endswith((".tgz", ".tar.gz"))
         )
 
     def test_no_arbitrary_execution_module_is_used(self) -> None:

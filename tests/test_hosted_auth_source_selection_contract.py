@@ -29,6 +29,8 @@ EXPECTED_VENDOR = {
     "files/vendor/infisical-operator/0.11.7/SHA256SUMS": None,
     "files/vendor/infisical-operator/0.11.7/cloudsmith-signing-key.asc":
         "7693c83a40ef1536cfdefe0e27806bf8027d272d847bafcea44807d08400b8c9",
+    "files/vendor/infisical-operator/0.11.7/kubernetes-operator-64d2d81.tar.gz":
+        "a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415",
     "files/vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz":
         "7f8846c4f6b1cdca2cea23cf00a29d12a38f42eb8da8e125dc196a1e5683aea8",
     "files/vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz.prov":
@@ -68,6 +70,7 @@ class HostedAuthSourceSelectionContractTests(unittest.TestCase):
             """7f8846c4f6b1cdca2cea23cf00a29d12a38f42eb8da8e125dc196a1e5683aea8  secrets-operator-0.11.7.tgz
 a39ae4be9ca25f7dc0b50b6633c92fc320d427fd67364b50e82c0d512db7b933  secrets-operator-0.11.7.tgz.prov
 7693c83a40ef1536cfdefe0e27806bf8027d272d847bafcea44807d08400b8c9  cloudsmith-signing-key.asc
+a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-operator-64d2d81.tar.gz
 """,
             (INFISICAL_VENDOR / "SHA256SUMS").read_text(),
         )

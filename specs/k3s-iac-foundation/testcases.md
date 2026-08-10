@@ -62,7 +62,8 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-RR-01 | KIF-012–KIF-017, KIF-019, KIF-021, KIF-023, KIF-026–KIF-030 | Reactive Resume private-MVP source architecture | Include environment-local Reactive Resume DEV in the private MVP, reserve separate PROD, bind exact OIDC clients and dedicated shared-PostgreSQL scopes, keep Infisical value ownership/private exposure, and block image/callback/object/Secret/recovery/handoff/runtime promotion | PASS SOURCE-ONLY — value-free policy/runbook and exact contracts pass; no local Compose input was promoted and no upstream image, callback, object, Secret, database, route, or runtime was selected or created |
 | KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, reserves `platform-edge` for cloudflared within the exact current four-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator provenance and selection boundary | Historical evidence distinguishes unselected `v0.11.8` distribution observations from the aligned `v0.11.7` set selected only as the offline baseline; trust, compatibility, scoped RBAC, Universal Auth recovery, traffic, and runtime remain blocked | PASS — focused contracts enforce exact evidence associations, qualified trust wording, immutable child direction, and no deployable controller source or Secret |
-| KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—to the vendored chart while every promotion gate stays false and no valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source appears | PASS — focused archive/policy/design contracts plus full offline validation; runtime remains NOT RUN/BLOCKED |
+| KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—without adding valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source | PASS — inventory remains inert; completed foundation Namespaces and the separately selected watch profile are now truthful gates while all deployable/runtime gates remain false |
+| KIF-INF-03 | KIF-005, KIF-013–KIF-016, KIF-021, KIF-023, KIF-030 | Infisical source audit and implementation profile | Hash-bind official `v0.11.7` controller commit as quarantined evidence and prove controller/auth/ClusterGenerator behavior; select exact three-Namespace separate-identity intent, metrics-off, no cluster manager/generator/review-token permission, authenticated Squid direction, age/Drive secret-zero direction, and non-sensitive ConfigMap proof while same-Namespace enforcement remains blocked | PASS SOURCE-ONLY — 6 focused/64 affected/165 full contracts, source hashes, compile, Markdown, and diff checks pass; no embedded artifact is promoted as Kubernetes/Ansible/proxy/credential/runtime source |
 | KIF-SRC-01 | KIF-005, KIF-010, KIF-013–KIF-015, KIF-023, KIF-030 | Deterministic hosted source-baseline closure | Exact release records, value-free identity/authorization policy, chart/provenance/public-key bytes, SHA256SUMS, safe chart roots, exact four-Namespace closure, and absence of component operational source are enforced offline | PASS — source-selection plus affected provenance/design/layout contracts pass; exact hashes verified; no live/runtime operation or staged file |
 | KIF-NS-04 | KIF-002, KIF-003, KIF-005, KIF-013–KIF-017, KIF-021, KIF-026–KIF-030 | Shared-services placement correction | Replace never-run `platform-secrets`/`platform-identity` source with one exact present-only `shared-services` Namespace; reserve `platform-edge` for cloudflared; place Infisical Operator, separate Keycloak, and one general PostgreSQL instance in commons intent; give Keycloak only a dedicated logical database/role/credential on that engine | PASS — 78 focused and 115 full offline tests, 9 syntax checks, production lint, fail-closed fixtures, archive hashes, links, closure, hygiene, and historical-source preservation passed; no discovery, check, apply, deletion, workload, Secret, database, route, or runtime operation |
 | KIF-NS-05 | KIF-002, KIF-005, KIF-016, KIF-030 | Shared-services Namespace runtime | A successful wrapper check predicts only the absent exact `shared-services` Namespace; separately approved first apply creates/verifies it; separately approved idempotence converges at changed=0 | PASS — check retry passed at `ok=20 changed=1 failed=0`; first apply passed at `ok=22 changed=1 failed=0`; separately approved idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact identity/three labels/`Active` and k3s/Tailscale health preserved. No component was deployed |
@@ -2968,6 +2969,76 @@ was deployed. Independent review found and corrected one stale first-apply
 idempotence statement and one historical Namespace-absence sentence; case-insensitive
 regressions now cover both. Six focused/159 full tests passed, and final rereview
 returned **APPROVED**.
+
+## Infisical implementation-profile source validation — 2026-08-10
+
+The source-only
+[Infisical implementation profile](../../runbooks/infisical-operator-implementation-profile.md)
+binds the official `v0.11.7` controller commit as quarantined evidence and records the
+confirmed technical profile without promoting any Kubernetes object, operational
+Ansible entrypoint, proxy source, credential, or runtime operation. The profile
+selects distinct `shared-services`, `argocd`, and `cristexhub-dev` identity intent and
+watch scopes; same-Namespace reference enforcement remains blocked and PROD remains
+absent/unwatched.
+
+Test-first checkpoint:
+
+```text
+New focused contract: ERROR as expected because
+ansible/files/policies/infisical-operator-implementation-profile.yml did not exist
+```
+
+Validation commands:
+
+```bash
+.venv/bin/python -m unittest -v \
+  tests.test_infisical_operator_implementation_profile_contract
+.venv/bin/python -m unittest -v \
+  tests.test_infisical_operator_provenance_contract \
+  tests.test_infisical_operator_privileged_prerequisites_contract \
+  tests.test_infisical_operator_implementation_profile_contract \
+  tests.test_hosted_auth_source_selection_contract \
+  tests.test_keycloak_oidc_bootstrap_design_contract \
+  tests.test_replacement_recovery_contract tests.test_ansible_contract
+.venv/bin/python -m unittest discover -s tests
+.venv/bin/python -m compileall -q tests
+cd ansible/files/vendor/infisical-operator/0.11.7
+shasum -a 256 -c SHA256SUMS
+cd ../../../../..
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Test-first checkpoint: expected missing implementation-profile policy error
+First focused implementation run: 5 passed / 1 exact source-call mismatch
+First integrated run: 153 tests / 4 exact-closure failures / 1 binary-read error
+Final focused profile: 6 passed
+Final affected suite: 64 passed
+Final full offline suite: 165 passed
+Official source archive: 307 safe members; exact SHA-256 matched
+Vendored Infisical SHA256SUMS: PASS
+Python compile: PASS
+Markdown links/hygiene: PASS
+Diff hygiene/no staged files: PASS
+```
+
+The source audit proves all six namespaced reconcilers are registered. ClusterGenerator
+has no reconciler or eager watch; a forbidden explicit reference would perform an
+on-demand cache-backed read that may create a lazy informer. Universal Auth does not use
+TokenReview or service-account token creation, and `--metrics-bind-address=0` disables
+metrics. The full archive contains upstream install/chart/config/build material but
+is forbidden as an operational input. No Helm/GPG runtime, promoted Kubernetes
+object, operational Ansible, Squid source, credential, Infisical account/API,
+inventory, SSH, kubeconfig, cluster API, or runtime mutation occurred. Deployable source remains blocked pending trust,
+compatibility, exact render/RBAC, proxy image/config, and recovery evidence.
+Independent review found and corrected the embedded-source quarantine boundary,
+cross-Namespace reference-isolation overclaim, release-selection closure, complete
+gate regression, and ClusterGenerator lazy-informer wording. Final rereview confirmed
+exactly three true gates, no operational archive consumer, and blocked deployable/
+runtime source and returned **APPROVED**.
 
 ## Future validation contract
 

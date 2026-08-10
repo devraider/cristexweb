@@ -17,7 +17,9 @@ The clean-clone public-input closure is exactly:
 
 - `ansible/files/vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz`;
 - `ansible/files/vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz.prov`;
-- `ansible/files/vendor/infisical-operator/0.11.7/cloudsmith-signing-key.asc`; and
+- `ansible/files/vendor/infisical-operator/0.11.7/cloudsmith-signing-key.asc`;
+- `ansible/files/vendor/infisical-operator/0.11.7/kubernetes-operator-64d2d81.tar.gz`;
+  and
 - `ansible/files/vendor/infisical-operator/0.11.7/SHA256SUMS`.
 
 The archive SHA-256 is
@@ -27,7 +29,11 @@ The provenance-file SHA-256 is
 The public-key-input SHA-256 is
 `7693c83a40ef1536cfdefe0e27806bf8027d272d847bafcea44807d08400b8c9`.
 The captured provenance issuer and public-key fingerprint are
-`D5CAFD69577534F2F6698C2BCFEA742D3B8FF4D5`.
+`D5CAFD69577534F2F6698C2BCFEA742D3B8FF4D5`. The official controller source archive
+binds commit `64d2d81da3707d81dc271410da6fd88254b6c9b3` at SHA-256
+`a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415`. It contains
+upstream install/chart/config/build material as quarantined evidence only and is not
+an operational input or promoted object closure.
 
 Cryptographic chart verification is still **NOT RUN**. Matching fingerprints and
 payload hashes do not establish Infisical authorization, trust path, current signer

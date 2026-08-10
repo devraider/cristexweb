@@ -127,10 +127,16 @@ distinguishes latest source release `v0.11.8`, whose matching public chart archi
 and image tag were not observed during the bounded capture, from the version-aligned
 `v0.11.7` set. The separate release record selects `v0.11.7` only for offline source
 authoring and Universal Auth as direction; it remains not deployable and runtime is
-**NOT RUN/BLOCKED**. Actual compatibility, chart/image trust, dedicated Namespace,
-scoped RBAC, Argo handoff, secret-zero, network policy, recovery, and runtime
-approvals remain blocked. It adds no chart, CRD, Kubernetes object, credential, or
-Secret source.
+**NOT RUN/BLOCKED**. The completed `shared-services` Namespace and the source-only
+[implementation profile](runbooks/infisical-operator-implementation-profile.md) now
+bind the official controller commit and select the exact
+`shared-services`/`argocd`/`cristexhub-dev` cache, separate identity intent,
+metrics-off, no ClusterGenerator privilege, authenticated-proxy egress, age/Drive
+recovery direction, and a non-sensitive ConfigMap proof. The full source archive is
+quarantined evidence only. CRD admission/storage recovery, chart/image trust, exact
+RBAC/rendering, same-Namespace reference enforcement, proxy image/config, secret-zero
+recovery, Argo handoff, and runtime remain blocked. No chart, CRD, Kubernetes object,
+proxy, credential, or Secret is promoted as operational source.
 No state file, provider initialization, plan, apply, Helm installation, Kustomize
 workload, image publication, or general host baseline exists yet. The committed CI
 source has no package-write, Secret, provider, host, cluster, or deployment path;
@@ -517,15 +523,19 @@ verification must meet the declared RPO/RTO before PROD.
   not deployable, with runtime **NOT RUN/BLOCKED**. The inert
   [privileged-prerequisites inventory](runbooks/infisical-operator-privileged-prerequisites-design.md)
   binds the seven raw CRD templates and known manager/metrics/user-RBAC seams to the
-  vendored archive while approving no object or permission and keeping every
-  promotion gate closed. It adds no CRD, RBAC, values, rendered object, or Ansible
-  execution source. The actual target kubelet is now captured, but chart/CRD/API
-  compatibility, trust, Namespace, scoped-RBAC, Argo handoff, secret-zero, traffic,
-  recovery, and runtime gates remain blocked.
+  vendored archive while approving no object or permission. The
+  [implementation profile](runbooks/infisical-operator-implementation-profile.md)
+  quarantines the full official source archive and records completed foundation
+  Namespaces, the exact three-Namespace watch/separate-identity intent, source-audited
+  controller/Universal-Auth/ClusterGenerator behavior, metrics-off, proxy, recovery,
+  and ConfigMap-proof directions. Only foundation, source-audit, and technical-profile
+  gates are true. Chart/CRD/API compatibility, trust, exact RBAC/rendering,
+  same-Namespace reference enforcement, Argo handoff, secret-zero recovery, proxy/
+  traffic, and runtime remain blocked; no embedded source is operational input.
 - Entry: pinned component versions, human-reviewed target kubelet-version evidence,
   verified Kubernetes compatibility, and an approved secret-zero procedure.
-- Work sequence: a new bounded Ansible Namespace exception; selected Infisical Cloud
-  Kubernetes Operator plus separate secret-zero and non-sensitive sync/rotation/
+- Work sequence: exact Ansible-owned prerequisites; idle Operator/proxy closure;
+  separate secret-zero and non-sensitive sync/rotation/
   revocation/recovery proof; Infisical-materialized precreated Argo Secrets; then the
   separately approved hardened Ansible Argo bootstrap and private one-time local
   break-glass readiness, only after every Stage 4 entry gate passes. Keycloak follows

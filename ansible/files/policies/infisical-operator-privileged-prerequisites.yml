@@ -89,7 +89,7 @@ promotion_gates:
   exact_crd_schema_review_complete: false
   kubernetes_1_36_compatibility_proved: false
   crd_upgrade_storage_rollback_policy_selected: false
-  initial_watch_namespaces_selected: false
+  initial_watch_namespaces_selected: true
   least_privilege_rbac_selected: false
   deterministic_digest_render_proved: false
   image_trust_sbom_vulnerability_disposition_accepted: false
@@ -98,7 +98,7 @@ promotion_gates:
   generated_secret_lifecycle_selected: false
   exact_traffic_policy_selected: false
   single_node_risk_and_soak_accepted: false
-  foundation_namespace_runtime_proved: false
+  foundation_namespace_runtime_proved: true
   component_check_apply_idempotence_approved: false
 prohibited_by_this_increment:
   - custom-resource-definition-source
