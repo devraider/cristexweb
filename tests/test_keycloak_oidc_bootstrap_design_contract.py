@@ -152,7 +152,6 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
                 for path in operational
                 for component in (
                     "keycloak",
-                    "argocd",
                     "postgres",
                     "mongo",
                     "mongodb",
@@ -177,11 +176,12 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz",
             "vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz.prov",
         }
-        expected_public_inputs.update(
-            str(path.relative_to(ROOT / "ansible/files"))
-            for path in (ROOT / "ansible/files/components/infisical-operator").rglob("*")
-            if path.is_file()
-        )
+        for component in ("infisical-operator", "argocd"):
+            expected_public_inputs.update(
+                str(path.relative_to(ROOT / "ansible/files"))
+                for path in (ROOT / "ansible/files/components" / component).rglob("*")
+                if path.is_file()
+            )
         self.assertEqual(
             expected_public_inputs,
             {

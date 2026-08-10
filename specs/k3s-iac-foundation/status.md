@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: guarded Infisical idle/secret-zero source passes 15 focused/180 full contracts, 12 syntax checks, production lint, fixtures, hashes/docs/diff; hardened Drive OAuth retry cleaned/resumed and stopped before Kubernetes
+build: guarded Infisical and 32-object private Argo CD source closures pass offline contracts, syntax, production lint, fixtures, hashes/render/docs/diff; both runtimes remain blocked/unrun
 date: 2026-08-10
 deploy_required_after_acceptance: yes
 
@@ -10,14 +10,24 @@ note: |
   Operational implementation is limited to read-only Ansible discovery, the
   executed two-package dependency bootstrap, executed group-scoped k3s administrator
   access, executed user-scoped kubectl client defaults, and the executed one-reboot
-  recovery verifier. Python is limited to offline tests plus the three reviewed
-  exact-scope Ansible mutation-guard action plugins; no general operational Python
+  recovery verifier. Python is limited to offline tests plus five reviewed
+  exact-scope Ansible action plugins (four mutation guards and one no-log Argo Secret
+  cryptographic validator); no general operational Python
   or collector exists. One
   explicitly approved SSH ping and
   non-elevated one-host check/diff run passed and generated the ignored mode-0600
   host-only report. The approved bootstrap directly requested only
   `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
   dependencies, and package/import verification passes.
+  Guarded deployable source now also exists for the exact private Argo CD core: three
+  Ansible-owned CRDs and 29 namespaced objects, no ApplicationSet runtime, Secret,
+  cluster RBAC, or public exposure. The wrapper fails closed until three exact,
+  cryptographically valid Infisical-owned Secret contracts exist and
+  `argocd-initial-admin-secret` is absent. Offline defaults reach the intentional host
+  prerequisite; empty-API check defers only the unresolved default-project GVK, and
+  apply waits for all three CRDs to become Established before runtime objects.
+  No live Argo check/apply/idempotence, workload, login, TLS, traffic, recovery, or
+  Git reconciliation evidence exists.
   The reviewed elevated report confirms the datastore and all nine exact Kubernetes
   queries as available. The approved admin-access check and mutation both passed,
   and the kubeconfig is root:k3s-admin mode 0640. A genuinely fresh session includes
@@ -62,27 +72,22 @@ note: |
   source-only
   [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
   binds chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
-  immutable linux/amd64 images, and curated online/static readiness evidence. It is
+  immutable linux/amd64 images, and curated online/static readiness evidence. It
   retains historical candidate evidence. The release record selects chart `10.3.0`
-  / app `v3.5.0` only for offline source authoring; it remains **NOT DEPLOYABLE**,
-  adds no values/Kubernetes source, and has no live API or Argo runtime evidence. The exact 44-document render
-  reproduced at Kubernetes capability `1.36.2`, stable upstream API registration
-  screened successfully, and controller-side image closure was reachable. Exact k3s
-  admission/runtime and node pullability remain unproven. Signing/index-to-child and
-  Redis trust, vulnerability policy, wildcard/broad RBAC,
-  ingress-only/unrestricted-egress policy, generated/internal Secret recovery,
-  private Git secret-zero, Namespace adoption, trust/soak acceptance, and runtime
-  approvals remain blockers. The separate
-  [source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
-  accepts ClusterIP/loopback-only private administration, retained quiescent
-  ApplicationSet, supplemental default-deny with an explicit broad ports-only
-  `443`/`6443` weakness, phased least privilege, one-repository read-only GitHub App
-  credentials, value-free Infisical custody, disabled Redis initialization, and two
-  adoption Applications. It remains design-only: chart `10.3.0` and application
-  `v3.5.0` are selected only for offline source authoring, runtime remains **NOT
-  RUN/BLOCKED**, and no values, policy, RBAC, AppProject, Secret, Application, or
-  route source was added. Ansible is selected as the future bounded bootstrap
-  installer and lifecycle owner of privileged CRDs/cluster RBAC. Exact present-only
+  / app `v3.5.0`, and the separate
+  [guarded Argo CD bootstrap](../../runbooks/argocd-hardened-design.md) now promotes
+  an exact 32-object committed-manifest closure. It contains three Ansible-owned CRDs
+  and 29 namespaced objects, including a deny-all default AppProject, for the private controller/repo-server/server/standalone-
+  Redis core. ApplicationSet runtime, Dex, notifications, commit server, cluster
+  RBAC, public exposure, PVCs, hooks, metrics Services, Application/ApplicationSet,
+  and Secret objects are absent. Exact precreated Infisical-owned Secret metadata and
+  cryptographic values are a fail-closed prerequisite. Offline render/hash/security/
+  policy/RBAC/wrapper/action/
+  syntax/lint contracts pass. Argo runtime remains **NOT RUN/BLOCKED** pending Secret
+  materialization and recovery, reviewed check/apply/idempotence, node pulls,
+  readiness, TLS/login, private traffic positives/negatives, and Git reconciliation.
+  Ansible is lifecycle owner of the three CRDs and bootstrap owner of namespaced
+  objects until an explicit evidence-backed handoff. Exact present-only
   [foundation Namespace source and guarded wrapper](../../runbooks/foundation-namespace-bootstrap.md)
   now exist for `shared-services`. The first non-interactive check attempt stopped
   before service preflight/reconciliation for missing sudo

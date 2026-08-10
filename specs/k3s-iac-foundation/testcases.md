@@ -53,7 +53,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-NS-03 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-030 | Historical foundation Namespace source checkpoint | Exact `platform-secrets` and `platform-identity` source plus a guarded present-only wrapper passed offline validation, but the wrapper never ran and the placement was superseded before runtime | SUPERSEDED SOURCE-ONLY — historical validation remains truthful; no cluster object was created or deleted by this checkpoint |
 | KIF-ARGO-01 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-023, KIF-030 | Argo CD candidate provenance and target-minor screen | Historical secret-free evidence binds exact official chart/index/provenance/image/render inputs plus target kubelet and tested-version sources while the separate release record now selects chart `10.3.0` / app `v3.5.0` only for offline source authoring | PASS — focused provenance contracts preserve exact associations and target-minor qualification; selection remains NOT DEPLOYABLE and Argo runtime remains NOT RUN/BLOCKED |
 | KIF-ARGO-02 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Argo CD online/static readiness refresh | A secret-free record curates deterministic render, upstream API registration, RBAC/network, image trust/availability/vulnerability, private-Git, and Namespace-adoption evidence while all live admission/runtime gates remain blocked | PASS — focused provenance contracts preserve the 44-document render and security blockers; no values, rendered YAML, Kubernetes object, credential, or deployable controller source was added |
-| KIF-ARGO-03 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013–KIF-015, KIF-021, KIF-030 | Argo CD source-only hardened design | A secret-free design fixes private ClusterIP/loopback-only administration, retained quiescent ApplicationSet, supplemental default-deny, phased least privilege, one-repository GitHub App credentials, value-free secret custody, selected direct OIDC direction, two-Application adoption, stop/rollback, Ansible ownership, five open decisions, and one closed foundation-Namespace evidence item without adding deployable source | PASS — hardened-design contracts accept only the offline version baseline; trust, exact controller closure, admission, Secrets, recovery, handoff, and runtime remain blocked |
+| KIF-ARGO-03 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013–KIF-015, KIF-021, KIF-030 | Historical Argo CD source-only hardened-design checkpoint | At that checkpoint, a secret-free design fixed private access, retained quiescent ApplicationSet, supplemental default-deny, phased least privilege, private Git/secret custody, adoption, stop/rollback, and ownership without deployable source | PASS HISTORICAL/SUPERSEDED — the checkpoint was valid when recorded; current guarded cases KIF-ARGO-04 through KIF-ARGO-10 implement an exact private core with ApplicationSet runtime absent while runtime remains blocked |
 | KIF-IDP-01 | KIF-002, KIF-003, KIF-005, KIF-010, KIF-012–KIF-017, KIF-021, KIF-023, KIF-026–KIF-030 | Source-only Ansible bootstrap and Keycloak OIDC architecture | Ansible is the selected bounded bootstrap installer and privileged lifecycle owner with no dual reconciliation; direct Argo OIDC separates Keycloak authentication/groups, Argo RBAC, and Kubernetes RBAC while preserving private administration, Infisical-owned values, a dedicated Keycloak logical database/role on the general shared PostgreSQL engine, stable issuer, exact approvals, and handoff gates | PASS — Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, clients, group templates, default theme, separate deployment, and shared-engine isolation policy are selected only for offline authoring; no executable component source, credential, route, or runtime was added |
 | KIF-DB-01 | KIF-005, KIF-013, KIF-016–KIF-019, KIF-021, KIF-026–KIF-030 | Shared database source-only architecture | One PostgreSQL and one MongoDB engine are placed in `shared-services`; exact consumers remain isolated and the approved source profile fixes NVMe `local-path`, 40/80 GiB PVCs, bounded resources, private standard Services/TLS, Ansible→Argo ownership direction, and daily/14-day/24h/4h backup targets | PASS SOURCE-ONLY — exact consumer/profile contracts pass; PostgreSQL keeps its selected-but-untrusted baseline, MongoDB source/topology and implementation details remain unselected, all promotion gates are false, the current exact four-Namespace closure includes only source-ready `cristexhub-dev` beyond the completed platform set, and no executable database source or runtime operation was added |
 | KIF-MQ-01 | KIF-005, KIF-013, KIF-016, KIF-019–KIF-021, KIF-026–KIF-030 | Shared RabbitMQ source-only architecture | Exactly one future RabbitMQ engine belongs in `shared-services`; DEV/PROD have dedicated vhost/user/Infisical credential/permission/limit/recovery scopes, deny-first cross-vhost/admin/public-management rules, and future consumers require reviewed exact changes | PASS SOURCE-ONLY — canonical value-free policy/runbook and fail-closed contracts pass; image/topology/storage/ports/resources/TLS/NetworkPolicy/restore/runtime remain unselected and no executable source was added |
@@ -3158,3 +3158,46 @@ external reachability tests from both tailnet and non-tailnet clients
 ```
 
 Tool absence is recorded as NOT RUN, never converted into a fabricated PASS.
+
+## Guarded private Argo CD source — 2026-08-10
+
+Commands:
+
+- `.venv/bin/python -m unittest -v tests.test_argocd_hardened_design_contract`
+- `.venv/bin/python -m unittest discover -s tests`
+- `cd ansible && ../.venv/bin/ansible-playbook playbooks/bootstrap_argocd.yml --syntax-check`
+- `cd ansible && ../.venv/bin/ansible-lint --profile production`
+- `tests/validate_argocd_clean_controller.sh`
+- `tests/validate_argocd_role_defaults.sh`
+- `tests/reject_argocd_task_start.sh`
+- `HELM_BIN=/tmp/darwin-arm64/helm tests/validate_argocd_chart_render.sh`
+- `git diff --check` plus Markdown link/hygiene and staged-file checks
+
+Actual result: **PASS OFFLINE / RUNTIME NOT RUN** — 15 focused Argo contracts and
+184 full contracts passed; all 13 playbooks passed syntax; production-profile lint
+passed with zero failures/warnings; clean-controller, direct valid-attestation action,
+combined task-start/injected-binding, and first-task internal-injection negatives all
+failed closed before Kubernetes. The wrapper's exact JSON extra-var representation
+was positively evaluated by Ansible as native boolean `true`. A production-role
+default smoke passed all exact 32-source/hash/identity assertions and stopped only at
+the deliberately absent local k3s/Tailscale prerequisite. Empty-API check mode now
+defers only the unresolved AppProject dry run; apply requires all three CRDs to become
+Established before runtime objects. Cryptographic Secret tests reject a noncanonical bcrypt cost, lexically non-RFC3339
+or malformed UTC time, and an unrelated TLS key. The pinned 35-object
+chart render partitions exactly into 24 promoted, eight custom-hardened, and 11
+intentionally omitted identities; all three promoted CRD specs equaled the render;
+32 raw hashes, canonical object hashes, unique identities, and the preflight identity
+set digest matched. After two NEEDS-FIX rounds closed runtime, hash-templating,
+cryptographic, fixture, and living-document defects, independent runtime/security and
+tests/docs re-reviews both returned **APPROVED**. Live cases remain blocked as
+recorded below.
+
+| ID | Requirements | Scenario | Expected | Actual |
+|---|---|---|---|---|
+| KIF-ARGO-04 | KIF-005, KIF-008, KIF-023, KIF-030 | Vendored chart and exact promoted closure | Chart `10.3.0`, app `v3.5.0`, three CRDs, deterministic identity partition, exact hash ledger/source mapping, 32 unique objects, runtime consumes no Helm | PASS OFFLINE — pinned chart hash; exact 35 = 24 promoted + 8 custom + 11 omitted partition; all three promoted CRD specs equal render; 32 hashes/identities match |
+| KIF-ARGO-05 | KIF-005, KIF-010, KIF-021, KIF-023 | Minimal private hardened core | Controller, repo-server, server, Redis only; exact digests/resources/security; three ClusterIP Services; no public field/ApplicationSet/Dex/notifications/commit server/PVC/hook/metrics Service | PASS OFFLINE — structural contract |
+| KIF-ARGO-06 | KIF-008, KIF-010, KIF-021 | Default-deny and idle namespaced RBAC | Exact six policies and component flows; no metrics ingress; no wildcard/delete/escalate/bind/impersonate/token/Namespace/CRD/cluster-RBAC mutation | PASS OFFLINE — structural contract; port-only 443/6443 limitation documented |
+| KIF-ARGO-07 | KIF-005, KIF-013–KIF-015 | Infisical-owned precreated Secrets | Source has zero Secret objects/values; exact three names/types/keys/labels and cryptographic value validity required; initial-admin Secret absent | PASS OFFLINE — no-log exact-scope validator requires bcrypt structure/cost, strict UTC timestamp, key lengths, parseable current direct-CA TLS chain, server identities/usage, and matching leaf/key; cost, noncanonical/malformed-time, and unrelated-key negatives pass; materialization/recovery NOT RUN |
+| KIF-ARGO-08 | KIF-002, KIF-005, KIF-030 | Non-passthrough guarded mutation | Only check/apply wrapper, private attestation, canonical task source, exact canonical hashes, present-only, foreign-object refusal, task-selection/injection negatives | PASS OFFLINE — wrapper approval is native boolean; direct valid-attestation action and combined start-at-task/injection fail closed before Kubernetes; default-role smoke reaches only host prerequisites |
+| KIF-ARGO-09 | KIF-002, KIF-010, KIF-012, KIF-015 | Live check/apply/readiness/idempotence/private login/recovery | Separate reviewed check, first apply, Ready/TLS/login/traffic negatives, Git read, second apply changed=0, recovery | NOT RUN/BLOCKED — requires exact Infisical-owned Secrets and parent approvals |
+| KIF-ARGO-10 | KIF-005, KIF-008, KIF-010, KIF-021 | Empty-install default project startup | A committed `AppProject/default` exists before workloads, denies every source/destination/resource, server/controller may read it, neither can mutate projects, first check tolerates absent discovery without mutation, and apply waits for Established CRDs | PASS OFFLINE — exact deny-all project, non-mutating project RBAC, one-object check deferral, and CRD wait contract are hash/task-bound; live startup remains part of KIF-ARGO-09 |

@@ -56,7 +56,7 @@ reboot recovery playbook, and the executed temporary NetworkPolicy probe under
 `ansible/`. Effective-user readability, warning-free
 fresh-session cluster listing, both idempotence checks, SSH/Tailscale return, Ready
 node, and kubeconfig recovery passed.
-Python is used for offline contract tests and the three reviewed exact-scope Ansible
+Python is used for offline contract tests and the four reviewed exact-scope Ansible
 action plugins that enforce mutation boundaries; no general-purpose operational
 Python or infrastructure collector exists. One
 approved non-elevated check/diff run produced
@@ -106,9 +106,9 @@ Namespace, and preserved service health. Idempotence passed at
 `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the checkpoint is complete. No
 policy/workload/Secret/PVC/route is included, and PROD remains absent. The superseded `platform-secrets`/`platform-identity`
 source was never run; this source correction does not claim a live rename or
-deletion. Argo CD, cloudflared, Infisical Operator,
-Keycloak, PostgreSQL, MongoDB, Secrets, workloads, Services, policies, PVCs, and
-routes remain unrun. The source-only
+deletion. Argo CD and Infisical now have guarded deployable source closures, but
+both remain unrun; cloudflared, Keycloak, PostgreSQL, MongoDB, Secrets, workloads,
+Services, policies, PVCs, and routes remain absent at runtime. The source-only
 [shared database architecture](../../runbooks/shared-database-architecture.md)
 records exact engine/consumer closure, deny-first authorization, private exposure,
 Infisical value ownership, and closed promotion gates without adding executable
@@ -121,24 +121,17 @@ deploy; exact source-only run `31311995461` passed commit
 `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`. A source-only
 [Argo CD candidate provenance record](../../runbooks/argocd-candidate-provenance.md)
 retains historical chart, signature/hash-binding, image, and online/static readiness
-evidence for chart `10.3.0` and app `v3.5.0`. The release record selects that pair
-only for offline source authoring; it remains **NOT DEPLOYABLE** and adds no values or
-Kubernetes object source. The exact 44-document render reproduced at Kubernetes capability `1.36.2`,
-stable upstream API registration screened successfully, and controller-side image
-closure was reachable. Exact k3s admission/runtime and node pullability remain
-unproven; wildcard/broad RBAC, ingress-only/unrestricted-egress policy, signing and
-image trust, generated/internal Secret recovery, private Git secret-zero, Namespace
-adoption, trust/soak acceptance, and all runtime approvals remain blocked. The
-[source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
-accepts only a private ClusterIP/loopback-port-forward direction, retained quiescent
-ApplicationSet, supplemental default-deny with an explicit broad ports-only
-`443`/`6443` weakness, phased least privilege, an exact one-repository read-only
-GitHub App credential shape, value-free Infisical custody, disabled Redis initializer,
-and two adoption Applications. It remains design-only, adds no deployable source,
-and records Ansible as the selected bounded bootstrap installer and privileged
-lifecycle owner while leaving six controller-closure, foundation-Namespace-runtime,
-resource-inventory, Universal-Auth-recovery, adoption-apply, and selected-OIDC
-activation decisions open. The
+evidence for chart `10.3.0` and app `v3.5.0`. The release record selects that pair and the
+[guarded Argo CD bootstrap](../../runbooks/argocd-hardened-design.md) now promotes an
+exact 32-object committed-manifest closure: three Ansible-owned CRDs plus 29 private
+namespaced objects—one deny-all default AppProject and 28 objects for controller,
+repo-server, server, and standalone Redis.
+ApplicationSet runtime, Dex, notifications, commit server, cluster RBAC, public
+exposure, PVCs, hooks, metrics Services, and Secret objects are absent. Exact
+precreated Infisical-owned Secret metadata is mandatory. Offline hash, render,
+security, RBAC, NetworkPolicy, wrapper/action, syntax, and lint contracts pass; no
+live check/apply/idempotence, node pull, login/TLS, traffic, recovery, or Git sync
+proof is claimed. The
 [source-only Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
 selects the shared self-hosted identity architecture target, direct Argo OIDC with
 Dex absent, private administration, a dedicated Keycloak database/role on the shared

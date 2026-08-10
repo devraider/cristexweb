@@ -3,3 +3,4 @@ profile: production
 exclude_paths:
   - .ansible/
   - files/components/infisical-operator/
+  - files/components/argocd/

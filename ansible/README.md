@@ -459,7 +459,8 @@ admission, least-privilege namespaced RBAC, one metrics-off controller, authenti
 TLS Squid, and eight NetworkPolicies. The archive remains quarantined evidence and is
 never consumed at runtime. No Secret value or Infisical CR is committed. Runtime is
 unrun and the wrapper fails before mutation until exact separately recovered proxy
-Secret metadata exists. Argo, Keycloak, PostgreSQL, MongoDB, and application runtime
+Secret metadata exists. A separate guarded Argo CD source closure now exists but
+also remains runtime-unrun; Keycloak, PostgreSQL, MongoDB, and application runtime
 remain absent. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 future PostgreSQL and one future MongoDB engine in `shared-services`. CristexHub
@@ -515,8 +516,15 @@ Namespace, and preserved service health. Idempotence passed at
 `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the Namespace checkpoint is
 complete.
 
-Hash-bound public chart/provenance/public-key inputs now exist under `files/vendor/`
-for the Argo CD `10.3.0` and Infisical Operator `0.11.7` offline source baselines.
+Hash-bound public chart/provenance/public-key inputs exist under `files/vendor/` for
+Argo CD `10.3.0` and Infisical Operator `0.11.7`. Argo runtime never consumes Helm;
+`files/components/argocd/` contains the exact 32-object reviewed closure and render
+evidence mapping. `bin/bootstrap-argocd check|apply` is the only authorized Argo
+entrypoint. It uses existing k3s-admin access without sudo, creates only present
+objects, requires the exact three cryptographically valid Infisical-owned Secret
+contracts, refuses the initial-admin Secret and foreign objects, and performs no
+deletion. Empty-API check mode defers only the unresolved default-project custom
+resource; apply waits for all three CRDs to report Established before runtime objects.
 `files/policies/hosted-identity-authorization.yml` is a value-free review policy, not
 an executable playbook, realm import, Kubernetes object, credential, or permission
 to render/install a controller. The separate

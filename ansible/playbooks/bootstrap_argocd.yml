@@ -1,0 +1,8 @@
+---
+- name: Guarded private Argo CD bootstrap
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  roles:
+    - role: argocd_bootstrap

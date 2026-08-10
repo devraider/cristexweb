@@ -1,0 +1,31 @@
+---
+- name: Reject direct Argo CD action-only mutation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    argocd_bootstrap_approved: true
+    argocd_bootstrap_state: present
+    argocd_bootstrap_internal_preflight_binding:
+      attestation_sha256: >-
+        {{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_BOOTSTRAP_TOKEN') |
+           ansible.builtin.hash('sha256') }}
+      object_count: 32
+      identity_set_sha256: bb81e0babfa314a91e52479e71d778b79c81df77bf5b74a9f2cb1bf08d692b81
+      crd_count: 3
+      prestate_count: 32
+      deferred_custom_resource_count: 0
+      secret_count: 3
+      namespace_contract: true
+      service_contract: true
+  tasks:
+    - name: Attempt one exact object without canonical guarded role task source
+      argocd_guarded_k8s:
+        state: present
+        definition: >-
+          {{ lookup('ansible.builtin.file', playbook_dir ~
+             '/../ansible/files/components/argocd/crds/applications.argoproj.io.yaml') |
+             from_yaml }}
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        wait: false
+        wait_timeout: 60

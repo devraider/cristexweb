@@ -301,9 +301,13 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
             for path in root.rglob("*")
             if path.is_file()
         ]
-        forbidden = ("argocd", "keycloak", "postgres", "mongo", "mongodb")
+        forbidden = ("keycloak", "postgres", "mongo", "mongodb")
         self.assertFalse(
             any(component in path.name.lower() for path in operational for component in forbidden)
+        )
+        self.assertEqual(
+            {"bootstrap-argocd", "bootstrap_argocd.yml", "main.yml"},
+            {path.name for path in operational if "argocd" in str(path).lower()},
         )
         self.assertEqual(
             {

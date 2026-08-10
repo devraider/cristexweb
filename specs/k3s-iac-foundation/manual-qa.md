@@ -7,7 +7,7 @@ environment, redacted evidence location, result, and rollback outcome. Never pas
 passwords, tokens, cookies, kubeconfigs, connection strings, private keys, database
 rows, personal data, or full secret-bearing command output.
 
-MQA-01 now **PASSES** and MQA-14 is **PARTIAL**; the other thirteen cases remain
+MQA-01 now **PASSES** and MQA-14 is **PARTIAL**; the other fourteen cases remain
 **PENDING** because their hosted-runtime, rollback, isolation, recovery, or exposure
 evidence does not yet exist. Separate approved non-elevated and elevated Ansible runs produced reviewed
 host and cluster-indicator reports. A
@@ -54,12 +54,14 @@ and controller-side image closure passed online/static review. Exact k3s admissi
 and runtime, node pullability, signing/index-to-child and Redis trust, wildcard/broad
 RBAC, ingress-only/unrestricted-egress policy, Secret recovery, private Git
 secret-zero, Namespace adoption, version selection/soak, and runtime approvals remain
-blocked. This online/static evidence closes no manual QA case. The
-[source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
-accepts a private ClusterIP/loopback-only access direction, quiescent retained
-ApplicationSet, supplemental default-deny, a documented broad ports-only weakness,
-phased least privilege, value-free secret custody, and two independent adoption
-Applications without implementing or proving any of them. The companion
+blocked. This online/static evidence closes no manual QA case. The separate
+[guarded Argo CD bootstrap](../../runbooks/argocd-hardened-design.md) now implements
+an exact 32-object source closure with private ClusterIP/loopback-only access,
+ApplicationSet runtime absent, a deny-all default AppProject, default-deny component
+flows with a documented broad ports-only weakness, namespaced idle least privilege,
+and three externally materialized cryptographically validated Secret contracts. It
+still proves no live runtime case; later adoption Applications are separate future
+source. The companion
 [source-only Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
 and release record select Keycloak `26.7.1`, PostgreSQL `17.10`, the stable issuer,
 direct OIDC, and value-free RBAC policy only for offline authoring. They do not add
@@ -127,6 +129,7 @@ selected.
 | MQA-13 | KIF-007 | Warning-free kubectl client | A genuinely fresh selected-user session inherits client-only defaults; node and all-namespace queries succeed without server-config warnings; root-only config remains protected; rollback removes only managed profile blocks | PENDING |
 | MQA-14 | KIF-022–KIF-024 | GitHub-hosted delivery containment | Reviewed infrastructure and application CI runs pass on the exact revision with read-only permissions, no Secret/package/deploy path, and future publication emits immutable digest/SBOM/provenance evidence without rebuilding for PROD | PARTIAL — infrastructure run `31311995461` passed exact commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`; private application-run result is unobserved and publication remains BLOCKED |
 | MQA-15 | KIF-012–KIF-017, KIF-021 | Private Reactive Resume DEV | Digest-pinned DEV instance uses the exact private Keycloak client and its dedicated PostgreSQL scope; cross-environment/database access and public/admin exposure fail closed; backup/restore succeeds | PENDING — source policy only; image, callbacks, objects, Secrets, database, and runtime are blocked |
+| MQA-16 | KIF-002, KIF-005, KIF-010, KIF-012, KIF-015 | Private Argo CD bootstrap | Guarded check/apply/idempotence, CRD establishment, all four workloads, TLS/login, exact NetworkPolicy flows and negatives, and recovery pass without public exposure | PENDING — source contracts pass; Secrets and live runtime remain blocked |
 
 ## Public exposure checklist
 
@@ -163,3 +166,16 @@ blocked on unknown prerequisites. A later rehearsal must prove recovery of:
 - PostgreSQL and MongoDB data;
 - immutable images or reproducible builds;
 - private validation before public route reactivation.
+
+## MQA-16 — Private Argo CD bootstrap and idempotence
+
+Status: **PENDING / NOT RUN**. After Infisical has created exact `argocd-secret`,
+`argocd-redis`, and `argocd-server-tls` contracts, review
+`ansible/bin/bootstrap-argocd check`, then separately approve the first `apply` and
+idempotent `apply`. Prove all four workloads Ready, all three Services ClusterIP,
+`argocd-initial-admin-secret` absent, loopback-only TLS/login over the authenticated
+k3s API, public and pod-origin negatives, exact API/repo/Redis flows, blocked metrics
+ports, repository read from `https://github.com/devraider/cristexweb.git` at
+`develop`, and unchanged k3s/Tailscale health. Stop on any unexpected object, public
+reachability, RBAC widening, policy bypass, credential disclosure, or nonzero second
+apply.

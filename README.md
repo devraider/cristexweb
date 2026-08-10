@@ -52,28 +52,21 @@ Namespace and preserved k3s/Tailscale health. Idempotence passed at
 `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the Namespace checkpoint is
 complete and `cristexhub-prod` remains absent.
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
-it does not claim a live rename or deletion. No Argo CD, cloudflared,
-Infisical Operator, Keycloak, PostgreSQL, MongoDB, Secret, workload, Service,
-policy, PVC, or route exists from the new increment. A [source-only Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
-binds public chart, captured signature/hash-binding, image, and online/static
-readiness evidence. The separate [release selection](runbooks/argocd-release-selection.md)
-selects chart `10.3.0` / app `v3.5.0` only for offline source authoring; it remains
-**NOT DEPLOYABLE**. The exact 44-document render was reproduced at Kubernetes capability
-`1.36.2`, stable upstream API registration screened successfully, and both image
-closures were reachable from the controller. Exact k3s admission/runtime and node
-pullability remain unproven; wildcard/broad RBAC, ineffective network isolation,
-image trust, Secret recovery, private Git secret-zero, and Namespace adoption remain
-blockers. It adds no chart, values, or Kubernetes object source. The separate
-[source-only Argo CD hardened design](runbooks/argocd-hardened-design.md) accepts a
-private ClusterIP and loopback-only port-forward direction, a retained quiescent
-ApplicationSet, supplemental default-deny policy with an explicit ports-only
-`443`/`6443` weakness, phased least-privilege RBAC, one-repository read-only GitHub
-App credentials, value-free Infisical custody, and two independent Namespace-adoption
-Applications. It adds no deployable source. Ansible is now selected as the future
-bounded bootstrap installer and privileged lifecycle owner. The foundation Namespace
-check/first apply/idempotence passed, while component source/credentials, resource
-inventory, Infisical recovery, Keycloak OIDC, adoption apply mode, candidate
-selection, and component runtime remain unresolved. The companion
+it does not claim a live rename or deletion. No Argo CD, cloudflared, Infisical
+Operator, Keycloak, PostgreSQL, MongoDB, Secret, workload, Service, policy, PVC, or
+route has been deployed. The Argo CD candidate and release records bind chart
+`10.3.0`, app `v3.5.0`, provenance, and exact linux/amd64 image children. The
+[guarded Argo CD bootstrap](runbooks/argocd-hardened-design.md) now promotes an exact
+32-object committed-manifest closure: three Ansible-owned CRDs plus a deny-all default
+AppProject and a private minimal controller/repo-server/server/standalone-Redis core. ApplicationSet runtime, Dex,
+notifications, commit server, cluster RBAC, public exposure, PVCs, metrics Services,
+hooks, and Secret objects are absent. The source requires exact precreated
+Infisical-owned `argocd-secret`, `argocd-redis`, and `argocd-server-tls` metadata and
+cryptographic contracts and refuses `argocd-initial-admin-secret`. Its non-passthrough
+`check|apply` wrapper validates an empty-API check without resolving the absent
+AppProject GVK and waits for Established CRDs on apply. It is source-ready but no live check/apply/idempotence or runtime proof has occurred.
+Admission, node pulls, private TLS/login, NetworkPolicy positives/negatives, recovery,
+and later Git reconciliation remain blocked. The companion
 [source-only Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md)
 and [release selection](runbooks/keycloak-release-selection.md) select Keycloak
 `26.7.1`, PostgreSQL `17.10`, realm `cristexhub`, and issuer
@@ -127,8 +120,9 @@ Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the same expir
 OAuth. No Infisical CR, Kubernetes Secret, Universal Auth value, application Secret,
 PROD scope, or
 self-hosted Infisical server is added. No general host baseline or deployment
-exists. Python is otherwise test-only; the three exact-scope Ansible action plugins
-are the reviewed focused exception used solely to enforce mutation boundaries. No
+exists. Python is otherwise test-only; five exact-scope Ansible action plugins are
+the reviewed focused exception—four enforce mutation boundaries and one performs
+no-log cryptographic validation of the exact Argo Secret contract. No
 general-purpose operational Python or infrastructure collector exists.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
@@ -166,8 +160,8 @@ gateway remain in the separate CristexHub application repository.
 2. [`architecture-plan.md`](architecture-plan.md) — target design, staged delivery, gates, rollback, and unresolved decisions.
 3. [`ansible/README.md`](ansible/README.md) — discovery contract and approved command shape.
 4. [`runbooks/replacement-host-recovery.md`](runbooks/replacement-host-recovery.md) — replacement boundary, isolation gates, and decision-first recovery contract.
-5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source-only, non-deployable Argo CD candidate evidence and blockers.
-6. [`runbooks/argocd-hardened-design.md`](runbooks/argocd-hardened-design.md) — source-only private-access, RBAC, network, secret-custody, and adoption design; not deployment authorization.
+5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source provenance and image evidence for Argo CD.
+6. [`runbooks/argocd-hardened-design.md`](runbooks/argocd-hardened-design.md) — guarded private 32-object bootstrap source, exact Secret contracts, and remaining runtime gates.
 7. [`runbooks/argocd-release-selection.md`](runbooks/argocd-release-selection.md) — source-baseline selection and vendored-input boundary.
 8. [`runbooks/foundation-namespace-bootstrap.md`](runbooks/foundation-namespace-bootstrap.md) — completed exact `shared-services` Namespace check/first-apply/idempotence evidence.
 9. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.

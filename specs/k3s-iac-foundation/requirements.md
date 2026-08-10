@@ -100,20 +100,17 @@ network, private-Git, and adoption evidence for KIF-005, KIF-008, KIF-010, KIF-0
 KIF-015, KIF-021, KIF-023, and KIF-030. The separate release record selects chart
 `10.3.0` / app `v3.5.0` only for offline source authoring without closing trust,
 security/Secret/adoption, admission, recovery, or runtime gates. The separate
-[source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
-maps the private exposure, stop/rollback, ownership, RBAC, policy, secret-custody,
-and evidence direction to KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013
-through KIF-015, KIF-021, and KIF-030. It accepts ClusterIP/loopback-only
-administration, quiescent retained ApplicationSet, supplemental default-deny with a
-truthful broad ports-only weakness, one-repository read-only GitHub App credentials,
-value-free Infisical custody, disabled Redis initialization, and two independent
-adoption Applications as design only. Ansible is selected as bounded bootstrap
-installer and privileged lifecycle owner. Component source/credentials, the
-separately approved NOT-RUN foundation Namespace checkpoints,
-resource/GVR/discovery inventory, Infisical Universal Auth recovery, live adoption
-apply mode, and activation of the selected Keycloak/Argo OIDC policy remain six open
-architecture decisions; deployable component source, trust, admission, runtime, and
-handoff gates also remain open. The source-only
+[guarded Argo CD bootstrap](../../runbooks/argocd-hardened-design.md) maps private
+exposure, stop/rollback, ownership, RBAC, policy, secret custody, and evidence to
+KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013 through KIF-015, KIF-021,
+and KIF-030. Its exact deployable source implements a 32-object private core,
+ApplicationSet runtime absent, a deny-all default AppProject, supplemental
+default-deny with a truthful broad ports-only weakness, disabled Redis initialization,
+exact namespaced idle RBAC, three external Infisical-owned Secret contracts, and
+Ansible bootstrap/privileged-CRD ownership. Secret materialization and recovery,
+Infisical Universal Auth, live check/apply/readiness/idempotence, private TLS/login and
+traffic evidence, future adoption Applications, live adoption mode, Git reconciliation,
+OIDC activation, runtime acceptance, and handoff remain open. The source-only
 [Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
 maps KIF-002, KIF-003, KIF-005, KIF-010, KIF-012 through KIF-017, KIF-021, KIF-023,
 and KIF-026 through KIF-030 to one future shared self-hosted identity architecture
@@ -195,3 +192,11 @@ service-health verification. The foundation does not satisfy replacement-host
 recovery, general host-baseline, or later platform
 mutation gates. Unresolved storage, secret bootstrap, and RPO/RTO
 choices remain decision gates rather than implied requirements.
+
+The guarded Argo CD source increment advances KIF-005, KIF-008, KIF-010,
+KIF-013–KIF-015, KIF-021, KIF-023, and KIF-030 with an exact 32-object private
+closure, immutable linux/amd64 image children, three precreated Infisical-owned Secret
+metadata and cryptographic contracts, no committed Secret, no public Service/route,
+namespaced idle RBAC, default-deny component flows, an empty-API check deferral,
+Established-CRD apply ordering, a canonical hash-bound present-only mutation path,
+and explicit blocked live/recovery gates. It does not close runtime acceptance.

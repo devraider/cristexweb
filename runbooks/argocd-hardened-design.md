@@ -1,264 +1,122 @@
-# Argo CD hardened design
+# Argo CD guarded private bootstrap
 
 ## Status and boundary
 
-**DESIGN ONLY — SOURCE BASELINE SELECTED.** Chart `10.3.0` and Argo CD
-`v3.5.0` are selected only for offline source authoring. They remain **NOT
-DEPLOYABLE**, and Argo CD runtime remains **NOT RUN/BLOCKED**.
+**GUARDED PRIVATE BOOTSTRAP SOURCE READY — RUNTIME NOT RUN/BLOCKED.** Chart
+`10.3.0` and Argo CD `v3.5.0` are the pinned source baseline. The exact 32-object
+closure is deployable only through `ansible/bin/bootstrap-argocd check|apply` after
+the three Infisical-owned Secret contracts exist. No live call, check, apply, or
+runtime validation was performed in this source increment; Argo CD runtime remains **NOT RUN/BLOCKED**.
 
-This source-only record accepts a hardened design direction. It does not authorize
-bootstrap, contact the cluster, or add a values file,
-rendered YAML, manifest, Secret, Application, AppProject, NetworkPolicy, RBAC object,
-GitHub resource, Infisical resource, route, or other deployable source. Ansible is
-selected as the future bounded bootstrap installer and lifecycle owner of privileged
-CRDs and cluster RBAC; exact source, credentials, approvals, proposed future
-Namespaces, and runtime evidence remain unresolved.
+Helm is not a runtime reconciler. The pinned local Helm binary was used only to
+render the vendored chart as offline evidence. Runtime reads the committed manifests
+under `ansible/files/components/argocd/`; it never invokes Helm against the cluster.
+`SOURCE-MAPPING.yml`, `CHART-RENDER-EVIDENCE-VALUES.yaml`, and
+`MANIFESTS.sha256` bind the chart, transformations, and exact promoted leaves. The
+mapping partitions every 35-object chart render identity into 24 promoted and 11
+intentionally omitted identities; eight custom hardened identities complete the
+32-object committed closure.
 
-## Private administration and exposure
+## Exact closure
 
-Every Argo Service remains `ClusterIP`. The design contains no Ingress, Gateway API
-route, Traefik route, NodePort, LoadBalancer, `externalIPs`, host port, Cloudflare
-route, or public DNS route. Initial administration follows this private path:
+The closure contains exactly three Argo CRDs, one deny-all `AppProject/default`,
+seven ConfigMaps, four ServiceAccounts, two Roles, two RoleBindings, six NetworkPolicies, three ClusterIP
+Services, three Deployments, and one StatefulSet. Ansible remains lifecycle owner of
+the three CRDs and bootstrap owner of the exact namespaced objects until a later
+evidenced object-by-object handoff stops Ansible reconciliation.
 
-`authorized operator device -> Tailscale -> authenticated k3s API -> loopback-only Kubernetes port-forward -> argocd-server`
+ApplicationSet runtime is absent. The committed render safely removes its Deployment,
+ServiceAccount, Service, Role, and RoleBinding while retaining the ApplicationSet CRD
+for API compatibility. Dex, notifications, commit server, metrics Services,
+ServiceMonitors, hooks/jobs, Redis secret initialization, chart NetworkPolicies,
+aggregate/ClusterRoles and bindings, Ingress/routes, and PVCs are absent. There are no
+Application, ApplicationSet, Namespace, or Secret objects. The precreated default
+project denies every source, destination, cluster resource, and namespaced resource;
+it prevents the server's empty-install project-creation path without granting create
+authority.
 
-The port-forward must bind only to the operator's loopback interface and must stop at
-the end of the administrative session. No executable invocation or address is
-committed here. Kubernetes authentication, a narrowly authorized port-forward
-permission, and Argo authentication remain independent controls. Server TLS remains
-enabled; certificate bypass is not a routine access method. Port-forward behavior
-through kube-router and the future default-deny policy remains a live acceptance gate,
-not an assumed success.
+The retained minimal core is one application-controller StatefulSet, one repo-server
+Deployment, one server Deployment, and standalone Redis. Argo uses
+`quay.io/argoproj/argocd@sha256:521d6b62ecd0434c9cc6e9242a74f0e1137bb8fc0026b2c483ea88f3f17e725d`.
+Redis uses
+`docker.io/library/redis@sha256:c64af41b8fc06a2d9b8fde812dd781aa157bed6fcf8ae1656ad4e79f3f9fc9b1`.
+Both are exact selected linux/amd64 children. Every container has resources,
+non-root execution, RuntimeDefault seccomp, read-only root filesystem, no privilege
+escalation, and all capabilities dropped. Repo-server and Redis receive no API token.
 
-Dex and notifications remain absent. Metrics Services and ServiceMonitors remain
-absent. UI exec, extensions, public webhooks, and public administration remain
-disabled. Direct OIDC to the selected shared Keycloak is the selected direction,
-but external identity-provider egress remains disabled until its stable issuer,
-callback, TLS, NetworkPolicy, Secret, and positive/negative authorization evidence
-are separately designed and approved.
+## Secret and administration contract
 
-## Retained quiescent ApplicationSet
+The source contains no Secret values or Secret objects. Bootstrap fails closed unless
+these precreated objects exist in `argocd`, have exact type/key metadata and cryptographic value validity, and carry
+`app.kubernetes.io/managed-by=infisical`, `app.kubernetes.io/part-of=argocd`, plus
+`cristex.io/value-owner=infisical-cloud`:
 
-Chart `10.3.0` cannot disable ApplicationSet through an effective parent enable gate,
-so the controller is retained with `allowAnyNamespace=false`. SCM providers and
-credentialed generators remain disabled. The controller begins quiescent: it receives
-no Application create, update, or delete permission, no Secret read permission, and
-only exact leader-election and status permissions proven necessary by later evidence.
-
-Webhook exposure and use are disabled, but the listener is not absent. The retained
-controller still starts its webhook listener and the chart still renders its
-`ClusterIP` Service on TCP `7000`. No credential, Ingress, HTTPRoute, ListenerSet,
-Traefik route, Cloudflare route, or pod-origin ingress allowance reaches it. Removing
-the listener or Service would require a separately reviewed packaging change.
-
-## Supplemental network-policy design
-
-Every chart-generated component NetworkPolicy must be disabled. Kubernetes policy
-allows are combined by union, so adding stricter policies cannot repair a permissive
-chart policy. A future supplemental set owns the complete policy boundary:
-
-- one namespace-wide default-deny selects every `argocd` pod for both ingress and
-  egress;
-- component allows select exact labels from the reviewed hardened render;
-- controller, server, repo-server, and ApplicationSet receive UDP/TCP `53` egress
-  only to CoreDNS pods selected in `kube-system`; the exact CoreDNS labels require
-  read-only target verification;
-- Redis receives no DNS allowance and no egress;
-- metrics ports `8082`, `8083`, and `8084` receive no pod-origin ingress;
-- ApplicationSet ports `7000`, `8080`, and `8081` receive no pod-origin ingress;
-- no ApplicationSet-to-Redis flow exists; and
-- image acquisition remains node/containerd traffic outside pod NetworkPolicy.
-
-### Component flow closure
-
-| Flow | Protocol and port | Design purpose |
+| Secret | Type | Exact keys |
 |---|---|---|
-| server to repo-server | TCP `8081` | Reviewed repository and render requests |
-| application-controller to repo-server | TCP `8081` | Manifest generation |
-| ApplicationSet to repo-server | TCP `8081` | Approved non-SCM generator support |
-| server to Redis | TCP `6379` | Session and cache traffic |
-| application-controller to Redis | TCP `6379` | Controller cache traffic |
-| repo-server to Redis | TCP `6379` | Repository cache traffic |
-| server to API class | TCP `443` and conservative translated TCP `6443` | Argo control-plane access |
-| application-controller to API class | TCP `443` and conservative translated TCP `6443` | Watches and reconciliation |
-| ApplicationSet to API class | TCP `443` and conservative translated TCP `6443` | Bounded Argo-resource reconciliation |
-| repo-server to approved HTTPS | broad TCP `443` | Exact private repository and reviewed HTTPS dependencies |
-| server to selected OIDC issuer | conditional future TCP `443` | Direct OIDC discovery, code exchange, and key retrieval only after identity approval |
-| DNS clients to CoreDNS | UDP/TCP `53` | Name resolution for controller, server, repo-server, and ApplicationSet |
-| loopback port-forward to server | node-origin stream to TCP `8080` | Private UI, API, and gRPC administration |
+| `argocd-secret` | `Opaque` | `admin.password`, `admin.passwordMtime`, `server.secretkey` |
+| `argocd-redis` | `Opaque` | `auth` |
+| `argocd-server-tls` | `kubernetes.io/tls` | `ca.crt`, `tls.crt`, `tls.key` |
 
-The TCP `443` and `6443` rules are peer-less, ports-only allowances because standard
-NetworkPolicy cannot identify the host-process k3s API, a Kubernetes Service name,
-dynamic Git endpoints, FQDNs, or TLS identities without committing target-specific
-addresses. They permit arbitrary destinations on those ports. This is explicit port
-isolation, not GitHub isolation, Kubernetes-Service isolation, FQDN isolation, TLS
-identity isolation, or endpoint isolation. Whether kube-router enforces policy before
-or after Kubernetes Service DNAT—and therefore observes API traffic on Service port
-`443`, translated port `6443`, or both—remains unproven. A separately approved live
-positive/negative acceptance must prove that behavior; failure is a stop condition.
-Strict endpoint isolation would require a separately selected authenticated egress
-proxy, mirror, or FQDN-aware policy system.
+A no-log exact-scope action validates a canonical-cost bcrypt representation, strict
+UTC RFC3339 password timestamp, minimum signing/Redis key lengths, parseable and
+currently valid CA/leaf/private-key PEM, direct CA issuance, leaf/key correspondence,
+server-auth extended usage, and both `argocd-server.argocd.svc` and `localhost` DNS
+identities before any mutation.
 
-The Redis initializer is disabled in the selected design through
-`redisSecretInit.enabled=false`, and `argocd-redis` must be precreated through the
-approved secret custody path. A retained initializer in a future render is a stop condition.
-If a temporary initializer is ever separately approved, default-deny must cover it
-and allow only DNS plus API-class egress for its bounded lifetime.
+`argocd-initial-admin-secret` must remain absent. Its presence is a stop condition.
+Local administrator authentication is initially enabled; OIDC is not configured.
+The public repository is `https://github.com/devraider/cristexweb.git` on `develop`,
+so the later smoke proof needs no Git credential Secret. No Application is included
+in this bootstrap.
 
-## Phased RBAC and AppProject design
+All Services are ClusterIP. There is no Ingress, Gateway route, NodePort,
+LoadBalancer, external IP, host port, Cloudflare route, or public DNS route. Private
+administration is an authenticated k3s API port-forward bound to operator loopback
+over Tailscale. Kubernetes NetworkPolicy does not govern node-to-local-pod traffic in
+the same way as ordinary pod traffic; that behavior and TLS presentation require a
+live positive/negative test before acceptance.
 
-AppProject policy and Kubernetes RBAC are independent enforcement layers. Kubernetes
-RBAC must be equal to or narrower than the matching AppProject resource policy.
-Neither layer may contain wildcard source repositories, destinations, API groups,
-resources, verbs, or non-resource URLs.
+## Network and RBAC limits
 
-### Privileged installation boundary
+A namespace-wide ingress/egress default deny covers every pod. Exact policies allow
+controller and server to repo-server TCP 8081, controller/server/repo-server to Redis
+TCP 6379, controller/server API-class TCP 443 and translated 6443, repo-server HTTPS
+TCP 443, and DNS clients to CoreDNS UDP/TCP 53. Redis has no egress. No metrics port
+has pod-origin ingress.
 
-Ansible is selected for a future bounded privileged installation phase, which still
-requires a dedicated exact source closure and separate check, apply, and idempotence
-approvals. Its short-lived bootstrap credential is never mounted in an Argo pod and
-is revoked after the window. Ansible remains lifecycle owner of Argo CRDs,
-ClusterRoles, and ClusterRoleBindings unless a later explicit decision replaces it.
-Argo must not update its own cluster authorization by default because that would
-permit privilege escalation.
+The peer-less TCP 443 and 6443 egress entries are deliberately described as port-only
+controls. Standard NetworkPolicy cannot prove a Service name, FQDN, GitHub identity,
+TLS identity, or host-process k3s API destination. They may allow arbitrary endpoints
+on those ports. A live test must establish service-DNAT behavior and negatives;
+strict identity isolation would require a separately selected proxy or FQDN-aware
+policy system.
 
-### Runtime identities
+Only two namespaced Roles exist. Controller may read projects/configuration, observe
+and update Application status/finalizers, write Events, and maintain a Lease. Server
+has read-only Argo/configuration/Event access. Repo-server and Redis have no Role or
+RoleBinding. No rule grants wildcard, delete, deletecollection, escalate, bind,
+impersonate, token creation, Namespace/CRD mutation, or cluster-RBAC mutation. This
+is idle-health authority, not database Application deployment authority; later exact
+Application and target Namespace permissions require separate review.
 
-- The application-controller receives inventory-derived read permissions and
-  namespace-specific RoleBindings only after exact resource evidence exists.
-- The server does not receive the chart's broad ClusterRole. Its Kubernetes access is
-  limited to exact Argo control-plane reads and any exact-name Application operation
-  later proven necessary.
-- Repo-server has a dedicated ServiceAccount, no API token, no Role, and no
-  RoleBinding.
-- ApplicationSet remains quiescent under its exact leader-election/status boundary.
-- Redis has no API access and no mounted API token.
+## Guarded execution and stop conditions
 
-Initial runtime rules omit `delete`, `deletecollection`, `escalate`, `bind`,
-impersonation, service-account token creation, Namespace creation, CRD mutation,
-webhook mutation, and cluster-RBAC mutation. No runtime identity may create future
-Namespaces. Destructive verbs can be considered only per exact namespaced kind after
-prune and rollback acceptance; Kubernetes RBAC cannot limit deletion to Argo-tracked
-objects.
+The non-passthrough wrapper accepts only `check` or `apply`, uses the existing
+root:k3s-admin mode-0640 kubeconfig without sudo, supplies a private single-run
+attestation, and rejects task selection. The role checks the exact active Namespace,
+source hashes, unique 32-object identity set, Secret metadata, initial-admin absence, existing
+object ownership, and k3s/Tailscale health before mutation. The action plugin accepts
+only canonical role-task calls, exact object canonical hashes, present-only arguments,
+and the complete preflight binding. It has no deletion path. On an empty cluster,
+check mode records the absent AppProject API and defers only that one unresolved
+custom-resource dry run while still validating its source/hash/identity; it does not
+mutate the CRD. Apply waits for all three CRDs to report `Established=True` before it
+creates the deny-all default project or any other runtime object. Apply then rechecks
+exact post-state and all four workload readiness states.
 
-### Project model
-
-The built-in `default` AppProject becomes effective deny-all before any Application
-exists. Future Projects use exact repository URLs, exact local-cluster destinations,
-positive kind allowlists, orphan warnings, and no unrestricted role:
-
-| Project | Initial posture |
-|---|---|
-| `namespace-adoption` | Only the Namespace kind; Kubernetes RBAC restricts names to `platform-edge` and `argocd` |
-| `argocd-system` | Disabled pending safe self-management split; no cluster authorization |
-| `platform-edge` | Exact approved cloudflared namespaced kinds only |
-| `shared-services` | Disabled until Namespace creation and exact stateful inventory are approved |
-| `cristexhub-dev` | Exact DEV namespaced kinds only; no cluster resources |
-| `cristexhub-prod` | Exact PROD namespaced kinds with a distinct manual promotion role |
-
-Ordinary users cannot manage AppProjects, ApplicationSets, repositories, cluster
-credentials, extensions, exec, overrides, or certificates. Git writers remain
-deployment authorities within the combined repository, Project, and Kubernetes RBAC
-boundary. One shared controller identity remains a common DEV/PROD compromise domain;
-this design does not misrepresent AppProjects as hard isolation.
-
-## Private Git and value-free secret custody
-
-The selected design would use one private GitHub App scoped to exactly one future
-selected private repository. It receives repository `Contents: read-only` and no write,
-administration, webhook, organization, Actions, or unrelated permission. Argo uses
-the canonical HTTPS repository URL with normal TLS verification and one direct,
-project-scoped `repository` Secret; no broad `repo-creds` prefix template is used.
-The repository identity, Secret object, private key, IDs, and every credential value
-are absent from this increment.
-
-A value-free custody ledger covers only object names, expected key names, writer and
-value-owner identities, expiry, recovery custodians, rotation state, and boolean
-validation results. It never records values, encodings, low-entropy hashes, command
-arguments, environment examples, or matching disclosure context.
-
-| Material | Bootstrap direction | Steady-state direction |
-|---|---|---|
-| `argocd-secret` and signing key | Precreated by an approved temporary writer | One exact Infisical-owned target after cutover |
-| One-time local administrator state | Preseeded without exposing plaintext | Disabled only after an independent administration and break-glass path passes |
-| `argocd-redis` | Precreated before workloads; initializer disabled | One exact Infisical-owned target with coordinated rotation |
-| `argocd-server-tls` | Dedicated precreated TLS material | One exact Infisical-owned target with independent renewal and recovery |
-| Direct repository credential | Injected only after Argo is healthy without Git | Infisical-owned successor GitHub App key after fresh-read proof |
-| Direct Keycloak OIDC client | Absent until stable issuer and Keycloak readiness pass | Infisical-owned client secret after OIDC positive/negative and recovery proof |
-| Infisical authentication | Separate out-of-band bootstrap custody | Independently recoverable; never dependent only on Infisical itself |
-
-`argocd-initial-admin-secret` must remain absent; unexpected creation stops the
-bootstrap. Chart ownership must not overwrite Infisical-owned Secrets. The temporary
-writer is single-run, name/key bounded, time bounded, and stopped before Infisical
-takes one target at a time.
-
-Git credential handoff uses overlapping GitHub App keys. Infisical receives only the
-successor; a deliberately fresh repository read of the reviewed revision must pass,
-negative scope and disclosure checks must pass, and only then may a separately
-approved revocation remove the predecessor. Independent encrypted off-node custody
-must recover the GitHub App, internal signing, TLS, Redis, administrator, and
-Infisical bootstrap materials without the lost node.
-
-## Two-Application Namespace adoption
-
-The recommended design uses two future adoption Applications: one renders only
-`platform-edge`, and one renders only `argocd`. The current directory renders both
-Namespace files together, so separate reviewed source entry points are required in a
-later deployable-source change. Permanent selective sync is not a substitute.
-
-Both Applications are registered without sync. Automated sync, prune, self-heal,
-Application finalizers, `CreateNamespace`, managed namespace metadata, `Replace`,
-`Force`, cascading deletion, and shared-resource acceptance remain disabled. No
-server-side-apply choice is made. First-sync apply mode remains unresolved until live
-UID, phase, deletion state, finalizers, labels, annotations, tracking identity,
-managed fields, last-applied state, installation ID, resource tree, and diff evidence
-are reviewed.
-
-Adoption order is `platform-edge` first, followed by a freeze and evidence review,
-then `argocd`. Each pass requires exactly one Namespace in the resource tree,
-unchanged UID, `Active` phase, no deletion timestamp, all three committed labels,
-preserved unrelated metadata, matching tracking identity, healthy k3s/Tailscale, and
-no other mutation. Only successful sync evidence may establish Argo ownership; the
-existing desired-owner label remains intent and the bootstrap-writer label remains
-historical provenance.
-
-## Stop and rollback
-
-Future work stops on secret disclosure, public Argo reachability, unexpected render
-or object, an unexpected writer, any chart-generated permissive NetworkPolicy,
-GitHub repository or permission widening, unreviewed privilege, mixed Redis
-credentials, missing recovery custody, Namespace UID/deletion/phase change,
-protected metadata loss, or any prune/cascade/replace/force proposal.
-
-Routine rollback never deletes or recreates a Namespace, performs a release-wide
-uninstall, cascades Application deletion, prunes, replaces, forces, or revokes a
-working predecessor before successor acceptance. Before first sync, Application
-removal must preserve resources. Secret rollback restores a still-valid predecessor
-through the bounded temporary writer and verifies dependent behavior; a compromised
-predecessor is replaced rather than restored.
-
-This source-only increment has only Git revert as rollback. There is no runtime
-rollback because no runtime action occurred.
-
-## Architecture decision and evidence register
-
-| ID | Decision | Status or evidence |
-|---|---|---|
-| D1 | Exact Ansible controller bootstrap closure and credentials | Vendored public chart inputs exist, but exact rendered objects, credential lifetime, escalation controls, and separate approvals remain undefined |
-| D2 | Foundation Namespace runtime checkpoints — CLOSED | Exact `shared-services` check, separately approved first apply, and separately approved idempotence passed; final changed=0, every component remains undeployed, and the earlier exception remains closed |
-| D3 | Exact resource, GVR, and discovery inventory | Runtime Roles and Projects cannot be authored safely before every required kind and discovery path is enumerated |
-| D4 | Infisical Universal Auth and independent recovery | Universal Auth is selected as direction, but exact scope, custodians, rotation/revocation proof, RPO/RTO, and isolated recovery remain unproven |
-| D5 | Live Namespace-adoption apply mode | Managed-field, tracking, last-applied, and diff evidence is unavailable until a separately approved read-only checkpoint |
-| D6 | Activate selected Keycloak/Argo OIDC policy | Issuer, client ID, groups, and deny-default mappings are selected; private callback/origin, TLS, materialized value, negative authorization, logout, and recovery evidence remain absent |
-
-## Closure
-
-The private ClusterIP/loopback-only administration model, quiescent retained
-ApplicationSet, supplemental default-deny policy model, explicit ports-only weakness,
-phased least-privilege direction, exact one-repository GitHub App model, value-free
-secret custody, and two-Application adoption recommendation are accepted design
-directions only. Version choice and public chart-byte availability are resolved for
-offline source authoring; trust acceptance, exact deployable RBAC/policy inventory,
-the five open decisions above, target admission, node pullability, installation,
-runtime behavior, recovery rehearsal, and ownership handoff remain open; D2 is
-completed prerequisite evidence.
+Stop on a missing or foreign Secret, initial-admin Secret creation, public exposure,
+unknown/foreign object, hash drift, unexpected image or object, widened RBAC, failed
+NetworkPolicy negative, unhealthy workload, k3s/Tailscale degradation, or credential
+disclosure. Check, reviewed first apply, readiness, private TLS/login, API/HTTPS flow
+positives and negatives, idempotent apply, recovery, and later Infisical rotation all
+remain required. Rollback before runtime is Git revert; no runtime rollback is claimed.

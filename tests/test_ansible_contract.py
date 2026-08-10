@@ -26,6 +26,8 @@ class AnsibleLayoutTests(unittest.TestCase):
         ]
         self.assertTrue(source_python)
         allowed_action_plugins = {
+            Path("ansible/plugins/action/argocd_guarded_k8s.py"),
+            Path("ansible/plugins/action/argocd_secret_contract.py"),
             Path("ansible/plugins/action/cristexhub_dev_namespace_guarded_k8s.py"),
             Path("ansible/plugins/action/infisical_operator_guarded_k8s.py"),
             Path("ansible/plugins/action/infisical_proxy_secret_zero_guarded_k8s.py"),
@@ -68,6 +70,10 @@ class AnsibleLayoutTests(unittest.TestCase):
             "playbooks/bootstrap_cristexhub_dev_namespace.yml",
             "playbooks/bootstrap_infisical_operator.yml",
             "playbooks/bootstrap_infisical_proxy_secrets.yml",
+            "bin/bootstrap-argocd",
+            "playbooks/bootstrap_argocd.yml",
+            "plugins/action/argocd_guarded_k8s.py",
+            "plugins/action/argocd_secret_contract.py",
             "plugins/action/cristexhub_dev_namespace_guarded_k8s.py",
             "plugins/action/infisical_operator_guarded_k8s.py",
             "plugins/action/infisical_proxy_secret_zero_guarded_k8s.py",
@@ -90,6 +96,8 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/infisical_operator_bootstrap/tasks/main.yml",
             "roles/infisical_proxy_secret_zero/defaults/main.yml",
             "roles/infisical_proxy_secret_zero/tasks/main.yml",
+            "roles/argocd_bootstrap/defaults/main.yml",
+            "roles/argocd_bootstrap/tasks/main.yml",
             "roles/network_policy_probe/defaults/main.yml",
             "roles/network_policy_probe/tasks/cleanup.yml",
             "roles/network_policy_probe/tasks/delete_object.yml",
@@ -110,11 +118,12 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/read_only_discovery/tasks/report.yml",
             "roles/read_only_discovery/templates/report.json.j2",
         ]
-        required.extend(
-            str(path.relative_to(ANSIBLE))
-            for path in sorted((ANSIBLE / "files/components/infisical-operator").rglob("*"))
-            if path.is_file()
-        )
+        for component in ("infisical-operator", "argocd"):
+            required.extend(
+                str(path.relative_to(ANSIBLE))
+                for path in sorted((ANSIBLE / "files/components" / component).rglob("*"))
+                if path.is_file()
+            )
         self.assertEqual([], [path for path in required if not (ANSIBLE / path).is_file()])
         actual = {
             str(path.relative_to(ANSIBLE))

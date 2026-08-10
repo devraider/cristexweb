@@ -194,17 +194,14 @@ entry gate.
   image trust/vulnerability limits, private Git, and Namespace adoption without live
   API contact, version selection, deployable source, Secret, or runtime (`KIF-005`,
   `KIF-008`, `KIF-010`, `KIF-013`, `KIF-015`, `KIF-021`, `KIF-023`, `KIF-030`).
-- [x] Record the
-  [source-only Argo CD hardened design](../../runbooks/argocd-hardened-design.md)
-  covering private access, retained quiescent ApplicationSet, supplemental
-  ingress/egress default-deny with an explicit ports-only weakness, phased RBAC and
-  AppProjects, one-repository GitHub App credentials, value-free secret custody,
-  Redis initializer removal, two-Application Namespace adoption, and stop/rollback.
-  At that historical checkpoint it selected no release candidate, added no
-  deployable source, created no Secret, and contacted no cluster. The later
-  source-only correction selects
-  Ansible as bounded bootstrap installer and privileged lifecycle owner while
-  preserving component-specific approvals (`KIF-002`, `KIF-003`, `KIF-005`,
+- [x] Record the historical source-only Argo design checkpoint covering private
+  access, a then-retained quiescent ApplicationSet, supplemental default-deny,
+  phased RBAC/AppProjects, private Git, value-free secret custody, Namespace
+  adoption, and stop/rollback. That superseded checkpoint added no deployable source,
+  Secret, or cluster contact; the current
+  [guarded Argo CD bootstrap](../../runbooks/argocd-hardened-design.md) removes the
+  ApplicationSet runtime and implements the exact private source while preserving
+  component-specific approvals (`KIF-002`, `KIF-003`, `KIF-005`,
   `KIF-008`, `KIF-010`, `KIF-013`–`KIF-015`, `KIF-021`, `KIF-030`).
 - [x] Record the
   [source-only Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md):
@@ -302,10 +299,13 @@ entry gate.
   `ok=22 changed=0 unreachable=0 failed=0 skipped=0` and reverified exact
   identity/labels/`Active` plus k3s/Tailscale health (`KIF-002`, `KIF-005`,
   `KIF-016`).
-- [ ] Implement component-specific exact Ansible source closures and separate
-  check/apply/idempotence approvals in this order: Infisical Operator and a
-  non-sensitive sync/rotation/revocation/recovery proof, Infisical-materialized Argo
-  Secrets, then hardened private Argo bootstrap (`KIF-002`, `KIF-005`, `KIF-013`–`KIF-015`).
+- [x] Implement component-specific exact guarded Ansible source closures for the
+  Infisical Operator and hardened private Argo core. Argo promotes exactly three CRDs
+  and 29 namespaced objects including a deny-all default AppProject, omits
+  ApplicationSet runtime/public exposure/cluster RBAC/Secrets, and requires exact
+  precreated, cryptographically valid Infisical-owned Secret contracts. Empty-API
+  check and Established-CRD apply ordering are fail-closed; live
+  check/apply/idempotence remain separately gated (`KIF-002`, `KIF-005`, `KIF-013`–`KIF-015`).
 - [ ] Obtain explicit approval for bounded Argo CD bootstrap (`KIF-002`).
 - [ ] Keep Argo CD private and prove Git reconciliation using a demo workload
   (`KIF-010`, `KIF-022`).
