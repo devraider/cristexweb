@@ -332,8 +332,9 @@ logs, or bootstrap cannot be recovered.
 - [x] Run the first `cristexhub-dev` apply; it passed at
   `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created/verified only the exact
   Namespace, and preserved k3s/Tailscale health.
-- [ ] Run the separate idempotence apply for only `cristexhub-dev` and require
-  `changed=0`.
+- [x] Run the separate idempotence apply for only `cristexhub-dev`; it passed at
+  `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact post-state and
+  k3s/Tailscale health preserved.
 - [ ] Select exact DEV service accounts, RBAC, quota, limit, and default-deny/allow
   policy values before adding those object kinds (`KIF-016`, `KIF-019`, `KIF-021`).
 - [ ] Keep `cristexhub-prod` absent until DEV validation, recovery, and soak satisfy

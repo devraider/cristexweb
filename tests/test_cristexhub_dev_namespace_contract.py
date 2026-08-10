@@ -235,12 +235,13 @@ metadata:
     def test_runbook_and_specs_keep_runtime_and_prod_blocked(self) -> None:
         normalized = " ".join(self.runbook.split())
         for required in (
-            "FIRST APPLY PASSED — IDEMPOTENCE NOT RUN",
+            "CHECKPOINT COMPLETE — IDEMPOTENT",
             "cristexhub-dev",
             "`cristexhub-prod` remains absent",
             "ok=20 changed=1 unreachable=0 failed=0 skipped=2 rescued=0 ignored=0",
             "ok=22 changed=1 unreachable=0 failed=0 skipped=0 rescued=0 ignored=0",
-            "Idempotence remains NOT RUN",
+            "ok=22 changed=0 unreachable=0 failed=0 skipped=0 rescued=0 ignored=0",
+            "The Namespace checkpoint is complete",
             "No Secret, workload, Service, PVC, policy, route, or PROD object",
         ):
             self.assertIn(required, normalized)
@@ -267,6 +268,18 @@ metadata:
                 document,
                 relative,
             )
+            self.assertIn(
+                "ok=22 changed=0 unreachable=0 failed=0 skipped=0",
+                document,
+                relative,
+            )
+            document_lower = document.lower()
+            for stale in (
+                "idempotence remains not run",
+                "idempotence is not run",
+                "`cristexhub-dev` and `cristexhub-prod` remain absent",
+            ):
+                self.assertNotIn(stale, document_lower, (relative, stale))
             for stale in (
                 "check/apply/idempotence are NOT RUN",
                 "source-ready-but-NOT-RUN",
@@ -274,6 +287,8 @@ metadata:
                 "first apply/idempotence are NOT RUN",
                 "first apply/idempotence remain NOT RUN",
                 "first apply and idempotence are **NOT RUN**",
+                "idempotence is NOT RUN",
+                "idempotence remains NOT RUN",
             ):
                 self.assertNotIn(stale, document, (relative, stale))
 

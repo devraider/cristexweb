@@ -66,7 +66,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-SRC-01 | KIF-005, KIF-010, KIF-013–KIF-015, KIF-023, KIF-030 | Deterministic hosted source-baseline closure | Exact release records, value-free identity/authorization policy, chart/provenance/public-key bytes, SHA256SUMS, safe chart roots, exact four-Namespace closure, and absence of component operational source are enforced offline | PASS — source-selection plus affected provenance/design/layout contracts pass; exact hashes verified; no live/runtime operation or staged file |
 | KIF-NS-04 | KIF-002, KIF-003, KIF-005, KIF-013–KIF-017, KIF-021, KIF-026–KIF-030 | Shared-services placement correction | Replace never-run `platform-secrets`/`platform-identity` source with one exact present-only `shared-services` Namespace; reserve `platform-edge` for cloudflared; place Infisical Operator, separate Keycloak, and one general PostgreSQL instance in commons intent; give Keycloak only a dedicated logical database/role/credential on that engine | PASS — 78 focused and 115 full offline tests, 9 syntax checks, production lint, fail-closed fixtures, archive hashes, links, closure, hygiene, and historical-source preservation passed; no discovery, check, apply, deletion, workload, Secret, database, route, or runtime operation |
 | KIF-NS-05 | KIF-002, KIF-005, KIF-016, KIF-030 | Shared-services Namespace runtime | A successful wrapper check predicts only the absent exact `shared-services` Namespace; separately approved first apply creates/verifies it; separately approved idempotence converges at changed=0 | PASS — check retry passed at `ok=20 changed=1 failed=0`; first apply passed at `ok=22 changed=1 failed=0`; separately approved idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact identity/three labels/`Active` and k3s/Tailscale health preserved. No component was deployed |
-| KIF-NS-06 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub DEV Namespace source and runtime | Dedicated guarded source reconciles only `cristexhub-dev` with four approved labels and present-only semantics; check predicts only that Namespace without mutation; first apply creates/verifies it; PROD, policies, workloads, Secrets, PVCs, and routes remain absent | FIRST APPLY PASS — check passed at `ok=20 changed=1 failed=0 skipped=2`; first apply passed at `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, with exact labels/`Active` and service health verified; idempotence NOT RUN |
+| KIF-NS-06 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub DEV Namespace source and runtime | Dedicated guarded source reconciles only `cristexhub-dev` with four approved labels and present-only semantics; check predicts only that Namespace without mutation; first apply creates/verifies it; idempotence converges; PROD and all other kinds remain absent | PASS — check passed at `ok=20 changed=1 failed=0 skipped=2`; first apply passed at `ok=22 changed=1 failed=0 skipped=0`; idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact labels/`Active` and service health preserved |
 
 ## Schema-v3 elevated discovery and target-minor review — 2026-08-07
 
@@ -2940,10 +2940,34 @@ The single exact mutation created only `cristexhub-dev`. Zero skipped/failed tas
 show that protected post-state and service verification ran: all four labels and
 `Active` passed, and k3s/Tailscale remained running. No PROD, policy, workload,
 Secret, PVC, Service, route, Infisical, Argo CD, database, broker, or application
-component was deployed. Idempotence remains NOT RUN and must return `changed=0`.
-Six focused and 159 full contracts plus Markdown/diff hygiene passed. Independent
-review confirmed the one-object closure, post-state/service assertions, and blocked
-idempotence/PROD/components and returned **APPROVED**.
+component was deployed. At that first-apply checkpoint, idempotence had not yet run;
+the next section records its later `changed=0` completion. Six focused and 159 full
+contracts plus Markdown/diff hygiene passed. Independent review confirmed the
+one-object closure, post-state/service assertions, and then-pending idempotence plus
+blocked PROD/components and returned **APPROVED**.
+
+### Idempotence — 2026-08-09
+
+Executed command:
+
+```bash
+ansible/bin/bootstrap-cristexhub-dev-namespace apply
+```
+
+Actual result:
+
+```text
+crtxweb : ok=22 changed=0 unreachable=0 failed=0 skipped=0 rescued=0 ignored=0
+```
+
+The exact present-only reconciliation changed nothing. Protected post-state checks
+again verified all four labels and `Active`; k3s/Tailscale remained running. The
+`cristexhub-dev` Namespace checkpoint is complete. No PROD, policy, workload, Secret,
+PVC, Service, route, Infisical, Argo CD, database, broker, or application component
+was deployed. Independent review found and corrected one stale first-apply
+idempotence statement and one historical Namespace-absence sentence; case-insensitive
+regressions now cover both. Six focused/159 full tests passed, and final rereview
+returned **APPROVED**.
 
 ## Future validation contract
 
