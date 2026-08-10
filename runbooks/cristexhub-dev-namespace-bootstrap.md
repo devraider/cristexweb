@@ -2,7 +2,7 @@
 
 ## Status and boundary
 
-**SOURCE READY — RUNTIME NOT RUN.** This increment defines only the exact
+**CHECK PASSED — NO MUTATION; APPLY NOT RUN.** This increment defines only the exact
 `cristexhub-dev` Namespace and a dedicated guarded Ansible bootstrap. It does not
 reuse or reopen the completed platform or `shared-services` Namespace wrappers.
 `cristexhub-prod` remains absent and is blocked until DEV validation, recovery, and
@@ -55,15 +55,23 @@ four labels, `Active` phase, and preserved service health.
 
 ## Approval sequence
 
-Runtime remains blocked behind separate check, first apply, and idempotence approvals:
+The separately approved check ran through the sole wrapper and passed:
 
-1. approve and run `ansible/bin/bootstrap-cristexhub-dev-namespace check`;
-2. review a prediction limited to `cristexhub-dev`;
-3. separately approve and run the first apply;
-4. review exact post-state and service health; and
-5. separately approve the idempotence apply and require `changed=0`.
+```text
+crtxweb : ok=20 changed=1 unreachable=0 failed=0 skipped=2 rescued=0 ignored=0
+```
 
-No approval is inferred from this source. A successful Namespace checkpoint does not
+The exact committed closure has one change-capable loop item and one Namespace
+manifest, so the single check-mode change predicted only creation of
+`cristexhub-dev`. The two skipped tasks are live post-state query/verification; check
+mode made no mutation. First apply and idempotence remain blocked behind distinct
+approvals:
+
+1. separately approve and run the first apply;
+2. review exact post-state and service health; and
+3. separately approve the idempotence apply and require `changed=0`.
+
+No apply approval is inferred from the passed check or this source. A successful Namespace checkpoint does not
 authorize policies, Secrets, workloads, data services, routes, Argo adoption, or
 PROD.
 

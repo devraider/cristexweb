@@ -66,7 +66,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-SRC-01 | KIF-005, KIF-010, KIF-013–KIF-015, KIF-023, KIF-030 | Deterministic hosted source-baseline closure | Exact release records, value-free identity/authorization policy, chart/provenance/public-key bytes, SHA256SUMS, safe chart roots, exact four-Namespace closure, and absence of component operational source are enforced offline | PASS — source-selection plus affected provenance/design/layout contracts pass; exact hashes verified; no live/runtime operation or staged file |
 | KIF-NS-04 | KIF-002, KIF-003, KIF-005, KIF-013–KIF-017, KIF-021, KIF-026–KIF-030 | Shared-services placement correction | Replace never-run `platform-secrets`/`platform-identity` source with one exact present-only `shared-services` Namespace; reserve `platform-edge` for cloudflared; place Infisical Operator, separate Keycloak, and one general PostgreSQL instance in commons intent; give Keycloak only a dedicated logical database/role/credential on that engine | PASS — 78 focused and 115 full offline tests, 9 syntax checks, production lint, fail-closed fixtures, archive hashes, links, closure, hygiene, and historical-source preservation passed; no discovery, check, apply, deletion, workload, Secret, database, route, or runtime operation |
 | KIF-NS-05 | KIF-002, KIF-005, KIF-016, KIF-030 | Shared-services Namespace runtime | A successful wrapper check predicts only the absent exact `shared-services` Namespace; separately approved first apply creates/verifies it; separately approved idempotence converges at changed=0 | PASS — check retry passed at `ok=20 changed=1 failed=0`; first apply passed at `ok=22 changed=1 failed=0`; separately approved idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact identity/three labels/`Active` and k3s/Tailscale health preserved. No component was deployed |
-| KIF-NS-06 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub DEV Namespace source | Dedicated guarded source can reconcile only `cristexhub-dev` with four approved labels and present-only semantics; PROD, policies, workloads, Secrets, PVCs, and routes remain absent | PASS SOURCE-ONLY — 6 focused and 159 full contracts pass; combined task-start+binding/internal-injection/clean-controller fixtures pass; 10 playbooks pass syntax and production-profile lint passes; no operational inventory, SSH, become, Kubernetes API, check, apply, or runtime operation |
+| KIF-NS-06 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub DEV Namespace source and check | Dedicated guarded source can reconcile only `cristexhub-dev` with four approved labels and present-only semantics; check predicts only that Namespace without mutation; PROD, policies, workloads, Secrets, PVCs, and routes remain absent | CHECK PASS — source closure passed 6 focused/159 full contracts, bypass fixtures, 10 syntax checks, lint, and review; separately approved check passed at `ok=20 changed=1 unreachable=0 failed=0 skipped=2`; first apply/idempotence NOT RUN |
 
 ## Schema-v3 elevated discovery and target-minor review — 2026-08-07
 
@@ -2882,9 +2882,8 @@ Diff hygiene/no staged files: PASS
 
 One exploratory lint command launched from the repository root failed because that
 working directory did not load `ansible/ansible.cfg` and therefore could not resolve
-the role/collection paths. The documented `cd ansible` invocation passed. Network,
-operational inventory, SSH, become, kubeconfig, Kubernetes API, wrapper `check`,
-wrapper `apply`, and runtime remain **NOT RUN**. Independent security review first
+the role/collection paths. The documented `cd ansible` invocation passed. At source-validation time, network, operational inventory, SSH, become, kubeconfig,
+Kubernetes API, wrapper `check`, wrapper `apply`, and runtime were **NOT RUN**. Independent security review first
 returned **NEEDS-FIX** because task-start and variable-injection protections could be
 combined against the initial role. The mutation now runs only through an exact-scope
 action plugin that reads non-variable Ansible CLI context, rejects task selection and
@@ -2895,6 +2894,33 @@ the action plugin, combined fixture, exact source closure, commands/results, and
 runtime boundary and returned **APPROVED** with no blockers. Separate security-only
 review attempts timed out without a verdict; they made no edits and ran no live
 operation, so the completed independent approval is the review evidence.
+
+### Separately approved first check — 2026-08-09
+
+Approved command:
+
+```bash
+ansible/bin/bootstrap-cristexhub-dev-namespace check
+```
+
+Actual result:
+
+```text
+crtxweb : ok=20 changed=1 unreachable=0 failed=0 skipped=2 rescued=0 ignored=0
+```
+
+The committed closure contains one change-capable custom action, one exact loop item,
+and one exact Namespace manifest. Therefore the one check-mode change predicted only
+creation of `cristexhub-dev`; the two skipped tasks are live post-state query and
+verification, and check mode made no mutation. Source-validation evidence and the
+passed check authorize neither first apply nor idempotence. No PROD, policy, workload,
+Secret, PVC, Service, route, Infisical, Argo CD, database, broker, or application
+component was deployed. First apply requires a new explicit approval after review of
+this evidence; idempotence requires another approval after first-apply evidence.
+Independent review found two stale source-only summaries that still said the completed
+check was NOT RUN. Both were corrected, regression assertions now reject those stale
+phrases across all current checkpoint documents, 6 focused/159 full tests passed
+again, and final rereview returned **APPROVED**.
 
 ## Future validation contract
 

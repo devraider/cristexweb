@@ -235,10 +235,11 @@ metadata:
     def test_runbook_and_specs_keep_runtime_and_prod_blocked(self) -> None:
         normalized = " ".join(self.runbook.split())
         for required in (
-            "SOURCE READY — RUNTIME NOT RUN",
+            "CHECK PASSED — NO MUTATION; APPLY NOT RUN",
             "cristexhub-dev",
             "`cristexhub-prod` remains absent",
-            "separate check, first apply, and idempotence approvals",
+            "ok=20 changed=1 unreachable=0 failed=0 skipped=2 rescued=0 ignored=0",
+            "First apply and idempotence remain blocked behind distinct approvals",
             "No Secret, workload, Service, PVC, policy, route, or PROD object",
         ):
             self.assertIn(required, normalized)
@@ -253,11 +254,19 @@ metadata:
             "specs/k3s-iac-foundation/testcases.md",
             "specs/k3s-iac-foundation/status.md",
         ):
+            document = (ROOT / relative).read_text()
+            self.assertIn("cristexhub-dev-namespace-bootstrap.md", document, relative)
             self.assertIn(
-                "cristexhub-dev-namespace-bootstrap.md",
-                (ROOT / relative).read_text(),
+                "ok=20 changed=1 unreachable=0 failed=0 skipped=2",
+                document,
                 relative,
             )
+            for stale in (
+                "check/apply/idempotence are NOT RUN",
+                "source-ready-but-NOT-RUN",
+                "all runtime checkpoints NOT RUN",
+            ):
+                self.assertNotIn(stale, document, (relative, stale))
 
 
 if __name__ == "__main__":

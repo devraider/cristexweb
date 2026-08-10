@@ -325,10 +325,12 @@ logs, or bootstrap cannot be recovered.
 - [x] Add dedicated exact present-only
   [CristexHub DEV Namespace source](../../runbooks/cristexhub-dev-namespace-bootstrap.md)
   with the four approved labels, a distinct guarded wrapper/exact-scope mutation
-  action, no PROD/policy/workload/Secret/PVC/route source, and all runtime checkpoints
-  NOT RUN.
-- [ ] Obtain separate check, first-apply, and idempotence approvals for only
-  `cristexhub-dev` (`KIF-002`, `KIF-005`, `KIF-016`, `KIF-030`).
+  action, and no PROD/policy/workload/Secret/PVC/route source.
+- [x] Run the separately approved `cristexhub-dev` check; it passed at
+  `ok=20 changed=1 unreachable=0 failed=0 skipped=2`, predicting one exact Namespace
+  change without mutation (`KIF-002`, `KIF-005`, `KIF-016`, `KIF-030`).
+- [ ] Obtain separate first-apply approval, then separate idempotence approval, for
+  only `cristexhub-dev`.
 - [ ] Select exact DEV service accounts, RBAC, quota, limit, and default-deny/allow
   policy values before adding those object kinds (`KIF-016`, `KIF-019`, `KIF-021`).
 - [ ] Keep `cristexhub-prod` absent until DEV validation, recovery, and soak satisfy

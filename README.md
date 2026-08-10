@@ -44,8 +44,10 @@ created and verified exact labels/`Active`, and preserved k3s/Tailscale health.
 The separately approved idempotence apply passed at
 `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the exact Namespace checkpoint is
 complete. Dedicated [CristexHub DEV Namespace source](runbooks/cristexhub-dev-namespace-bootstrap.md)
-is present-only and fail-closed, but check/apply/idempotence are NOT RUN and
-`cristexhub-prod` remains absent.
+is present-only and fail-closed. Its separately approved check passed at
+`ok=20 changed=1 unreachable=0 failed=0 skipped=2`, predicting only that Namespace
+without mutation; first apply/idempotence are NOT RUN and `cristexhub-prod` remains
+absent.
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
 it does not claim a live rename or deletion. No Argo CD, cloudflared,
 Infisical Operator, Keycloak, PostgreSQL, MongoDB, Secret, workload, Service,

@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: source-only cristexhub-dev closure passes 6 focused/159 full contracts, combined task-selection/injection guard fixture, 10 playbook syntax checks, and production lint; independent rereview APPROVED; runtime NOT RUN; PROD absent
+build: cristexhub-dev check passed at ok=20 changed=1 unreachable=0 failed=0 skipped=2 with one exact prediction/no mutation; 6 focused/159 full tests and rereview APPROVED; first apply/idempotence NOT RUN; PROD absent
 date: 2026-08-09
 deploy_required_after_acceptance: yes
 
@@ -95,9 +95,10 @@ note: |
   [CristexHub DEV Namespace bootstrap](../../runbooks/cristexhub-dev-namespace-bootstrap.md)
   now contains only `cristexhub-dev` with the four approved labels and a distinct
   guarded wrapper/action; the action reads controller CLI task-selection context and
-  rejects argument drift before the Kubernetes module. Check/apply/idempotence are
-  NOT RUN, no policy/workload/Secret/PVC/route exists, and `cristexhub-prod` remains
-  absent. The superseded
+  rejects argument drift before the Kubernetes module. Its separately approved check
+  passed at `ok=20 changed=1 unreachable=0 failed=0 skipped=2`, predicting only the
+  exact Namespace without mutation. First apply/idempotence are NOT RUN, no policy/
+  workload/Secret/PVC/route exists, and `cristexhub-prod` remains absent. The superseded
   `platform-secrets`/`platform-identity` source never ran, and this offline correction
   performs no live rename or deletion. Component source/credentials,
   resource/GVR/discovery inventory, Infisical Universal Auth recovery, live

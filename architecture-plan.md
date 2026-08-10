@@ -64,8 +64,9 @@ state now contains exactly four Namespace manifests: `argocd`, `platform-edge`,
 `platform-edge`; the distinct present-only `shared-services` bootstrap passed check
 and separately approved first apply/idempotence; the final run converged at
 `changed=0`. A dedicated [CristexHub DEV Namespace bootstrap](runbooks/cristexhub-dev-namespace-bootstrap.md)
-is exact present-only source with four approved labels; its runtime remains NOT RUN
-and `cristexhub-prod` is absent. The superseded `platform-secrets`/`platform-identity` source never
+is exact present-only source with four approved labels. Its separately approved check
+passed at `ok=20 changed=1 unreachable=0 failed=0 skipped=2` without mutation; first
+apply/idempotence remain NOT RUN and `cristexhub-prod` is absent. The superseded `platform-secrets`/`platform-identity` source never
 ran, and its removal is not a live rename or deletion. The separately approved
 historical first apply created exactly those
 two Active Namespaces with the reviewed labels. The separately approved idempotence
@@ -227,7 +228,7 @@ Tailscale do not replace application OIDC/JWT enforcement.
 | `argocd` | Argo CD controllers and private UI/API |
 | `platform-edge` | Cloudflare Tunnel connector only; no Keycloak, Infisical Operator, database, or route exists; every route remains separately approved |
 | `shared-services` | Exact present-only Namespace exists after passed check/first apply/idempotence; future placement for the Infisical Cloud Operator, separate Keycloak, one PostgreSQL, one MongoDB, and one shared RabbitMQ engine remains undeployed |
-| `cristexhub-dev` | Exact present-only source exists with approved application/environment/bootstrap/future-owner labels; check/apply/idempotence NOT RUN; future DEV applications and environment-local dependencies remain undeployed |
+| `cristexhub-dev` | Exact present-only source exists with approved application/environment/bootstrap/future-owner labels; check passed with one exact prediction and no mutation; first apply/idempotence NOT RUN; future DEV applications and environment-local dependencies remain undeployed |
 | `cristexhub-prod` | Absent and without executable Namespace source; blocked until DEV validation, recovery, and soak |
 | Optional backup/monitoring namespaces | Added only when their first workload is approved |
 

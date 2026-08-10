@@ -451,8 +451,9 @@ for any future Namespace or component.
 Ansible is selected as the future bounded bootstrap installer for exact foundational
 Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted
 Keycloak, and privileged CRD/cluster-RBAC prerequisites. Exact executable Namespace
-source exists for completed `shared-services` and source-ready-but-NOT-RUN
-`cristexhub-dev`; no Infisical, Argo, Keycloak, PostgreSQL, MongoDB, chart, Secret,
+source exists for completed `shared-services` and checked-without-mutation
+`cristexhub-dev`, whose first apply/idempotence remain NOT RUN; no Infisical, Argo,
+Keycloak, PostgreSQL, MongoDB, chart, Secret,
 workload, or component runtime approval
 exists from that decision. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
@@ -495,7 +496,9 @@ The dedicated [CristexHub DEV Namespace bootstrap](../runbooks/cristexhub-dev-na
 owns only `cristexhub-dev` with four approved labels. Its guarded wrapper is distinct,
 and its dedicated action rejects controller task-selection context plus any mutation
 argument drift before delegating to the pinned Kubernetes module. `cristexhub-prod`
-remains absent, and check/first-apply/idempotence are all NOT RUN.
+remains absent. Its separately approved check passed at
+`ok=20 changed=1 unreachable=0 failed=0 skipped=2`, with one exact predicted
+Namespace change and no mutation; first apply/idempotence are NOT RUN.
 
 Hash-bound public chart/provenance/public-key inputs now exist under `files/vendor/`
 for the Argo CD `10.3.0` and Infisical Operator `0.11.7` offline source baselines.
