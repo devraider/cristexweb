@@ -7,7 +7,7 @@ environment, redacted evidence location, result, and rollback outcome. Never pas
 passwords, tokens, cookies, kubeconfigs, connection strings, private keys, database
 rows, personal data, or full secret-bearing command output.
 
-MQA-01 now **PASSES** and MQA-14 is **PARTIAL**; the other fourteen cases remain
+MQA-01 now **PASSES** and MQA-14 is **PARTIAL**; the other fifteen cases remain
 **PENDING** because their hosted-runtime, rollback, isolation, recovery, or exposure
 evidence does not yet exist. Separate approved non-elevated and elevated Ansible runs produced reviewed
 host and cluster-indicator reports. A
@@ -90,8 +90,10 @@ expired OAuth; its plaintext residue and unused encrypted artifact were removed
 without reading values. An unused debug-exposed age identity was revoked/regenerated
 before upload/Kubernetes. The hardened retry proved early cleanup, encrypted-pending
 resume and a Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the
-same expired OAuth. MQA-03 remains pending until Drive reauthorization, proxy
-Secret recovery/write, check/apply/idempotence, live admission/RBAC/traffic,
+same expired controller OAuth. That transfer path is superseded by guarded host
+rclone source. MQA-03 remains pending until host install/idempotence, host OAuth,
+encrypted transfer/readback/controller decrypt, proxy Secret recovery/write,
+Operator check/apply/idempotence, live admission/RBAC/traffic,
 Universal Auth, ConfigMap sync, rotation, revocation, and recovery pass.
 Argo CD, cloudflared, Infisical runtime, databases, application workloads, and routes
 are not installed, so this source increment closes no manual case. No deployment, replacement
@@ -130,6 +132,7 @@ selected.
 | MQA-14 | KIF-022–KIF-024 | GitHub-hosted delivery containment | Reviewed infrastructure and application CI runs pass on the exact revision with read-only permissions, no Secret/package/deploy path, and future publication emits immutable digest/SBOM/provenance evidence without rebuilding for PROD | PARTIAL — infrastructure run `31311995461` passed exact commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`; private application-run result is unobserved and publication remains BLOCKED |
 | MQA-15 | KIF-012–KIF-017, KIF-021 | Private Reactive Resume DEV | Digest-pinned DEV instance uses the exact private Keycloak client and its dedicated PostgreSQL scope; cross-environment/database access and public/admin exposure fail closed; backup/restore succeeds | PENDING — source policy only; image, callbacks, objects, Secrets, database, and runtime are blocked |
 | MQA-16 | KIF-002, KIF-005, KIF-010, KIF-012, KIF-015 | Private Argo CD bootstrap | Guarded check/apply/idempotence, CRD establishment, all four workloads, TLS/login, exact NetworkPolicy flows and negatives, and recovery pass without public exposure | PENDING — source contracts pass; Secrets and live runtime remain blocked |
+| MQA-17 | KIF-002, KIF-005, KIF-007, KIF-013–KIF-015, KIF-027, KIF-030 | Host rclone and encrypted proxy recovery | Pinned host install/idempotence, non-root host OAuth, ciphertext-only staging, immutable Drive upload/readback, controller decrypt, cleanup, exact marker, and recovery evidence pass without host plaintext or age identity | PENDING — guarded source passes offline; every host/OAuth/Drive/Secret operation remains NOT RUN/BLOCKED |
 
 ## Public exposure checklist
 
@@ -179,3 +182,18 @@ ports, repository read from `https://github.com/devraider/cristexweb.git` at
 `develop`, and unchanged k3s/Tailscale health. Stop on any unexpected object, public
 reachability, RBAC widening, policy bypass, credential disclosure, or nonzero second
 apply.
+
+## MQA-17 — Host rclone, OAuth, and encrypted proxy recovery transfer
+
+Status: **PENDING / NOT RUN/BLOCKED**. First review `install-rclone check`; separately
+approve apply and changed=0 idempotence, then verify exact version/digests,
+root-owned cache/payload/selector and unchanged k3s/Tailscale. Complete OAuth later
+as the inventory-resolved non-root operator using the exact host config path and a
+reviewed temporary SSH callback tunnel; do not record config/token content. Review
+transfer check separately from apply. Apply must show only the exact pending
+ciphertext/checksum, four immutable host `copyto` boundaries, encrypted readback,
+exact staging cleanup, controller TLS/key/auth checks without output, and an exact
+mode-0600 `drive-verified` marker. Stop on selector/config/staging/remote collision,
+residue, digest, ownership, service, decryption, or relationship drift. Cleanup may
+remove only exact host ciphertext residue and must never delete Drive content.
+Secret bootstrap remains a later separate approval.

@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: guarded Infisical and 32-object private Argo CD source closures pass offline contracts, syntax, production lint, fixtures, hashes/render/docs/diff; both runtimes remain blocked/unrun
+build: guarded host rclone/install/proxy transfer source added; all live install/OAuth/Drive/Secret/runtime gates remain blocked/unrun
 date: 2026-08-10
 deploy_required_after_acceptance: yes
 
@@ -10,15 +10,26 @@ note: |
   Operational implementation is limited to read-only Ansible discovery, the
   executed two-package dependency bootstrap, executed group-scoped k3s administrator
   access, executed user-scoped kubectl client defaults, and the executed one-reboot
-  recovery verifier. Python is limited to offline tests plus five reviewed
-  exact-scope Ansible action plugins (four mutation guards and one no-log Argo Secret
-  cryptographic validator); no general operational Python
+  recovery verifier. Python is limited to offline tests plus seven exact-scope
+  Ansible action plugins (the prior four mutation guards, two focused
+  host-rclone boundary guards, and one no-log Argo Secret cryptographic validator);
+  no general operational Python
   or collector exists. One
   explicitly approved SSH ping and
   non-elevated one-host check/diff run passed and generated the ignored mode-0600
   host-only report. The approved bootstrap directly requested only
   `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
   dependencies, and package/import verification passes.
+  Guarded source now pins host rclone 1.71.1 with controller-cache verification,
+  host transfer, root-owned versioned payload, selector-only rollback, and exact
+  Debian 13 x86_64/digest/layout gates. A separate host-only rclone flow accepts
+  only the existing encrypted pending proxy bundle/checksum, runs four fixed
+  immutable copyto operations as the inventory-resolved non-root operator, reads
+  back/fetches only ciphertext, and lets the Mac atomically create an exact
+  drive-verified marker after no-output decryption/relationship verification.
+  Controller proxy Secret bootstrap no longer requires or invokes rclone and refuses
+  Kubernetes mutation without that marker. Installer check/apply/rollback, OAuth,
+  transfer/readback/cleanup, and Secret runtime are all NOT RUN/BLOCKED.
   Guarded deployable source now also exists for the exact private Argo CD core: three
   Ansible-owned CRDs and 29 namespaced objects, no ApplicationSet runtime, Secret,
   cluster RBAC, or public exposure. The wrapper fails closed until three exact,
@@ -198,8 +209,10 @@ note: |
   revoked/regenerated before upload or Kubernetes, and the trace was removed. A
   hardened retry proved zero plaintext-temp residue, retained one encrypted pending
   bundle/checksum and Keychain copy, and zero Kubernetes Secrets, then stopped on the
-  same expired Drive OAuth. Runtime remains unrun pending Drive reauthorization,
-  exact proxy Secret recovery/write, check/apply/idempotence, and live admission/
+  same expired controller Drive OAuth. That path is superseded. Runtime remains unrun
+  pending host rclone install/idempotence, interactive host OAuth, guarded encrypted
+  transfer/readback/controller decrypt, exact proxy Secret recovery/write,
+  Operator check/apply/idempotence, and live admission/
   RBAC/traffic proof.
   The unmounted filesystem, disk health, contents, reuse decision, and off-node backup
   design remain unresolved; no disk mutation occurred.

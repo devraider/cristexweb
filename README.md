@@ -117,12 +117,14 @@ Drive OAuth; its plaintext residue and unused encrypted artifact were removed wi
 reading values. An unused debug-exposed age identity was revoked/regenerated before
 upload/Kubernetes. The hardened retry proved cleanup, encrypted-pending resume and a
 Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the same expired
-OAuth. No Infisical CR, Kubernetes Secret, Universal Auth value, application Secret,
+controller OAuth. That transfer path is superseded by guarded host rclone source. No
+Infisical CR, Kubernetes Secret, Universal Auth value, application Secret,
 PROD scope, or
 self-hosted Infisical server is added. No general host baseline or deployment
-exists. Python is otherwise test-only; five exact-scope Ansible action plugins are
-the reviewed focused exception—four enforce mutation boundaries and one performs
-no-log cryptographic validation of the exact Argo Secret contract. No
+exists. Python is otherwise test-only; seven exact-scope Ansible action plugins are
+the reviewed focused exception—four enforce existing mutation boundaries, two guard
+host rclone install/transfer, and one performs no-log cryptographic validation of the
+exact Argo Secret contract. No
 general-purpose operational Python or infrastructure collector exists.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
@@ -361,3 +363,12 @@ git diff --cached --quiet
 
 The complete reproducible commands and actual results are recorded in
 [`testcases.md`](specs/k3s-iac-foundation/testcases.md).
+
+## Guarded host rclone source
+
+[Guarded source-only host rclone and proxy recovery transfer](runbooks/rclone-host-transfer.md)
+now keeps every rclone/Google Drive command on the Debian k3s/database host while
+the Mac retains plaintext verification and the age identity. The pinned installer,
+OAuth, transfer, cleanup, `drive-verified` gate, and later Secret bootstrap are all
+**NOT RUN/BLOCKED**; source authoring performed no host, Drive, OAuth, or Kubernetes
+mutation.

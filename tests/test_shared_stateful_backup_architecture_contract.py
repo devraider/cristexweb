@@ -29,7 +29,9 @@ class SharedStatefulBackupArchitectureContractTests(unittest.TestCase):
         self.assertEqual(
             {"postgresql", "mongodb", "rabbitmq"}, set(self.policy["services"])
         )
-        self.assertEqual("infisical-cloud", self.policy["credential_value_owner"])
+        self.assertEqual(
+            "infisical-cloud", self.policy["service_credential_value_owner"]
+        )
 
     def test_easy_operator_access_is_private_and_authenticated(self) -> None:
         access = self.policy["operator_access"]
@@ -61,11 +63,26 @@ class SharedStatefulBackupArchitectureContractTests(unittest.TestCase):
         destination = self.policy["destination"]
         self.assertEqual("google-drive", destination["direction"])
         self.assertEqual("intended-not-approved", destination["selection_status"])
-        self.assertEqual("containerized-rclone-copy", destination["tool_direction"])
-        self.assertIsNone(destination["container_image"])
-        self.assertIsNone(destination["linux_amd64_digest"])
+        self.assertEqual("pinned-host-rclone-copy", destination["tool_direction"])
+        self.assertEqual("1.71.1", str(destination["rclone_version"]))
+        self.assertEqual(
+            "417e3da236f3a12d292da4e7287d67b1df558b8c2b280d092e563958ed724be7",
+            destination["linux_amd64_archive_sha256"],
+        )
+        self.assertEqual(
+            "5409cb410e49903af3517654ccc65c89d89f9dc12d7a97b0e13e09a9be6dc74a",
+            destination["linux_amd64_binary_sha256"],
+        )
+        self.assertEqual("source-only-not-run", destination["host_install_status"])
         self.assertIsNone(destination["remote_identity"])
         self.assertIsNone(destination["root_folder_identity"])
+        self.assertEqual(
+            "host-operator-secret-zero", destination["oauth_credential_owner"]
+        )
+        self.assertEqual(
+            "interactive-host-authorization", destination["oauth_credential_source"]
+        )
+        self.assertFalse(destination["infisical_as_sole_oauth_source_allowed"])
         self.assertFalse(destination["credential_in_git_allowed"])
         self.assertFalse(destination["rclone_sync_allowed"])
 
@@ -125,6 +142,7 @@ class SharedStatefulBackupArchitectureContractTests(unittest.TestCase):
             "POLICY ONLY — RUNTIME BLOCKED",
             "Easy access means private authenticated operator retrieval",
             "metadata-only catalog",
+            "pinned host `rclone 1.71.1`",
             "rclone copy",
             "never `rclone sync`",
             "definitions recovery is not queued-message recovery",
@@ -133,6 +151,9 @@ class SharedStatefulBackupArchitectureContractTests(unittest.TestCase):
         ):
             self.assertIn(required, normalized)
         combined = f"{self.policy_text}\n{self.runbook_text}"
+        self.assertNotIn("containerized-rclone", combined)
+        self.assertNotIn("containerized `rclone", combined)
+        self.assertIn("host-operator-secret-zero", combined)
         for pattern in (
             r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
             r"\b(?:https?|s3)://[^\s]+:[^\s]+@",

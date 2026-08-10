@@ -202,6 +202,8 @@ metadata:
                 ANSIBLE / "bin/bootstrap-infisical-operator",
                 ANSIBLE / "bin/bootstrap-infisical-proxy-secrets",
                 ANSIBLE / "bin/bootstrap-argocd",
+                ANSIBLE / "bin/install-rclone",
+                ANSIBLE / "bin/transfer-infisical-proxy-recovery",
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()},
         )

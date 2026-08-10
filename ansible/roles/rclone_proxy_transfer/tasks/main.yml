@@ -1,0 +1,483 @@
+---
+- name: Reject externally supplied proxy transfer internal variables
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied proxy transfer internal variable {{ item }}."
+  loop:
+    - rclone_proxy_transfer_internal_attestation
+    - rclone_proxy_transfer_internal_passwd
+    - rclone_proxy_transfer_internal_service_facts_before
+    - rclone_proxy_transfer_internal_selector
+    - rclone_proxy_transfer_internal_binary
+    - rclone_proxy_transfer_internal_config_states
+    - rclone_proxy_transfer_internal_config_root
+    - rclone_proxy_transfer_internal_config_parent
+    - rclone_proxy_transfer_internal_config
+    - rclone_proxy_transfer_internal_config_poststate
+    - rclone_proxy_transfer_internal_controller_files
+    - rclone_proxy_transfer_internal_staging
+    - rclone_proxy_transfer_internal_readback_files
+    - rclone_proxy_transfer_internal_remote_list
+    - rclone_proxy_transfer_internal_cleanup_state
+    - rclone_proxy_transfer_internal_preflight_binding
+    - rclone_proxy_transfer_internal_service_facts_after
+  changed_when: false
+
+- name: Require exact pending proxy transfer approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_RCLONE_PROXY_TRANSFER_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_RCLONE_PROXY_TRANSFER_TOKEN') is match('^[0-9a-f]{64}$')
+      - rclone_proxy_transfer_approved | bool
+      - rclone_proxy_transfer_state in ['transfer', 'cleanup']
+      - rclone_proxy_transfer_state != 'cleanup' or (rclone_proxy_transfer_cleanup_approved | bool)
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - rclone_proxy_transfer_name == 'infisical-proxy-secret-zero-20260810T095421Z.tar.gz.age'
+      - rclone_proxy_transfer_timestamp == '20260810T095421Z'
+      - rclone_proxy_transfer_ciphertext_sha256 == '3562c730814440dc836c3f38d34efc41f0ca6f180635135ba92314990b121d28'
+      - rclone_proxy_transfer_remote_directory == 'drive:cristexweb-recovery/infisical-proxy/20260810T095421Z'
+      - rclone_proxy_transfer_operator_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - rclone_proxy_transfer_operator_user == ansible_user
+    fail_msg: Proxy transfer requires its guarded wrapper, exact pending artifact, --diff, and one-host limit.
+  changed_when: false
+
+- name: Require reviewed Debian 13 x86_64 transfer host
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.system == 'Linux'
+      - ansible_facts.distribution == 'Debian'
+      - ansible_facts.distribution_major_version == '13'
+      - ansible_facts.architecture == 'x86_64'
+  changed_when: false
+
+- name: Inspect proxy transfer attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RCLONE_PROXY_TRANSFER_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: rclone_proxy_transfer_internal_attestation
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require private proxy transfer attestation
+  ansible.builtin.assert:
+    that:
+      - rclone_proxy_transfer_internal_attestation.stat.isreg | default(false)
+      - not (rclone_proxy_transfer_internal_attestation.stat.islnk | default(false))
+      - rclone_proxy_transfer_internal_attestation.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file',
+               lookup('ansible.builtin.env',
+                      'CRISTEXWEB_RCLONE_PROXY_TRANSFER_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_RCLONE_PROXY_TRANSFER_TOKEN') ~ ':entrypoint'
+  changed_when: false
+  no_log: true
+
+- name: Resolve inventory-selected host operator with getent
+  ansible.builtin.getent:
+    database: passwd
+  changed_when: false
+  no_log: true
+
+- name: Record proxy transfer operator metadata
+  ansible.builtin.set_fact:
+    rclone_proxy_transfer_internal_passwd: "{{ ansible_facts.getent_passwd.get(rclone_proxy_transfer_operator_user, []) }}"
+  changed_when: false
+  no_log: true
+
+- name: Require exact non-root host operator home
+  ansible.builtin.assert:
+    that:
+      - rclone_proxy_transfer_internal_passwd | length >= 6
+      - (rclone_proxy_transfer_internal_passwd[1] | int) != 0
+      - rclone_proxy_transfer_internal_passwd[4] == '/home/' ~ rclone_proxy_transfer_operator_user
+  changed_when: false
+  no_log: true
+
+- name: Reject numeric aliases of the proxy transfer operator
+  ansible.builtin.assert:
+    that:
+      - >-
+        item.key == rclone_proxy_transfer_operator_user or
+        (item.value[1] | string) !=
+        (rclone_proxy_transfer_internal_passwd[1] | string)
+    fail_msg: Refusing a second account that shares the transfer operator UID.
+  loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  changed_when: false
+  no_log: true
+
+- name: Capture services before proxy transfer
+  ansible.builtin.service_facts:
+  register: rclone_proxy_transfer_internal_service_facts_before
+
+- name: Require k3s and Tailscale before proxy transfer
+  ansible.builtin.assert:
+    that:
+      - rclone_proxy_transfer_internal_service_facts_before.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - rclone_proxy_transfer_internal_service_facts_before.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+  changed_when: false
+
+- name: Inspect exact rclone selector and binary digest
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop:
+    - /usr/local/bin/rclone
+    - /opt/rclone/1.71.1/rclone
+  register: rclone_proxy_transfer_internal_selector
+  no_log: true
+
+- name: Inspect OAuth config path metadata without reading config content
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - "{{ rclone_proxy_transfer_internal_passwd[4] }}/.config"
+    - "{{ rclone_proxy_transfer_internal_passwd[4] }}/.config/rclone"
+    - "{{ rclone_proxy_transfer_internal_passwd[4] }}/.config/rclone/rclone.conf"
+  register: rclone_proxy_transfer_internal_config_states
+  no_log: true
+
+- name: Record exact selector and config metadata states
+  ansible.builtin.set_fact:
+    rclone_proxy_transfer_internal_binary: "{{ rclone_proxy_transfer_internal_selector.results[1].stat }}"
+    rclone_proxy_transfer_internal_config_root: "{{ rclone_proxy_transfer_internal_config_states.results[0].stat }}"
+    rclone_proxy_transfer_internal_config_parent: "{{ rclone_proxy_transfer_internal_config_states.results[1].stat }}"
+    rclone_proxy_transfer_internal_config: "{{ rclone_proxy_transfer_internal_config_states.results[2].stat }}"
+  changed_when: false
+  no_log: true
+
+- name: Require exact selector and OAuth config metadata
+  ansible.builtin.assert:
+    that:
+      - rclone_proxy_transfer_internal_selector.results[0].stat.islnk | default(false)
+      - rclone_proxy_transfer_internal_selector.results[0].stat.lnk_source == '/opt/rclone/1.71.1/rclone'
+      - rclone_proxy_transfer_internal_selector.results[0].stat.pw_name == 'root'
+      - rclone_proxy_transfer_internal_selector.results[0].stat.gr_name == 'root'
+      - rclone_proxy_transfer_internal_binary.isreg | default(false)
+      - not (rclone_proxy_transfer_internal_binary.islnk | default(false))
+      - rclone_proxy_transfer_internal_binary.pw_name == 'root'
+      - rclone_proxy_transfer_internal_binary.gr_name == 'root'
+      - rclone_proxy_transfer_internal_binary.mode == '0755'
+      - rclone_proxy_transfer_internal_binary.checksum == '5409cb410e49903af3517654ccc65c89d89f9dc12d7a97b0e13e09a9be6dc74a'
+      - rclone_proxy_transfer_internal_config_root.isdir | default(false)
+      - not (rclone_proxy_transfer_internal_config_root.islnk | default(false))
+      - rclone_proxy_transfer_internal_config_root.pw_name == rclone_proxy_transfer_operator_user
+      - rclone_proxy_transfer_internal_config_root.uid == (rclone_proxy_transfer_internal_passwd[1] | int)
+      - rclone_proxy_transfer_internal_config_root.gid == (rclone_proxy_transfer_internal_passwd[2] | int)
+      - rclone_proxy_transfer_internal_config_root.mode in ['0700', '0750', '0755']
+      - rclone_proxy_transfer_internal_config_parent.isdir | default(false)
+      - not (rclone_proxy_transfer_internal_config_parent.islnk | default(false))
+      - rclone_proxy_transfer_internal_config_parent.pw_name == rclone_proxy_transfer_operator_user
+      - rclone_proxy_transfer_internal_config_parent.uid == (rclone_proxy_transfer_internal_passwd[1] | int)
+      - rclone_proxy_transfer_internal_config_parent.gid == (rclone_proxy_transfer_internal_passwd[2] | int)
+      - rclone_proxy_transfer_internal_config_parent.mode == '0700'
+      - rclone_proxy_transfer_state == 'cleanup' or (rclone_proxy_transfer_internal_config.isreg | default(false))
+      - rclone_proxy_transfer_state == 'cleanup' or not (rclone_proxy_transfer_internal_config.islnk | default(false))
+      - rclone_proxy_transfer_state == 'cleanup' or rclone_proxy_transfer_internal_config.pw_name == rclone_proxy_transfer_operator_user
+      - rclone_proxy_transfer_state == 'cleanup' or rclone_proxy_transfer_internal_config.uid == (rclone_proxy_transfer_internal_passwd[1] | int)
+      - rclone_proxy_transfer_state == 'cleanup' or rclone_proxy_transfer_internal_config.gid == (rclone_proxy_transfer_internal_passwd[2] | int)
+      - rclone_proxy_transfer_state == 'cleanup' or rclone_proxy_transfer_internal_config.mode == '0600'
+    fail_msg: Refusing selector drift or missing/unsafe operator OAuth config metadata; config content is never read.
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact pending controller ciphertext and checksum
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'HOME') }}/Library/Application Support/CristexWeb/recovery/infisical-proxy/{{ item }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  loop:
+    - "{{ rclone_proxy_transfer_name }}"
+    - "{{ rclone_proxy_transfer_name }}.sha256"
+    - pending
+  register: rclone_proxy_transfer_internal_controller_files
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require unchanged complete pending controller bundle
+  ansible.builtin.assert:
+    that:
+      - rclone_proxy_transfer_internal_controller_files.results[0].stat.isreg | default(false)
+      - not (rclone_proxy_transfer_internal_controller_files.results[0].stat.islnk | default(false))
+      - rclone_proxy_transfer_internal_controller_files.results[0].stat.pw_name == lookup('ansible.builtin.env', 'USER')
+      - rclone_proxy_transfer_internal_controller_files.results[0].stat.mode == '0600'
+      - rclone_proxy_transfer_internal_controller_files.results[0].stat.checksum == rclone_proxy_transfer_ciphertext_sha256
+      - rclone_proxy_transfer_internal_controller_files.results[1].stat.isreg | default(false)
+      - not (rclone_proxy_transfer_internal_controller_files.results[1].stat.islnk | default(false))
+      - rclone_proxy_transfer_internal_controller_files.results[1].stat.pw_name == lookup('ansible.builtin.env', 'USER')
+      - rclone_proxy_transfer_internal_controller_files.results[1].stat.mode == '0600'
+      - rclone_proxy_transfer_internal_controller_files.results[2].stat.isreg | default(false)
+      - not (rclone_proxy_transfer_internal_controller_files.results[2].stat.islnk | default(false))
+      - rclone_proxy_transfer_internal_controller_files.results[2].stat.pw_name == lookup('ansible.builtin.env', 'USER')
+      - rclone_proxy_transfer_internal_controller_files.results[2].stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file',
+               lookup('ansible.builtin.env', 'HOME') ~
+               '/Library/Application Support/CristexWeb/recovery/' ~
+               'infisical-proxy/pending') == rclone_proxy_transfer_name
+      - >-
+        lookup('ansible.builtin.file',
+               lookup('ansible.builtin.env', 'HOME') ~
+               '/Library/Application Support/CristexWeb/recovery/' ~
+               'infisical-proxy/' ~ rclone_proxy_transfer_name ~ '.sha256') ==
+        rclone_proxy_transfer_ciphertext_sha256
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact host ciphertext staging paths
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - "{{ rclone_proxy_transfer_internal_passwd[4] }}/.cristexweb-rclone"
+    - "{{ rclone_proxy_transfer_internal_passwd[4] }}/.cristexweb-rclone/infisical-proxy"
+    - >-
+      {{ rclone_proxy_transfer_internal_passwd[4] ~
+         '/.cristexweb-rclone/infisical-proxy/' ~
+         rclone_proxy_transfer_timestamp }}
+  register: rclone_proxy_transfer_internal_staging
+  changed_when: false
+  no_log: true
+
+- name: Refuse transfer collision or unexpected residue
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (item.stat.exists | default(false)) or
+        (item.stat.isdir and not item.stat.islnk and
+         item.stat.pw_name == rclone_proxy_transfer_operator_user and
+         item.stat.mode == '0700')
+      - >-
+        item.item != rclone_proxy_transfer_internal_staging.results[-1].item or
+        rclone_proxy_transfer_state == 'cleanup' or
+        not (item.stat.exists | default(false))
+    fail_msg: Refusing an existing transfer collision or unsafe cleanup residue.
+  loop: "{{ rclone_proxy_transfer_internal_staging.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind guarded proxy transfer preflight
+  ansible.builtin.set_fact:
+    rclone_proxy_transfer_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RCLONE_PROXY_TRANSFER_TOKEN') | ansible.builtin.hash('sha256') }}"
+      ciphertext_sha256: "{{ rclone_proxy_transfer_ciphertext_sha256 }}"
+      remote_directory: "{{ rclone_proxy_transfer_remote_directory }}"
+      operator_home: "{{ rclone_proxy_transfer_internal_passwd[4] }}"
+      service_contract: true
+  changed_when: false
+  no_log: true
+
+- name: Require the exact configured host rclone remote and backend type
+  rclone_proxy_transfer_guarded:
+    operation: remote-list
+  register: rclone_proxy_transfer_internal_remote_list
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: rclone_proxy_transfer_state == 'transfer'
+
+- name: Refuse an absent or additional host rclone remote
+  ansible.builtin.assert:
+    that:
+      - >-
+        rclone_proxy_transfer_internal_remote_list.stdout_lines |
+        map('trim') | list == ['drive: drive']
+    fail_msg: Refusing a host rclone configuration outside the exact Google Drive backend.
+  changed_when: false
+  no_log: true
+  when: rclone_proxy_transfer_state == 'transfer'
+
+- name: Verify host Google Drive OAuth with a read-only request
+  rclone_proxy_transfer_guarded:
+    operation: remote-about
+  changed_when: false
+  no_log: true
+  when:
+    - rclone_proxy_transfer_state == 'transfer'
+    - not ansible_check_mode
+
+- name: Prepare exact encrypted host staging and readback paths
+  rclone_proxy_transfer_guarded:
+    operation: prepare
+  when:
+    - rclone_proxy_transfer_state == 'transfer'
+    - not ansible_check_mode
+
+- name: Upload immutable pending proxy ciphertext
+  rclone_proxy_transfer_guarded:
+    operation: upload-ciphertext
+  become: false
+  no_log: true
+  when:
+    - rclone_proxy_transfer_state == 'transfer'
+    - not ansible_check_mode
+
+- name: Upload immutable pending proxy checksum
+  rclone_proxy_transfer_guarded:
+    operation: upload-checksum
+  become: false
+  no_log: true
+  when:
+    - rclone_proxy_transfer_state == 'transfer'
+    - not ansible_check_mode
+
+- name: Read back immutable pending proxy ciphertext
+  rclone_proxy_transfer_guarded:
+    operation: readback-ciphertext
+  become: false
+  no_log: true
+  when:
+    - rclone_proxy_transfer_state == 'transfer'
+    - not ansible_check_mode
+
+- name: Read back immutable pending proxy checksum
+  rclone_proxy_transfer_guarded:
+    operation: readback-checksum
+  become: false
+  no_log: true
+  when:
+    - rclone_proxy_transfer_state == 'transfer'
+    - not ansible_check_mode
+
+- name: Inspect encrypted host readback leaves
+  ansible.builtin.stat:
+    path: >-
+      {{ rclone_proxy_transfer_internal_passwd[4] ~
+         '/.cristexweb-rclone/infisical-proxy/' ~
+         rclone_proxy_transfer_timestamp ~ '/readback/' ~ item }}
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  loop:
+    - "{{ rclone_proxy_transfer_name }}"
+    - "{{ rclone_proxy_transfer_name }}.sha256"
+  register: rclone_proxy_transfer_internal_readback_files
+  changed_when: false
+  no_log: true
+  when:
+    - rclone_proxy_transfer_state == 'transfer'
+    - not ansible_check_mode
+
+- name: Require private exact encrypted host readback leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == rclone_proxy_transfer_operator_user
+      - item.stat.mode == '0600'
+      - item.item != rclone_proxy_transfer_name or item.stat.checksum == rclone_proxy_transfer_ciphertext_sha256
+  loop: "{{ rclone_proxy_transfer_internal_readback_files.results }}"
+  changed_when: false
+  no_log: true
+  when:
+    - rclone_proxy_transfer_state == 'transfer'
+    - not ansible_check_mode
+
+- name: Fetch encrypted readback files to private controller temporary path
+  rclone_proxy_transfer_guarded:
+    operation: fetch
+  when:
+    - rclone_proxy_transfer_state == 'transfer'
+    - not ansible_check_mode
+
+- name: Remove only exact host transfer ciphertext residue
+  rclone_proxy_transfer_guarded:
+    operation: cleanup
+  when:
+    - rclone_proxy_transfer_cleanup_approved | bool
+    - not ansible_check_mode
+
+- name: Inspect exact host transfer cleanup post-state
+  ansible.builtin.stat:
+    path: >-
+      {{ rclone_proxy_transfer_internal_passwd[4] ~
+         '/.cristexweb-rclone/infisical-proxy/' ~
+         rclone_proxy_transfer_timestamp }}
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: rclone_proxy_transfer_internal_cleanup_state
+  changed_when: false
+  no_log: true
+  when:
+    - rclone_proxy_transfer_cleanup_approved | bool
+    - not ansible_check_mode
+
+- name: Require exact host ciphertext cleanup
+  ansible.builtin.assert:
+    that:
+      - not (rclone_proxy_transfer_internal_cleanup_state.stat.exists |
+             default(false))
+    fail_msg: Exact encrypted host transfer residue remains after cleanup.
+  changed_when: false
+  no_log: true
+  when:
+    - rclone_proxy_transfer_cleanup_approved | bool
+    - not ansible_check_mode
+
+- name: Reinspect host OAuth config metadata after transfer
+  ansible.builtin.stat:
+    path: "{{ rclone_proxy_transfer_internal_passwd[4] }}/.config/rclone/rclone.conf"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: rclone_proxy_transfer_internal_config_poststate
+  changed_when: false
+  no_log: true
+  when:
+    - rclone_proxy_transfer_state == 'transfer'
+    - not ansible_check_mode
+
+- name: Require protected host OAuth config metadata after transfer
+  ansible.builtin.assert:
+    that:
+      - rclone_proxy_transfer_internal_config_poststate.stat.isreg | default(false)
+      - not (rclone_proxy_transfer_internal_config_poststate.stat.islnk | default(false))
+      - rclone_proxy_transfer_internal_config_poststate.stat.pw_name == rclone_proxy_transfer_operator_user
+      - rclone_proxy_transfer_internal_config_poststate.stat.uid == (rclone_proxy_transfer_internal_passwd[1] | int)
+      - rclone_proxy_transfer_internal_config_poststate.stat.gid == (rclone_proxy_transfer_internal_passwd[2] | int)
+      - rclone_proxy_transfer_internal_config_poststate.stat.mode == '0600'
+    fail_msg: Host OAuth config metadata drifted during the approved transfer.
+  changed_when: false
+  no_log: true
+  when:
+    - rclone_proxy_transfer_state == 'transfer'
+    - not ansible_check_mode
+
+- name: Predict read-only transfer or bounded ciphertext cleanup check
+  ansible.builtin.debug:
+    msg: Check mode validates metadata plus the configured Google Drive backend without network access or writes; OAuth is contacted only during approved apply.
+  changed_when: >-
+    rclone_proxy_transfer_state == 'cleanup' and
+    (rclone_proxy_transfer_internal_staging.results[-1].stat.exists |
+     default(false))
+  when: ansible_check_mode
+
+- name: Capture services after proxy transfer
+  ansible.builtin.service_facts:
+  register: rclone_proxy_transfer_internal_service_facts_after
+
+- name: Require k3s and Tailscale after proxy transfer
+  ansible.builtin.assert:
+    that:
+      - rclone_proxy_transfer_internal_service_facts_after.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - rclone_proxy_transfer_internal_service_facts_after.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+  changed_when: false

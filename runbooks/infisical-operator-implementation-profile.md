@@ -122,9 +122,12 @@ Secret is runtime-created only after its exact writer, RBAC, encryption-at-rest
 exposure, rotation, revocation, and compromise handling are reviewed. Git contains
 neither the credential nor a recoverable derivative.
 
-Recovery uses an age-encrypted off-node copy in Google Drive, with the age key held
-separately. Exact custodians, folders, retention, restoration, overlap rotation, and
-revocation evidence remain unresolved and therefore block a bootstrap write.
+Recovery uses an age-encrypted off-node copy in Google Drive. Only ciphertext and
+checksum move to the k3s host, where pinned host rclone performs immutable transfer;
+the age key remains on the controller and needs an independently protected custody
+copy. Exact custodians, host OAuth/account recovery, folders, retention, restoration,
+overlap rotation, and revocation evidence remain unresolved and therefore block a
+bootstrap write.
 
 The first functional proof will use a dedicated read-only DEV identity and one fixed
 public marker. A v1beta1 static-secret reference will target a non-sensitive ConfigMap
@@ -140,8 +143,10 @@ value-free namespaced references only after Ansible stops reconciling them and e
 registration, successful sync, managed fields, rollback, and soak evidence pass.
 Dual reconciliation and Git-authored generated Secrets are forbidden.
 
-The required order is now: create and recover the three proxy bootstrap Secrets; run
-the dedicated guarded check; review its exact 40-object prediction; run first apply
+The required order is now: install and attest pinned host rclone; complete interactive
+non-root host OAuth; transfer/read back and controller-verify the existing encrypted
+pending proxy bundle; create and recover the three proxy bootstrap Secrets; run the
+dedicated guarded check; review its exact 40-object prediction; run first apply
 and idempotence; prove admission, negative RBAC, proxy-only egress, and idle health;
 establish separate Infisical Universal Auth recovery; then perform one non-sensitive
 ConfigMap sync. Failure never widens RBAC, egress, watch scope, or credential sharing.

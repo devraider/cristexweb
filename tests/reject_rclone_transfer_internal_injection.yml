@@ -1,0 +1,19 @@
+---
+- name: Prove forged rclone transfer internals fail first
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Exercise transfer role with externally forged internals
+      block:
+        - ansible.builtin.include_role:
+            name: rclone_proxy_transfer
+      rescue:
+        - ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == 'Reject externally supplied proxy transfer internal variables'
+              - "'INTERNAL_VARIABLE_GUARD' in (ansible_failed_result | ansible.builtin.to_json)"
+        - ansible.builtin.set_fact:
+            rejected: true
+    - ansible.builtin.assert:
+        that: rejected | default(false) | bool

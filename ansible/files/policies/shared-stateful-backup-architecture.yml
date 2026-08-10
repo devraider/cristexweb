@@ -1,7 +1,7 @@
 ---
 policy_schema: cristex-shared-stateful-backup-v1
 policy_status: source-policy-only-runtime-blocked
-credential_value_owner: infisical-cloud
+service_credential_value_owner: infisical-cloud
 operator_access:
   scope: private-authenticated-only
   catalog: metadata-only
@@ -25,12 +25,17 @@ archive_contract:
 destination:
   direction: google-drive
   selection_status: intended-not-approved
-  tool_direction: containerized-rclone-copy
-  container_image: null
-  linux_amd64_digest: null
+  tool_direction: pinned-host-rclone-copy
+  rclone_version: 1.71.1
+  linux_amd64_archive_sha256: 417e3da236f3a12d292da4e7287d67b1df558b8c2b280d092e563958ed724be7
+  linux_amd64_binary_sha256: 5409cb410e49903af3517654ccc65c89d89f9dc12d7a97b0e13e09a9be6dc74a
+  host_install_status: source-only-not-run
   remote_identity: null
   root_folder_identity: null
-  credential_value_owner: infisical-cloud
+  oauth_credential_owner: host-operator-secret-zero
+  oauth_credential_source: interactive-host-authorization
+  oauth_credential_recovery: google-account-reauthorization-and-independent-account-recovery
+  infisical_as_sole_oauth_source_allowed: false
   credential_in_git_allowed: false
   rclone_sync_allowed: false
 local_staging:
@@ -75,7 +80,7 @@ future_consumer_admission:
     - rpo-rto-disposition
     - policy-test-and-runbook-update
 promotion_gates:
-  backup_tool_image_selected: false
+  backup_tool_host_install_completed: false
   destination_identity_accepted: false
   credential_recovery_proved: false
   encryption_key_recovery_proved: false

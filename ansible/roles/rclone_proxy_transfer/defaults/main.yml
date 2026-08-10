@@ -1,0 +1,9 @@
+---
+rclone_proxy_transfer_approved: false
+rclone_proxy_transfer_cleanup_approved: false
+rclone_proxy_transfer_state: transfer
+rclone_proxy_transfer_operator_user: "{{ ansible_user }}"
+rclone_proxy_transfer_name: "infisical-proxy-secret-zero-20260810T095421Z.tar.gz.age"
+rclone_proxy_transfer_timestamp: "20260810T095421Z"
+rclone_proxy_transfer_ciphertext_sha256: "3562c730814440dc836c3f38d34efc41f0ca6f180635135ba92314990b121d28"
+rclone_proxy_transfer_remote_directory: "drive:cristexweb-recovery/infisical-proxy/20260810T095421Z"

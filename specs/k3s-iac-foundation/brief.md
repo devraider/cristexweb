@@ -56,9 +56,10 @@ reboot recovery playbook, and the executed temporary NetworkPolicy probe under
 `ansible/`. Effective-user readability, warning-free
 fresh-session cluster listing, both idempotence checks, SSH/Tailscale return, Ready
 node, and kubeconfig recovery passed.
-Python is used for offline contract tests and the four reviewed exact-scope Ansible
-action plugins that enforce mutation boundaries; no general-purpose operational
-Python or infrastructure collector exists. One
+Python is used for offline contract tests and seven exact-scope Ansible action
+plugins: four existing mutation guards, two guarded host rclone install/transfer
+boundaries, and one no-log Argo Secret cryptographic validator. No general-purpose
+operational Python or infrastructure collector exists. One
 approved non-elevated check/diff run produced
 a locally reviewed host report. A separately approved playbook directly requested
 only `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
@@ -168,3 +169,12 @@ Beyond the bounded public-source evidence reads, this deliverable performs no ho
 mutation, authenticated Cloudflare/GitHub/Infisical/registry operation, database,
 storage, backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain
 external application-repository concerns and are not copied here.
+
+A new source-only guarded host-transfer boundary pins rclone `1.71.1`: controller
+cache verification and transfer install a root-owned host payload, rollback removes
+only its selector, and a separate flow permits only the existing encrypted proxy
+bundle/checksum through fixed immutable host `copyto` uploads/readbacks. The Mac
+keeps age identity and plaintext verification. Secret mutation now requires an exact
+`drive-verified` marker. Host check/install, OAuth, Drive transfer/readback/cleanup,
+Secret, Infisical, Argo, and database-backup runtime are **NOT RUN/BLOCKED**; see
+[`rclone-host-transfer.md`](../../runbooks/rclone-host-transfer.md).

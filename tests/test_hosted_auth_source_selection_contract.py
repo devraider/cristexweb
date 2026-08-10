@@ -315,6 +315,8 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "bootstrap-infisical-proxy-secrets",
                 "bootstrap_infisical_operator.yml",
                 "bootstrap_infisical_proxy_secrets.yml",
+                "transfer-infisical-proxy-recovery",
+                "transfer_infisical_proxy_recovery.yml",
                 "main.yml",
             },
             {path.name for path in operational if "infisical" in str(path).lower()},

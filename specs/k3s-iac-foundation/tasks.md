@@ -273,8 +273,12 @@ entry gate.
 - [ ] Create and independently recover the three proxy bootstrap Secrets with the
   guarded age/Drive writer, then run the guarded Infisical check, separately reviewed
   first apply, live admission/RBAC/traffic negatives, and idempotence before Universal
-  Auth. The first writer run stopped before Kubernetes on expired Drive OAuth; run
-  `rclone config reconnect drive:` and retry (`KIF-005`, `KIF-013`–`KIF-016`,
+  Auth. The first writer run stopped before Kubernetes on expired controller Drive
+  OAuth. That controller path is superseded: install pinned rclone on the host,
+  create the exact `drive` remote with host `rclone config` (or reconnect it only if
+  it already exists) as the inventory-selected non-root operator using the explicit
+  host config, then run guarded encrypted transfer,
+  controller verification, and Secret write (`KIF-005`, `KIF-013`–`KIF-016`,
   `KIF-021`, `KIF-023`, `KIF-027`, `KIF-030`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare/Keycloak
   secret-zero sequence (`KIF-014`, `KIF-015`).
@@ -475,6 +479,28 @@ and rollback evidence is incomplete.
   identity administration/management, and data services (`KIF-012`).
 - [ ] Rehearse each route rollback while private identity and PROD remain healthy
   (`KIF-030`).
+
+## Guarded host rclone and pending proxy transfer
+
+- [x] Add source-only pinned rclone `1.71.1` installer with controller verification,
+  host transfer, task-selection/injection guard, check/apply/rollback modes, service
+  preservation, and selector-only rollback (`KIF-002`, `KIF-005`, `KIF-007`,
+  `KIF-013`, `KIF-030`).
+- [x] Add source-only exact encrypted proxy transfer with host-operator getent
+  resolution, config-metadata-only handling, immutable upload/readback, guarded
+  cleanup, controller decryption checks, and `drive-verified` binding (`KIF-002`,
+  `KIF-005`, `KIF-013`–`KIF-015`, `KIF-027`, `KIF-030`).
+- [x] Remove controller rclone from proxy Secret bootstrap and require exact transfer
+  verification before Secret variables or Kubernetes mutation (`KIF-013`–`KIF-015`,
+  `KIF-030`).
+- [ ] Separately approve and run installer check/apply/idempotence (**NOT RUN**;
+  `KIF-002`, `KIF-007`, `KIF-030`).
+- [ ] Separately complete interactive non-root host OAuth through a reviewed private
+  SSH callback tunnel (**NOT RUN/BLOCKED**; `KIF-002`, `KIF-013`–`KIF-015`).
+- [ ] Separately approve transfer check/apply and review encrypted cleanup/readback
+  evidence (**NOT RUN/BLOCKED**; `KIF-002`, `KIF-027`, `KIF-030`).
+- [ ] Separately approve proxy Secret bootstrap only after marker review (**NOT
+  RUN/BLOCKED**; `KIF-002`, `KIF-013`–`KIF-015`, `KIF-030`).
 
 ## Closeout
 

@@ -1,0 +1,9 @@
+---
+- name: Reject direct use of the guarded rclone installer action
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Attempt selector mutation outside canonical role source
+      rclone_install_guarded:
+        operation: selector-present

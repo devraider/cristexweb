@@ -264,6 +264,8 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
                 "bootstrap-infisical-proxy-secrets",
                 "bootstrap_infisical_operator.yml",
                 "bootstrap_infisical_proxy_secrets.yml",
+                "transfer-infisical-proxy-recovery",
+                "transfer_infisical_proxy_recovery.yml",
                 "main.yml",
                 "infisical_operator_guarded_k8s.py",
                 "infisical_proxy_secret_zero_guarded_k8s.py",

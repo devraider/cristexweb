@@ -3,8 +3,10 @@
 ## Status
 
 **POLICY ONLY — RUNTIME BLOCKED.** This design covers PostgreSQL, MongoDB, and
-RabbitMQ recovery artifacts without selecting a backup image, credential, folder,
-local staging path, or executable job. The source profile fixes daily archives,
+RabbitMQ recovery artifacts without selecting a credential, folder, local staging
+path, or executable job. Pinned host rclone `1.71.1` is now the transfer-tool
+direction, but its dedicated installer remains source-only and **NOT RUN**. The
+source profile fixes daily archives,
 14-day local/off-node retention, RPO `24h`, and RTO `4h`; no backup or restore has
 run.
 
@@ -32,10 +34,18 @@ the backup credential. Consumer or purpose paths remain separate. Integrity
 verification and an isolated restore are mandatory; a successful upload is not
 recovery evidence.
 
-The existing direction is Google Drive through containerized `rclone copy`, but it
-remains intended rather than approved until the immutable container image, remote
-identity, root folder identity, credentials, and recovery procedure are selected. Use `rclone copy`; never `rclone sync`. Destructive mirror semantics are
-forbidden.
+The direction is Google Drive through pinned host `rclone 1.71.1` using immutable
+`rclone copy`/`copyto` semantics. The reviewed Linux archive and extracted binary
+have exact SHA-256 pins, and the host installer uses controller-cache verification,
+host transfer, a root-owned versioned payload, and a selector-only rollback. That
+installer has not run. Database backup transfer remains intended rather than
+approved until the remote identity, root folder identity, credentials, staging, and
+recovery procedure are selected. Database/service credentials remain Infisical-owned,
+but the host OAuth bootstrap is an explicit circular-dependency exception: it is
+created interactively on the host, is never committed or logged, and cannot use
+Infisical as its sole recovery source. Google-account reauthorization and independent
+account recovery remain mandatory. Use `rclone copy`; never `rclone sync`.
+Destructive mirror semantics are forbidden.
 
 ## Service-specific recovery
 
@@ -59,8 +69,8 @@ runbook update. Wildcard or dynamic paths are forbidden.
 
 ## Remaining decisions and stop gate
 
-The exact backup-tool image and digest, Google Drive identity and folder, local
-staging path and capacity, credential recovery, encryption-key recovery, schedule
+The exact host tool is selected but its install is not run. Google Drive identity
+and folder, local staging path and capacity, credential recovery, encryption-key recovery, schedule
 implementation, retention enforcement, and measured RPO/RTO remain unselected or
 unproved.
 

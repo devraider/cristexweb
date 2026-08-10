@@ -42,6 +42,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "shared-stateful-backup-architecture.md",
                 "recovery-artifact-register.md",
                 "replacement-host-recovery.md",
+                "rclone-host-transfer.md",
             },
             {path.name for path in RUNBOOKS.iterdir() if path.is_file()},
         )

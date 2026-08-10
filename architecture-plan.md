@@ -333,8 +333,9 @@ of privileged CRDs and cluster RBAC.
 
 Backups require database-consistent PostgreSQL and MongoDB dumps, protected RabbitMQ
 definitions, separate consumer/purpose paths, compression, encryption, integrity
-checks, local retention, and an encrypted off-host copy. The intended off-host target
-is Google Drive through containerized `rclone copy`, not destructive `sync`.
+checks, local retention, and an encrypted off-host copy. The selected transfer-tool
+direction is pinned host rclone `1.71.1` with immutable copy/readback semantics, never
+destructive `sync`; database backup source and runtime remain blocked.
 Operator access uses a private authenticated metadata-only catalog plus a simple
 list/retrieve/verify workflow; no public or anonymous link is allowed. RabbitMQ
 definitions recovery does not prove queued-message recovery, so application
@@ -661,3 +662,17 @@ recovered in this order:
 
 Git and Argo reconstruct desired state. They do not restore mutable data, secret
 values, or external state by themselves.
+
+## Guarded host transfer boundary (source only)
+
+Pinned host rclone `1.71.1` is the selected transfer-tool direction. Installation
+and selector-only rollback are Ansible-owned host operations. Every Google Drive
+transfer runs as the inventory-resolved non-root operator on the Debian
+k3s/database host with explicit config-path metadata validation; Ansible never
+handles token/config content. Host OAuth is an interactive secret-zero exception and
+cannot use Infisical or the same Drive remote as its sole recovery source. The
+controller owns proxy plaintext generation,
+readback decryption/relationship verification, and age private-key custody. Exact
+source exists for the current encrypted pending proxy bundle and a bound
+`drive-verified` gate, but install, OAuth, transfer, cleanup, Secret creation,
+Infisical, Argo, and database backup runtime remain **NOT RUN/BLOCKED**.

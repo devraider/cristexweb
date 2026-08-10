@@ -31,11 +31,22 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/cristexhub_dev_namespace_guarded_k8s.py"),
             Path("ansible/plugins/action/infisical_operator_guarded_k8s.py"),
             Path("ansible/plugins/action/infisical_proxy_secret_zero_guarded_k8s.py"),
+            Path("ansible/plugins/action/rclone_install_guarded.py"),
+            Path("ansible/plugins/action/rclone_proxy_transfer_guarded.py"),
         }
+        self.assertEqual(7, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
         )
+        for relative in (
+            "AGENTS.md",
+            "README.md",
+            "specs/k3s-iac-foundation/brief.md",
+            "specs/k3s-iac-foundation/status.md",
+        ):
+            normalized = " ".join((ROOT / relative).read_text().split())
+            self.assertIn("seven exact-scope Ansible action plugins", normalized, relative)
 
     def test_minimal_ansible_layout_exists(self) -> None:
         required = [
@@ -82,6 +93,16 @@ class AnsibleLayoutTests(unittest.TestCase):
             "bin/bootstrap-cristexhub-dev-namespace",
             "bin/bootstrap-infisical-operator",
             "bin/bootstrap-infisical-proxy-secrets",
+            "bin/install-rclone",
+            "bin/transfer-infisical-proxy-recovery",
+            "playbooks/install_rclone.yml",
+            "playbooks/transfer_infisical_proxy_recovery.yml",
+            "plugins/action/rclone_install_guarded.py",
+            "plugins/action/rclone_proxy_transfer_guarded.py",
+            "roles/rclone_install/defaults/main.yml",
+            "roles/rclone_install/tasks/main.yml",
+            "roles/rclone_proxy_transfer/defaults/main.yml",
+            "roles/rclone_proxy_transfer/tasks/main.yml",
             "files/policies/infisical-operator-privileged-prerequisites.yml",
             "files/policies/infisical-operator-implementation-profile.yml",
             "roles/opentofu_install/defaults/main.yml",

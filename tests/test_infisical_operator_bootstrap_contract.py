@@ -363,10 +363,9 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
         for required in (
             "age-keygen",
             "age -r",
-            "rclone copyto",
-            "remote-copy.age",
-            "remote-recovered.tar.gz",
-            "remote-copy.sha256",
+            "drive-verified",
+            "refusing Secret mutation before guarded host Drive transfer verification",
+            "refusing a drive-verified marker not bound to the exact pending artifact",
             "security add-generic-password",
             "pending_marker",
             "completed_marker",
@@ -384,8 +383,9 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
             wrapper.index("age-keygen -o"),
         )
         self.assertLess(wrapper.index("trap cleanup"), wrapper.index("openssl req -x509"))
-        self.assertLess(wrapper.index("rclone copyto"), wrapper.index("secret-vars.yml"))
-        self.assertLess(wrapper.index("remote-recovered.tar.gz"), wrapper.index("secret-vars.yml"))
+        self.assertLess(wrapper.index("drive_verified_marker"), wrapper.index("secret-vars.yml"))
+        self.assertNotIn("rclone", wrapper)
+        self.assertNotIn("remote-copy", wrapper)
         self.assertIn("become: false", PROXY_SECRET_PLAYBOOK.read_text())
         for required in (
             "ENTRYPOINT_GUARD",

@@ -618,3 +618,21 @@ Provider initialization, lockfile generation, validation, planning, apply, impor
 state commands, destroy, state encryption, Google Drive copy, and recovery are
 separate future gates. No apply is allowed until encrypted timestamped off-node
 state recovery and key custody pass an isolated rehearsal.
+
+## Guarded host rclone and proxy recovery transfer
+
+The dedicated entrypoints are:
+
+```text
+ansible/bin/install-rclone check|apply|rollback-check|rollback-apply
+ansible/bin/transfer-infisical-proxy-recovery check|apply|cleanup-check|cleanup-apply
+```
+
+The installer pins rclone `1.71.1`, uses controller-cache verification plus Ansible
+host transfer, retains root-owned version/cache artifacts, and rolls back only the
+selector. The transfer resolves the existing non-root inventory operator with
+getent, never reads rclone config content, runs only four immutable `copyto`
+commands on the host, and stages/fetches only ciphertext. See
+[`rclone-host-transfer.md`](../runbooks/rclone-host-transfer.md). All check/install,
+OAuth, Drive transfer, cleanup, and proxy Secret runtime results are **NOT
+RUN/BLOCKED**. Apply approvals are separate; installer sudo is interactive only.
