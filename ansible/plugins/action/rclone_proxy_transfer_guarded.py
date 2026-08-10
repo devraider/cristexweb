@@ -33,17 +33,21 @@ class ActionModule(ActionBase):
         original_action, original_args = self._task.action, self._task.args
         self._task.action, self._task.args = name, args
         try:
-            plugin = self._shared_loader_obj.action_loader.get(
-                name,
-                task=self._task,
-                connection=self._connection,
-                play_context=self._play_context,
-                loader=self._loader,
-                templar=self._templar,
-                shared_loader_obj=self._shared_loader_obj,
-            )
+            plugin_args = {
+                "task": self._task,
+                "connection": self._connection,
+                "play_context": self._play_context,
+                "loader": self._loader,
+                "templar": self._templar,
+                "shared_loader_obj": self._shared_loader_obj,
+            }
+            plugin = self._shared_loader_obj.action_loader.get(name, **plugin_args)
             if plugin is None:
-                return self._fail(f"unable to load guarded action {name}")
+                plugin = self._shared_loader_obj.action_loader.get(
+                    "ansible.builtin.normal", **plugin_args
+                )
+            if plugin is None:
+                return self._fail(f"unable to load guarded action {name} or normal fallback")
             return plugin.run(tmp=tmp, task_vars=task_vars)
         finally:
             self._task.action, self._task.args = original_action, original_args

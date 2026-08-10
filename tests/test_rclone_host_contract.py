@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 import yaml
 
@@ -21,6 +22,65 @@ SECRET_WRAPPER = ANSIBLE / "bin/bootstrap-infisical-proxy-secrets"
 
 
 class RcloneHostContractTests(unittest.TestCase):
+    def test_nested_builtin_module_dispatch_uses_normal_action_fallback(self) -> None:
+        for plugin_name in (
+            "rclone_install_guarded.py",
+            "rclone_proxy_transfer_guarded.py",
+        ):
+            plugin_path = ANSIBLE / "plugins/action" / plugin_name
+            module_spec = importlib.util.spec_from_file_location(
+                f"{plugin_path.stem}_dispatch_contract", plugin_path
+            )
+            self.assertIsNotNone(module_spec)
+            module = importlib.util.module_from_spec(module_spec)
+            module_spec.loader.exec_module(module)
+
+            calls: list[str] = []
+
+            class FakePlugin:
+                def __init__(self, task: SimpleNamespace) -> None:
+                    self.task = task
+
+                def run(self, tmp: str | None, task_vars: dict[str, object]) -> dict[str, object]:
+                    self.assert_task()
+                    return {"changed": True, "used": "normal"}
+
+                def assert_task(self) -> None:
+                    if self.task.action != "ansible.builtin.file":
+                        raise AssertionError(self.task.action)
+                    if self.task.args != {"path": "/tmp/probe", "state": "directory"}:
+                        raise AssertionError(self.task.args)
+
+            class FakeLoader:
+                def get(self, name: str, **kwargs: object) -> FakePlugin | None:
+                    calls.append(name)
+                    if name == "ansible.builtin.file":
+                        return None
+                    if name == "ansible.builtin.normal":
+                        return FakePlugin(kwargs["task"])
+                    raise AssertionError(name)
+
+            action = object.__new__(module.ActionModule)
+            action._task = SimpleNamespace(action="original", args={"operation": "probe"})
+            action._connection = object()
+            action._play_context = object()
+            action._loader = object()
+            action._templar = object()
+            action._shared_loader_obj = SimpleNamespace(action_loader=FakeLoader())
+            result = action._run_action(
+                "ansible.builtin.file",
+                {"path": "/tmp/probe", "state": "directory"},
+                None,
+                {},
+            )
+
+            self.assertEqual({"changed": True, "used": "normal"}, result)
+            self.assertEqual(
+                ["ansible.builtin.file", "ansible.builtin.normal"], calls
+            )
+            self.assertEqual("original", action._task.action)
+            self.assertEqual({"operation": "probe"}, action._task.args)
+
     def test_install_is_exactly_pinned_and_selector_only_rollback(self) -> None:
         combined = "\n".join(
             path.read_text()

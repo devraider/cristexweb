@@ -71,7 +71,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-NS-05 | KIF-002, KIF-005, KIF-016, KIF-030 | Shared-services Namespace runtime | A successful wrapper check predicts only the absent exact `shared-services` Namespace; separately approved first apply creates/verifies it; separately approved idempotence converges at changed=0 | PASS — check retry passed at `ok=20 changed=1 failed=0`; first apply passed at `ok=22 changed=1 failed=0`; separately approved idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact identity/three labels/`Active` and k3s/Tailscale health preserved. No component was deployed |
 | KIF-NS-06 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub DEV Namespace source and runtime | Dedicated guarded source reconciles only `cristexhub-dev` with four approved labels and present-only semantics; check predicts only that Namespace without mutation; first apply creates/verifies it; idempotence converges; PROD and all other kinds remain absent | PASS — check passed at `ok=20 changed=1 failed=0 skipped=2`; first apply passed at `ok=22 changed=1 failed=0 skipped=0`; idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact labels/`Active` and service health preserved |
 
-| KIF-RCLONE-01 | KIF-002, KIF-005, KIF-007, KIF-013, KIF-030 | Guarded pinned host rclone installer | Exact official sums/archive/binary pins and five-file layout; controller cache and host transfer; Debian 13 x86_64; root-owned cache/version/selector; interactive sudo only; check-safe; selector-only rollback; direct/task-selection/injection negatives | PASS SOURCE-ONLY — focused contracts, negative fixtures, syntax/compile/lint/shell/diff checks recorded below; host check/apply/idempotence/rollback remain NOT RUN |
+| KIF-RCLONE-01 | KIF-002, KIF-005, KIF-007, KIF-013, KIF-030 | Guarded pinned host rclone installer | Exact official sums/archive/binary pins and five-file layout; controller cache and host transfer; Debian 13 x86_64; root-owned cache/version/selector; interactive sudo only; check-safe; selector-only rollback; direct/task-selection/injection negatives | PARTIAL — check passed at `ok=25 changed=1 failed=0`; first apply stopped before mutation at `ok=22 changed=0 failed=1` on missing nested-module `normal` dispatch; regression fix and controller-local integration passed; apply retry/idempotence/rollback remain NOT RUN |
 | KIF-RCLONE-02 | KIF-002, KIF-005, KIF-013–KIF-015, KIF-027, KIF-030 | Exact pending encrypted proxy host transfer | Inventory/getent non-root operator without UID alias; exact selector/binary/config metadata; sole `drive:` remote and no-log read-only OAuth check; fixed timestamp/digest/destination; ciphertext-only mode-0700/0600 staging; four immutable copyto boundaries; encrypted readback/cleanup; controller verification and exact marker before Secret mutation | PASS SOURCE-ONLY — controller rclone removed, native wrapper booleans/task-start guards, exact archive membership, and marker contracts pass; OAuth, host transfer/readback/cleanup, Drive and Secret/Kubernetes runtime are NOT RUN/BLOCKED |
 
 ## Guarded host rclone source validation — 2026-08-10
@@ -120,7 +120,59 @@ plaintext temp residue was found. Independent tests/docs/provenance and final
 security/runtime reviews returned **APPROVED** after config-content, backend-type,
 check-mode OAuth, documentation-count, and controller-tempfile findings were closed.
 Every live installer, OAuth, transfer, cleanup, Secret, Infisical, Argo, and database
-backup checkpoint remains **NOT RUN/BLOCKED**.
+backup checkpoint remained **NOT RUN/BLOCKED** at that source checkpoint.
+
+## Guarded host rclone first check, stopped apply, and dispatch fix — 2026-08-10
+
+The separately approved installer check made no mutation and passed:
+
+```text
+crtxweb: ok=25 changed=1 unreachable=0 failed=0 skipped=11 rescued=0 ignored=0
+```
+
+The sole change was the bounded check-mode prediction. The separately initiated
+first apply then stopped before any installer action completed:
+
+```text
+fatal: [crtxweb -> localhost]: FAILED! changed=false
+msg: unable to load guarded action ansible.builtin.file
+crtxweb: ok=22 changed=0 unreachable=0 failed=1 skipped=0 rescued=0 ignored=0
+```
+
+Root cause: `ansible.builtin.file` and `ansible.builtin.get_url` have no dedicated
+action plugin in ansible-core `2.19.0`; normal task execution falls back to
+`ansible.builtin.normal`, but the two exact-scope rclone guards did not. Both guarded
+dispatch helpers now preserve dedicated actions for `copy`, `fetch`, and `command`
+and use `ansible.builtin.normal` only when the requested module has no dedicated
+action. Task action/arguments are restored in `finally`.
+
+Validation:
+
+```bash
+.venv/bin/python -m unittest -v tests.test_rclone_host_contract
+.venv/bin/python -m unittest discover -s tests -v
+cd ansible
+for playbook in playbooks/*.yml; do
+  ../.venv/bin/ansible-playbook -i .ansible/inventory.local.yml \
+    "$playbook" --syntax-check
+done
+../.venv/bin/ansible-lint --offline --profile production
+cd ..
+.venv/bin/python -m compileall -q ansible/plugins/action tests
+git diff --check
+# A disposable localhost-only action probe invoked each production helper with
+# ansible.builtin.file and required mode-0700 /tmp directory creation.
+```
+
+Actual result: all `7` focused and `191` full contracts passed; all `15` playbooks
+passed syntax; production lint passed `80` files with zero failures/warnings; compile
+and diff checks passed. The disposable controller-local integration completed at
+`localhost: ok=2 changed=2 failed=0`; its two temporary directories were removed by
+trap. No inventory host, OAuth endpoint, Drive remote, Secret, or Kubernetes API was
+accessed by fix validation. Independent dispatch/security/documentation review returned
+**APPROVED**; residual live retry, idempotence, rollback, OAuth, Drive, cleanup, and
+Secret/Kubernetes risks remain open. Live apply retry and idempotence remain **NOT
+RUN**.
 
 ## Schema-v3 elevated discovery and target-minor review — 2026-08-07
 

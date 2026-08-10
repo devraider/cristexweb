@@ -5,7 +5,8 @@
 **POLICY ONLY — RUNTIME BLOCKED.** This design covers PostgreSQL, MongoDB, and
 RabbitMQ recovery artifacts without selecting a credential, folder, local staging
 path, or executable job. Pinned host rclone `1.71.1` is now the transfer-tool
-direction, but its dedicated installer remains source-only and **NOT RUN**. The
+direction. Its installer check passed; the first apply stopped at `changed=0` on a
+now-validated action-dispatch fix, so install retry/idempotence remain pending. The
 source profile fixes daily archives,
 14-day local/off-node retention, RPO `24h`, and RTO `4h`; no backup or restore has
 run.

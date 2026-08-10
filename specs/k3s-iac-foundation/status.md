@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: guarded host rclone/install/proxy transfer source added; all live install/OAuth/Drive/Secret/runtime gates remain blocked/unrun
+build: rclone installer check passed; first apply stopped changed=0 on nested-module dispatch; fix validated and retry pending
 date: 2026-08-10
 deploy_required_after_acceptance: yes
 
@@ -28,8 +28,15 @@ note: |
   back/fetches only ciphertext, and lets the Mac atomically create an exact
   drive-verified marker after no-output decryption/relationship verification.
   Controller proxy Secret bootstrap no longer requires or invokes rclone and refuses
-  Kubernetes mutation without that marker. Installer check/apply/rollback, OAuth,
-  transfer/readback/cleanup, and Secret runtime are all NOT RUN/BLOCKED.
+  Kubernetes mutation without that marker. Installer check passed at
+  `ok=25 changed=1 unreachable=0 failed=0 skipped=11`; its only change was the
+  check-mode prediction. First apply stopped before installer mutation at
+  `ok=22 changed=0 unreachable=0 failed=1 skipped=0` because nested
+  `ansible.builtin.file` dispatch returned no dedicated action plugin and the guard
+  lacked Ansible's `normal` fallback. Both rclone action guards now use that fallback;
+  a focused regression plus actual controller-local dispatch integration passed.
+  Apply retry/idempotence/rollback, OAuth, transfer/readback/cleanup, and Secret
+  runtime remain NOT RUN/BLOCKED.
   Guarded deployable source now also exists for the exact private Argo CD core: three
   Ansible-owned CRDs and 29 namespaced objects, no ApplicationSet runtime, Secret,
   cluster RBAC, or public exposure. The wrapper fails closed until three exact,

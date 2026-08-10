@@ -2,9 +2,14 @@
 
 ## Status
 
-**SOURCE ONLY — ALL LIVE CHECKS AND MUTATIONS NOT RUN/BLOCKED.** No host install,
-rollback, OAuth, Google Drive transfer, host staging, Secret, Kubernetes, Infisical,
-or Argo operation was performed while authoring this source.
+**INSTALLER CHECK PASSED; FIRST APPLY STOPPED BEFORE MUTATION; RETRY PENDING.**
+The approved installer check passed at `ok=25 changed=1 failed=0`; the sole change
+was its check-mode prediction. The first apply stopped at
+`ok=22 changed=0 failed=1` when nested `ansible.builtin.file` dispatch lacked the
+Ansible `normal` action fallback. No installer action completed. Source now covers
+that dispatch with a regression test and controller-local integration proof; live
+retry remains pending. No host install, rollback, OAuth, Google Drive transfer, host
+staging, Secret, Kubernetes, Infisical, or Argo mutation has completed.
 
 ## Ownership and custody boundary
 
@@ -25,7 +30,8 @@ controller, transfers the archive to `/var/cache/rclone`, installs the root-owne
 Rollback removes only that exact selector. Versioned payload and cache are retained.
 Check mode makes no changes. Apply may ask for sudo interactively; sudo credentials
 must never be passed through variables, environment, or files. Both paths require
-separate live approval and are **NOT RUN**.
+separate live approval. Check passed; the first apply made no change and the fixed
+apply retry plus idempotence remain **NOT RUN**.
 
 ## OAuth gate
 
