@@ -1,0 +1,26 @@
+---
+# Source-only, read-only k3s datastore/encryption preflight.
+k3s_datastore_preflight_approved: false
+k3s_datastore_preflight_elevated_requested: false
+k3s_datastore_preflight_elevated_approved: false
+k3s_datastore_preflight_kubeconfig: /etc/rancher/k3s/k3s.yaml
+k3s_datastore_preflight_output_path: "{{ playbook_dir }}/../.ansible/k3s-datastore-preflight.local.json"
+k3s_datastore_preflight_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+k3s_datastore_preflight_k3s_binary: /usr/local/bin/k3s
+k3s_datastore_preflight_systemctl_binary: /usr/bin/systemctl
+k3s_datastore_preflight_config_path: /etc/rancher/k3s/config.yaml
+k3s_datastore_preflight_data_dir: /var/lib/rancher/k3s/server/db
+k3s_datastore_preflight_sqlite_marker_path: /var/lib/rancher/k3s/server/db/state.db
+k3s_datastore_preflight_etcd_marker_path: /var/lib/rancher/k3s/server/db/etcd
+k3s_datastore_preflight_remote_path_components:
+  - /var
+  - /var/lib
+  - /var/lib/rancher
+  - /var/lib/rancher/k3s
+  - /var/lib/rancher/k3s/server
+  - /var/lib/rancher/k3s/server/db
+k3s_datastore_preflight_controller_output_path_components:
+  - "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+  - "{{ playbook_dir | ansible.builtin.dirname }}"
+  - "{{ playbook_dir | ansible.builtin.dirname }}/.ansible"
+k3s_datastore_preflight_attestation_entrypoint: v1

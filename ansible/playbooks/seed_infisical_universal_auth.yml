@@ -1,0 +1,10 @@
+---
+- name: Seed exact Infisical Universal Auth runtime credentials
+  hosts: k3s_servers
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+
+  roles:
+    - role: infisical_universal_auth_seed

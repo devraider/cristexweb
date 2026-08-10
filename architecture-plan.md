@@ -18,10 +18,19 @@ kubectl client-defaults playbook also passed warning-free fresh-session queries 
 idempotence. The approved one-reboot recovery playbook passed with SSH/Tailscale
 return, running services, a new boot ID, a Ready node, and preserved access. They
 are not a general host
-baseline, hosted runtime, or IaC reconciler.
-Python is limited to offline contract tests. No hosted orchestration,
-DNS, tunnels, GitOps, secrets, databases, backups, or operational replacement-host
-recovery are implemented. The first replacement increment is a secret-free,
+baseline, hosted runtime, or IaC reconciler. A separate guarded source-only
+k3s datastore/encryption preflight now exists under `ansible/`; its sole
+check-only wrapper emits a deterministic sanitized mode-`0600` controller artifact
+with strict, fail-closed version/datastore/config/encryption/service/Node stages.
+It has not contacted the host and does not perform backup, restore, encryption,
+host, cluster, or Secret mutation.
+Python is limited to offline contract tests plus fifteen exact-scope Ansible action
+plugins that enforce reviewed mutation and cryptographic boundaries; it is not a
+general operational implementation. Source-only guarded closures now exist for Argo,
+Infisical, PostgreSQL, standalone MongoDB, Secret materialization, and empty logical
+reservations, but no hosted orchestration, DNS, tunnel, deployed GitOps runtime,
+credential-bearing Secret write, live database, backup/restore, or operational
+replacement-host recovery is complete. The first replacement increment is a secret-free,
 decision-first runbook and artifact register only; it does not resolve or automate
 the unknown k3s datastore/version/token, storage, RPO/RTO, or off-node recovery
 prerequisites. CristexHub local Compose assets remain an external
@@ -39,7 +48,9 @@ protected group-scoped kubeconfig. That historical live report did not capture a
 Kubernetes version and used `shared-data` rather than the current `shared-services`
 PVC scope. The separately approved schema-v3 rerun passed at
 `ok=17 changed=1 unreachable=0 failed=0 skipped=1`; the change was only the ignored
-controller-local report write. Human review confirmed kubelet `v1.36.2+k3s1`, all 15
+controller-local report write. The source-only k3s datastore/encryption preflight
+is a distinct check-only workflow; its fixed commands, strict parsers, sanitized
+schema-v1 artifact, and synthetic disclosure fixture are offline-validated only. Human review confirmed kubelet `v1.36.2+k3s1`, all 15
 bounded queries available, and the exact `shared-services` PVC query with count zero.
 Argo CD `3.5` officially lists Kubernetes minor `1.36` in its tested matrix and chart
 `10.3.0` admits the target through its semver gate. This is target-minor screening,
@@ -134,8 +145,9 @@ three-Namespace RBAC/cache, metrics off, no ClusterGenerator privilege, one
 authenticated TLS proxy, and proxy-only Operator egress. The full source archive is
 quarantined evidence only and is not an operational input. Runtime remains **NOT
 RUN/BLOCKED** until exact recovered proxy Secrets, check/apply/idempotence, live
-admission, image, RBAC, and traffic proof pass. No Infisical CR, Universal Auth value,
-application Secret, PROD scope, or self-hosted server is added.
+admission, image, RBAC, and traffic proof pass. No runtime Infisical CR, Universal
+Auth value, application Secret, PROD scope, or self-hosted server exists; separate
+value-free source seams remain runtime-blocked.
 No state file, provider initialization, plan, apply, Helm installation, Kustomize
 workload, image publication, or general host baseline exists yet. The committed CI
 source has no package-write, Secret, provider, host, cluster, or deployment path;
@@ -251,7 +263,14 @@ explicitly accepted shared failure and contention domain. The value-free
 [`shared-database-architecture.yml`](ansible/files/policies/shared-database-architecture.yml)
 is the canonical source-only topology and authorization contract. Hash-bound,
 present-only PostgreSQL and standalone MongoDB workload closures now exist, but all
-promotion and runtime gates remain closed.
+promotion and runtime gates remain closed. The separate source-only
+[Infisical database Secret materialization seam](runbooks/infisical-database-secret-materialization.md)
+freezes one shared Connection, separate PostgreSQL/MongoDB Universal Auth identities,
+two exact path-scoped StaticSecrets, four target Secret contracts aligned with the
+stateful-database validator, six namespace-scoped fail-closed VAP/bindings, additive
+writer RBAC without workload write/delete, and byte/canonical/identity hashes. It
+contains no credential values or Secret manifest; check/apply, sync, rotation,
+recovery, and runtime remain **NOT RUN/BLOCKED**.
 
 PostgreSQL requires separate logical databases and owner roles for CristexHub DEV,
 CristexHub PROD, Reactive Resume DEV, Reactive Resume PROD, and Keycloak. Keycloak
@@ -271,9 +290,18 @@ cannot access application databases, and application roles cannot access the
 Keycloak database; those denials require negative grant tests. MongoDB workload users must have no broad any-database or
 user/role-administration roles and must fail bidirectional cross-database tests.
 The selected ownership direction is idempotent Ansible bootstrap followed by exact
-object-by-object Argo handoff. The workflow remains unimplemented and unproved. Its
-administrator credential must remain Infisical-owned and unavailable to application
-or Keycloak pods.
+object-by-object Argo handoff. The source-only
+[logical provisioning lane](runbooks/shared-database-provisioning.md) freezes
+`cristexhub_dev`/`cristexhub_dev_owner`, `cristexhub_prod`/`cristexhub_prod_owner`,
+`reactive_resume_dev`/`reactive_resume_dev_owner`,
+`reactive_resume_prod`/`reactive_resume_prod_owner`, and `keycloak`/`keycloak_owner`
+on PostgreSQL, plus the two exact CristexHub MongoDB users. It requires precreated
+Infisical consumer Secrets, emits no credential values, uses UID-bound temporary
+helpers, and has no database/user/PVC delete path. The lane is source-only and
+unproved; PROD remains inactive, MongoDB non-authoritative, and runtime,
+authorization, backup/restore, and handoff gates remain blocked. Its administrator
+credential must remain Infisical-owned and unavailable to application or Keycloak
+pods.
 
 Redis remains per environment because Redis database numbers are not sufficient
 security isolation. One shared RabbitMQ engine belongs in `shared-services`.

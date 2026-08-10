@@ -61,6 +61,13 @@
   exact `shared-services` PVC query with count zero. Correct the initially omitted
   local inventory argument and require it in every operational discovery command
   (`KIF-001`, `KIF-002`, `KIF-008`, `KIF-030`).
+- [x] Add and offline-validate the source-only check-only k3s datastore/encryption
+  preflight: canonical non-passthrough wrapper and attestation, exact
+  one-host/check/diff/elevation gates, fixed read-only argv under `no_log`, strict
+  fail-closed parsers, deterministic mode-`0600` controller artifact, and synthetic
+  disclosure fixtures. No host, backup, restore, encryption, cluster, or Secret
+  mutation is authorized or run (`KIF-001`, `KIF-002`, `KIF-007`, `KIF-008`,
+  `KIF-013`, `KIF-015`, `KIF-028`, `KIF-030`).
 - [x] Implement and offline-validate CNI/NetworkPolicy `plan`, `run`, and `cleanup`
   actions with check/diff and one-host gates, a Ready linux/amd64 node, readable
   policy API, generated names, run labels, exact-UID cleanup, and no Namespace
@@ -277,6 +284,8 @@ entry gate.
   additive exact-name Secret/workload-list RBAC, fail-closed admission, and a
   non-passthrough check/apply wrapper. Runtime, credential/source creation, Secret
   values, sync, and live checks remain **NOT RUN/BLOCKED** (`KIF-INF-06`).
+- [x] Add the separate source-only
+  [Infisical database Secret materialization seam](../../runbooks/infisical-database-secret-materialization.md): exactly 15 value-free objects for one shared Connection, separate PostgreSQL/MongoDB Auth and Universal Auth identities, two StaticSecrets, eight namespace-scoped fail-closed VAP/bindings, and additive Secret-writer RBAC. Freeze eleven engine/per-consumer target Secret contracts, byte/canonical/identity hashes, and action-only/internal/task-selection negatives. Runtime, credential values, check/apply, sync, rotation, and recovery remain **NOT RUN/BLOCKED** (`KIF-INF-07`).
 - [ ] Create and independently recover the three proxy bootstrap Secrets with the
   guarded age/Drive writer, then run the guarded Infisical check, separately reviewed
   first apply, live admission/RBAC/traffic negatives, and idempotence before Universal
@@ -376,10 +385,16 @@ logs, or bootstrap cannot be recovered.
   DEV in the MVP, reserves separate DEV/PROD OIDC and PostgreSQL scopes, and keeps
   image/callback/object/Secret/recovery/runtime gates false (`KIF-012`–`KIF-017`,
   `KIF-021`, `KIF-023`, `KIF-026`–`KIF-030`).
+- [x] Add the source-only guarded logical provisioning lane for one general
+  PostgreSQL instance and standalone MongoDB: exact five PostgreSQL and two MongoDB
+  empty reservations, precreated Infisical consumer Secret contracts, no-secret-argv
+  scripts, exact drift/idempotence checks, UID-bound temporary helpers with cleanup,
+  and no database/user/PVC delete path (`KIF-017`, `KIF-026`, `KIF-030`).
 - [ ] Create one general PostgreSQL instance with separate CristexHub DEV/PROD,
   Reactive Resume DEV/PROD, and Keycloak logical databases/owner roles, no
   consumer-specific PostgreSQL workload/PVC, and bidirectional negative
-  cross-database access tests (`KIF-017`).
+  cross-database access tests (`KIF-017`). The source lane's check/apply,
+  idempotence, authorization, runtime, and recovery evidence remains NOT RUN/BLOCKED.
 - [x] Select the MongoDB `8.0.28` linux/amd64 digest offline and add the
   intentionally standalone, non-authoritative source closure with private Service,
   retained `80Gi` PVC template, exact resources/probes, Infisical Secret references,

@@ -1,0 +1,62 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: infisical-argocd-source-boundary
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-argocd-secrets
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - secrets.infisical.com
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - infisicalconnections
+          - infisicalauths
+        scope: Namespaced
+  matchConditions:
+    - name: argocd-source-identities
+      expression: >-
+        request.namespace == 'argocd' &&
+        (request.userInfo.username ==
+        'system:serviceaccount:shared-services:infisical-operator-controller' ||
+        object.metadata.name in ['infisical-cloud',
+        'argocd-infisical-auth'])
+  validations:
+    - expression: >-
+        (request.userInfo.username == 'system:admin' ||
+        (request.userInfo.username ==
+        'system:serviceaccount:shared-services:infisical-operator-controller' &&
+        oldObject != null && oldObject.spec == object.spec)) &&
+        object.metadata.labels.size() == 3 &&
+        object.metadata.labels['app.kubernetes.io/part-of'] ==
+        'cristex-platform' &&
+        object.metadata.labels['app.kubernetes.io/managed-by'] == 'ansible' &&
+        object.metadata.labels['cristex.io/component'] ==
+        'infisical-argocd-secrets' &&
+        ((object.kind == 'InfisicalConnection' &&
+        object.metadata.name == 'infisical-cloud' &&
+        object.spec.address == 'https://app.infisical.com/api') ||
+        (object.kind == 'InfisicalAuth' &&
+        object.metadata.name == 'argocd-infisical-auth' &&
+        object.spec.method == 'universal' &&
+        object.spec.infisicalConnectionRef.name == 'infisical-cloud' &&
+        object.spec.infisicalConnectionRef.namespace == 'argocd' &&
+        object.spec.universal.clientIdRef.name ==
+        'argocd-infisical-universal-auth' &&
+        object.spec.universal.clientIdRef.namespace == 'argocd' &&
+        object.spec.universal.clientIdRef.key == 'clientId' &&
+        object.spec.universal.clientSecretRef.name ==
+        'argocd-infisical-universal-auth' &&
+        object.spec.universal.clientSecretRef.namespace == 'argocd' &&
+        object.spec.universal.clientSecretRef.key == 'clientSecret'))
+      message: Only the guarded administrator or unchanged-spec Operator may write the exact Argo CD Connection and Auth sources.
+      reason: Forbidden

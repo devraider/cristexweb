@@ -1,7 +1,9 @@
-# Read-only Ansible discovery
+# Guarded Ansible operations and read-only discovery
 
-This directory contains the repository's first Ansible implementation: a small,
-read-only discovery playbook. It gathers bounded host facts with built-in modules
+This directory contains bounded read-only discovery plus separately approved,
+non-passthrough host, Namespace, controller, Secret-seam, datastore-preflight, and
+database source closures. Most new closures remain source-only and runtime-blocked;
+no wrapper grants implicit approval. The discovery playbook gathers bounded host facts with built-in modules
 and queries exact Kubernetes kinds with `kubernetes.core.k8s_info`. Its storage
 projection includes only the existing curated Node name/cluster scope plus exact
 `status.nodeInfo.kubeletVersion`; curated block-device, partition,
@@ -316,6 +318,29 @@ create, and delete approvals plus a unique Run ID. Argo CD is only the intended
 persistent reconciler after its separately evidenced installation and handoff; the
 bounded Namespace bootstrap remains the current exception.
 
+## Source-only k3s datastore and encryption preflight
+
+`bin/preflight-k3s-datastore check` is the only entrypoint for the guarded
+source-only k3s datastore/encryption preflight. It accepts exactly `check`, always
+uses the ignored local inventory, `--check --diff --limit crtxweb`, and
+`--ask-become-pass`, and supplies explicit elevation approval. The wrapper launches
+the pinned controller in a clean allowlisted environment with an ephemeral
+mode-`0600` attestation; direct playbook/role invocation, passthrough arguments,
+task selection, and forged internal variables fail closed before host contact.
+
+The role performs no mutation. Fixed read-only argv for k3s version, systemd
+service/ExecStart properties, `secrets-encrypt status`, and a JSON Node query run
+under `no_log` with strict parsers. Metadata-only stat calls inspect the executable,
+config, datastore directory, and controller destination. The ignored controller
+artifact is `ansible/.ansible/k3s-datastore-preflight.local.json` with mode `0600`
+and schema v1. It contains only validated version/stage values, datastore marker
+booleans, encryption status/rotation stage, k3s/Tailscale and bounded Node health,
+and disclosure-control booleans. It never contains raw command/config/status,
+paths, URLs, key metadata, tokens, kubeconfig, Secret data, or node identities.
+Unknown or malformed stages remain fail-closed. See
+[`runbooks/k3s-datastore-preflight.md`](../runbooks/k3s-datastore-preflight.md) and
+`tests/validate_k3s_datastore_preflight.yml` for the offline boundary.
+
 ## Mandatory invocation contract
 
 Review first; then request separate approval before any host access. The playbook
@@ -457,7 +482,7 @@ remains canonical policy, and a dedicated guarded [Infisical bootstrap](../runbo
 exact 40-object idle closure: six namespaced CRDs, fail-closed same-Namespace
 admission, least-privilege namespaced RBAC, one metrics-off controller, authenticated
 TLS Squid, and eight NetworkPolicies. The archive remains quarantined evidence and is
-never consumed at runtime. No Secret value or Infisical CR is committed. Runtime is
+never consumed at runtime. No Secret value or runtime Infisical CR exists. Runtime is
 unrun and the wrapper fails before mutation until exact separately recovered proxy
 Secret metadata exists. A separate guarded Argo CD source closure now exists but
 also remains runtime-unrun; Keycloak, PostgreSQL, MongoDB, and application runtime
@@ -467,7 +492,14 @@ same-Namespace Universal Auth reference, one Connection/Auth/StaticSecret closur
 exactly three orphaned Argo targets, additive exact-name Secret RBAC, workload
 list/watch required by the v0.11.7 reconciler, and fail-closed admission. Its
 credential Secret, check/apply, sync, target values, and runtime remain NOT
-RUN/BLOCKED. The value-free
+RUN/BLOCKED. A separate source-only [Infisical database Secret materialization
+seam](../runbooks/infisical-database-secret-materialization.md) freezes 15 value-free
+objects: one shared Connection, separate PostgreSQL/MongoDB Auth and credential
+identities, two path-scoped StaticSecrets, eleven engine/per-consumer target contracts,
+eight scoped VAP/binding objects, operator-only validation, additive
+no-delete/no-workload-write RBAC, byte/canonical/identity
+hashes, and negative fixtures. Its credential values, check/apply, sync, rotation,
+recovery, and runtime remain NOT RUN/BLOCKED. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 PostgreSQL and one standalone MongoDB engine in `shared-services`; guarded,
 hash-bound, present-only source now exists for both database pods while every live
@@ -496,7 +528,10 @@ the same `apply` must later converge at `changed=0`. Both use existing `k3s-admi
 kubeconfig access without sudo and accept no passthrough. The separate
 `bin/bootstrap-infisical-argocd-secrets check|apply` wrapper is source-ready but
 remains blocked until the human-created same-Namespace Universal Auth Secret and
-fixed Infisical source identifiers exist; it never carries values. Exact
+fixed Infisical source identifiers exist; it never carries values. The separate
+`bin/bootstrap-infisical-database-secrets check|apply` wrapper is source-ready but
+remains blocked until both human-created same-Namespace Universal Auth Secrets and
+fixed project/environment/path identifiers exist; it never carries values. Exact
 present-only source and the distinct `bin/bootstrap-foundation-namespaces` entrypoint
 exist for `shared-services`; check, separately approved first apply, and separately
 approved idempotence all passed, with the final run converging at `changed=0`. The
@@ -648,3 +683,22 @@ commands on the host, and stages/fetches only ciphertext. See
 [`rclone-host-transfer.md`](../runbooks/rclone-host-transfer.md). All check/install,
 OAuth, Drive transfer, cleanup, and proxy Secret runtime results are **NOT
 RUN/BLOCKED**. Apply approvals are separate; installer sudo is interactive only.
+
+## Guarded shared logical database provisioning
+
+The separate source-only logical lane is documented in
+[`shared-database-provisioning.md`](../runbooks/shared-database-provisioning.md).
+Its only entrypoints are `bin/provision-shared-postgresql check|apply` and
+`bin/provision-shared-mongodb check|apply`; they accept no passthrough, use the
+pinned controller and one-run attestation, and require `--diff` plus one host. The
+lane requires a Ready engine and exact precreated Infisical-owned consumer Secrets;
+Ansible never generates, logs, exports, rotates, or puts values in argv.
+
+Each apply uses hash-bound no-secret-argv database scripts and one temporary
+UID-bound helper Pod plus ingress NetworkPolicy. Helpers are non-root, tokenless,
+PVC-free, hostPath-free, and cleaned in an `always` block with exact UID
+preconditions and `Orphan` propagation. Only missing frozen logical reservations
+may be created; foreign ownership, drift, credential mismatch, data-bearing state,
+or stale helpers stop. No database, role, user, PVC, or Secret deletion path exists.
+PROD is inactive; MongoDB is standalone/non-authoritative; runtime, authorization,
+backup, restore, idempotence, and Argo handoff remain **NOT RUN/BLOCKED**.

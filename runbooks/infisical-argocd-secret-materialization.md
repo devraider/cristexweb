@@ -8,9 +8,9 @@ manifest, Argo workload, route, or runtime approval. The existing 40-object idle
 Operator closure remains unchanged and remains **NOT RUN/BLOCKED**. This seam is
 also **NOT RUN/BLOCKED**.
 
-The seam has exactly 11 Ansible-owned objects:
+The seam has exactly 13 Ansible-owned objects:
 
-- three fail-closed `ValidatingAdmissionPolicy` objects and three `Deny` bindings;
+- four fail-closed `ValidatingAdmissionPolicy` objects and four `Deny` bindings;
 - one namespaced `Role` and one `RoleBinding` for the existing
   `shared-services/infisical-operator-controller` ServiceAccount; and
 - one `InfisicalConnection`, one `InfisicalAuth`, and one `InfisicalStaticSecret`.
@@ -41,7 +41,7 @@ metadata, and source shape only; values remain outside Git and Ansible logs.
 - Infisical environment slug: `bootstrap`.
 - Infisical secret path: `/argocd`.
 - Kubernetes credential Secret: `argocd/argocd-infisical-universal-auth`.
-- Credential Secret type: `Opaque`; exact keys: `clientId`, `clientSecret`.
+- Credential Secret type: `Opaque`; exact keys: `clientId`, `clientSecret`; exact labels `app.kubernetes.io/managed-by=ansible`, `app.kubernetes.io/part-of=infisical-operator`, `cristex.io/component=infisical-runtime-auth`, and `cristex.io/value-owner=infisical-cloud`; no owner references, binary data, or immutability.
 - The seven Infisical keys at `bootstrap:/argocd`:
   `ARGOCD_ADMIN_PASSWORD_BCRYPT`, `ARGOCD_ADMIN_PASSWORD_MTIME`,
   `ARGOCD_SERVER_SECRETKEY`, `ARGOCD_REDIS_AUTH`, `ARGOCD_TLS_CA_CRT`,
@@ -56,18 +56,27 @@ password, certificate, private key, project ID, or token is committed here.
 
 Admission is applied before the additive writer Role and its binding. The Secret
 policy matches CREATE/UPDATE (Kubernetes admission reports an API PATCH as UPDATE)
-and only permits the exact controller identity
-`system:serviceaccount:shared-services:infisical-operator-controller` to write
-those three names in `argocd`; it also requires each exact type, key set, target
-labels, and orphan metadata without inspecting values. Other identities are not
-changed by this policy. The alternate target policy denies `InfisicalSecret`,
+only when the request namespace is `argocd` and the identity is the exact controller
+or the object name is one of the three reviewed targets. Validation then requires the
+exact controller identity plus each exact type, key set, target labels, and orphan
+metadata without inspecting values. This scoped match condition blocks foreign
+writers to exact target names and the controller from unreviewed names without
+letting this Argo policy affect database Secrets in `shared-services`. The alternate target policy denies `InfisicalSecret`,
 `InfisicalPushSecret`, and `InfisicalDynamicSecret` in `argocd`. The StaticSecret
-policy requires the exact name `argocd-infisical-secrets`, same-Namespace Auth
-reference, explicit `recursive: false`, an explicit empty `tagSlugs` list, no
-`projectId`, fixed sync options, and exact three target/template identity
-contracts. The vendored CRD deliberately preserves `template.data` as unknown;
+policy matches the Operator identity or `argocd/argocd-infisical-secrets`, requires
+either the guarded `system:admin` bootstrap writer or an Operator update with an
+unchanged `spec`, and
+then enforces the same-Namespace Auth reference, explicit `recursive: false`, an
+explicit empty `tagSlugs` list, no `projectId`, fixed sync options, and exact three
+target/template identity contracts. This blocks foreign spec mutation while allowing
+controller finalizer/status maintenance. The vendored CRD deliberately preserves
+`template.data` as unknown;
 that untyped field is therefore enforced by the hash-bound source manifest and
-Ansible action guard, never dereferenced from CEL.
+Ansible action guard, never dereferenced from CEL. A fourth source VAP applies the
+same writer/unchanged-spec rule to the exact `InfisicalConnection` and
+`InfisicalAuth`, including exact labels, endpoint, same-Namespace references, and
+Universal Auth credential key names; unreviewed Operator source identities are
+denied.
 
 The additive Role grants the vendored v0.11.7 reconciler only:
 
@@ -97,7 +106,7 @@ inventory, `--diff`, one-host limit, present-only approval, and a mode-0600
 single-run attestation. Direct playbook use, passthrough arguments, tags,
 skip-tags, task selection, and sudo are rejected. The role verifies the existing
 Namespace, credential metadata, all six Infisical CRDs, target pre-state, absence
-of all noncanonical StaticSecrets and alternate target-producing CRs, and all 11
+of all noncanonical StaticSecrets and alternate target-producing CRs, and all 13
 hash-bound source objects before
 mutation. It then applies admission policies, waits for type-check/effective
 policy readback, applies admission bindings and RBAC, and reconciles Connection,
@@ -105,13 +114,29 @@ Auth, and StaticSecret in that order; waits for `IsReady=True` on the v0.11.7
 Connection/Auth and for current-generation `LastReconcileStatus=True` plus
 `LastSuccessfulReconcileAt=True` on the StaticSecret; and verifies the exact
 three target Secret metadata/type/key/label/orphan/non-immutable contracts without
-logging values.
+logging values. After target sync and that metadata readback, the same fixed-source,
+no-log `argocd_secret_contract` action validates the generated values: parseable
+cost-12 bcrypt, exact PEM residue/one-CA closure, RSA/EC key strength, permitted
+certificate signature hashes, CA `keyCertSign`, 24-hour validity, issuer-contained
+leaf validity, exact SAN/serverAuth/key correspondence, and direct issuance. Check
+mode does not invoke value validation because no target values exist in check mode.
 
 Check and apply, Secret creation, Infisical authentication, source sync, target
 values, Argo CD installation, Argo readiness, idempotence, rotation, recovery,
 and runtime negative tests are **NOT RUN/BLOCKED**; runtime remains **NOT RUN/BLOCKED** and requires separate review
 and approvals. A source check is not evidence that the Infisical project,
 environment, credential values, or targets exist.
+
+## Universal Auth seed prerequisite
+
+The human-created Argo credential Secret is provisioned only by the separate
+source-only [Infisical Universal Auth/value lane](infisical-universal-auth-value-lane.md):
+`ansible/bin/seed-infisical-universal-auth apply` writes exactly
+`argocd/argocd-infisical-universal-auth` from protected file/Keychain input, and
+`ansible/bin/upload-infisical-bootstrap-values apply` owns future generated-value
+uploads. Both are apply-only, no-diff/no-log, reject foreign/partial/rotation state,
+and remain **NOT RUN/BLOCKED**. The Argo seam does not create, read, or rotate its
+credential values and still requires the exact four runtime labels/metadata.
 
 ## Offline validation
 
@@ -136,7 +161,10 @@ git diff --cached --quiet
 ```
 
 The command results belong in `specs/k3s-iac-foundation/testcases.md` after the
-actual offline checks. This source-only runbook records no live result.
+actual offline checks. This source-only runbook records no live result. The
+cryptographic validator is source-bound to the canonical Argo bootstrap task and
+this canonical materializer task; it cannot be invoked from an arbitrary Ansible
+path. No live sync, Secret read, rotation, or apply is implied by these checks.
 
 ## Rollback and residual risk
 

@@ -269,7 +269,7 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
             "shared failure and contention domains",
             "NetworkPolicy cannot enforce logical-database isolation",
             "source-only MongoDB topology is intentionally standalone",
-            "It adds no Secret value, Infisical custom resource, Helm value, Argo Application",
+            "It adds no Secret value, Kubernetes Secret manifest, Helm value, Argo Application",
             "No host, registry, Kubernetes API, provider, Infisical, Helm, or runtime operation",
         ):
             self.assertIn(required, normalized)
@@ -302,9 +302,13 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "ansible/bin/bootstrap-postgresql",
+                "ansible/bin/provision-shared-postgresql",
                 "ansible/playbooks/bootstrap_postgresql.yml",
+                "ansible/playbooks/provision_shared_postgresql.yml",
                 "ansible/roles/postgresql_bootstrap/defaults/main.yml",
                 "ansible/roles/postgresql_bootstrap/tasks/main.yml",
+                "ansible/roles/shared_postgresql_provisioning/defaults/main.yml",
+                "ansible/roles/shared_postgresql_provisioning/tasks/main.yml",
             },
             postgresql_source,
         )
@@ -316,9 +320,13 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "ansible/bin/bootstrap-mongodb",
+                "ansible/bin/provision-shared-mongodb",
                 "ansible/playbooks/bootstrap_mongodb.yml",
+                "ansible/playbooks/provision_shared_mongodb.yml",
                 "ansible/roles/mongodb_bootstrap/defaults/main.yml",
                 "ansible/roles/mongodb_bootstrap/tasks/main.yml",
+                "ansible/roles/shared_mongodb_provisioning/defaults/main.yml",
+                "ansible/roles/shared_mongodb_provisioning/tasks/main.yml",
             },
             mongodb_source,
         )
@@ -340,7 +348,7 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
             r"(?im)^\s*(?:password|token|client_secret|api_key|credentials?)\s*:\s*\S+",
         )
         self.assertEqual(
-            2,
+            3,
             self.policy_text.count(
                 "sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4"
             ),

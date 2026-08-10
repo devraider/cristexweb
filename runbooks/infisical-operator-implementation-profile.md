@@ -130,7 +130,12 @@ overlap rotation, and revocation evidence remain unresolved and therefore block 
 bootstrap write.
 
 The first functional proof will use a dedicated read-only DEV identity and one fixed
-public marker. A v1beta1 static-secret reference will target a non-sensitive ConfigMap
+public marker. The source-only
+[Universal Auth/value lane](infisical-universal-auth-value-lane.md) freezes the
+protected identity/file/Keychain and recovery boundary for that identity and the
+three bootstrap scopes, but does not create identities, projects, or runtime
+Secrets; its seed/upload and rotation gates remain **NOT RUN/BLOCKED**. A v1beta1
+static-secret reference will target a non-sensitive ConfigMap
 in `cristexhub-dev` with orphan creation policy and no workload reload. This later
 proof will validate authentication and reconciliation only; it will not prove Secret
 confidentiality or authorize application values.

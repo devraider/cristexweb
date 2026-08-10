@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "evidence_class": "read-only-k3s-datastore-encryption-preflight",
+  "invocation": {
+    "check_mode": {{ k3s_datastore_preflight_internal_report.invocation.check_mode | bool | to_json }},
+    "diff_mode": {{ k3s_datastore_preflight_internal_report.invocation.diff_mode | bool | to_json }},
+    "one_host_limit": {{ k3s_datastore_preflight_internal_report.invocation.one_host_limit | bool | to_json }},
+    "elevated_requested": {{ k3s_datastore_preflight_internal_report.invocation.elevated_requested | bool | to_json }},
+    "elevated_approved": {{ k3s_datastore_preflight_internal_report.invocation.elevated_approved | bool | to_json }}
+  },
+  "k3s": {
+    "version": {% if k3s_datastore_preflight_internal_report.k3s.version is not none and k3s_datastore_preflight_internal_report.k3s.version|string != 'None' %}{{ k3s_datastore_preflight_internal_report.k3s.version | to_json }}{% else %}null{% endif %},
+    "executable_status": {{ k3s_datastore_preflight_internal_report.k3s.executable_status | to_json }},
+    "config_status": {{ k3s_datastore_preflight_internal_report.k3s.config_status | to_json }},
+    "exec_start_status": {{ k3s_datastore_preflight_internal_report.k3s.exec_start_status | to_json }},
+    "data_dir_source": {{ k3s_datastore_preflight_internal_report.k3s.data_dir_source | to_json }}
+  },
+  "datastore": {
+    "type": {{ k3s_datastore_preflight_internal_report.datastore.type | to_json }},
+    "sqlite_marker_present": {{ k3s_datastore_preflight_internal_report.datastore.sqlite_marker_present | bool | to_json }},
+    "etcd_marker_present": {{ k3s_datastore_preflight_internal_report.datastore.etcd_marker_present | bool | to_json }},
+    "external_endpoint_explicit": {{ k3s_datastore_preflight_internal_report.datastore.external_endpoint_explicit | bool | to_json }}
+  },
+  "encryption": {
+    "command_status": {{ k3s_datastore_preflight_internal_report.encryption.command_status | to_json }},
+    "status": {{ k3s_datastore_preflight_internal_report.encryption.status | to_json }},
+    "rotation_stage": {{ k3s_datastore_preflight_internal_report.encryption.rotation_stage | to_json }}
+  },
+  "health": {
+    "k3s_service": {{ k3s_datastore_preflight_internal_report.health.k3s_service | to_json }},
+    "tailscaled_service": {{ k3s_datastore_preflight_internal_report.health.tailscaled_service | to_json }},
+    "node_query": {{ k3s_datastore_preflight_internal_report.health.node_query | to_json }},
+    "node_count": {{ k3s_datastore_preflight_internal_report.health.node_count | int }},
+    "ready_node_count": {{ k3s_datastore_preflight_internal_report.health.ready_node_count | int }},
+    "node_stage": {{ k3s_datastore_preflight_internal_report.health.node_stage | to_json }}
+  },
+  "disclosure_controls": {
+    "remote_mutation": false,
+    "backup_or_restore": false,
+    "encryption_mutation": false,
+    "secret_values": false,
+    "key_material": false,
+    "token_values": false,
+    "config_content": false,
+    "kubeconfig_content": false,
+    "raw_command_output": false,
+    "node_identifiers": false,
+    "paths_or_urls": false
+  }
+}

@@ -12,18 +12,20 @@ infisical_argocd_secrets_bootstrap_manifest_paths:
   - '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-alternate-target-boundary-binding.yaml'
   - '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-static-secret-boundary.yaml'
   - '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-static-secret-boundary-binding.yaml'
+  - '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-source-boundary.yaml'
+  - '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-source-boundary-binding.yaml'
   - '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/rbac/argocd-secret-writer-role.yaml'
   - '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/rbac/argocd-secret-writer-rolebinding.yaml'
   - '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/source/infisical-cloud-connection.yaml'
   - '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/source/argocd-infisical-auth.yaml'
   - '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/source/argocd-infisical-secrets.yaml'
-infisical_argocd_secrets_bootstrap_object_count: 11
-infisical_argocd_secrets_bootstrap_admission_count: 6
+infisical_argocd_secrets_bootstrap_object_count: 13
+infisical_argocd_secrets_bootstrap_admission_count: 8
 infisical_argocd_secrets_bootstrap_rbac_count: 2
 infisical_argocd_secrets_bootstrap_source_count: 3
 infisical_argocd_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-secret-write-boundary.yaml'
-    sha256: 8a2a00cba21dfc41fa46f0e3016b14539e78be16ba6371efd5df7f5e0d0913a2
+    sha256: 40627367a2659cc83ecf72b63d8529675b83d98b0257dabfc979664a0347e8b1
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-secret-write-boundary-binding.yaml'
     sha256: fad81b63279c741743be5b6f9df356cb5a2fcfcc36bce42fc83c26b516058944
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-alternate-target-boundary.yaml'
@@ -31,9 +33,13 @@ infisical_argocd_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-alternate-target-boundary-binding.yaml'
     sha256: 79b2e4987a5f058281062a531007038bccae1b86f2151df4c32a13bed39357dd
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-static-secret-boundary.yaml'
-    sha256: 102e46ac6aace2c21a3def1a518539ecbb2725861c593df65cbebe0073d5f6fc
+    sha256: 325a68d24111de8216509d366ce2475302d9ca7f24bc1fb91a937ef8f55215f5
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-static-secret-boundary-binding.yaml'
     sha256: 6791c56baefd4d0b8f1d15580f29cb333ae9e3441e9d2883ff859de0030376a7
+  - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-source-boundary.yaml'
+    sha256: dc6d91297a0d8d6ec0167db902bbac6dbd6d395a065f3aadf74347e42525eae1
+  - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-source-boundary-binding.yaml'
+    sha256: 524ac4de30e858639926c1743461d060732933c99d5880a1e18a0d445441d5a5
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/rbac/argocd-secret-writer-role.yaml'
     sha256: bc6c0ff94c30caefd1b6bb348fd3f7325a59fe852ad6228f2eb53504d7dd95c8
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/rbac/argocd-secret-writer-rolebinding.yaml'
@@ -51,6 +57,11 @@ infisical_argocd_secrets_bootstrap_credential_contract:
   keys:
     - clientId
     - clientSecret
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: infisical-operator
+    cristex.io/component: infisical-runtime-auth
+    cristex.io/value-owner: infisical-cloud
 infisical_argocd_secrets_bootstrap_target_contract:
   argocd-secret:
     type: Opaque

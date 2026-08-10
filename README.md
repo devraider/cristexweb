@@ -121,18 +121,29 @@ upload/Kubernetes. The hardened retry proved cleanup, encrypted-pending resume a
 Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the same expired
 controller OAuth. That transfer path is superseded by guarded host rclone source. No
 Infisical CR, Kubernetes Secret, Universal Auth value, application Secret,
-PROD scope, or
-self-hosted Infisical server is added. A separate source-only
+PROD scope, or self-hosted Infisical server exists at runtime. A separate source-only
 [Infisical Argo CD Secret materialization seam](runbooks/infisical-argocd-secret-materialization.md)
 freezes one same-Namespace Universal Auth reference, one Connection/Auth/StaticSecret
 closure, exactly three orphaned Argo Secret targets, additive exact-name Secret and
 workload-list RBAC, and fail-closed admission. Its credential Secret, check/apply,
-sync, target values, and runtime remain **NOT RUN/BLOCKED**. No general host baseline
-or deployment exists. Python is otherwise test-only; eleven exact-scope Ansible action plugins are
-the reviewed focused exception—five enforce existing mutation boundaries, two guard
-host rclone install/transfer, two perform no-log cryptographic validation of exact
-Argo and stateful-database Secret contracts, and two guard the standalone MongoDB and
-PostgreSQL object closures. No
+sync, target values, and runtime remain **NOT RUN/BLOCKED**. A separate source-only
+[Infisical database Secret materialization seam](runbooks/infisical-database-secret-materialization.md)
+freezes one shared Connection, separate PostgreSQL/MongoDB Universal Auth references,
+two StaticSecrets, four stateful-database target contracts, scoped fail-closed VAPs,
+and additive writer RBAC. Its credential Secrets, check/apply, sync, values, and
+runtime remain **NOT RUN/BLOCKED**. A separate source-only
+[Universal Auth/value lane](runbooks/infisical-universal-auth-value-lane.md) accepts
+protected file inputs only and keeps values out of Git, argv, environment, logs, and
+evidence. Separate guarded [logical database provisioning](runbooks/shared-database-provisioning.md)
+consumes precreated per-consumer Secrets through temporary UID-bound helper Pods;
+all empty reservations and PROD activation remain **NOT RUN/BLOCKED**. No general
+host baseline or deployment exists.
+Python is otherwise test-only; fifteen exact-scope Ansible action plugins are
+the reviewed focused exception—seven enforce existing Namespace/Infisical/database
+Secret mutation boundaries, two guard host rclone install/transfer, two perform no-log
+cryptographic validation of exact Argo and stateful-database Secret contracts, two
+guard the standalone MongoDB and PostgreSQL object closures, and two guard fixed
+temporary logical-provisioning execution/Kubernetes objects. No
 general-purpose operational Python or infrastructure collector exists.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
@@ -169,26 +180,30 @@ gateway remain in the separate CristexHub application repository.
 1. [`AGENTS.md`](AGENTS.md) — authoritative ownership and safety rules.
 2. [`architecture-plan.md`](architecture-plan.md) — target design, staged delivery, gates, rollback, and unresolved decisions.
 3. [`ansible/README.md`](ansible/README.md) — discovery contract and approved command shape.
-4. [`runbooks/replacement-host-recovery.md`](runbooks/replacement-host-recovery.md) — replacement boundary, isolation gates, and decision-first recovery contract.
-5. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source provenance and image evidence for Argo CD.
-6. [`runbooks/argocd-hardened-design.md`](runbooks/argocd-hardened-design.md) — guarded private 32-object bootstrap source, exact Secret contracts, and remaining runtime gates.
-7. [`runbooks/argocd-release-selection.md`](runbooks/argocd-release-selection.md) — source-baseline selection and vendored-input boundary.
-8. [`runbooks/foundation-namespace-bootstrap.md`](runbooks/foundation-namespace-bootstrap.md) — completed exact `shared-services` Namespace check/first-apply/idempotence evidence.
-9. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
-10. [`runbooks/keycloak-release-selection.md`](runbooks/keycloak-release-selection.md) — immutable Keycloak/PostgreSQL and issuer source selection.
-11. [`runbooks/shared-database-architecture.md`](runbooks/shared-database-architecture.md) — value-free PostgreSQL/MongoDB topology, isolation, and closed deployment gates.
-12. [`runbooks/postgresql-bootstrap.md`](runbooks/postgresql-bootstrap.md) — guarded source-only PostgreSQL pod closure and runtime stop gates.
-13. [`runbooks/shared-rabbitmq-architecture.md`](runbooks/shared-rabbitmq-architecture.md) — value-free shared broker isolation, future-consumer admission, and recovery boundary.
-14. [`runbooks/shared-stateful-backup-architecture.md`](runbooks/shared-stateful-backup-architecture.md) — private operator backup access, non-destructive off-node copy, integrity, and restore gates.
-15. [`runbooks/reactive-resume-hosted-architecture.md`](runbooks/reactive-resume-hosted-architecture.md) — private-DEV MVP placement, dedicated database/OIDC scopes, and closed image/runtime gates.
-16. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
-17. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
-18. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
-19. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
-20. [`runbooks/infisical-operator-implementation-profile.md`](runbooks/infisical-operator-implementation-profile.md) — commit-bound controller audit and selected watch/identity/egress/secret-zero profile.
-21. [`runbooks/infisical-operator-bootstrap.md`](runbooks/infisical-operator-bootstrap.md) — guarded 40-object idle closure, proxy Secret prerequisites, validation, and rollback.
-22. [`runbooks/infisical-argocd-secret-materialization.md`](runbooks/infisical-argocd-secret-materialization.md) — exact value-free Infisical-to-Argo Secret seam and blocked runtime gates.
-23. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+4. [`runbooks/k3s-datastore-preflight.md`](runbooks/k3s-datastore-preflight.md) — source-only, check-only datastore/encryption stages and disclosure boundary.
+5. [`runbooks/replacement-host-recovery.md`](runbooks/replacement-host-recovery.md) — replacement boundary, isolation gates, and decision-first recovery contract.
+6. [`runbooks/argocd-candidate-provenance.md`](runbooks/argocd-candidate-provenance.md) — source provenance and image evidence for Argo CD.
+7. [`runbooks/argocd-hardened-design.md`](runbooks/argocd-hardened-design.md) — guarded private 32-object bootstrap source, exact Secret contracts, and remaining runtime gates.
+8. [`runbooks/argocd-release-selection.md`](runbooks/argocd-release-selection.md) — source-baseline selection and vendored-input boundary.
+9. [`runbooks/foundation-namespace-bootstrap.md`](runbooks/foundation-namespace-bootstrap.md) — completed exact `shared-services` Namespace check/first-apply/idempotence evidence.
+10. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
+11. [`runbooks/keycloak-release-selection.md`](runbooks/keycloak-release-selection.md) — immutable Keycloak/PostgreSQL and issuer source selection.
+12. [`runbooks/shared-database-architecture.md`](runbooks/shared-database-architecture.md) — value-free PostgreSQL/MongoDB topology, isolation, and closed deployment gates.
+13. [`runbooks/postgresql-bootstrap.md`](runbooks/postgresql-bootstrap.md) — guarded source-only PostgreSQL pod closure and runtime stop gates.
+14. [`runbooks/shared-rabbitmq-architecture.md`](runbooks/shared-rabbitmq-architecture.md) — value-free shared broker isolation, future-consumer admission, and recovery boundary.
+15. [`runbooks/shared-stateful-backup-architecture.md`](runbooks/shared-stateful-backup-architecture.md) — private operator backup access, non-destructive off-node copy, integrity, and restore gates.
+16. [`runbooks/reactive-resume-hosted-architecture.md`](runbooks/reactive-resume-hosted-architecture.md) — private-DEV MVP placement, dedicated database/OIDC scopes, and closed image/runtime gates.
+17. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
+18. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
+19. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
+20. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
+21. [`runbooks/infisical-operator-implementation-profile.md`](runbooks/infisical-operator-implementation-profile.md) — commit-bound controller audit and selected watch/identity/egress/secret-zero profile.
+22. [`runbooks/infisical-operator-bootstrap.md`](runbooks/infisical-operator-bootstrap.md) — guarded 40-object idle closure, proxy Secret prerequisites, validation, and rollback.
+23. [`runbooks/infisical-argocd-secret-materialization.md`](runbooks/infisical-argocd-secret-materialization.md) — exact value-free Infisical-to-Argo Secret seam and blocked runtime gates.
+24. [`runbooks/infisical-database-secret-materialization.md`](runbooks/infisical-database-secret-materialization.md) — exact value-free Infisical database Secret seam, scoped admission, and blocked runtime gates.
+25. [`runbooks/infisical-universal-auth-value-lane.md`](runbooks/infisical-universal-auth-value-lane.md) — protected value generation/upload contracts and Secret-at-rest recovery gate.
+26. [`runbooks/shared-database-provisioning.md`](runbooks/shared-database-provisioning.md) — guarded empty-reservation provisioning and helper isolation boundary.
+27. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -260,6 +275,31 @@ cd ~/Projects/cristexweb/ansible && uv run ansible-playbook -i .ansible/inventor
 Any further or elevated run still requires separate approval; complete command
 contracts are documented in [`ansible/README.md`](ansible/README.md).
 
+## Source-only k3s datastore and encryption preflight
+
+The dedicated `ansible/bin/preflight-k3s-datastore check` wrapper is the only
+entrypoint for the new read-only preflight. It accepts exactly `check`, requires
+`--check --diff --limit crtxweb --ask-become-pass` plus explicit elevation
+approval, uses a clean environment and ephemeral mode-`0600` attestation, and
+rejects direct role/playbook invocation, passthrough arguments, task selection,
+and forged internal variables before host contact. It performs no backup,
+restore, encryption mutation, service/configuration mutation, host mutation,
+cluster mutation, or Secret operation.
+
+Fixed read-only argv for k3s version, systemd health/ExecStart properties,
+`secrets-encrypt status`, and a JSON Node query run under `no_log`; metadata-only
+stat calls inspect the executable, config, datastore directory, and controller
+artifact. Strict parsers fail closed to unknown/unavailable stages. The ignored
+controller artifact `ansible/.ansible/k3s-datastore-preflight.local.json` is
+mode `0600` and schema v1; it contains only validated version/stage values,
+datastore marker booleans, encryption status/rotation stage, service and bounded
+Node health, and disclosure-control booleans. It never contains raw output,
+config/status content, paths, URLs, key metadata, tokens, kubeconfig, Secret data,
+or node identities. Synthetic disclosure fixtures and the focused contract are
+`tests/validate_k3s_datastore_preflight.yml` and
+`tests/test_k3s_datastore_preflight_contract.py`. Source and offline checks exist;
+a live check and any recovery operation remain **NOT RUN/BLOCKED**.
+
 ## Selected direction
 
 | Concern | Selected direction |
@@ -284,43 +324,43 @@ contracts are documented in [`ansible/README.md`](ansible/README.md).
 
 ```text
 .github/workflows/       # read-only source CI only; no publish or deploy path
-ansible/                 # discovery + bounded host changes + gated temporary QA probe
+ansible/                 # discovery plus guarded host/Kubernetes/database source closures
+  bin/                    # non-passthrough operational entrypoints
   inventory/
   playbooks/
-  roles/read_only_discovery/
-  roles/network_policy_probe/
-  roles/opentofu_install/
-  roles/platform_namespace_bootstrap/
-  roles/foundation_namespace_bootstrap/
-  files/vendor/            # hash-bound public chart/provenance/key inputs only
-  files/policies/          # value-free identity, shared-database, and Reactive Resume policies
+  plugins/action/         # fifteen exact-scope mutation/validation guards
+  roles/                  # bounded discovery, host, Namespace, controller, Secret, and database roles
+  files/components/       # hash-bound Argo, Infisical, PostgreSQL, and MongoDB source
+  files/vendor/           # hash-bound public chart/provenance/key inputs only
+  files/policies/         # value-free identity, database, backup, and application policies
 opentofu/                # zero-resource Cloudflare-only scaffold
-kubernetes/              # exact platform Namespace source; future Argo desired state
-runbooks/                # recovery docs plus source-only candidate/design records
+kubernetes/              # exact platform/application Namespace source; future Argo desired state
+runbooks/                # recovery, provenance, guarded source, materialization, and provisioning records
+  argocd-hardened-design.md
+  cristexhub-dev-namespace-bootstrap.md
+  foundation-namespace-bootstrap.md
+  infisical-operator-bootstrap.md
+  infisical-argocd-secret-materialization.md
+  infisical-database-secret-materialization.md
+  infisical-universal-auth-value-lane.md
+  k3s-datastore-preflight.md
+  postgresql-bootstrap.md
+  rclone-host-transfer.md
+  shared-database-architecture.md
+  shared-database-provisioning.md
   replacement-host-recovery.md
   recovery-artifact-register.md
-  argocd-candidate-provenance.md
-  argocd-hardened-design.md
-  argocd-release-selection.md
-  foundation-namespace-bootstrap.md
-  keycloak-oidc-bootstrap-design.md
-  keycloak-release-selection.md
-  shared-database-architecture.md
-  shared-rabbitmq-architecture.md
-  shared-stateful-backup-architecture.md
-  reactive-resume-hosted-architecture.md
-  cloudflared-candidate-provenance.md
-  infisical-operator-candidate-provenance.md
-  infisical-operator-release-selection.md
-  infisical-operator-implementation-profile.md
-tests/                   # offline contract tests only
+  ... candidate, release-selection, policy, and recovery records
+tests/                   # offline contract tests and negative/executable parser fixtures
 ```
 
-Only `ansible/`, the zero-resource `opentofu/` scaffold, three platform Namespace
-manifests plus the source-only `cristexhub-dev` application Namespace under
-`kubernetes/`, documentation-only recovery, candidate-provenance,
-hardened-design, and Keycloak/OIDC design records under `runbooks/`, and offline
-`tests/` currently exist. An exact manifest and a distinct guarded wrapper now exist
+The repository now includes source-only guarded Argo, Infisical, PostgreSQL,
+standalone MongoDB, Secret-materialization, protected-value, datastore-preflight, and
+logical-provisioning closures under `ansible/`; their runtime remains blocked unless
+explicitly recorded otherwise. The zero-resource `opentofu/` scaffold, three platform
+Namespace manifests plus the source-only `cristexhub-dev` application Namespace under
+`kubernetes/`, the current runbook set, and offline `tests/` also exist. An exact
+manifest and a distinct guarded wrapper now exist
 for `shared-services`; its interactive check retry predicted exactly that one
 Namespace, the separately approved first apply created and verified it, and the
 separately approved idempotence apply converged at `changed=0`. `platform-edge` is reserved for future cloudflared namespaced objects;

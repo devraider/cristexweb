@@ -234,12 +234,20 @@
   ansible.builtin.assert:
     that:
       - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.key
       - item.resources[0].metadata.namespace == 'argocd'
       - item.resources[0].type == item.item.value.type
       - (item.resources[0].data | default({})).keys() | list | sort == item.item.value.keys | sort
+      - (item.resources[0].binaryData | default({})).keys() | list | length == 0
+      - not (item.resources[0].immutable | default(false) | bool)
+      - >-
+        (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+        ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
+        'cristex.io/value-owner']
       - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
       - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'argocd'
       - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+      - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
       - >-
         item.item.key != 'argocd-secret' or
         ((item.resources[0].data['admin.password'] | b64decode) is

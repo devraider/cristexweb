@@ -57,11 +57,17 @@ these precreated objects exist in `argocd`, have exact type/key metadata and cry
 | `argocd-redis` | `Opaque` | `auth` |
 | `argocd-server-tls` | `kubernetes.io/tls` | `ca.crt`, `tls.crt`, `tls.key` |
 
-A no-log exact-scope action validates a canonical-cost bcrypt representation, strict
-UTC RFC3339 password timestamp, minimum signing/Redis key lengths, parseable and
-currently valid CA/leaf/private-key PEM, direct CA issuance, leaf/key correspondence,
-server-auth extended usage, and both `argocd-server.argocd.svc` and `localhost` DNS
-identities before any mutation.
+A no-log exact-scope action validates a generated/parseable canonical bcrypt
+representation at cost 12 (using the pinned offline `bcrypt` dependency), strict UTC
+RFC3339 password timestamp, minimum signing/Redis key lengths, and an exact one-CA,
+one-leaf, one-private-key PEM closure with no residue or extra blocks. The private,
+leaf, and CA keys must be RSA >=2048 or EC >=256; both certificate signatures must
+use SHA-256, SHA-384, or SHA-512; the CA must have `BasicConstraints.ca` and
+`KeyUsage.keyCertSign`; and both certificates must have at least 24 hours remaining.
+The leaf validity must be contained by the issuer, its SAN set is exactly
+`argocd-server.argocd.svc` and `localhost`, its only EKU is server authentication,
+its public key matches the private key, and its signature is verified as a direct
+issuance by the one supplied CA before any mutation.
 
 ### API-based dynamic Secret consumption
 
@@ -132,8 +138,10 @@ Application and target Namespace permissions require separate review.
 The non-passthrough wrapper accepts only `check` or `apply`, uses the existing
 root:k3s-admin mode-0640 kubeconfig without sudo, supplies a private single-run
 attestation, and rejects task selection. The role checks the exact active Namespace,
-source hashes, unique 32-object identity set, Secret metadata, initial-admin absence, existing
-object ownership, and k3s/Tailscale health before mutation. The action plugin accepts
+source hashes, unique 32-object identity set, and the same exact Infisical-owned
+target metadata contract used by the materializer (name, type, key set, labels, no
+binary data, no immutability, and no owner references), plus initial-admin absence,
+existing object ownership, and k3s/Tailscale health before mutation. The action plugin accepts
 only canonical role-task calls, exact object canonical hashes, present-only arguments,
 and the complete preflight binding. It has no deletion path. On an empty cluster,
 check mode records the absent AppProject API and defers only that one unresolved

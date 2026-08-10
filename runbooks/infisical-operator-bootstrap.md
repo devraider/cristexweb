@@ -136,6 +136,15 @@ Established, then applies only the remaining 34 objects and waits for both Deplo
 to become Available. Idempotence is a separate invocation and must finish with
 `changed=0`.
 
+The separate source-only
+[Universal Auth/value lane](infisical-universal-auth-value-lane.md) is a future
+secret-zero prerequisite, not part of this idle closure. It seeds exactly three
+same-Namespace runtime credential Secrets and uploads exact bootstrap values only
+through its own apply-only protected entrypoints. Its out-of-band identities,
+project, protected recovery, API compatibility, seed, upload, and rotation evidence
+remain **NOT RUN/BLOCKED**. Do not run this Operator wrapper before the three proxy
+Secrets and its independent runtime gates are approved.
+
 ## Required acceptance evidence
 
 1. Host rclone install check/apply/idempotence proves the exact version, digests,
@@ -158,8 +167,9 @@ to become Available. Idempotence is a separate invocation and must finish with
 8. k3s and Tailscale remain running; all four Namespace UIDs/labels/phases remain
    unchanged.
 9. A second apply returns `changed=0` and the exact inventory/writers remain stable.
-10. Only afterward may a separate Universal Auth recovery/write procedure create one
-   namespace-local credential and the non-sensitive DEV ConfigMap proof.
+10. Only afterward may the separate Universal Auth/value lane recover/write the
+   three namespace-local runtime credentials, followed by an independently reviewed
+   non-sensitive DEV ConfigMap proof; neither procedure is authorized by this source.
 
 ## Stop and rollback
 

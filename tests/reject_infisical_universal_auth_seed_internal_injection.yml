@@ -1,0 +1,26 @@
+---
+- name: Prove forged Universal Auth seed internals fail closed
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    infisical_universal_auth_seed_internal_prestate: []
+  tasks:
+    - name: Exercise the production Universal Auth seed role with forged internals
+      block:
+        - name: Include the production Universal Auth seed role
+          ansible.builtin.include_role:
+            name: infisical_universal_auth_seed
+      rescue:
+        - name: Verify the unique internal-variable guard rejected the fixture
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == 'Reject externally supplied Universal Auth seed internals'
+              - "'INTERNAL_VARIABLE_GUARD' in (ansible_failed_result | ansible.builtin.to_json)"
+        - name: Record successful fail-closed fixture behavior
+          ansible.builtin.set_fact:
+            infisical_universal_auth_seed_fixture_guard_rejected: true
+    - name: Require the seed role to fail closed at its first task
+      ansible.builtin.assert:
+        that: infisical_universal_auth_seed_fixture_guard_rejected | default(false) | bool

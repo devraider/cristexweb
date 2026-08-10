@@ -1,0 +1,49 @@
+---
+# yamllint disable rule:line-length rule:indentation
+shared_mongodb_provisioning_approved: false
+shared_mongodb_provisioning_state: present
+shared_mongodb_provisioning_kubeconfig: /etc/rancher/k3s/k3s.yaml
+shared_mongodb_provisioning_repository_root: '{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}'
+shared_mongodb_provisioning_controller_user: '{{ lookup(''ansible.builtin.env'', ''USER'') }}'
+shared_mongodb_provisioning_namespace: shared-services
+shared_mongodb_provisioning_pod_name: shared-mongodb-0
+shared_mongodb_provisioning_container: mongodb
+shared_mongodb_provisioning_statefulset_name: shared-mongodb
+shared_mongodb_provisioning_admin_secret: shared-mongodb-auth
+shared_mongodb_provisioning_tls_secret: shared-mongodb-tls
+shared_mongodb_provisioning_helper_image: docker.io/library/mongo@sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4
+shared_mongodb_provisioning_check_script: '{{ shared_mongodb_provisioning_repository_root }}/ansible/files/database-provisioning/mongodb-check.sh'
+shared_mongodb_provisioning_apply_script: '{{ shared_mongodb_provisioning_repository_root }}/ansible/files/database-provisioning/mongodb-apply.sh'
+shared_mongodb_provisioning_scopes:
+  - consumer: cristexhub-dev
+    database: cristexhub_dev
+    user: cristexhub_dev_user
+    secret: shared-mongodb-cristexhub-dev
+    other_database: cristexhub_prod
+    activation: inactive
+  - consumer: cristexhub-prod
+    database: cristexhub_prod
+    user: cristexhub_prod_user
+    secret: shared-mongodb-cristexhub-prod
+    other_database: cristexhub_dev
+    activation: inactive
+shared_mongodb_provisioning_secret_contract:
+  type: Opaque
+  keys:
+    - password
+    - username
+  labels:
+    app.kubernetes.io/managed-by: infisical
+    app.kubernetes.io/part-of: shared-databases
+    cristex.io/value-owner: infisical-cloud
+shared_mongodb_provisioning_helper_labels:
+  app.kubernetes.io/name: shared-mongodb-provision-helper
+  app.kubernetes.io/managed-by: ansible
+  cristex.io/component: database-logical-provisioning
+  cristex.io/provisioning-engine: mongodb
+shared_mongodb_provisioning_database_labels:
+  app.kubernetes.io/name: shared-mongodb
+  app.kubernetes.io/instance: shared-mongodb
+shared_mongodb_provisioning_script_hashes:
+  mongodb-check.sh: 4e9c27b502e1ab5e49472d53642b8469d33ccd9bbe021e9e59ddf6ea607d39f6
+  mongodb-apply.sh: 571301f932cd2a36d40813313c9da077380114452542cd622e0d6d379a4990f6

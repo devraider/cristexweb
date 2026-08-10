@@ -1,0 +1,755 @@
+#!/bin/sh
+set -eu
+
+# This entrypoint is apply-only; it has no check, diff, dry-run, or rotation mode.
+usage='usage: ansible/bin/upload-infisical-bootstrap-values apply'
+if [ "$#" -ne 1 ] || [ "$1" != apply ]; then
+  printf '%s\n' "$usage" >&2
+  printf '%s\n' 'refusing check mode, dry-run, passthrough arguments, or rotation selectors' >&2
+  exit 64
+fi
+
+script_path=$0
+if [ -L "$script_path" ]; then
+  printf '%s\n' 'refusing a symlinked Infisical value uploader' >&2
+  exit 66
+fi
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
+controller_home="$(CDPATH= cd -- "$repository_root/../.." && pwd -P)"
+controller_user="$(/usr/bin/id -un)"
+if [ "$repository_root" != "$controller_home/Projects/cristexweb" ]; then
+  printf '%s\n' 'refusing a repository outside the pinned controller path' >&2
+  exit 78
+fi
+
+age_tool=/opt/homebrew/bin/age
+age_keygen=/opt/homebrew/bin/age-keygen
+openssl_tool=/opt/homebrew/bin/openssl
+jq_tool=/usr/bin/jq
+htpasswd_tool=/usr/sbin/htpasswd
+curl_tool=/usr/bin/curl
+for tool in "$age_tool" "$age_keygen" "$openssl_tool" "$jq_tool" "$htpasswd_tool" "$curl_tool" /usr/bin/security /usr/bin/tar /usr/bin/shasum; do
+  if [ ! -f "$tool" ] || [ ! -x "$tool" ]; then
+    printf '%s\n' "refusing an absent or non-executable protected value tool: $tool" >&2
+    exit 69
+  fi
+done
+case "$($openssl_tool version 2>/dev/null)" in
+  'OpenSSL 3.5.0 '*) ;;
+  *) printf '%s\n' 'refusing OpenSSL version drift for generated values' >&2; exit 69 ;;
+esac
+
+umask 077
+temporary_directory="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/cristexweb-infisical-values.XXXXXX")"
+cleanup() {
+  unset current_token_header
+  /bin/rm -rf -- "$temporary_directory"
+}
+trap cleanup EXIT HUP INT TERM
+
+protected_root="$controller_home/Library/Application Support/CristexWeb/infisical/universal-auth"
+if [ ! -d "$protected_root" ] || [ -L "$protected_root" ] ||
+  [ "$(/usr/bin/stat -f '%OLp' "$protected_root")" != 700 ] ||
+  [ "$(/usr/bin/stat -f '%Su' "$protected_root")" != "$controller_user" ]; then
+  printf '%s\n' 'refusing an unsafe Infisical protected-input directory' >&2
+  exit 77
+fi
+
+recovery_root="$controller_home/Library/Application Support/CristexWeb/recovery/infisical-bootstrap-values"
+if [ -e "$recovery_root" ] && [ -L "$recovery_root" ]; then
+  printf '%s\n' 'refusing a symlinked Infisical recovery directory' >&2
+  exit 77
+fi
+if [ -e "$recovery_root" ] && [ ! -d "$recovery_root" ]; then
+  printf '%s\n' 'refusing an Infisical recovery path that is not a directory' >&2
+  exit 77
+fi
+/bin/mkdir -p -- "$recovery_root"
+chmod 700 "$recovery_root"
+if [ "$(/usr/bin/stat -f '%OLp' "$recovery_root")" != 700 ] ||
+  [ "$(/usr/bin/stat -f '%Su' "$recovery_root")" != "$controller_user" ]; then
+  printf '%s\n' 'refusing an unsafe Infisical recovery directory' >&2
+  exit 77
+fi
+
+completed_marker="$recovery_root/completed"
+pending_marker="$recovery_root/pending"
+progress_marker="$recovery_root/progress"
+for marker in "$completed_marker" "$pending_marker" "$progress_marker"; do
+  if [ -L "$marker" ]; then
+    printf '%s\n' 'refusing a symlinked Infisical recovery marker' >&2
+    exit 77
+  fi
+done
+if [ -e "$completed_marker" ]; then
+  [ ! -L "$completed_marker" ] && [ -f "$completed_marker" ] &&
+    [ "$(/usr/bin/stat -f '%OLp' "$completed_marker")" = 600 ] &&
+    [ "$(/usr/bin/stat -f '%Su' "$completed_marker")" = "$controller_user" ] || {
+    printf '%s\n' 'refusing an unsafe completed Infisical recovery marker' >&2
+    exit 77
+  }
+  printf '%s\n' 'refusing implicit Infisical value rotation after completed bootstrap' >&2
+  exit 77
+fi
+
+read_protected_json() {
+  component=$1
+  purpose=$2
+  service="cristexweb-infisical-universal-auth-$component-$purpose"
+  destination="$temporary_directory/$component-$purpose.json"
+  source="$protected_root/$component-$purpose.json"
+  if [ -e "$source" ] || [ -L "$source" ]; then
+    if [ -L "$source" ] || [ ! -f "$source" ] ||
+      [ "$(/usr/bin/stat -f '%OLp' "$source")" != 600 ] ||
+      [ "$(/usr/bin/stat -f '%Su' "$source")" != "$controller_user" ]; then
+      printf '%s\n' 'refusing unsafe Infisical protected credential input' >&2
+      exit 77
+    fi
+    /bin/cp -p -- "$source" "$destination"
+  else
+    /usr/bin/security find-generic-password -a cristexweb -s "$service" -w \
+      >"$destination" 2>"$temporary_directory/$component-$purpose.keychain-error" || {
+      printf '%s\n' 'refusing a missing Infisical protected writer credential' >&2
+      exit 77
+    }
+  fi
+  chmod 600 "$destination"
+  "$jq_tool" -e \
+    'type == "object" and (keys | sort) == ["clientId", "clientSecret"] and
+     (.clientId | type == "string" and length > 0 and test("^[^[:cntrl:]]+$")) and
+     (.clientSecret | type == "string" and length > 0 and test("^[^[:cntrl:]]+$"))' \
+    "$destination" >/dev/null 2>"$temporary_directory/$component-$purpose.json.error" || {
+    printf '%s\n' 'refusing malformed Infisical protected writer credential' >&2
+    exit 77
+  }
+}
+
+read_protected_json argocd writer
+read_protected_json postgresql writer
+read_protected_json mongodb writer
+writer_fingerprint() {
+  component=$1
+  "$jq_tool" -r '.clientId' "$temporary_directory/$component-writer.json" |
+    /usr/bin/shasum -a 256 | /usr/bin/awk '{print $1}'
+}
+argocd_writer_sha256="$(writer_fingerprint argocd)"
+postgresql_writer_sha256="$(writer_fingerprint postgresql)"
+mongodb_writer_sha256="$(writer_fingerprint mongodb)"
+
+endpoint_file="$protected_root/api-endpoint"
+if [ ! -f "$endpoint_file" ] || [ -L "$endpoint_file" ] ||
+  [ "$(/usr/bin/stat -f '%OLp' "$endpoint_file")" != 600 ] ||
+  [ "$(/usr/bin/stat -f '%Su' "$endpoint_file")" != "$controller_user" ]; then
+  printf '%s\n' 'refusing a missing or unsafe Infisical endpoint file' >&2
+  exit 77
+fi
+api_base="$(/bin/cat "$endpoint_file")"
+[ "$api_base" = 'https://app.infisical.com/api' ] || {
+  printf '%s\n' 'refusing an invalid or unpinned Infisical endpoint' >&2
+  exit 77
+}
+
+identity_directory="$controller_home/Library/Application Support/CristexWeb/age"
+identity_file="$identity_directory/infisical-bootstrap-values-key.txt"
+if [ -e "$identity_directory" ] && [ -L "$identity_directory" ]; then
+  printf '%s\n' 'refusing a symlinked Infisical identity directory' >&2
+  exit 77
+fi
+if [ -e "$identity_file" ] && [ -L "$identity_file" ]; then
+  printf '%s\n' 'refusing a symlinked Infisical recovery identity' >&2
+  exit 77
+fi
+/bin/mkdir -p -- "$identity_directory"
+chmod 700 "$identity_directory"
+keychain_identity="$temporary_directory/keychain-identity"
+if /usr/bin/security find-generic-password -a cristexweb \
+  -s cristexweb-infisical-bootstrap-values-age-identity -w \
+  >"$keychain_identity" 2>"$temporary_directory/keychain-identity.error"; then
+  chmod 600 "$keychain_identity"
+fi
+if [ ! -f "$identity_file" ]; then
+  if [ -s "$keychain_identity" ]; then
+    /bin/cp -p -- "$keychain_identity" "$identity_file"
+  else
+    "$age_keygen" -o "$identity_file" 2>"$temporary_directory/age-keygen-error"
+  fi
+fi
+chmod 600 "$identity_file"
+if [ "$(/usr/bin/stat -f '%OLp' "$identity_file")" != 600 ] ||
+  [ "$(/usr/bin/stat -f '%Su' "$identity_file")" != "$controller_user" ]; then
+  printf '%s\n' 'refusing an unsafe Infisical recovery identity' >&2
+  exit 77
+fi
+if [ -s "$keychain_identity" ] && ! /usr/bin/cmp -s "$keychain_identity" "$identity_file"; then
+  printf '%s\n' 'refusing mismatched Infisical recovery identity custody copies' >&2
+  exit 77
+fi
+if [ ! -s "$keychain_identity" ]; then
+  /usr/bin/security add-generic-password -a cristexweb \
+    -s cristexweb-infisical-bootstrap-values-age-identity -w \
+    <"$identity_file" >/dev/null 2>"$temporary_directory/keychain-write-error" || {
+    printf '%s\n' 'refusing unrecoverable Infisical recovery identity custody' >&2
+    exit 77
+  }
+fi
+recipient="$temporary_directory/recipient"
+"$age_keygen" -y "$identity_file" >"$recipient" 2>"$temporary_directory/recipient-error"
+chmod 600 "$recipient"
+
+bundle_directory="$temporary_directory/bundle"
+/bin/mkdir -p -- "$bundle_directory/argocd" "$bundle_directory/postgresql" "$bundle_directory/mongodb"
+chmod 700 "$bundle_directory" "$bundle_directory/argocd" "$bundle_directory/postgresql" "$bundle_directory/mongodb"
+
+expected_archive_members() {
+  cat <<'EOF'
+manifest.json
+argocd/admin-password
+argocd/ARGOCD_ADMIN_PASSWORD_BCRYPT
+argocd/ARGOCD_ADMIN_PASSWORD_MTIME
+argocd/ARGOCD_SERVER_SECRETKEY
+argocd/ARGOCD_REDIS_AUTH
+argocd/ARGOCD_TLS_CA_CRT
+argocd/ARGOCD_TLS_CRT
+argocd/ARGOCD_TLS_KEY
+postgresql/POSTGRESQL_ADMIN_USERNAME
+postgresql/POSTGRESQL_ADMIN_PASSWORD
+postgresql/POSTGRESQL_TLS_CA_CRT
+postgresql/POSTGRESQL_TLS_CRT
+postgresql/POSTGRESQL_TLS_KEY
+postgresql/POSTGRESQL_CRISTEXHUB_DEV_USERNAME
+postgresql/POSTGRESQL_CRISTEXHUB_DEV_PASSWORD
+postgresql/POSTGRESQL_CRISTEXHUB_PROD_USERNAME
+postgresql/POSTGRESQL_CRISTEXHUB_PROD_PASSWORD
+postgresql/POSTGRESQL_REACTIVE_RESUME_DEV_USERNAME
+postgresql/POSTGRESQL_REACTIVE_RESUME_DEV_PASSWORD
+postgresql/POSTGRESQL_REACTIVE_RESUME_PROD_USERNAME
+postgresql/POSTGRESQL_REACTIVE_RESUME_PROD_PASSWORD
+postgresql/POSTGRESQL_KEYCLOAK_USERNAME
+postgresql/POSTGRESQL_KEYCLOAK_PASSWORD
+mongodb/MONGODB_ADMIN_USERNAME
+mongodb/MONGODB_ADMIN_PASSWORD
+mongodb/MONGODB_TLS_CA_CRT
+mongodb/MONGODB_TLS_PEM
+mongodb/MONGODB_CRISTEXHUB_DEV_USERNAME
+mongodb/MONGODB_CRISTEXHUB_DEV_PASSWORD
+mongodb/MONGODB_CRISTEXHUB_PROD_USERNAME
+mongodb/MONGODB_CRISTEXHUB_PROD_PASSWORD
+EOF
+}
+
+artifact_name=''
+artifact_file=''
+expected_checksum=''
+if [ -f "$pending_marker" ]; then
+  [ ! -L "$pending_marker" ] && [ "$(/usr/bin/stat -f '%OLp' "$pending_marker")" = 600 ] &&
+    [ "$(/usr/bin/stat -f '%Su' "$pending_marker")" = "$controller_user" ] || {
+    printf '%s\n' 'refusing an unsafe Infisical pending marker' >&2
+    exit 77
+  }
+  artifact_name="$(/usr/bin/awk -F= '$1 == "artifact" {print $2}' "$pending_marker")"
+  expected_checksum="$(/usr/bin/awk -F= '$1 == "sha256" {print $2}' "$pending_marker")"
+  case "$artifact_name" in
+    infisical-bootstrap-values-????????T??????Z.tar.gz.age) ;;
+    *) printf '%s\n' 'refusing an invalid Infisical pending artifact name' >&2; exit 77 ;;
+  esac
+  artifact_file="$recovery_root/$artifact_name"
+  checksum_file="$artifact_file.sha256"
+  [ -f "$artifact_file" ] && [ ! -L "$artifact_file" ] &&
+    [ -f "$checksum_file" ] && [ ! -L "$checksum_file" ] || {
+    printf '%s\n' 'refusing an incomplete Infisical pending artifact' >&2
+    exit 77
+  }
+  actual_checksum="$(/usr/bin/shasum -a 256 "$artifact_file" | /usr/bin/awk '{print $1}')"
+  [ "$expected_checksum" = "$actual_checksum" ] || {
+    printf '%s\n' 'refusing a changed Infisical pending artifact' >&2
+    exit 77
+  }
+  [ "$(/bin/cat "$checksum_file")" = "$actual_checksum" ] || {
+    printf '%s\n' 'refusing a changed Infisical pending checksum' >&2
+    exit 77
+  }
+  /usr/bin/grep -Fx 'project=cristexweb-infrastructure' "$pending_marker" >/dev/null || {
+    printf '%s\n' 'refusing an Infisical pending marker bound to another project' >&2
+    exit 77
+  }
+  /usr/bin/grep -Fx 'environment=bootstrap' "$pending_marker" >/dev/null || {
+    printf '%s\n' 'refusing an Infisical pending marker bound to another environment' >&2
+    exit 77
+  }
+  /usr/bin/grep -Fx 'paths=/argocd,/shared-services/postgresql,/shared-services/mongodb' "$pending_marker" >/dev/null || {
+    printf '%s\n' 'refusing an Infisical pending marker bound to another path set' >&2
+    exit 77
+  }
+  /usr/bin/grep -Fx "writer_argocd_sha256=$argocd_writer_sha256" "$pending_marker" >/dev/null || {
+    printf '%s\n' 'refusing an Infisical pending marker bound to another writer identity' >&2
+    exit 77
+  }
+  /usr/bin/grep -Fx "writer_postgresql_sha256=$postgresql_writer_sha256" "$pending_marker" >/dev/null || {
+    printf '%s\n' 'refusing an Infisical pending marker bound to another writer identity' >&2
+    exit 77
+  }
+  /usr/bin/grep -Fx "writer_mongodb_sha256=$mongodb_writer_sha256" "$pending_marker" >/dev/null || {
+    printf '%s\n' 'refusing an Infisical pending marker bound to another writer identity' >&2
+    exit 77
+  }
+  "$age_tool" -d -i "$identity_file" -o "$temporary_directory/recovered.tar.gz" "$artifact_file" \
+    2>"$temporary_directory/age-decrypt-error" || {
+    printf '%s\n' 'refusing an undecryptable Infisical pending artifact' >&2
+    exit 77
+  }
+  expected_archive_members >"$temporary_directory/expected-archive-members"
+  /usr/bin/tar -tzf "$temporary_directory/recovered.tar.gz" \
+    >"$temporary_directory/actual-archive-members" 2>"$temporary_directory/tar-list-error" || {
+    printf '%s\n' 'refusing an unreadable Infisical pending archive' >&2
+    exit 77
+  }
+  /usr/bin/cmp -s "$temporary_directory/expected-archive-members" \
+    "$temporary_directory/actual-archive-members" || {
+    printf '%s\n' 'refusing an Infisical pending archive outside the exact member closure' >&2
+    exit 77
+  }
+  /usr/bin/tar -tvzf "$temporary_directory/recovered.tar.gz" \
+    >"$temporary_directory/actual-archive-types" 2>"$temporary_directory/tar-type-error" || exit 77
+  /usr/bin/awk '$1 !~ /^-/ {exit 1}' "$temporary_directory/actual-archive-types" || {
+    printf '%s\n' 'refusing non-regular Infisical pending archive members' >&2
+    exit 77
+  }
+  /usr/bin/tar -xzf "$temporary_directory/recovered.tar.gz" -C "$bundle_directory" \
+    2>"$temporary_directory/tar-error" || {
+    printf '%s\n' 'refusing an invalid Infisical pending artifact' >&2
+    exit 77
+  }
+else
+  for orphan in "$recovery_root"/infisical-bootstrap-values-*.tar.gz.age "$recovery_root"/infisical-bootstrap-values-*.tar.gz.age.sha256; do
+    if [ -e "$orphan" ] || [ -L "$orphan" ]; then
+      printf '%s\n' 'refusing an unbound Infisical recovery artifact without its pending marker' >&2
+      exit 77
+    fi
+  done
+  timestamp="$(/bin/date -u +%Y%m%dT%H%M%SZ)"
+  artifact_name="infisical-bootstrap-values-$timestamp.tar.gz.age"
+  artifact_file="$recovery_root/$artifact_name"
+  checksum_file="$artifact_file.sha256"
+  if [ -e "$artifact_file" ] || [ -L "$artifact_file" ] ||
+    [ -e "$checksum_file" ] || [ -L "$checksum_file" ]; then
+    printf '%s\n' 'refusing an existing Infisical artifact name' >&2
+    exit 77
+  fi
+
+  random_hex_file() {
+    output_file=$1
+    raw_output="$temporary_directory/random-output"
+    trimmed_output="$temporary_directory/random-output.trimmed"
+    "$openssl_tool" rand -hex 32 >"$raw_output" 2>"$temporary_directory/random-error" || {
+      printf '%s\n' 'refusing failed protected random credential generation' >&2
+      exit 77
+    }
+    /usr/bin/tr -d '\r\n' <"$raw_output" >"$trimmed_output"
+    /bin/mv -f -- "$trimmed_output" "$output_file"
+    chmod 600 "$output_file"
+    /usr/bin/grep -Eq '^[0-9a-f]{64}$' "$output_file" || {
+      printf '%s\n' 'refusing random credential outside exact 64-hex contract' >&2
+      exit 77
+    }
+  }
+
+  # The password is generated into a protected file and is only read on stdin by htpasswd.
+  random_hex_file "$bundle_directory/argocd/admin-password"
+  "$htpasswd_tool" -nBi -C 12 argocd <"$bundle_directory/argocd/admin-password" \
+    >"$temporary_directory/bcrypt-line" 2>"$temporary_directory/bcrypt-error"
+  /usr/bin/sed 's/^[^:]*://' "$temporary_directory/bcrypt-line" | /usr/bin/tr -d '\r\n' >"$bundle_directory/argocd/ARGOCD_ADMIN_PASSWORD_BCRYPT"
+  /usr/bin/grep -Eq '^\$2[aby]\$12\$[./A-Za-z0-9]{53}$' "$bundle_directory/argocd/ARGOCD_ADMIN_PASSWORD_BCRYPT" || {
+    printf '%s\n' 'refusing bcrypt output outside exact cost-12 contract' >&2
+    exit 77
+  }
+  /bin/date -u +%Y-%m-%dT%H:%M:%SZ | /usr/bin/tr -d '\r\n' >"$bundle_directory/argocd/ARGOCD_ADMIN_PASSWORD_MTIME"
+  random_hex_file "$bundle_directory/argocd/ARGOCD_SERVER_SECRETKEY"
+  random_hex_file "$bundle_directory/argocd/ARGOCD_REDIS_AUTH"
+
+  generate_tls() {
+    component=$1
+    common_name=$2
+    san_1=$3
+    san_2=$4
+    san_3=$5
+    "$openssl_tool" req -x509 -newkey rsa:3072 -sha256 -nodes -days 825 \
+      -addext 'basicConstraints=critical,CA:TRUE,pathlen:1' \
+      -addext 'keyUsage=critical,keyCertSign,cRLSign' \
+      -subj "/CN=$component Bootstrap CA" \
+      -keyout "$bundle_directory/$component/ca.key" -out "$bundle_directory/$component/ca.crt" \
+      >"$temporary_directory/$component-ca.stdout" 2>"$temporary_directory/$component-ca.error"
+    "$openssl_tool" req -newkey rsa:3072 -sha256 -nodes \
+      -subj "/CN=$common_name" \
+      -keyout "$bundle_directory/$component/tls.key" -out "$temporary_directory/$component.csr" \
+      >"$temporary_directory/$component-csr.stdout" 2>"$temporary_directory/$component-csr.error"
+    {
+      printf '%s\n' 'basicConstraints=critical,CA:FALSE'
+      printf '%s\n' 'keyUsage=critical,digitalSignature,keyEncipherment'
+      printf '%s\n' 'extendedKeyUsage=serverAuth'
+      printf 'subjectAltName=DNS:%s,DNS:%s' "$san_1" "$san_2"
+      [ -z "$san_3" ] || printf ',DNS:%s' "$san_3"
+      printf '\n'
+    } >"$temporary_directory/$component.ext"
+    "$openssl_tool" x509 -req -sha256 -days 397 \
+      -in "$temporary_directory/$component.csr" \
+      -CA "$bundle_directory/$component/ca.crt" -CAkey "$bundle_directory/$component/ca.key" \
+      -CAcreateserial -extfile "$temporary_directory/$component.ext" \
+      -out "$bundle_directory/$component/tls.crt" \
+      >"$temporary_directory/$component-sign.stdout" 2>"$temporary_directory/$component-sign.error"
+    "$openssl_tool" verify -CAfile "$bundle_directory/$component/ca.crt" \
+      "$bundle_directory/$component/tls.crt" >"$temporary_directory/$component-verify" 2>"$temporary_directory/$component-verify.error"
+    "$openssl_tool" x509 -in "$bundle_directory/$component/tls.crt" -noout -checkend 86400 \
+      >"$temporary_directory/$component-validity" 2>"$temporary_directory/$component-validity.error"
+    "$openssl_tool" x509 -in "$bundle_directory/$component/tls.crt" -noout -checkhost "$san_1" \
+      >"$temporary_directory/$component-host-1" 2>"$temporary_directory/$component-host-1.error"
+    "$openssl_tool" x509 -in "$bundle_directory/$component/tls.crt" -noout -checkhost "$san_2" \
+      >"$temporary_directory/$component-host-2" 2>"$temporary_directory/$component-host-2.error"
+    [ -z "$san_3" ] || "$openssl_tool" x509 -in "$bundle_directory/$component/tls.crt" -noout -checkhost "$san_3" \
+      >"$temporary_directory/$component-host-3" 2>"$temporary_directory/$component-host-3.error"
+    "$openssl_tool" x509 -in "$bundle_directory/$component/tls.crt" -noout -ext subjectAltName \
+      >"$temporary_directory/$component-san" 2>"$temporary_directory/$component-san.error"
+    expected_san_count=2
+    [ -z "$san_3" ] || expected_san_count=3
+    actual_san_count="$(/usr/bin/grep -o 'DNS:' "$temporary_directory/$component-san" | /usr/bin/wc -l | /usr/bin/tr -d ' ')"
+    [ "$actual_san_count" = "$expected_san_count" ] || {
+      printf '%s\n' 'refusing a TLS certificate with a non-exact DNS SAN count' >&2
+      exit 77
+    }
+    "$openssl_tool" x509 -in "$bundle_directory/$component/tls.crt" -pubkey -noout | \
+      /usr/bin/shasum -a 256 >"$temporary_directory/$component-cert-key.sha256"
+    "$openssl_tool" pkey -in "$bundle_directory/$component/tls.key" -pubout | \
+      /usr/bin/shasum -a 256 >"$temporary_directory/$component-private-key.sha256"
+    /usr/bin/cmp -s "$temporary_directory/$component-cert-key.sha256" "$temporary_directory/$component-private-key.sha256"
+  }
+
+  generate_tls argocd argocd-server.argocd.svc argocd-server.argocd.svc localhost ''
+  /bin/cp -p -- "$bundle_directory/argocd/ca.crt" "$bundle_directory/argocd/ARGOCD_TLS_CA_CRT"
+  /bin/cp -p -- "$bundle_directory/argocd/tls.crt" "$bundle_directory/argocd/ARGOCD_TLS_CRT"
+  /bin/cp -p -- "$bundle_directory/argocd/tls.key" "$bundle_directory/argocd/ARGOCD_TLS_KEY"
+
+  printf '%s' 'postgres_admin' >"$bundle_directory/postgresql/POSTGRESQL_ADMIN_USERNAME"
+  random_hex_file "$bundle_directory/postgresql/POSTGRESQL_ADMIN_PASSWORD"
+  generate_tls postgresql shared-postgresql.shared-services.svc localhost shared-postgresql.shared-services.svc shared-postgresql.shared-services.svc.cluster.local
+  /bin/cp -p -- "$bundle_directory/postgresql/ca.crt" "$bundle_directory/postgresql/POSTGRESQL_TLS_CA_CRT"
+  /bin/cp -p -- "$bundle_directory/postgresql/tls.crt" "$bundle_directory/postgresql/POSTGRESQL_TLS_CRT"
+  /bin/cp -p -- "$bundle_directory/postgresql/tls.key" "$bundle_directory/postgresql/POSTGRESQL_TLS_KEY"
+
+  printf '%s' 'mongodb_admin' >"$bundle_directory/mongodb/MONGODB_ADMIN_USERNAME"
+  random_hex_file "$bundle_directory/mongodb/MONGODB_ADMIN_PASSWORD"
+  generate_tls mongodb shared-mongodb.shared-services.svc localhost shared-mongodb.shared-services.svc shared-mongodb.shared-services.svc.cluster.local
+  /bin/cp -p -- "$bundle_directory/mongodb/ca.crt" "$bundle_directory/mongodb/MONGODB_TLS_CA_CRT"
+  /bin/cat "$bundle_directory/mongodb/tls.crt" "$bundle_directory/mongodb/tls.key" >"$bundle_directory/mongodb/MONGODB_TLS_PEM"
+
+  # Consumer usernames are the frozen logical principals; passwords are generated
+  # only into protected files and are never placed in argv, environment, or output.
+  printf '%s' 'cristexhub_dev_owner' >"$bundle_directory/postgresql/POSTGRESQL_CRISTEXHUB_DEV_USERNAME"
+  random_hex_file "$bundle_directory/postgresql/POSTGRESQL_CRISTEXHUB_DEV_PASSWORD"
+  printf '%s' 'cristexhub_prod_owner' >"$bundle_directory/postgresql/POSTGRESQL_CRISTEXHUB_PROD_USERNAME"
+  random_hex_file "$bundle_directory/postgresql/POSTGRESQL_CRISTEXHUB_PROD_PASSWORD"
+  printf '%s' 'reactive_resume_dev_owner' >"$bundle_directory/postgresql/POSTGRESQL_REACTIVE_RESUME_DEV_USERNAME"
+  random_hex_file "$bundle_directory/postgresql/POSTGRESQL_REACTIVE_RESUME_DEV_PASSWORD"
+  printf '%s' 'reactive_resume_prod_owner' >"$bundle_directory/postgresql/POSTGRESQL_REACTIVE_RESUME_PROD_USERNAME"
+  random_hex_file "$bundle_directory/postgresql/POSTGRESQL_REACTIVE_RESUME_PROD_PASSWORD"
+  printf '%s' 'keycloak_owner' >"$bundle_directory/postgresql/POSTGRESQL_KEYCLOAK_USERNAME"
+  random_hex_file "$bundle_directory/postgresql/POSTGRESQL_KEYCLOAK_PASSWORD"
+  printf '%s' 'cristexhub_dev_user' >"$bundle_directory/mongodb/MONGODB_CRISTEXHUB_DEV_USERNAME"
+  random_hex_file "$bundle_directory/mongodb/MONGODB_CRISTEXHUB_DEV_PASSWORD"
+  printf '%s' 'cristexhub_prod_user' >"$bundle_directory/mongodb/MONGODB_CRISTEXHUB_PROD_USERNAME"
+  random_hex_file "$bundle_directory/mongodb/MONGODB_CRISTEXHUB_PROD_PASSWORD"
+
+  cat >"$bundle_directory/manifest.json" <<'EOF'
+{"projectSlug":"cristexweb-infrastructure","environmentSlug":"bootstrap","paths":{"argocd":"/argocd","postgresql":"/shared-services/postgresql","mongodb":"/shared-services/mongodb"},"keySets":{"argocd":["ARGOCD_ADMIN_PASSWORD_BCRYPT","ARGOCD_ADMIN_PASSWORD_MTIME","ARGOCD_SERVER_SECRETKEY","ARGOCD_REDIS_AUTH","ARGOCD_TLS_CA_CRT","ARGOCD_TLS_CRT","ARGOCD_TLS_KEY"],"postgresql":["POSTGRESQL_ADMIN_USERNAME","POSTGRESQL_ADMIN_PASSWORD","POSTGRESQL_TLS_CA_CRT","POSTGRESQL_TLS_CRT","POSTGRESQL_TLS_KEY","POSTGRESQL_CRISTEXHUB_DEV_USERNAME","POSTGRESQL_CRISTEXHUB_DEV_PASSWORD","POSTGRESQL_CRISTEXHUB_PROD_USERNAME","POSTGRESQL_CRISTEXHUB_PROD_PASSWORD","POSTGRESQL_REACTIVE_RESUME_DEV_USERNAME","POSTGRESQL_REACTIVE_RESUME_DEV_PASSWORD","POSTGRESQL_REACTIVE_RESUME_PROD_USERNAME","POSTGRESQL_REACTIVE_RESUME_PROD_PASSWORD","POSTGRESQL_KEYCLOAK_USERNAME","POSTGRESQL_KEYCLOAK_PASSWORD"],"mongodb":["MONGODB_ADMIN_USERNAME","MONGODB_ADMIN_PASSWORD","MONGODB_TLS_CA_CRT","MONGODB_TLS_PEM","MONGODB_CRISTEXHUB_DEV_USERNAME","MONGODB_CRISTEXHUB_DEV_PASSWORD","MONGODB_CRISTEXHUB_PROD_USERNAME","MONGODB_CRISTEXHUB_PROD_PASSWORD"]}}
+EOF
+  chmod 600 "$bundle_directory/manifest.json"
+  /bin/rm -f -- \
+    "$bundle_directory/argocd/ca.key" "$bundle_directory/argocd/ca.crt" \
+    "$bundle_directory/argocd/ca.srl" "$bundle_directory/argocd/tls.key" \
+    "$bundle_directory/argocd/tls.crt" \
+    "$bundle_directory/postgresql/ca.key" "$bundle_directory/postgresql/ca.crt" \
+    "$bundle_directory/postgresql/ca.srl" "$bundle_directory/postgresql/tls.key" \
+    "$bundle_directory/postgresql/tls.crt" \
+    "$bundle_directory/mongodb/ca.key" "$bundle_directory/mongodb/ca.crt" \
+    "$bundle_directory/mongodb/ca.srl" "$bundle_directory/mongodb/tls.key" \
+    "$bundle_directory/mongodb/tls.crt"
+  expected_archive_members >"$temporary_directory/expected-archive-members"
+  # Fixed archive members omit CA signing keys and duplicate intermediate files.
+  # shellcheck disable=SC2046
+  /usr/bin/tar -czf "$temporary_directory/bundle.tar.gz" -C "$bundle_directory" \
+    $(expected_archive_members) 2>"$temporary_directory/tar-create-error"
+  /usr/bin/tar -tzf "$temporary_directory/bundle.tar.gz" \
+    >"$temporary_directory/actual-archive-members" 2>"$temporary_directory/tar-list-error"
+  /usr/bin/cmp -s "$temporary_directory/expected-archive-members" \
+    "$temporary_directory/actual-archive-members" || {
+    printf '%s\n' 'refusing a generated Infisical archive outside the exact member closure' >&2
+    exit 77
+  }
+  "$age_tool" -r "$(/bin/cat "$recipient")" -o "$artifact_file" "$temporary_directory/bundle.tar.gz" \
+    2>"$temporary_directory/age-encrypt-error"
+  chmod 600 "$artifact_file"
+  /usr/bin/shasum -a 256 "$artifact_file" | /usr/bin/awk '{print $1}' >"$checksum_file"
+  expected_checksum="$(/bin/cat "$checksum_file")"
+  {
+    printf 'artifact=%s\n' "$artifact_name"
+    printf 'sha256=%s\n' "$expected_checksum"
+    printf 'project=cristexweb-infrastructure\n'
+    printf 'environment=bootstrap\n'
+    printf 'paths=/argocd,/shared-services/postgresql,/shared-services/mongodb\n'
+    printf 'writer_argocd_sha256=%s\n' "$argocd_writer_sha256"
+    printf 'writer_postgresql_sha256=%s\n' "$postgresql_writer_sha256"
+    printf 'writer_mongodb_sha256=%s\n' "$mongodb_writer_sha256"
+  } >"$pending_marker"
+  chmod 600 "$pending_marker"
+  {
+    printf 'argocd=pending\n'
+    printf 'postgresql=pending\n'
+    printf 'mongodb=pending\n'
+  } >"$progress_marker"
+  chmod 600 "$progress_marker"
+fi
+
+"$jq_tool" -e '
+  (. | keys | sort) == ["environmentSlug", "keySets", "paths", "projectSlug"] and
+  (.paths | keys | sort) == ["argocd", "mongodb", "postgresql"] and
+  (.keySets | keys | sort) == ["argocd", "mongodb", "postgresql"] and
+  .projectSlug == "cristexweb-infrastructure" and
+  .environmentSlug == "bootstrap" and
+  .paths == {
+    argocd: "/argocd",
+    postgresql: "/shared-services/postgresql",
+    mongodb: "/shared-services/mongodb"
+  } and
+  (.keySets.argocd | sort) == [
+    "ARGOCD_ADMIN_PASSWORD_BCRYPT", "ARGOCD_ADMIN_PASSWORD_MTIME",
+    "ARGOCD_REDIS_AUTH", "ARGOCD_SERVER_SECRETKEY", "ARGOCD_TLS_CA_CRT",
+    "ARGOCD_TLS_CRT", "ARGOCD_TLS_KEY"
+  ] and
+  (.keySets.postgresql | sort) == [
+    "POSTGRESQL_ADMIN_PASSWORD", "POSTGRESQL_ADMIN_USERNAME",
+    "POSTGRESQL_CRISTEXHUB_DEV_PASSWORD", "POSTGRESQL_CRISTEXHUB_DEV_USERNAME",
+    "POSTGRESQL_CRISTEXHUB_PROD_PASSWORD", "POSTGRESQL_CRISTEXHUB_PROD_USERNAME",
+    "POSTGRESQL_KEYCLOAK_PASSWORD", "POSTGRESQL_KEYCLOAK_USERNAME",
+    "POSTGRESQL_REACTIVE_RESUME_DEV_PASSWORD", "POSTGRESQL_REACTIVE_RESUME_DEV_USERNAME",
+    "POSTGRESQL_REACTIVE_RESUME_PROD_PASSWORD", "POSTGRESQL_REACTIVE_RESUME_PROD_USERNAME",
+    "POSTGRESQL_TLS_CA_CRT", "POSTGRESQL_TLS_CRT", "POSTGRESQL_TLS_KEY"
+  ] and
+  (.keySets.mongodb | sort) == [
+    "MONGODB_ADMIN_PASSWORD", "MONGODB_ADMIN_USERNAME",
+    "MONGODB_CRISTEXHUB_DEV_PASSWORD", "MONGODB_CRISTEXHUB_DEV_USERNAME",
+    "MONGODB_CRISTEXHUB_PROD_PASSWORD", "MONGODB_CRISTEXHUB_PROD_USERNAME",
+    "MONGODB_TLS_CA_CRT", "MONGODB_TLS_PEM"
+  ]
+' "$bundle_directory/manifest.json" >/dev/null 2>"$temporary_directory/manifest-error" || {
+  printf '%s\n' 'refusing an Infisical bundle with changed project, path, or key contracts' >&2
+  exit 77
+}
+
+[ -f "$progress_marker" ] && [ ! -L "$progress_marker" ] &&
+  [ "$(/usr/bin/stat -f '%OLp' "$progress_marker")" = 600 ] || {
+  printf '%s\n' 'refusing a missing or unsafe Infisical progress marker' >&2
+  exit 77
+}
+
+# Protected curl configuration never places a token or generated value in argv;
+# its data-binary entry is the file-input equivalent of --data-binary @file.
+api_request() {
+  request_method=$1
+  request_url=$2
+  request_body=$3
+  response_file=$4
+  request_config="$temporary_directory/curl-request-$5.conf"
+  {
+    printf 'url = "%s"\n' "$request_url"
+    printf 'request = "%s"\n' "$request_method"
+    printf 'silent\nshow-error\nfail\n'
+    printf 'proto = "=https"\n'
+    [ -z "$current_token_header" ] || cat "$current_token_header"
+    [ -z "$request_body" ] || {
+      printf 'header = "Content-Type: application/json"\n'
+      printf 'data-binary = "@%s"\n' "$request_body"
+    }
+    printf 'output = "%s"\n' "$response_file"
+  } >"$request_config"
+  chmod 600 "$request_config"
+  /usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C.UTF-8 \
+    "$curl_tool" -q --config "$request_config" 2>"$temporary_directory/curl-error-$5" || {
+    printf '%s\n' 'refusing an unsuccessful Infisical API request' >&2
+    exit 77
+  }
+}
+
+metadata_keys() {
+  component=$1
+  path=$2
+  expected_keys=$3
+  status=$4
+  metadata_response="$temporary_directory/$component-metadata.json"
+  metadata_url="$api_base/v3/secrets?projectSlug=cristexweb-infrastructure&environmentSlug=bootstrap&secretPath=$path"
+  api_request GET "$metadata_url" '' "$metadata_response" "$component-metadata"
+  "$jq_tool" -e --argjson expected "$expected_keys" --arg status "$status" \
+    '(.secrets | type == "array") and
+     ((.secrets | map(.secretKey) | unique | sort) as $actual |
+      if $status == "pending" then $actual == [] else $actual == ($expected | sort) end)' \
+    "$metadata_response" >/dev/null 2>"$temporary_directory/$component-metadata-parse-error" || {
+    printf '%s\n' 'UNKNOWN — STOP: refusing foreign, partial, extra, or ambiguous-post Infisical remote state' >&2
+    exit 77
+  }
+}
+
+set_progress_done() {
+  component=$1
+  updated="$temporary_directory/progress.updated"
+  /usr/bin/awk -F= -v component="$component" 'BEGIN {OFS="="} $1 == component {$2="done"} {print}' \
+    "$progress_marker" >"$updated"
+  chmod 600 "$updated"
+  /bin/mv -f -- "$updated" "$progress_marker"
+}
+
+upload_component() {
+  component=$1
+  path=$2
+  writer_file="$temporary_directory/$component-writer.json"
+  expected_keys=$3
+  status="$(/usr/bin/awk -F= -v component="$component" '$1 == component {print $2}' "$progress_marker")"
+  current_token_header=''
+
+  login_body="$temporary_directory/$component-login.json"
+  login_response="$temporary_directory/$component-login-response.json"
+  "$jq_tool" -n --slurpfile writer "$writer_file" \
+    '{clientId:$writer[0].clientId,clientSecret:$writer[0].clientSecret}' >"$login_body" \
+    2>"$temporary_directory/$component-login-body-error"
+  chmod 600 "$login_body"
+  api_request POST "$api_base/v1/auth/universal-auth/login" "$login_body" "$login_response" "$component-login"
+  token_header="$temporary_directory/$component-token-header.conf"
+  "$jq_tool" -er '
+    (.accessToken | type == "string" and length > 0 and test("^[^[:cntrl:]]+$")) |
+    if . then true else error("invalid token") end
+    ' "$login_response" >"$temporary_directory/$component-token-check" \
+    2>"$temporary_directory/$component-token-parse-error" || {
+    printf '%s\n' 'refusing an invalid Infisical authentication response' >&2
+    exit 77
+  }
+  "$jq_tool" -r '"header = \"Authorization: Bearer " + .accessToken + "\""' \
+    "$login_response" >"$token_header" 2>"$temporary_directory/$component-token-header-error"
+  chmod 600 "$token_header"
+  current_token_header="$token_header"
+  metadata_keys "$component" "$path" "$expected_keys" "$status"
+  [ "$status" = done ] && return 0
+
+  request_body="$temporary_directory/$component-upload.json"
+  case "$component" in
+    argocd) value_dir="$bundle_directory/argocd"; key_prefix=ARGOCD ;;
+    postgresql) value_dir="$bundle_directory/postgresql"; key_prefix=POSTGRESQL ;;
+    mongodb) value_dir="$bundle_directory/mongodb"; key_prefix=MONGODB ;;
+    *) printf '%s\n' 'refusing an unknown Infisical component' >&2; exit 77 ;;
+  esac
+  # Build through file inputs only; each rawfile argument is a protected pathname.
+  if [ "$component" = argocd ]; then
+    "$jq_tool" -n --arg project cristexweb-infrastructure --arg environment bootstrap --arg secretPath "$path" \
+      --rawfile k1 "$value_dir/ARGOCD_ADMIN_PASSWORD_BCRYPT" --rawfile k2 "$value_dir/ARGOCD_ADMIN_PASSWORD_MTIME" \
+      --rawfile k3 "$value_dir/ARGOCD_SERVER_SECRETKEY" --rawfile k4 "$value_dir/ARGOCD_REDIS_AUTH" \
+      --rawfile k5 "$value_dir/ARGOCD_TLS_CA_CRT" --rawfile k6 "$value_dir/ARGOCD_TLS_CRT" --rawfile k7 "$value_dir/ARGOCD_TLS_KEY" \
+      '{projectSlug:$project,environmentSlug:$environment,secretPath:$secretPath,secrets:[
+        {secretKey:"ARGOCD_ADMIN_PASSWORD_BCRYPT",secretValue:$k1},
+        {secretKey:"ARGOCD_ADMIN_PASSWORD_MTIME",secretValue:$k2},
+        {secretKey:"ARGOCD_SERVER_SECRETKEY",secretValue:$k3},
+        {secretKey:"ARGOCD_REDIS_AUTH",secretValue:$k4},
+        {secretKey:"ARGOCD_TLS_CA_CRT",secretValue:$k5},
+        {secretKey:"ARGOCD_TLS_CRT",secretValue:$k6},
+        {secretKey:"ARGOCD_TLS_KEY",secretValue:$k7}]} ' >"$request_body" 2>"$temporary_directory/$component-upload-body-error"
+  elif [ "$component" = postgresql ]; then
+    "$jq_tool" -n --arg project cristexweb-infrastructure --arg environment bootstrap --arg secretPath "$path" \
+      --rawfile k1 "$value_dir/POSTGRESQL_ADMIN_USERNAME" --rawfile k2 "$value_dir/POSTGRESQL_ADMIN_PASSWORD" \
+      --rawfile k3 "$value_dir/POSTGRESQL_TLS_CA_CRT" --rawfile k4 "$value_dir/POSTGRESQL_TLS_CRT" --rawfile k5 "$value_dir/POSTGRESQL_TLS_KEY" \
+      --rawfile k6 "$value_dir/POSTGRESQL_CRISTEXHUB_DEV_USERNAME" --rawfile k7 "$value_dir/POSTGRESQL_CRISTEXHUB_DEV_PASSWORD" \
+      --rawfile k8 "$value_dir/POSTGRESQL_CRISTEXHUB_PROD_USERNAME" --rawfile k9 "$value_dir/POSTGRESQL_CRISTEXHUB_PROD_PASSWORD" \
+      --rawfile k10 "$value_dir/POSTGRESQL_REACTIVE_RESUME_DEV_USERNAME" --rawfile k11 "$value_dir/POSTGRESQL_REACTIVE_RESUME_DEV_PASSWORD" \
+      --rawfile k12 "$value_dir/POSTGRESQL_REACTIVE_RESUME_PROD_USERNAME" --rawfile k13 "$value_dir/POSTGRESQL_REACTIVE_RESUME_PROD_PASSWORD" \
+      --rawfile k14 "$value_dir/POSTGRESQL_KEYCLOAK_USERNAME" --rawfile k15 "$value_dir/POSTGRESQL_KEYCLOAK_PASSWORD" \
+      '{projectSlug:$project,environmentSlug:$environment,secretPath:$secretPath,secrets:[
+        {secretKey:"POSTGRESQL_ADMIN_USERNAME",secretValue:$k1},
+        {secretKey:"POSTGRESQL_ADMIN_PASSWORD",secretValue:$k2},
+        {secretKey:"POSTGRESQL_TLS_CA_CRT",secretValue:$k3},
+        {secretKey:"POSTGRESQL_TLS_CRT",secretValue:$k4},
+        {secretKey:"POSTGRESQL_TLS_KEY",secretValue:$k5},
+        {secretKey:"POSTGRESQL_CRISTEXHUB_DEV_USERNAME",secretValue:$k6},
+        {secretKey:"POSTGRESQL_CRISTEXHUB_DEV_PASSWORD",secretValue:$k7},
+        {secretKey:"POSTGRESQL_CRISTEXHUB_PROD_USERNAME",secretValue:$k8},
+        {secretKey:"POSTGRESQL_CRISTEXHUB_PROD_PASSWORD",secretValue:$k9},
+        {secretKey:"POSTGRESQL_REACTIVE_RESUME_DEV_USERNAME",secretValue:$k10},
+        {secretKey:"POSTGRESQL_REACTIVE_RESUME_DEV_PASSWORD",secretValue:$k11},
+        {secretKey:"POSTGRESQL_REACTIVE_RESUME_PROD_USERNAME",secretValue:$k12},
+        {secretKey:"POSTGRESQL_REACTIVE_RESUME_PROD_PASSWORD",secretValue:$k13},
+        {secretKey:"POSTGRESQL_KEYCLOAK_USERNAME",secretValue:$k14},
+        {secretKey:"POSTGRESQL_KEYCLOAK_PASSWORD",secretValue:$k15}]} ' >"$request_body" 2>"$temporary_directory/$component-upload-body-error"
+  else
+    "$jq_tool" -n --arg project cristexweb-infrastructure --arg environment bootstrap --arg secretPath "$path" \
+      --rawfile k1 "$value_dir/MONGODB_ADMIN_USERNAME" --rawfile k2 "$value_dir/MONGODB_ADMIN_PASSWORD" \
+      --rawfile k3 "$value_dir/MONGODB_TLS_CA_CRT" --rawfile k4 "$value_dir/MONGODB_TLS_PEM" \
+      --rawfile k5 "$value_dir/MONGODB_CRISTEXHUB_DEV_USERNAME" --rawfile k6 "$value_dir/MONGODB_CRISTEXHUB_DEV_PASSWORD" \
+      --rawfile k7 "$value_dir/MONGODB_CRISTEXHUB_PROD_USERNAME" --rawfile k8 "$value_dir/MONGODB_CRISTEXHUB_PROD_PASSWORD" \
+      '{projectSlug:$project,environmentSlug:$environment,secretPath:$secretPath,secrets:[
+        {secretKey:"MONGODB_ADMIN_USERNAME",secretValue:$k1},
+        {secretKey:"MONGODB_ADMIN_PASSWORD",secretValue:$k2},
+        {secretKey:"MONGODB_TLS_CA_CRT",secretValue:$k3},
+        {secretKey:"MONGODB_TLS_PEM",secretValue:$k4},
+        {secretKey:"MONGODB_CRISTEXHUB_DEV_USERNAME",secretValue:$k5},
+        {secretKey:"MONGODB_CRISTEXHUB_DEV_PASSWORD",secretValue:$k6},
+        {secretKey:"MONGODB_CRISTEXHUB_PROD_USERNAME",secretValue:$k7},
+        {secretKey:"MONGODB_CRISTEXHUB_PROD_PASSWORD",secretValue:$k8}]} ' >"$request_body" 2>"$temporary_directory/$component-upload-body-error"
+  fi
+  chmod 600 "$request_body"
+  # Add the protected Bearer header to the same protected curl configuration.
+  upload_config="$temporary_directory/$component-upload.conf"
+  {
+    cat "$token_header"
+    printf 'url = "%s/v3/secrets/batch"\n' "$api_base"
+    printf 'request = "POST"\nsilent\nshow-error\nfail\n'
+    printf 'proto = "=https"\n'
+    printf 'header = "Content-Type: application/json"\ndata-binary = "@%s"\noutput = "%s"\n' "$request_body" "$temporary_directory/$component-upload-response.json"
+  } >"$upload_config"
+  chmod 600 "$upload_config"
+  /usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C.UTF-8 \
+    "$curl_tool" -q --config "$upload_config" 2>"$temporary_directory/$component-upload-error" || {
+    printf '%s\n' 'refusing an unsuccessful Infisical value upload' >&2
+    exit 77
+  }
+  "$jq_tool" -e --argjson expected "$expected_keys" '
+    (
+      .secrets as $entries |
+      ($entries | type == "array") and
+      (
+        ($entries | map(.secretKey)) as $actual |
+        ($actual | all(.[]; type == "string" and length > 0)) and
+        (($actual | unique | sort) == ($expected | unique | sort)) and
+        (($actual | length) == ($expected | length))
+      )
+    ) and
+    ((.revision | type) == "number") and
+    (.revision >= 1) and
+    (.revision == (.revision | floor))
+  ' "$temporary_directory/$component-upload-response.json" >/dev/null \
+    2>"$temporary_directory/$component-upload-parse-error" || {
+    printf '%s\n' 'refusing an unverified Infisical value upload response' >&2
+    exit 77
+  }
+  # Confirm the persisted key closure through the same project/environment/path query
+  # before advancing local progress. Values remain unread and undisclosed.
+  metadata_keys "$component" "$path" "$expected_keys" done
+  set_progress_done "$component"
+}
+
+upload_component argocd /argocd '["ARGOCD_ADMIN_PASSWORD_BCRYPT","ARGOCD_ADMIN_PASSWORD_MTIME","ARGOCD_SERVER_SECRETKEY","ARGOCD_REDIS_AUTH","ARGOCD_TLS_CA_CRT","ARGOCD_TLS_CRT","ARGOCD_TLS_KEY"]'
+upload_component postgresql /shared-services/postgresql '["POSTGRESQL_ADMIN_USERNAME","POSTGRESQL_ADMIN_PASSWORD","POSTGRESQL_TLS_CA_CRT","POSTGRESQL_TLS_CRT","POSTGRESQL_TLS_KEY","POSTGRESQL_CRISTEXHUB_DEV_USERNAME","POSTGRESQL_CRISTEXHUB_DEV_PASSWORD","POSTGRESQL_CRISTEXHUB_PROD_USERNAME","POSTGRESQL_CRISTEXHUB_PROD_PASSWORD","POSTGRESQL_REACTIVE_RESUME_DEV_USERNAME","POSTGRESQL_REACTIVE_RESUME_DEV_PASSWORD","POSTGRESQL_REACTIVE_RESUME_PROD_USERNAME","POSTGRESQL_REACTIVE_RESUME_PROD_PASSWORD","POSTGRESQL_KEYCLOAK_USERNAME","POSTGRESQL_KEYCLOAK_PASSWORD"]'
+upload_component mongodb /shared-services/mongodb '["MONGODB_ADMIN_USERNAME","MONGODB_ADMIN_PASSWORD","MONGODB_TLS_CA_CRT","MONGODB_TLS_PEM","MONGODB_CRISTEXHUB_DEV_USERNAME","MONGODB_CRISTEXHUB_DEV_PASSWORD","MONGODB_CRISTEXHUB_PROD_USERNAME","MONGODB_CRISTEXHUB_PROD_PASSWORD"]'
+
+{
+  printf 'artifact=%s\n' "$artifact_name"
+  printf 'sha256=%s\n' "$expected_checksum"
+  printf 'project=cristexweb-infrastructure\n'
+  printf 'environment=bootstrap\n'
+  printf 'paths=/argocd,/shared-services/postgresql,/shared-services/mongodb\n'
+} >"$completed_marker"
+chmod 600 "$completed_marker"
+/bin/rm -f -- "$pending_marker" "$progress_marker"
+printf '%s\n' 'Infisical bootstrap values generated, encrypted, uploaded, and verified without value disclosure.'

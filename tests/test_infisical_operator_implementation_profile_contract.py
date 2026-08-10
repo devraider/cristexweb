@@ -272,6 +272,13 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
                 "infisical_argocd_secrets_guarded_k8s.py",
                 "bootstrap-infisical-argocd-secrets",
                 "bootstrap_infisical_argocd_secrets.yml",
+                "bootstrap-infisical-database-secrets",
+                "bootstrap_infisical_database_secrets.yml",
+                "infisical_database_secrets_guarded_k8s.py",
+                "seed-infisical-universal-auth",
+                "seed_infisical_universal_auth.yml",
+                "upload-infisical-bootstrap-values",
+                "infisical_universal_auth_seed_guarded_k8s.py",
             },
             {path.name for path in operational if "infisical" in str(path).lower()},
         )

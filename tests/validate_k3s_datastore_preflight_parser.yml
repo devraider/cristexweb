@@ -1,0 +1,355 @@
+---
+- name: Validate canonical space-delimited ExecStart and exact SQLite marker binding
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    k3s_datastore_preflight_internal_version_result:
+      rc: 0
+      stdout: k3s version v1.36.2+k3s1 (fixture)
+      stdout_lines:
+        - k3s version v1.36.2+k3s1 (fixture)
+    k3s_datastore_preflight_internal_executable_state:
+      stat:
+        exists: true
+        isreg: true
+        islnk: false
+        executable: true
+        pw_name: root
+        gr_name: root
+        mode: '0755'
+    k3s_datastore_preflight_internal_config_state:
+      stat:
+        exists: false
+    k3s_datastore_preflight_internal_sqlite_marker_state:
+      stat:
+        isreg: true
+        islnk: false
+        pw_name: root
+        gr_name: root
+        mode: '0600'
+    k3s_datastore_preflight_internal_etcd_marker_state:
+      stat:
+        isdir: false
+        islnk: false
+    k3s_datastore_preflight_internal_exec_start_result:
+      rc: 0
+      stdout: >-
+        { path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --data-dir
+        /var/lib/rancher/k3s ; ignore_errors=no }
+      stdout_lines:
+        - >-
+          { path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --data-dir
+          /var/lib/rancher/k3s ; ignore_errors=no }
+    k3s_datastore_preflight_internal_encryption_result:
+      rc: 0
+      stdout: |-
+        Encryption Status: Enabled
+        Current Rotation Stage: rotate_finished
+      stdout_lines:
+        - Encryption Status: Enabled
+        - Current Rotation Stage: rotate_finished
+    k3s_datastore_preflight_internal_service_fields:
+      results:
+        - rc: 0
+          stdout_lines: [loaded, active, running]
+        - rc: 0
+          stdout_lines: [loaded, active, running]
+    k3s_datastore_preflight_internal_nodes_result:
+      rc: 1
+      stdout: ''
+      stdout_lines: []
+  tasks:
+    - name: Run the canonical parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+
+    - name: Require canonical systemd and exact marker behavior
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_version == 'v1.36.2+k3s1'
+          - k3s_datastore_preflight_internal_exec_start_status == 'available'
+          - k3s_datastore_preflight_internal_data_dir_source == 'explicit_arg'
+          - k3s_datastore_preflight_internal_sqlite_marker | bool
+          - not (k3s_datastore_preflight_internal_etcd_marker | bool)
+          - k3s_datastore_preflight_internal_datastore_type == 'sqlite'
+          - k3s_datastore_preflight_internal_encryption_status == 'enabled'
+          - k3s_datastore_preflight_internal_rotation_stage == 'finished'
+        fail_msg: Canonical systemd/SQLite/encryption parser fixture failed.
+      changed_when: false
+
+- name: Validate that absent config never infers SQLite without a marker
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    k3s_datastore_preflight_internal_version_result: {rc: 1, stdout: '', stdout_lines: []}
+    k3s_datastore_preflight_internal_executable_state:
+      stat: {exists: false}
+    k3s_datastore_preflight_internal_config_state:
+      stat: {exists: false}
+    k3s_datastore_preflight_internal_sqlite_marker_state:
+      stat: {isreg: false, islnk: false}
+    k3s_datastore_preflight_internal_etcd_marker_state:
+      stat: {isdir: false, islnk: false}
+    k3s_datastore_preflight_internal_exec_start_result:
+      rc: 0
+      stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server ; ignore_errors=no }'
+      stdout_lines: ['{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server ; ignore_errors=no }']
+    k3s_datastore_preflight_internal_encryption_result:
+      rc: 1
+      stdout: ''
+      stdout_lines: []
+    k3s_datastore_preflight_internal_service_fields:
+      results:
+        - {rc: 1, stdout_lines: []}
+        - {rc: 1, stdout_lines: []}
+    k3s_datastore_preflight_internal_nodes_result: {rc: 1, stdout: '', stdout_lines: []}
+  tasks:
+    - name: Run the no-marker parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+
+    - name: Require unknown datastore when no exact marker exists
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_data_dir_source == 'default_no_config'
+          - not (k3s_datastore_preflight_internal_sqlite_marker | bool)
+          - k3s_datastore_preflight_internal_datastore_type == 'unknown'
+        fail_msg: Absent config incorrectly inferred SQLite.
+      changed_when: false
+
+- name: Validate malformed ExecStart and stage-without-status fail closed
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    k3s_datastore_preflight_internal_version_result: {rc: 0, stdout: 'unexpected', stdout_lines: [unexpected]}
+    k3s_datastore_preflight_internal_executable_state: {stat: {exists: true, isreg: true, islnk: false, executable: false, pw_name: root, gr_name: root, mode: '0644'}}
+    k3s_datastore_preflight_internal_config_state: {stat: {exists: false}}
+    k3s_datastore_preflight_internal_sqlite_marker_state: {stat: {isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600'}}
+    k3s_datastore_preflight_internal_etcd_marker_state: {stat: {isdir: false, islnk: false}}
+    k3s_datastore_preflight_internal_exec_start_result:
+      rc: 0
+      stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s unexpected ; ignore_errors=no }'
+      stdout_lines: ['{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s unexpected ; ignore_errors=no }']
+    k3s_datastore_preflight_internal_encryption_result:
+      rc: 0
+      stdout: |-
+        Encryption Status:
+        Status: enabled
+        Current Rotation Stage: finished
+      stdout_lines:
+        - Encryption Status:
+        - 'Status: enabled'
+        - Current Rotation Stage: finished
+    k3s_datastore_preflight_internal_service_fields:
+      results:
+        - {rc: 0, stdout_lines: [loaded, inactive, dead]}
+        - {rc: 0, stdout_lines: [not-found, inactive, dead]}
+    k3s_datastore_preflight_internal_nodes_result: {rc: 1, stdout: '', stdout_lines: []}
+  tasks:
+    - name: Run the malformed parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+
+    - name: Require malformed command and stage output to remain unknown
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_version is none
+          - k3s_datastore_preflight_internal_exec_start_status == 'unsafe'
+          - k3s_datastore_preflight_internal_datastore_type == 'unknown'
+          - k3s_datastore_preflight_internal_encryption_status == 'unknown'
+          - k3s_datastore_preflight_internal_rotation_stage == 'unknown'
+          - k3s_datastore_preflight_internal_k3s_service_stage == 'stopped'
+          - k3s_datastore_preflight_internal_tailscaled_service_stage == 'absent'
+        fail_msg: Malformed preflight parser fixture did not fail closed.
+      changed_when: false
+
+- name: Validate rotation stage tokens without a valid header/status are rejected
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    k3s_datastore_preflight_internal_version_result: {rc: 1, stdout: '', stdout_lines: []}
+    k3s_datastore_preflight_internal_executable_state: {stat: {exists: false}}
+    k3s_datastore_preflight_internal_config_state: {stat: {exists: false}}
+    k3s_datastore_preflight_internal_sqlite_marker_state: {stat: {isreg: false, islnk: false}}
+    k3s_datastore_preflight_internal_etcd_marker_state: {stat: {isdir: false, islnk: false}}
+    k3s_datastore_preflight_internal_exec_start_result: {rc: 1, stdout: '', stdout_lines: []}
+    k3s_datastore_preflight_internal_encryption_result:
+      rc: 0
+      stdout: 'Current Rotation Stage: finished'
+      stdout_lines: ['Current Rotation Stage: finished']
+    k3s_datastore_preflight_internal_service_fields:
+      results:
+        - {rc: 1, stdout_lines: []}
+        - {rc: 1, stdout_lines: []}
+    k3s_datastore_preflight_internal_nodes_result: {rc: 1, stdout: '', stdout_lines: []}
+  tasks:
+    - name: Run the stage-only parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+
+    - name: Require stage-only output to be unknown
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_encryption_command_status == 'unknown'
+          - k3s_datastore_preflight_internal_encryption_status == 'unknown'
+          - k3s_datastore_preflight_internal_rotation_stage == 'unknown'
+        fail_msg: Stage token without valid status/header was accepted.
+      changed_when: false
+
+- name: Validate duplicate rotation stage lines fail closed
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    k3s_datastore_preflight_internal_version_result: {rc: 1, stdout: '', stdout_lines: []}
+    k3s_datastore_preflight_internal_executable_state: {stat: {exists: false}}
+    k3s_datastore_preflight_internal_config_state: {stat: {exists: false}}
+    k3s_datastore_preflight_internal_sqlite_marker_state: {stat: {isreg: false, islnk: false}}
+    k3s_datastore_preflight_internal_etcd_marker_state: {stat: {isdir: false, islnk: false}}
+    k3s_datastore_preflight_internal_exec_start_result: {rc: 1, stdout: '', stdout_lines: []}
+    k3s_datastore_preflight_internal_encryption_result:
+      rc: 0
+      stdout: |-
+        Encryption Status: Enabled
+        Current Rotation Stage: finished
+        Current Rotation Stage: finished
+      stdout_lines:
+        - 'Encryption Status: Enabled'
+        - 'Current Rotation Stage: finished'
+        - 'Current Rotation Stage: finished'
+    k3s_datastore_preflight_internal_service_fields:
+      results:
+        - {rc: 1, stdout_lines: []}
+        - {rc: 1, stdout_lines: []}
+    k3s_datastore_preflight_internal_nodes_result: {rc: 1, stdout: '', stdout_lines: []}
+  tasks:
+    - name: Run the duplicate-stage parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+
+    - name: Require duplicate rotation stage lines to remain unknown
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_encryption_command_status == 'available'
+          - k3s_datastore_preflight_internal_encryption_status == 'enabled'
+          - k3s_datastore_preflight_internal_rotation_stage == 'unknown'
+        fail_msg: Duplicate rotation stage lines were accepted.
+      changed_when: false
+
+- name: Validate embedded etcd, external, ambiguous, and unsafe service classifications
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    k3s_datastore_preflight_internal_version_result: {rc: 1, stdout: '', stdout_lines: []}
+    k3s_datastore_preflight_internal_executable_state: {stat: {exists: false}}
+    k3s_datastore_preflight_internal_config_state: {stat: {exists: false}}
+    k3s_datastore_preflight_internal_encryption_result: {rc: 1, stdout: '', stdout_lines: []}
+    k3s_datastore_preflight_internal_nodes_result: {rc: 1, stdout: '', stdout_lines: []}
+  tasks:
+    - name: Bind embedded etcd fixture inputs
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_sqlite_marker_state:
+          stat: {isreg: false, islnk: false}
+        k3s_datastore_preflight_internal_etcd_marker_state:
+          stat: {isdir: true, islnk: false, pw_name: root, gr_name: root}
+        k3s_datastore_preflight_internal_exec_start_result:
+          rc: 0
+          stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --cluster-init ; ignore_errors=no }'
+          stdout_lines: ['{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --cluster-init ; ignore_errors=no }']
+        k3s_datastore_preflight_internal_service_fields:
+          results:
+            - {rc: 0, stdout_lines: [loaded, active, running]}
+            - {rc: 0, stdout_lines: [loaded, active, running]}
+      changed_when: false
+
+    - name: Run the embedded etcd parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+
+    - name: Require embedded etcd only from the exact marker
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_datastore_type == 'embedded_etcd'
+          - k3s_datastore_preflight_internal_etcd_marker | bool
+          - not (k3s_datastore_preflight_internal_sqlite_marker | bool)
+        fail_msg: Embedded etcd marker fixture was misclassified.
+      changed_when: false
+
+    - name: Bind unread configuration override fixture inputs
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_config_state:
+          stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600'}
+        k3s_datastore_preflight_internal_sqlite_marker_state:
+          stat: {isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600'}
+        k3s_datastore_preflight_internal_etcd_marker_state:
+          stat: {isdir: false, islnk: false}
+        k3s_datastore_preflight_internal_exec_start_result:
+          rc: 0
+          stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --config /etc/rancher/k3s/config.yaml ; ignore_errors=no }'
+          stdout_lines: ['{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --config /etc/rancher/k3s/config.yaml ; ignore_errors=no }']
+      changed_when: false
+
+    - name: Run the unread configuration override parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+
+    - name: Require unread configuration to keep datastore classification unknown
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_data_dir_source == 'config_override_unknown'
+          - k3s_datastore_preflight_internal_datastore_type == 'unknown'
+        fail_msg: Unread configuration content was treated as datastore proof.
+      changed_when: false
+
+    - name: Bind external datastore fixture inputs
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_config_state:
+          stat: {exists: false}
+        k3s_datastore_preflight_internal_sqlite_marker_state:
+          stat: {isreg: false, islnk: false}
+        k3s_datastore_preflight_internal_etcd_marker_state:
+          stat: {isdir: false, islnk: false}
+        k3s_datastore_preflight_internal_exec_start_result:
+          rc: 0
+          stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --datastore-endpoint=https://fixture.invalid ; ignore_errors=no }'
+          stdout_lines: ['{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --datastore-endpoint=https://fixture.invalid ; ignore_errors=no }']
+      changed_when: false
+
+    - name: Run the external datastore parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+
+    - name: Require external datastore only from the explicit endpoint marker
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_datastore_type == 'external'
+          - k3s_datastore_preflight_internal_external_marker | bool
+        fail_msg: External datastore fixture was misclassified.
+      changed_when: false
+
+    - name: Bind ambiguous datastore and unsafe service fixture inputs
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_config_state:
+          stat: {exists: false}
+        k3s_datastore_preflight_internal_sqlite_marker_state:
+          stat: {isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600'}
+        k3s_datastore_preflight_internal_etcd_marker_state:
+          stat: {isdir: false, islnk: false}
+        k3s_datastore_preflight_internal_exec_start_result:
+          rc: 0
+          stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --datastore-endpoint=https://fixture.invalid ; ignore_errors=no }'
+          stdout_lines: ['{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --datastore-endpoint=https://fixture.invalid ; ignore_errors=no }']
+        k3s_datastore_preflight_internal_service_fields:
+          results:
+            - {rc: 0, stdout_lines: [masked, inactive, dead]}
+            - {rc: 0, stdout_lines: [bad-setting, inactive, dead]}
+      changed_when: false
+
+    - name: Run the ambiguous datastore parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+
+    - name: Require ambiguous datastore and fail-closed unsafe services
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_datastore_type == 'ambiguous'
+          - k3s_datastore_preflight_internal_k3s_service_stage == 'unknown'
+          - k3s_datastore_preflight_internal_tailscaled_service_stage == 'unknown'
+        fail_msg: Ambiguous datastore or unsafe service fixture did not fail closed.
+      changed_when: false

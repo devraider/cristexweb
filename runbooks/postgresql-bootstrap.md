@@ -15,7 +15,11 @@ The pod is a smoke path only: it is not HA, authoritative, or a production data
 store. It does not provision the five logical consumer databases/roles, backups,
 restores, migration state, or an Ansible-to-Argo handoff.
 
-Infisical Cloud remains the only value owner. The wrapper refuses to proceed until
+Infisical Cloud remains the only value owner. The separate source-only
+[Infisical database Secret materialization seam](infisical-database-secret-materialization.md)
+freezes the exact Universal Auth, project/environment/path, StaticSecret, VAP, RBAC,
+and target contracts; its check/apply and generated Secret sync remain
+**NOT RUN/BLOCKED**. This wrapper refuses to proceed until
 `shared-services/Secret/shared-postgresql-admin` has exactly `username` and `password`
 and `shared-services/Secret/shared-postgresql-tls` has exactly `ca.crt`, `tls.crt`, and
 `tls.key`, with type and labels proving Infisical ownership. Before any workload
@@ -24,7 +28,13 @@ mutation, the canonical-task-bound no-log validator requires a password of at le
 strong key, server-auth EKU, and the exact SANs `localhost`,
 `shared-postgresql.shared-services.svc`, and
 `shared-postgresql.shared-services.svc.cluster.local`. No Secret manifest or value is
-committed, logged, returned, or passed in argv.
+committed, logged, returned, or passed in argv. The separate source-only
+[Infisical Universal Auth/value lane](infisical-universal-auth-value-lane.md) reserves
+`/shared-services/postgresql` in project `cristexweb-infrastructure` and environment
+`bootstrap` with exact administrator/TLS keys, and seeds only
+`shared-services/shared-postgresql-infisical-universal-auth`. It does not create this
+PostgreSQL target Secret, provision a database, or authorize this runtime closure;
+its identities, values, upload, recovery, and rotation remain **NOT RUN/BLOCKED**.
 
 ## Source contract
 

@@ -1,0 +1,493 @@
+---
+- name: Reject externally supplied k3s datastore preflight internals
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied k3s datastore preflight
+      internal variable.
+  loop:
+    - k3s_datastore_preflight_internal_attestation_state
+    - k3s_datastore_preflight_internal_executable_state
+    - k3s_datastore_preflight_internal_config_state
+    - k3s_datastore_preflight_internal_data_dir_state
+    - k3s_datastore_preflight_internal_remote_path_states
+    - k3s_datastore_preflight_internal_controller_output_path_states
+    - k3s_datastore_preflight_internal_sqlite_marker_state
+    - k3s_datastore_preflight_internal_etcd_marker_state
+    - k3s_datastore_preflight_internal_version_result
+    - k3s_datastore_preflight_internal_exec_start_result
+    - k3s_datastore_preflight_internal_encryption_result
+    - k3s_datastore_preflight_internal_k3s_service_result
+    - k3s_datastore_preflight_internal_tailscaled_service_result
+    - k3s_datastore_preflight_internal_nodes_result
+    - k3s_datastore_preflight_internal_node_payload
+    - k3s_datastore_preflight_internal_node_parse_result
+    - k3s_datastore_preflight_internal_node_envelope_result
+    - k3s_datastore_preflight_internal_node_items_result
+    - k3s_datastore_preflight_internal_node_query_valid
+    - k3s_datastore_preflight_internal_ready_node_count
+    - k3s_datastore_preflight_internal_exec_start_server_marker
+    - k3s_datastore_preflight_internal_exec_start_agent_marker
+    - k3s_datastore_preflight_internal_config_arg_marker
+    - k3s_datastore_preflight_internal_config_arg_exact_marker
+    - k3s_datastore_preflight_internal_config_arg_other_marker
+    - k3s_datastore_preflight_internal_data_dir_arg_marker
+    - k3s_datastore_preflight_internal_data_dir_arg_exact_marker
+    - k3s_datastore_preflight_internal_etcd_marker
+    - k3s_datastore_preflight_internal_external_marker
+    - k3s_datastore_preflight_internal_sqlite_marker
+    - k3s_datastore_preflight_internal_datastore_type
+    - k3s_datastore_preflight_internal_version
+    - k3s_datastore_preflight_internal_executable_status
+    - k3s_datastore_preflight_internal_config_status
+    - k3s_datastore_preflight_internal_exec_start_status
+    - k3s_datastore_preflight_internal_data_dir_source
+    - k3s_datastore_preflight_internal_service_fields
+    - k3s_datastore_preflight_internal_k3s_service_stage
+    - k3s_datastore_preflight_internal_tailscaled_service_stage
+    - k3s_datastore_preflight_internal_encryption_header
+    - k3s_datastore_preflight_internal_encryption_status_values
+    - k3s_datastore_preflight_internal_encryption_enabled_marker
+    - k3s_datastore_preflight_internal_encryption_disabled_marker
+    - k3s_datastore_preflight_internal_rotation_values
+    - k3s_datastore_preflight_internal_encryption_command_status
+    - k3s_datastore_preflight_internal_encryption_status
+    - k3s_datastore_preflight_internal_rotation_stage
+    - k3s_datastore_preflight_internal_report
+    - k3s_datastore_preflight_internal_output_state
+    - k3s_datastore_preflight_internal_output_post_state
+  changed_when: false
+
+- name: Require the exact read-only k3s datastore preflight invocation
+  ansible.builtin.assert:
+    that:
+      - k3s_datastore_preflight_approved | bool
+      - k3s_datastore_preflight_elevated_requested | bool
+      - k3s_datastore_preflight_elevated_approved | bool
+      - ansible_check_mode
+      - ansible_diff_mode
+      - (ansible_limit | default('') | string) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - ansible_become | default(false) | bool
+      - k3s_datastore_preflight_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - k3s_datastore_preflight_k3s_binary == '/usr/local/bin/k3s'
+      - k3s_datastore_preflight_systemctl_binary == '/usr/bin/systemctl'
+      - k3s_datastore_preflight_config_path == '/etc/rancher/k3s/config.yaml'
+      - k3s_datastore_preflight_data_dir == '/var/lib/rancher/k3s/server/db'
+      - k3s_datastore_preflight_sqlite_marker_path == '/var/lib/rancher/k3s/server/db/state.db'
+      - k3s_datastore_preflight_etcd_marker_path == '/var/lib/rancher/k3s/server/db/etcd'
+      - >-
+        k3s_datastore_preflight_remote_path_components ==
+        ['/var', '/var/lib', '/var/lib/rancher', '/var/lib/rancher/k3s',
+        '/var/lib/rancher/k3s/server', '/var/lib/rancher/k3s/server/db']
+      - >-
+        k3s_datastore_preflight_controller_output_path_components ==
+        [playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname,
+        playbook_dir | ansible.builtin.dirname,
+        (playbook_dir | ansible.builtin.dirname) ~ '/.ansible']
+      - k3s_datastore_preflight_output_path == (playbook_dir ~ '/../.ansible/k3s-datastore-preflight.local.json')
+    fail_msg: >-
+      This source-only preflight requires explicit elevation approval, --check,
+      --diff, the exact crtxweb one-host limit, protected fixed paths, and the
+      canonical controller artifact destination.
+  changed_when: false
+
+- name: Require the canonical wrapper entrypoint
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_K3S_DATASTORE_PREFLIGHT_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_K3S_DATASTORE_PREFLIGHT_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_K3S_DATASTORE_PREFLIGHT_ATTESTATION_FILE') | length > 0
+      - k3s_datastore_preflight_controller_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - k3s_datastore_preflight_controller_user == lookup('ansible.builtin.env', 'USER')
+    fail_msg: >-
+      ENTRYPOINT_GUARD: use only the canonical non-passthrough preflight wrapper.
+  changed_when: false
+
+- name: Inspect the ephemeral preflight attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_K3S_DATASTORE_PREFLIGHT_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: k3s_datastore_preflight_internal_attestation_state
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run preflight attestation
+  ansible.builtin.assert:
+    that:
+      - k3s_datastore_preflight_internal_attestation_state.stat.exists | default(false)
+      - k3s_datastore_preflight_internal_attestation_state.stat.isreg | default(false)
+      - not (k3s_datastore_preflight_internal_attestation_state.stat.islnk | default(false))
+      - k3s_datastore_preflight_internal_attestation_state.stat.pw_name == k3s_datastore_preflight_controller_user
+      - k3s_datastore_preflight_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_K3S_DATASTORE_PREFLIGHT_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_K3S_DATASTORE_PREFLIGHT_TOKEN') ~ ':entrypoint'
+    fail_msg: >-
+      ENTRYPOINT_GUARD: refusing a missing, reusable, foreign-owned, symlinked,
+      or invalid preflight attestation.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect every fixed remote datastore path component
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ k3s_datastore_preflight_remote_path_components }}"
+  register: k3s_datastore_preflight_internal_remote_path_states
+  no_log: true
+
+- name: Require root-owned non-symlinked remote datastore path components
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isdir | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == 'root'
+      - item.stat.gr_name == 'root'
+      - item.stat.mode in ['0700', '0711', '0750', '0755']
+    fail_msg: >-
+      DATASTORE_PATH_GUARD: a fixed datastore path component is missing,
+      symlinked, foreign-owned, non-directory, or writable beyond the reviewed modes.
+  loop: "{{ k3s_datastore_preflight_internal_remote_path_states.results }}"
+  loop_control:
+    label: redacted-fixed-component
+  no_log: true
+
+- name: Inspect every canonical controller output path component
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ k3s_datastore_preflight_controller_output_path_components }}"
+  register: k3s_datastore_preflight_internal_controller_output_path_states
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require owned non-symlinked controller output path components
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isdir | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == k3s_datastore_preflight_controller_user
+      - item.stat.mode in ['0700', '0750', '0755']
+    fail_msg: >-
+      OUTPUT_PATH_GUARD: a canonical controller path component is missing,
+      symlinked, foreign-owned, non-directory, or writable beyond reviewed modes.
+  loop: "{{ k3s_datastore_preflight_internal_controller_output_path_states.results }}"
+  loop_control:
+    label: redacted-canonical-component
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect the fixed k3s executable metadata
+  ansible.builtin.stat:
+    path: "{{ k3s_datastore_preflight_k3s_binary }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: k3s_datastore_preflight_internal_executable_state
+  no_log: true
+
+- name: Inspect the fixed k3s configuration metadata without reading content
+  ansible.builtin.stat:
+    path: "{{ k3s_datastore_preflight_config_path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: k3s_datastore_preflight_internal_config_state
+  no_log: true
+
+- name: Inspect the fixed k3s datastore directory metadata without reading content
+  ansible.builtin.stat:
+    path: "{{ k3s_datastore_preflight_data_dir }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: k3s_datastore_preflight_internal_data_dir_state
+  no_log: true
+
+- name: Inspect the exact SQLite datastore marker without reading content
+  ansible.builtin.stat:
+    path: "{{ k3s_datastore_preflight_sqlite_marker_path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: k3s_datastore_preflight_internal_sqlite_marker_state
+  no_log: true
+
+- name: Inspect the exact embedded-etcd datastore marker without reading content
+  ansible.builtin.stat:
+    path: "{{ k3s_datastore_preflight_etcd_marker_path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: k3s_datastore_preflight_internal_etcd_marker_state
+  no_log: true
+
+- name: Read the fixed k3s version command without logging output
+  ansible.builtin.command:
+    argv:
+      - "{{ k3s_datastore_preflight_k3s_binary }}"
+      - --version
+  register: k3s_datastore_preflight_internal_version_result
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Read the fixed k3s service ExecStart property without logging output
+  ansible.builtin.command:
+    argv:
+      - "{{ k3s_datastore_preflight_systemctl_binary }}"
+      - show
+      - --property=ExecStart
+      - --value
+      - k3s.service
+  register: k3s_datastore_preflight_internal_exec_start_result
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Read the fixed k3s encryption status command without logging output
+  ansible.builtin.command:
+    argv:
+      - "{{ k3s_datastore_preflight_k3s_binary }}"
+      - secrets-encrypt
+      - status
+  register: k3s_datastore_preflight_internal_encryption_result
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Read the fixed k3s service health properties without logging output
+  ansible.builtin.command:
+    argv:
+      - "{{ k3s_datastore_preflight_systemctl_binary }}"
+      - show
+      - --property=LoadState,ActiveState,SubState
+      - --value
+      - "{{ item }}"
+  loop:
+    - k3s.service
+    - tailscaled.service
+  loop_control:
+    label: service-health
+  register: k3s_datastore_preflight_internal_service_fields
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Read the fixed node-list command without logging identities or output
+  ansible.builtin.command:
+    argv:
+      - "{{ k3s_datastore_preflight_k3s_binary }}"
+      - kubectl
+      - --kubeconfig
+      - "{{ k3s_datastore_preflight_kubeconfig }}"
+      - get
+      - nodes
+      - --output=json
+  register: k3s_datastore_preflight_internal_nodes_result
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Parse and project private k3s datastore preflight evidence
+  ansible.builtin.include_tasks: parse.yml
+- name: Build the exact sanitized preflight report
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_report:
+      schema_version: 1
+      evidence_class: read-only-k3s-datastore-encryption-preflight
+      invocation:
+        check_mode: "{{ ansible_check_mode | bool }}"
+        diff_mode: "{{ ansible_diff_mode | bool }}"
+        one_host_limit: "{{ (ansible_limit | default('') | string) == 'crtxweb' and (ansible_play_hosts_all | length == 1) }}"
+        elevated_requested: "{{ k3s_datastore_preflight_elevated_requested | bool }}"
+        elevated_approved: "{{ k3s_datastore_preflight_elevated_approved | bool }}"
+      k3s:
+        version: "{{ k3s_datastore_preflight_internal_version }}"
+        executable_status: "{{ k3s_datastore_preflight_internal_executable_status }}"
+        config_status: "{{ k3s_datastore_preflight_internal_config_status }}"
+        exec_start_status: "{{ k3s_datastore_preflight_internal_exec_start_status }}"
+        data_dir_source: "{{ k3s_datastore_preflight_internal_data_dir_source }}"
+      datastore:
+        type: "{{ k3s_datastore_preflight_internal_datastore_type }}"
+        sqlite_marker_present: "{{ k3s_datastore_preflight_internal_sqlite_marker | bool }}"
+        etcd_marker_present: "{{ k3s_datastore_preflight_internal_etcd_marker | bool }}"
+        external_endpoint_explicit: "{{ k3s_datastore_preflight_internal_external_marker | bool }}"
+      encryption:
+        command_status: "{{ k3s_datastore_preflight_internal_encryption_command_status }}"
+        status: "{{ k3s_datastore_preflight_internal_encryption_status }}"
+        rotation_stage: "{{ k3s_datastore_preflight_internal_rotation_stage }}"
+      health:
+        k3s_service: "{{ k3s_datastore_preflight_internal_k3s_service_stage }}"
+        tailscaled_service: "{{ k3s_datastore_preflight_internal_tailscaled_service_stage }}"
+        node_query: "{{ 'available' if k3s_datastore_preflight_internal_node_query_valid | bool else 'unavailable' }}"
+        node_count: >-
+          {{ (k3s_datastore_preflight_internal_node_payload.get('items', []) |
+              length | int)
+             if k3s_datastore_preflight_internal_node_query_valid | bool else 0 }}
+        ready_node_count: "{{ k3s_datastore_preflight_internal_ready_node_count | int if k3s_datastore_preflight_internal_node_query_valid | bool else 0 }}"
+        node_stage: >-
+          {{ 'unavailable' if not (k3s_datastore_preflight_internal_node_query_valid | bool) else
+             'ready' if (
+               (k3s_datastore_preflight_internal_node_payload.get('items', []) | length > 0) and
+               (k3s_datastore_preflight_internal_ready_node_count | int == k3s_datastore_preflight_internal_node_payload.get('items', []) | length)
+             ) else
+             'partial' if k3s_datastore_preflight_internal_ready_node_count | int > 0 else
+             'not_ready' }}
+      disclosure_controls:
+        remote_mutation: false
+        backup_or_restore: false
+        encryption_mutation: false
+        secret_values: false
+        key_material: false
+        token_values: false
+        config_content: false
+        kubeconfig_content: false
+        raw_command_output: false
+        node_identifiers: false
+        paths_or_urls: false
+  changed_when: false
+  no_log: true
+
+- name: Validate the sanitized report schema and fail closed on unknown stages
+  ansible.builtin.assert:
+    that:
+      - k3s_datastore_preflight_internal_report.schema_version == 1
+      - k3s_datastore_preflight_internal_report.evidence_class == 'read-only-k3s-datastore-encryption-preflight'
+      - k3s_datastore_preflight_internal_report.invocation.check_mode | bool
+      - k3s_datastore_preflight_internal_report.invocation.diff_mode | bool
+      - k3s_datastore_preflight_internal_report.invocation.one_host_limit | bool
+      - k3s_datastore_preflight_internal_report.invocation.elevated_requested | bool
+      - k3s_datastore_preflight_internal_report.invocation.elevated_approved | bool
+      - k3s_datastore_preflight_internal_report.k3s.executable_status in ['safe', 'absent', 'unsafe']
+      - k3s_datastore_preflight_internal_report.k3s.config_status in ['present_safe', 'absent', 'unsafe']
+      - k3s_datastore_preflight_internal_report.k3s.exec_start_status in ['available', 'unavailable', 'unsafe']
+      - k3s_datastore_preflight_internal_report.k3s.data_dir_source in ['default_no_config', 'explicit_arg', 'config_override_unknown', 'unknown']
+      - k3s_datastore_preflight_internal_report.datastore.type in ['sqlite', 'embedded_etcd', 'external', 'ambiguous', 'unknown']
+      - k3s_datastore_preflight_internal_report.encryption.command_status in ['available', 'unavailable', 'unknown']
+      - k3s_datastore_preflight_internal_report.encryption.status in ['enabled', 'disabled', 'unknown', 'unavailable']
+      - k3s_datastore_preflight_internal_report.encryption.rotation_stage in ['finished', 'active', 'pending', 'unknown', 'not_applicable']
+      - k3s_datastore_preflight_internal_report.health.k3s_service in ['running', 'stopped', 'absent', 'unknown']
+      - k3s_datastore_preflight_internal_report.health.tailscaled_service in ['running', 'stopped', 'absent', 'unknown']
+      - k3s_datastore_preflight_internal_report.health.node_query in ['available', 'unavailable']
+      - k3s_datastore_preflight_internal_report.health.node_stage in ['ready', 'partial', 'not_ready', 'unavailable']
+      - k3s_datastore_preflight_internal_report.health.node_count is number
+      - k3s_datastore_preflight_internal_report.health.ready_node_count is number
+      - k3s_datastore_preflight_internal_report.disclosure_controls.remote_mutation == false
+      - k3s_datastore_preflight_internal_report.disclosure_controls.backup_or_restore == false
+      - k3s_datastore_preflight_internal_report.disclosure_controls.encryption_mutation == false
+      - k3s_datastore_preflight_internal_report.disclosure_controls.secret_values == false
+      - k3s_datastore_preflight_internal_report.disclosure_controls.key_material == false
+      - k3s_datastore_preflight_internal_report.disclosure_controls.token_values == false
+      - k3s_datastore_preflight_internal_report.disclosure_controls.config_content == false
+      - k3s_datastore_preflight_internal_report.disclosure_controls.kubeconfig_content == false
+      - k3s_datastore_preflight_internal_report.disclosure_controls.raw_command_output == false
+      - k3s_datastore_preflight_internal_report.disclosure_controls.node_identifiers == false
+      - k3s_datastore_preflight_internal_report.disclosure_controls.paths_or_urls == false
+    fail_msg: Refusing an unknown or malformed preflight stage.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the fixed controller artifact destination
+  ansible.builtin.stat:
+    path: "{{ k3s_datastore_preflight_output_path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: k3s_datastore_preflight_internal_output_state
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Refuse an unsafe existing controller artifact destination
+  ansible.builtin.assert:
+    that:
+      - not (k3s_datastore_preflight_internal_output_state.stat.islnk | default(false))
+      - >-
+        not (k3s_datastore_preflight_internal_output_state.stat.exists | default(false)) or
+        (k3s_datastore_preflight_internal_output_state.stat.isreg | default(false))
+      - >-
+        not (k3s_datastore_preflight_internal_output_state.stat.exists | default(false)) or
+        k3s_datastore_preflight_internal_output_state.stat.pw_name ==
+        k3s_datastore_preflight_controller_user
+      - >-
+        not (k3s_datastore_preflight_internal_output_state.stat.exists | default(false)) or
+        k3s_datastore_preflight_internal_output_state.stat.mode == '0600'
+      - >-
+        not (k3s_datastore_preflight_internal_output_state.stat.exists | default(false)) or
+        k3s_datastore_preflight_internal_output_state.stat.nlink == 1
+    fail_msg: >-
+      Refusing a symlinked, non-regular, foreign-owned, multiply-linked, or
+      non-private existing preflight artifact destination.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Write only the sanitized mode-0600 controller artifact
+  ansible.builtin.template:
+    src: report.json.j2
+    dest: "{{ k3s_datastore_preflight_output_path }}"
+    mode: '0600'
+    owner: "{{ k3s_datastore_preflight_controller_user }}"
+    backup: false
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  diff: false
+  changed_when: true
+  no_log: true
+
+- name: Inspect the written controller artifact destination
+  ansible.builtin.stat:
+    path: "{{ k3s_datastore_preflight_output_path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: k3s_datastore_preflight_internal_output_post_state
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Require the exact written controller artifact metadata
+  ansible.builtin.assert:
+    that:
+      - k3s_datastore_preflight_internal_output_post_state.stat.exists | default(false)
+      - k3s_datastore_preflight_internal_output_post_state.stat.isreg | default(false)
+      - not (k3s_datastore_preflight_internal_output_post_state.stat.islnk | default(false))
+      - k3s_datastore_preflight_internal_output_post_state.stat.pw_name == k3s_datastore_preflight_controller_user
+      - k3s_datastore_preflight_internal_output_post_state.stat.mode == '0600'
+      - k3s_datastore_preflight_internal_output_post_state.stat.nlink == 1
+    fail_msg: Refusing an inexact sanitized preflight artifact after write.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true

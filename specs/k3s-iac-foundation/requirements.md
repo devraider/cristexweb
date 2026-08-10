@@ -21,7 +21,7 @@
 | ID | Requirement |
 |---|---|
 | KIF-007 | Ansible host changes are bounded, reviewable in check/diff mode, idempotent, and preserve SSH/Tailscale recovery access. |
-| KIF-008 | The existing k3s datastore, exact Node kubelet version, CNI/interface indicators, NetworkPolicy objects, DNS, Traefik, StorageClass, disks, and resource capacity are discovered before design choices are applied; CNI behavior, NetworkPolicy enforcement, and component compatibility require later approved evidence and are not inferred from object listings alone. |
+| KIF-008 | The existing k3s datastore, exact Node kubelet version, CNI/interface indicators, NetworkPolicy objects, DNS, Traefik, StorageClass, disks, and resource capacity are discovered before design choices are applied; a separate source-only k3s datastore/encryption preflight may validate only fixed version/config/datastore/encryption stages and bounded service/Node health; CNI behavior, NetworkPolicy enforcement, and component compatibility require later approved evidence and are not inferred from object listings alone. |
 | KIF-009 | Bundled k3s Traefik remains the sole ingress controller until an explicitly approved replacement migration. |
 
 ## Networking and exposure
@@ -37,7 +37,7 @@
 | ID | Requirement |
 |---|---|
 | KIF-013 | Git, OpenTofu state/plans, Argo parameters, CI logs, examples, and documentation contain no plaintext runtime secret values. |
-| KIF-014 | Infisical Cloud initially provides separate DEV, PROD, and infrastructure scopes/identities with least-privilege Kubernetes service accounts; only its Kubernetes Operator is bootstrapped, in `shared-services`, and self-hosted Infisical is deferred. Keycloak is a separate deployment in `shared-services`; it authenticates and emits groups, Argo RBAC authorizes Argo actions, and Kubernetes RBAC independently constrains controllers; direct Argo OIDC is selected with Dex absent. |
+| KIF-014 | Infisical Cloud initially provides separate DEV, PROD, and infrastructure scopes/identities with least-privilege Kubernetes service accounts; only its Kubernetes Operator is bootstrapped, in `shared-services`, and self-hosted Infisical is deferred. The source-only database Secret seam freezes one shared Connection, separate PostgreSQL/MongoDB Universal Auth identities, two path-scoped StaticSecrets, four exact orphaned target contracts, namespace-scoped fail-closed admission, and additive writer RBAC; values, credential creation, sync, rotation, and runtime remain blocked. Keycloak is a separate deployment in `shared-services`; it authenticates and emits groups, Argo RBAC authorizes Argo actions, and Kubernetes RBAC independently constrains controllers; direct Argo OIDC is selected with Dex absent. |
 | KIF-015 | Bootstrap credentials, Keycloak administrator and OIDC client material, Infisical machine authentication, and application encryption keys have documented, off-node, tested recovery and rotation procedures. |
 
 ## Environment and data isolation
@@ -49,7 +49,7 @@
 | KIF-018 | One shared MongoDB engine provides separate DEV/PROD databases, database-scoped users, Infisical-owned credentials, migration scopes, and backup scopes. Each workload user is denied the other environment plus broad any-database and user/role-administration privileges. The initial source-only pod-running closure is explicitly standalone and non-authoritative; database users, logical isolation, replica-set/transaction/HA semantics, backup/restore, and runtime approval remain separate gates. |
 | KIF-019 | Shared-engine failure and contention risks are documented. The database source profile fixes NVMe `local-path`, one `ReadWriteOnce` PVC per engine, PostgreSQL 40 GiB, MongoDB 80 GiB, and per-engine 500m/1 GiB requests plus 2 CPU/3 GiB limits. No consumer receives a separate engine/PVC; present-only PostgreSQL and MongoDB object source exists, while connection limits, trust, recovery, check/apply/idempotence, and authoritative runtime acceptance remain blocked. |
 | KIF-020 | Redis is environment-local. Exactly one shared RabbitMQ engine belongs in `shared-services`; CristexHub DEV/PROD receive dedicated users, vhosts, permissions, limits, Infisical-owned credentials, and recovery scopes with negative cross-vhost/admin/public-management tests. Future consumers require reviewed exact policy/test/runbook changes; wildcard or dynamic admission is forbidden. |
-| KIF-021 | NetworkPolicy and RBAC deny unapproved cross-namespace and control-plane access while allowing required DNS and service flows. |
+| KIF-021 | NetworkPolicy and RBAC deny unapproved cross-namespace and control-plane access while allowing required DNS and service flows. Infisical Secret VAPs are namespace-scoped and match only the exact Operator identity or reviewed target names; validation requires the Operator identity plus exact target contracts, preventing foreign target writers, unreviewed Operator names, and Argo/database cross-policy interference. |
 
 ## Delivery
 

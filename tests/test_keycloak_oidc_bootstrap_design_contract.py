@@ -150,9 +150,13 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "ansible/bin/bootstrap-postgresql",
+                "ansible/bin/provision-shared-postgresql",
                 "ansible/playbooks/bootstrap_postgresql.yml",
+                "ansible/playbooks/provision_shared_postgresql.yml",
                 "ansible/roles/postgresql_bootstrap/defaults/main.yml",
                 "ansible/roles/postgresql_bootstrap/tasks/main.yml",
+                "ansible/roles/shared_postgresql_provisioning/defaults/main.yml",
+                "ansible/roles/shared_postgresql_provisioning/tasks/main.yml",
             },
             {
                 str(path.relative_to(ROOT))
@@ -168,6 +172,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "policies/shared-stateful-backup-architecture.yml",
             "policies/infisical-operator-privileged-prerequisites.yml",
             "policies/infisical-operator-implementation-profile.yml",
+            "policies/infisical-secret-zero-lane.yml",
             "vendor/argocd/10.3.0/SHA256SUMS",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz.prov",
@@ -182,6 +187,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "infisical-operator",
             "argocd",
             "infisical-argocd-secrets",
+            "infisical-database-secrets",
             "mongodb",
             "postgresql",
         ):
@@ -190,6 +196,11 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
                 for path in (ROOT / "ansible/files/components" / component).rglob("*")
                 if path.is_file()
             )
+        expected_public_inputs.update(
+            str(path.relative_to(ROOT / "ansible/files"))
+            for path in (ROOT / "ansible/files/database-provisioning").rglob("*")
+            if path.is_file()
+        )
         self.assertEqual(
             expected_public_inputs,
             {

@@ -1,0 +1,27 @@
+---
+- name: Reject direct Universal Auth seed action-only mutation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    infisical_universal_auth_seed_approved: true
+  tasks:
+    - name: Attempt one exact credential without the canonical role task source
+      infisical_universal_auth_seed_guarded_k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: argocd-infisical-universal-auth
+            namespace: argocd
+            labels:
+              app.kubernetes.io/managed-by: ansible
+              app.kubernetes.io/part-of: infisical-operator
+              cristex.io/component: infisical-runtime-auth
+              cristex.io/value-owner: infisical-cloud
+          type: Opaque
+          data:
+            clientId: Y2xpZW50LWlk
+            clientSecret: Y2xpZW50LXNlY3JldA==
+        kubeconfig: /etc/rancher/k3s/k3s.yaml

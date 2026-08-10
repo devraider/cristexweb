@@ -299,7 +299,8 @@ class RcloneHostContractTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("forged preflight bindings are rejected", result.stdout)
         manual_qa = (ROOT / "specs/k3s-iac-foundation/manual-qa.md").read_text()
-        self.assertIn("the other fifteen cases remain", manual_qa)
+        self.assertIn("the other fourteen cases", manual_qa)
+        self.assertIn("MQA-14 and MQA-17 are **PARTIAL**", manual_qa)
         self.assertEqual(1, manual_qa.count("| MQA-17 |"))
         self.assertIn("## MQA-17 — Host rclone", manual_qa)
 

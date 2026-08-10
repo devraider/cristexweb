@@ -305,9 +305,13 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual(
             {
                 "ansible/bin/bootstrap-postgresql",
+                "ansible/bin/provision-shared-postgresql",
                 "ansible/playbooks/bootstrap_postgresql.yml",
+                "ansible/playbooks/provision_shared_postgresql.yml",
                 "ansible/roles/postgresql_bootstrap/defaults/main.yml",
                 "ansible/roles/postgresql_bootstrap/tasks/main.yml",
+                "ansible/roles/shared_postgresql_provisioning/defaults/main.yml",
+                "ansible/roles/shared_postgresql_provisioning/tasks/main.yml",
             },
             {
                 str(path.relative_to(ROOT))
@@ -318,9 +322,13 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual(
             {
                 "ansible/bin/bootstrap-mongodb",
+                "ansible/bin/provision-shared-mongodb",
                 "ansible/playbooks/bootstrap_mongodb.yml",
+                "ansible/playbooks/provision_shared_mongodb.yml",
                 "ansible/roles/mongodb_bootstrap/defaults/main.yml",
                 "ansible/roles/mongodb_bootstrap/tasks/main.yml",
+                "ansible/roles/shared_mongodb_provisioning/defaults/main.yml",
+                "ansible/roles/shared_mongodb_provisioning/tasks/main.yml",
             },
             {
                 str(path.relative_to(ROOT))
@@ -346,8 +354,13 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "bootstrap_infisical_proxy_secrets.yml",
                 "bootstrap-infisical-argocd-secrets",
                 "bootstrap_infisical_argocd_secrets.yml",
+                "bootstrap-infisical-database-secrets",
+                "bootstrap_infisical_database_secrets.yml",
                 "transfer-infisical-proxy-recovery",
                 "transfer_infisical_proxy_recovery.yml",
+                "seed-infisical-universal-auth",
+                "seed_infisical_universal_auth.yml",
+                "upload-infisical-bootstrap-values",
                 "main.yml",
             },
             {path.name for path in operational if "infisical" in str(path).lower()},

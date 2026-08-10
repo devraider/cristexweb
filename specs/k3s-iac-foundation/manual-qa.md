@@ -7,8 +7,8 @@ environment, redacted evidence location, result, and rollback outcome. Never pas
 passwords, tokens, cookies, kubeconfigs, connection strings, private keys, database
 rows, personal data, or full secret-bearing command output.
 
-MQA-01 now **PASSES** and MQA-14 is **PARTIAL**; the other fifteen cases remain
-**PENDING** because their hosted-runtime, rollback, isolation, recovery, or exposure
+MQA-01 now **PASSES**; MQA-14 and MQA-17 are **PARTIAL**; the other fourteen cases
+remain **PENDING** because their hosted-runtime, rollback, isolation, recovery, or exposure
 evidence does not yet exist. Separate approved non-elevated and elevated Ansible runs produced reviewed
 host and cluster-indicator reports. A
 separately approved two-package dependency bootstrap completed and all nine exact
@@ -98,11 +98,20 @@ same expired controller OAuth. That transfer path is superseded by guarded host
 rclone source. MQA-03 remains pending until host install/idempotence, host OAuth,
 encrypted transfer/readback/controller decrypt, proxy Secret recovery/write,
 Operator check/apply/idempotence, live admission/RBAC/traffic,
-Universal Auth, ConfigMap sync, rotation, revocation, and recovery pass.
-Argo CD, cloudflared, Infisical runtime, databases, application workloads, and routes
-are not installed, so this source increment closes no manual case. No deployment, replacement
+Universal Auth, ConfigMap sync, rotation, revocation, and recovery pass. A separate
+source-only database Secret materialization seam freezes 15 value-free objects, two
+engine-specific Auth/credential identities, two path-scoped StaticSecrets, eleven
+engine/consumer target contracts, eight scoped operator-or-target VAP/bindings with operator-only
+validation, additive writer RBAC, and offline negative/hash contracts; its values,
+check/apply, sync, rotation, recovery, and runtime remain blocked. This source does
+not close a manual case. Argo CD, cloudflared, Infisical runtime, databases,
+application workloads, and routes are not installed, so this source increment closes no manual case. No deployment, replacement
 recovery proof, or complete manual runtime validation
-occurred. MQA-13 remains pending specifically
+occurred. A separate source-only k3s datastore/encryption preflight is offline-
+validated only: its check-only wrapper, fixed read-only argv, strict parser,
+mode-`0600` sanitized artifact, and synthetic disclosure fixture prove no host,
+backup, restore, encryption, cluster, or Secret mutation. It has not been run
+against the host and closes no manual QA case. MQA-13 remains pending specifically
 because the managed-profile rollback path has not been executed and verified, even
 though warning-free fresh-session behavior passed. These results do not satisfy the
 remaining manual cases. The offline `shared-services` source correction adds no live

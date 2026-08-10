@@ -80,15 +80,24 @@ must never receive the provisioning administrator credential.
 The selected ownership direction is an idempotent Ansible bootstrap followed by an
 object-by-object Argo handoff. Ansible must use recoverable Infisical-backed
 administrator material, prove exact grants with negative tests, and stop reconciling
-each handed-off object before Argo starts. The workflow remains unimplemented and
-unproved; dual reconciliation is forbidden.
+each handed-off object before Argo starts. The separate source-only
+[logical provisioning lane](shared-database-provisioning.md) freezes the seven empty
+reservations and guarded check/apply wrappers, but its runtime, authorization,
+Infisical recovery, backup/restore, and handoff evidence remain blocked; dual
+reconciliation is forbidden.
 
-Both bootstrap roles validate the two exact precreated Secret objects before any
-workload mutation. A canonical-task-bound, no-log action plugin decodes values only in
-memory and rejects short credentials, malformed or ambiguous PEM, non-current or weak
+Both bootstrap roles validate the two exact Infisical-owned target Secret objects before
+any workload mutation. A canonical-task-bound, no-log action plugin decodes values only
+in memory and rejects short credentials, malformed or ambiguous PEM, non-current or weak
 certificates/keys, non-CA issuers, missing server-auth EKU, mismatched private keys,
 non-direct issuance, and any SAN set outside the exact policy. It does not create,
-update, log, or return Secret values.
+update, log, or return Secret values. The separate source-only
+[Infisical database Secret materialization seam](infisical-database-secret-materialization.md)
+now freezes one shared Connection, separate PostgreSQL/MongoDB Auth and Universal Auth
+identities, two StaticSecrets, exact eleven engine/per-consumer target contracts,
+eight scoped fail-closed VAP/bindings, and additive writer RBAC; its check/apply,
+sync, values, and runtime remain
+**NOT RUN/BLOCKED**.
 
 ## Executable PostgreSQL source closure
 
@@ -118,11 +127,12 @@ storage operations are outside the wrapper.
 
 The MongoDB image is pinned to
 `docker.io/library/mongo@sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4`.
-The only runtime values are expected in the precreated Infisical-owned
+The only runtime values are expected in the Infisical-owned
 `shared-mongodb-auth` (`username`, `password`) and `shared-mongodb-tls` (`ca.crt`,
 `tls.pem`) Secrets. The latter's `tls.pem` is the concatenated server certificate and
-private key consumed by `--tlsCertificateKeyFile`; neither Secret is rendered or
-created by Ansible. The TLS Secret is mounted only into a same-digest `prepare-tls`
+private key consumed by `--tlsCertificateKeyFile`; both target identities are frozen
+by the separate source-only Infisical materialization seam and remain unmaterialized
+at runtime. The TLS Secret is mounted only into a same-digest `prepare-tls`
 init container. It runs as uid/gid `999`, copies the projected source into a memory
 `emptyDir`, applies mode `0400` to the private-key-bearing `tls.pem` and `0444` to
 `ca.crt`, and verifies `stat` ownership/mode (`999:400` and `999:444`) before the
@@ -189,9 +199,10 @@ successful backup job alone is not recovery evidence.
 ## Executable-source stop gate
 
 This increment adds only source-ready PostgreSQL and MongoDB manifests, guarded
-Ansible roles, playbooks, wrappers, action guards, and offline contracts. It adds no Secret value,
-Infisical custom resource, Helm value, Argo Application, Kustomize overlay, route,
-provider resource, backup job, or generated credential. No host, registry, Kubernetes
+Ansible roles, playbooks, wrappers, action guards, and offline contracts, plus the
+separate value-free Infisical database Secret materialization seam. It adds no Secret
+value, Kubernetes Secret manifest, Helm value, Argo Application, Kustomize overlay,
+route, provider resource, backup job, or generated credential. No host, registry, Kubernetes
 API, provider, Infisical, Helm, or runtime operation was authorized or performed.
 
 Stop before any runtime operation until all of the following are approved or proved:
@@ -206,5 +217,9 @@ Stop before any runtime operation until all of the following are approved or pro
 8. separate check, first apply, idempotence, Secret, stateful-service, and runtime approvals;
 9. replica-set/transaction/HA and authoritative-data decisions before any real client or data.
 
-The source closure is not runtime evidence and does not authorize Kubernetes apply or
-Secret operations.
+The logical provisioning scripts and helper resources are source-only as well. They
+require exact precreated Infisical consumer credential Secrets, never generate values,
+never use secret-bearing argv, never delete databases/users/PVCs, and clean temporary
+UID-bound helpers. PROD remains inactive and MongoDB remains non-authoritative. The
+source closure is not runtime evidence and does not authorize Kubernetes apply,
+Secret operations, database/user provisioning, backup, restore, or Argo handoff.

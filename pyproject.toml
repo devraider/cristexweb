@@ -5,6 +5,7 @@ description = "Pinned local controller tooling for CristexWeb infrastructure"
 requires-python = ">=3.13"
 dependencies = [
     "ansible-core==2.19.0",
+    "bcrypt==5.0.0",
 ]
 
 [dependency-groups]

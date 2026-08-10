@@ -2,20 +2,28 @@
 
 state: agent:in-progress
 phase: implementing
-build: 222 offline contracts, 18 playbook syntax checks, and production ansible-lint pass; Infisical seam and PostgreSQL/MongoDB source-ready; all runtime blocked
-date: 2026-08-10
+build: 253/253 offline contracts, 23/23 playbook syntax checks, executable parser fixtures, and production ansible-lint (162 files) pass; all new runtime remains blocked
+date: 2026-08-11
 deploy_required_after_acceptance: yes
 
 note: |
   Operational implementation is limited to read-only Ansible discovery, the
   executed two-package dependency bootstrap, executed group-scoped k3s administrator
   access, executed user-scoped kubectl client defaults, and the executed one-reboot
-  recovery verifier. Python is limited to offline tests plus eleven exact-scope
-  Ansible action plugins (the prior five mutation guards, two focused
-  host-rclone boundary guards, two no-log Secret cryptographic validators, and
-  two standalone MongoDB/PostgreSQL object-closure guards);
+  recovery verifier. Python is limited to offline tests plus fifteen exact-scope
+  Ansible action plugins (seven exact mutation guards, two focused host-rclone
+  boundary guards, two no-log Secret cryptographic validators, two standalone
+  MongoDB/PostgreSQL object-closure guards, and two fixed logical-provisioning
+  execution/Kubernetes guards);
   no general operational Python
-  or collector exists. One
+  or collector exists. A separate source-only, check-only
+  `k3s_datastore_preflight` role/playbook/wrapper is now offline-validated with
+  fixed read-only argv under `no_log`, strict fail-closed parsers, exact
+  one-host/check/diff/elevation gates, a deterministic mode-`0600` controller
+  artifact, and synthetic disclosure fixtures. It reports only the schema-v1
+  validated version/stages, datastore markers, encryption stage, service/Node
+  health, and disclosure-control booleans; it has not contacted a host and does
+  not mutate backup, restore, encryption, host, cluster, or Secret state. One
   explicitly approved SSH ping and
   non-elevated one-host check/diff run passed and generated the ignored mode-0600
   host-only report. The approved bootstrap directly requested only
@@ -220,7 +228,18 @@ note: |
   freezes one same-Namespace Universal Auth reference, one
   Connection/Auth/StaticSecret closure, exactly three orphaned targets, additive
   exact-name Secret/workload-list RBAC, and fail-closed admission. No credential
-  Secret or value is committed and its runtime remains blocked. The first local
+  Secret or value is committed and its runtime remains blocked. A separate source-only
+  [Infisical database Secret materialization seam](../../runbooks/infisical-database-secret-materialization.md)
+  freezes exactly 15 value-free objects: one shared Connection, separate PostgreSQL/
+  MongoDB Auth and Universal Auth identities, two path-scoped StaticSecrets, eight
+  namespace-scoped fail-closed VAP/bindings, and additive writer RBAC. Its eleven
+  engine and per-consumer Secret contracts align with the exact value-free ownership
+  and key/type contracts. The corrected Argo and
+  database Secret VAPs match only their namespace plus `(operator identity OR exact
+  target-name set)` and validate the exact operator/target contract, so foreign writers,
+  unreviewed Operator names, and cross-policy interference are blocked. Values,
+  credential creation, check/apply, sync, rotation, recovery, and runtime remain
+  **NOT RUN/BLOCKED**. The first local
   secret-zero run generated private
   recovery material and reached Google Drive OAuth, then stopped before Ansible/
   Kubernetes on `invalid_grant`. The discovered plaintext temp residue and unused
@@ -313,7 +332,19 @@ note: |
   shared MongoDB engine belong in `shared-services`.
   No external infrastructure resource, Kubernetes Secret/data, image publication,
   or component deployment operation was completed. In addition to historical public
-  source/Actions reads, the recorded proxy secret-zero attempt generated local
+  source/Actions reads, the final integrated source validation passed 253/253 offline
+  contracts, all 23 playbook syntax checks, executable datastore parser fixtures,
+  production-profile lint with zero findings across 162 processed files, Python and
+  shell syntax, and diff checks. The k3s datastore/encryption preflight now treats
+  unread configuration as unknown, binds only default/exact data directories,
+  normalizes encryption status, rejects stage-only evidence, and protects every fixed
+  remote/controller path component. The Universal Auth seed additionally requires a
+  fresh maximum-24-hour recovery attestation bound to the exact preflight SHA-256,
+  k3s version, and datastore type. No such attestation exists, so credential-bearing
+  Secret writes remain blocked. Logical provisioning uses file-mounted credentials,
+  exact database/DNS-only helper egress, full canonical scope assertions, data-empty
+  adoption checks, and PostgreSQL role-only interruption repair; its runtime remains
+  unrun. The recorded proxy secret-zero attempt generated local
   private material and made one failed Google Drive OAuth refresh request; it stopped
   before upload or Kubernetes mutation and its plaintext residue was removed. The hosted runner validated repository
   source only. Object listings and source/hosted CI do not prove replacement

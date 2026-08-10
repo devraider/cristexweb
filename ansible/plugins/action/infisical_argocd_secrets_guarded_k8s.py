@@ -15,18 +15,20 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 
 _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
     ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-alternate-target-boundary"): 'e83729093168045791912a4802ab4d930250241dfd6186181eb89d51ca8955d8',
-    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-secret-write-boundary"): '723f7958ae2bb48f8ec54d8272592f0b1963be05b25485b7442e1309bab87471',
-    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-static-secret-boundary"): 'f24ea8526f398a25bfb7ac8867ecfa7a7358643f8d5a5a2b0d1d30b91c21038b',
+    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-secret-write-boundary"): '9f18768a400a1e235bc9fc8d5e67fa14df01052613522c8108c1429510482e33',
+    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-static-secret-boundary"): '7b7d326e847714f538c470ead7a3454b1f469cd81c35a5d82158a08a2ef81fc0',
+    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-source-boundary"): '700a7ee8542805d4ece728f0abe4b9efd70d1982160eb0f179b25b537ecf0b0a',
     ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicyBinding", "", "infisical-argocd-alternate-target-boundary"): '9fe628a53a33301c095b1a6ac3c6007fde1377ced3e1e5800960f79133952477',
     ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicyBinding", "", "infisical-argocd-secret-write-boundary"): '07ebbfc58d15281eed817e054f7d6483bbed21a99b0d10deb9322cf0e3fbc631',
     ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicyBinding", "", "infisical-argocd-static-secret-boundary"): '11bf7f48ae4e746136a8d64fe6c1b8b090738424c06eaafaf00d0f79fd32826c',
+    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicyBinding", "", "infisical-argocd-source-boundary"): 'b3b105477003f52c56a1dd999adc71891a3a808940e36917359e14fb9cbf661c',
     ("rbac.authorization.k8s.io/v1", "Role", "argocd", "infisical-argocd-secret-writer"): '625fab82d18ec8fe8ec3b50d509d3f9415cb36e13ac52d736ce2d3877ffee3bd',
     ("rbac.authorization.k8s.io/v1", "RoleBinding", "argocd", "infisical-argocd-secret-writer"): '355d7899cdcbc9a86c7bc21741d46f99d3c0d4905978ec44964b24c6ac69713b',
     ("secrets.infisical.com/v1beta1", "InfisicalAuth", "argocd", "argocd-infisical-auth"): '88518d0fcc938aea1109edba6ac793c7a8b35d65c98160556b360f450c605c26',
     ("secrets.infisical.com/v1beta1", "InfisicalConnection", "argocd", "infisical-cloud"): 'e8539e82bbb91f590d829610c3e4c78b640cf8571a8d58f1b7e957e7123fa41c',
     ("secrets.infisical.com/v1beta1", "InfisicalStaticSecret", "argocd", "argocd-infisical-secrets"): 'bfded8e5ce5c15a5fef44c81b6326e087b23c266049627e0345e4035836b109c'
 }
-_EXPECTED_IDENTITY_SET_SHA256 = "bbfddcc3da0de1de6da0632fb51fb7a364960f7080e3eeca4094a267b27e1698"
+_EXPECTED_IDENTITY_SET_SHA256 = "23623b2be563e41d19483994371f67c3ab9d2f2e94919cbd22588d32883aca33"
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 _EXPECTED_TASK_SOURCE = (
     "/Users/paul/Projects/cristexweb/ansible/roles/"
@@ -85,10 +87,10 @@ class ActionModule(KubernetesActionModule):
             isinstance(binding, dict)
             and binding.get("attestation_sha256")
             == hashlib.sha256(token.encode()).hexdigest()
-            and int(binding.get("object_count", -1)) == 11
+            and int(binding.get("object_count", -1)) == 13
             and binding.get("identity_set_sha256") == _EXPECTED_IDENTITY_SET_SHA256
-            and int(binding.get("prestate_count", -1)) == 11
-            and int(binding.get("admission_count", -1)) == 6
+            and int(binding.get("prestate_count", -1)) == 13
+            and int(binding.get("admission_count", -1)) == 8
             and int(binding.get("rbac_count", -1)) == 2
             and int(binding.get("source_count", -1)) == 3
             and int(binding.get("alternate_target_count", -1)) == 3

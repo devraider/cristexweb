@@ -80,10 +80,10 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         }
         cls.tasks = yaml.safe_load(TASKS.read_text())
 
-    def test_exact_value_free_11_object_closure_and_hashes(self) -> None:
-        self.assertEqual(11, len(self.paths))
-        self.assertEqual(11, len(self.by_identity))
-        self.assertEqual(11, sum(1 for obj in self.objects if obj["kind"]))
+    def test_exact_value_free_13_object_closure_and_hashes(self) -> None:
+        self.assertEqual(13, len(self.paths))
+        self.assertEqual(13, len(self.by_identity))
+        self.assertEqual(13, sum(1 for obj in self.objects if obj["kind"]))
         self.assertFalse(any(obj["kind"] in {"Secret", "ConfigMap"} for obj in self.objects))
         for obj in self.objects:
             self.assertEqual(LABELS, obj["metadata"]["labels"])
@@ -229,8 +229,8 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
     def test_admission_is_fail_closed_and_exact(self) -> None:
         policies = [obj for obj in self.objects if obj["kind"] == "ValidatingAdmissionPolicy"]
         bindings = [obj for obj in self.objects if obj["kind"] == "ValidatingAdmissionPolicyBinding"]
-        self.assertEqual(3, len(policies))
-        self.assertEqual(3, len(bindings))
+        self.assertEqual(4, len(policies))
+        self.assertEqual(4, len(bindings))
         policy_by_name = {obj["metadata"]["name"]: obj for obj in policies}
         binding_by_name = {obj["metadata"]["name"]: obj for obj in bindings}
         self.assertEqual(set(policy_by_name), set(binding_by_name))
@@ -246,7 +246,14 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         secret_rule = secret["spec"]["matchConstraints"]["resourceRules"][0]
         self.assertEqual(["secrets"], secret_rule["resources"])
         self.assertEqual("Fail", secret["spec"]["failurePolicy"])
+        secret_conditions = secret["spec"]["matchConditions"]
+        self.assertEqual(2, len(secret_conditions))
+        self.assertIn("request.namespace == 'argocd'", secret_conditions[0]["expression"])
+        self.assertIn("request.userInfo.username ==", secret_conditions[1]["expression"])
+        self.assertIn("object.metadata.name in", secret_conditions[1]["expression"])
         secret_expression = secret["spec"]["validations"][0]["expression"]
+        self.assertIn("request.userInfo.username ==", secret_expression)
+        self.assertNotIn("request.userInfo.username !=", secret_expression)
         for required in (
             "system:serviceaccount:shared-services:infisical-operator-controller",
             "argocd-secret",
@@ -267,8 +274,20 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         )
         self.assertIn("request.namespace != 'argocd'", alternate["spec"]["validations"][0]["expression"])
         static = policy_by_name["infisical-argocd-static-secret-boundary"]
+        self.assertEqual(1, len(static["spec"]["matchConditions"]))
+        static_match = static["spec"]["matchConditions"][0]["expression"]
+        self.assertIn("request.namespace == 'argocd'", static_match)
+        self.assertIn("object.metadata.name == 'argocd-infisical-secrets'", static_match)
+        self.assertIn(
+            "system:serviceaccount:shared-services:infisical-operator-controller",
+            static_match,
+        )
         static_expression = static["spec"]["validations"][0]["expression"]
         for required in (
+            "request.userInfo.username == 'system:admin'",
+            "system:serviceaccount:shared-services:infisical-operator-controller",
+            "oldObject != null",
+            "oldObject.spec == object.spec",
             "argocd-infisical-secrets",
             "argocd-infisical-auth",
             "cristexweb-infrastructure",
@@ -289,6 +308,37 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         ):
             self.assertIn(required, static_expression)
         self.assertNotIn("template.data", static_expression)
+        self.assertNotIn("request.namespace !=", static_expression)
+        self.assertNotIn("shared-postgresql-admin", secret_expression)
+        self.assertNotIn("shared-postgresql-tls", secret_expression)
+        self.assertNotIn("shared-mongodb-auth", secret_expression)
+        self.assertNotIn("shared-mongodb-tls", secret_expression)
+
+        source = policy_by_name["infisical-argocd-source-boundary"]
+        source_rule = source["spec"]["matchConstraints"]["resourceRules"][0]
+        self.assertEqual(
+            {"infisicalconnections", "infisicalauths"},
+            set(source_rule["resources"]),
+        )
+        source_match = source["spec"]["matchConditions"][0]["expression"]
+        source_expression = source["spec"]["validations"][0]["expression"]
+        for required in (
+            "request.namespace == 'argocd'",
+            "system:serviceaccount:shared-services:infisical-operator-controller",
+            "infisical-cloud",
+            "argocd-infisical-auth",
+        ):
+            self.assertIn(required, source_match + source_expression)
+        for required in (
+            "request.userInfo.username == 'system:admin'",
+            "oldObject != null",
+            "oldObject.spec == object.spec",
+            "https://app.infisical.com/api",
+            "argocd-infisical-universal-auth",
+            "clientId",
+            "clientSecret",
+        ):
+            self.assertIn(required, source_expression)
 
     def test_additive_rbac_is_exact_without_patch_delete_or_workload_update(self) -> None:
         role = self.by_identity[
@@ -337,6 +387,9 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         bindings = task_names.index("Reconcile exact Infisical Argo CD Secret seam admission bindings")
         policy_wait = task_names.index("Wait for exact Infisical Argo CD VAPs to be established and type-checked")
         binding_wait = task_names.index("Wait for exact Infisical Argo CD VAP bindings to become effective")
+        target_recheck = task_names.index("Refuse Argo CD target races before granting writer RBAC")
+        alternate_recheck = task_names.index("Refuse alternate target races after admission")
+        static_recheck = task_names.index("Refuse InfisicalStaticSecret identity races after admission")
         rbac = task_names.index("Reconcile exact Infisical Argo CD Secret seam RBAC after admission")
         source = task_names.index("Reconcile Infisical Connection then Auth then StaticSecret source closure")
         wait = task_names.index("Wait for the Infisical Connection, Auth, and StaticSecret to become ready")
@@ -344,7 +397,10 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         self.assertLess(admission, policy_wait)
         self.assertLess(policy_wait, bindings)
         self.assertLess(bindings, binding_wait)
-        self.assertLess(binding_wait, rbac)
+        self.assertLess(binding_wait, target_recheck)
+        self.assertLess(target_recheck, alternate_recheck)
+        self.assertLess(alternate_recheck, static_recheck)
+        self.assertLess(static_recheck, rbac)
         self.assertLess(rbac, source)
         self.assertLess(source, wait)
         wait_task = self.tasks[wait]
@@ -360,6 +416,18 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         self.assertIn("Wait for exact Infisical Argo CD VAPs to be established and type-checked", task_names)
         self.assertIn("Wait for exact Infisical Argo CD VAP bindings to become effective", task_names)
         self.assertIn("infisical_argocd_secrets_bootstrap_internal_credential", TASKS.read_text())
+        self.assertIn("Require the ready and admitted Infisical Operator checkpoint", task_names)
+        self.assertLess(
+            task_names.index("Require the ready and admitted Infisical Operator checkpoint"),
+            preflight,
+        )
+        for required in (
+            "resourceVersion",
+            "spec.matchResources",
+            "item.resources[0].rules == item.item.rules",
+            "item.resources[0].subjects == item.item.subjects",
+        ):
+            self.assertIn(required, TASKS.read_text())
         self.assertIn("Refuse existing alternate target-producing Infisical CRs", task_names)
         self.assertIn("Refuse any noncanonical or drifted existing InfisicalStaticSecret", task_names)
         self.assertIn("internal_alternate_target_crs", TASKS.read_text())
@@ -381,6 +449,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             task_names.index("Refuse any noncanonical or drifted existing InfisicalStaticSecret"),
             preflight,
         )
+        defaults = yaml.safe_load(DEFAULTS.read_text())
         self.assertEqual(
             [
                 "infisicalconnections.secrets.infisical.com",
@@ -390,8 +459,23 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
                 "infisicalpushsecrets.secrets.infisical.com",
                 "infisicaldynamicsecrets.secrets.infisical.com",
             ],
-            yaml.safe_load(DEFAULTS.read_text())["infisical_argocd_secrets_bootstrap_crd_names"],
+            defaults["infisical_argocd_secrets_bootstrap_crd_names"],
         )
+        self.assertEqual(
+            {
+                "app.kubernetes.io/managed-by": "ansible",
+                "app.kubernetes.io/part-of": "infisical-operator",
+                "cristex.io/component": "infisical-runtime-auth",
+                "cristex.io/value-owner": "infisical-cloud",
+            },
+            defaults["infisical_argocd_secrets_bootstrap_credential_contract"]["labels"],
+        )
+        credential_task = self.tasks[
+            task_names.index("Require the exact same-Namespace Universal Auth credential metadata")
+        ]
+        credential_contract = " ".join(credential_task["ansible.builtin.assert"]["that"])
+        for required in ("immutable", "ownerReferences", "binaryData", ".labels"):
+            self.assertIn(required, credential_contract)
 
     def test_preflight_refuses_alternate_targets_and_immutable_secrets(self) -> None:
         task_text = TASKS.read_text()

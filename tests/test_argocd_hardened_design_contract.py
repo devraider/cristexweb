@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import base64
+import bcrypt
 import copy
 import hashlib
 import importlib.util
@@ -248,7 +249,7 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
 
     def test_bootstrap_preflight_secret_and_foreign_object_guards(self) -> None:
         text = TASKS.read_text() + DEFAULTS.read_text()
-        for required in ("argocd-secret", "admin.password", "admin.passwordMtime", "server.secretkey", "argocd-redis", "argocd-server-tls", "argocd-initial-admin-secret", "app.kubernetes.io/managed-by') == 'infisical'", "app.kubernetes.io/part-of') == 'argocd'", "cristex.io/value-owner') == 'infisical-cloud'", "Refusing silent adoption of a foreign Argo CD object", "root:k3s-admin mode-0640", "identity_set_sha256"):
+        for required in ("argocd-secret", "admin.password", "admin.passwordMtime", "server.secretkey", "argocd-redis", "argocd-server-tls", "argocd-initial-admin-secret", "app.kubernetes.io/managed-by') == 'infisical'", "app.kubernetes.io/part-of') == 'argocd'", "cristex.io/value-owner') == 'infisical-cloud'", "binaryData", "immutable", "ownerReferences", "Refusing silent adoption of a foreign Argo CD object", "root:k3s-admin mode-0640", "identity_set_sha256"):
             self.assertIn(required, text)
         self.assertIn("state: present", text)
         self.assertNotIn("state: absent", text)
@@ -271,6 +272,20 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
             .not_valid_before(now - timedelta(days=1))
             .not_valid_after(now + timedelta(days=365))
             .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+            .add_extension(
+                x509.KeyUsage(
+                    digital_signature=True,
+                    content_commitment=False,
+                    key_encipherment=False,
+                    data_encipherment=False,
+                    key_agreement=False,
+                    key_cert_sign=True,
+                    crl_sign=True,
+                    encipher_only=False,
+                    decipher_only=False,
+                ),
+                critical=True,
+            )
             .sign(ca_key, hashes.SHA256())
         )
         leaf_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -294,7 +309,12 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
 
         results = [
             {"resources": [{"metadata": {"name": "argocd-secret"}, "data": {
-                "admin.password": encoded(("$2b$12$" + "A" * 53).encode()),
+                "admin.password": encoded(
+                    bcrypt.hashpw(
+                        b"generated-offline-test-password",
+                        bcrypt.gensalt(rounds=12),
+                    )
+                ),
                 "admin.passwordMtime": encoded(b"2026-08-09T00:00:00Z"),
                 "server.secretkey": encoded(b"s" * 32),
             }}]},
@@ -310,6 +330,24 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         invalid_cost[0]["resources"][0]["data"]["admin.password"] = encoded(("$2b$31$" + "A" * 53).encode())
         with self.assertRaises(ValueError):
             module.validate_secret_results(invalid_cost, now=now)
+        generated_noncanonical_cost = copy.deepcopy(results)
+        generated_noncanonical_cost[0]["resources"][0]["data"]["admin.password"] = encoded(
+            bcrypt.hashpw(
+                b"generated-offline-test-password",
+                bcrypt.gensalt(rounds=11),
+            )
+        )
+        with self.assertRaises(ValueError):
+            module.validate_secret_results(generated_noncanonical_cost, now=now)
+        malformed_bcrypt = copy.deepcopy(results)
+        generated_hash = base64.b64decode(
+            results[0]["resources"][0]["data"]["admin.password"]
+        ).decode("ascii")
+        malformed_bcrypt[0]["resources"][0]["data"]["admin.password"] = encoded(
+            (generated_hash[:-1] + "!").encode("ascii")
+        )
+        with self.assertRaises(ValueError):
+            module.validate_secret_results(malformed_bcrypt, now=now)
         noncanonical_time = copy.deepcopy(results)
         noncanonical_time[0]["resources"][0]["data"]["admin.passwordMtime"] = encoded(b"2026-08-09T0:0:0Z")
         with self.assertRaises(ValueError):
@@ -366,6 +404,49 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
             )
             with self.assertRaises(ValueError):
                 module.validate_secret_results(invalid_tls, now=now)
+
+        residue = copy.deepcopy(results)
+        residue[2]["resources"][0]["data"]["ca.crt"] = encoded(
+            ca_cert.public_bytes(serialization.Encoding.PEM) + b"unexpected-residue"
+        )
+        with self.assertRaises(ValueError):
+            module.validate_secret_results(residue, now=now)
+        duplicate_ca = copy.deepcopy(results)
+        duplicate_ca[2]["resources"][0]["data"]["ca.crt"] = encoded(
+            ca_cert.public_bytes(serialization.Encoding.PEM) * 2
+        )
+        with self.assertRaises(ValueError):
+            module.validate_secret_results(duplicate_ca, now=now)
+        key_residue = copy.deepcopy(results)
+        key_residue[2]["resources"][0]["data"]["tls.key"] = encoded(
+            leaf_key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            )
+            + b"unexpected-residue"
+        )
+        with self.assertRaises(ValueError):
+            module.validate_secret_results(key_residue, now=now)
+
+    def test_materializer_runs_the_same_no_log_validator_after_target_sync(self) -> None:
+        materializer_tasks = (
+            ROOT / "ansible/roles/infisical_argocd_secrets_bootstrap/tasks/main.yml"
+        ).read_text()
+        validation = materializer_tasks.split(
+            "- name: Validate cryptographic Argo CD Secret values after Infisical materialization",
+            1,
+        )[1].split("\n\n", 1)[0]
+        self.assertIn("argocd_secret_contract:", validation)
+        self.assertIn("no_log: true", validation)
+        self.assertIn("when: not ansible_check_mode", validation)
+        self.assertLess(
+            materializer_tasks.index("Query exact Argo CD target Secret post-state"),
+            materializer_tasks.index("Validate cryptographic Argo CD Secret values after Infisical materialization"),
+        )
+        plugin = (ROOT / "ansible/plugins/action/argocd_secret_contract.py").read_text()
+        self.assertIn("_EXPECTED_MATERIALIZER_TASK_SOURCE", plugin)
+        self.assertIn("_TASK_SOURCE_CONTRACTS", plugin)
 
     def test_wrapper_and_action_are_non_passthrough_and_hash_bound(self) -> None:
         wrapper = (ROOT / "ansible/bin/bootstrap-argocd").read_text()

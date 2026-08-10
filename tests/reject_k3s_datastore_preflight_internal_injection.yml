@@ -1,0 +1,10 @@
+---
+- name: Reject externally supplied k3s datastore preflight internals
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    k3s_datastore_preflight_internal_version: injected
+  roles:
+    - role: k3s_datastore_preflight

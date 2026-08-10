@@ -1,0 +1,19 @@
+---
+- name: Reject direct shared database provisioning action use
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Invoke the guard without its canonical role
+      database_provisioning_guarded_exec:
+        namespace: shared-services
+        pod: shared-postgresql-0
+        container: postgresql
+        command:
+          - /bin/sh
+          - -ec
+          - forbidden
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        script_name: postgresql-check.sh
+        script_sha256: c428dfa07e91572f031324921e9ed8118d8af6ae849c999c7598b37bf10eae76
