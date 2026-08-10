@@ -270,6 +270,13 @@ entry gate.
   NetworkPolicy, 40-object action guard, and dedicated check/apply wrapper. Commit no
   Secret value, Infisical CR, PROD scope, or self-hosted server (`KIF-005`,
   `KIF-013`–`KIF-016`, `KIF-021`, `KIF-023`, `KIF-030`).
+- [x] Add the separate source-only
+  [Infisical Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md): one same-Namespace
+  Universal Auth credential reference, fixed project/environment/path identifiers,
+  exact Connection/Auth/StaticSecret source closure, orphaned target templates,
+  additive exact-name Secret/workload-list RBAC, fail-closed admission, and a
+  non-passthrough check/apply wrapper. Runtime, credential/source creation, Secret
+  values, sync, and live checks remain **NOT RUN/BLOCKED** (`KIF-INF-06`).
 - [ ] Create and independently recover the three proxy bootstrap Secrets with the
   guarded age/Drive writer, then run the guarded Infisical check, separately reviewed
   first apply, live admission/RBAC/traffic negatives, and idempotence before Universal
@@ -373,9 +380,12 @@ logs, or bootstrap cannot be recovered.
   Reactive Resume DEV/PROD, and Keycloak logical databases/owner roles, no
   consumer-specific PostgreSQL workload/PVC, and bidirectional negative
   cross-database access tests (`KIF-017`).
-- [ ] Select MongoDB topology and exact immutable trusted source, then create one
-  shared MongoDB engine with separate databases/users and negative access tests
-  (`KIF-018`, `KIF-023`).
+- [x] Select the MongoDB `8.0.28` linux/amd64 digest offline and add the
+  intentionally standalone, non-authoritative source closure with private Service,
+  retained `80Gi` PVC template, exact resources/probes, Infisical Secret references,
+  and deny-first NetworkPolicy (`KIF-018`, `KIF-021`, `KIF-023`, `KIF-030`). The
+  runtime, trust/recovery, separate database/user authorization, plaintext-negative,
+  replica-set/transaction/HA, and authoritative-data gates remain open.
 - [x] Add value-free source-only policies/runbooks for exactly one shared RabbitMQ
   in `shared-services`, dedicated DEV/PROD vhost/user/permission/limit/recovery
   scopes, reviewed exact future-consumer admission, and private management
@@ -388,12 +398,13 @@ logs, or bootstrap cannot be recovered.
   templates, deny-default Argo mapping, Namespace trust, and Universal Auth direction
   only for value-free offline source authoring (`KIF-005`, `KIF-010`, `KIF-013`–
   `KIF-015`, `KIF-023`, `KIF-030`).
-- [ ] Accept Keycloak/PostgreSQL image trust and recovery; independently select and
-  accept MongoDB immutable source/topology/trust/recovery; select exact
-  callbacks/origins, TLS/proxy policy, private administration,
-  NetworkPolicy/probes/resources, storage, and Infisical-owned material before any
-  executable source or runtime (`KIF-010`, `KIF-013`–`KIF-015`, `KIF-021`,
-  `KIF-023`).
+- [ ] Accept Keycloak/PostgreSQL image trust and recovery; accept MongoDB image
+  trust/recovery and the standalone-to-replica-set/authoritative-data decision;
+  select exact callbacks/origins, TLS identity/proxy policy, private administration,
+  and Infisical-owned runtime material before any runtime (`KIF-010`, `KIF-013`–
+  `KIF-015`, `KIF-021`, `KIF-023`). The source-only PostgreSQL and standalone
+  MongoDB object closures are intentionally implemented before these runtime gates
+  and do not waive them.
 - [ ] Before the first private Keycloak bootstrap, approve the general PostgreSQL
   storage/failure domain, dedicated Keycloak database/owner role, database-scoped
   backup tooling/destination/key custody, restore procedure, provisional RPO/RTO,

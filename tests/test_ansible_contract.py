@@ -31,10 +31,14 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/cristexhub_dev_namespace_guarded_k8s.py"),
             Path("ansible/plugins/action/infisical_operator_guarded_k8s.py"),
             Path("ansible/plugins/action/infisical_proxy_secret_zero_guarded_k8s.py"),
+            Path("ansible/plugins/action/infisical_argocd_secrets_guarded_k8s.py"),
             Path("ansible/plugins/action/rclone_install_guarded.py"),
             Path("ansible/plugins/action/rclone_proxy_transfer_guarded.py"),
+            Path("ansible/plugins/action/mongodb_guarded_k8s.py"),
+            Path("ansible/plugins/action/postgresql_guarded_k8s.py"),
+            Path("ansible/plugins/action/stateful_database_secret_contract.py"),
         }
-        self.assertEqual(7, len(allowed_action_plugins))
+        self.assertEqual(11, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -46,7 +50,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "specs/k3s-iac-foundation/status.md",
         ):
             normalized = " ".join((ROOT / relative).read_text().split())
-            self.assertIn("seven exact-scope Ansible action plugins", normalized, relative)
+            self.assertIn("eleven exact-scope Ansible action plugins", normalized, relative)
 
     def test_minimal_ansible_layout_exists(self) -> None:
         required = [
@@ -81,18 +85,28 @@ class AnsibleLayoutTests(unittest.TestCase):
             "playbooks/bootstrap_cristexhub_dev_namespace.yml",
             "playbooks/bootstrap_infisical_operator.yml",
             "playbooks/bootstrap_infisical_proxy_secrets.yml",
+            "playbooks/bootstrap_infisical_argocd_secrets.yml",
             "bin/bootstrap-argocd",
             "playbooks/bootstrap_argocd.yml",
+            "bin/bootstrap-mongodb",
+            "playbooks/bootstrap_mongodb.yml",
+            "bin/bootstrap-postgresql",
+            "playbooks/bootstrap_postgresql.yml",
             "plugins/action/argocd_guarded_k8s.py",
+            "plugins/action/mongodb_guarded_k8s.py",
+            "plugins/action/postgresql_guarded_k8s.py",
+            "plugins/action/stateful_database_secret_contract.py",
             "plugins/action/argocd_secret_contract.py",
             "plugins/action/cristexhub_dev_namespace_guarded_k8s.py",
             "plugins/action/infisical_operator_guarded_k8s.py",
             "plugins/action/infisical_proxy_secret_zero_guarded_k8s.py",
+            "plugins/action/infisical_argocd_secrets_guarded_k8s.py",
             "bin/bootstrap-platform-namespaces",
             "bin/bootstrap-foundation-namespaces",
             "bin/bootstrap-cristexhub-dev-namespace",
             "bin/bootstrap-infisical-operator",
             "bin/bootstrap-infisical-proxy-secrets",
+            "bin/bootstrap-infisical-argocd-secrets",
             "bin/install-rclone",
             "bin/transfer-infisical-proxy-recovery",
             "playbooks/install_rclone.yml",
@@ -115,10 +129,16 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/cristexhub_dev_namespace_bootstrap/tasks/main.yml",
             "roles/infisical_operator_bootstrap/defaults/main.yml",
             "roles/infisical_operator_bootstrap/tasks/main.yml",
+            "roles/infisical_argocd_secrets_bootstrap/defaults/main.yml",
+            "roles/infisical_argocd_secrets_bootstrap/tasks/main.yml",
             "roles/infisical_proxy_secret_zero/defaults/main.yml",
             "roles/infisical_proxy_secret_zero/tasks/main.yml",
             "roles/argocd_bootstrap/defaults/main.yml",
             "roles/argocd_bootstrap/tasks/main.yml",
+            "roles/mongodb_bootstrap/defaults/main.yml",
+            "roles/mongodb_bootstrap/tasks/main.yml",
+            "roles/postgresql_bootstrap/defaults/main.yml",
+            "roles/postgresql_bootstrap/tasks/main.yml",
             "roles/network_policy_probe/defaults/main.yml",
             "roles/network_policy_probe/tasks/cleanup.yml",
             "roles/network_policy_probe/tasks/delete_object.yml",
@@ -139,7 +159,13 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/read_only_discovery/tasks/report.yml",
             "roles/read_only_discovery/templates/report.json.j2",
         ]
-        for component in ("infisical-operator", "argocd"):
+        for component in (
+            "infisical-operator",
+            "argocd",
+            "infisical-argocd-secrets",
+            "mongodb",
+            "postgresql",
+        ):
             required.extend(
                 str(path.relative_to(ANSIBLE))
                 for path in sorted((ANSIBLE / "files/components" / component).rglob("*"))

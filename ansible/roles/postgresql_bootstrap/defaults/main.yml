@@ -1,0 +1,39 @@
+---
+# yamllint disable rule:line-length rule:indentation
+postgresql_bootstrap_approved: false
+postgresql_bootstrap_state: present
+postgresql_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+postgresql_bootstrap_repository_root: '{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}'
+postgresql_bootstrap_controller_user: '{{ lookup(''ansible.builtin.env'', ''USER'') }}'
+postgresql_bootstrap_namespace: shared-services
+postgresql_bootstrap_manifest_paths:
+- '{{ postgresql_bootstrap_repository_root }}/ansible/files/components/postgresql/config/configmap-pg-hba.yaml'
+- '{{ postgresql_bootstrap_repository_root }}/ansible/files/components/postgresql/network/postgresql-default-deny.yaml'
+- '{{ postgresql_bootstrap_repository_root }}/ansible/files/components/postgresql/network/postgresql-ingress.yaml'
+- '{{ postgresql_bootstrap_repository_root }}/ansible/files/components/postgresql/rbac/serviceaccount-postgresql.yaml'
+- '{{ postgresql_bootstrap_repository_root }}/ansible/files/components/postgresql/runtime/service-postgresql.yaml'
+- '{{ postgresql_bootstrap_repository_root }}/ansible/files/components/postgresql/runtime/statefulset-postgresql.yaml'
+postgresql_bootstrap_object_count: 6
+postgresql_bootstrap_statefulset_name: shared-postgresql
+postgresql_bootstrap_service_name: shared-postgresql
+postgresql_bootstrap_pvc_name: postgresql-data-shared-postgresql-0
+postgresql_bootstrap_admin_secret_name: shared-postgresql-admin
+postgresql_bootstrap_tls_secret_name: shared-postgresql-tls
+postgresql_bootstrap_admin_secret_contract:
+  type: Opaque
+  keys:
+  - password
+  - username
+postgresql_bootstrap_tls_secret_contract:
+  type: kubernetes.io/tls
+  keys:
+  - ca.crt
+  - tls.crt
+  - tls.key
+postgresql_bootstrap_expected_hashes:
+  config/configmap-pg-hba.yaml: 06d3ecc3308aabaf739720787978066fafe373178c31c84037a01f99b1852741
+  network/postgresql-default-deny.yaml: ed7d704a384854e16bdf982d5b2c25f502af4549b41fe80edc413d3152dd0cd4
+  network/postgresql-ingress.yaml: 659d6bdec5081846b42052b7ef8b7823a27d0ca01b8b32d45b23426c494963fc
+  rbac/serviceaccount-postgresql.yaml: 0ab181623ab973b382a884b5a96a3d2cb8f0c59038dadce030d63c42375751bf
+  runtime/service-postgresql.yaml: 7f6251a7a866cb6dd296d5c6f207828a571858a8756a2b40589d892c17b42de0
+  runtime/statefulset-postgresql.yaml: 86f7a0abdc2c4cbf2bf9edc7cb451a0d0ec607692a95210b82a5a47ed4ba5e24

@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: rclone installer check passed; first apply stopped changed=0 on nested-module dispatch; fix validated and retry pending
+build: 222 offline contracts, 18 playbook syntax checks, and production ansible-lint pass; Infisical seam and PostgreSQL/MongoDB source-ready; all runtime blocked
 date: 2026-08-10
 deploy_required_after_acceptance: yes
 
@@ -10,9 +10,10 @@ note: |
   Operational implementation is limited to read-only Ansible discovery, the
   executed two-package dependency bootstrap, executed group-scoped k3s administrator
   access, executed user-scoped kubectl client defaults, and the executed one-reboot
-  recovery verifier. Python is limited to offline tests plus seven exact-scope
-  Ansible action plugins (the prior four mutation guards, two focused
-  host-rclone boundary guards, and one no-log Argo Secret cryptographic validator);
+  recovery verifier. Python is limited to offline tests plus eleven exact-scope
+  Ansible action plugins (the prior five mutation guards, two focused
+  host-rclone boundary guards, two no-log Secret cryptographic validators, and
+  two standalone MongoDB/PostgreSQL object-closure guards);
   no general operational Python
   or collector exists. One
   explicitly approved SSH ping and
@@ -22,7 +23,14 @@ note: |
   dependencies, and package/import verification passes.
   Guarded source now pins host rclone 1.71.1 with controller-cache verification,
   host transfer, root-owned versioned payload, selector-only rollback, and exact
-  Debian 13 x86_64/digest/layout gates. A separate host-only rclone flow accepts
+  Debian 13 x86_64/digest/layout gates. A separate guarded MongoDB source closure
+  pins the official `8.0.28` linux/amd64 digest and one standalone,
+  non-authoritative private StatefulSet with retained `80Gi` local-path storage,
+  exact resources/probes, Infisical-owned auth/TLS references, temporary-init
+  `allowTLS` certificate-argv handling, and deny-first consumer ingress. Its
+  runtime, Secret materialization, trust/recovery, authorization, plaintext-negative,
+  replica-set/transaction/HA, and authoritative-data gates remain blocked. A
+  separate host-only rclone flow accepts
   only the existing encrypted pending proxy bundle/checksum, runs four fixed
   immutable copyto operations as the inventory-resolved non-root operator, reads
   back/fetches only ciphertext, and lets the Mac atomically create an exact
@@ -153,15 +161,17 @@ note: |
   freezes exactly one PostgreSQL and one MongoDB engine in `shared-services`.
   CristexHub DEV/PROD have isolated scopes on both engines; Reactive Resume DEV/PROD
   and Keycloak have dedicated PostgreSQL scopes. Authorization is deny-first,
-  Infisical owns credential values, exposure is private-only, and all promotion gates
-  remain closed. It adds no
-  database image beyond the existing PostgreSQL baseline, no executable object, and
-  no runtime claim. The approved database source profile fixes NVMe `local-path`,
+  Infisical owns credential values, exposure is private-only, and runtime promotion
+  gates remain closed. The approved database source profile fixes NVMe `local-path`,
   40/80 GiB PVCs, per-engine 500m/1 GiB requests and 2 CPU/3 GiB limits, private
   standard Services, mandatory TLS, Ansible-bootstrap→Argo-handoff direction, daily
-  archives, 14-day retention, RPO 24h, and RTO 4h. MongoDB source/topology, exact
-  paths/reclaim/probes/connection limits, implementation, backup/restore proof, and
-  all runtime approvals remain unselected or blocked. The separate value-free
+  archives, 14-day retention, RPO 24h, and RTO 4h. PostgreSQL `17.10` and MongoDB
+  `8.0.28` are offline-bound to exact digests with private one-replica source closures,
+  retained storage, authenticated TLS/plaintext-negative probes, guarded drift/PVC
+  checks, and no-log cryptographic Secret validation. Trust/pullability, Secret
+  materialization, backup/restore, logical authorization, MongoDB
+  replica-set/transaction/HA and authoritative-data decisions, check/apply/idempotence,
+  and all runtime approvals remain blocked. The separate value-free
   [shared RabbitMQ architecture](../../runbooks/shared-rabbitmq-architecture.md)
   fixes one future engine in `shared-services`, exact isolated DEV/PROD vhost/user/
   permission/limit/recovery scopes, deny-first future consumer admission, and private
@@ -204,8 +214,14 @@ note: |
   [bootstrap closure](../../runbooks/infisical-operator-bootstrap.md) now contains six
   hash-mapped namespaced CRDs, six fail-closed admission policies and bindings,
   exact three-Namespace RBAC, one metrics-off digest-pinned controller, authenticated
-  TLS Squid, eight NetworkPolicies, and a 40-object action guard. No Secret or
-  Infisical CR is committed. The first local secret-zero run generated private
+  TLS Squid, eight NetworkPolicies, and a 40-object action guard. The idle closure
+  remains free of Secrets and Infisical CRs. A separate source-only
+  [Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md)
+  freezes one same-Namespace Universal Auth reference, one
+  Connection/Auth/StaticSecret closure, exactly three orphaned targets, additive
+  exact-name Secret/workload-list RBAC, and fail-closed admission. No credential
+  Secret or value is committed and its runtime remains blocked. The first local
+  secret-zero run generated private
   recovery material and reached Google Drive OAuth, then stopped before Ansible/
   Kubernetes on `invalid_grant`. The discovered plaintext temp residue and unused
   encrypted artifact were removed without reading values. The corrected writer now

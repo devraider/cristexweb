@@ -186,6 +186,42 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
                 self.assertNotIn(forbidden, service["spec"])
             self.assertFalse(any(port.get("nodePort") for port in service["spec"]["ports"]))
 
+    def test_server_tls_secret_is_api_loaded_and_ca_configmap_is_distinct(self) -> None:
+        self.assertEqual(32, len(self.paths))
+        server = self.by_identity[("apps/v1", "Deployment", "argocd", "argocd-server")]
+        server_text = json.dumps(server, sort_keys=True)
+        self.assertNotIn("argocd-server-tls", server_text)
+        pod_spec = server["spec"]["template"]["spec"]
+        tls_mounts = [
+            mount
+            for container in pod_spec["containers"]
+            for mount in container.get("volumeMounts", [])
+            if mount["name"] == "tls-certs"
+        ]
+        self.assertEqual([{"mountPath": "/app/config/tls", "name": "tls-certs"}], tls_mounts)
+        tls_volumes = [volume for volume in pod_spec["volumes"] if volume["name"] == "tls-certs"]
+        self.assertEqual(1, len(tls_volumes))
+        self.assertEqual({"name": "argocd-tls-certs-cm"}, tls_volumes[0]["configMap"])
+        self.assertNotIn("secret", tls_volumes[0])
+
+        server_role = self.by_identity[("rbac.authorization.k8s.io/v1", "Role", "argocd", "argocd-server")]
+        secret_rules = [rule for rule in server_role["rules"] if "secrets" in rule["resources"]]
+        self.assertEqual(1, len(secret_rules))
+        self.assertEqual({"get", "list", "watch"}, set(secret_rules[0]["verbs"]))
+
+        runbook = RUNBOOK.read_text()
+        for required in (
+            "API-based dynamic Secret consumption",
+            "externalServerTLSSecretName",
+            "GetSecretByName",
+            "loadTLSCertificate",
+            "resourceVersion",
+            "repository trust CA",
+            "https://github.com/argoproj/argo-cd/blob/v3.5.0/util/settings/settings.go",
+            "https://github.com/argoproj/argo-cd/blob/v3.5.0/util/settings/settings_test.go",
+        ):
+            self.assertIn(required, runbook)
+
     def test_default_deny_and_exact_component_flows(self) -> None:
         policies = {o["metadata"]["name"]: o for o in self.objects if o["kind"] == "NetworkPolicy"}
         self.assertEqual({"argocd-default-deny", "argocd-controller-egress", "argocd-server-egress", "argocd-repo-server-egress", "argocd-repo-server-ingress", "argocd-redis-ingress"}, set(policies))
@@ -249,6 +285,7 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
             .not_valid_after(now + timedelta(days=30))
             .add_extension(x509.SubjectAlternativeName([x509.DNSName("argocd-server.argocd.svc"), x509.DNSName("localhost")]), critical=False)
             .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+            .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
             .sign(ca_key, hashes.SHA256())
         )
 
@@ -286,6 +323,49 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         invalid_key[2]["resources"][0]["data"]["tls.key"] = encoded(wrong_key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
         with self.assertRaises(ValueError):
             module.validate_secret_results(invalid_key, now=now)
+
+        def signed_leaf(dns_names: list[str], *, is_ca: bool) -> x509.Certificate:
+            return (
+                x509.CertificateBuilder()
+                .subject_name(leaf_name)
+                .issuer_name(ca_name)
+                .public_key(leaf_key.public_key())
+                .serial_number(x509.random_serial_number())
+                .not_valid_before(now - timedelta(days=1))
+                .not_valid_after(now + timedelta(days=30))
+                .add_extension(
+                    x509.SubjectAlternativeName(
+                        [x509.DNSName(name) for name in dns_names]
+                    ),
+                    critical=False,
+                )
+                .add_extension(
+                    x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]),
+                    critical=False,
+                )
+                .add_extension(
+                    x509.BasicConstraints(ca=is_ca, path_length=0 if is_ca else None),
+                    critical=True,
+                )
+                .sign(ca_key, hashes.SHA256())
+            )
+
+        for invalid_leaf in (
+            signed_leaf(
+                ["argocd-server.argocd.svc", "localhost", "attacker.invalid"],
+                is_ca=False,
+            ),
+            signed_leaf(
+                ["argocd-server.argocd.svc", "localhost"],
+                is_ca=True,
+            ),
+        ):
+            invalid_tls = copy.deepcopy(results)
+            invalid_tls[2]["resources"][0]["data"]["tls.crt"] = encoded(
+                invalid_leaf.public_bytes(serialization.Encoding.PEM)
+            )
+            with self.assertRaises(ValueError):
+                module.validate_secret_results(invalid_tls, now=now)
 
     def test_wrapper_and_action_are_non_passthrough_and_hash_bound(self) -> None:
         wrapper = (ROOT / "ansible/bin/bootstrap-argocd").read_text()

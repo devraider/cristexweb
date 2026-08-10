@@ -26,7 +26,7 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
             "cristex-shared-databases-v1", self.policy["policy_schema"]
         )
         self.assertEqual(
-            "source-policy-only-runtime-blocked", self.policy["policy_status"]
+            "source-only-runtime-blocked", self.policy["policy_status"]
         )
         self.assertEqual("shared-services", self.policy["namespace"])
         self.assertEqual({"postgresql", "mongodb"}, set(self.policy["engines"]))
@@ -152,10 +152,21 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
         self.assertFalse(postgresql_source["trust_accepted"])
 
         mongodb_source = self.policy["engines"]["mongodb"]["source"]
-        self.assertEqual("unselected", mongodb_source["selection"])
-        self.assertIsNone(mongodb_source["repository"])
-        self.assertIsNone(mongodb_source["version"])
-        self.assertIsNone(mongodb_source["linux_amd64_digest"])
+        self.assertEqual("selected-offline-only", mongodb_source["selection"])
+        self.assertEqual("docker.io/library/mongo", mongodb_source["repository"])
+        self.assertEqual("8.0.28", mongodb_source["version"])
+        self.assertEqual(
+            "sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4",
+            mongodb_source["linux_amd64_digest"],
+        )
+        self.assertEqual(
+            "standalone-non-authoritative",
+            self.policy["engines"]["mongodb"]["topology"],
+        )
+        self.assertFalse(self.policy["engines"]["mongodb"]["high_availability"])
+        self.assertFalse(self.policy["engines"]["mongodb"]["replica_set"])
+        self.assertFalse(self.policy["engines"]["mongodb"]["transaction_acceptance"])
+        self.assertFalse(self.policy["engines"]["mongodb"]["authoritative_data_acceptance"])
         self.assertFalse(mongodb_source["trust_accepted"])
 
         self.assertEqual("local-path", self.policy["storage"]["storage_class"])
@@ -179,10 +190,20 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
         self.assertEqual("unselected", self.policy["backup_and_restore"]["tooling"])
         self.assertEqual("24h", self.policy["backup_and_restore"]["rpo"])
         self.assertEqual("4h", self.policy["backup_and_restore"]["rto"])
-        self.assertTrue(
-            all(value is False for value in self.policy["promotion_gates"].values())
-        )
-        self.assertFalse(self.policy["executable_source_allowed"])
+        gates = self.policy["promotion_gates"]
+        self.assertTrue(gates["mongodb_immutable_source_selected"])
+        self.assertTrue(gates["storage_design_accepted"])
+        self.assertTrue(gates["resources_and_probes_accepted"])
+        self.assertTrue(gates["network_policy_accepted"])
+        self.assertFalse(gates["image_trust_and_recovery_accepted"])
+        self.assertFalse(gates["tls_design_accepted"])
+        self.assertFalse(gates["infisical_bootstrap_recovery_proved"])
+        self.assertFalse(gates["provisioning_workflow_proved"])
+        self.assertFalse(gates["backup_and_restore_proved"])
+        self.assertFalse(gates["rpo_rto_restore_proved"])
+        self.assertFalse(gates["one_writer_handoff_proved"])
+        self.assertFalse(gates["runtime_approved"])
+        self.assertTrue(self.policy["executable_source_allowed"])
 
     def test_private_only_exposure_and_admin_separation_are_exact(self) -> None:
         exposure = self.policy["exposure"]
@@ -206,7 +227,23 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
         self.assertEqual(
             "infisical-cloud", self.policy["tls"]["certificate_value_owner"]
         )
-        self.assertFalse(self.policy["tls"]["exact_identities_selected"])
+        self.assertTrue(self.policy["tls"]["exact_identities_selected"])
+        self.assertEqual(
+            {
+                "localhost",
+                "shared-postgresql.shared-services.svc",
+                "shared-postgresql.shared-services.svc.cluster.local",
+            },
+            set(self.policy["tls"]["certificate_identities"]["postgresql"]),
+        )
+        self.assertEqual(
+            {
+                "localhost",
+                "shared-mongodb.shared-services.svc",
+                "shared-mongodb.shared-services.svc.cluster.local",
+            },
+            set(self.policy["tls"]["certificate_identities"]["mongodb"]),
+        )
         self.assertEqual(
             {"Ingress", "NodePort", "LoadBalancer", "CloudflareTunnel", "public-route"},
             set(exposure["forbidden"]),
@@ -222,8 +259,8 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
     def test_runbook_preserves_policy_only_and_shared_failure_boundaries(self) -> None:
         normalized = " ".join(self.runbook_text.split())
         for required in (
-            "POLICY ONLY — RUNTIME BLOCKED",
-            "one PostgreSQL engine and one MongoDB engine",
+            "SOURCE-ONLY DATABASE CLOSURES READY — RUNTIME BLOCKED",
+            "one PostgreSQL engine and one standalone MongoDB engine",
             (
                 "CristexHub DEV, CristexHub PROD, Reactive Resume DEV, "
                 "Reactive Resume PROD, and Keycloak"
@@ -231,13 +268,13 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
             "CristexHub DEV/PROD receive distinct scopes on both shared engines",
             "shared failure and contention domains",
             "NetworkPolicy cannot enforce logical-database isolation",
-            "MongoDB topology remains unselected",
-            "No StatefulSet, Deployment, Service, PVC, Secret, Job, CronJob, or NetworkPolicy",
+            "source-only MongoDB topology is intentionally standalone",
+            "It adds no Secret value, Infisical custom resource, Helm value, Argo Application",
             "No host, registry, Kubernetes API, provider, Infisical, Helm, or runtime operation",
         ):
             self.assertIn(required, normalized)
 
-    def test_no_executable_database_source_or_kubernetes_widening(self) -> None:
+    def test_exact_database_source_without_kubernetes_tree_widening(self) -> None:
         self.assertEqual(
             {
                 "platform/namespaces/argocd.yaml",
@@ -257,12 +294,33 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
             for path in root.rglob("*")
             if path.is_file()
         ]
-        self.assertFalse(
-            any(
-                component in path.name.lower()
-                for path in operational
-                for component in ("postgres", "postgresql", "mongo", "mongodb", "database")
-            )
+        postgresql_source = {
+            str(path.relative_to(ROOT))
+            for path in operational
+            if "postgresql" in str(path).lower()
+        }
+        self.assertEqual(
+            {
+                "ansible/bin/bootstrap-postgresql",
+                "ansible/playbooks/bootstrap_postgresql.yml",
+                "ansible/roles/postgresql_bootstrap/defaults/main.yml",
+                "ansible/roles/postgresql_bootstrap/tasks/main.yml",
+            },
+            postgresql_source,
+        )
+        mongodb_source = {
+            str(path.relative_to(ROOT))
+            for path in operational
+            if "mongodb" in str(path).lower()
+        }
+        self.assertEqual(
+            {
+                "ansible/bin/bootstrap-mongodb",
+                "ansible/playbooks/bootstrap_mongodb.yml",
+                "ansible/roles/mongodb_bootstrap/defaults/main.yml",
+                "ansible/roles/mongodb_bootstrap/tasks/main.yml",
+            },
+            mongodb_source,
         )
 
     def test_policy_is_value_free(self) -> None:
@@ -281,7 +339,12 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
             combined,
             r"(?im)^\s*(?:password|token|client_secret|api_key|credentials?)\s*:\s*\S+",
         )
-        self.assertNotRegex(self.policy_text, re.compile(r"@sha256:[0-9a-f]{64}"))
+        self.assertEqual(
+            2,
+            self.policy_text.count(
+                "sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4"
+            ),
+        )
 
 
 if __name__ == "__main__":

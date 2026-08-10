@@ -149,6 +149,17 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
             "generators.size() == 0",
         ):
             self.assertIn(required, combined)
+        secret_policy = next(
+            policy
+            for policy in policies
+            if policy["metadata"]["name"] == "infisical-secret-boundary"
+        )
+        secret_validations = " ".join(
+            validation["expression"]
+            for validation in secret_policy["spec"]["validations"]
+        )
+        self.assertIn("!has(object.spec.authentication.serviceAccount)", secret_validations)
+        self.assertIn("!has(object.spec.authentication.serviceToken)", secret_validations)
         for binding in bindings:
             self.assertEqual(["Deny"], binding["spec"]["validationActions"])
             self.assertNotIn("matchResources", binding["spec"])

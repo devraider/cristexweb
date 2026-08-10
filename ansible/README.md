@@ -461,17 +461,26 @@ never consumed at runtime. No Secret value or Infisical CR is committed. Runtime
 unrun and the wrapper fails before mutation until exact separately recovered proxy
 Secret metadata exists. A separate guarded Argo CD source closure now exists but
 also remains runtime-unrun; Keycloak, PostgreSQL, MongoDB, and application runtime
-remain absent. The value-free
+remain absent. A separate source-only [Infisical Argo CD Secret materialization
+seam](../runbooks/infisical-argocd-secret-materialization.md) freezes one
+same-Namespace Universal Auth reference, one Connection/Auth/StaticSecret closure,
+exactly three orphaned Argo targets, additive exact-name Secret RBAC, workload
+list/watch required by the v0.11.7 reconciler, and fail-closed admission. Its
+credential Secret, check/apply, sync, target values, and runtime remain NOT
+RUN/BLOCKED. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
-future PostgreSQL and one future MongoDB engine in `shared-services`. CristexHub
+PostgreSQL and one standalone MongoDB engine in `shared-services`; guarded,
+hash-bound, present-only source now exists for both database pods while every live
+Secret, check/apply/idempotence, provisioning, recovery, and runtime gate remains
+blocked. CristexHub
 DEV/PROD have isolated scopes on both engines; Reactive Resume DEV/PROD and Keycloak
 have dedicated PostgreSQL scopes. The separate value-free
 [shared RabbitMQ policy](../runbooks/shared-rabbitmq-architecture.md) fixes one future
 engine, exact DEV/PROD vhost/user/limit scopes, and reviewed future-consumer
 admission. The [shared backup policy](../runbooks/shared-stateful-backup-architecture.md)
 requires private authenticated operator retrieval, encrypted timestamped archives,
-non-destructive off-node copy, integrity checks, and isolated restore. These policies
-are not Ansible roles, playbooks, wrappers, manifests, image selections, or runtime
+non-destructive off-node copy, integrity checks, and isolated restore. RabbitMQ and
+backup remain policy-only; the database closures are source-ready but not runtime
 approvals. The separate [Reactive Resume policy](../runbooks/reactive-resume-hosted-architecture.md) includes
 private DEV in MVP intent while keeping its image, callbacks, objects, Secrets, and
 runtime blocked. GitHub CI may run only syntax/lint and offline contracts from this
@@ -484,7 +493,10 @@ Infisical idle closure, first use only
 verify, and write the three circular proxy bootstrap values. Then use only
 `bin/bootstrap-infisical-operator check` followed by a separately reviewed `apply`;
 the same `apply` must later converge at `changed=0`. Both use existing `k3s-admin`
-kubeconfig access without sudo and accept no passthrough. Exact
+kubeconfig access without sudo and accept no passthrough. The separate
+`bin/bootstrap-infisical-argocd-secrets check|apply` wrapper is source-ready but
+remains blocked until the human-created same-Namespace Universal Auth Secret and
+fixed Infisical source identifiers exist; it never carries values. Exact
 present-only source and the distinct `bin/bootstrap-foundation-namespaces` entrypoint
 exist for `shared-services`; check, separately approved first apply, and separately
 approved idempotence all passed, with the final run converging at `changed=0`. The

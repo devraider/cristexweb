@@ -1,0 +1,19 @@
+---
+- name: Reject direct PostgreSQL action invocation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Invoke PostgreSQL guarded action outside canonical role source
+      postgresql_guarded_k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: shared-postgresql-pg-hba
+            namespace: shared-services
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        wait: false
+        wait_timeout: 60

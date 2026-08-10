@@ -1,0 +1,247 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: shared-postgresql
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: shared-postgresql
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/component: postgresql
+    cristex.io/desired-owner: argocd
+spec:
+  serviceName: shared-postgresql
+  replicas: 1
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shared-postgresql
+      app.kubernetes.io/part-of: cristex-platform
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: shared-postgresql
+        app.kubernetes.io/part-of: cristex-platform
+        cristex.io/component: postgresql
+    spec:
+      serviceAccountName: shared-postgresql
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/arch: amd64
+        kubernetes.io/os: linux
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: stage-tls
+          image: docker.io/library/postgres@sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - >-
+              set -eu;
+              umask 077;
+              cp /tls-input/ca.crt /tls/ca.crt;
+              cp /tls-input/tls.crt /tls/tls.crt;
+              cp /tls-input/tls.key /tls/tls.key;
+              chmod 0644 /tls/ca.crt /tls/tls.crt;
+              chmod 0600 /tls/tls.key;
+              test "$(stat -c '%u:%a' /tls/tls.key)" = '999:600'
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: shared-postgresql-tls-input
+              mountPath: /tls-input
+              readOnly: true
+            - name: shared-postgresql-tls
+              mountPath: /tls
+      containers:
+        - name: postgresql
+          image: docker.io/library/postgres@sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b
+          imagePullPolicy: IfNotPresent
+          args:
+            - postgres
+            - -c
+            - ssl=on
+            - -c
+            - ssl_min_protocol_version=TLSv1.2
+            - -c
+            - ssl_cert_file=/tls/tls.crt
+            - -c
+            - ssl_key_file=/tls/tls.key
+            - -c
+            - ssl_ca_file=/tls/ca.crt
+            - -c
+            - hba_file=/etc/postgresql/pg_hba.conf
+            - -c
+            - password_encryption=scram-sha-256
+          env:
+            - name: POSTGRES_USER_FILE
+              value: /etc/postgresql/admin/username
+            - name: POSTGRES_PASSWORD_FILE
+              value: /etc/postgresql/admin/password
+            - name: POSTGRES_DB
+              value: postgres
+            - name: POSTGRES_INITDB_ARGS
+              value: --auth-host=scram-sha-256 --auth-local=scram-sha-256
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - >-
+                  user="$(cat /etc/postgresql/admin/username)";
+                  test "$(PGPASSWORD="$(cat /etc/postgresql/admin/password)"
+                  PGSSLMODE=verify-full PGSSLROOTCERT=/tls/ca.crt
+                  psql -h localhost -p 5432 -U "$user" -d postgres
+                  -X -w -Atqc 'SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()')" = 't';
+                  if PGPASSWORD="$(cat /etc/postgresql/admin/password)"
+                  PGSSLMODE=disable psql -h localhost -p 5432 -U "$user"
+                  -d postgres -X -w -Atqc 'SELECT 1' >/dev/null 2>&1;
+                  then exit 13; fi
+            failureThreshold: 60
+            periodSeconds: 5
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - >-
+                  user="$(cat /etc/postgresql/admin/username)";
+                  test "$(PGPASSWORD="$(cat /etc/postgresql/admin/password)"
+                  PGSSLMODE=verify-full PGSSLROOTCERT=/tls/ca.crt
+                  psql -h localhost -p 5432 -U "$user" -d postgres
+                  -X -w -Atqc 'SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()')" = 't';
+                  if PGPASSWORD="$(cat /etc/postgresql/admin/password)"
+                  PGSSLMODE=disable psql -h localhost -p 5432 -U "$user"
+                  -d postgres -X -w -Atqc 'SELECT 1' >/dev/null 2>&1;
+                  then exit 13; fi
+            failureThreshold: 6
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - >-
+                  user="$(cat /etc/postgresql/admin/username)";
+                  test "$(PGPASSWORD="$(cat /etc/postgresql/admin/password)"
+                  PGSSLMODE=verify-full PGSSLROOTCERT=/tls/ca.crt
+                  psql -h localhost -p 5432 -U "$user" -d postgres
+                  -X -w -Atqc 'SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()')" = 't';
+                  if PGPASSWORD="$(cat /etc/postgresql/admin/password)"
+                  PGSSLMODE=disable psql -h localhost -p 5432 -U "$user"
+                  -d postgres -X -w -Atqc 'SELECT 1' >/dev/null 2>&1;
+                  then exit 13; fi
+            failureThreshold: 6
+            periodSeconds: 20
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: postgresql-data
+              mountPath: /var/lib/postgresql/data
+            - name: shared-postgresql-admin
+              mountPath: /etc/postgresql/admin
+              readOnly: true
+            - name: shared-postgresql-pg-hba
+              mountPath: /etc/postgresql/pg_hba.conf
+              subPath: pg_hba.conf
+              readOnly: true
+            - name: shared-postgresql-tls
+              mountPath: /tls
+              readOnly: true
+            - name: postgresql-runtime
+              mountPath: /var/run/postgresql
+            - name: postgresql-tmp
+              mountPath: /tmp
+      volumes:
+        - name: shared-postgresql-admin
+          secret:
+            secretName: shared-postgresql-admin
+            defaultMode: 288
+        - name: shared-postgresql-pg-hba
+          configMap:
+            name: shared-postgresql-pg-hba
+            defaultMode: 292
+        - name: shared-postgresql-tls-input
+          secret:
+            secretName: shared-postgresql-tls
+            defaultMode: 288
+        - name: shared-postgresql-tls
+          emptyDir:
+            medium: Memory
+        - name: postgresql-runtime
+          emptyDir: {}
+        - name: postgresql-tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: postgresql-data
+        labels:
+          app.kubernetes.io/name: shared-postgresql
+          app.kubernetes.io/part-of: cristex-platform
+          app.kubernetes.io/managed-by: ansible
+          cristex.io/bootstrap-writer: ansible
+          cristex.io/component: postgresql
+          cristex.io/desired-owner: argocd
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: local-path
+        volumeMode: Filesystem
+        resources:
+          requests:
+            storage: 40Gi

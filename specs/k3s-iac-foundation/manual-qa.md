@@ -85,7 +85,11 @@ remains canonical policy. The guarded [Infisical idle bootstrap](../../runbooks/
 exact deployable source for six CRDs, native same-Namespace admission, scoped RBAC,
 the metrics-off Operator, authenticated TLS proxy, and NetworkPolicy. It contains no
 committed Secret value or Infisical CR and Operator runtime is still **NOT
-RUN/BLOCKED**. The first local secret-zero/Drive attempt stopped before Kubernetes on
+RUN/BLOCKED**. A separate source-only [Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md)
+freezes one same-Namespace Universal Auth reference, fixed source identifiers,
+exact orphaned Argo targets, additive exact-name RBAC, and fail-closed admission;
+its credential/source creation, Secret values, sync, and runtime remain blocked and
+close no manual case. The first local secret-zero/Drive attempt stopped before Kubernetes on
 expired OAuth; its plaintext residue and unused encrypted artifact were removed
 without reading values. An unused debug-exposed age identity was revoked/regenerated
 before upload/Kubernetes. The hardened retry proved early cleanup, encrypted-pending
@@ -106,8 +110,9 @@ Namespace, workload, database, credential, or route and therefore closes no manu
 case. Future placement is cloudflared-only `platform-edge`, with the Infisical
 Operator, separate Keycloak deployment, one general PostgreSQL engine, and one
 shared MongoDB engine in `shared-services`. The value-free database policy closes no
-manual case: MongoDB source/topology, storage, provisioning, authorization, backup,
-restore, and runtime evidence remain pending. The SHA-pinned CI and Reactive Resume
+manual case: PostgreSQL and MongoDB source-only contracts exist, but Secret
+materialization, check/apply/idempotence, storage behavior, provisioning,
+authorization, backup/restore, and runtime evidence remain pending. The SHA-pinned CI and Reactive Resume
 policy source also closes no full manual case. Infrastructure CI run `31311995461`
 passed for exact commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`; the private
 application run is not observable with the available unauthenticated API, no image

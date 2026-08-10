@@ -81,12 +81,20 @@ def validate_secret_results(secret_results: Any, now: datetime | None = None) ->
     )
     validation_time = now or datetime.now(timezone.utc)
     _require_current(leaf, validation_time)
-    leaf_names = set(
-        leaf.extensions.get_extension_for_class(x509.SubjectAlternativeName)
-        .value.get_values_for_type(x509.DNSName)
-    )
-    if not _REQUIRED_TLS_DNS_NAMES <= leaf_names:
-        raise ValueError("required server identity is absent")
+    leaf_constraints = leaf.extensions.get_extension_for_class(
+        x509.BasicConstraints
+    ).value
+    if leaf_constraints.ca:
+        raise ValueError("server leaf cannot be a CA")
+    subject_alternative_names = leaf.extensions.get_extension_for_class(
+        x509.SubjectAlternativeName
+    ).value
+    leaf_names = set(subject_alternative_names.get_values_for_type(x509.DNSName))
+    if (
+        leaf_names != _REQUIRED_TLS_DNS_NAMES
+        or len(subject_alternative_names) != len(leaf_names)
+    ):
+        raise ValueError("server identity closure is not exact")
     extended_key_usage = leaf.extensions.get_extension_for_class(
         x509.ExtendedKeyUsage
     ).value

@@ -301,12 +301,41 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
             for path in root.rglob("*")
             if path.is_file()
         ]
-        forbidden = ("keycloak", "postgres", "mongo", "mongodb")
-        self.assertFalse(
-            any(component in path.name.lower() for path in operational for component in forbidden)
+        self.assertFalse(any("keycloak" in path.name.lower() for path in operational))
+        self.assertEqual(
+            {
+                "ansible/bin/bootstrap-postgresql",
+                "ansible/playbooks/bootstrap_postgresql.yml",
+                "ansible/roles/postgresql_bootstrap/defaults/main.yml",
+                "ansible/roles/postgresql_bootstrap/tasks/main.yml",
+            },
+            {
+                str(path.relative_to(ROOT))
+                for path in operational
+                if "postgresql" in str(path).lower()
+            },
         )
         self.assertEqual(
-            {"bootstrap-argocd", "bootstrap_argocd.yml", "main.yml"},
+            {
+                "ansible/bin/bootstrap-mongodb",
+                "ansible/playbooks/bootstrap_mongodb.yml",
+                "ansible/roles/mongodb_bootstrap/defaults/main.yml",
+                "ansible/roles/mongodb_bootstrap/tasks/main.yml",
+            },
+            {
+                str(path.relative_to(ROOT))
+                for path in operational
+                if "mongodb" in str(path).lower()
+            },
+        )
+        self.assertEqual(
+            {
+                "bootstrap-argocd",
+                "bootstrap_argocd.yml",
+                "bootstrap-infisical-argocd-secrets",
+                "bootstrap_infisical_argocd_secrets.yml",
+                "main.yml",
+            },
             {path.name for path in operational if "argocd" in str(path).lower()},
         )
         self.assertEqual(
@@ -315,6 +344,8 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "bootstrap-infisical-proxy-secrets",
                 "bootstrap_infisical_operator.yml",
                 "bootstrap_infisical_proxy_secrets.yml",
+                "bootstrap-infisical-argocd-secrets",
+                "bootstrap_infisical_argocd_secrets.yml",
                 "transfer-infisical-proxy-recovery",
                 "transfer_infisical_proxy_recovery.yml",
                 "main.yml",

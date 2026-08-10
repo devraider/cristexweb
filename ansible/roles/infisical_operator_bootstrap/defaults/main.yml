@@ -79,7 +79,7 @@ infisical_operator_bootstrap_expected_hashes:
   ? "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/admission/infisical-secret-boundary-binding.yaml"
   : 7e3067f15cc12772cbc377f84a68a4bdd5e7d605f60bda304c7bd6e6b424587c
   ? "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/admission/infisical-secret-boundary.yaml"
-  : 8871b56df4fc9ededbbced56d558360cad4331c39b78bf31616263cd0be570d8
+  : 4f884ca73ed9beab062482fcc767d57b03b370a4ea7a2483176603d469a28851
   ? "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/admission/infisical-static-secret-boundary-binding.yaml"
   : 50ba30d873c85183ce2949bd6638715442bb4128cb299a67f7ec06ecf831ea1d
   ? "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/admission/infisical-static-secret-boundary.yaml"

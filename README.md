@@ -83,14 +83,16 @@ future broker with exact isolated DEV/PROD scopes and reviewed future-consumer
 admission. The [shared backup architecture](runbooks/shared-stateful-backup-architecture.md)
 requires private authenticated catalog/retrieval, encrypted timestamped archives,
 non-destructive off-node copy, integrity checks, and isolated restore. Both remain
-policy-only with all runtime gates closed. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
+source-ready for PostgreSQL and standalone MongoDB but runtime-blocked; the RabbitMQ
+and backup implementations remain policy-only. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
 includes private DEV in the MVP with dedicated PostgreSQL and OIDC scopes while its
 image, callbacks, objects, Secrets, and runtime remain unselected or blocked.
-MongoDB source/topology, exact data paths/reclaim behavior, probes, connection
-limits, provisioning proof, recovery, executable objects, and runtime remain
-unselected or blocked; the database source profile now fixes NVMe `local-path`,
-40/80 GiB PVCs, bounded resources, private standard Services, and mandatory TLS. No workload, Secret, route, or runtime is
-approved.
+PostgreSQL and standalone MongoDB now have hash-bound present-only source closures
+with retained 40/80 GiB PVCs, bounded resources, private standard Services,
+mandatory TLS/authentication, exact cryptographic Secret validation, and guarded
+readiness. Image trust/pullability, Secret materialization, provisioning, logical
+authorization, backup/restore, recovery, check/apply/idempotence, and all runtime
+acceptance remain blocked. No workload, Secret, route, or runtime is approved.
 A separate
 [source-only cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
 binds official release, unsigned source, immutable linux/amd64 image, token-file,
@@ -120,11 +122,17 @@ Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the same expir
 controller OAuth. That transfer path is superseded by guarded host rclone source. No
 Infisical CR, Kubernetes Secret, Universal Auth value, application Secret,
 PROD scope, or
-self-hosted Infisical server is added. No general host baseline or deployment
-exists. Python is otherwise test-only; seven exact-scope Ansible action plugins are
-the reviewed focused exception—four enforce existing mutation boundaries, two guard
-host rclone install/transfer, and one performs no-log cryptographic validation of the
-exact Argo Secret contract. No
+self-hosted Infisical server is added. A separate source-only
+[Infisical Argo CD Secret materialization seam](runbooks/infisical-argocd-secret-materialization.md)
+freezes one same-Namespace Universal Auth reference, one Connection/Auth/StaticSecret
+closure, exactly three orphaned Argo Secret targets, additive exact-name Secret and
+workload-list RBAC, and fail-closed admission. Its credential Secret, check/apply,
+sync, target values, and runtime remain **NOT RUN/BLOCKED**. No general host baseline
+or deployment exists. Python is otherwise test-only; eleven exact-scope Ansible action plugins are
+the reviewed focused exception—five enforce existing mutation boundaries, two guard
+host rclone install/transfer, two perform no-log cryptographic validation of exact
+Argo and stateful-database Secret contracts, and two guard the standalone MongoDB and
+PostgreSQL object closures. No
 general-purpose operational Python or infrastructure collector exists.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
@@ -169,16 +177,18 @@ gateway remain in the separate CristexHub application repository.
 9. [`runbooks/keycloak-oidc-bootstrap-design.md`](runbooks/keycloak-oidc-bootstrap-design.md) — source-only Ansible-bootstrap, shared-identity, OIDC/RBAC, PostgreSQL, recovery, and private-exposure design.
 10. [`runbooks/keycloak-release-selection.md`](runbooks/keycloak-release-selection.md) — immutable Keycloak/PostgreSQL and issuer source selection.
 11. [`runbooks/shared-database-architecture.md`](runbooks/shared-database-architecture.md) — value-free PostgreSQL/MongoDB topology, isolation, and closed deployment gates.
-12. [`runbooks/shared-rabbitmq-architecture.md`](runbooks/shared-rabbitmq-architecture.md) — value-free shared broker isolation, future-consumer admission, and recovery boundary.
-13. [`runbooks/shared-stateful-backup-architecture.md`](runbooks/shared-stateful-backup-architecture.md) — private operator backup access, non-destructive off-node copy, integrity, and restore gates.
-14. [`runbooks/reactive-resume-hosted-architecture.md`](runbooks/reactive-resume-hosted-architecture.md) — private-DEV MVP placement, dedicated database/OIDC scopes, and closed image/runtime gates.
-15. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
-16. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
-17. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
-18. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
-19. [`runbooks/infisical-operator-implementation-profile.md`](runbooks/infisical-operator-implementation-profile.md) — commit-bound controller audit and selected watch/identity/egress/secret-zero profile.
-20. [`runbooks/infisical-operator-bootstrap.md`](runbooks/infisical-operator-bootstrap.md) — guarded 40-object idle closure, proxy Secret prerequisites, validation, and rollback.
-21. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+12. [`runbooks/postgresql-bootstrap.md`](runbooks/postgresql-bootstrap.md) — guarded source-only PostgreSQL pod closure and runtime stop gates.
+13. [`runbooks/shared-rabbitmq-architecture.md`](runbooks/shared-rabbitmq-architecture.md) — value-free shared broker isolation, future-consumer admission, and recovery boundary.
+14. [`runbooks/shared-stateful-backup-architecture.md`](runbooks/shared-stateful-backup-architecture.md) — private operator backup access, non-destructive off-node copy, integrity, and restore gates.
+15. [`runbooks/reactive-resume-hosted-architecture.md`](runbooks/reactive-resume-hosted-architecture.md) — private-DEV MVP placement, dedicated database/OIDC scopes, and closed image/runtime gates.
+16. [`runbooks/cloudflared-candidate-provenance.md`](runbooks/cloudflared-candidate-provenance.md) — source-only, non-deployable cloudflared candidate evidence and blockers.
+17. [`runbooks/infisical-operator-candidate-provenance.md`](runbooks/infisical-operator-candidate-provenance.md) — historical Infisical Operator candidate evidence and blockers.
+18. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
+19. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
+20. [`runbooks/infisical-operator-implementation-profile.md`](runbooks/infisical-operator-implementation-profile.md) — commit-bound controller audit and selected watch/identity/egress/secret-zero profile.
+21. [`runbooks/infisical-operator-bootstrap.md`](runbooks/infisical-operator-bootstrap.md) — guarded 40-object idle closure, proxy Secret prerequisites, validation, and rollback.
+22. [`runbooks/infisical-argocd-secret-materialization.md`](runbooks/infisical-argocd-secret-materialization.md) — exact value-free Infisical-to-Argo Secret seam and blocked runtime gates.
+23. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -315,8 +325,10 @@ for `shared-services`; its interactive check retry predicted exactly that one
 Namespace, the separately approved first apply created and verified it, and the
 separately approved idempotence apply converged at `changed=0`. `platform-edge` is reserved for future cloudflared namespaced objects;
 Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one shared
-MongoDB engine belong in `shared-services`. The database policy is inert: it adds no
-StatefulSet, Service, PVC, Secret, provisioning object, or runtime approval. Kustomize remains intended for first-party application overlays;
+MongoDB engine belong in `shared-services`. Hash-bound, present-only PostgreSQL and
+standalone MongoDB StatefulSet/Service source now exists; it adds no Secret value,
+standalone PVC manifest, provisioning object, check/apply evidence, or runtime
+approval. Kustomize remains intended for first-party application overlays;
 Helm is reserved for selected third-party components. Argo ownership remains pending
 until Argo CD is installed, `shared-services` is adopted or registered through an
 Application, and successful sync evidence exists; the future-owner label alone is

@@ -1,0 +1,14 @@
+---
+- name: Reject PostgreSQL internal injection fixture
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    postgresql_bootstrap_approved: false
+    postgresql_bootstrap_state: present
+    postgresql_bootstrap_internal_preflight_binding: forged
+  tasks:
+    - name: Invoke the PostgreSQL role with forged internal state
+      ansible.builtin.include_role:
+        name: postgresql_bootstrap

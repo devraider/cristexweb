@@ -269,6 +269,9 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
                 "main.yml",
                 "infisical_operator_guarded_k8s.py",
                 "infisical_proxy_secret_zero_guarded_k8s.py",
+                "infisical_argocd_secrets_guarded_k8s.py",
+                "bootstrap-infisical-argocd-secrets",
+                "bootstrap_infisical_argocd_secrets.yml",
             },
             {path.name for path in operational if "infisical" in str(path).lower()},
         )

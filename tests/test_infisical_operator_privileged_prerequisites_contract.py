@@ -283,6 +283,8 @@ class InfisicalPrivilegedPrerequisitesDesignContractTests(unittest.TestCase):
                 "bootstrap_infisical_proxy_secrets.yml",
                 "transfer-infisical-proxy-recovery",
                 "transfer_infisical_proxy_recovery.yml",
+                "bootstrap-infisical-argocd-secrets",
+                "bootstrap_infisical_argocd_secrets.yml",
                 "main.yml",
             },
             {path.name for path in operational if "infisical" in str(path).lower()},

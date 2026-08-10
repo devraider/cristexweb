@@ -63,6 +63,34 @@ currently valid CA/leaf/private-key PEM, direct CA issuance, leaf/key correspond
 server-auth extended usage, and both `argocd-server.argocd.svc` and `localhost` DNS
 identities before any mutation.
 
+### API-based dynamic Secret consumption
+
+`argocd-server-tls` is consumed by the Argo CD server through the Kubernetes Secret
+API, not as a projected pod volume. Official Argo CD `v3.5.0` source names this
+Secret in [`externalServerTLSSecretName`](https://github.com/argoproj/argo-cd/blob/v3.5.0/util/settings/settings.go#L534-L535), calls
+[`GetSecretByName`](https://github.com/argoproj/argo-cd/blob/v3.5.0/util/settings/settings.go#L810-L817) from
+`updateSettingsFromSecret`, and passes its `tls.crt`/`tls.key` data to
+[`loadTLSCertificate`](https://github.com/argoproj/argo-cd/blob/v3.5.0/util/settings/settings.go#L1771-L1819).
+The certificate cache is keyed by the Secret name and `resourceVersion`, so a
+settings refresh can observe a changed external Secret without a server volume
+mount or pod restart. The committed `argocd-server` Role therefore grants only
+`get`, `list`, and `watch` on Secrets; this read path is the intentional wiring.
+
+The official [`v3.5.0` settings tests](https://github.com/argoproj/argo-cd/blob/v3.5.0/util/settings/settings_test.go#L1278-L1335) verify that
+`argocd-server-tls` takes precedence over `argocd-secret`; the adjacent
+[create/delete cases](https://github.com/argoproj/argo-cd/blob/v3.5.0/util/settings/settings_test.go#L1547-L1617) verify that changing the
+external Secret changes the selected certificate on a subsequent settings read.
+The offline contract test mirrors this evidence by asserting that
+the server Deployment contains no `argocd-server-tls` volume reference and that
+its Secret RBAC remains read-only.
+
+The `tls-certs` volume mounted at `/app/config/tls` is intentionally different:
+it sources the committed `argocd-tls-certs-cm` ConfigMap, which is Argo CD's
+repository trust CA store for outbound repository TLS. It is not the server
+certificate source and must not be replaced with `argocd-server-tls`. Keeping this
+ConfigMap mount while leaving the external server Secret API-based preserves the
+reviewed 32-object closure and runtime behavior.
+
 `argocd-initial-admin-secret` must remain absent. Its presence is a stop condition.
 Local administrator authentication is initially enabled; OIDC is not configured.
 The public repository is `https://github.com/devraider/cristexweb.git` on `develop`,

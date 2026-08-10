@@ -146,17 +146,19 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             for path in root.rglob("*")
             if path.is_file()
         ]
-        self.assertFalse(
-            any(
-                component in path.name.lower()
+        self.assertFalse(any("keycloak" in path.name.lower() for path in operational))
+        self.assertEqual(
+            {
+                "ansible/bin/bootstrap-postgresql",
+                "ansible/playbooks/bootstrap_postgresql.yml",
+                "ansible/roles/postgresql_bootstrap/defaults/main.yml",
+                "ansible/roles/postgresql_bootstrap/tasks/main.yml",
+            },
+            {
+                str(path.relative_to(ROOT))
                 for path in operational
-                for component in (
-                    "keycloak",
-                    "postgres",
-                    "mongo",
-                    "mongodb",
-                )
-            )
+                if "postgresql" in str(path).lower()
+            },
         )
         expected_public_inputs = {
             "policies/hosted-identity-authorization.yml",
@@ -176,7 +178,13 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz",
             "vendor/infisical-operator/0.11.7/secrets-operator-0.11.7.tgz.prov",
         }
-        for component in ("infisical-operator", "argocd"):
+        for component in (
+            "infisical-operator",
+            "argocd",
+            "infisical-argocd-secrets",
+            "mongodb",
+            "postgresql",
+        ):
             expected_public_inputs.update(
                 str(path.relative_to(ROOT / "ansible/files"))
                 for path in (ROOT / "ansible/files/components" / component).rglob("*")

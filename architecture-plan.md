@@ -249,8 +249,9 @@ connectivity tests provide the enforceable controls.
 A single PostgreSQL engine and a single MongoDB engine save memory. This is an
 explicitly accepted shared failure and contention domain. The value-free
 [`shared-database-architecture.yml`](ansible/files/policies/shared-database-architecture.yml)
-is the canonical source-only topology and authorization contract; its promotion
-gates are all closed and it is not executable workload source.
+is the canonical source-only topology and authorization contract. Hash-bound,
+present-only PostgreSQL and standalone MongoDB workload closures now exist, but all
+promotion and runtime gates remain closed.
 
 PostgreSQL requires separate logical databases and owner roles for CristexHub DEV,
 CristexHub PROD, Reactive Resume DEV, Reactive Resume PROD, and Keycloak. Keycloak
@@ -261,8 +262,9 @@ separate PostgreSQL credentials, migrations, and backups. MongoDB requires
 CristexHub DEV/PROD databases and users with privileges limited to their own
 database.
 DEV and PROD never share an application credential, encryption key, migration target,
-or backup prefix. MongoDB repository/version/digest and standalone-versus-replica-set
-topology remain unselected.
+or backup prefix. MongoDB `8.0.28` is offline-pinned as a standalone,
+non-authoritative initial source; replica-set, transaction, HA, and authoritative-data
+acceptance remain blocked.
 
 Application and Keycloak roles must not create roles or databases. The Keycloak role
 cannot access application databases, and application roles cannot access the

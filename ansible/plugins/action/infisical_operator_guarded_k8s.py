@@ -23,7 +23,7 @@ _EXPECTED_OBJECT_HASHES = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-push-secret-boundary'): 'abb1279c9b9bd85b8ba01ee2bd7e86fb49901c708762e20d05a946860463e90f',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-push-secret-boundary'): '9dea8b15d24e0e5694151e8a9c8ad22b8ef458a78e3a4c164a5d15db1f3ada9d',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-secret-boundary'): '57f31bf17d21b487d9e1b671dc7b1362aaa87f026ba89f000c6ff81f74a9ccae',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-secret-boundary'): 'a3455e6da757471bb063ccfa6b657b24412da6a99f285bf1c02dd1ff7e4f6dfc',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-secret-boundary'): 'b166a692b8b00ec5abf143efda8a06e1353aa65ff6bec07f044aafd686036350',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-static-secret-boundary'): '832215eddbb15d770c1796439a2b44cfb9089950a68c91629f2d780b08d82ad6',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-static-secret-boundary'): '9077d2b464665bb5f7de442ea51b7285e940d166cbaf2d119096f0ccceb8244e',
     ('apps/v1', 'Deployment', 'shared-services', 'infisical-operator-controller'): 'ac70091417f528c52b55c19909d89b8c6f3cc08887c9a7b05eeb0fbd27c6b980',

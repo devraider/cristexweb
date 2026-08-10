@@ -25,7 +25,7 @@ recover DEV and PROD without presenting a single node as highly available.
 - DEV and administration remain private through host Tailscale.
 - Only approved PROD application routes become public through Cloudflare Tunnel.
 - Exact [CristexHub DEV Namespace source](../../runbooks/cristexhub-dev-namespace-bootstrap.md) exists with four approved labels. Its check passed at `ok=20 changed=1 unreachable=0 failed=0 skipped=2` without mutation. The first apply passed at `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created/verified the exact Namespace, and preserved service health. Idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the checkpoint is complete. `cristexhub-prod` remains absent and source-blocked until DEV validation, recovery, and soak.
-- `platform-edge` is reserved for cloudflared. Future `shared-services` placement is the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL engine, one shared MongoDB engine, and one shared RabbitMQ engine; the exact Namespace now exists after passed check/first apply/idempotence, with final `changed=0`, while every component runtime remains NOT RUN. CristexHub DEV/PROD use dedicated scopes on both shared engines; Keycloak and environment-local Reactive Resume DEV/PROD use dedicated PostgreSQL logical databases, owner roles, credentials, migrations, and backup scopes. The canonical database, RabbitMQ, backup, and Reactive Resume policies are value-free and runtime-blocked. RabbitMQ DEV/PROD consumers have dedicated vhost/user/permission/limit/recovery scopes; future consumers require reviewed exact changes. Backup access is private/authenticated through a metadata-only catalog and non-destructive encrypted off-node copy direction. The database source profile fixes NVMe `local-path`, 40/80 GiB PVCs, bounded resources, standard private Services/TLS, daily archives, 14-day retention, RPO 24h, and RTO 4h; images, RabbitMQ storage/ports, exact destination identities, implementation, and recovery proof remain unselected.
+- `platform-edge` is reserved for cloudflared. Future `shared-services` placement is the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL engine, one shared MongoDB engine, and one shared RabbitMQ engine; the exact Namespace now exists after passed check/first apply/idempotence, with final `changed=0`, while every component runtime remains NOT RUN. CristexHub DEV/PROD use dedicated scopes on both shared engines; Keycloak and environment-local Reactive Resume DEV/PROD use dedicated PostgreSQL logical databases, owner roles, credentials, migrations, and backup scopes. The canonical database, RabbitMQ, backup, and Reactive Resume policies are value-free and runtime-blocked. RabbitMQ DEV/PROD consumers have dedicated vhost/user/permission/limit/recovery scopes; future consumers require reviewed exact changes. Backup access is private/authenticated through a metadata-only catalog and non-destructive encrypted off-node copy direction. The database source profile fixes NVMe `local-path`, 40/80 GiB PVCs, bounded resources, standard private Services/TLS, daily archives, 14-day retention, RPO 24h, and RTO 4h. PostgreSQL and standalone non-authoritative MongoDB now have offline-pinned, hash-bound, present-only source closures with exact cryptographic Secret validation; RabbitMQ storage/ports, exact backup destination identities, all live Secret material, trust/recovery, check/apply/idempotence, and runtime proof remain unselected or blocked.
 - Redis remains per environment.
 
 ## Constraints
@@ -56,10 +56,11 @@ reboot recovery playbook, and the executed temporary NetworkPolicy probe under
 `ansible/`. Effective-user readability, warning-free
 fresh-session cluster listing, both idempotence checks, SSH/Tailscale return, Ready
 node, and kubeconfig recovery passed.
-Python is used for offline contract tests and seven exact-scope Ansible action
-plugins: four existing mutation guards, two guarded host rclone install/transfer
-boundaries, and one no-log Argo Secret cryptographic validator. No general-purpose
-operational Python or infrastructure collector exists. One
+Python is used for offline contract tests and eleven exact-scope Ansible action
+plugins: five existing mutation guards, two guarded host rclone install/transfer
+boundaries, two no-log Secret cryptographic validators, and two MongoDB/PostgreSQL
+object-closure guards. No general-purpose operational Python or infrastructure
+collector exists. One
 approved non-elevated check/diff run produced
 a locally reviewed host report. A separately approved playbook directly requested
 only `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
@@ -112,8 +113,9 @@ both remain unrun; cloudflared, Keycloak, PostgreSQL, MongoDB, Secrets, workload
 Services, policies, PVCs, and routes remain absent at runtime. The source-only
 [shared database architecture](../../runbooks/shared-database-architecture.md)
 records exact engine/consumer closure, deny-first authorization, private exposure,
-Infisical value ownership, and closed promotion gates without adding executable
-objects. A source-only
+and Infisical value ownership. Hash-bound present-only PostgreSQL and standalone
+MongoDB object closures now exist, while Secret materialization, check/apply,
+provisioning, recovery, and every runtime promotion gate remain blocked. A source-only
 [Reactive Resume hosted architecture](../../runbooks/reactive-resume-hosted-architecture.md)
 includes private DEV in the MVP and reserves separate DEV/PROD PostgreSQL and OIDC
 scopes while image, callback, Secret, object, recovery, and runtime gates remain
@@ -161,9 +163,14 @@ value-free objects: six namespaced CRDs, six native admission policies/bindings,
 exact namespaced RBAC, one metrics-off controller, authenticated TLS Squid, and eight
 NetworkPolicies. The archive remains quarantined and is not a runtime input. Runtime
 is **NOT RUN/BLOCKED** until the separately recovered proxy Secrets and guarded
-check/apply/idempotence, live admission/RBAC/traffic, and idle health pass. No
-Infisical CR, Universal Auth value, application Secret, PROD scope, or self-hosted
-Infisical server is included.
+check/apply/idempotence, live admission/RBAC/traffic, and idle health pass. The idle
+closure contains no Infisical CR, but a separate source-only
+[Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md)
+freezes one same-Namespace Universal Auth reference, one Connection/Auth/StaticSecret
+closure, exactly three orphaned targets, additive exact-name Secret/workload-list
+RBAC, and fail-closed admission. It adds no credential Secret or value; source
+check/apply, sync, target values, and runtime remain **NOT RUN/BLOCKED**. PROD scope
+and self-hosted Infisical server remain absent.
 Provider initialization, state, plan, and apply also remain unrun.
 Beyond the bounded public-source evidence reads, this deliverable performs no host
 mutation, authenticated Cloudflare/GitHub/Infisical/registry operation, database,

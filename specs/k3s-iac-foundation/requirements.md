@@ -46,8 +46,8 @@
 |---|---|
 | KIF-016 | Committed source contains active `argocd`, cloudflared-only `platform-edge`, active `shared-services`, and active/idempotent `cristexhub-dev`, whose check/first apply/idempotence passed with exact labels/`Active` and preserved service health; `cristexhub-prod` remains absent/source-blocked until DEV validation, recovery, and soak. `shared-services` now exists after separately approved check/first apply and is the placement for the Infisical Operator, separate Keycloak deployment, one general PostgreSQL engine, and one shared MongoDB engine; Namespace idempotence passed at `changed=0`; all component runtime checkpoints remain separately approved and NOT RUN. Private DEV MVP includes an environment-local Reactive Resume deployment with its own OIDC/database/Secret scopes; future PROD remains separate. Applications retain separate DEV/PROD credentials, migrations, and backup paths. |
 | KIF-017 | One general PostgreSQL engine provides separate CristexHub DEV, CristexHub PROD, Reactive Resume DEV, Reactive Resume PROD, and Keycloak logical databases, owner roles, Infisical-owned credentials, migration scopes, and backup scopes. No consumer receives a separate PostgreSQL deployment/PVC; `PUBLIC` connection/schema privileges are revoked where unwanted, every workload role is denied cross-database access, and workload roles cannot create databases or roles. |
-| KIF-018 | One shared MongoDB engine provides separate DEV/PROD databases, database-scoped users, Infisical-owned credentials, migration scopes, and backup scopes. Each workload user is denied the other environment plus broad any-database and user/role-administration privileges; MongoDB source and topology remain unselected before separate approval. |
-| KIF-019 | Shared-engine failure and contention risks are documented. The database source profile fixes NVMe `local-path`, one `ReadWriteOnce` PVC per engine, PostgreSQL 40 GiB, MongoDB 80 GiB, and per-engine 500m/1 GiB requests plus 2 CPU/3 GiB limits. No consumer receives a separate engine/PVC; exact paths/reclaim/probes/connection limits, implementation, and recovery gates must close before executable source. |
+| KIF-018 | One shared MongoDB engine provides separate DEV/PROD databases, database-scoped users, Infisical-owned credentials, migration scopes, and backup scopes. Each workload user is denied the other environment plus broad any-database and user/role-administration privileges. The initial source-only pod-running closure is explicitly standalone and non-authoritative; database users, logical isolation, replica-set/transaction/HA semantics, backup/restore, and runtime approval remain separate gates. |
+| KIF-019 | Shared-engine failure and contention risks are documented. The database source profile fixes NVMe `local-path`, one `ReadWriteOnce` PVC per engine, PostgreSQL 40 GiB, MongoDB 80 GiB, and per-engine 500m/1 GiB requests plus 2 CPU/3 GiB limits. No consumer receives a separate engine/PVC; present-only PostgreSQL and MongoDB object source exists, while connection limits, trust, recovery, check/apply/idempotence, and authoritative runtime acceptance remain blocked. |
 | KIF-020 | Redis is environment-local. Exactly one shared RabbitMQ engine belongs in `shared-services`; CristexHub DEV/PROD receive dedicated users, vhosts, permissions, limits, Infisical-owned credentials, and recovery scopes with negative cross-vhost/admin/public-management tests. Future consumers require reviewed exact policy/test/runbook changes; wildcard or dynamic admission is forbidden. |
 | KIF-021 | NetworkPolicy and RBAC deny unapproved cross-namespace and control-plane access while allowing required DNS and service flows. |
 
@@ -125,9 +125,11 @@ runtime remain **NOT RUN/BLOCKED**. The value-free
 [shared database architecture](../../runbooks/shared-database-architecture.md) maps
 KIF-005, KIF-013, KIF-016 through KIF-019, KIF-021, and KIF-026 through KIF-030 to
 an exact one-PostgreSQL/one-MongoDB source-only policy. It fixes the approved
-storage/resource/private-Service/TLS/ownership/backup profile but closes no image
-trust, implementation, provisioning proof, restore, object-source, or runtime gate;
-all promotion flags remain false. The value-free
+storage/resource/private-Service/TLS/ownership/backup profile. Present-only,
+hash-bound PostgreSQL and standalone MongoDB object closures now exist with guarded
+PVC/drift checks and no-log cryptographic Secret validation, but they close no image
+trust, Secret materialization, provisioning, restore, check/apply/idempotence, or
+runtime gate. The value-free
 [shared RabbitMQ architecture](../../runbooks/shared-rabbitmq-architecture.md) maps
 KIF-005, KIF-013, KIF-016, KIF-019 through KIF-021, KIF-023, and KIF-026 through
 KIF-030 to one exact source-only shared broker with DEV/PROD isolation and reviewed
@@ -170,8 +172,12 @@ admission source, proxy image/config, and guarded deployable-source gates are no
 evidenced by the exact 40-object
 [bootstrap closure](../../runbooks/infisical-operator-bootstrap.md). Live CRD/CEL
 admission, proxy Secret recovery, image behavior, RBAC/traffic negatives,
-check/apply/idempotence, Universal Auth, and runtime remain closed. The
-[Argo](../../runbooks/argocd-release-selection.md),
+check/apply/idempotence, Universal Auth, and runtime remain closed. A separate
+source-only [Infisical Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md)
+now freezes one same-Namespace Universal Auth reference, fixed non-secret source
+identifiers, exact orphaned targets, additive exact-name RBAC, and fail-closed
+admission; credential/source creation, values, sync, check/apply, and runtime remain
+closed. The [Argo](../../runbooks/argocd-release-selection.md),
 [Infisical](../../runbooks/infisical-operator-release-selection.md), and
 [Keycloak/PostgreSQL](../../runbooks/keycloak-release-selection.md) selection records
 plus `ansible/files/policies/hosted-identity-authorization.yml` and

@@ -1,6 +1,6 @@
 ---
 policy_schema: cristex-shared-databases-v1
-policy_status: source-policy-only-runtime-blocked
+policy_status: source-only-runtime-blocked
 namespace: shared-services
 credential_value_owner: infisical-cloud
 engines:
@@ -62,12 +62,17 @@ engines:
     namespace: shared-services
     model: one-general-engine
     source:
-      selection: unselected
-      repository: null
-      version: null
-      linux_amd64_digest: null
+      selection: selected-offline-only
+      repository: docker.io/library/mongo
+      version: "8.0.28"
+      linux_amd64_digest: sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4
+      pull_reference: docker.io/library/mongo@sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4
       trust_accepted: false
-    topology: unselected
+    topology: standalone-non-authoritative
+    high_availability: false
+    replica_set: false
+    transaction_acceptance: false
+    authoritative_data_acceptance: false
     consumers:
       cristexhub-dev:
         database: dedicated-logical-database
@@ -129,7 +134,24 @@ exposure:
 tls:
   required: true
   certificate_value_owner: infisical-cloud
-  exact_identities_selected: false
+  exact_identities_selected: true
+  certificate_identities:
+    postgresql:
+      - localhost
+      - shared-postgresql.shared-services.svc
+      - shared-postgresql.shared-services.svc.cluster.local
+    mongodb:
+      - localhost
+      - shared-mongodb.shared-services.svc
+      - shared-mongodb.shared-services.svc.cluster.local
+  postgresql_secret_keys:
+    - ca.crt
+    - tls.crt
+    - tls.key
+  mongodb_secret_keys:
+    - ca.crt
+    - tls.pem
+  mongodb_certificate_argv: --tlsCertificateKeyFile=/etc/mongodb/tls/tls.pem
 storage:
   storage_class: local-path
   placement: nvme
@@ -138,8 +160,13 @@ storage:
     postgresql: 40Gi
     mongodb: 80Gi
   access_mode: ReadWriteOnce
-  data_paths: unselected
-  retention_and_reclaim: unselected
+  data_paths:
+    mongodb: /data/db
+  retention_and_reclaim:
+    mongodb:
+      when_deleted: Retain
+      when_scaled: Retain
+      pvc_delete_path: forbidden
 resources:
   per_engine:
     requests:
@@ -148,7 +175,11 @@ resources:
     limits:
       cpu: "2"
       memory: 3Gi
-  probes: unselected
+  probes:
+    mongodb:
+      startup: mongosh-authenticated-tls-ping
+      readiness: mongosh-authenticated-tls-ping
+      liveness: mongosh-authenticated-tls-ping
   connection_limits: unselected
 provisioning:
   owner: ansible-bootstrap-then-argocd-handoff
@@ -169,16 +200,16 @@ backup_and_restore:
   integrity_verification_required: true
   isolated_restore_required: true
 promotion_gates:
-  mongodb_immutable_source_selected: false
+  mongodb_immutable_source_selected: true
   image_trust_and_recovery_accepted: false
-  storage_design_accepted: false
+  storage_design_accepted: true
   tls_design_accepted: false
-  resources_and_probes_accepted: false
-  network_policy_accepted: false
+  resources_and_probes_accepted: true
+  network_policy_accepted: true
   infisical_bootstrap_recovery_proved: false
   provisioning_workflow_proved: false
   backup_and_restore_proved: false
   rpo_rto_restore_proved: false
   one_writer_handoff_proved: false
   runtime_approved: false
-executable_source_allowed: false
+executable_source_allowed: true

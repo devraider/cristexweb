@@ -1,0 +1,258 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: shared-mongodb
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: shared-mongodb
+    app.kubernetes.io/instance: shared-mongodb
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+    app.kubernetes.io/part-of: shared-databases
+    cristex.io/component: mongodb
+spec:
+  serviceName: shared-mongodb
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shared-mongodb
+      app.kubernetes.io/instance: shared-mongodb
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: shared-mongodb
+        app.kubernetes.io/instance: shared-mongodb
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: shared-databases
+        cristex.io/component: mongodb
+    spec:
+      serviceAccountName: shared-mongodb
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/arch: amd64
+        kubernetes.io/os: linux
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 999
+        runAsNonRoot: true
+        runAsUser: 999
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: prepare-tls
+          image: docker.io/library/mongo@sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -ec
+          args:
+            - >-
+              set -euo pipefail;
+              umask 077;
+              cat /etc/mongodb/tls-source/tls.pem > /etc/mongodb/tls-runtime/tls.pem;
+              chmod 0400 /etc/mongodb/tls-runtime/tls.pem;
+              cat /etc/mongodb/tls-source/ca.crt > /etc/mongodb/tls-runtime/ca.crt;
+              chmod 0444 /etc/mongodb/tls-runtime/ca.crt;
+              test "$(stat -c '%u:%a' /etc/mongodb/tls-runtime/tls.pem)" = '999:400';
+              test "$(stat -c '%u:%a' /etc/mongodb/tls-runtime/ca.crt)" = '999:444'
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: mongodb-tls-source
+              mountPath: /etc/mongodb/tls-source
+              readOnly: true
+            - name: mongodb-tls-runtime
+              mountPath: /etc/mongodb/tls-runtime
+
+      containers:
+        - name: mongodb
+          image: docker.io/library/mongo@sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4
+          imagePullPolicy: IfNotPresent
+          args:
+            - mongod
+            - --bind_ip_all
+            - --dbpath=/data/db
+            - --auth
+            - --setParameter=authenticationMechanisms=SCRAM-SHA-256
+            - --tlsMode=requireTLS
+            - --tlsCertificateKeyFile=/etc/mongodb/tls/tls.pem
+            - --tlsCAFile=/etc/mongodb/tls/ca.crt
+            - --tlsAllowConnectionsWithoutCertificates
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: shared-mongodb-auth
+                  key: username
+                  optional: false
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shared-mongodb-auth
+                  key: password
+                  optional: false
+          ports:
+            - name: mongodb
+              containerPort: 27017
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - >-
+                  mongosh --quiet --norc --tls
+                  --tlsCAFile=/etc/mongodb/tls/ca.crt
+                  --host localhost --port 27017
+                  --eval 'const admin = db.getSiblingDB("admin");
+                  if (admin.auth({user: process.env.MONGO_INITDB_ROOT_USERNAME,
+                  pwd: process.env.MONGO_INITDB_ROOT_PASSWORD}) !== 1) quit(11);
+                  if (admin.runCommand({ping: 1}).ok !== 1) quit(12);';
+                  if mongosh --quiet --norc --host localhost --port 27017
+                  --eval 'db.adminCommand({ping: 1}).ok' >/dev/null 2>&1;
+                  then exit 13; fi
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - >-
+                  mongosh --quiet --norc --tls
+                  --tlsCAFile=/etc/mongodb/tls/ca.crt
+                  --host localhost --port 27017
+                  --eval 'const admin = db.getSiblingDB("admin");
+                  if (admin.auth({user: process.env.MONGO_INITDB_ROOT_USERNAME,
+                  pwd: process.env.MONGO_INITDB_ROOT_PASSWORD}) !== 1) quit(11);
+                  if (admin.runCommand({ping: 1}).ok !== 1) quit(12);';
+                  if mongosh --quiet --norc --host localhost --port 27017
+                  --eval 'db.adminCommand({ping: 1}).ok' >/dev/null 2>&1;
+                  then exit 13; fi
+            failureThreshold: 3
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - >-
+                  mongosh --quiet --norc --tls
+                  --tlsCAFile=/etc/mongodb/tls/ca.crt
+                  --host localhost --port 27017
+                  --eval 'const admin = db.getSiblingDB("admin");
+                  if (admin.auth({user: process.env.MONGO_INITDB_ROOT_USERNAME,
+                  pwd: process.env.MONGO_INITDB_ROOT_PASSWORD}) !== 1) quit(11);
+                  if (admin.runCommand({ping: 1}).ok !== 1) quit(12);';
+                  if mongosh --quiet --norc --host localhost --port 27017
+                  --eval 'db.adminCommand({ping: 1}).ok' >/dev/null 2>&1;
+                  then exit 13; fi
+            failureThreshold: 3
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: mongodb-data
+              mountPath: /data/db
+            - name: mongodb-configdb
+              mountPath: /data/configdb
+            - name: mongodb-auth
+              mountPath: /etc/mongodb/auth
+              readOnly: true
+            - name: mongodb-tls-runtime
+              mountPath: /etc/mongodb/tls
+              readOnly: true
+            - name: mongodb-tmp
+              mountPath: /tmp
+      volumes:
+        - name: mongodb-auth
+          secret:
+            secretName: shared-mongodb-auth
+            defaultMode: 288
+            optional: false
+            items:
+              - key: username
+                path: username
+              - key: password
+                path: password
+        - name: mongodb-tls-source
+          secret:
+            secretName: shared-mongodb-tls
+            defaultMode: 288
+            optional: false
+            items:
+              - key: ca.crt
+                path: ca.crt
+              - key: tls.pem
+                path: tls.pem
+        - name: mongodb-tls-runtime
+          emptyDir:
+            medium: Memory
+        - name: mongodb-tmp
+          emptyDir: {}
+        - name: mongodb-configdb
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: mongodb-data
+        labels:
+          app.kubernetes.io/name: shared-mongodb
+          app.kubernetes.io/instance: shared-mongodb
+          app.kubernetes.io/component: database
+          app.kubernetes.io/managed-by: ansible
+          cristex.io/bootstrap-writer: ansible
+          cristex.io/desired-owner: argocd
+          app.kubernetes.io/part-of: shared-databases
+          cristex.io/component: mongodb
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: local-path
+        volumeMode: Filesystem
+        resources:
+          requests:
+            storage: 80Gi
