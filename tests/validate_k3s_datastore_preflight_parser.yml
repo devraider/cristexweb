@@ -502,6 +502,70 @@
           - k3s_datastore_preflight_internal_datastore_type == 'unknown'
       changed_when: false
 
+    - name: Bind forbidden top-level cluster-reset config keys
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_config_state:
+          stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', size: 91}
+        k3s_datastore_preflight_internal_config_read_allowed: true
+        k3s_datastore_preflight_internal_config_content_stable: true
+        k3s_datastore_preflight_internal_config_slurp_result:
+          failed: false
+          skipped: false
+          content: "{{ 'cluster-reset: true\ncluster-reset-restore-path: /var/lib/rancher/k3s/server/db/snapshot.db\n' | b64encode }}"
+      changed_when: false
+    - name: Run forbidden top-level cluster-reset config parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require forbidden top-level cluster-reset config keys to fail closed
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_config_key_counts.cluster_reset | int == 1
+          - k3s_datastore_preflight_internal_config_key_counts.cluster_reset_restore_path | int == 1
+          - not (k3s_datastore_preflight_internal_config_parse_valid | bool)
+          - k3s_datastore_preflight_internal_config_data_dir_state == 'unknown'
+      changed_when: false
+
+    - name: Bind direct cluster-reset ExecStart option
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_config_state: {stat: {exists: false}}
+        k3s_datastore_preflight_internal_config_read_allowed: false
+        k3s_datastore_preflight_internal_config_content_stable: false
+        k3s_datastore_preflight_internal_exec_start_result:
+          rc: 0
+          stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --cluster-reset ; ignore_errors=no }'
+          stdout_lines: ['direct cluster reset option']
+      changed_when: false
+    - name: Run direct cluster-reset parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require direct cluster-reset to make ExecStart unsafe
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_cluster_reset_arg_count | int == 1
+          - k3s_datastore_preflight_internal_cluster_reset_restore_path_arg_count | int == 0
+          - k3s_datastore_preflight_internal_exec_start_status == 'unsafe'
+          - k3s_datastore_preflight_internal_datastore_type == 'unknown'
+      changed_when: false
+
+    - name: Bind direct cluster-reset-restore-path ExecStart option
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_config_state: {stat: {exists: false}}
+        k3s_datastore_preflight_internal_config_read_allowed: false
+        k3s_datastore_preflight_internal_config_content_stable: false
+        k3s_datastore_preflight_internal_exec_start_result:
+          rc: 0
+          stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --cluster-reset-restore-path=/var/lib/rancher/k3s/server/db/snapshot.db ; ignore_errors=no }'
+          stdout_lines: ['direct cluster reset restore path option']
+      changed_when: false
+    - name: Run direct cluster-reset-restore-path parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require direct cluster-reset-restore-path to make ExecStart unsafe
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_cluster_reset_arg_count | int == 0
+          - k3s_datastore_preflight_internal_cluster_reset_restore_path_arg_count | int == 1
+          - k3s_datastore_preflight_internal_exec_start_status == 'unsafe'
+          - k3s_datastore_preflight_internal_datastore_type == 'unknown'
+      changed_when: false
+
     - name: Bind unsafe config with an exact data-directory argument
       ansible.builtin.set_fact:
         k3s_datastore_preflight_internal_config_state:
@@ -631,6 +695,53 @@
           - k3s_datastore_preflight_internal_environment_overrides_absent | bool
           - k3s_datastore_preflight_internal_data_dir_source == 'config_default'
           - k3s_datastore_preflight_internal_datastore_type == 'sqlite'
+      changed_when: false
+
+    - name: Bind a pre/post EnvironmentFiles property mismatch
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_config_state:
+          stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', size: 45}
+        k3s_datastore_preflight_internal_config_read_allowed: true
+        k3s_datastore_preflight_internal_config_content_stable: true
+        k3s_datastore_preflight_internal_config_slurp_result:
+          failed: false
+          skipped: false
+          content: "{{ 'secrets-encryption: true\ncluster-init: false\n' | b64encode }}"
+        k3s_datastore_preflight_internal_environment_results:
+          results:
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+            - rc: 0
+              stderr: ''
+              stdout: |-
+                /etc/default/k3s (ignore_errors=yes)
+                /etc/sysconfig/k3s (ignore_errors=yes)
+                /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+              stdout_lines:
+                - /etc/default/k3s (ignore_errors=yes)
+                - /etc/sysconfig/k3s (ignore_errors=yes)
+                - /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+        k3s_datastore_preflight_internal_environment_post_results:
+          results:
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+            - rc: 0
+              stderr: ''
+              stdout: /etc/systemd/system/foreign.env (ignore_errors=yes)
+              stdout_lines: ['/etc/systemd/system/foreign.env (ignore_errors=yes)']
+        k3s_datastore_preflight_internal_environment_file_read_allowed: false
+        k3s_datastore_preflight_internal_exec_start_result:
+          rc: 0
+          stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server ; ignore_errors=no }'
+          stdout_lines: ['pre/post EnvironmentFiles property mismatch']
+      changed_when: false
+    - name: Run pre/post EnvironmentFiles property mismatch parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require a pre/post EnvironmentFiles property mismatch to fail closed
+      ansible.builtin.assert:
+        that:
+          - not (k3s_datastore_preflight_internal_environment_file_path_exact | bool)
+          - not (k3s_datastore_preflight_internal_environment_overrides_absent | bool)
+          - k3s_datastore_preflight_internal_data_dir_source == 'environment_override_unknown'
+          - k3s_datastore_preflight_internal_datastore_type == 'unknown'
       changed_when: false
 
     - name: Bind a relevant datastore key in the exact k3s service EnvironmentFile

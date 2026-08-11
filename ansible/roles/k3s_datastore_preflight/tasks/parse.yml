@@ -17,6 +17,8 @@
       datastore_endpoint: 0
       cluster_init: 0
       secrets_encryption: 0
+      cluster_reset: 0
+      cluster_reset_restore_path: 0
     k3s_datastore_preflight_internal_config_parse_valid: false
     k3s_datastore_preflight_internal_config_data_dir_state: unknown
     k3s_datastore_preflight_internal_config_external_marker: false
@@ -27,6 +29,8 @@
     k3s_datastore_preflight_internal_external_arg_count: 0
     k3s_datastore_preflight_internal_external_arg_exact_marker: false
     k3s_datastore_preflight_internal_cluster_init_arg_count: 0
+    k3s_datastore_preflight_internal_cluster_reset_arg_count: 0
+    k3s_datastore_preflight_internal_cluster_reset_restore_path_arg_count: 0
     k3s_datastore_preflight_internal_environment_file_path_exact: false
     k3s_datastore_preflight_internal_environment_file_content_stable: false
     k3s_datastore_preflight_internal_environment_file_key_count: 0
@@ -124,6 +128,12 @@
       secrets_encryption: >-
         {{ (k3s_datastore_preflight_internal_config_raw |
             regex_findall('(?m)^secrets-encryption:[ \\t]*')) | length }}
+      cluster_reset: >-
+        {{ (k3s_datastore_preflight_internal_config_raw |
+            regex_findall('(?m)^cluster-reset:[ \\t]*')) | length }}
+      cluster_reset_restore_path: >-
+        {{ (k3s_datastore_preflight_internal_config_raw |
+            regex_findall('(?m)^cluster-reset-restore-path:[ \\t]*')) | length }}
   when:
     - not (k3s_datastore_preflight_internal_config_decode_result.failed | default(false) | bool)
     - not (k3s_datastore_preflight_internal_config_decode_result.skipped | default(false) | bool)
@@ -144,9 +154,15 @@
     - k3s_datastore_preflight_internal_config_key_counts.datastore_endpoint | int <= 1
     - k3s_datastore_preflight_internal_config_key_counts.cluster_init | int <= 1
     - k3s_datastore_preflight_internal_config_key_counts.secrets_encryption | int <= 1
+    - k3s_datastore_preflight_internal_config_key_counts.cluster_reset | int == 0
+    - k3s_datastore_preflight_internal_config_key_counts.cluster_reset_restore_path | int == 0
     - >-
       k3s_datastore_preflight_internal_config_raw |
-      regex_findall("(?m)^[ \\t]*['\\\"](?:data-dir|datastore-endpoint|cluster-init|secrets-encryption)['\\\"]:[ \\t]*") |
+      regex_findall("(?m)^[ \\t]*['\\\"](?:data-dir|datastore-endpoint|cluster-init|secrets-encryption|cluster-reset)['\\\"]:[ \\t]*") |
+      length == 0
+    - >-
+      k3s_datastore_preflight_internal_config_raw |
+      regex_findall("(?m)^[ \\t]*['\\\"]cluster-reset-restore-path['\\\"]:[ \\t]*") |
       length == 0
     - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)^[.][.][.][ \\t]*(?:#.*)?$') | length == 0
     - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)^---[ \\t]*(?:#.*)?$') | length <= 1
@@ -169,6 +185,12 @@
       - k3s_datastore_preflight_internal_config_key_counts.datastore_endpoint | int <= 1
       - k3s_datastore_preflight_internal_config_key_counts.cluster_init | int <= 1
       - k3s_datastore_preflight_internal_config_key_counts.secrets_encryption | int <= 1
+      - k3s_datastore_preflight_internal_config_key_counts.cluster_reset | int == 0
+      - k3s_datastore_preflight_internal_config_key_counts.cluster_reset_restore_path | int == 0
+      - >-
+        'cluster-reset' not in k3s_datastore_preflight_internal_config_payload
+      - >-
+        'cluster-reset-restore-path' not in k3s_datastore_preflight_internal_config_payload
       - >-
         k3s_datastore_preflight_internal_config_key_counts.data_dir | int ==
         (1 if 'data-dir' in k3s_datastore_preflight_internal_config_payload else 0)
@@ -255,6 +277,12 @@
     k3s_datastore_preflight_internal_cluster_init_arg_count: >-
       {{ (k3s_datastore_preflight_internal_exec_start_result.stdout | default('') |
           regex_findall('--cluster-init(?:,|;| |$)')) | length }}
+    k3s_datastore_preflight_internal_cluster_reset_arg_count: >-
+      {{ (k3s_datastore_preflight_internal_exec_start_result.stdout | default('') |
+          regex_findall('--cluster-reset(?:=|,|;| |$)')) | length }}
+    k3s_datastore_preflight_internal_cluster_reset_restore_path_arg_count: >-
+      {{ (k3s_datastore_preflight_internal_exec_start_result.stdout | default('') |
+          regex_findall('--cluster-reset-restore-path(?:=|,|;| |$)')) | length }}
   changed_when: false
   no_log: true
 
@@ -304,6 +332,8 @@
            k3s_datastore_preflight_internal_data_dir_arg_count | int <= 1 and
            k3s_datastore_preflight_internal_external_arg_count | int <= 1 and
            k3s_datastore_preflight_internal_cluster_init_arg_count | int <= 1 and
+           k3s_datastore_preflight_internal_cluster_reset_arg_count | int == 0 and
+           k3s_datastore_preflight_internal_cluster_reset_restore_path_arg_count | int == 0 and
            (not k3s_datastore_preflight_internal_config_arg_marker or
             k3s_datastore_preflight_internal_config_arg_exact_marker) and
            (not k3s_datastore_preflight_internal_data_dir_arg_marker or

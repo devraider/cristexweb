@@ -73,6 +73,8 @@
     - k3s_datastore_preflight_internal_external_arg_count
     - k3s_datastore_preflight_internal_external_arg_exact_marker
     - k3s_datastore_preflight_internal_cluster_init_arg_count
+    - k3s_datastore_preflight_internal_cluster_reset_arg_count
+    - k3s_datastore_preflight_internal_cluster_reset_restore_path_arg_count
     - k3s_datastore_preflight_internal_etcd_marker
     - k3s_datastore_preflight_internal_external_marker
     - k3s_datastore_preflight_internal_sqlite_marker
@@ -190,7 +192,13 @@
     follow: false
     get_checksum: false
     get_mime: false
-  loop: "{{ k3s_datastore_preflight_remote_path_components }}"
+  loop:
+    - /var
+    - /var/lib
+    - /var/lib/rancher
+    - /var/lib/rancher/k3s
+    - /var/lib/rancher/k3s/server
+    - /var/lib/rancher/k3s/server/db
   register: k3s_datastore_preflight_internal_remote_path_states
   no_log: true
 
@@ -217,7 +225,10 @@
     follow: false
     get_checksum: false
     get_mime: false
-  loop: "{{ k3s_datastore_preflight_config_path_components }}"
+  loop:
+    - /etc
+    - /etc/rancher
+    - /etc/rancher/k3s
   register: k3s_datastore_preflight_internal_config_path_states
   no_log: true
 
@@ -244,7 +255,10 @@
     follow: false
     get_checksum: false
     get_mime: false
-  loop: "{{ k3s_datastore_preflight_environment_file_path_components }}"
+  loop:
+    - /etc
+    - /etc/systemd
+    - /etc/systemd/system
   register: k3s_datastore_preflight_internal_environment_file_path_states
   no_log: true
 
@@ -299,7 +313,7 @@
 
 - name: Inspect the fixed k3s executable metadata
   ansible.builtin.stat:
-    path: "{{ k3s_datastore_preflight_k3s_binary }}"
+    path: /usr/local/bin/k3s
     follow: false
     get_checksum: false
     get_mime: false
@@ -308,7 +322,7 @@
 
 - name: Inspect the fixed k3s configuration metadata before private parsing
   ansible.builtin.stat:
-    path: "{{ k3s_datastore_preflight_config_path }}"
+    path: /etc/rancher/k3s/config.yaml
     follow: false
     get_checksum: false
     get_mime: false
@@ -317,7 +331,7 @@
 
 - name: Inspect the fixed k3s datastore directory metadata without reading content
   ansible.builtin.stat:
-    path: "{{ k3s_datastore_preflight_data_dir }}"
+    path: /var/lib/rancher/k3s/server/db
     follow: false
     get_checksum: false
     get_mime: false
@@ -343,7 +357,7 @@
 
 - name: Privately slurp only the bounded fixed k3s config
   ansible.builtin.slurp:
-    src: "{{ k3s_datastore_preflight_config_path }}"
+    src: /etc/rancher/k3s/config.yaml
   register: k3s_datastore_preflight_internal_config_slurp_result
   when: k3s_datastore_preflight_internal_config_read_allowed | bool
   check_mode: false
@@ -353,7 +367,7 @@
 
 - name: Inspect the fixed k3s configuration metadata after private parsing
   ansible.builtin.stat:
-    path: "{{ k3s_datastore_preflight_config_path }}"
+    path: /etc/rancher/k3s/config.yaml
     follow: false
     get_checksum: false
     get_mime: false
@@ -394,7 +408,7 @@
 
 - name: Inspect the exact SQLite datastore marker without reading content
   ansible.builtin.stat:
-    path: "{{ k3s_datastore_preflight_sqlite_marker_path }}"
+    path: /var/lib/rancher/k3s/server/db/state.db
     follow: false
     get_checksum: false
     get_mime: false
@@ -403,7 +417,7 @@
 
 - name: Inspect the exact embedded-etcd datastore marker without reading content
   ansible.builtin.stat:
-    path: "{{ k3s_datastore_preflight_etcd_marker_path }}"
+    path: /var/lib/rancher/k3s/server/db/etcd
     follow: false
     get_checksum: false
     get_mime: false
@@ -413,7 +427,7 @@
 - name: Read the fixed k3s version command without logging output
   ansible.builtin.command:
     argv:
-      - "{{ k3s_datastore_preflight_k3s_binary }}"
+      - /usr/local/bin/k3s
       - --version
   register: k3s_datastore_preflight_internal_version_result
   changed_when: false
@@ -424,7 +438,7 @@
 - name: Read the fixed k3s service ExecStart property without logging output
   ansible.builtin.command:
     argv:
-      - "{{ k3s_datastore_preflight_systemctl_binary }}"
+      - /usr/bin/systemctl
       - show
       - --property=ExecStart
       - --value
@@ -438,7 +452,7 @@
 - name: Read fixed k3s service environment properties without logging values
   ansible.builtin.command:
     argv:
-      - "{{ k3s_datastore_preflight_systemctl_binary }}"
+      - /usr/bin/systemctl
       - show
       - "--property={{ item }}"
       - --value
@@ -475,7 +489,10 @@
     follow: false
     get_checksum: false
     get_mime: false
-  loop: "{{ k3s_datastore_preflight_environment_file_paths }}"
+  loop:
+    - /etc/default/k3s
+    - /etc/sysconfig/k3s
+    - /etc/systemd/system/k3s.service.env
   register: k3s_datastore_preflight_internal_environment_file_states
   when: k3s_datastore_preflight_internal_environment_file_path_exact | bool
   changed_when: false
@@ -509,7 +526,7 @@
       - --count
       - --extended-regexp
       - >-
-        ^[[:space:]]*(export[[:space:]]+)?K3S_(CONFIG_FILE|DATA_DIR|DATASTORE_ENDPOINT|DATASTORE_CAFILE|DATASTORE_CERTFILE|DATASTORE_KEYFILE|DATASTORE_INSECURE_SKIP_VERIFY|CLUSTER_INIT|CLUSTER_RESET|SECRETS_ENCRYPTION)[[:space:]]*=
+        ^[[:space:]]*(export[[:space:]]+)?K3S_(CONFIG_FILE|DATA_DIR|DATASTORE_ENDPOINT|DATASTORE_CAFILE|DATASTORE_CERTFILE|DATASTORE_KEYFILE|DATASTORE_INSECURE_SKIP_VERIFY|CLUSTER_INIT|CLUSTER_RESET|CLUSTER_RESET_RESTORE_PATH|SECRETS_ENCRYPTION)[[:space:]]*=
       - --
       - /etc/systemd/system/k3s.service.env
   register: k3s_datastore_preflight_internal_environment_file_key_count_result
@@ -525,7 +542,10 @@
     follow: false
     get_checksum: false
     get_mime: false
-  loop: "{{ k3s_datastore_preflight_environment_file_paths }}"
+  loop:
+    - /etc/default/k3s
+    - /etc/sysconfig/k3s
+    - /etc/systemd/system/k3s.service.env
   register: k3s_datastore_preflight_internal_environment_file_post_states
   when:
     - k3s_datastore_preflight_internal_environment_file_read_allowed | bool
@@ -537,7 +557,7 @@
 - name: Read fixed k3s service environment properties after private counting
   ansible.builtin.command:
     argv:
-      - "{{ k3s_datastore_preflight_systemctl_binary }}"
+      - /usr/bin/systemctl
       - show
       - "--property={{ item }}"
       - --value
@@ -560,7 +580,7 @@
 - name: Read the fixed k3s encryption status command without logging output
   ansible.builtin.command:
     argv:
-      - "{{ k3s_datastore_preflight_k3s_binary }}"
+      - /usr/local/bin/k3s
       - secrets-encrypt
       - status
       - --output
@@ -574,7 +594,7 @@
 - name: Read the fixed k3s service health properties without logging output
   ansible.builtin.command:
     argv:
-      - "{{ k3s_datastore_preflight_systemctl_binary }}"
+      - /usr/bin/systemctl
       - show
       - --property=LoadState,ActiveState,SubState
       - --value
@@ -593,10 +613,10 @@
 - name: Read the fixed node-list command without logging identities or output
   ansible.builtin.command:
     argv:
-      - "{{ k3s_datastore_preflight_k3s_binary }}"
+      - /usr/local/bin/k3s
       - kubectl
       - --kubeconfig
-      - "{{ k3s_datastore_preflight_kubeconfig }}"
+      - /etc/rancher/k3s/k3s.yaml
       - get
       - nodes
       - --output=json

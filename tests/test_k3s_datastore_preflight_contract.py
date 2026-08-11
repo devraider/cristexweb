@@ -106,7 +106,9 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "/etc/systemd/system/k3s.service.env",
             "ENVIRONMENT_PATH_GUARD",
             "CONFIG_FILE|DATA_DIR",
-            "CLUSTER_INIT|CLUSTER_RESET|SECRETS_ENCRYPTION",
+            "CLUSTER_INIT|CLUSTER_RESET|CLUSTER_RESET_RESTORE_PATH|SECRETS_ENCRYPTION",
+            "cluster-reset-restore-path",
+            "--cluster-reset-restore-path",
             "/usr/bin/grep",
             "--count",
             "EnvironmentFiles",
@@ -131,7 +133,7 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
         self.assertIn("no_log: true", environment_count_task)
         self.assertNotIn("ansible.builtin.slurp", environment_count_task)
         self.assertIn("K3S_(CONFIG_FILE|DATA_DIR", environment_count_task)
-        self.assertIn("CLUSTER_INIT|CLUSTER_RESET|SECRETS_ENCRYPTION", environment_count_task)
+        self.assertIn("CLUSTER_INIT|CLUSTER_RESET|CLUSTER_RESET_RESTORE_PATH|SECRETS_ENCRYPTION", environment_count_task)
         for forbidden in (
             "ansible.builtin.shell:",
             "ansible.builtin.raw:",
@@ -176,6 +178,7 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             path.write_text(
                 "K3S_CONFIG_FILE=/etc/rancher/k3s/config.yaml\n"
                 "export K3S_CLUSTER_RESET=true\n"
+                "K3S_CLUSTER_RESET_RESTORE_PATH=/var/lib/rancher/k3s/server/db/snapshot.db\n"
                 "  K3S_DATA_DIR=/var/lib/rancher/k3s\n"
                 "NOT_K3S_CONFIG_FILE=ignored\n"
             )
@@ -186,8 +189,28 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
                 check=False,
             )
         self.assertEqual(0, result.returncode)
-        self.assertEqual("3\n", result.stdout)
+        self.assertEqual("4\n", result.stdout)
         self.assertEqual("", result.stderr)
+
+    def test_read_only_command_executables_are_source_pinned(self) -> None:
+        tasks = (ROLE / "tasks/main.yml").read_text()
+        command_blocks = tasks.split("ansible.builtin.command:")[1:]
+        self.assertGreaterEqual(len(command_blocks), 5)
+        for block in command_blocks:
+            block = block.split("\n- name:", 1)[0]
+            argv = block.split("argv:", 1)[1]
+            executable = next(line.strip() for line in argv.splitlines() if line.strip().startswith("- "))
+            self.assertNotIn("{{", executable)
+        for executable in ("/usr/local/bin/k3s", "/usr/bin/systemctl", "/usr/bin/grep"):
+            self.assertIn(executable, tasks)
+        for path in (
+            "/etc/rancher/k3s/config.yaml",
+            "/etc/rancher/k3s/k3s.yaml",
+            "/var/lib/rancher/k3s/server/db",
+            "/var/lib/rancher/k3s/server/db/state.db",
+            "/var/lib/rancher/k3s/server/db/etcd",
+        ):
+            self.assertIn(path, tasks)
 
     def test_report_template_has_exact_sanitized_schema(self) -> None:
         template = (ROLE / "templates/report.json.j2").read_text()
