@@ -285,7 +285,10 @@
     follow: false
     get_checksum: false
     get_mime: false
-  loop: "{{ k3s_datastore_preflight_controller_output_path_components }}"
+  loop:
+    - "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+    - "{{ playbook_dir | ansible.builtin.dirname }}"
+    - "{{ playbook_dir | ansible.builtin.dirname }}/.ansible"
   register: k3s_datastore_preflight_internal_controller_output_path_states
   delegate_to: localhost
   become: false
@@ -760,7 +763,7 @@
 
 - name: Inspect the fixed controller artifact destination
   ansible.builtin.stat:
-    path: "{{ k3s_datastore_preflight_output_path }}"
+    path: "{{ playbook_dir }}/../.ansible/k3s-datastore-preflight.local.json"
     follow: false
     get_checksum: false
     get_mime: false
@@ -799,9 +802,9 @@
 - name: Write only the sanitized mode-0600 controller artifact
   ansible.builtin.template:
     src: report.json.j2
-    dest: "{{ k3s_datastore_preflight_output_path }}"
+    dest: "{{ playbook_dir }}/../.ansible/k3s-datastore-preflight.local.json"
     mode: '0600'
-    owner: "{{ k3s_datastore_preflight_controller_user }}"
+    owner: "{{ lookup('ansible.builtin.env', 'USER') }}"
     backup: false
   delegate_to: localhost
   become: false
@@ -812,7 +815,7 @@
 
 - name: Inspect the written controller artifact destination
   ansible.builtin.stat:
-    path: "{{ k3s_datastore_preflight_output_path }}"
+    path: "{{ playbook_dir }}/../.ansible/k3s-datastore-preflight.local.json"
     follow: false
     get_checksum: false
     get_mime: false
