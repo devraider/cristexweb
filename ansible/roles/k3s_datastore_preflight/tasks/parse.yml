@@ -182,6 +182,7 @@
       - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)^[.][.][.][ \\t]*(?:#.*)?$') | length == 0
       - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)^---[ \\t]*(?:#.*)?$') | length <= 1
       - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)^[ \\t]*(?:<<:|%YAML|%TAG)') | length == 0
+      - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)^[ \\t]*[?:][ \\t]+') | length == 0
       - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)(?:^|[ \\t])[&*!][^ \\t\\r\\n]+') | length == 0
       - k3s_datastore_preflight_internal_config_key_counts.data_dir | int <= 1
       - k3s_datastore_preflight_internal_config_key_counts.datastore_endpoint | int <= 1
@@ -302,12 +303,14 @@
       {{ k3s_datastore_preflight_internal_exec_start_path_count | int == 1 and
          ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
           regex_findall('(?:^|[;{])[ \\t]*path=/usr/local/bin/k3s(?:[ \\t;}]|$)') | length) == 1 }}
+    # yamllint disable rule:line-length
     k3s_datastore_preflight_internal_exec_start_server_marker: >-
       {{ ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
-          regex_findall('(?:^|[=,; ])/usr/local/bin/k3s(?:,| )+server(?:,|;| |$)') | length) == 1 }}
+          regex_findall('^\{[ \t]+path=/usr/local/bin/k3s[ \t]*;[ \t]+argv\[\]=/usr/local/bin/k3s[ \t]+server(?:[ \t]+[^;{}\r\n]*)?[ \t]*;[ \t]+ignore_errors=no[ \t]+\}$') | length) == 1 }}
     k3s_datastore_preflight_internal_exec_start_agent_marker: >-
       {{ ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
-          regex_findall('(?:^|[=,; ])/usr/local/bin/k3s(?:,| )+agent(?:,|;| |$)') | length) == 1 }}
+          regex_findall('^\{[ \t]+path=/usr/local/bin/k3s[ \t]*;[ \t]+argv\[\]=/usr/local/bin/k3s[ \t]+agent(?:[ \t]+[^;{}\r\n]*)?[ \t]*;[ \t]+ignore_errors=no[ \t]+\}$') | length) == 1 }}
+    # yamllint enable rule:line-length
     k3s_datastore_preflight_internal_config_arg_marker: >-
       {{ k3s_datastore_preflight_internal_config_arg_count | int == 1 }}
     k3s_datastore_preflight_internal_config_arg_exact_marker: >-
@@ -339,11 +342,12 @@
            (k3s_datastore_preflight_internal_exec_start_result.stdout | default('') | length) == 0
          ) else
          'available' if (
+           (k3s_datastore_preflight_internal_exec_start_result.stderr | default('') | length) == 0 and
            (k3s_datastore_preflight_internal_exec_start_result.stdout_lines | default([]) | length) == 1 and
            k3s_datastore_preflight_internal_exec_start_path_count | int == 1 and
            k3s_datastore_preflight_internal_exec_start_path_exact_marker and
-           (k3s_datastore_preflight_internal_exec_start_server_marker or
-            k3s_datastore_preflight_internal_exec_start_agent_marker) and
+           k3s_datastore_preflight_internal_exec_start_server_marker and
+           not k3s_datastore_preflight_internal_exec_start_agent_marker and
            k3s_datastore_preflight_internal_config_arg_count | int <= 1 and
            k3s_datastore_preflight_internal_data_dir_arg_count | int <= 1 and
            k3s_datastore_preflight_internal_external_arg_count | int <= 1 and

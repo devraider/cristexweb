@@ -117,7 +117,7 @@
         that:
           - k3s_datastore_preflight_internal_exec_start_path_count | int == 0
           - not (k3s_datastore_preflight_internal_exec_start_path_exact_marker | bool)
-          - k3s_datastore_preflight_internal_exec_start_server_marker | bool
+          - not (k3s_datastore_preflight_internal_exec_start_server_marker | bool)
           - k3s_datastore_preflight_internal_exec_start_status == 'unsafe'
           - k3s_datastore_preflight_internal_datastore_type == 'unknown'
       changed_when: false
@@ -252,6 +252,25 @@
         that:
           - not (k3s_datastore_preflight_internal_config_parse_valid | bool)
           - k3s_datastore_preflight_internal_config_key_counts.data_dir | int == 2
+          - k3s_datastore_preflight_internal_data_dir_source == 'unknown'
+          - k3s_datastore_preflight_internal_datastore_type == 'unknown'
+      changed_when: false
+
+    - name: Bind a mixed implicit and explicit YAML mapping-key duplicate
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_config_state:
+          stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', size: 59}
+        k3s_datastore_preflight_internal_config_slurp_result:
+          failed: false
+          skipped: false
+          content: "{{ 'data-dir: /var/lib/rancher/k3s\n? data-dir\n: /srv/duplicate\n' | b64encode }}"
+      changed_when: false
+    - name: Run mixed explicit mapping-key parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require explicit YAML mapping-key syntax to fail closed
+      ansible.builtin.assert:
+        that:
+          - not (k3s_datastore_preflight_internal_config_parse_valid | bool)
           - k3s_datastore_preflight_internal_data_dir_source == 'unknown'
           - k3s_datastore_preflight_internal_datastore_type == 'unknown'
       changed_when: false
