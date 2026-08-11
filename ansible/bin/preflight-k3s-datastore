@@ -45,8 +45,9 @@ set -- \
   --check \
   --diff \
   --limit crtxweb \
+  --become \
   --ask-become-pass \
-  --extra-vars '{"k3s_datastore_preflight_approved":true,"k3s_datastore_preflight_elevated_requested":true,"k3s_datastore_preflight_elevated_approved":true}'
+  --extra-vars '{"ansible_become":true,"k3s_datastore_preflight_approved":true,"k3s_datastore_preflight_elevated_requested":true,"k3s_datastore_preflight_elevated_approved":true}'
 
 if [ -n "${SSH_AUTH_SOCK:-}" ]; then
   set -- "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" "$@"

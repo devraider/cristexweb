@@ -322,8 +322,9 @@ bounded Namespace bootstrap remains the current exception.
 
 `bin/preflight-k3s-datastore check` is the only entrypoint for the guarded
 source-only k3s datastore/encryption preflight. It accepts exactly `check`, always
-uses the ignored local inventory, `--check --diff --limit crtxweb`, and
-`--ask-become-pass`, and supplies explicit elevation approval. The wrapper launches
+uses the ignored local inventory, `--check --diff --limit crtxweb`,
+`--become --ask-become-pass`, binds `ansible_become: true` at extra-variable
+precedence, and supplies explicit elevation approval. The wrapper launches
 the pinned controller in a clean allowlisted environment with an ephemeral
 mode-`0600` attestation; direct playbook/role invocation, passthrough arguments,
 task selection, and forged internal variables fail closed before host contact.

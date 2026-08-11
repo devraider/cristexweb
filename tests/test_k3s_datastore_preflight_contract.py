@@ -32,7 +32,9 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "--check",
             "--diff",
             "--limit crtxweb",
+            "--become",
             "--ask-become-pass",
+            '"ansible_become":true',
             "k3s_datastore_preflight_approved",
             "k3s_datastore_preflight_elevated_requested",
             "k3s_datastore_preflight_elevated_approved",
@@ -42,6 +44,10 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
         ):
             self.assertIn(required, wrapper)
         self.assertNotIn("apply", wrapper.split("usage:", 1)[1].split("\n", 1)[0])
+        invocation = wrapper.split("set -- \\\n", 1)[1].split("\n\nif [ -n", 1)[0]
+        self.assertIn("--become", invocation)
+        self.assertIn("--ask-become-pass", invocation)
+        self.assertLess(invocation.index("--become"), invocation.index("--ask-become-pass"))
         self.assertIn("--start-at-task", wrapper)
         for required in ("hosts: k3s_servers", "become: true", "serial: 1", "any_errors_fatal: true"):
             self.assertIn(required, playbook)
