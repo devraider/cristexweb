@@ -2,7 +2,7 @@
 
 ## Status
 
-**INSTALLER APPLY AND IDEMPOTENCE PASSED; HOST OAUTH PENDING.** Earlier approved applies stopped
+**INSTALLER AND HOST OAUTH PASSED; TRANSFER RETRY BLOCKED BY HOST OFFLINE.** Earlier approved applies stopped
 before host mutation on missing nested-module dispatch and an unrendered operator
 default. Both fixes pass focused/full offline validation and independent review. A
 fresh canonical check passed at `ok=25 changed=1 unreachable=0 failed=0 skipped=11`;
@@ -14,8 +14,19 @@ preserved k3s/Tailscale health. Controller cache preparation converged without
 change. The separately approved idempotence apply passed at
 `ok=32 changed=0 unreachable=0 failed=0 skipped=4`. A subsequent read-only transfer
 check stopped at `ok=15 changed=0 failed=1` on missing/unsafe OAuth config metadata,
-before OAuth or Drive access. No rollback, OAuth, Google Drive transfer, proxy
-ciphertext staging, Secret, Kubernetes, Infisical, or Argo mutation completed.
+before OAuth or Drive access. Host OAuth then completed through a private callback
+tunnel without logging config/token content. Transfer check passed at
+`ok=26 changed=0 failed=0`. The approved transfer apply verified OAuth, prepared only
+the exact encrypted staging closure, and stopped on its first upload at
+`ok=25 changed=1 failed=1`: pinned rclone `1.71.1` rejects the source's unsupported
+`--local-umask` flag. Cleanup check passed at `ok=24 changed=1 failed=0`; approved
+cleanup passed at `ok=26 changed=1 failed=0` and removed the exact host staging root.
+No successful Drive upload, readback, Secret, Kubernetes, Infisical, or Argo mutation
+is evidenced. Source now removes the unsupported flag and protects each readback leaf
+at mode `0600` inside its mode-`0700` parent. Independent review and
+`257/257` full offline validation passed. The required fresh transfer check then
+stopped before facts at `ok=0 unreachable=1` when SSH/Tailscale reachability timed
+out; no retry mutation ran.
 
 ## Ownership and custody boundary
 
@@ -45,16 +56,20 @@ OAuth is a later, explicit interactive host gate after installer approval. Run a
 the resolved non-root operator, using the exact config path
 `$HOME/.config/rclone/rclone.conf`; Ansible creates/validates only parent metadata and
 must never read, template, copy, or log configuration or token JSON. A fresh host
-uses `/usr/local/bin/rclone --config "$HOME/.config/rclone/rclone.conf" config
---auth-no-open-browser` to create exactly the `drive` remote; `config reconnect
+uses `/usr/local/bin/rclone --config "$HOME/.config/rclone/rclone.conf" config create
+drive drive config_is_local=true --no-output` to create exactly the `drive` remote;
+`--no-output` prevents final config/token output. The pinned version does not support
+`--auth-no-open-browser`; `config reconnect
 drive:` is only for a remote that already exists. Prefer an SSH local-forward callback
 from the Mac to the host session rather than copying token JSON through the
-controller. Review the rclone-provided localhost callback port, open only that
-temporary `ssh -L` tunnel, complete consent in the local browser, close the tunnel,
-and verify host config ownership and mode `0600`. No token belongs in Git, Ansible
-extra vars, evidence, shell history, or logs. OAuth and independent Google-account
-recovery are **NOT RUN/BLOCKED**. The first post-install transfer check stopped
-safely on absent/unsafe OAuth config metadata before `listremotes` or Drive access.
+controller. Pinned rclone currently emits callback port `53682`; open only the
+temporary `ssh -L 53682:127.0.0.1:53682` tunnel, complete consent in the local
+browser, close the tunnel, and verify host config ownership and mode `0600`. The
+browser and tunnel carry only OAuth consent/callback; the token-bearing config is
+written exclusively on the host. No token belongs in Git, Ansible
+extra vars, evidence, shell history, or logs. OAuth completed successfully through
+the private callback tunnel; its temporary local session files and tunnel were
+removed. Independent Google-account recovery remains **NOT RUN/BLOCKED**.
 
 ## Exact pending transfer
 

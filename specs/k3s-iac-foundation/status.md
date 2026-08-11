@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: 256/256 offline contracts, 23/23 playbook syntax checks, executable parser fixtures, and production ansible-lint (162 files) pass; all new component runtime remains blocked
+build: 257/257 offline contracts, 23/23 playbook syntax checks, executable parser fixtures, and production ansible-lint (162 files) pass; all new component runtime remains blocked
 date: 2026-08-11
 deploy_required_after_acceptance: yes
 
@@ -61,10 +61,13 @@ note: |
   check passed at `ok=25 changed=1 failed=0`; the separately approved corrected
   install passed at `ok=34 changed=4 unreachable=0 failed=0 skipped=2`, selected
   verified rclone `1.71.1`, and preserved k3s/Tailscale health. The separately
-  approved idempotence apply passed at `ok=32 changed=0 failed=0`. A read-only
-  transfer check stopped safely at `ok=15 changed=0 failed=1` on missing/unsafe
-  OAuth config metadata before OAuth or Drive access. Rollback, host OAuth,
-  transfer/readback/cleanup, and Secret runtime remain NOT RUN/BLOCKED.
+  approved idempotence apply passed at `ok=32 changed=0 failed=0`. Host OAuth then
+  completed through a private callback tunnel with config/token only on the host.
+  Transfer check passed at `ok=26 changed=0 failed=0`; apply stopped on unsupported
+  `--local-umask` after exact encrypted staging, and approved cleanup removed it at
+  `ok=26 changed=1 failed=0`. The reviewed fix passes `257/257`; its fresh check
+  stopped before facts because the host became Tailscale-offline. Rollback,
+  transfer/readback, and Secret runtime remain NOT RUN/BLOCKED.
   Guarded deployable source now also exists for the exact private Argo CD core: three
   Ansible-owned CRDs and 29 namespaced objects, no ApplicationSet runtime, Secret,
   cluster RBAC, or public exposure. The wrapper fails closed until three exact,
@@ -264,7 +267,7 @@ note: |
   hardened retry proved zero plaintext-temp residue, retained one encrypted pending
   bundle/checksum and Keychain copy, and zero Kubernetes Secrets, then stopped on the
   same expired controller Drive OAuth. That path is superseded. Runtime remains unrun
-  pending interactive host OAuth and guarded encrypted
+  pending guarded encrypted
   transfer/readback/controller decrypt, exact proxy Secret recovery/write,
   Operator check/apply/idempotence, and live admission/
   RBAC/traffic proof.
@@ -344,7 +347,7 @@ note: |
   shared MongoDB engine belong in `shared-services`.
   No external infrastructure resource, Kubernetes Secret/data, image publication,
   or component deployment operation was completed. In addition to historical public
-  source/Actions reads, the final integrated source validation passed 256/256 offline
+  source/Actions reads, the final integrated source validation passed 257/257 offline
   contracts, all 23 playbook syntax checks, executable datastore parser fixtures,
   production-profile lint with zero findings across 162 processed files, Python and
   shell syntax, and diff checks. The k3s datastore/encryption preflight now privately parses only the bounded

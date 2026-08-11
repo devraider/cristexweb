@@ -704,10 +704,14 @@ guards, and focused/full offline validation passes. A fresh check passed at
 `ok=25 changed=1 failed=0`; the separately approved corrected install then passed at
 `ok=34 changed=4 failed=0`, selected verified rclone `1.71.1`, and preserved
 k3s/Tailscale health. The separately approved idempotence apply passed at
-`ok=32 changed=0 failed=0`. A read-only transfer check then stopped safely at
-`ok=15 changed=0 failed=1` on missing/unsafe OAuth config metadata, before OAuth or
-Drive access. Host OAuth, Drive transfer, cleanup, and proxy Secret runtime remain
-**NOT RUN/BLOCKED**. Apply approvals are separate; installer sudo is interactive only.
+`ok=32 changed=0 failed=0`. Host OAuth then completed through a private callback
+tunnel; token-bearing rclone config remains only on the host. Transfer check passed
+at `ok=26 changed=0 failed=0`. Apply stopped on unsupported `--local-umask` after
+only exact encrypted staging; approved cleanup removed staging at
+`ok=26 changed=1 failed=0`. The reviewed compatibility fix passes `257/257`, but its
+fresh check stopped before facts because the host became Tailscale-offline. Drive
+transfer and proxy Secret runtime remain **NOT RUN/BLOCKED**. Apply approvals are
+separate; installer sudo is interactive only.
 
 ## Guarded shared logical database provisioning
 

@@ -155,8 +155,6 @@ class ActionModule(ActionBase):
             "/usr/local/bin/rclone",
             "copyto",
             "--immutable",
-            "--local-umask",
-            "077",
             "--config",
             config,
         ]
@@ -179,7 +177,33 @@ class ActionModule(ActionBase):
             ],
         }
         if operation in argv_by_operation:
-            return self._run_action("ansible.builtin.command", {"argv": argv_by_operation[operation]}, tmp, task_vars)
+            result = self._run_action(
+                "ansible.builtin.command",
+                {"argv": argv_by_operation[operation]},
+                tmp,
+                task_vars,
+            )
+            if result.get("failed") or not operation.startswith("readback-"):
+                return result
+            readback_name = _NAME if operation == "readback-ciphertext" else checksum_name
+            protected = self._run_action(
+                "ansible.builtin.file",
+                {
+                    "path": f"{readback}/{readback_name}",
+                    "state": "file",
+                    "follow": False,
+                    "owner": operator,
+                    "mode": "0600",
+                },
+                tmp,
+                task_vars,
+            )
+            if protected.get("failed"):
+                return protected
+            result["changed"] = bool(result.get("changed")) or bool(
+                protected.get("changed")
+            )
+            return result
         if operation == "fetch":
             changed = False
             for name in (_NAME, checksum_name):

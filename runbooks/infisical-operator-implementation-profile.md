@@ -125,7 +125,8 @@ neither the credential nor a recoverable derivative.
 Recovery uses an age-encrypted off-node copy in Google Drive. Only ciphertext and
 checksum move to the k3s host, where pinned host rclone performs immutable transfer;
 the age key remains on the controller and needs an independently protected custody
-copy. Exact custodians, host OAuth/account recovery, folders, retention, restoration,
+copy. Host OAuth now passes with token-bearing config only on the host. Exact
+independent custodians/account recovery, folders, retention, restoration,
 overlap rotation, and revocation evidence remain unresolved and therefore block a
 bootstrap write.
 

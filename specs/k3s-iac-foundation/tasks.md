@@ -531,10 +531,14 @@ and rollback evidence is incomplete.
   `ok=34 changed=4 failed=0`, selected verified rclone `1.71.1`, and preserved
   k3s/Tailscale health. The separately approved idempotence apply passed at
   `ok=32 changed=0 failed=0` (`KIF-002`, `KIF-007`, `KIF-030`).
-- [ ] Separately complete interactive non-root host OAuth through a reviewed private
-  SSH callback tunnel (**NOT RUN/BLOCKED**; `KIF-002`, `KIF-013`–`KIF-015`).
-- [ ] Separately approve transfer check/apply and review encrypted cleanup/readback
-  evidence (**NOT RUN/BLOCKED**; `KIF-002`, `KIF-027`, `KIF-030`).
+- [x] Complete interactive non-root host OAuth through a reviewed private SSH
+  callback tunnel; token-bearing config exists only on the host (`KIF-002`,
+  `KIF-013`–`KIF-015`).
+- [ ] Complete transfer apply/readback. Check passed `ok=26 changed=0 failed=0`;
+  apply stopped on unsupported `--local-umask` after only exact encrypted staging;
+  cleanup passed `ok=26 changed=1 failed=0` with zero staging residue. The reviewed
+  fix passes `257/257`; its fresh check stopped before facts because the host became
+  Tailscale-offline (`KIF-002`, `KIF-027`, `KIF-030`).
 - [ ] Separately approve proxy Secret bootstrap only after marker review (**NOT
   RUN/BLOCKED**; `KIF-002`, `KIF-013`–`KIF-015`, `KIF-030`).
 

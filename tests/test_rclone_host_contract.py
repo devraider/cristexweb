@@ -169,6 +169,129 @@ class RcloneHostContractTests(unittest.TestCase):
             calls[3],
         )
 
+    def test_transfer_readback_uses_supported_exact_argv_and_protects_leaves(self) -> None:
+        plugin_path = ANSIBLE / "plugins/action/rclone_proxy_transfer_guarded.py"
+        module_spec = importlib.util.spec_from_file_location(
+            "rclone_transfer_readback_mode_contract", plugin_path
+        )
+        self.assertIsNotNone(module_spec)
+        module = importlib.util.module_from_spec(module_spec)
+        module_spec.loader.exec_module(module)
+        token = "b" * 64
+        calls: list[tuple[str, dict[str, object]]] = []
+        protected_modes: list[int] = []
+
+        with tempfile.NamedTemporaryFile() as synthetic_readback:
+            synthetic_path = Path(synthetic_readback.name)
+
+            class FakePlugin:
+                def __init__(self, task: SimpleNamespace) -> None:
+                    self.task = task
+
+                def run(
+                    self, tmp: str | None, task_vars: dict[str, object]
+                ) -> dict[str, object]:
+                    args = dict(self.task.args)
+                    calls.append((self.task.action, args))
+                    if self.task.action == "ansible.builtin.command":
+                        destination = str(args["argv"][-1])
+                        if "/readback/" in destination:
+                            os.chmod(synthetic_path, 0o644)
+                    elif self.task.action == "ansible.builtin.file":
+                        os.chmod(synthetic_path, int(str(args["mode"]), 8))
+                        protected_modes.append(
+                            stat.S_IMODE(synthetic_path.stat().st_mode)
+                        )
+                    return {"changed": True}
+
+            class FakeLoader:
+                def get(self, name: str, **kwargs: object) -> FakePlugin | None:
+                    if name in ("ansible.builtin.command", "ansible.builtin.file"):
+                        return FakePlugin(kwargs["task"])
+                    raise AssertionError(name)
+
+            with tempfile.NamedTemporaryFile(mode="w") as attestation:
+                attestation.write(f"{token}:entrypoint\n")
+                attestation.flush()
+                action = object.__new__(module.ActionModule)
+                action._task = SimpleNamespace(
+                    action="rclone_proxy_transfer_guarded",
+                    args={},
+                    get_path=lambda: f"{module._EXPECTED_TASK_SOURCE}:337",
+                )
+                action._connection = object()
+                action._play_context = object()
+                action._loader = object()
+                action._templar = object()
+                action._shared_loader_obj = SimpleNamespace(
+                    action_loader=FakeLoader()
+                )
+                task_vars: dict[str, object] = {
+                    "rclone_proxy_transfer_approved": True,
+                    "rclone_proxy_transfer_internal_preflight_binding": {
+                        "attestation_sha256": hashlib.sha256(token.encode()).hexdigest(),
+                        "ciphertext_sha256": module._DIGEST,
+                        "remote_directory": module._REMOTE,
+                        "operator_user": "example",
+                        "operator_home": "/home/example",
+                        "service_contract": True,
+                    },
+                }
+                with mock.patch.dict(
+                    os.environ,
+                    {
+                        "CRISTEXWEB_RCLONE_PROXY_TRANSFER_ENTRYPOINT": "v1",
+                        "CRISTEXWEB_RCLONE_PROXY_TRANSFER_TOKEN": token,
+                        "CRISTEXWEB_RCLONE_PROXY_TRANSFER_ATTESTATION_FILE": attestation.name,
+                        "CRISTEXWEB_RCLONE_PROXY_TRANSFER_READBACK": "/tmp/cristexweb-infisical-proxy-transfer.test",
+                    },
+                    clear=False,
+                ):
+                    for operation in (
+                        "upload-ciphertext",
+                        "upload-checksum",
+                        "readback-ciphertext",
+                        "readback-checksum",
+                    ):
+                        action._task.args = {"operation": operation}
+                        result = action.run(task_vars=task_vars)
+                        self.assertFalse(result.get("failed"), result)
+
+        name = module._NAME
+        checksum = f"{name}.sha256"
+        base = "/home/example/.cristexweb-rclone/infisical-proxy/20260810T095421Z"
+        config = "/home/example/.config/rclone/rclone.conf"
+        fixed = [
+            "/usr/local/bin/rclone",
+            "copyto",
+            "--immutable",
+            "--config",
+            config,
+        ]
+        command_calls = [
+            args["argv"] for action_name, args in calls
+            if action_name == "ansible.builtin.command"
+        ]
+        self.assertEqual(
+            [
+                [*fixed, f"{base}/staging/{name}", f"{module._REMOTE}/{name}"],
+                [*fixed, f"{base}/staging/{checksum}", f"{module._REMOTE}/{checksum}"],
+                [*fixed, f"{module._REMOTE}/{name}", f"{base}/readback/{name}"],
+                [*fixed, f"{module._REMOTE}/{checksum}", f"{base}/readback/{checksum}"],
+            ],
+            command_calls,
+        )
+        file_calls = [
+            args for action_name, args in calls
+            if action_name == "ansible.builtin.file"
+        ]
+        self.assertEqual(2, len(file_calls))
+        self.assertEqual([f"{base}/readback/{name}", f"{base}/readback/{checksum}"],
+                         [args["path"] for args in file_calls])
+        self.assertTrue(all(args["mode"] == "0600" for args in file_calls))
+        self.assertTrue(all(args["follow"] is False for args in file_calls))
+        self.assertEqual([0o600, 0o600], protected_modes)
+
     def test_operator_identity_is_rendered_into_protected_bindings(self) -> None:
         install_tasks = (INSTALL_ROLE / "tasks/main.yml").read_text()
         transfer_tasks = (TRANSFER_ROLE / "tasks/main.yml").read_text()
@@ -272,7 +395,7 @@ class RcloneHostContractTests(unittest.TestCase):
             "drive:cristexweb-recovery/infisical-proxy/20260810T095421Z",
             '"copyto",',
             '"--immutable",',
-            '"--local-umask",',
+            '"mode": "0600",',
             '"--config",',
             ".config/rclone/rclone.conf",
             "rclone_proxy_transfer_operator_user == ansible_user",
@@ -293,13 +416,14 @@ class RcloneHostContractTests(unittest.TestCase):
             "remote=%s",
         ):
             self.assertIn(required, combined)
-        for operation in (
-            '"upload-ciphertext"',
-            '"upload-checksum"',
-            '"readback-ciphertext"',
-            '"readback-checksum"',
+        for operation, expected_count in (
+            ('"upload-ciphertext"', 1),
+            ('"upload-checksum"', 1),
+            ('"readback-ciphertext"', 2),
+            ('"readback-checksum"', 1),
         ):
-            self.assertEqual(1, plugin.count(operation))
+            self.assertEqual(expected_count, plugin.count(operation))
+        self.assertNotIn('"--local-umask"', plugin)
         for forbidden in (" sync", '"sync"', '"move"', '"purge"', '"delete"', "age -d", "AGE-SECRET-KEY"):
             self.assertNotIn(forbidden, tasks + plugin)
         self.assertNotIn("name: paul", tasks + plugin)
@@ -329,6 +453,12 @@ class RcloneHostContractTests(unittest.TestCase):
         )
         self.assertNotIn("check_mode", remote_about)
         self.assertIn("not ansible_check_mode", remote_about["when"])
+        runbook = (ROOT / "runbooks/rclone-host-transfer.md").read_text()
+        self.assertIn("SSH", runbook)
+        self.assertIn("53682", runbook)
+        self.assertIn("config create\ndrive drive config_is_local=true --no-output", runbook)
+        self.assertIn("does not support\n`--auth-no-open-browser`", runbook)
+        self.assertNotIn('"--auth-no-open-browser"', plugin)
 
     def test_controller_secret_writer_has_no_rclone_and_requires_bound_marker(self) -> None:
         writer = SECRET_WRAPPER.read_text()
