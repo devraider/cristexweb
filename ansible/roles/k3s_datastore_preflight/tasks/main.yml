@@ -561,7 +561,7 @@
       - >-
         k3s_datastore_preflight_internal_report.k3s.data_dir_source in
         ['default_no_config', 'config_default', 'explicit_arg',
-         'config_override_unknown', 'unknown']
+         'config_override_unknown', 'environment_override_unknown', 'unknown']
       - k3s_datastore_preflight_internal_report.datastore.type in ['sqlite', 'embedded_etcd', 'external', 'ambiguous', 'unknown']
       - k3s_datastore_preflight_internal_report.encryption.command_status in ['available', 'unavailable', 'unknown']
       - k3s_datastore_preflight_internal_report.encryption.status in ['enabled', 'disabled', 'unknown', 'unavailable']

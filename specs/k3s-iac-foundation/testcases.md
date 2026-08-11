@@ -3680,9 +3680,16 @@ Actual result:
 
 ```text
 PASS: 253/253 offline Python contracts
-PASS: executable parser fixtures — ok=730 changed=0 failed=0 skipped=178 ignored=4
+PASS: executable parser fixtures — ok=757 changed=0 failed=0 skipped=186 ignored=4
 PASS: all 23/23 playbook syntax checks
 PASS: production ansible-lint — 0 failures, 0 warnings; 162 files processed
 PASS: Python compile, shell syntax, diff check, and no staged files
 NOT RUN/BLOCKED: enhanced live preflight, recovery attestation, Secret writes, Infisical/database runtime
 ```
+
+A focused fail-closed follow-up adds the distinct
+`environment_override_unknown` source stage and accepts the exact official K3s JSON
+shape `{"stage":"","activekey":""}` only as encryption `disabled` with rotation
+`not_applicable`. It does not convert absent encryption configuration into permission
+to write Secrets. The 15 focused contracts, 757-task executable parser fixture, two
+affected syntax checks, focused production lint, and diff check pass.

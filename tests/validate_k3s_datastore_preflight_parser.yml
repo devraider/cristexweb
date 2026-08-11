@@ -384,6 +384,23 @@
           - k3s_datastore_preflight_internal_rotation_stage == 'not_applicable'
       changed_when: false
 
+    - name: Bind official no-encryption-config JSON
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_encryption_result:
+          rc: 0
+          stdout: '{"stage":"","activekey":""}'
+          stderr: ''
+      changed_when: false
+    - name: Run no-encryption-config parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require absent encryption configuration to be disabled
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_encryption_command_status == 'available'
+          - k3s_datastore_preflight_internal_encryption_status == 'disabled'
+          - k3s_datastore_preflight_internal_rotation_stage == 'not_applicable'
+      changed_when: false
+
     - name: Bind conflicting config and runtime encryption evidence
       ansible.builtin.set_fact:
         k3s_datastore_preflight_internal_config_state:
@@ -500,7 +517,7 @@
       ansible.builtin.assert:
         that:
           - not (k3s_datastore_preflight_internal_environment_overrides_absent | bool)
-          - k3s_datastore_preflight_internal_data_dir_source == 'config_override_unknown'
+          - k3s_datastore_preflight_internal_data_dir_source == 'environment_override_unknown'
           - k3s_datastore_preflight_internal_datastore_type == 'unknown'
       changed_when: false
 

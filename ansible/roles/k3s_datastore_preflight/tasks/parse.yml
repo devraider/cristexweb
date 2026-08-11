@@ -325,6 +325,7 @@
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_data_dir_source: >-
       {{ 'unknown' if k3s_datastore_preflight_internal_exec_start_status != 'available' else
+         'environment_override_unknown' if not (k3s_datastore_preflight_internal_environment_overrides_absent | bool) else
          'explicit_arg' if (
            k3s_datastore_preflight_internal_environment_overrides_absent | bool and
            k3s_datastore_preflight_internal_data_dir_arg_exact_marker and
@@ -525,7 +526,13 @@
       - >-
         k3s_datastore_preflight_internal_encryption_payload.get('stage') in
         ['start', 'prepare', 'rotate', 'rotate_keys', 'reencrypt_request',
-         'reencrypt_active', 'reencrypt_finished']
+         'reencrypt_active', 'reencrypt_finished'] or
+        (k3s_datastore_preflight_internal_encryption_payload.get('stage') == '' and
+         'enable' not in k3s_datastore_preflight_internal_encryption_payload and
+         k3s_datastore_preflight_internal_encryption_payload.get('activekey') == '' and
+         'hashmatch' not in k3s_datastore_preflight_internal_encryption_payload and
+         'hasherror' not in k3s_datastore_preflight_internal_encryption_payload and
+         'inactivekeys' not in k3s_datastore_preflight_internal_encryption_payload)
       - >-
         not (k3s_datastore_preflight_internal_encryption_payload.get('hashmatch', false) | bool) or
         k3s_datastore_preflight_internal_encryption_payload.get('hasherror', '') | length == 0
@@ -564,9 +571,12 @@
          ) else
          'disabled' if (
            k3s_datastore_preflight_internal_encryption_json_valid | bool and
-           k3s_datastore_preflight_internal_encryption_payload.get('enable', none) is boolean and
-           not (k3s_datastore_preflight_internal_encryption_payload.get('enable') | bool) and
-           k3s_datastore_preflight_internal_config_encryption_status in ['disabled', 'unknown']
+           k3s_datastore_preflight_internal_config_encryption_status in ['disabled', 'unknown'] and
+           ((k3s_datastore_preflight_internal_encryption_payload.get('enable', none) is boolean and
+             not (k3s_datastore_preflight_internal_encryption_payload.get('enable') | bool)) or
+            ('enable' not in k3s_datastore_preflight_internal_encryption_payload and
+             k3s_datastore_preflight_internal_encryption_payload.get('stage') == '' and
+             k3s_datastore_preflight_internal_encryption_payload.get('activekey') == ''))
          ) else 'unknown' }}
   changed_when: false
   no_log: true
@@ -578,10 +588,7 @@
            k3s_datastore_preflight_internal_encryption_status not in ['enabled', 'disabled'] or
            not (k3s_datastore_preflight_internal_encryption_json_valid | bool)
          ) else
-         'not_applicable' if (
-           k3s_datastore_preflight_internal_encryption_status == 'disabled' and
-           k3s_datastore_preflight_internal_encryption_payload.get('hashmatch', false) | bool
-         ) else
+         'not_applicable' if k3s_datastore_preflight_internal_encryption_status == 'disabled' else
          'initial' if (
            k3s_datastore_preflight_internal_encryption_status == 'enabled' and
            k3s_datastore_preflight_internal_encryption_payload.get('stage') == 'start' and
