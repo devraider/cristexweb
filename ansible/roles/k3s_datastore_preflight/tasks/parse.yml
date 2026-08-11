@@ -52,6 +52,8 @@
       skipped: true
     k3s_datastore_preflight_internal_encryption_json_valid: false
     k3s_datastore_preflight_internal_node_count: 0
+    k3s_datastore_preflight_internal_exec_start_path_count: 0
+    k3s_datastore_preflight_internal_exec_start_path_exact_marker: false
   changed_when: false
   no_log: true
 
@@ -263,6 +265,14 @@
   changed_when: false
   no_log: true
 
+- name: Count the exact direct executable path in fixed ExecStart privately
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_exec_start_path_count: >-
+      {{ (k3s_datastore_preflight_internal_exec_start_result.stdout | default('') |
+          regex_findall('(?:^|[;{])[ \\t]*path=/usr/local/bin/k3s(?:[ \\t;}]|$)')) | length }}
+  changed_when: false
+  no_log: true
+
 - name: Count fixed ExecStart datastore options privately
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_config_arg_count: >-
@@ -288,6 +298,10 @@
 
 - name: Parse the fixed ExecStart property into safe marker booleans
   ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_exec_start_path_exact_marker: >-
+      {{ k3s_datastore_preflight_internal_exec_start_path_count | int == 1 and
+         ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
+          regex_findall('(?:^|[;{])[ \\t]*path=/usr/local/bin/k3s(?:[ \\t;}]|$)') | length) == 1 }}
     k3s_datastore_preflight_internal_exec_start_server_marker: >-
       {{ ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
           regex_findall('(?:^|[=,; ])/usr/local/bin/k3s(?:,| )+server(?:,|;| |$)') | length) == 1 }}
@@ -326,6 +340,8 @@
          ) else
          'available' if (
            (k3s_datastore_preflight_internal_exec_start_result.stdout_lines | default([]) | length) == 1 and
+           k3s_datastore_preflight_internal_exec_start_path_count | int == 1 and
+           k3s_datastore_preflight_internal_exec_start_path_exact_marker and
            (k3s_datastore_preflight_internal_exec_start_server_marker or
             k3s_datastore_preflight_internal_exec_start_agent_marker) and
            k3s_datastore_preflight_internal_config_arg_count | int <= 1 and

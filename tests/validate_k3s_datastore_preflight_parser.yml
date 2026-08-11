@@ -92,12 +92,78 @@
           - k3s_datastore_preflight_internal_config_encryption_status == 'enabled'
           - k3s_datastore_preflight_internal_data_dir_source == 'config_default'
           - k3s_datastore_preflight_internal_datastore_type == 'sqlite'
+          - k3s_datastore_preflight_internal_exec_start_path_count | int == 1
+          - k3s_datastore_preflight_internal_exec_start_path_exact_marker | bool
+          - k3s_datastore_preflight_internal_exec_start_status == 'available'
           - k3s_datastore_preflight_internal_encryption_command_status == 'available'
           - k3s_datastore_preflight_internal_encryption_status == 'enabled'
           - k3s_datastore_preflight_internal_rotation_stage == 'initial'
           - "'fixture-active-key' not in (k3s_datastore_preflight_internal_encryption_status | string)"
           - "'fixture-hash-error' not in (k3s_datastore_preflight_internal_rotation_stage | string)"
         fail_msg: Stable JSON/config parser fixture failed or disclosed a sentinel.
+      changed_when: false
+
+    - name: Bind a /bin/sh ExecStart wrapper containing k3s text
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_exec_start_result:
+          rc: 0
+          stdout: '{ path=/bin/sh ; argv[]=/bin/sh,-c,/usr/local/bin/k3s,server ; ignore_errors=no }'
+          stdout_lines: ['{ path=/bin/sh ; argv[]=/bin/sh,-c,/usr/local/bin/k3s,server ; ignore_errors=no }']
+      changed_when: false
+    - name: Parse the /bin/sh ExecStart wrapper fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require an ExecStart wrapper to fail closed despite k3s argv text
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_exec_start_path_count | int == 0
+          - not (k3s_datastore_preflight_internal_exec_start_path_exact_marker | bool)
+          - k3s_datastore_preflight_internal_exec_start_server_marker | bool
+          - k3s_datastore_preflight_internal_exec_start_status == 'unsafe'
+          - k3s_datastore_preflight_internal_datastore_type == 'unknown'
+      changed_when: false
+
+    - name: Bind a duplicate direct k3s ExecStart path
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_exec_start_result:
+          rc: 0
+          stdout: '{ path=/usr/local/bin/k3s ; path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server ; ignore_errors=no }'
+          stdout_lines: ['{ path=/usr/local/bin/k3s ; path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server ; ignore_errors=no }']
+      changed_when: false
+    - name: Parse the duplicate direct k3s path fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require duplicate direct paths to fail closed
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_exec_start_path_count | int == 2
+          - not (k3s_datastore_preflight_internal_exec_start_path_exact_marker | bool)
+          - k3s_datastore_preflight_internal_exec_start_status == 'unsafe'
+          - k3s_datastore_preflight_internal_datastore_type == 'unknown'
+      changed_when: false
+
+    - name: Bind an ExecStart with a missing direct k3s path
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_exec_start_result:
+          rc: 0
+          stdout: '{ argv[]=/usr/local/bin/k3s server ; ignore_errors=no }'
+          stdout_lines: ['{ argv[]=/usr/local/bin/k3s server ; ignore_errors=no }']
+      changed_when: false
+    - name: Parse the missing direct k3s path fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require a missing direct path to fail closed
+      ansible.builtin.assert:
+        that:
+          - k3s_datastore_preflight_internal_exec_start_path_count | int == 0
+          - not (k3s_datastore_preflight_internal_exec_start_path_exact_marker | bool)
+          - k3s_datastore_preflight_internal_exec_start_status == 'unsafe'
+          - k3s_datastore_preflight_internal_datastore_type == 'unknown'
+      changed_when: false
+
+    - name: Restore the direct k3s ExecStart path for subsequent parser fixtures
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_exec_start_result:
+          rc: 0
+          stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server ; ignore_errors=no }'
+          stdout_lines: ['{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server ; ignore_errors=no }']
       changed_when: false
 
     - name: Parse stable reencrypt_finished with an exact default data directory

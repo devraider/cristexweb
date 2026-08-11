@@ -61,6 +61,8 @@
     - k3s_datastore_preflight_internal_node_query_valid
     - k3s_datastore_preflight_internal_ready_node_count
     - k3s_datastore_preflight_internal_node_count
+    - k3s_datastore_preflight_internal_exec_start_path_count
+    - k3s_datastore_preflight_internal_exec_start_path_exact_marker
     - k3s_datastore_preflight_internal_exec_start_server_marker
     - k3s_datastore_preflight_internal_exec_start_agent_marker
     - k3s_datastore_preflight_internal_config_arg_marker
