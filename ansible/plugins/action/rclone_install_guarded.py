@@ -140,11 +140,19 @@ class ActionModule(ActionBase):
                 changed = changed or bool(result.get("changed"))
             return {"changed": changed}
         if operation == "host-directories":
-            operator = task_vars.get("rclone_install_operator_user")
+            operator = binding.get("operator_user")
             home = binding.get("operator_home")
             operator_gid = binding.get("operator_gid")
             config_root_exists = binding.get("config_root_exists")
-            if not isinstance(operator, str) or not re.fullmatch(r"[a-z_][a-z0-9_-]{0,31}", operator) or not isinstance(home, str) or not isinstance(operator_gid, int) or operator_gid <= 0 or not isinstance(config_root_exists, bool):
+            if (
+                not isinstance(operator, str)
+                or not re.fullmatch(r"[a-z_][a-z0-9_-]{0,31}", operator)
+                or not isinstance(home, str)
+                or home != f"/home/{operator}"
+                or not isinstance(operator_gid, int)
+                or operator_gid <= 0
+                or not isinstance(config_root_exists, bool)
+            ):
                 return self._fail("MUTATION_ARGUMENT_GUARD: unsafe operator identity")
             entries = [
                 ("/opt/rclone", "root", "root", "0755"),
@@ -256,7 +264,7 @@ class ActionModule(ActionBase):
                 task_vars,
             )
         if operation == "version-check":
-            operator = task_vars.get("rclone_install_operator_user")
+            operator = binding.get("operator_user")
             if not isinstance(operator, str) or not re.fullmatch(r"[a-z_][a-z0-9_-]{0,31}", operator):
                 return self._fail("MUTATION_ARGUMENT_GUARD: unsafe operator identity")
             return self._run_action(

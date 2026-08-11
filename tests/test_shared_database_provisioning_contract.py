@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import ast
+import copy
 import hashlib
+import importlib.util
 import re
 import subprocess
+import sys
 import unittest
 from pathlib import Path
+from types import ModuleType
+from unittest import mock
 
 import yaml
 
@@ -165,6 +171,105 @@ class SharedDatabaseProvisioningContractTests(unittest.TestCase):
         }
         for name, digest in expected_hashes.items():
             self.assertEqual(digest, hashlib.sha256((ROOT / "ansible/files/database-provisioning" / name).read_bytes()).hexdigest())
+        guard_tree = ast.parse(self.k8s_guard)
+        guard_hashes = next(
+            ast.literal_eval(node.value)
+            for node in guard_tree.body
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "_SCRIPT_HASHES"
+                for target in node.targets
+            )
+        )
+        self.assertEqual(
+            {
+                "postgresql": expected_hashes["postgresql-apply.sh"],
+                "mongodb": expected_hashes["mongodb-apply.sh"],
+            },
+            guard_hashes,
+        )
+
+    def test_k8s_guard_accepts_the_exact_helper_pod_definitions(self) -> None:
+        self.assertEqual(2, self.pg_tasks.count("rstrip=False"))
+        self.assertEqual(2, self.mongo_tasks.count("rstrip=False"))
+        package_names = [
+            "ansible_collections",
+            "ansible_collections.kubernetes",
+            "ansible_collections.kubernetes.core",
+            "ansible_collections.kubernetes.core.plugins",
+            "ansible_collections.kubernetes.core.plugins.action",
+        ]
+        fake_modules: dict[str, ModuleType] = {}
+        for name in package_names:
+            package = ModuleType(name)
+            package.__path__ = []
+            fake_modules[name] = package
+        k8s_module = ModuleType(
+            "ansible_collections.kubernetes.core.plugins.action.k8s"
+        )
+        k8s_module.ActionModule = type("KubernetesActionModule", (), {})
+        fake_modules[k8s_module.__name__] = k8s_module
+        module_spec = importlib.util.spec_from_file_location(
+            "database_provisioning_guarded_k8s_contract", K8S_GUARD
+        )
+        self.assertIsNotNone(module_spec)
+        guard_module = importlib.util.module_from_spec(module_spec)
+        with mock.patch.dict(sys.modules, fake_modules):
+            module_spec.loader.exec_module(guard_module)
+
+        def find_task(entries: list[dict[str, object]], task_name: str) -> dict[str, object]:
+            for entry in entries:
+                if entry.get("name") == task_name:
+                    return entry
+                for section in ("block", "rescue", "always"):
+                    nested = entry.get(section)
+                    if isinstance(nested, list):
+                        try:
+                            return find_task(nested, task_name)
+                        except LookupError:
+                            pass
+            raise LookupError(task_name)
+
+        cases = (
+            (
+                "postgresql",
+                yaml.safe_load(PG_TASKS.read_text()),
+                "Create the exact temporary PostgreSQL helper Pod",
+                "postgresql-admin",
+            ),
+            (
+                "mongodb",
+                yaml.safe_load(MONGO_TASKS.read_text()),
+                "Create the exact temporary MongoDB helper Pod",
+                "mongodb-admin",
+            ),
+        )
+        for engine, tasks, task_name, credential_volume in cases:
+            task = find_task(tasks, task_name)
+            definition = copy.deepcopy(
+                task["database_provisioning_guarded_k8s"]["definition"]
+            )
+            container = definition["spec"]["containers"][0]
+            container["image"] = guard_module._IMAGES[engine]
+            script_path = (
+                ROOT
+                / "ansible/files/database-provisioning"
+                / guard_module._SCRIPTS[engine]
+            )
+            container["command"][2] = script_path.read_text()
+            self.assertTrue(
+                guard_module.ActionModule._valid_pod(definition, engine), engine
+            )
+            invalid = copy.deepcopy(definition)
+            volume = next(
+                item
+                for item in invalid["spec"]["volumes"]
+                if item["name"] == credential_volume
+            )
+            volume["secret"].pop("items")
+            self.assertFalse(
+                guard_module.ActionModule._valid_pod(invalid, engine), engine
+            )
 
     def test_helpers_are_temporary_tokenless_and_uid_bound(self) -> None:
         combined_tasks = self.pg_tasks + "\n" + self.mongo_tasks

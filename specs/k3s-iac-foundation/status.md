@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: 253/253 offline contracts, 23/23 playbook syntax checks, executable parser fixtures, and production ansible-lint (162 files) pass; all new runtime remains blocked
+build: 256/256 offline contracts, 23/23 playbook syntax checks, executable parser fixtures, and production ansible-lint (162 files) pass; all new component runtime remains blocked
 date: 2026-08-11
 deploy_required_after_acceptance: yes
 
@@ -48,15 +48,18 @@ note: |
   back/fetches only ciphertext, and lets the Mac atomically create an exact
   drive-verified marker after no-output decryption/relationship verification.
   Controller proxy Secret bootstrap no longer requires or invokes rclone and refuses
-  Kubernetes mutation without that marker. Installer check passed at
-  `ok=25 changed=1 unreachable=0 failed=0 skipped=11`; its only change was the
-  check-mode prediction. First apply stopped before installer mutation at
-  `ok=22 changed=0 unreachable=0 failed=1 skipped=0` because nested
-  `ansible.builtin.file` dispatch returned no dedicated action plugin and the guard
-  lacked Ansible's `normal` fallback. Both rclone action guards now use that fallback;
-  a focused regression plus actual controller-local dispatch integration passed.
-  Apply retry/idempotence/rollback, OAuth, transfer/readback/cleanup, and Secret
-  runtime remain NOT RUN/BLOCKED.
+  Kubernetes mutation without that marker. Installer check and its reconfirmation
+  both passed at `ok=25 changed=1 unreachable=0 failed=0 skipped=11`; each sole
+  change was the check-mode prediction. The first apply stopped before installer
+  mutation at `ok=22 changed=0 unreachable=0 failed=1 skipped=0` because nested
+  `ansible.builtin.file` dispatch lacked Ansible's `normal` fallback. After that fix,
+  the approved retry created only the exact ignored controller cache and stopped
+  before host mutation at `ok=24 changed=2 unreachable=0 failed=1 skipped=0` because
+  the action guard read the raw templated operator role default. Both rclone roles
+  now bind the rendered operator identity into the attested internal preflight and
+  both action guards consume it; focused and full offline validation pass. Corrected
+  host-install retry/idempotence/rollback, OAuth, transfer/readback/cleanup, and
+  Secret runtime remain NOT RUN/BLOCKED.
   Guarded deployable source now also exists for the exact private Argo CD core: three
   Ansible-owned CRDs and 29 namespaced objects, no ApplicationSet runtime, Secret,
   cluster RBAC, or public exposure. The wrapper fails closed until three exact,
@@ -336,7 +339,7 @@ note: |
   shared MongoDB engine belong in `shared-services`.
   No external infrastructure resource, Kubernetes Secret/data, image publication,
   or component deployment operation was completed. In addition to historical public
-  source/Actions reads, the final integrated source validation passed 253/253 offline
+  source/Actions reads, the final integrated source validation passed 256/256 offline
   contracts, all 23 playbook syntax checks, executable datastore parser fixtures,
   production-profile lint with zero findings across 162 processed files, Python and
   shell syntax, and diff checks. The k3s datastore/encryption preflight now privately parses only the bounded
@@ -354,8 +357,11 @@ note: |
   k3s version, and datastore type. No such attestation exists, so credential-bearing
   Secret writes remain blocked. Logical provisioning uses file-mounted credentials,
   exact database/DNS-only helper egress, full canonical scope assertions, data-empty
-  adoption checks, and PostgreSQL role-only interruption repair; its runtime remains
-  unrun. The recorded proxy secret-zero attempt generated local
+  adoption checks, and PostgreSQL role-only interruption repair. Audit found and
+  fixed stale Kubernetes-guard apply-script hashes, missing PostgreSQL exact
+  Secret-item projections, and default-stripped file lookups; executable regressions now require both canonical helper
+  definitions to pass the same mutation guard and malformed projections to fail.
+  Logical runtime remains unrun. The recorded proxy secret-zero attempt generated local
   private material and made one failed Google Drive OAuth refresh request; it stopped
   before upload or Kubernetes mutation and its plaintext residue was removed. The hosted runner validated repository
   source only. Object listings and source/hosted CI do not prove replacement

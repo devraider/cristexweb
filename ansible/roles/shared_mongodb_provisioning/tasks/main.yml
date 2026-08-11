@@ -311,7 +311,7 @@
     command:
       - /bin/bash
       - -ec
-      - "{{ lookup('ansible.builtin.file', shared_mongodb_provisioning_check_script) }}"
+      - "{{ lookup('ansible.builtin.file', shared_mongodb_provisioning_check_script, rstrip=False) }}"
     kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
     script_name: mongodb-check.sh
     script_sha256: "{{ shared_mongodb_provisioning_script_hashes['mongodb-check.sh'] }}"
@@ -451,7 +451,7 @@
                 command:
                   - /bin/bash
                   - -ec
-                  - "{{ lookup('ansible.builtin.file', shared_mongodb_provisioning_apply_script) }}"
+                  - "{{ lookup('ansible.builtin.file', shared_mongodb_provisioning_apply_script, rstrip=False) }}"
                 env: []
                 resources:
                   requests:

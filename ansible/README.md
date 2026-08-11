@@ -694,9 +694,15 @@ host transfer, retains root-owned version/cache artifacts, and rolls back only t
 selector. The transfer resolves the existing non-root inventory operator with
 getent, never reads rclone config content, runs only four immutable `copyto`
 commands on the host, and stages/fetches only ciphertext. See
-[`rclone-host-transfer.md`](../runbooks/rclone-host-transfer.md). All check/install,
-OAuth, Drive transfer, cleanup, and proxy Secret runtime results are **NOT
-RUN/BLOCKED**. Apply approvals are separate; installer sudo is interactive only.
+[`rclone-host-transfer.md`](../runbooks/rclone-host-transfer.md). Installer check
+passed twice at `ok=25 changed=1 failed=0`. Two applies stopped before host mutation:
+the first at `changed=0` on missing normal-module dispatch, and the second at
+`ok=24 changed=2 failed=1` after creating only the exact ignored controller cache,
+when the action guard received an unrendered role default for the operator. The
+resolved operator is now copied into the attested internal binding for both rclone
+guards, and focused/full offline validation passes. Host install/idempotence, OAuth,
+Drive transfer, cleanup, and proxy Secret runtime remain **NOT RUN/BLOCKED**.
+Apply approvals are separate; installer sudo is interactive only.
 
 ## Guarded shared logical database provisioning
 

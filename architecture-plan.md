@@ -696,7 +696,7 @@ recovered in this order:
 Git and Argo reconstruct desired state. They do not restore mutable data, secret
 values, or external state by themselves.
 
-## Guarded host transfer boundary (source only)
+## Guarded host transfer boundary
 
 Pinned host rclone `1.71.1` is the selected transfer-tool direction. Installation
 and selector-only rollback are Ansible-owned host operations. Every Google Drive
@@ -707,5 +707,8 @@ cannot use Infisical or the same Drive remote as its sole recovery source. The
 controller owns proxy plaintext generation,
 readback decryption/relationship verification, and age private-key custody. Exact
 source exists for the current encrypted pending proxy bundle and a bound
-`drive-verified` gate, but install, OAuth, transfer, cleanup, Secret creation,
-Infisical, Argo, and database backup runtime remain **NOT RUN/BLOCKED**.
+`drive-verified` gate. Installer check passed twice; two apply attempts stopped
+before host mutation, with the second retaining only the exact ignored controller
+cache. Both discovered guard defects now pass offline regressions, but the corrected
+host install/idempotence, OAuth, transfer, cleanup, Secret creation, Infisical, Argo,
+and database backup runtime remain **NOT RUN/BLOCKED**.

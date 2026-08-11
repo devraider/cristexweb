@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import os
 import stat
@@ -8,6 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import yaml
 
@@ -41,7 +43,9 @@ class RcloneHostContractTests(unittest.TestCase):
                 def __init__(self, task: SimpleNamespace) -> None:
                     self.task = task
 
-                def run(self, tmp: str | None, task_vars: dict[str, object]) -> dict[str, object]:
+                def run(
+                    self, tmp: str | None, task_vars: dict[str, object]
+                ) -> dict[str, object]:
                     self.assert_task()
                     return {"changed": True, "used": "normal"}
 
@@ -80,6 +84,118 @@ class RcloneHostContractTests(unittest.TestCase):
             )
             self.assertEqual("original", action._task.action)
             self.assertEqual({"operation": "probe"}, action._task.args)
+
+    def test_host_directory_guard_uses_rendered_operator_binding(self) -> None:
+        plugin_path = ANSIBLE / "plugins/action/rclone_install_guarded.py"
+        module_spec = importlib.util.spec_from_file_location(
+            "rclone_install_operator_binding_contract", plugin_path
+        )
+        self.assertIsNotNone(module_spec)
+        module = importlib.util.module_from_spec(module_spec)
+        module_spec.loader.exec_module(module)
+        token = "a" * 64
+        calls: list[dict[str, object]] = []
+
+        class FakePlugin:
+            def __init__(self, task: SimpleNamespace) -> None:
+                self.task = task
+
+            def run(
+                self, tmp: str | None, task_vars: dict[str, object]
+            ) -> dict[str, object]:
+                calls.append(dict(self.task.args))
+                return {"changed": True}
+
+        class FakeLoader:
+            def get(self, name: str, **kwargs: object) -> FakePlugin | None:
+                if name == "ansible.builtin.file":
+                    return None
+                if name == "ansible.builtin.normal":
+                    return FakePlugin(kwargs["task"])
+                raise AssertionError(name)
+
+        with tempfile.NamedTemporaryFile(mode="w") as attestation:
+            attestation.write(f"{token}:entrypoint\n")
+            attestation.flush()
+            action = object.__new__(module.ActionModule)
+            action._task = SimpleNamespace(
+                action="rclone_install_guarded",
+                args={"operation": "host-directories"},
+                get_path=lambda: f"{module._EXPECTED_TASK_SOURCE}:323",
+            )
+            action._connection = object()
+            action._play_context = object()
+            action._loader = object()
+            action._templar = object()
+            action._shared_loader_obj = SimpleNamespace(
+                action_loader=FakeLoader()
+            )
+            task_vars: dict[str, object] = {
+                "rclone_install_operator_user": "{{ ansible_user }}",
+                "rclone_install_approved": True,
+                "rclone_install_state": "present",
+                "rclone_install_internal_preflight_binding": {
+                    "attestation_sha256": hashlib.sha256(token.encode()).hexdigest(),
+                    "operator_user": "example",
+                    "operator_home": "/home/example",
+                    "operator_gid": 1000,
+                    "config_root_exists": False,
+                    "controller_cache_complete": True,
+                    "platform_contract": True,
+                    "service_contract": True,
+                },
+            }
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "CRISTEXWEB_RCLONE_INSTALL_ENTRYPOINT": "v1",
+                    "CRISTEXWEB_RCLONE_INSTALL_TOKEN": token,
+                    "CRISTEXWEB_RCLONE_INSTALL_ATTESTATION_FILE": attestation.name,
+                },
+                clear=False,
+            ):
+                result = action.run(task_vars=task_vars)
+
+        self.assertFalse(result.get("failed"), result)
+        self.assertEqual(5, len(calls))
+        self.assertEqual(
+            {
+                "path": "/home/example/.config",
+                "state": "directory",
+                "owner": "example",
+                "group": "1000",
+                "mode": "0700",
+            },
+            calls[3],
+        )
+
+    def test_operator_identity_is_rendered_into_protected_bindings(self) -> None:
+        install_tasks = (INSTALL_ROLE / "tasks/main.yml").read_text()
+        transfer_tasks = (TRANSFER_ROLE / "tasks/main.yml").read_text()
+        install_plugin = (
+            ANSIBLE / "plugins/action/rclone_install_guarded.py"
+        ).read_text()
+        transfer_plugin = (
+            ANSIBLE / "plugins/action/rclone_proxy_transfer_guarded.py"
+        ).read_text()
+
+        self.assertIn(
+            'operator_user: "{{ rclone_install_operator_user }}"', install_tasks
+        )
+        self.assertIn(
+            'operator_user: "{{ rclone_proxy_transfer_operator_user }}"',
+            transfer_tasks,
+        )
+        self.assertEqual(2, install_plugin.count('binding.get("operator_user")'))
+        self.assertEqual(1, transfer_plugin.count('binding.get("operator_user")'))
+        self.assertNotIn(
+            'task_vars.get("rclone_install_operator_user")', install_plugin
+        )
+        self.assertNotIn(
+            'task_vars.get("rclone_proxy_transfer_operator_user")', transfer_plugin
+        )
+        self.assertIn('home != f"/home/{operator}"', install_plugin)
+        self.assertIn('home != f"/home/{operator}"', transfer_plugin)
 
     def test_install_is_exactly_pinned_and_selector_only_rollback(self) -> None:
         combined = "\n".join(

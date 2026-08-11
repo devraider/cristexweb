@@ -193,7 +193,7 @@ separate operations. Routine rollback never deletes a Kubernetes Secret, Infisic
 key, CR, Namespace, PVC, or identity.
 
 The Kubernetes seed wrapper also fails closed unless two controller-owned mode-`0600`
-sanitized evidence files exist. `k3s-datastore-preflight.local.json` must be schema 1,
+sanitized evidence files exist. `k3s-datastore-preflight.local.json` must be schema 2,
 identify a known datastore, report encryption `enabled` with rotation `finished`, and
 contain no Secret, key, or token material. The separately reviewed
 `k3s-secret-encryption-recovery.local.json` must use evidence class

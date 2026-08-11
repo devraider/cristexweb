@@ -288,6 +288,7 @@
   ansible.builtin.set_fact:
     rclone_install_internal_preflight_binding:
       attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RCLONE_INSTALL_TOKEN') | ansible.builtin.hash('sha256') }}"
+      operator_user: "{{ rclone_install_operator_user }}"
       operator_home: "{{ rclone_install_internal_passwd[4] }}"
       operator_gid: "{{ rclone_install_internal_passwd[2] | int }}"
       config_root_exists: >-

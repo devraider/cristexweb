@@ -439,9 +439,13 @@ The complete reproducible commands and actual results are recorded in
 
 ## Guarded host rclone source
 
-[Guarded source-only host rclone and proxy recovery transfer](runbooks/rclone-host-transfer.md)
-now keeps every rclone/Google Drive command on the Debian k3s/database host while
-the Mac retains plaintext verification and the age identity. The pinned installer,
-OAuth, transfer, cleanup, `drive-verified` gate, and later Secret bootstrap are all
-**NOT RUN/BLOCKED**; source authoring performed no host, Drive, OAuth, or Kubernetes
-mutation.
+[Guarded host rclone and proxy recovery transfer](runbooks/rclone-host-transfer.md)
+keeps every rclone/Google Drive command on the Debian k3s/database host while the Mac
+retains plaintext verification and the age identity. Installer check passed twice.
+The first apply stopped at `changed=0` on missing normal-module dispatch; the next
+retry created only the verified ignored controller cache and stopped at
+`ok=24 changed=2 failed=1` before host mutation because the action guard consumed an
+unrendered operator default. Both focused fixes now pass the 256-test offline suite,
+23 syntax checks, and production lint. Host installation/idempotence, OAuth,
+transfer, cleanup, `drive-verified`, and later Secret bootstrap remain
+**NOT RUN/BLOCKED**.

@@ -322,7 +322,7 @@
     command:
       - /bin/sh
       - -ec
-      - "{{ lookup('ansible.builtin.file', shared_postgresql_provisioning_check_script) }}"
+      - "{{ lookup('ansible.builtin.file', shared_postgresql_provisioning_check_script, rstrip=False) }}"
     kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
     script_name: postgresql-check.sh
     script_sha256: "{{ shared_postgresql_provisioning_script_hashes['postgresql-check.sh'] }}"
@@ -462,7 +462,7 @@
                 command:
                   - /bin/sh
                   - -ec
-                  - "{{ lookup('ansible.builtin.file', shared_postgresql_provisioning_apply_script) }}"
+                  - "{{ lookup('ansible.builtin.file', shared_postgresql_provisioning_apply_script, rstrip=False) }}"
                 env: []
                 resources:
                   requests:
@@ -511,6 +511,11 @@
                 secret:
                   secretName: shared-postgresql-admin
                   defaultMode: 288
+                  items: &postgresql_credential_items
+                    - key: username
+                      path: username
+                    - key: password
+                      path: password
               - name: postgresql-tls
                 secret:
                   secretName: shared-postgresql-tls
@@ -522,22 +527,27 @@
                 secret:
                   secretName: shared-postgresql-cristexhub-dev
                   defaultMode: 288
+                  items: *postgresql_credential_items
               - name: cristexhub-prod
                 secret:
                   secretName: shared-postgresql-cristexhub-prod
                   defaultMode: 288
+                  items: *postgresql_credential_items
               - name: reactive-resume-dev
                 secret:
                   secretName: shared-postgresql-reactive-resume-dev
                   defaultMode: 288
+                  items: *postgresql_credential_items
               - name: reactive-resume-prod
                 secret:
                   secretName: shared-postgresql-reactive-resume-prod
                   defaultMode: 288
+                  items: *postgresql_credential_items
               - name: keycloak
                 secret:
                   secretName: shared-postgresql-keycloak
                   defaultMode: 288
+                  items: *postgresql_credential_items
               - name: tmp
                 emptyDir:
                   medium: Memory

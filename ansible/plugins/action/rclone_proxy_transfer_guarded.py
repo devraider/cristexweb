@@ -92,7 +92,7 @@ class ActionModule(ActionBase):
         if set(self._task.args) != {"operation"}:
             return self._fail("MUTATION_ARGUMENT_GUARD: unexpected proxy transfer arguments")
         operation = self._task.args["operation"]
-        operator = task_vars.get("rclone_proxy_transfer_operator_user")
+        operator = binding.get("operator_user")
         home = binding.get("operator_home")
         controller_home = os.environ.get("HOME", "")
         readback_root = os.environ.get("CRISTEXWEB_RCLONE_PROXY_TRANSFER_READBACK", "")

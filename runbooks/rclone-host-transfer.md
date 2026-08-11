@@ -2,14 +2,20 @@
 
 ## Status
 
-**INSTALLER CHECK PASSED; FIRST APPLY STOPPED BEFORE MUTATION; RETRY PENDING.**
-The approved installer check passed at `ok=25 changed=1 failed=0`; the sole change
-was its check-mode prediction. The first apply stopped at
-`ok=22 changed=0 failed=1` when nested `ansible.builtin.file` dispatch lacked the
-Ansible `normal` action fallback. No installer action completed. Source now covers
-that dispatch with a regression test and controller-local integration proof; live
-retry remains pending. No host install, rollback, OAuth, Google Drive transfer, host
-staging, Secret, Kubernetes, Infisical, or Argo mutation has completed.
+**INSTALLER CHECK PASSED TWICE; TWO APPLIES STOPPED BEFORE HOST MUTATION; RETRY
+PENDING.** The approved installer check and its reconfirmation both passed at
+`ok=25 changed=1 failed=0`; the sole change was the check-mode prediction. The first
+apply stopped at `ok=22 changed=0 failed=1` when nested
+`ansible.builtin.file` dispatch lacked Ansible's `normal` action fallback. After that
+fix, the approved retry created/downloaded only the exact ignored controller cache
+and stopped at `ok=24 changed=2 failed=1` before its first host mutation because the
+action guard read the raw `{{ ansible_user }}` role default instead of a rendered
+operator identity. Both rclone roles now put the resolved operator in their attested
+internal bindings, and both action guards consume only that protected value. The
+focused 9-test contract, full 256-test suite, 23 syntax checks, production lint over
+162 files, compile, shell syntax, and diff checks pass. No host install, rollback,
+OAuth, Google Drive transfer, host staging, Secret, Kubernetes, Infisical, or Argo
+mutation has completed.
 
 ## Ownership and custody boundary
 
@@ -30,8 +36,9 @@ controller, transfers the archive to `/var/cache/rclone`, installs the root-owne
 Rollback removes only that exact selector. Versioned payload and cache are retained.
 Check mode makes no changes. Apply may ask for sudo interactively; sudo credentials
 must never be passed through variables, environment, or files. Both paths require
-separate live approval. Check passed; the first apply made no change and the fixed
-apply retry plus idempotence remain **NOT RUN**.
+separate live approval. Check passed twice. The first apply made no change; the
+second changed only the ignored controller cache before stopping. The corrected
+host-install retry and idempotence remain **NOT RUN**.
 
 ## OAuth gate
 

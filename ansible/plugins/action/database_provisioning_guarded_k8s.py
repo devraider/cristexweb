@@ -26,8 +26,8 @@ _SCRIPTS = {
     "mongodb": "mongodb-apply.sh",
 }
 _SCRIPT_HASHES = {
-    "postgresql": "8c343add0d2116e8a3b31820709d7c469b1887503b97d132f444fffd2c1cc16e",
-    "mongodb": "ea90e690813f20dab90bad2c6700213db5b46b9dc59aef90512f6297beccd62b",
+    "postgresql": "08a98b5796c2be31d63c6b47e391aaed741bb6620023cc22e3af6abe514cbc4a",
+    "mongodb": "571301f932cd2a36d40813313c9da077380114452542cd622e0d6d379a4990f6",
 }
 _SECRET_NAMES = {
     "postgresql": {

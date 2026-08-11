@@ -524,11 +524,14 @@ and rollback evidence is incomplete.
 - [x] Remove controller rclone from proxy Secret bootstrap and require exact transfer
   verification before Secret variables or Kubernetes mutation (`KIF-013`–`KIF-015`,
   `KIF-030`).
-- [ ] Complete installer check/apply/idempotence. Check passed at
-  `ok=25 changed=1 failed=0`; first apply stopped before mutation at
-  `ok=22 changed=0 failed=1` on missing nested-module `normal` dispatch. The guarded
-  dispatch regression is fixed and validated; apply retry/idempotence remain pending
-  (`KIF-002`, `KIF-007`, `KIF-030`).
+- [ ] Complete installer apply/idempotence. Check passed twice at
+  `ok=25 changed=1 failed=0`. The first apply stopped before host mutation at
+  `ok=22 changed=0 failed=1` on missing nested-module `normal` dispatch. After that
+  fix, the next apply created only the exact ignored controller cache and stopped
+  before host mutation at `ok=24 changed=2 failed=1` because the guard consumed an
+  unrendered operator role default. Both roles now bind the rendered operator into
+  the attested preflight and focused/full offline validation passes; corrected live
+  retry/idempotence remain pending (`KIF-002`, `KIF-007`, `KIF-030`).
 - [ ] Separately complete interactive non-root host OAuth through a reviewed private
   SSH callback tunnel (**NOT RUN/BLOCKED**; `KIF-002`, `KIF-013`–`KIF-015`).
 - [ ] Separately approve transfer check/apply and review encrypted cleanup/readback

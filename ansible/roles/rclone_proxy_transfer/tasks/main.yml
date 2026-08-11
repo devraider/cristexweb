@@ -280,6 +280,7 @@
       attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RCLONE_PROXY_TRANSFER_TOKEN') | ansible.builtin.hash('sha256') }}"
       ciphertext_sha256: "{{ rclone_proxy_transfer_ciphertext_sha256 }}"
       remote_directory: "{{ rclone_proxy_transfer_remote_directory }}"
+      operator_user: "{{ rclone_proxy_transfer_operator_user }}"
       operator_home: "{{ rclone_proxy_transfer_internal_passwd[4] }}"
       service_contract: true
   changed_when: false
