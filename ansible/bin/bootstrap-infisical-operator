@@ -23,7 +23,8 @@ attestation_token="$(/usr/bin/openssl rand -hex 32)"
 printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
 cleanup() { /bin/rm -f -- "$attestation_file"; }
 trap cleanup EXIT HUP INT TERM
-set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_infisical_operator.yml --diff --limit crtxweb --extra-vars infisical_operator_bootstrap_approved=true
+extra_vars='{"infisical_operator_bootstrap_approved":true}'
+set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_infisical_operator.yml --diff --limit crtxweb --extra-vars "$extra_vars"
 [ "$mode" != check ] || set -- "$@" --check
 if [ -n "${SSH_AUTH_SOCK:-}" ]; then set -- "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" "$@"; fi
 /usr/bin/env -i HOME="$controller_home" USER="$controller_user" LOGNAME="$controller_user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_INFISICAL_BOOTSTRAP_ENTRYPOINT=v1 CRISTEXWEB_INFISICAL_BOOTSTRAP_TOKEN="$attestation_token" CRISTEXWEB_INFISICAL_BOOTSTRAP_ATTESTATION_FILE="$attestation_file" "$@"

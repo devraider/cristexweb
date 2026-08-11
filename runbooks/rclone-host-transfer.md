@@ -2,7 +2,7 @@
 
 ## Status
 
-**INSTALLER AND HOST OAUTH PASSED; TRANSFER RETRY BLOCKED BY HOST OFFLINE.** Earlier approved applies stopped
+**INSTALLER, HOST OAUTH, TRANSFER, READBACK, AND PROXY SECRET BOOTSTRAP PASSED.** Earlier approved applies stopped
 before host mutation on missing nested-module dispatch and an unrendered operator
 default. Both fixes pass focused/full offline validation and independent review. A
 fresh canonical check passed at `ok=25 changed=1 unreachable=0 failed=0 skipped=11`;
@@ -23,10 +23,15 @@ the exact encrypted staging closure, and stopped on its first upload at
 cleanup passed at `ok=26 changed=1 failed=0` and removed the exact host staging root.
 No successful Drive upload, readback, Secret, Kubernetes, Infisical, or Argo mutation
 is evidenced. Source now removes the unsupported flag and protects each readback leaf
-at mode `0600` inside its mode-`0700` parent. Independent review and
-`257/257` full offline validation passed. The required fresh transfer check then
-stopped before facts at `ok=0 unreachable=1` when SSH/Tailscale reachability timed
-out; no retry mutation ran.
+at mode `0600` inside its mode-`0700` parent. Independent review and offline validation passed. After one transient host-offline
+stop, the fresh transfer check passed at `ok=26 changed=0 failed=0`; the approved
+retry passed at `ok=39 changed=7 failed=0`. Immutable upload/readback, exact
+ciphertext/checksum comparison, controller-only decrypt and TLS/key/auth relationship
+checks, mode-`0600` `drive-verified` creation, exact host staging cleanup, protected
+host OAuth config, and k3s/Tailscale health all passed. The guarded proxy Secret apply
+then passed at `ok=15 changed=1 failed=0` and created exactly the three approved
+`shared-services` Secrets without value output. A later invocation refused implicit
+credential rotation before Ansible/Kubernetes, as designed.
 
 ## Ownership and custody boundary
 
@@ -100,8 +105,9 @@ custody remains a separate secret-export gate before recovery can be considered
 complete.
 
 `bootstrap-infisical-proxy-secrets` no longer invokes or requires controller rclone.
-It must match the exact `drive-verified` marker before creating Secret variables or
-reaching Kubernetes mutation. Secret creation remains **NOT RUN/BLOCKED**.
+It matched the exact `drive-verified` marker and created only the three approved
+proxy Secrets at `ok=15 changed=1 failed=0`; no value was emitted. A subsequent
+invocation refused implicit credential rotation before Ansible/Kubernetes.
 
 ## Approval sequence
 

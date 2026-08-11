@@ -97,7 +97,14 @@
       - item.stat.pw_name == infisical_operator_bootstrap_controller_user
       - item.stat.mode == '0644'
       - (item.item | ansible.builtin.realpath) == item.item
-      - item.stat.checksum == infisical_operator_bootstrap_expected_hashes[item.item]
+      - >-
+        item.stat.checksum == infisical_operator_bootstrap_expected_hashes[
+          item.item | replace(
+            infisical_operator_bootstrap_repository_root ~
+            '/ansible/files/components/infisical-operator/',
+            ''
+          )
+        ]
       - >-
         item.item.startswith(infisical_operator_bootstrap_repository_root ~
         '/ansible/files/components/infisical-operator/')

@@ -112,16 +112,17 @@ binds the official controller commit and selected security profile. The guarded
 40 value-free objects: six namespaced CRDs, six fail-closed admission policies and
 bindings, exact namespaced RBAC, one metrics-off digest-pinned controller, one
 authenticated TLS Squid proxy, and eight policies. The quarantined archive is never a
-runtime input. Runtime remains **NOT RUN/BLOCKED** until three separately recovered
-proxy Secrets exist and check/apply/idempotence plus admission/RBAC/traffic evidence
-pass. The first local age/Drive writer attempt stopped before Kubernetes on expired
+runtime input. The three recovered proxy Secrets and check/apply/idempotence now
+pass. Broader admission/RBAC/traffic acceptance remains pending. The first local age/Drive writer attempt stopped before Kubernetes on expired
 Drive OAuth; its plaintext residue and unused encrypted artifact were removed without
 reading values. An unused debug-exposed age identity was revoked/regenerated before
 upload/Kubernetes. The hardened retry proved cleanup, encrypted-pending resume and a
 Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the same expired
-controller OAuth. That transfer path is superseded by guarded host rclone source. No
-Infisical CR, Kubernetes Secret, Universal Auth value, application Secret,
-PROD scope, or self-hosted Infisical server exists at runtime. A separate source-only
+controller OAuth. That transfer path is superseded: guarded host transfer/readback and exact
+`drive-verified` now pass; exactly three proxy bootstrap Secrets exist. The 40-object
+idle Infisical Operator/proxy closure passed check/apply/idempotence and is Available.
+No Infisical CR, Universal Auth value, application/database Secret, PROD scope, or
+self-hosted Infisical server exists at runtime. A separate source-only
 [Infisical Argo CD Secret materialization seam](runbooks/infisical-argocd-secret-materialization.md)
 freezes one same-Namespace Universal Auth reference, one Connection/Auth/StaticSecret
 closure, exactly three orphaned Argo Secret targets, additive exact-name Secret and
@@ -445,7 +446,7 @@ retains plaintext verification and the age identity. Installer check passed twic
 The first apply stopped at `changed=0` on missing normal-module dispatch; the next
 retry created only the verified ignored controller cache and stopped at
 `ok=24 changed=2 failed=1` before host mutation because the action guard consumed an
-unrendered operator default. Both focused fixes and the transfer compatibility fix pass the 257-test offline suite,
+unrendered operator default. Both focused fixes and the transfer and Operator compatibility fixes pass the 258-test offline suite,
 23 syntax checks, and production lint. A fresh check passed at
 `ok=25 changed=1 failed=0`; the separately approved corrected install then passed at
 `ok=34 changed=4 failed=0`, selected verified rclone `1.71.1`, and preserved
@@ -454,6 +455,10 @@ k3s/Tailscale health. The separately approved idempotence apply passed at
 callback tunnel; rclone config/token remains exclusively on the host. Transfer check
 passed at `ok=26 changed=0 failed=0`. Apply created only exact encrypted staging and
 stopped on unsupported `--local-umask`; approved cleanup removed staging at
-`ok=26 changed=1 failed=0`. The reviewed compatibility fix passes `257/257`, but its
-fresh check stopped before facts because the host became Tailscale-offline. Transfer,
-`drive-verified`, and later Secret bootstrap remain **NOT RUN/BLOCKED**.
+`ok=26 changed=1 failed=0`. The reviewed compatibility fixes pass `258/258`, but its
+fresh check initially stopped before facts because the host became transiently
+Tailscale-offline. After return, check passed `ok=26 changed=0`; transfer/readback
+passed `ok=39 changed=7`; proxy Secret bootstrap passed `ok=15 changed=1`. The
+Infisical Operator then passed check `ok=24 changed=2`, apply `ok=29 changed=2`, and
+idempotence `ok=29 changed=0`. Universal Auth, database Secrets, and database runtime
+remain **NOT RUN/BLOCKED**.

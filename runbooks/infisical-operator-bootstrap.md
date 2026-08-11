@@ -17,8 +17,22 @@ The guarded source contains exactly 40 objects:
 - eight NetworkPolicies.
 
 `MANIFESTS.sha256` and the action-plugin canonical object map bind the complete
-closure. ClusterGenerator, Secrets, ClusterRoles, ClusterRoleBindings, metrics
-Services, ServiceMonitors, Ingress, routes, PVCs, and PROD objects are absent.
+closure. ClusterGenerator, component-authored Secrets, ClusterRoles,
+ClusterRoleBindings, metrics Services, ServiceMonitors, Ingress, routes, PVCs, and
+PROD objects are absent.
+
+## Runtime status
+
+**CHECK/APPLY/IDEMPOTENCE PASSED.** After exact proxy Secret recovery, two checks
+stopped before mutation on literal hash-map keys (`ok=5 changed=0`) and string-valued
+approval (`ok=20 changed=0`). Reviewed fixes use 40 exact relative hash keys and JSON
+boolean approval. Final check passed `ok=24 changed=2 failed=0`; first apply passed
+`ok=29 changed=2 failed=0`; idempotence passed `ok=29 changed=0 failed=0`. All six
+CRDs became Established, all 40 exact post-state labels passed, both Deployments
+became Available, and k3s/Tailscale remained healthy. Broader live admission,
+negative RBAC, and proxy-traffic acceptance remain pending. No Infisical CR,
+Universal Auth credential, database Secret, database, PVC, or public route was
+created by this checkpoint.
 
 ## Required proxy secret-zero inputs
 

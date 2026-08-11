@@ -65,8 +65,8 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator provenance and selection boundary | Historical evidence distinguishes unselected `v0.11.8` distribution observations from the aligned `v0.11.7` set selected only as the offline baseline; trust, compatibility, scoped RBAC, Universal Auth recovery, traffic, and runtime remain blocked | PASS — focused contracts enforce exact evidence associations, qualified trust wording, immutable child direction, and no deployable controller source or Secret |
 | KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—without adding valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source | PASS — inventory remains inert; completed foundation Namespaces and the separately selected watch profile are now truthful gates while all deployable/runtime gates remain false |
 | KIF-INF-03 | KIF-005, KIF-013–KIF-016, KIF-021, KIF-023, KIF-030 | Infisical source audit and implementation profile | Hash-bind official `v0.11.7` controller commit as quarantined evidence and prove controller/auth/ClusterGenerator behavior; select exact three-Namespace separate-identity intent, metrics-off, no cluster manager/generator/review-token permission, authenticated Squid direction, age/Drive secret-zero direction, and non-sensitive ConfigMap proof while same-Namespace enforcement remains blocked | PASS SOURCE-ONLY — 6 focused/64 affected/165 full contracts, source hashes, compile, Markdown, and diff checks pass; no embedded artifact is promoted as Kubernetes/Ansible/proxy/credential/runtime source |
-| KIF-INF-04 | KIF-005, KIF-013–KIF-016, KIF-021, KIF-023, KIF-030 | Guarded Infisical idle deployable closure | Promote exactly six hash-mapped namespaced CRDs, six fail-closed same-Namespace admission policies/bindings with Universal-Auth-only enforcement including legacy service-account/service-token rejection, exact three-Namespace read-only target RBAC, metrics-off digest-pinned Operator, authenticated TLS Squid, proxy-only egress, and a 40-object guarded check/apply path; commit no Secret value, Infisical CR, PROD scope, or self-hosted server | PASS SOURCE / RUNTIME NOT RUN — 15 focused/180 full contracts, 12 syntax checks, production lint, Operator/proxy action-only, task-start/injection fixtures, hashes/docs/diff pass; live check/apply/idempotence remain required |
-| KIF-INF-05 | KIF-005, KIF-013–KIF-015, KIF-023, KIF-027, KIF-030 | Infisical proxy secret-zero recovery and write | Generate exact TLS/Basic/client material only in a private temp directory; age-encrypt it, verify it off-node through the guarded host transfer, then write exactly three no-log Secrets through a guarded action | STOPPED BEFORE KUBERNETES — historical hardened retry proved cleanup, encrypted-pending resume, Keychain copy, and zero Kubernetes Secrets, then stopped on Drive `invalid_grant`. Source now removes controller rclone and requires exact `drive-verified`; installer apply/idempotence and host OAuth passed; transfer check passed, but apply stopped on unsupported `--local-umask` before a successful upload and exact cleanup removed staging; the flag fix is reviewed, but transfer retry/Secret remain blocked pending host return |
+| KIF-INF-04 | KIF-005, KIF-013–KIF-016, KIF-021, KIF-023, KIF-030 | Guarded Infisical idle deployable closure | Promote exactly six hash-mapped namespaced CRDs, six fail-closed same-Namespace admission policies/bindings with Universal-Auth-only enforcement including legacy service-account/service-token rejection, exact three-Namespace read-only target RBAC, metrics-off digest-pinned Operator, authenticated TLS Squid, proxy-only egress, and a 40-object guarded check/apply path; commit no Secret value, Infisical CR, PROD scope, or self-hosted server | PARTIAL RUNTIME PASS — after two pre-mutation source stops and reviewed fixes, final check passed `ok=24 changed=2`, first apply `ok=29 changed=2`, and idempotence `ok=29 changed=0`; exact 40-object post-state, Established CRDs, Available controller/proxy, and k3s/Tailscale health passed. Broader live admission/RBAC/traffic negatives remain pending |
+| KIF-INF-05 | KIF-005, KIF-013–KIF-015, KIF-023, KIF-027, KIF-030 | Infisical proxy secret-zero recovery and write | Generate exact TLS/Basic/client material only in a private temp directory; age-encrypt it, verify it off-node through the guarded host transfer, then write exactly three no-log Secrets through a guarded action | STOPPED BEFORE KUBERNETES — historical hardened retry proved cleanup, encrypted-pending resume, Keychain copy, and zero Kubernetes Secrets, then stopped on Drive `invalid_grant`. Source now removes controller rclone and requires exact `drive-verified`; installer apply/idempotence and host OAuth passed; transfer check passed, but apply stopped on unsupported `--local-umask` before a successful upload and exact cleanup removed staging; transfer retry passed `ok=39 changed=7`; proxy Secret bootstrap passed `ok=15 changed=1`; exactly three proxy Secrets now exist and implicit rotation is refused |
 | KIF-INF-06 | KIF-005, KIF-010, KIF-013–KIF-016, KIF-021, KIF-023, KIF-030 | Infisical Argo CD Secret materialization seam | One same-Namespace Universal Auth credential reference, fixed project/environment/path identifiers, explicit safe source options (`recursive: false`, empty `tagSlugs`, no `projectId`, fixed sync options), exact Connection/Auth/StaticSecret source closure, explicit orphaned templates for exactly three Argo CD Secrets, additive exact-name Secret/workload-list RBAC, fail-closed admission, and a guarded check/apply wrapper; no credential Secret or values are committed | PASS SOURCE-ONLY / RUNTIME NOT RUN-BLOCKED — 10 focused contracts, source/manifest hashes, v0.11.7 CRD fields, exact Connection/Auth/LastReconcileStatus readiness, six Established-CRD prerequisites, alternate-target preflight, VAP type-check/effective waits, immutable-target refusal, syntax, lint, action-only, forged-internal, and task-selection boundaries pass; credential/source creation, check/apply, sync, target values, and live admission remain blocked |
 | KIF-INF-07 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Infisical database Secret materialization seam | Exactly 15 value-free objects freeze one `shared-services/infisical-cloud` Connection, separate PostgreSQL/MongoDB Auth and Universal Auth credential names, paths `/shared-services/postgresql` and `/shared-services/mongodb`, two StaticSecrets, eleven targets aligned with engine and seven per-consumer contracts, eight scoped fail-closed VAP/bindings, and additive exact-name writer RBAC without workload write/delete; corrected Argo/database VAP match conditions block foreign target writers, unreviewed Operator names, and cross-policy interference | PASS SOURCE-ONLY / RUNTIME NOT RUN-BLOCKED — 9 focused contracts, byte/canonical/identity hash checks, VAP cross-policy negatives, source-key/path/type/label/orphan checks, syntax, production lint, compile, shell, action-only, forged-internal, and task-selection fixtures pass; credential creation, sync, target values, check/apply, rotation, recovery, and live admission remain blocked |
 | KIF-INF-08 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-027, KIF-030 | Infisical Universal Auth and protected value lane | Exact writer/runtime identity separation, three fixed paths, engine plus seven deterministic consumer credentials, exact encrypted archive closure, no fake endpoint, ambiguous-POST stop, exact response-key checks, and a fresh preflight-hash/k3s-version/datastore-bound recovery attestation gate precede any credential-bearing Kubernetes Secret write | PASS SOURCE-ONLY / RUNTIME NOT RUN-BLOCKED — 7 focused contracts and full validation pass; vendor API semantics, identities, values, recovery attestation, upload, and Kubernetes seed remain absent/unverified |
@@ -110,7 +110,7 @@ NOT RUN — wrapper check/apply, host, Kubernetes API, Secret values, PVC, Pod, 
 ```
 
 | KIF-RCLONE-01 | KIF-002, KIF-005, KIF-007, KIF-013, KIF-030 | Guarded pinned host rclone installer | Exact official sums/archive/binary pins and five-file layout; controller cache and host transfer; Debian 13 x86_64; root-owned cache/version/selector; protected sudo prompt; check-safe; selector-only rollback; direct/task-selection/injection negatives | PARTIAL — after two historical pre-host-mutation stops and reviewed fixes, a fresh check passed at `ok=25 changed=1 failed=0`; the separately approved corrected install passed at `ok=34 changed=4 failed=0`, selected verified rclone `1.71.1`, and preserved k3s/Tailscale. The idempotence apply passed at `ok=32 changed=0 failed=0`; rollback remains NOT RUN |
-| KIF-RCLONE-02 | KIF-002, KIF-005, KIF-013–KIF-015, KIF-027, KIF-030 | Exact pending encrypted proxy host transfer | Inventory/getent non-root operator without UID alias; exact selector/binary/config metadata; sole `drive:` remote and no-log read-only OAuth check; fixed timestamp/digest/destination; ciphertext-only mode-0700/0600 staging; four immutable copyto boundaries; encrypted readback/cleanup; controller verification and exact marker before Secret mutation | PARTIAL RUNTIME — private-tunnel host OAuth completed and check passed `ok=26 changed=0 failed=0`. Apply verified OAuth and created only exact encrypted staging, then stopped at `ok=25 changed=1 failed=1` before successful upload because pinned rclone rejects `--local-umask`; cleanup passed `ok=26 changed=1 failed=0` with zero staging residue. Flag fix plus readback-mode regression pass focused/full validation and independent review; retry/readback/marker/Secret remain blocked pending host return |
+| KIF-RCLONE-02 | KIF-002, KIF-005, KIF-013–KIF-015, KIF-027, KIF-030 | Exact pending encrypted proxy host transfer | Inventory/getent non-root operator without UID alias; exact selector/binary/config metadata; sole `drive:` remote and no-log read-only OAuth check; fixed timestamp/digest/destination; ciphertext-only mode-0700/0600 staging; four immutable copyto boundaries; encrypted readback/cleanup; controller verification and exact marker before Secret mutation | PARTIAL RUNTIME — private-tunnel host OAuth completed and check passed `ok=26 changed=0 failed=0`. Apply verified OAuth and created only exact encrypted staging, then stopped at `ok=25 changed=1 failed=1` before successful upload because pinned rclone rejects `--local-umask`; cleanup passed `ok=26 changed=1 failed=0` with zero staging residue. Reviewed retry passed `ok=39 changed=7` with immutable upload/readback, controller verification, exact cleanup and `drive-verified`; proxy Secret apply passed `ok=15 changed=1` |
 
 ## Guarded host rclone source validation — 2026-08-10
 
@@ -367,7 +367,54 @@ Offline validation passed `10/10` focused and `257/257` full contracts, all `23/
 playbook syntax checks, production lint over 162 files, compile, shell, and diff
 checks. The mandatory fresh transfer check was then attempted, but stopped before
 facts at `ok=0 changed=0 unreachable=1` because SSH/Tailscale reachability to the host
-timed out. No retry mutation ran; resume only after read-only reachability returns.
+timed out. No mutation ran in that invocation.
+
+## Transfer/proxy Secret completion and Infisical Operator runtime — 2026-08-11
+
+After the host returned, the fresh transfer check again passed at
+`ok=26 changed=0 failed=0`. The approved retry passed:
+
+```text
+crtxweb: ok=39 changed=7 unreachable=0 failed=0 skipped=1 rescued=0 ignored=0
+```
+
+The seven changed tasks were exact encrypted staging, two immutable uploads, two
+immutable readbacks, fetch of ciphertext-only readback, and exact staging cleanup.
+Controller ciphertext/checksum equality, age decrypt, archive closure, TLS/key/auth
+relationships, mode-`0600` `drive-verified`, protected host OAuth config, zero host
+staging residue, and k3s/Tailscale health passed. No plaintext or age identity moved
+to the host. The guarded proxy Secret apply then passed:
+
+```text
+crtxweb: ok=15 changed=1 unreachable=0 failed=0 skipped=0 rescued=0 ignored=0
+```
+
+It created exactly `infisical-egress-proxy-tls`, `infisical-egress-proxy-auth`, and
+`infisical-egress-proxy-client` in `shared-services` without value output. A later
+invocation refused implicit credential rotation before Ansible/Kubernetes.
+
+The first Operator check stopped before mutation at `ok=5 changed=0` because defaults
+used unrendered absolute template strings as hash-map keys. Relative 40-key hashes
+fixed that stop. The next check stopped before mutation at `ok=20 changed=0` because
+CLI `key=true` produced a string while the action guard requires the exact boolean.
+The wrapper now passes JSON `true`; both fixes passed focused validation and
+independent review. Final results:
+
+```text
+check:       crtxweb: ok=24 changed=2 unreachable=0 failed=0 skipped=5
+first apply: crtxweb: ok=29 changed=2 unreachable=0 failed=0 skipped=0
+idempotence: crtxweb: ok=29 changed=0 unreachable=0 failed=0 skipped=0
+```
+
+Check mode predicted the CRD and runtime partitions without mutation. First apply
+created/reconciled the exact 40-object idle closure; all six CRDs became Established,
+all exact post-state labels passed, both Deployments became Available, and
+k3s/Tailscale remained healthy. Idempotence converged at `changed=0`. No Infisical CR,
+Universal Auth credential, Argo/database target Secret, database, PVC, or public
+route was created. Broader admission/RBAC/traffic negatives and recovery acceptance
+remain pending. Final source validation passed `16/16` focused Operator contracts,
+`258/258` full contracts, all `23/23` playbook syntax checks, production lint over
+162 files, compile, shell syntax, diff, and no-staged checks.
 
 ## Schema-v3 elevated discovery and target-minor review — 2026-08-07
 
@@ -3637,7 +3684,7 @@ Actual results:
 ```text
 PASS: 20 focused PostgreSQL/MongoDB/Secret-validator tests
 PASS: 10 focused Infisical-to-Argo seam tests plus 7 focused Infisical database seam tests
-HISTORICAL PARTIAL OFFLINE: isolated-worktree suite — 229 tests, 226 passed; three path-limited fixtures failed in that temporary worktree. This evidence was superseded by the then-final primary-worktree 253/253 result below, which is itself superseded by the current 257/257 result later in this file.
+HISTORICAL PARTIAL OFFLINE: isolated-worktree suite — 229 tests, 226 passed; three path-limited fixtures failed in that temporary worktree. This evidence was superseded by the then-final primary-worktree 253/253 result below, which is itself superseded by the current 258/258 result later in this file.
 HISTORICAL PASS: all 18 then-existing playbook syntax checks; superseded by the final 23/23 result below.
 PASS: production ansible-lint — 0 failures, 0 warnings; 135 files processed of 163 encountered
 PASS: Python compile and shell syntax
@@ -3655,8 +3702,8 @@ NOT RUN/BLOCKED: every host, cluster, Secret, PVC, database, Infisical, Argo, ch
 | KIF-DBI-05 | KIF-010, KIF-019, KIF-021 | Drift and private exposure | Pre/post checks reject foreign or dangerous Service, NetworkPolicy, ServiceAccount, and StatefulSet drift; Services remain one-port ClusterIP-only with no public fields | PASS OFFLINE — source checks and production lint; live drift NOT RUN |
 | KIF-DBI-06 | KIF-019, KIF-026–KIF-028 | Generated retained PVC safety | Exact generated names, ownership labels, no data source/selector, `local-path`, `Filesystem`, `ReadWriteOnce`, 40/80 GiB, bound PV claim UID/name/namespace, and local-path provisioner are checked before reuse and after binding; no PVC/delete source exists | PASS OFFLINE — foreign-PVC guards present; storage runtime NOT RUN |
 | KIF-DBI-07 | KIF-002, KIF-005, KIF-030 | Present-only mutation boundary | Non-passthrough wrappers, private attestations, exact task source/argument/hash/identity bindings, and task-selection/action-only/internal-injection negatives fail closed | PASS OFFLINE — negative fixtures stop before Kubernetes |
-| KIF-INF-SEAM-11 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Integrated exact Infisical-to-Argo seam | Thirteen value-free objects constrain one Connection/Auth/StaticSecret, exact three orphan targets, four VAP/four bindings, exact source options, all-existing StaticSecret/alternate-target preflight, immutable-target rejection, additive RBAC, effective admission, and actual v0.11.7 readiness conditions | HISTORICAL PASS OFFLINE — 10 focused plus the then-final 253/253 primary-worktree suite; superseded by 257/257 below; live sync NOT RUN |
-| KIF-INF-SEAM-12 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Exact Infisical database Secret seam | Fifteen value-free objects constrain one shared Connection, separate PostgreSQL/MongoDB Auth and credential identities, two fixed path StaticSecrets, eleven target contracts, eight VAP/binding objects, namespace-scoped operator-or-target match conditions, operator-only exact validation, additive no-delete/no-workload-write RBAC, all-existing StaticSecret/alternate-target preflight, byte/canonical/identity hashes, and action-only/internal/task-selection negatives | HISTORICAL PASS OFFLINE — 9 focused plus the then-final 253/253 primary-worktree suite; superseded by 257/257 below; credential sync, target values, and runtime NOT RUN/BLOCKED |
+| KIF-INF-SEAM-11 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Integrated exact Infisical-to-Argo seam | Thirteen value-free objects constrain one Connection/Auth/StaticSecret, exact three orphan targets, four VAP/four bindings, exact source options, all-existing StaticSecret/alternate-target preflight, immutable-target rejection, additive RBAC, effective admission, and actual v0.11.7 readiness conditions | HISTORICAL PASS OFFLINE — 10 focused plus the then-final 253/253 primary-worktree suite; superseded by 258/258 below; live sync NOT RUN |
+| KIF-INF-SEAM-12 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Exact Infisical database Secret seam | Fifteen value-free objects constrain one shared Connection, separate PostgreSQL/MongoDB Auth and credential identities, two fixed path StaticSecrets, eleven target contracts, eight VAP/binding objects, namespace-scoped operator-or-target match conditions, operator-only exact validation, additive no-delete/no-workload-write RBAC, all-existing StaticSecret/alternate-target preflight, byte/canonical/identity hashes, and action-only/internal/task-selection negatives | HISTORICAL PASS OFFLINE — 9 focused plus the then-final 253/253 primary-worktree suite; superseded by 258/258 below; credential sync, target values, and runtime NOT RUN/BLOCKED |
 | KIF-DBI-08 | KIF-026–KIF-030 | Runtime, authorization, recovery, handoff, and production acceptance | Separate approvals and live evidence prove check/apply/idempotence, trust/pullability, Secret sync/rotation, TLS/auth, NetworkPolicy, logical isolation, backup/restore, Argo handoff, and authoritative-data decisions | NOT RUN/BLOCKED |
 
 ## Source-only logical provisioning lane — offline contract
@@ -3737,7 +3784,7 @@ git diff --cached --quiet
 Actual results:
 
 ```text
-PASS: 257/257 offline Python contracts in the primary worktree
+PASS: 258/258 offline Python contracts in the primary worktree
 PASS: all 23/23 playbook syntax checks
 PASS: production ansible-lint — 0 failures, 0 warnings; 162 files processed of 198 encountered
 PASS: executable k3s datastore parser fixtures — ok=140 changed=0 failed=0
@@ -3873,7 +3920,7 @@ git diff --cached --quiet
 ```
 
 Historical actual result for this preflight revision, superseded by the current
-257/257 and 162-file integrated result recorded earlier:
+258/258 and 162-file integrated result recorded earlier:
 
 ```text
 HISTORICAL PASS: 253/253 offline Python contracts

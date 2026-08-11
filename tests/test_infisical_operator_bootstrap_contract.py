@@ -113,6 +113,26 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
             recorded[relative] = digest
         self.assertEqual(actual, recorded)
 
+    def test_runtime_hash_lookup_uses_exact_relative_keys(self) -> None:
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        expected_hashes = defaults["infisical_operator_bootstrap_expected_hashes"]
+        actual = {
+            str(path.relative_to(COMPONENT)):
+                hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in self.paths
+        }
+        self.assertEqual(actual, expected_hashes)
+        tasks_source = TASKS.read_text()
+        self.assertIn(
+            "'/ansible/files/components/infisical-operator/',\n"
+            "            ''",
+            tasks_source,
+        )
+        self.assertNotIn(
+            "infisical_operator_bootstrap_expected_hashes[item.item]",
+            tasks_source,
+        )
+
     def test_admission_is_fail_closed_same_namespace_and_generator_free(self) -> None:
         policies = [obj for obj in self.objects if obj["kind"] == "ValidatingAdmissionPolicy"]
         bindings = [obj for obj in self.objects if obj["kind"] == "ValidatingAdmissionPolicyBinding"]
@@ -281,6 +301,20 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
         ):
             self.assertIn(required, self.wrapper)
         self.assertNotIn("--ask-become-pass", self.wrapper)
+        self.assertIn(
+            "extra_vars='{\"infisical_operator_bootstrap_approved\":true}'",
+            self.wrapper,
+        )
+        extra_vars_match = re.search(r"^extra_vars='([^']+)'$", self.wrapper, re.MULTILINE)
+        self.assertIsNotNone(extra_vars_match)
+        self.assertIs(
+            json.loads(extra_vars_match.group(1))["infisical_operator_bootstrap_approved"],
+            True,
+        )
+        self.assertNotIn(
+            "--extra-vars infisical_operator_bootstrap_approved=true",
+            self.wrapper,
+        )
         self.assertIn("become: false", PLAYBOOK.read_text())
         first = self.tasks[0]
         self.assertEqual("Reject externally supplied Infisical bootstrap internal variables", first["name"])

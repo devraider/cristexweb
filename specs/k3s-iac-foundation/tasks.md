@@ -291,16 +291,12 @@ entry gate.
   values, sync, and live checks remain **NOT RUN/BLOCKED** (`KIF-INF-06`).
 - [x] Add the separate source-only
   [Infisical database Secret materialization seam](../../runbooks/infisical-database-secret-materialization.md): exactly 15 value-free objects for one shared Connection, separate PostgreSQL/MongoDB Auth and Universal Auth identities, two StaticSecrets, eight namespace-scoped fail-closed VAP/bindings, and additive Secret-writer RBAC. Freeze eleven engine/per-consumer target Secret contracts, byte/canonical/identity hashes, and action-only/internal/task-selection negatives. Runtime, credential values, check/apply, sync, rotation, and recovery remain **NOT RUN/BLOCKED** (`KIF-INF-07`).
-- [ ] Create and independently recover the three proxy bootstrap Secrets with the
-  guarded age/Drive writer, then run the guarded Infisical check, separately reviewed
-  first apply, live admission/RBAC/traffic negatives, and idempotence before Universal
-  Auth. The first writer run stopped before Kubernetes on expired controller Drive
-  OAuth. That controller path is superseded: install pinned rclone on the host,
-  create the exact `drive` remote with host `rclone config` (or reconnect it only if
-  it already exists) as the inventory-selected non-root operator using the explicit
-  host config, then run guarded encrypted transfer,
-  controller verification, and Secret write (`KIF-005`, `KIF-013`–`KIF-016`,
-  `KIF-021`, `KIF-023`, `KIF-027`, `KIF-030`).
+- [ ] Complete broader live admission/RBAC/traffic negatives before Universal Auth.
+  Guarded Drive transfer/readback, controller verification, exact three proxy Secrets,
+  and Infisical Operator check/first apply/idempotence now pass. Final Operator results
+  are `ok=24 changed=2`, `ok=29 changed=2`, and `ok=29 changed=0`; both Deployments
+  became Available and exact 40-object post-state passed (`KIF-005`,
+  `KIF-013`–`KIF-016`, `KIF-021`, `KIF-023`, `KIF-027`, `KIF-030`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare/Keycloak
   secret-zero sequence (`KIF-014`, `KIF-015`).
 - [x] Historical source checkpoint: implement an exact present-only/no-delete
@@ -534,13 +530,14 @@ and rollback evidence is incomplete.
 - [x] Complete interactive non-root host OAuth through a reviewed private SSH
   callback tunnel; token-bearing config exists only on the host (`KIF-002`,
   `KIF-013`–`KIF-015`).
-- [ ] Complete transfer apply/readback. Check passed `ok=26 changed=0 failed=0`;
-  apply stopped on unsupported `--local-umask` after only exact encrypted staging;
-  cleanup passed `ok=26 changed=1 failed=0` with zero staging residue. The reviewed
-  fix passes `257/257`; its fresh check stopped before facts because the host became
-  Tailscale-offline (`KIF-002`, `KIF-027`, `KIF-030`).
-- [ ] Separately approve proxy Secret bootstrap only after marker review (**NOT
-  RUN/BLOCKED**; `KIF-002`, `KIF-013`–`KIF-015`, `KIF-030`).
+- [x] Complete transfer apply/readback. After one stopped apply, reviewed fix, exact
+  cleanup, and transient host-offline stop, check passed `ok=26 changed=0`; apply
+  passed `ok=39 changed=7`, including immutable upload/readback, controller decrypt,
+  exact relationship verification, `drive-verified`, and zero host staging residue
+  (`KIF-002`, `KIF-027`, `KIF-030`).
+- [x] Complete exact proxy Secret bootstrap after marker review at
+  `ok=15 changed=1 failed=0`; a later invocation refused implicit credential rotation
+  before Ansible/Kubernetes (`KIF-002`, `KIF-013`–`KIF-015`, `KIF-030`).
 
 ## Closeout
 

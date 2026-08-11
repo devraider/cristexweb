@@ -199,7 +199,8 @@ k3s/Tailscale health. The separately approved idempotence apply passed at
 tunnel with config/token only on the host. Transfer check passed at
 `ok=26 changed=0 failed=0`; apply stopped on unsupported `--local-umask` after exact
 encrypted staging, and approved cleanup removed it at `ok=26 changed=1 failed=0`.
-The reviewed fix passes `257/257`; its fresh check could not start because the host
-became Tailscale-offline. Drive transfer/readback, Secret, Infisical, Argo, and
-database-backup runtime remain **NOT RUN/BLOCKED**; see
+After one transient host-offline stop, transfer check/apply passed at
+`ok=26 changed=0` and `ok=39 changed=7`; exact proxy Secret bootstrap passed at
+`ok=15 changed=1`. Infisical Operator check/apply/idempotence then passed. Universal
+Auth, Argo, and database-backup/runtime remain **NOT RUN/BLOCKED**; see
 [`rclone-host-transfer.md`](../../runbooks/rclone-host-transfer.md).

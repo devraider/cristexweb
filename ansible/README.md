@@ -708,10 +708,13 @@ k3s/Tailscale health. The separately approved idempotence apply passed at
 tunnel; token-bearing rclone config remains only on the host. Transfer check passed
 at `ok=26 changed=0 failed=0`. Apply stopped on unsupported `--local-umask` after
 only exact encrypted staging; approved cleanup removed staging at
-`ok=26 changed=1 failed=0`. The reviewed compatibility fix passes `257/257`, but its
-fresh check stopped before facts because the host became Tailscale-offline. Drive
-transfer and proxy Secret runtime remain **NOT RUN/BLOCKED**. Apply approvals are
-separate; installer sudo is interactive only.
+`ok=26 changed=1 failed=0`. The reviewed compatibility fixes pass `258/258`, but its
+fresh check initially stopped before facts because the host became transiently
+Tailscale-offline. After return, check passed `ok=26 changed=0`; transfer/readback
+passed `ok=39 changed=7`; proxy Secret bootstrap passed `ok=15 changed=1`. Infisical
+Operator then passed check/apply/idempotence. Universal Auth and database runtime
+remain **NOT RUN/BLOCKED**. Apply approvals are separate; installer sudo is
+interactive only.
 
 ## Guarded shared logical database provisioning
 
