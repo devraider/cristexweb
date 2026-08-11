@@ -521,7 +521,7 @@
           - k3s_datastore_preflight_internal_datastore_type == 'unknown'
       changed_when: false
 
-    - name: Bind an exact EnvironmentFile with no datastore or encryption keys
+    - name: Bind the exact pinned EnvironmentFiles closure with no relevant keys
       ansible.builtin.set_fact:
         k3s_datastore_preflight_internal_config_state:
           stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', size: 45}
@@ -533,13 +533,28 @@
           content: "{{ 'secrets-encryption: true\ncluster-init: false\n' | b64encode }}"
         k3s_datastore_preflight_internal_environment_results:
           results:
-            - {rc: 0, stdout: '', stdout_lines: []}
-            - {rc: 0, stdout: '/etc/systemd/system/k3s.service.env', stdout_lines: ['/etc/systemd/system/k3s.service.env']}
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+            - rc: 0
+              stderr: ''
+              stdout: |-
+                /etc/default/k3s (ignore_errors=yes)
+                /etc/sysconfig/k3s (ignore_errors=yes)
+                /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+              stdout_lines:
+                - /etc/default/k3s (ignore_errors=yes)
+                - /etc/sysconfig/k3s (ignore_errors=yes)
+                - /etc/systemd/system/k3s.service.env (ignore_errors=yes)
         k3s_datastore_preflight_internal_environment_file_read_allowed: true
-        k3s_datastore_preflight_internal_environment_file_state:
-          stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0644', nlink: 1, dev: 1, inode: 2, size: 28, mtime: 3}
-        k3s_datastore_preflight_internal_environment_file_post_state:
-          stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0644', nlink: 1, dev: 1, inode: 2, size: 28, mtime: 3}
+        k3s_datastore_preflight_internal_environment_file_states:
+          results:
+            - {stat: {exists: false}}
+            - {stat: {exists: false}}
+            - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', nlink: 1, dev: 1, inode: 2, size: 28, mtime: 3, ctime: 4}}
+        k3s_datastore_preflight_internal_environment_file_post_states:
+          results:
+            - {stat: {exists: false}}
+            - {stat: {exists: false}}
+            - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', nlink: 1, dev: 1, inode: 2, size: 28, mtime: 3, ctime: 4}}
         k3s_datastore_preflight_internal_environment_file_key_count_result:
           rc: 1
           stdout: '0'
@@ -547,11 +562,11 @@
         k3s_datastore_preflight_internal_exec_start_result:
           rc: 0
           stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server ; ignore_errors=no }'
-          stdout_lines: ['exact EnvironmentFile without selected keys']
+          stdout_lines: ['exact pinned EnvironmentFiles without selected keys']
       changed_when: false
-    - name: Run exact EnvironmentFile parser fixture
+    - name: Run exact pinned EnvironmentFiles parser fixture
       ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
-    - name: Require an exact key-free EnvironmentFile to remain safe
+    - name: Require the exact key-free k3s service EnvironmentFile to remain safe
       ansible.builtin.assert:
         that:
           - k3s_datastore_preflight_internal_environment_file_path_exact | bool
@@ -563,12 +578,8 @@
           - k3s_datastore_preflight_internal_datastore_type == 'sqlite'
       changed_when: false
 
-    - name: Bind an exact EnvironmentFile with a relevant datastore key
+    - name: Bind a relevant datastore key in the exact k3s service EnvironmentFile
       ansible.builtin.set_fact:
-        k3s_datastore_preflight_internal_environment_results:
-          results:
-            - {rc: 0, stdout: '', stdout_lines: []}
-            - {rc: 0, stdout: '-/etc/systemd/system/k3s.service.env', stdout_lines: ['-/etc/systemd/system/k3s.service.env']}
         k3s_datastore_preflight_internal_environment_file_key_count_result:
           rc: 0
           stdout: '1'
@@ -585,20 +596,38 @@
           - k3s_datastore_preflight_internal_datastore_type == 'unknown'
       changed_when: false
 
-    - name: Bind a foreign EnvironmentFile path
+    - name: Bind a metadata race after count-only inspection
       ansible.builtin.set_fact:
-        k3s_datastore_preflight_internal_environment_results:
-          results:
-            - {rc: 0, stdout: '', stdout_lines: []}
-            - {rc: 0, stdout: '/etc/systemd/system/foreign.env', stdout_lines: ['/etc/systemd/system/foreign.env']}
         k3s_datastore_preflight_internal_environment_file_key_count_result:
           rc: 1
           stdout: '0'
           stderr: ''
+        k3s_datastore_preflight_internal_environment_file_post_states:
+          results:
+            - {stat: {exists: false}}
+            - {stat: {exists: false}}
+            - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', nlink: 1, dev: 1, inode: 99, size: 28, mtime: 3, ctime: 4}}
       changed_when: false
-    - name: Run foreign EnvironmentFile parser fixture
+    - name: Run EnvironmentFile metadata-race parser fixture
       ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
-    - name: Require a foreign EnvironmentFile path to fail closed
+    - name: Require an EnvironmentFile metadata race to fail closed
+      ansible.builtin.assert:
+        that:
+          - not (k3s_datastore_preflight_internal_environment_file_content_stable | bool)
+          - not (k3s_datastore_preflight_internal_environment_overrides_absent | bool)
+          - k3s_datastore_preflight_internal_data_dir_source == 'environment_override_unknown'
+      changed_when: false
+
+    - name: Bind a foreign EnvironmentFiles property closure
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_environment_results:
+          results:
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+            - {rc: 0, stdout: '/etc/systemd/system/foreign.env (ignore_errors=yes)', stderr: '', stdout_lines: ['/etc/systemd/system/foreign.env (ignore_errors=yes)']}
+      changed_when: false
+    - name: Run foreign EnvironmentFiles parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require a foreign EnvironmentFiles property closure to fail closed
       ansible.builtin.assert:
         that:
           - not (k3s_datastore_preflight_internal_environment_file_path_exact | bool)

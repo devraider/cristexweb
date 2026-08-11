@@ -92,8 +92,9 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "k3s_datastore_preflight_internal_config_post_state",
             "k3s_datastore_preflight_internal_config_content_stable",
             "k3s_datastore_preflight_internal_environment_results",
-            "k3s_datastore_preflight_internal_environment_file_state",
-            "k3s_datastore_preflight_internal_environment_file_post_state",
+            "k3s_datastore_preflight_environment_file_paths",
+            "k3s_datastore_preflight_internal_environment_file_states",
+            "k3s_datastore_preflight_internal_environment_file_post_states",
             "k3s_datastore_preflight_internal_environment_file_key_count_result",
             "k3s_datastore_preflight_internal_environment_file_content_stable",
             "k3s_datastore_preflight_internal_environment_file_relevant_keys_absent",
@@ -116,7 +117,7 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
         self.assertGreaterEqual(len(delegated_blocks), 8)
         for block in delegated_blocks:
             self.assertIn("become: false", block.split("\n\n", 1)[0])
-        environment_count_task = tasks.split("Count only selected k3s EnvironmentFile keys", 1)[1].split("\n- name:", 1)[0]
+        environment_count_task = tasks.split("Count only datastore and encryption keys in the exact k3s service EnvironmentFile", 1)[1].split("\n- name:", 1)[0]
         self.assertIn("/usr/bin/grep", environment_count_task)
         self.assertIn("/etc/systemd/system/k3s.service.env", environment_count_task)
         self.assertIn("--count", environment_count_task)
@@ -142,6 +143,10 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
         self.assertIn("stat.nlink", tasks)
         self.assertIn("stat.inode", tasks)
         self.assertIn("stat.mtime", tasks)
+        self.assertIn("stat.ctime", tasks)
+        self.assertIn("'/etc/default/k3s (ignore_errors=yes)'", tasks)
+        self.assertIn("'/etc/sysconfig/k3s (ignore_errors=yes)'", tasks)
+        self.assertIn("'/etc/systemd/system/k3s.service.env (ignore_errors=yes)'", tasks)
         command_blocks = tasks.split("ansible.builtin.command:")[1:]
         self.assertGreaterEqual(len(command_blocks), 5)
         for block in command_blocks:

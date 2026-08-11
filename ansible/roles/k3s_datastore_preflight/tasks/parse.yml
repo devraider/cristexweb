@@ -314,16 +314,18 @@
   changed_when: false
   no_log: true
 
-- name: Establish the exact accepted k3s EnvironmentFile path privately
+- name: Establish the exact pinned k3s EnvironmentFiles property privately
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_environment_file_path_exact: >-
       {{ k3s_datastore_preflight_internal_environment_results.results | default([]) | length == 2 and
          k3s_datastore_preflight_internal_environment_results.results[0].rc | default(1) | int == 0 and
          k3s_datastore_preflight_internal_environment_results.results[0].stdout | default('') | length == 0 and
          k3s_datastore_preflight_internal_environment_results.results[1].rc | default(1) | int == 0 and
-         k3s_datastore_preflight_internal_environment_results.results[1].stdout | default('') in
-         ['/etc/systemd/system/k3s.service.env',
-          '-/etc/systemd/system/k3s.service.env'] }}
+         k3s_datastore_preflight_internal_environment_results.results[1].stderr | default('') | length == 0 and
+         k3s_datastore_preflight_internal_environment_results.results[1].stdout_lines | default([]) ==
+         ['/etc/default/k3s (ignore_errors=yes)',
+          '/etc/sysconfig/k3s (ignore_errors=yes)',
+          '/etc/systemd/system/k3s.service.env (ignore_errors=yes)'] }}
   changed_when: false
   no_log: true
 
@@ -337,28 +339,36 @@
          k3s_datastore_preflight_internal_environment_file_key_count_result.rc | default(2) | int in [0, 1] and
          k3s_datastore_preflight_internal_environment_file_key_count_result.stderr | default('') | length == 0 and
          k3s_datastore_preflight_internal_environment_file_key_count_result.stdout | default('') is match('^[0-9]+$') and
-         k3s_datastore_preflight_internal_environment_file_state.stat.exists | default(false) | bool and
-         k3s_datastore_preflight_internal_environment_file_post_state.stat.exists | default(false) | bool and
-         k3s_datastore_preflight_internal_environment_file_state.stat.isreg | default(false) | bool and
-         k3s_datastore_preflight_internal_environment_file_post_state.stat.isreg | default(false) | bool and
-         not (k3s_datastore_preflight_internal_environment_file_state.stat.islnk | default(false) | bool) and
-         not (k3s_datastore_preflight_internal_environment_file_post_state.stat.islnk | default(false) | bool) and
-         k3s_datastore_preflight_internal_environment_file_state.stat.pw_name | default('') == 'root' and
-         k3s_datastore_preflight_internal_environment_file_post_state.stat.pw_name | default('') == 'root' and
-         k3s_datastore_preflight_internal_environment_file_state.stat.gr_name | default('') == 'root' and
-         k3s_datastore_preflight_internal_environment_file_post_state.stat.gr_name | default('') == 'root' and
-         k3s_datastore_preflight_internal_environment_file_state.stat.nlink | default(0) | int == 1 and
-         k3s_datastore_preflight_internal_environment_file_post_state.stat.nlink | default(0) | int == 1 and
-         k3s_datastore_preflight_internal_environment_file_state.stat.mode | default('') ==
-         k3s_datastore_preflight_internal_environment_file_post_state.stat.mode | default('') and
-         k3s_datastore_preflight_internal_environment_file_state.stat.dev | default(-1) ==
-         k3s_datastore_preflight_internal_environment_file_post_state.stat.dev | default(-1) and
-         k3s_datastore_preflight_internal_environment_file_state.stat.inode | default(-1) ==
-         k3s_datastore_preflight_internal_environment_file_post_state.stat.inode | default(-1) and
-         k3s_datastore_preflight_internal_environment_file_state.stat.size | default(-1) ==
-         k3s_datastore_preflight_internal_environment_file_post_state.stat.size | default(-1) and
-         k3s_datastore_preflight_internal_environment_file_state.stat.mtime | default(-1) ==
-         k3s_datastore_preflight_internal_environment_file_post_state.stat.mtime | default(-1) }}
+         k3s_datastore_preflight_internal_environment_file_states.results | default([]) | length == 3 and
+         k3s_datastore_preflight_internal_environment_file_post_states.results | default([]) | length == 3 and
+         not (k3s_datastore_preflight_internal_environment_file_states.results[0].stat.exists | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_environment_file_states.results[1].stat.exists | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_environment_file_post_states.results[0].stat.exists | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_environment_file_post_states.results[1].stat.exists | default(false) | bool) and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.exists | default(false) | bool and
+         k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.exists | default(false) | bool and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.isreg | default(false) | bool and
+         k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.isreg | default(false) | bool and
+         not (k3s_datastore_preflight_internal_environment_file_states.results[2].stat.islnk | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.islnk | default(false) | bool) and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.pw_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.pw_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.gr_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.gr_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.mode | default('') == '0600' and
+         k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.mode | default('') == '0600' and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.nlink | default(0) | int == 1 and
+         k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.nlink | default(0) | int == 1 and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.dev | default(-1) ==
+         k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.dev | default(-2) and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.inode | default(-1) ==
+         k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.inode | default(-2) and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.size | default(-1) ==
+         k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.size | default(-2) and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.mtime | default(-1) ==
+         k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.mtime | default(-2) and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.ctime | default(-1) ==
+         k3s_datastore_preflight_internal_environment_file_post_states.results[2].stat.ctime | default(-2) }}
   changed_when: false
   no_log: true
 

@@ -34,8 +34,8 @@
     - k3s_datastore_preflight_internal_version_result
     - k3s_datastore_preflight_internal_exec_start_result
     - k3s_datastore_preflight_internal_environment_results
-    - k3s_datastore_preflight_internal_environment_file_state
-    - k3s_datastore_preflight_internal_environment_file_post_state
+    - k3s_datastore_preflight_internal_environment_file_states
+    - k3s_datastore_preflight_internal_environment_file_post_states
     - k3s_datastore_preflight_internal_environment_file_key_count_result
     - k3s_datastore_preflight_internal_environment_file_path_exact
     - k3s_datastore_preflight_internal_environment_file_read_allowed
@@ -109,7 +109,10 @@
       - k3s_datastore_preflight_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
       - k3s_datastore_preflight_k3s_binary == '/usr/local/bin/k3s'
       - k3s_datastore_preflight_systemctl_binary == '/usr/bin/systemctl'
-      - k3s_datastore_preflight_environment_file_path == '/etc/systemd/system/k3s.service.env'
+      - >-
+        k3s_datastore_preflight_environment_file_paths ==
+        ['/etc/default/k3s', '/etc/sysconfig/k3s',
+        '/etc/systemd/system/k3s.service.env']
       - k3s_datastore_preflight_config_path == '/etc/rancher/k3s/config.yaml'
       - k3s_datastore_preflight_config_max_bytes == 65536
       - k3s_datastore_preflight_encryption_output_max_bytes == 65536
@@ -420,46 +423,54 @@
   check_mode: false
   no_log: true
 
-- name: Establish the exact accepted k3s EnvironmentFile path gate
+- name: Establish the exact pinned k3s EnvironmentFiles property gate
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_environment_file_path_exact: >-
       {{ k3s_datastore_preflight_internal_environment_results.results | default([]) | length == 2 and
          k3s_datastore_preflight_internal_environment_results.results[0].rc | default(1) | int == 0 and
          k3s_datastore_preflight_internal_environment_results.results[0].stdout | default('') | length == 0 and
          k3s_datastore_preflight_internal_environment_results.results[1].rc | default(1) | int == 0 and
-         k3s_datastore_preflight_internal_environment_results.results[1].stdout | default('') in
-         [k3s_datastore_preflight_environment_file_path,
-          '-' ~ k3s_datastore_preflight_environment_file_path] }}
+         k3s_datastore_preflight_internal_environment_results.results[1].stderr | default('') | length == 0 and
+         k3s_datastore_preflight_internal_environment_results.results[1].stdout_lines | default([]) ==
+         ['/etc/default/k3s (ignore_errors=yes)',
+          '/etc/sysconfig/k3s (ignore_errors=yes)',
+          '/etc/systemd/system/k3s.service.env (ignore_errors=yes)'] }}
   changed_when: false
   no_log: true
 
-- name: Inspect the exact k3s EnvironmentFile metadata before private counting
+- name: Inspect the three exact optional k3s EnvironmentFile paths before private counting
   ansible.builtin.stat:
-    path: /etc/systemd/system/k3s.service.env
+    path: "{{ item }}"
     follow: false
     get_checksum: false
     get_mime: false
-  register: k3s_datastore_preflight_internal_environment_file_state
+  loop: "{{ k3s_datastore_preflight_environment_file_paths }}"
+  register: k3s_datastore_preflight_internal_environment_file_states
   when: k3s_datastore_preflight_internal_environment_file_path_exact | bool
   changed_when: false
   no_log: true
 
-- name: Establish the bounded exact EnvironmentFile read gate
+- name: Establish the bounded exact k3s service EnvironmentFile read gate
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_environment_file_read_allowed: >-
       {{ k3s_datastore_preflight_internal_environment_file_path_exact | bool and
-         k3s_datastore_preflight_internal_environment_file_state.stat.exists | default(false) | bool and
-         k3s_datastore_preflight_internal_environment_file_state.stat.isreg | default(false) | bool and
-         not (k3s_datastore_preflight_internal_environment_file_state.stat.islnk | default(false) | bool) and
-         k3s_datastore_preflight_internal_environment_file_state.stat.pw_name | default('') == 'root' and
-         k3s_datastore_preflight_internal_environment_file_state.stat.gr_name | default('') == 'root' and
-         k3s_datastore_preflight_internal_environment_file_state.stat.nlink | default(0) | int == 1 and
-         k3s_datastore_preflight_internal_environment_file_state.stat.size is number and
-         k3s_datastore_preflight_internal_environment_file_state.stat.size | int <= k3s_datastore_preflight_config_max_bytes }}
+         k3s_datastore_preflight_internal_environment_file_states.results | default([]) | length == 3 and
+         not (k3s_datastore_preflight_internal_environment_file_states.results[0].stat.exists | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_environment_file_states.results[1].stat.exists | default(false) | bool) and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.exists | default(false) | bool and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.isreg | default(false) | bool and
+         not (k3s_datastore_preflight_internal_environment_file_states.results[2].stat.islnk | default(false) | bool) and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.pw_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.gr_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.mode | default('') == '0600' and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.nlink | default(0) | int == 1 and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.size is number and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.size | int > 0 and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.size | int <= k3s_datastore_preflight_config_max_bytes }}
   changed_when: false
   no_log: true
 
-- name: Count only selected k3s EnvironmentFile keys without logging values
+- name: Count only datastore and encryption keys in the exact k3s service EnvironmentFile
   ansible.builtin.command:
     argv:
       - /usr/bin/grep
@@ -467,7 +478,7 @@
       - --count
       - --extended-regexp
       - >-
-        ^[[:space:]]*(export[[:space:]]+)?K3S_(DATA_DIR|DATASTORE_ENDPOINT|DATASTORE_CAFILE|DATASTORE_CERTFILE|DATASTORE_KEYFILE|DATASTORE_INSECURE_SKIP_VERIFY|CLUSTER_INIT|SECRETS_ENCRYPTION)([[:space:]]*=|[[:space:]]+)
+        ^[[:space:]]*(export[[:space:]]+)?K3S_(DATA_DIR|DATASTORE_ENDPOINT|DATASTORE_CAFILE|DATASTORE_CERTFILE|DATASTORE_KEYFILE|DATASTORE_INSECURE_SKIP_VERIFY|CLUSTER_INIT|SECRETS_ENCRYPTION)[[:space:]]*=
       - --
       - /etc/systemd/system/k3s.service.env
   register: k3s_datastore_preflight_internal_environment_file_key_count_result
@@ -477,13 +488,14 @@
   check_mode: false
   no_log: true
 
-- name: Inspect the exact k3s EnvironmentFile metadata after private counting
+- name: Inspect the three exact optional k3s EnvironmentFile paths after private counting
   ansible.builtin.stat:
-    path: /etc/systemd/system/k3s.service.env
+    path: "{{ item }}"
     follow: false
     get_checksum: false
     get_mime: false
-  register: k3s_datastore_preflight_internal_environment_file_post_state
+  loop: "{{ k3s_datastore_preflight_environment_file_paths }}"
+  register: k3s_datastore_preflight_internal_environment_file_post_states
   when:
     - k3s_datastore_preflight_internal_environment_file_read_allowed | bool
     - not (k3s_datastore_preflight_internal_environment_file_key_count_result.failed | default(false) | bool)
@@ -548,8 +560,8 @@
     k3s_datastore_preflight_internal_version_result: null
     k3s_datastore_preflight_internal_exec_start_result: null
     k3s_datastore_preflight_internal_environment_results: null
-    k3s_datastore_preflight_internal_environment_file_state: null
-    k3s_datastore_preflight_internal_environment_file_post_state: null
+    k3s_datastore_preflight_internal_environment_file_states: null
+    k3s_datastore_preflight_internal_environment_file_post_states: null
     k3s_datastore_preflight_internal_environment_file_key_count_result: null
     k3s_datastore_preflight_internal_encryption_result: null
     k3s_datastore_preflight_internal_encryption_payload: null
