@@ -8,6 +8,7 @@ k3s_datastore_preflight_output_path: "{{ playbook_dir }}/../.ansible/k3s-datasto
 k3s_datastore_preflight_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
 k3s_datastore_preflight_k3s_binary: /usr/local/bin/k3s
 k3s_datastore_preflight_systemctl_binary: /usr/bin/systemctl
+k3s_datastore_preflight_environment_file_path: /etc/systemd/system/k3s.service.env
 k3s_datastore_preflight_config_path: /etc/rancher/k3s/config.yaml
 # Keep the private config read bounded before any slurp. This is intentionally
 # fixed in the role invocation gate; callers cannot widen the read.

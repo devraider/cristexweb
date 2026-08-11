@@ -92,7 +92,15 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "k3s_datastore_preflight_internal_config_post_state",
             "k3s_datastore_preflight_internal_config_content_stable",
             "k3s_datastore_preflight_internal_environment_results",
+            "k3s_datastore_preflight_internal_environment_file_state",
+            "k3s_datastore_preflight_internal_environment_file_post_state",
+            "k3s_datastore_preflight_internal_environment_file_key_count_result",
+            "k3s_datastore_preflight_internal_environment_file_content_stable",
+            "k3s_datastore_preflight_internal_environment_file_relevant_keys_absent",
             "k3s_datastore_preflight_internal_environment_overrides_absent",
+            "/etc/systemd/system/k3s.service.env",
+            "/usr/bin/grep",
+            "--count",
             "EnvironmentFiles",
             "k3s_datastore_preflight_internal_config_key_counts",
             "k3s_datastore_preflight_internal_data_dir_arg_exact_marker",
@@ -108,6 +116,12 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
         self.assertGreaterEqual(len(delegated_blocks), 8)
         for block in delegated_blocks:
             self.assertIn("become: false", block.split("\n\n", 1)[0])
+        environment_count_task = tasks.split("Count only selected k3s EnvironmentFile keys", 1)[1].split("\n- name:", 1)[0]
+        self.assertIn("/usr/bin/grep", environment_count_task)
+        self.assertIn("/etc/systemd/system/k3s.service.env", environment_count_task)
+        self.assertIn("--count", environment_count_task)
+        self.assertIn("no_log: true", environment_count_task)
+        self.assertNotIn("ansible.builtin.slurp", environment_count_task)
         for forbidden in (
             "ansible.builtin.shell:",
             "ansible.builtin.raw:",

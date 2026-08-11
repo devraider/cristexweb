@@ -27,6 +27,10 @@
     k3s_datastore_preflight_internal_external_arg_count: 0
     k3s_datastore_preflight_internal_external_arg_exact_marker: false
     k3s_datastore_preflight_internal_cluster_init_arg_count: 0
+    k3s_datastore_preflight_internal_environment_file_path_exact: false
+    k3s_datastore_preflight_internal_environment_file_content_stable: false
+    k3s_datastore_preflight_internal_environment_file_key_count: 0
+    k3s_datastore_preflight_internal_environment_file_relevant_keys_absent: false
     k3s_datastore_preflight_internal_environment_overrides_absent: false
     k3s_datastore_preflight_internal_encryption_payload: {}
     k3s_datastore_preflight_internal_encryption_key_counts:
@@ -310,14 +314,74 @@
   changed_when: false
   no_log: true
 
-- name: Require absent systemd environment and environment-file overrides
+- name: Establish the exact accepted k3s EnvironmentFile path privately
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_environment_file_path_exact: >-
+      {{ k3s_datastore_preflight_internal_environment_results.results | default([]) | length == 2 and
+         k3s_datastore_preflight_internal_environment_results.results[0].rc | default(1) | int == 0 and
+         k3s_datastore_preflight_internal_environment_results.results[0].stdout | default('') | length == 0 and
+         k3s_datastore_preflight_internal_environment_results.results[1].rc | default(1) | int == 0 and
+         k3s_datastore_preflight_internal_environment_results.results[1].stdout | default('') in
+         ['/etc/systemd/system/k3s.service.env',
+          '-/etc/systemd/system/k3s.service.env'] }}
+  changed_when: false
+  no_log: true
+
+- name: Establish metadata-stable count-only EnvironmentFile inspection privately
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_environment_file_content_stable: >-
+      {{ k3s_datastore_preflight_internal_environment_file_path_exact | bool and
+         k3s_datastore_preflight_internal_environment_file_read_allowed | default(false) | bool and
+         not (k3s_datastore_preflight_internal_environment_file_key_count_result.failed | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_environment_file_key_count_result.skipped | default(false) | bool) and
+         k3s_datastore_preflight_internal_environment_file_key_count_result.rc | default(2) | int in [0, 1] and
+         k3s_datastore_preflight_internal_environment_file_key_count_result.stderr | default('') | length == 0 and
+         k3s_datastore_preflight_internal_environment_file_key_count_result.stdout | default('') is match('^[0-9]+$') and
+         k3s_datastore_preflight_internal_environment_file_state.stat.exists | default(false) | bool and
+         k3s_datastore_preflight_internal_environment_file_post_state.stat.exists | default(false) | bool and
+         k3s_datastore_preflight_internal_environment_file_state.stat.isreg | default(false) | bool and
+         k3s_datastore_preflight_internal_environment_file_post_state.stat.isreg | default(false) | bool and
+         not (k3s_datastore_preflight_internal_environment_file_state.stat.islnk | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_environment_file_post_state.stat.islnk | default(false) | bool) and
+         k3s_datastore_preflight_internal_environment_file_state.stat.pw_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_environment_file_post_state.stat.pw_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_environment_file_state.stat.gr_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_environment_file_post_state.stat.gr_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_environment_file_state.stat.nlink | default(0) | int == 1 and
+         k3s_datastore_preflight_internal_environment_file_post_state.stat.nlink | default(0) | int == 1 and
+         k3s_datastore_preflight_internal_environment_file_state.stat.mode | default('') ==
+         k3s_datastore_preflight_internal_environment_file_post_state.stat.mode | default('') and
+         k3s_datastore_preflight_internal_environment_file_state.stat.dev | default(-1) ==
+         k3s_datastore_preflight_internal_environment_file_post_state.stat.dev | default(-1) and
+         k3s_datastore_preflight_internal_environment_file_state.stat.inode | default(-1) ==
+         k3s_datastore_preflight_internal_environment_file_post_state.stat.inode | default(-1) and
+         k3s_datastore_preflight_internal_environment_file_state.stat.size | default(-1) ==
+         k3s_datastore_preflight_internal_environment_file_post_state.stat.size | default(-1) and
+         k3s_datastore_preflight_internal_environment_file_state.stat.mtime | default(-1) ==
+         k3s_datastore_preflight_internal_environment_file_post_state.stat.mtime | default(-1) }}
+  changed_when: false
+  no_log: true
+
+- name: Project only the exact EnvironmentFile key count privately
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_environment_file_key_count: >-
+      {{ k3s_datastore_preflight_internal_environment_file_key_count_result.stdout | default('') | int
+         if k3s_datastore_preflight_internal_environment_file_content_stable | bool else -1 }}
+    k3s_datastore_preflight_internal_environment_file_relevant_keys_absent: >-
+      {{ k3s_datastore_preflight_internal_environment_file_content_stable | bool and
+         (k3s_datastore_preflight_internal_environment_file_key_count_result.stdout | default('') | int == 0) }}
+  changed_when: false
+  no_log: true
+
+- name: Require absent systemd environment and safe exact environment-file overrides
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_environment_overrides_absent: >-
       {{ k3s_datastore_preflight_internal_environment_results.results | default([]) | length == 2 and
          k3s_datastore_preflight_internal_environment_results.results[0].rc | default(1) | int == 0 and
          k3s_datastore_preflight_internal_environment_results.results[1].rc | default(1) | int == 0 and
          k3s_datastore_preflight_internal_environment_results.results[0].stdout | default('') | length == 0 and
-         k3s_datastore_preflight_internal_environment_results.results[1].stdout | default('') | length == 0 }}
+         (k3s_datastore_preflight_internal_environment_results.results[1].stdout | default('') | length == 0 or
+          k3s_datastore_preflight_internal_environment_file_relevant_keys_absent | bool) }}
   changed_when: false
   no_log: true
 
