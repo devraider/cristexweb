@@ -69,7 +69,6 @@
       - ansible_diff_mode
       - (ansible_limit | default('') | string) == 'crtxweb'
       - ansible_play_hosts_all | length == 1
-      - ansible_become | default(false) | bool
       - k3s_datastore_preflight_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
       - k3s_datastore_preflight_k3s_binary == '/usr/local/bin/k3s'
       - k3s_datastore_preflight_systemctl_binary == '/usr/bin/systemctl'

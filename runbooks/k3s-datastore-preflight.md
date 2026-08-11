@@ -17,9 +17,9 @@ ansible/bin/preflight-k3s-datastore check
 The wrapper accepts exactly `check`. It rejects `apply`, extra arguments, task
 selection, and passthrough controls; launches the pinned repository controller
 from a clean allowlisted environment; requires the ignored local inventory; uses
-`--check --diff --limit crtxweb --become --ask-become-pass`; binds
-`ansible_become: true` at extra-variable precedence; and supplies explicit preflight
-elevation approval. A mode-0600 single-run attestation is removed on
+`--check --diff --limit crtxweb --become --ask-become-pass`; supplies explicit
+preflight elevation approval; and preserves `become: false` on every controller-local
+delegated task. A mode-0600 single-run attestation is removed on
 exit. Direct playbook/role invocation and forged internal variables fail before
 any host task.
 

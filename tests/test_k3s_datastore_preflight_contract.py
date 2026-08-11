@@ -34,7 +34,6 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "--limit crtxweb",
             "--become",
             "--ask-become-pass",
-            '"ansible_become":true',
             "k3s_datastore_preflight_approved",
             "k3s_datastore_preflight_elevated_requested",
             "k3s_datastore_preflight_elevated_approved",
@@ -48,6 +47,7 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
         self.assertIn("--become", invocation)
         self.assertIn("--ask-become-pass", invocation)
         self.assertLess(invocation.index("--become"), invocation.index("--ask-become-pass"))
+        self.assertNotIn('"ansible_become"', invocation)
         self.assertIn("--start-at-task", wrapper)
         for required in ("hosts: k3s_servers", "become: true", "serial: 1", "any_errors_fatal: true"):
             self.assertIn(required, playbook)
@@ -64,7 +64,6 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "ansible_diff_mode",
             "ansible_limit",
             "ansible_play_hosts_all | length == 1",
-            "ansible_become",
             "--version",
             "secrets-encrypt",
             "status",
@@ -89,6 +88,11 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "k3s_datastore_preflight_internal_rotation_values | length != 1",
         ):
             self.assertIn(required, defaults + tasks)
+        self.assertNotIn("ansible_become | default", tasks)
+        delegated_blocks = tasks.split("delegate_to: localhost")[1:]
+        self.assertGreaterEqual(len(delegated_blocks), 8)
+        for block in delegated_blocks:
+            self.assertIn("become: false", block.split("\n\n", 1)[0])
         for forbidden in (
             "ansible.builtin.shell:",
             "ansible.builtin.raw:",

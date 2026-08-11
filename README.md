@@ -279,9 +279,9 @@ contracts are documented in [`ansible/README.md`](ansible/README.md).
 
 The dedicated `ansible/bin/preflight-k3s-datastore check` wrapper is the only
 entrypoint for the new read-only preflight. It accepts exactly `check`, requires
-`--check --diff --limit crtxweb --become --ask-become-pass`, binds
-`ansible_become: true` at extra-variable precedence, requires explicit elevation
-approval, uses a clean environment and ephemeral mode-`0600` attestation, and
+`--check --diff --limit crtxweb --become --ask-become-pass`, requires explicit
+elevation approval, preserves `become: false` on controller-local delegated tasks,
+uses a clean environment and ephemeral mode-`0600` attestation, and
 rejects direct role/playbook invocation, passthrough arguments, task selection,
 and forged internal variables before host contact. It performs no backup,
 restore, encryption mutation, service/configuration mutation, host mutation,
