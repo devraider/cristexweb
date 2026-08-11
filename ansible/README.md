@@ -330,17 +330,30 @@ mode-`0600` attestation; direct playbook/role invocation, passthrough arguments,
 task selection, and forged internal variables fail closed before host contact.
 
 The role performs no mutation. Fixed read-only argv for k3s version, systemd
-service/ExecStart properties, `secrets-encrypt status`, and a JSON Node query run
-under `no_log` with strict parsers. Metadata-only stat calls inspect the executable,
-config, datastore directory, and controller destination. The ignored controller
-artifact is `ansible/.ansible/k3s-datastore-preflight.local.json` with mode `0600`
-and schema v1. It contains only validated version/stage values, datastore marker
-booleans, encryption status/rotation stage, k3s/Tailscale and bounded Node health,
-and disclosure-control booleans. It never contains raw command/config/status,
-paths, URLs, key metadata, tokens, kubeconfig, Secret data, or node identities.
-Unknown or malformed stages remain fail-closed. See
-[`runbooks/k3s-datastore-preflight.md`](../runbooks/k3s-datastore-preflight.md) and
-`tests/validate_k3s_datastore_preflight.yml` for the offline boundary.
+service/ExecStart properties, `secrets-encrypt status --output json`, and a JSON
+Node query run under `no_log` use strict parsers. A bounded private slurp reads
+only the fixed root-owned mode-`0600` config after its size gate. Fixed private
+systemd `Environment` and `EnvironmentFiles` queries must both be empty before a
+local/default data-directory source is trusted. Selected top-level `data-dir`,
+`datastore-endpoint`, `cluster-init`, and
+`secrets-encryption` fields must be unique and correctly typed; only booleans and
+enums are projected. Initial `start` and completed `reencrypt_finished` remain
+distinct, both require `hashmatch=true` for their stable projections, and only the
+latter maps to `finished`; key names, hashes, hash errors, endpoints, paths, and
+other raw values are not projected, and private raw facts are cleared before the
+report. The ignored controller artifact is
+`ansible/.ansible/k3s-datastore-preflight.local.json` with mode `0600` and schema
+v2. It contains only validated version/stage values, datastore marker booleans,
+encryption status/rotation stage, k3s/Tailscale and bounded Node health, and
+disclosure-control booleans. See
+[`runbooks/k3s-datastore-preflight.md`](../runbooks/k3s-datastore-preflight.md),
+`tests/validate_k3s_datastore_preflight.yml`, and
+`tests/validate_k3s_datastore_preflight_parser.yml` for the offline boundary.
+The official source pin is K3s `v1.36.2+k3s1` commit
+`01b6f04aaa69e8b09303f0393d4b4f1811da23aa`. A separately approved live read-only
+run passed `ok=45 changed=1 unreachable=0 failed=0` but recorded only sanitized
+unknown datastore/encryption/rotation evidence (`config_status=present_safe`,
+`data_dir_source=config_override_unknown`).
 
 ## Mandatory invocation contract
 

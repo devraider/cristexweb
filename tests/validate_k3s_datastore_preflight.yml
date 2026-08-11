@@ -5,7 +5,7 @@
   gather_facts: false
   vars:
     k3s_datastore_preflight_internal_report:
-      schema_version: 1
+      schema_version: 2
       evidence_class: read-only-k3s-datastore-encryption-preflight
       invocation:
         check_mode: true
@@ -55,6 +55,10 @@
     synthetic_node_identity: fixture-node-name
     synthetic_stdout: fixture-raw-stdout
     synthetic_stderr: fixture-raw-stderr
+    synthetic_systemd_environment: K3S_DATASTORE_ENDPOINT=fixture-environment-endpoint
+    synthetic_encryption_active_key: fixture-active-key
+    synthetic_encryption_hash_error: fixture-hash-error
+    synthetic_encryption_inactive_key: fixture-inactive-key
 
   tasks:
     - name: Render the report template from synthetic sensitive command fixtures
@@ -69,8 +73,11 @@
     - name: Require the exact preflight report key closure
       ansible.builtin.assert:
         that:
-          - k3s_datastore_preflight_rendered.keys() | list | sort == ['datastore', 'disclosure_controls', 'encryption', 'evidence_class', 'health', 'invocation', 'k3s', 'schema_version']
-          - k3s_datastore_preflight_rendered.schema_version == 1
+          - >-
+            k3s_datastore_preflight_rendered.keys() | list | sort ==
+            ['datastore', 'disclosure_controls', 'encryption', 'evidence_class',
+             'health', 'invocation', 'k3s', 'schema_version']
+          - k3s_datastore_preflight_rendered.schema_version == 2
           - k3s_datastore_preflight_rendered.evidence_class == 'read-only-k3s-datastore-encryption-preflight'
           - k3s_datastore_preflight_rendered.k3s.version == 'v1.36.2+k3s1'
           - k3s_datastore_preflight_rendered.datastore.type == 'external'
@@ -107,8 +114,16 @@
           - >-
             synthetic_stderr not in (k3s_datastore_preflight_rendered | to_json)
           - >-
+            synthetic_systemd_environment not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
             'fixture-token' not in (k3s_datastore_preflight_rendered | to_json)
           - >-
             'fixture-key' not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_encryption_active_key not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_encryption_hash_error not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_encryption_inactive_key not in (k3s_datastore_preflight_rendered | to_json)
         fail_msg: Synthetic sensitive command fixtures appeared in the report.
       changed_when: false

@@ -1,4 +1,52 @@
 ---
+- name: Initialize private bounded config and encryption parser state
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_config_raw: ''
+    k3s_datastore_preflight_internal_config_decode_result:
+      failed: true
+      skipped: true
+    k3s_datastore_preflight_internal_config_payload: {}
+    k3s_datastore_preflight_internal_config_parse_result:
+      failed: true
+      skipped: true
+    k3s_datastore_preflight_internal_config_validation_result:
+      failed: true
+      skipped: true
+    k3s_datastore_preflight_internal_config_key_counts:
+      data_dir: 0
+      datastore_endpoint: 0
+      cluster_init: 0
+      secrets_encryption: 0
+    k3s_datastore_preflight_internal_config_parse_valid: false
+    k3s_datastore_preflight_internal_config_data_dir_state: unknown
+    k3s_datastore_preflight_internal_config_external_marker: false
+    k3s_datastore_preflight_internal_config_etcd_marker: false
+    k3s_datastore_preflight_internal_config_encryption_status: unknown
+    k3s_datastore_preflight_internal_config_arg_count: 0
+    k3s_datastore_preflight_internal_data_dir_arg_count: 0
+    k3s_datastore_preflight_internal_external_arg_count: 0
+    k3s_datastore_preflight_internal_external_arg_exact_marker: false
+    k3s_datastore_preflight_internal_cluster_init_arg_count: 0
+    k3s_datastore_preflight_internal_environment_overrides_absent: false
+    k3s_datastore_preflight_internal_encryption_payload: {}
+    k3s_datastore_preflight_internal_encryption_key_counts:
+      stage: 0
+      activekey: 0
+      enable: 0
+      hashmatch: 0
+      hasherror: 0
+      inactivekeys: 0
+    k3s_datastore_preflight_internal_encryption_parse_result:
+      failed: true
+      skipped: true
+    k3s_datastore_preflight_internal_encryption_validation_result:
+      failed: true
+      skipped: true
+    k3s_datastore_preflight_internal_encryption_json_valid: false
+    k3s_datastore_preflight_internal_node_count: 0
+  changed_when: false
+  no_log: true
+
 - name: Initialize the validated k3s version as null
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_version: null
@@ -43,6 +91,169 @@
   changed_when: false
   no_log: true
 
+- name: Decode only the bounded private k3s config content
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_config_raw: >-
+      {{ k3s_datastore_preflight_internal_config_slurp_result.content |
+         default('') | b64decode }}
+  when:
+    - k3s_datastore_preflight_internal_config_content_stable | default(false) | bool
+    - not ((k3s_datastore_preflight_internal_config_slurp_result | default({})).failed | default(false) | bool)
+    - not ((k3s_datastore_preflight_internal_config_slurp_result | default({})).skipped | default(false) | bool)
+  register: k3s_datastore_preflight_internal_config_decode_result
+  ignore_errors: true
+  changed_when: false
+  no_log: true
+
+- name: Count only selected config keys privately before YAML projection
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_config_key_counts:
+      data_dir: >-
+        {{ (k3s_datastore_preflight_internal_config_raw |
+            regex_findall('(?m)^data-dir:[ \\t]*')) | length }}
+      datastore_endpoint: >-
+        {{ (k3s_datastore_preflight_internal_config_raw |
+            regex_findall('(?m)^datastore-endpoint:[ \\t]*')) | length }}
+      cluster_init: >-
+        {{ (k3s_datastore_preflight_internal_config_raw |
+            regex_findall('(?m)^cluster-init:[ \\t]*')) | length }}
+      secrets_encryption: >-
+        {{ (k3s_datastore_preflight_internal_config_raw |
+            regex_findall('(?m)^secrets-encryption:[ \\t]*')) | length }}
+  when:
+    - not (k3s_datastore_preflight_internal_config_decode_result.failed | default(false) | bool)
+    - not (k3s_datastore_preflight_internal_config_decode_result.skipped | default(false) | bool)
+    - k3s_datastore_preflight_internal_config_raw | length > 0
+  changed_when: false
+  no_log: true
+
+- name: Parse bounded k3s config YAML privately
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_config_payload: >-
+      {{ k3s_datastore_preflight_internal_config_raw | from_yaml }}
+  when:
+    - not (k3s_datastore_preflight_internal_config_decode_result.failed | default(false) | bool)
+    - not (k3s_datastore_preflight_internal_config_decode_result.skipped | default(false) | bool)
+    - k3s_datastore_preflight_internal_config_raw | length > 0
+    - k3s_datastore_preflight_internal_config_raw | length <= k3s_datastore_preflight_config_max_bytes
+    - k3s_datastore_preflight_internal_config_key_counts.data_dir | int <= 1
+    - k3s_datastore_preflight_internal_config_key_counts.datastore_endpoint | int <= 1
+    - k3s_datastore_preflight_internal_config_key_counts.cluster_init | int <= 1
+    - k3s_datastore_preflight_internal_config_key_counts.secrets_encryption | int <= 1
+    - >-
+      k3s_datastore_preflight_internal_config_raw |
+      regex_findall("(?m)^[ \\t]*['\\\"](?:data-dir|datastore-endpoint|cluster-init|secrets-encryption)['\\\"]:[ \\t]*") |
+      length == 0
+    - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)^[.][.][.][ \\t]*(?:#.*)?$') | length == 0
+    - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)^---[ \\t]*(?:#.*)?$') | length <= 1
+  register: k3s_datastore_preflight_internal_config_parse_result
+  ignore_errors: true
+  changed_when: false
+  no_log: true
+
+- name: Validate selected k3s config shape and relevant-key uniqueness privately
+  ansible.builtin.assert:
+    that:
+      - k3s_datastore_preflight_internal_config_payload is mapping
+      - k3s_datastore_preflight_internal_config_raw | length == k3s_datastore_preflight_internal_config_state.stat.size | int
+      - k3s_datastore_preflight_internal_config_raw is match('^[\\x09\\x0a\\x0d\\x20-\\x7e]+$')
+      - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)^[.][.][.][ \\t]*(?:#.*)?$') | length == 0
+      - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)^---[ \\t]*(?:#.*)?$') | length <= 1
+      - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)^[ \\t]*(?:<<:|%YAML|%TAG)') | length == 0
+      - k3s_datastore_preflight_internal_config_raw | regex_findall('(?m)(?:^|[ \\t])[&*!][^ \\t\\r\\n]+') | length == 0
+      - k3s_datastore_preflight_internal_config_key_counts.data_dir | int <= 1
+      - k3s_datastore_preflight_internal_config_key_counts.datastore_endpoint | int <= 1
+      - k3s_datastore_preflight_internal_config_key_counts.cluster_init | int <= 1
+      - k3s_datastore_preflight_internal_config_key_counts.secrets_encryption | int <= 1
+      - >-
+        k3s_datastore_preflight_internal_config_key_counts.data_dir | int ==
+        (1 if 'data-dir' in k3s_datastore_preflight_internal_config_payload else 0)
+      - >-
+        k3s_datastore_preflight_internal_config_key_counts.datastore_endpoint | int ==
+        (1 if 'datastore-endpoint' in k3s_datastore_preflight_internal_config_payload else 0)
+      - >-
+        k3s_datastore_preflight_internal_config_key_counts.cluster_init | int ==
+        (1 if 'cluster-init' in k3s_datastore_preflight_internal_config_payload else 0)
+      - >-
+        k3s_datastore_preflight_internal_config_key_counts.secrets_encryption | int ==
+        (1 if 'secrets-encryption' in k3s_datastore_preflight_internal_config_payload else 0)
+      - >-
+        ('data-dir' not in k3s_datastore_preflight_internal_config_payload) or
+        (k3s_datastore_preflight_internal_config_payload.get('data-dir') is string and
+         k3s_datastore_preflight_internal_config_payload.get('data-dir') | length > 0)
+      - >-
+        ('datastore-endpoint' not in k3s_datastore_preflight_internal_config_payload) or
+        (k3s_datastore_preflight_internal_config_payload.get('datastore-endpoint') is string and
+         k3s_datastore_preflight_internal_config_payload.get('datastore-endpoint') | length > 0)
+      - >-
+        ('cluster-init' not in k3s_datastore_preflight_internal_config_payload) or
+        (k3s_datastore_preflight_internal_config_payload.get('cluster-init') is boolean)
+      - >-
+        ('secrets-encryption' not in k3s_datastore_preflight_internal_config_payload) or
+        (k3s_datastore_preflight_internal_config_payload.get('secrets-encryption') is boolean)
+  register: k3s_datastore_preflight_internal_config_validation_result
+  when:
+    - not (k3s_datastore_preflight_internal_config_parse_result.failed | default(false) | bool)
+    - not (k3s_datastore_preflight_internal_config_parse_result.skipped | default(false) | bool)
+  ignore_errors: true
+  changed_when: false
+  no_log: true
+
+- name: Establish the private safe k3s config parse gate
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_config_parse_valid: >-
+      {{ not (k3s_datastore_preflight_internal_config_parse_result.failed | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_config_parse_result.skipped | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_config_validation_result.failed | default(true) | bool) and
+         k3s_datastore_preflight_internal_config_payload is mapping }}
+  changed_when: false
+  no_log: true
+
+- name: Project only bounded k3s config markers privately
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_config_data_dir_state: >-
+      {{ 'unknown' if not (k3s_datastore_preflight_internal_config_parse_valid | bool) else
+         'absent' if 'data-dir' not in k3s_datastore_preflight_internal_config_payload else
+         'default' if k3s_datastore_preflight_internal_config_payload.get('data-dir') == '/var/lib/rancher/k3s' else
+         'custom' if k3s_datastore_preflight_internal_config_payload.get('data-dir') is string else
+         'unknown' }}
+    k3s_datastore_preflight_internal_config_external_marker: >-
+      {{ k3s_datastore_preflight_internal_config_parse_valid | bool and
+         'datastore-endpoint' in k3s_datastore_preflight_internal_config_payload and
+         k3s_datastore_preflight_internal_config_payload.get('datastore-endpoint') | length > 0 }}
+    k3s_datastore_preflight_internal_config_etcd_marker: >-
+      {{ k3s_datastore_preflight_internal_config_parse_valid | bool and
+         k3s_datastore_preflight_internal_config_payload.get('cluster-init', false) == true }}
+    k3s_datastore_preflight_internal_config_encryption_status: >-
+      {{ 'enabled' if (
+           k3s_datastore_preflight_internal_config_parse_valid | bool and
+           k3s_datastore_preflight_internal_config_payload.get('secrets-encryption', none) is boolean and
+           k3s_datastore_preflight_internal_config_payload.get('secrets-encryption', false) | bool
+         ) else
+         'disabled' if (
+           k3s_datastore_preflight_internal_config_parse_valid | bool and
+           k3s_datastore_preflight_internal_config_payload.get('secrets-encryption', none) is boolean
+         ) else 'unknown' }}
+  changed_when: false
+  no_log: true
+
+- name: Count fixed ExecStart datastore options privately
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_config_arg_count: >-
+      {{ (k3s_datastore_preflight_internal_exec_start_result.stdout | default('') |
+          regex_findall('--config(?:=|,|;| )')) | length }}
+    k3s_datastore_preflight_internal_data_dir_arg_count: >-
+      {{ (k3s_datastore_preflight_internal_exec_start_result.stdout | default('') |
+          regex_findall('--data-dir(?:=|,|;| )')) | length }}
+    k3s_datastore_preflight_internal_external_arg_count: >-
+      {{ (k3s_datastore_preflight_internal_exec_start_result.stdout | default('') |
+          regex_findall('--datastore-endpoint(?:=|,|;| )')) | length }}
+    k3s_datastore_preflight_internal_cluster_init_arg_count: >-
+      {{ (k3s_datastore_preflight_internal_exec_start_result.stdout | default('') |
+          regex_findall('--cluster-init(?:,|;| |$)')) | length }}
+  changed_when: false
+  no_log: true
+
 - name: Parse the fixed ExecStart property into safe marker booleans
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_exec_start_server_marker: >-
@@ -52,23 +263,25 @@
       {{ ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
           regex_findall('(?:^|[=,; ])/usr/local/bin/k3s(?:,| )+agent(?:,|;| |$)') | length) == 1 }}
     k3s_datastore_preflight_internal_config_arg_marker: >-
-      {{ ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
-          regex_findall('--config(?:=|,|;| )') | length) == 1 }}
+      {{ k3s_datastore_preflight_internal_config_arg_count | int == 1 }}
     k3s_datastore_preflight_internal_config_arg_exact_marker: >-
       {{ ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
-          regex_findall('--config(?:=|,|;| )/?etc/rancher/k3s/config[.]yaml(?:,|;| |$)') | length) == 1 }}
+          regex_findall('--config(?:=|,|;| )/etc/rancher/k3s/config[.]yaml(?:,|;| |$)') | length) == 1 }}
     k3s_datastore_preflight_internal_data_dir_arg_marker: >-
-      {{ ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
-          regex_findall('--data-dir(?:=|,|;| )') | length) == 1 }}
+      {{ k3s_datastore_preflight_internal_data_dir_arg_count | int == 1 }}
     k3s_datastore_preflight_internal_data_dir_arg_exact_marker: >-
       {{ ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
           regex_findall('--data-dir(?:=|,|;| )/var/lib/rancher/k3s(?:,|;| |$)') | length) == 1 }}
+    k3s_datastore_preflight_internal_external_arg_exact_marker: >-
+      {{ k3s_datastore_preflight_internal_external_arg_count | int == 1 and
+         ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
+          regex_findall('--datastore-endpoint(?:=|,|;| )[^,; ]+(?:,|;| |$)') | length) == 1 }}
     k3s_datastore_preflight_internal_external_marker: >-
-      {{ ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
-          regex_findall('--datastore-endpoint(?:=|,|;| )') | length) == 1 }}
+      {{ k3s_datastore_preflight_internal_external_arg_exact_marker | bool or
+         k3s_datastore_preflight_internal_config_external_marker | bool }}
     k3s_datastore_preflight_internal_etcd_marker: >-
-      {{ ((k3s_datastore_preflight_internal_exec_start_result.stdout | default('')) |
-          regex_findall('--cluster-init(?:,|;| |$)') | length) == 1 }}
+      {{ k3s_datastore_preflight_internal_cluster_init_arg_count | int == 1 or
+         k3s_datastore_preflight_internal_config_etcd_marker | bool }}
   changed_when: false
   no_log: true
 
@@ -82,8 +295,29 @@
          'available' if (
            (k3s_datastore_preflight_internal_exec_start_result.stdout_lines | default([]) | length) == 1 and
            (k3s_datastore_preflight_internal_exec_start_server_marker or
-            k3s_datastore_preflight_internal_exec_start_agent_marker)
+            k3s_datastore_preflight_internal_exec_start_agent_marker) and
+           k3s_datastore_preflight_internal_config_arg_count | int <= 1 and
+           k3s_datastore_preflight_internal_data_dir_arg_count | int <= 1 and
+           k3s_datastore_preflight_internal_external_arg_count | int <= 1 and
+           k3s_datastore_preflight_internal_cluster_init_arg_count | int <= 1 and
+           (not k3s_datastore_preflight_internal_config_arg_marker or
+            k3s_datastore_preflight_internal_config_arg_exact_marker) and
+           (not k3s_datastore_preflight_internal_data_dir_arg_marker or
+            k3s_datastore_preflight_internal_data_dir_arg_exact_marker) and
+           (k3s_datastore_preflight_internal_external_arg_count | int == 0 or
+            k3s_datastore_preflight_internal_external_arg_exact_marker)
          ) else 'unsafe' }}
+  changed_when: false
+  no_log: true
+
+- name: Require absent systemd environment and environment-file overrides
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_environment_overrides_absent: >-
+      {{ k3s_datastore_preflight_internal_environment_results.results | default([]) | length == 2 and
+         k3s_datastore_preflight_internal_environment_results.results[0].rc | default(1) | int == 0 and
+         k3s_datastore_preflight_internal_environment_results.results[1].rc | default(1) | int == 0 and
+         k3s_datastore_preflight_internal_environment_results.results[0].stdout | default('') | length == 0 and
+         k3s_datastore_preflight_internal_environment_results.results[1].stdout | default('') | length == 0 }}
   changed_when: false
   no_log: true
 
@@ -91,17 +325,34 @@
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_data_dir_source: >-
       {{ 'unknown' if k3s_datastore_preflight_internal_exec_start_status != 'available' else
+         'explicit_arg' if (
+           k3s_datastore_preflight_internal_environment_overrides_absent | bool and
+           k3s_datastore_preflight_internal_data_dir_arg_exact_marker and
+           (k3s_datastore_preflight_internal_config_status == 'absent' or
+            k3s_datastore_preflight_internal_config_parse_valid | bool)
+         ) else
+         'config_default' if (
+           k3s_datastore_preflight_internal_environment_overrides_absent | bool and
+           k3s_datastore_preflight_internal_config_parse_valid | bool and
+           k3s_datastore_preflight_internal_config_data_dir_state in ['absent', 'default'] and
+           not k3s_datastore_preflight_internal_data_dir_arg_marker
+         ) else
+         'unknown' if (
+           k3s_datastore_preflight_internal_config_parse_valid | bool and
+           k3s_datastore_preflight_internal_config_data_dir_state == 'custom'
+         ) else
+         'unknown' if (
+           k3s_datastore_preflight_internal_config_read_allowed | default(false) | bool and
+           not (k3s_datastore_preflight_internal_config_parse_valid | bool)
+         ) else
          'config_override_unknown' if (
            k3s_datastore_preflight_internal_config_status == 'present_safe' or
            k3s_datastore_preflight_internal_config_arg_marker
          ) else
          'default_no_config' if (
+           k3s_datastore_preflight_internal_environment_overrides_absent | bool and
            k3s_datastore_preflight_internal_config_status == 'absent' and
            not k3s_datastore_preflight_internal_data_dir_arg_marker
-         ) else
-         'explicit_arg' if (
-           k3s_datastore_preflight_internal_config_status == 'absent' and
-           k3s_datastore_preflight_internal_data_dir_arg_exact_marker
          ) else
          'unknown' }}
   changed_when: false
@@ -123,12 +374,24 @@
   changed_when: false
   no_log: true
 
+- name: Merge safe config datastore markers with fixed on-disk markers
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_external_marker: >-
+      {{ k3s_datastore_preflight_internal_external_marker | bool or
+         k3s_datastore_preflight_internal_config_external_marker | bool or
+         k3s_datastore_preflight_internal_external_arg_exact_marker | bool }}
+    k3s_datastore_preflight_internal_etcd_marker: >-
+      {{ k3s_datastore_preflight_internal_etcd_marker | bool or
+         k3s_datastore_preflight_internal_config_etcd_marker | bool or
+         k3s_datastore_preflight_internal_cluster_init_arg_count | int == 1 }}
+  changed_when: false
+  no_log: true
+
 - name: Derive the datastore type only from bound markers and fixed ExecStart
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_datastore_type: >-
       {{ 'unknown' if (
            k3s_datastore_preflight_internal_exec_start_status != 'available' or
-           k3s_datastore_preflight_internal_data_dir_source not in ['default_no_config', 'explicit_arg'] or
            not k3s_datastore_preflight_internal_exec_start_server_marker
          ) else
          'ambiguous' if (
@@ -137,8 +400,16 @@
            (k3s_datastore_preflight_internal_sqlite_marker | int) > 1
          ) else
          'external' if k3s_datastore_preflight_internal_external_marker else
-         'embedded_etcd' if k3s_datastore_preflight_internal_etcd_marker else
-         'sqlite' if k3s_datastore_preflight_internal_sqlite_marker else
+         'embedded_etcd' if (
+           k3s_datastore_preflight_internal_data_dir_source in
+           ['default_no_config', 'config_default', 'explicit_arg'] and
+           k3s_datastore_preflight_internal_etcd_marker
+         ) else
+         'sqlite' if (
+           k3s_datastore_preflight_internal_data_dir_source in
+           ['default_no_config', 'config_default', 'explicit_arg'] and
+           k3s_datastore_preflight_internal_sqlite_marker
+         ) else
          'unknown' }}
   changed_when: false
   no_log: true
@@ -174,68 +445,156 @@
   changed_when: false
   no_log: true
 
-- name: Parse the encryption header, exact status line, and stage token privately
+- name: Count official encryption JSON keys before decoding
   ansible.builtin.set_fact:
-    k3s_datastore_preflight_internal_encryption_header: >-
-      {{ ((k3s_datastore_preflight_internal_encryption_result.stdout | default('')) |
-          regex_findall('(?im)^[ ]*Encryption Status:[ ]*(?:enabled|disabled)[ ]*$') | length) == 1 }}
-    k3s_datastore_preflight_internal_encryption_status_values: >-
-      {{ (k3s_datastore_preflight_internal_encryption_result.stdout | default('')) |
-         regex_findall('(?im)^[ ]*Encryption Status:[ ]*(enabled|disabled)[ ]*$') }}
-    k3s_datastore_preflight_internal_rotation_values: >-
-      {{ (k3s_datastore_preflight_internal_encryption_result.stdout | default('')) |
-         regex_findall('(?im)^[ ]*Current Rotation Stage:[ ]*([a-z_]+)[ ]*$') }}
+    k3s_datastore_preflight_internal_encryption_key_counts:
+      stage: >-
+        {{ k3s_datastore_preflight_internal_encryption_result.stdout | default('') |
+           regex_findall('\"stage\"[ \\t\\r\\n]*:') | length }}
+      activekey: >-
+        {{ k3s_datastore_preflight_internal_encryption_result.stdout | default('') |
+           regex_findall('\"activekey\"[ \\t\\r\\n]*:') | length }}
+      enable: >-
+        {{ k3s_datastore_preflight_internal_encryption_result.stdout | default('') |
+           regex_findall('\"enable\"[ \\t\\r\\n]*:') | length }}
+      hashmatch: >-
+        {{ k3s_datastore_preflight_internal_encryption_result.stdout | default('') |
+           regex_findall('\"hashmatch\"[ \\t\\r\\n]*:') | length }}
+      hasherror: >-
+        {{ k3s_datastore_preflight_internal_encryption_result.stdout | default('') |
+           regex_findall('\"hasherror\"[ \\t\\r\\n]*:') | length }}
+      inactivekeys: >-
+        {{ k3s_datastore_preflight_internal_encryption_result.stdout | default('') |
+           regex_findall('\"inactivekeys\"[ \\t\\r\\n]*:') | length }}
   changed_when: false
   no_log: true
 
-- name: Derive exact encryption status markers privately
+- name: Parse the fixed encryption JSON object privately
   ansible.builtin.set_fact:
-    k3s_datastore_preflight_internal_encryption_enabled_marker: >-
-      {{ k3s_datastore_preflight_internal_encryption_status_values | length == 1 and
-         k3s_datastore_preflight_internal_encryption_status_values[0] | lower == 'enabled' }}
-    k3s_datastore_preflight_internal_encryption_disabled_marker: >-
-      {{ k3s_datastore_preflight_internal_encryption_status_values | length == 1 and
-         k3s_datastore_preflight_internal_encryption_status_values[0] | lower == 'disabled' }}
+    k3s_datastore_preflight_internal_encryption_payload: >-
+      {{ k3s_datastore_preflight_internal_encryption_result.stdout | from_json }}
+  when:
+    - k3s_datastore_preflight_internal_encryption_result.rc | default(1) | int == 0
+    - k3s_datastore_preflight_internal_encryption_result.stderr | default('') | length == 0
+    - k3s_datastore_preflight_internal_encryption_result.stdout | default('') | length > 0
+    - k3s_datastore_preflight_internal_encryption_result.stdout | default('') | length <= k3s_datastore_preflight_encryption_output_max_bytes
+    - k3s_datastore_preflight_internal_encryption_key_counts.stage | int == 1
+    - k3s_datastore_preflight_internal_encryption_key_counts.activekey | int == 1
+    - k3s_datastore_preflight_internal_encryption_key_counts.enable | int <= 1
+    - k3s_datastore_preflight_internal_encryption_key_counts.hashmatch | int <= 1
+    - k3s_datastore_preflight_internal_encryption_key_counts.hasherror | int <= 1
+    - k3s_datastore_preflight_internal_encryption_key_counts.inactivekeys | int <= 1
+  register: k3s_datastore_preflight_internal_encryption_parse_result
+  ignore_errors: true
   changed_when: false
   no_log: true
 
-- name: Derive encryption command/status and rotation stages fail-closed
+- name: Validate the bounded encryption JSON shape privately
+  ansible.builtin.assert:
+    that:
+      - k3s_datastore_preflight_internal_encryption_payload is mapping
+      - >-
+        k3s_datastore_preflight_internal_encryption_payload.keys() |
+        difference(['stage', 'activekey', 'enable', 'hashmatch', 'hasherror',
+        'inactivekeys']) | length == 0
+      - "'stage' in k3s_datastore_preflight_internal_encryption_payload"
+      - k3s_datastore_preflight_internal_encryption_payload.get('stage') is string
+      - "'activekey' in k3s_datastore_preflight_internal_encryption_payload"
+      - k3s_datastore_preflight_internal_encryption_payload.get('activekey') is string
+      - >-
+        ('enable' not in k3s_datastore_preflight_internal_encryption_payload) or
+        (k3s_datastore_preflight_internal_encryption_payload.get('enable') is boolean)
+      - >-
+        ('enable' not in k3s_datastore_preflight_internal_encryption_payload) or
+        not (k3s_datastore_preflight_internal_encryption_payload.get('enable') | bool) or
+        k3s_datastore_preflight_internal_encryption_payload.get('activekey') | length > 0
+      - >-
+        ('hashmatch' not in k3s_datastore_preflight_internal_encryption_payload) or
+        (k3s_datastore_preflight_internal_encryption_payload.get('hashmatch') is boolean)
+      - >-
+        ('hasherror' not in k3s_datastore_preflight_internal_encryption_payload) or
+        (k3s_datastore_preflight_internal_encryption_payload.get('hasherror') is string)
+      - >-
+        ('inactivekeys' not in k3s_datastore_preflight_internal_encryption_payload) or
+        (k3s_datastore_preflight_internal_encryption_payload.get('inactivekeys') is sequence and
+         k3s_datastore_preflight_internal_encryption_payload.get('inactivekeys') is not string and
+         k3s_datastore_preflight_internal_encryption_payload.get('inactivekeys') is not mapping and
+         (k3s_datastore_preflight_internal_encryption_payload.get('inactivekeys') |
+          select('string') | list | length) ==
+         (k3s_datastore_preflight_internal_encryption_payload.get('inactivekeys') | length))
+      - >-
+        k3s_datastore_preflight_internal_encryption_payload.get('stage') in
+        ['start', 'prepare', 'rotate', 'rotate_keys', 'reencrypt_request',
+         'reencrypt_active', 'reencrypt_finished']
+      - >-
+        not (k3s_datastore_preflight_internal_encryption_payload.get('hashmatch', false) | bool) or
+        k3s_datastore_preflight_internal_encryption_payload.get('hasherror', '') | length == 0
+  register: k3s_datastore_preflight_internal_encryption_validation_result
+  when:
+    - not (k3s_datastore_preflight_internal_encryption_parse_result.failed | default(false) | bool)
+    - not (k3s_datastore_preflight_internal_encryption_parse_result.skipped | default(false) | bool)
+  ignore_errors: true
+  changed_when: false
+  no_log: true
+
+- name: Establish the private valid encryption JSON gate
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_encryption_json_valid: >-
+      {{ not (k3s_datastore_preflight_internal_encryption_parse_result.failed | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_encryption_parse_result.skipped | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_encryption_validation_result.failed | default(true) | bool) }}
+  changed_when: false
+  no_log: true
+
+- name: Derive encryption command and status fail-closed
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_encryption_command_status: >-
-      {{ 'unavailable' if (k3s_datastore_preflight_internal_encryption_result.rc | default(1) | int) != 0 else
-         'available' if k3s_datastore_preflight_internal_encryption_header else
+      {{ 'unavailable' if
+           k3s_datastore_preflight_internal_encryption_result.rc | default(1) | int != 0 else
+         'available' if k3s_datastore_preflight_internal_encryption_json_valid | bool else
          'unknown' }}
     k3s_datastore_preflight_internal_encryption_status: >-
-      {{ 'unavailable' if (k3s_datastore_preflight_internal_encryption_result.rc | default(1) | int) != 0 else
-         'enabled' if k3s_datastore_preflight_internal_encryption_header and k3s_datastore_preflight_internal_encryption_enabled_marker else
-         'disabled' if k3s_datastore_preflight_internal_encryption_header and k3s_datastore_preflight_internal_encryption_disabled_marker else
-         'unknown' }}
+      {{ 'unavailable' if
+           k3s_datastore_preflight_internal_encryption_result.rc | default(1) | int != 0 else
+         'enabled' if (
+           k3s_datastore_preflight_internal_encryption_json_valid | bool and
+           k3s_datastore_preflight_internal_encryption_payload.get('enable', none) is boolean and
+           k3s_datastore_preflight_internal_encryption_payload.get('enable') | bool and
+           k3s_datastore_preflight_internal_config_encryption_status in ['enabled', 'unknown']
+         ) else
+         'disabled' if (
+           k3s_datastore_preflight_internal_encryption_json_valid | bool and
+           k3s_datastore_preflight_internal_encryption_payload.get('enable', none) is boolean and
+           not (k3s_datastore_preflight_internal_encryption_payload.get('enable') | bool) and
+           k3s_datastore_preflight_internal_config_encryption_status in ['disabled', 'unknown']
+         ) else 'unknown' }}
+  changed_when: false
+  no_log: true
+
+- name: Derive stable rotation stages without overstating initial encryption
+  ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_rotation_stage: >-
       {{ 'unknown' if (
-           (k3s_datastore_preflight_internal_encryption_result.rc | default(1) | int) != 0 or
-           not k3s_datastore_preflight_internal_encryption_header or
-           k3s_datastore_preflight_internal_encryption_status_values | length != 1 or
-           (k3s_datastore_preflight_internal_encryption_enabled_marker and
-            k3s_datastore_preflight_internal_rotation_values | length != 1) or
-           not (k3s_datastore_preflight_internal_encryption_enabled_marker or
-                k3s_datastore_preflight_internal_encryption_disabled_marker)
+           k3s_datastore_preflight_internal_encryption_status not in ['enabled', 'disabled'] or
+           not (k3s_datastore_preflight_internal_encryption_json_valid | bool)
          ) else
-         'not_applicable' if k3s_datastore_preflight_internal_encryption_disabled_marker else
+         'not_applicable' if (
+           k3s_datastore_preflight_internal_encryption_status == 'disabled' and
+           k3s_datastore_preflight_internal_encryption_payload.get('hashmatch', false) | bool
+         ) else
+         'initial' if (
+           k3s_datastore_preflight_internal_encryption_status == 'enabled' and
+           k3s_datastore_preflight_internal_encryption_payload.get('stage') == 'start' and
+           k3s_datastore_preflight_internal_encryption_payload.get('hashmatch', false) | bool
+         ) else
          'finished' if (
-           k3s_datastore_preflight_internal_rotation_values |
-           intersect(['finished', 'rotate_finished', 'reencrypt_finished']) |
-           length
-         ) == 1 else
-         'active' if (
-           k3s_datastore_preflight_internal_rotation_values |
-           intersect(['active', 'rotate_active', 'reencrypt_active']) |
-           length
-         ) == 1 else
-         'pending' if (
-           k3s_datastore_preflight_internal_rotation_values |
-           intersect(['pending', 'request', 'rotate_request', 'reencrypt_request']) |
-           length
-         ) == 1 else
+           k3s_datastore_preflight_internal_encryption_status == 'enabled' and
+           k3s_datastore_preflight_internal_encryption_payload.get('stage') == 'reencrypt_finished' and
+           k3s_datastore_preflight_internal_encryption_payload.get('hashmatch', false) | bool
+         ) else
+         'pending' if k3s_datastore_preflight_internal_encryption_payload.get('stage') in
+           ['prepare', 'rotate', 'rotate_keys', 'reencrypt_request'] else
+         'active' if k3s_datastore_preflight_internal_encryption_payload.get('stage') == 'reencrypt_active' else
          'unknown' }}
   changed_when: false
   no_log: true
@@ -323,5 +682,13 @@
   loop_control:
     label: node-readiness
   when: k3s_datastore_preflight_internal_node_query_valid | bool
+  changed_when: false
+  no_log: true
+
+- name: Project only the bounded node count before private payload cleanup
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_node_count: >-
+      {{ k3s_datastore_preflight_internal_node_payload.get('items', []) | length
+         if k3s_datastore_preflight_internal_node_query_valid | bool else 0 }}
   changed_when: false
   no_log: true

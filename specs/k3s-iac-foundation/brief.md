@@ -81,8 +81,9 @@ environment passes syntax and lint. A separate source-only, check-only k3s
 datastore/encryption preflight now has a canonical wrapper, exact elevation and
 one-host/check/diff gates, fixed read-only argv under `no_log`, strict fail-closed
 parsers, a deterministic mode-`0600` controller artifact, and synthetic disclosure
-fixtures. It is offline-validated only and performs no host, backup, restore,
-encryption, cluster, or Secret mutation. A gated checksum-pinned OpenTofu CLI installer
+fixtures. A separately approved live read-only run passed at `ok=45 changed=1`,
+writing only the ignored sanitized artifact with unknown datastore/encryption stages;
+it performed no host, backup, restore, encryption, cluster, or Secret mutation. A gated checksum-pinned OpenTofu CLI installer
 and Cloudflare-only zero-resource source scaffold are implemented. The approved
 host check passed; the first live run created only the exact managed parent and
 empty protected state directories before host-side GitHub retrieval failed. The

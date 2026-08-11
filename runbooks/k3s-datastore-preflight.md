@@ -5,8 +5,9 @@
 This runbook documents the guarded, check-only source for a single read-only k3s
 preflight. It does not back up, restore, enable, disable, rotate, re-encrypt,
 restart, reconfigure, or mutate a host, cluster, datastore, encryption state,
-Secret, or controller configuration. The source is offline-validated only;
-no host invocation is evidence of a live result.
+Secret, or controller configuration. One separately approved live read-only run
+completed and emitted only the ignored sanitized artifact described below; its
+unknown result authorizes no later operation.
 
 The only entrypoint is:
 
@@ -28,14 +29,25 @@ any host task.
 The role runs only fixed `ansible.builtin.command` argv under `no_log: true` and
 `check_mode: false` for the read-only probes required by the check: the pinned
 k3s version, systemd `ExecStart` and service-state properties, k3s
-`secrets-encrypt status`, and a JSON Node list. Fixed `stat` calls inspect only
-metadata for the k3s executable, configuration file, datastore directory, and
-controller artifact. Raw stdout/stderr, ExecStart/config content, paths, URLs,
-key metadata, tokens, kubeconfig content, Secret data, and node identities are
-never projected or logged. No command is shell-evaluated.
+`secrets-encrypt status --output json`, and a JSON Node list. Fixed `stat` calls
+inspect metadata for the k3s executable, configuration file, datastore directory,
+and controller artifact. Only after the exact root-owned mode-`0600` config passes
+a fixed 65536-byte size gate does a private `slurp` read `config.yaml`. Fixed
+private systemd `Environment` and `EnvironmentFiles` property reads must both be
+empty before local/default data-directory evidence is accepted. Selected top-level
+`data-dir`, `datastore-endpoint`, `cluster-init`, and
+`secrets-encryption` fields must be a bounded mapping with unique keys and exact
+scalar types. Raw stdout/stderr, ExecStart/config content, paths, URLs, key
+metadata, tokens, kubeconfig content, Secret data, and node identities are never
+projected or logged. No command is shell-evaluated. Private raw facts are cleared
+before report construction.
 
 The parser is strict and fail-closed. It emits no inferred unknown stage as a
-known stage. The report records:
+known stage. The JSON encryption object is bounded to the official
+`EncryptionState` fields; only status/rotation enums are projected. Initial
+`start` maps only to `initial`, completed `reencrypt_finished` maps to `finished`,
+and either stable projection requires boolean `hashmatch=true`. The report
+records:
 
 - validated semantic k3s version or `null`;
 - executable, config, ExecStart, and data-directory source stages;
@@ -48,8 +60,10 @@ known stage. The report records:
 
 The controller artifact is the ignored
 `ansible/.ansible/k3s-datastore-preflight.local.json`, written only after the
-protected parse/schema gate and with mode `0600`. It has schema version `1` and
-no timestamp so synthetic fixtures remain deterministic. Review the artifact
+protected parse/schema gate and with mode `0600`. Enhanced source emits schema
+version `2`; version `1` artifacts predate bounded config/environment/JSON parsing and
+are rejected by the Universal Auth gate. The artifact has no timestamp so synthetic
+fixtures remain deterministic. Review the artifact
 locally; never commit or share it without a separate disclosure review.
 
 ## Offline validation
@@ -64,6 +78,13 @@ Secret store.
 
 ## Runtime state
 
-Source implementation and offline contracts are present. A live check, runtime
-report, human review of actual datastore/encryption stages, and any later backup
-or recovery operation remain **NOT RUN/BLOCKED** and require separate approval.
+Source implementation and offline contracts are present. The separately approved
+live read-only run passed `ok=45 changed=1 unreachable=0 failed=0`; its sanitized
+schema-v1 artifact recorded `v1.36.2+k3s1`, `config_status=present_safe`,
+`data_dir_source=config_override_unknown`, and unknown datastore/encryption/rotation
+stages. That result is retained as honest unknown evidence and does not authorize
+backup, restore, encryption, host, cluster, or Secret mutation. The official source
+pin is K3s tag `v1.36.2+k3s1`, commit
+`01b6f04aaa69e8b09303f0393d4b4f1811da23aa`. Any later check, runtime report review,
+backup, or recovery operation remains **NOT RUN/BLOCKED** and requires separate
+approval.

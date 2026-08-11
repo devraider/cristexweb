@@ -84,8 +84,23 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "stat.nlink == 1",
             "non-private existing preflight artifact destination",
             "config_override_unknown",
+            "config_default",
+            "k3s_datastore_preflight_config_max_bytes",
+            "k3s_datastore_preflight_encryption_output_max_bytes",
+            "k3s_datastore_preflight_config_path_components",
+            "k3s_datastore_preflight_internal_config_slurp_result",
+            "k3s_datastore_preflight_internal_config_post_state",
+            "k3s_datastore_preflight_internal_config_content_stable",
+            "k3s_datastore_preflight_internal_environment_results",
+            "k3s_datastore_preflight_internal_environment_overrides_absent",
+            "EnvironmentFiles",
+            "k3s_datastore_preflight_internal_config_key_counts",
             "k3s_datastore_preflight_internal_data_dir_arg_exact_marker",
-            "k3s_datastore_preflight_internal_rotation_values | length != 1",
+            "k3s_datastore_preflight_internal_encryption_payload",
+            "hashmatch",
+            "reencrypt_finished",
+            "'initial'",
+            "Clear private raw probe facts before report construction",
         ):
             self.assertIn(required, defaults + tasks)
         self.assertNotIn("ansible_become | default", tasks)
@@ -107,6 +122,12 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "state: restarted",
         ):
             self.assertNotIn(forbidden, tasks)
+        encryption_task = tasks.split("Read the fixed k3s encryption status command", 1)[1].split("\n- name:", 1)[0]
+        self.assertIn("- --output\n      - json", encryption_task)
+        self.assertNotIn("--output=json", encryption_task)
+        self.assertIn("stat.nlink", tasks)
+        self.assertIn("stat.inode", tasks)
+        self.assertIn("stat.mtime", tasks)
         command_blocks = tasks.split("ansible.builtin.command:")[1:]
         self.assertGreaterEqual(len(command_blocks), 5)
         for block in command_blocks:
@@ -176,6 +197,10 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "key_material",
             "path=",
             "https://",
+            "activekey",
+            "hasherror",
+            "inactivekeys",
+            "EnvironmentFiles",
         ):
             if forbidden in ("config_content", "kubeconfig_content", "token_values", "key_material"):
                 continue
@@ -191,11 +216,25 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
         ):
             self.assertIn(sensitive, fixture)
 
-    def test_synthetic_fixture_is_present_and_no_generated_artifact_is_tracked(self) -> None:
+    def test_synthetic_fixture_and_ignored_runtime_artifact_boundary(self) -> None:
         self.assertTrue(FIXTURE.is_file())
         ignore = (ROOT / ".gitignore").read_text()
         self.assertIn("k3s-datastore-preflight.local", ignore)
-        self.assertEqual([], [path for path in (ANSIBLE / ".ansible").glob("k3s-datastore-preflight.local.json") if path.is_file()])
+        artifacts = list((ANSIBLE / ".ansible").glob("k3s-datastore-preflight.local.json"))
+        for path in artifacts:
+            self.assertFalse(path.is_symlink())
+            metadata = path.stat()
+            self.assertTrue(stat.S_ISREG(metadata.st_mode))
+            self.assertEqual(0o600, stat.S_IMODE(metadata.st_mode))
+            self.assertEqual(1, metadata.st_nlink)
+        tracked = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", "ansible/.ansible/k3s-datastore-preflight.local.json"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertNotEqual(0, tracked.returncode)
 
     def test_synthetic_report_and_parser_fixtures_execute(self) -> None:
         env = os.environ.copy()
@@ -269,7 +308,7 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "health",
             "disclosure_controls",
         }
-        self.assertEqual(expected, set(json.loads('{"schema_version":1,"evidence_class":"read-only-k3s-datastore-encryption-preflight","invocation":{},"k3s":{},"datastore":{},"encryption":{},"health":{},"disclosure_controls":{}}')))
+        self.assertEqual(expected, set(json.loads('{"schema_version":2,"evidence_class":"read-only-k3s-datastore-encryption-preflight","invocation":{},"k3s":{},"datastore":{},"encryption":{},"health":{},"disclosure_controls":{}}')))
 
 
 if __name__ == "__main__":

@@ -63,11 +63,16 @@
   (`KIF-001`, `KIF-002`, `KIF-008`, `KIF-030`).
 - [x] Add and offline-validate the source-only check-only k3s datastore/encryption
   preflight: canonical non-passthrough wrapper and attestation, exact
-  one-host/check/diff/elevation gates, fixed read-only argv under `no_log`, strict
-  fail-closed parsers, deterministic mode-`0600` controller artifact, and synthetic
-  disclosure fixtures. No host, backup, restore, encryption, cluster, or Secret
-  mutation is authorized or run (`KIF-001`, `KIF-002`, `KIF-007`, `KIF-008`,
-  `KIF-013`, `KIF-015`, `KIF-028`, `KIF-030`).
+  one-host/check/diff/elevation gates, fixed read-only argv under `no_log`, bounded
+  private config slurp and official encryption JSON projection, strict duplicate,
+  type, mapping, malformed-content, and hashmatch fail-closed parsers, deterministic
+  mode-`0600` controller artifact, raw-fact cleanup, and synthetic disclosure/parser
+  fixtures. No host, backup, restore, encryption, cluster, or Secret mutation is
+  authorized or run (`KIF-001`, `KIF-002`, `KIF-007`, `KIF-008`, `KIF-013`,
+  `KIF-015`, `KIF-028`, `KIF-030`). Official K3s source pin is
+  `v1.36.2+k3s1` / `01b6f04aaa69e8b09303f0393d4b4f1811da23aa`; a separately approved
+  live read-only run passed `ok=45 changed=1 unreachable=0 failed=0` and retained
+  sanitized unknown datastore/encryption/rotation evidence.
 - [x] Implement and offline-validate CNI/NetworkPolicy `plan`, `run`, and `cleanup`
   actions with check/diff and one-host gates, a Ready linux/amd64 node, readable
   policy API, generated names, run labels, exact-UID cleanup, and no Namespace

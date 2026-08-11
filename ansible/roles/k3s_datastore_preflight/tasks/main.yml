@@ -9,7 +9,23 @@
   loop:
     - k3s_datastore_preflight_internal_attestation_state
     - k3s_datastore_preflight_internal_executable_state
+    - k3s_datastore_preflight_internal_config_path_states
     - k3s_datastore_preflight_internal_config_state
+    - k3s_datastore_preflight_internal_config_post_state
+    - k3s_datastore_preflight_internal_config_slurp_result
+    - k3s_datastore_preflight_internal_config_content_stable
+    - k3s_datastore_preflight_internal_config_raw
+    - k3s_datastore_preflight_internal_config_decode_result
+    - k3s_datastore_preflight_internal_config_payload
+    - k3s_datastore_preflight_internal_config_parse_result
+    - k3s_datastore_preflight_internal_config_validation_result
+    - k3s_datastore_preflight_internal_config_key_counts
+    - k3s_datastore_preflight_internal_config_read_allowed
+    - k3s_datastore_preflight_internal_config_parse_valid
+    - k3s_datastore_preflight_internal_config_data_dir_state
+    - k3s_datastore_preflight_internal_config_external_marker
+    - k3s_datastore_preflight_internal_config_etcd_marker
+    - k3s_datastore_preflight_internal_config_encryption_status
     - k3s_datastore_preflight_internal_data_dir_state
     - k3s_datastore_preflight_internal_remote_path_states
     - k3s_datastore_preflight_internal_controller_output_path_states
@@ -17,7 +33,14 @@
     - k3s_datastore_preflight_internal_etcd_marker_state
     - k3s_datastore_preflight_internal_version_result
     - k3s_datastore_preflight_internal_exec_start_result
+    - k3s_datastore_preflight_internal_environment_results
+    - k3s_datastore_preflight_internal_environment_overrides_absent
     - k3s_datastore_preflight_internal_encryption_result
+    - k3s_datastore_preflight_internal_encryption_payload
+    - k3s_datastore_preflight_internal_encryption_key_counts
+    - k3s_datastore_preflight_internal_encryption_parse_result
+    - k3s_datastore_preflight_internal_encryption_validation_result
+    - k3s_datastore_preflight_internal_encryption_json_valid
     - k3s_datastore_preflight_internal_k3s_service_result
     - k3s_datastore_preflight_internal_tailscaled_service_result
     - k3s_datastore_preflight_internal_nodes_result
@@ -27,6 +50,7 @@
     - k3s_datastore_preflight_internal_node_items_result
     - k3s_datastore_preflight_internal_node_query_valid
     - k3s_datastore_preflight_internal_ready_node_count
+    - k3s_datastore_preflight_internal_node_count
     - k3s_datastore_preflight_internal_exec_start_server_marker
     - k3s_datastore_preflight_internal_exec_start_agent_marker
     - k3s_datastore_preflight_internal_config_arg_marker
@@ -34,6 +58,11 @@
     - k3s_datastore_preflight_internal_config_arg_other_marker
     - k3s_datastore_preflight_internal_data_dir_arg_marker
     - k3s_datastore_preflight_internal_data_dir_arg_exact_marker
+    - k3s_datastore_preflight_internal_config_arg_count
+    - k3s_datastore_preflight_internal_data_dir_arg_count
+    - k3s_datastore_preflight_internal_external_arg_count
+    - k3s_datastore_preflight_internal_external_arg_exact_marker
+    - k3s_datastore_preflight_internal_cluster_init_arg_count
     - k3s_datastore_preflight_internal_etcd_marker
     - k3s_datastore_preflight_internal_external_marker
     - k3s_datastore_preflight_internal_sqlite_marker
@@ -73,6 +102,9 @@
       - k3s_datastore_preflight_k3s_binary == '/usr/local/bin/k3s'
       - k3s_datastore_preflight_systemctl_binary == '/usr/bin/systemctl'
       - k3s_datastore_preflight_config_path == '/etc/rancher/k3s/config.yaml'
+      - k3s_datastore_preflight_config_max_bytes == 65536
+      - k3s_datastore_preflight_encryption_output_max_bytes == 65536
+      - k3s_datastore_preflight_config_path_components == ['/etc', '/etc/rancher', '/etc/rancher/k3s']
       - k3s_datastore_preflight_data_dir == '/var/lib/rancher/k3s/server/db'
       - k3s_datastore_preflight_sqlite_marker_path == '/var/lib/rancher/k3s/server/db/state.db'
       - k3s_datastore_preflight_etcd_marker_path == '/var/lib/rancher/k3s/server/db/etcd'
@@ -163,6 +195,33 @@
     label: redacted-fixed-component
   no_log: true
 
+- name: Inspect every fixed k3s config path component
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ k3s_datastore_preflight_config_path_components }}"
+  register: k3s_datastore_preflight_internal_config_path_states
+  no_log: true
+
+- name: Require root-owned non-symlinked k3s config path components
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isdir | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == 'root'
+      - item.stat.gr_name == 'root'
+      - item.stat.mode in ['0700', '0711', '0750', '0755']
+    fail_msg: >-
+      CONFIG_PATH_GUARD: a fixed config path component is missing, symlinked,
+      foreign-owned, non-directory, or writable beyond the reviewed modes.
+  loop: "{{ k3s_datastore_preflight_internal_config_path_states.results }}"
+  loop_control:
+    label: redacted-config-component
+  no_log: true
+
 - name: Inspect every canonical controller output path component
   ansible.builtin.stat:
     path: "{{ item }}"
@@ -204,7 +263,7 @@
   register: k3s_datastore_preflight_internal_executable_state
   no_log: true
 
-- name: Inspect the fixed k3s configuration metadata without reading content
+- name: Inspect the fixed k3s configuration metadata before private parsing
   ansible.builtin.stat:
     path: "{{ k3s_datastore_preflight_config_path }}"
     follow: false
@@ -220,6 +279,74 @@
     get_checksum: false
     get_mime: false
   register: k3s_datastore_preflight_internal_data_dir_state
+  no_log: true
+
+- name: Establish the bounded private k3s config read gate
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_config_read_allowed: >-
+      {{ k3s_datastore_preflight_internal_config_state.stat.exists | default(false) | bool and
+         k3s_datastore_preflight_internal_config_state.stat.isreg | default(false) | bool and
+         not (k3s_datastore_preflight_internal_config_state.stat.islnk | default(false) | bool) and
+         k3s_datastore_preflight_internal_config_state.stat.pw_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_config_state.stat.gr_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_config_state.stat.mode | default('') == '0600' and
+         k3s_datastore_preflight_internal_config_state.stat.nlink | default(0) | int == 1 and
+         k3s_datastore_preflight_internal_config_state.stat.size is number and
+         k3s_datastore_preflight_internal_config_state.stat.size | int > 0 and
+         k3s_datastore_preflight_internal_config_state.stat.size | int <= k3s_datastore_preflight_config_max_bytes }}
+    k3s_datastore_preflight_internal_config_content_stable: false
+  changed_when: false
+  no_log: true
+
+- name: Privately slurp only the bounded fixed k3s config
+  ansible.builtin.slurp:
+    src: "{{ k3s_datastore_preflight_config_path }}"
+  register: k3s_datastore_preflight_internal_config_slurp_result
+  when: k3s_datastore_preflight_internal_config_read_allowed | bool
+  check_mode: false
+  diff: false
+  failed_when: false
+  no_log: true
+
+- name: Inspect the fixed k3s configuration metadata after private parsing
+  ansible.builtin.stat:
+    path: "{{ k3s_datastore_preflight_config_path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: k3s_datastore_preflight_internal_config_post_state
+  when:
+    - k3s_datastore_preflight_internal_config_read_allowed | bool
+    - not (k3s_datastore_preflight_internal_config_slurp_result.failed | default(false) | bool)
+    - not (k3s_datastore_preflight_internal_config_slurp_result.skipped | default(false) | bool)
+  no_log: true
+
+- name: Require a stable single-link config read
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_config_content_stable: >-
+      {{ k3s_datastore_preflight_internal_config_read_allowed | bool and
+         not (k3s_datastore_preflight_internal_config_slurp_result.failed | default(false) | bool) and
+         not (k3s_datastore_preflight_internal_config_slurp_result.skipped | default(false) | bool) and
+         k3s_datastore_preflight_internal_config_slurp_result.source | default('') == k3s_datastore_preflight_config_path and
+         k3s_datastore_preflight_internal_config_slurp_result.content | default(none) is string and
+         k3s_datastore_preflight_internal_config_slurp_result.content | length > 0 and
+         k3s_datastore_preflight_internal_config_slurp_result.content is match('^[A-Za-z0-9+/]+={0,2}$') and
+         k3s_datastore_preflight_internal_config_post_state.stat.exists | default(false) | bool and
+         k3s_datastore_preflight_internal_config_post_state.stat.isreg | default(false) | bool and
+         not (k3s_datastore_preflight_internal_config_post_state.stat.islnk | default(false) | bool) and
+         k3s_datastore_preflight_internal_config_post_state.stat.pw_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_config_post_state.stat.gr_name | default('') == 'root' and
+         k3s_datastore_preflight_internal_config_post_state.stat.mode | default('') == '0600' and
+         k3s_datastore_preflight_internal_config_post_state.stat.nlink | default(0) | int == 1 and
+         (k3s_datastore_preflight_internal_config_post_state.stat.dev | default(-1)) ==
+         (k3s_datastore_preflight_internal_config_state.stat.dev | default(-2)) and
+         (k3s_datastore_preflight_internal_config_post_state.stat.inode | default(-1)) ==
+         (k3s_datastore_preflight_internal_config_state.stat.inode | default(-2)) and
+         (k3s_datastore_preflight_internal_config_post_state.stat.size | default(-1)) ==
+         (k3s_datastore_preflight_internal_config_state.stat.size | default(-2)) and
+         (k3s_datastore_preflight_internal_config_post_state.stat.mtime | default(-1)) ==
+         (k3s_datastore_preflight_internal_config_state.stat.mtime | default(-2)) }}
+  changed_when: false
   no_log: true
 
 - name: Inspect the exact SQLite datastore marker without reading content
@@ -265,12 +392,33 @@
   check_mode: false
   no_log: true
 
+- name: Read fixed k3s service environment properties without logging values
+  ansible.builtin.command:
+    argv:
+      - "{{ k3s_datastore_preflight_systemctl_binary }}"
+      - show
+      - "--property={{ item }}"
+      - --value
+      - k3s.service
+  loop:
+    - Environment
+    - EnvironmentFiles
+  loop_control:
+    label: service-environment-metadata
+  register: k3s_datastore_preflight_internal_environment_results
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
 - name: Read the fixed k3s encryption status command without logging output
   ansible.builtin.command:
     argv:
       - "{{ k3s_datastore_preflight_k3s_binary }}"
       - secrets-encrypt
       - status
+      - --output
+      - json
   register: k3s_datastore_preflight_internal_encryption_result
   changed_when: false
   failed_when: false
@@ -314,10 +462,38 @@
 
 - name: Parse and project private k3s datastore preflight evidence
   ansible.builtin.include_tasks: parse.yml
+
+- name: Clear private raw probe facts before report construction
+  ansible.builtin.set_fact:
+    k3s_datastore_preflight_internal_version_result: null
+    k3s_datastore_preflight_internal_exec_start_result: null
+    k3s_datastore_preflight_internal_environment_results: null
+    k3s_datastore_preflight_internal_encryption_result: null
+    k3s_datastore_preflight_internal_encryption_payload: null
+    k3s_datastore_preflight_internal_encryption_key_counts: null
+    k3s_datastore_preflight_internal_encryption_parse_result: null
+    k3s_datastore_preflight_internal_encryption_validation_result: null
+    k3s_datastore_preflight_internal_config_slurp_result: null
+    k3s_datastore_preflight_internal_config_post_state: null
+    k3s_datastore_preflight_internal_config_raw: null
+    k3s_datastore_preflight_internal_config_decode_result: null
+    k3s_datastore_preflight_internal_config_payload: null
+    k3s_datastore_preflight_internal_config_parse_result: null
+    k3s_datastore_preflight_internal_config_validation_result: null
+    k3s_datastore_preflight_internal_config_key_counts: null
+    k3s_datastore_preflight_internal_service_fields: null
+    k3s_datastore_preflight_internal_nodes_result: null
+    k3s_datastore_preflight_internal_node_payload: null
+    k3s_datastore_preflight_internal_node_parse_result: null
+    k3s_datastore_preflight_internal_node_envelope_result: null
+    k3s_datastore_preflight_internal_node_items_result: null
+  changed_when: false
+  no_log: true
+
 - name: Build the exact sanitized preflight report
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_report:
-      schema_version: 1
+      schema_version: 2
       evidence_class: read-only-k3s-datastore-encryption-preflight
       invocation:
         check_mode: "{{ ansible_check_mode | bool }}"
@@ -344,16 +520,13 @@
         k3s_service: "{{ k3s_datastore_preflight_internal_k3s_service_stage }}"
         tailscaled_service: "{{ k3s_datastore_preflight_internal_tailscaled_service_stage }}"
         node_query: "{{ 'available' if k3s_datastore_preflight_internal_node_query_valid | bool else 'unavailable' }}"
-        node_count: >-
-          {{ (k3s_datastore_preflight_internal_node_payload.get('items', []) |
-              length | int)
-             if k3s_datastore_preflight_internal_node_query_valid | bool else 0 }}
+        node_count: "{{ k3s_datastore_preflight_internal_node_count | int if k3s_datastore_preflight_internal_node_query_valid | bool else 0 }}"
         ready_node_count: "{{ k3s_datastore_preflight_internal_ready_node_count | int if k3s_datastore_preflight_internal_node_query_valid | bool else 0 }}"
         node_stage: >-
           {{ 'unavailable' if not (k3s_datastore_preflight_internal_node_query_valid | bool) else
              'ready' if (
-               (k3s_datastore_preflight_internal_node_payload.get('items', []) | length > 0) and
-               (k3s_datastore_preflight_internal_ready_node_count | int == k3s_datastore_preflight_internal_node_payload.get('items', []) | length)
+               (k3s_datastore_preflight_internal_node_count | int > 0) and
+               (k3s_datastore_preflight_internal_ready_node_count | int == k3s_datastore_preflight_internal_node_count | int)
              ) else
              'partial' if k3s_datastore_preflight_internal_ready_node_count | int > 0 else
              'not_ready' }}
@@ -375,7 +548,7 @@
 - name: Validate the sanitized report schema and fail closed on unknown stages
   ansible.builtin.assert:
     that:
-      - k3s_datastore_preflight_internal_report.schema_version == 1
+      - k3s_datastore_preflight_internal_report.schema_version == 2
       - k3s_datastore_preflight_internal_report.evidence_class == 'read-only-k3s-datastore-encryption-preflight'
       - k3s_datastore_preflight_internal_report.invocation.check_mode | bool
       - k3s_datastore_preflight_internal_report.invocation.diff_mode | bool
@@ -385,11 +558,14 @@
       - k3s_datastore_preflight_internal_report.k3s.executable_status in ['safe', 'absent', 'unsafe']
       - k3s_datastore_preflight_internal_report.k3s.config_status in ['present_safe', 'absent', 'unsafe']
       - k3s_datastore_preflight_internal_report.k3s.exec_start_status in ['available', 'unavailable', 'unsafe']
-      - k3s_datastore_preflight_internal_report.k3s.data_dir_source in ['default_no_config', 'explicit_arg', 'config_override_unknown', 'unknown']
+      - >-
+        k3s_datastore_preflight_internal_report.k3s.data_dir_source in
+        ['default_no_config', 'config_default', 'explicit_arg',
+         'config_override_unknown', 'unknown']
       - k3s_datastore_preflight_internal_report.datastore.type in ['sqlite', 'embedded_etcd', 'external', 'ambiguous', 'unknown']
       - k3s_datastore_preflight_internal_report.encryption.command_status in ['available', 'unavailable', 'unknown']
       - k3s_datastore_preflight_internal_report.encryption.status in ['enabled', 'disabled', 'unknown', 'unavailable']
-      - k3s_datastore_preflight_internal_report.encryption.rotation_stage in ['finished', 'active', 'pending', 'unknown', 'not_applicable']
+      - k3s_datastore_preflight_internal_report.encryption.rotation_stage in ['initial', 'finished', 'active', 'pending', 'unknown', 'not_applicable']
       - k3s_datastore_preflight_internal_report.health.k3s_service in ['running', 'stopped', 'absent', 'unknown']
       - k3s_datastore_preflight_internal_report.health.tailscaled_service in ['running', 'stopped', 'absent', 'unknown']
       - k3s_datastore_preflight_internal_report.health.node_query in ['available', 'unavailable']

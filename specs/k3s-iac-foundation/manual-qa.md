@@ -107,11 +107,11 @@ check/apply, sync, rotation, recovery, and runtime remain blocked. This source d
 not close a manual case. Argo CD, cloudflared, Infisical runtime, databases,
 application workloads, and routes are not installed, so this source increment closes no manual case. No deployment, replacement
 recovery proof, or complete manual runtime validation
-occurred. A separate source-only k3s datastore/encryption preflight is offline-
-validated only: its check-only wrapper, fixed read-only argv, strict parser,
-mode-`0600` sanitized artifact, and synthetic disclosure fixture prove no host,
-backup, restore, encryption, cluster, or Secret mutation. It has not been run
-against the host and closes no manual QA case. MQA-13 remains pending specifically
+occurred. The separate source-only k3s datastore/encryption preflight completed one
+approved live read-only run at `ok=45 changed=1`; the sole change was its ignored
+mode-`0600` sanitized artifact, whose datastore/encryption stages remained unknown.
+It performed no host, backup, restore, encryption, cluster, or Secret mutation and
+closes no manual QA case. MQA-13 remains pending specifically
 because the managed-profile rollback path has not been executed and verified, even
 though warning-free fresh-session behavior passed. These results do not satisfy the
 remaining manual cases. The offline `shared-services` source correction adds no live

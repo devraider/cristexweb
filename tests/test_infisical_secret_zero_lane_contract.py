@@ -215,7 +215,9 @@ class InfisicalSecretZeroLaneContractTests(unittest.TestCase):
             "total_seconds() <= 86400",
             "invocation.check_mode == true",
             "health.node_stage == 'ready'",
+            "datastore_evidence.schema_version == 2",
             "k3s.executable_status == 'safe'",
+            "data_dir_source in ['default_no_config', 'config_default', 'explicit_arg']",
             "disclosure_controls.remote_mutation == false",
             "disclosure_controls.raw_command_output == false",
         ):

@@ -22,8 +22,9 @@ baseline, hosted runtime, or IaC reconciler. A separate guarded source-only
 k3s datastore/encryption preflight now exists under `ansible/`; its sole
 check-only wrapper emits a deterministic sanitized mode-`0600` controller artifact
 with strict, fail-closed version/datastore/config/encryption/service/Node stages.
-It has not contacted the host and does not perform backup, restore, encryption,
-host, cluster, or Secret mutation.
+A separately approved live read-only run passed at `ok=45 changed=1`; the only
+change was its ignored sanitized controller artifact, and it performed no backup,
+restore, encryption, host, cluster, or Secret mutation.
 Python is limited to offline contract tests plus fifteen exact-scope Ansible action
 plugins that enforce reviewed mutation and cryptographic boundaries; it is not a
 general operational implementation. Source-only guarded closures now exist for Argo,
@@ -50,7 +51,9 @@ PVC scope. The separately approved schema-v3 rerun passed at
 `ok=17 changed=1 unreachable=0 failed=0 skipped=1`; the change was only the ignored
 controller-local report write. The source-only k3s datastore/encryption preflight
 is a distinct check-only workflow; its fixed commands, strict parsers, sanitized
-schema-v1 artifact, and synthetic disclosure fixture are offline-validated only. Human review confirmed kubelet `v1.36.2+k3s1`, all 15
+schema-v2 artifact, and synthetic disclosure fixture are offline-validated. Its
+approved live run retained honest unknown datastore/encryption evidence pending the
+private parser enhancement. Human review confirmed kubelet `v1.36.2+k3s1`, all 15
 bounded queries available, and the exact `shared-services` PVC query with count zero.
 Argo CD `3.5` officially lists Kubernetes minor `1.36` in its tested matrix and chart
 `10.3.0` admits the target through its semver gate. This is target-minor screening,

@@ -288,18 +288,38 @@ restore, encryption mutation, service/configuration mutation, host mutation,
 cluster mutation, or Secret operation.
 
 Fixed read-only argv for k3s version, systemd health/ExecStart properties,
-`secrets-encrypt status`, and a JSON Node query run under `no_log`; metadata-only
-stat calls inspect the executable, config, datastore directory, and controller
-artifact. Strict parsers fail closed to unknown/unavailable stages. The ignored
-controller artifact `ansible/.ansible/k3s-datastore-preflight.local.json` is
-mode `0600` and schema v1; it contains only validated version/stage values,
+`secrets-encrypt status --output json`, and a JSON Node query run under `no_log`;
+metadata-only stat calls inspect the executable, while a bounded private slurp
+reads only the fixed root-owned mode-`0600` config after its size gate. The config
+parser accepts only a bounded mapping with unique, correctly typed selected
+top-level fields; fixed private systemd `Environment`/`EnvironmentFiles` queries
+must both be empty before a local/default data-directory source is trusted. The
+selected config fields are (`data-dir`, `datastore-endpoint`, `cluster-init`, and
+`secrets-encryption`) and projects booleans/enums only. The encryption JSON parser
+accepts only the bounded official object shape, emits status/rotation enums, and
+distinguishes initial `start` from completed `reencrypt_finished`, requires
+`hashmatch=true` before either stable projection, and never treats `start` as
+completed reencryption; active key names, hash errors, hashes, endpoints, paths,
+and other raw values are never
+projected. Private raw probe facts are cleared before report construction. The
+ignored controller artifact `ansible/.ansible/k3s-datastore-preflight.local.json`
+is mode `0600` and schema v2; it contains only validated version/stage values,
 datastore marker booleans, encryption status/rotation stage, service and bounded
 Node health, and disclosure-control booleans. It never contains raw output,
 config/status content, paths, URLs, key metadata, tokens, kubeconfig, Secret data,
-or node identities. Synthetic disclosure fixtures and the focused contract are
-`tests/validate_k3s_datastore_preflight.yml` and
-`tests/test_k3s_datastore_preflight_contract.py`. Source and offline checks exist;
-a live check and any recovery operation remain **NOT RUN/BLOCKED**.
+or node identities. Synthetic disclosure/parser fixtures and the focused contract
+are `tests/validate_k3s_datastore_preflight.yml`,
+`tests/validate_k3s_datastore_preflight_parser.yml`, and
+`tests/test_k3s_datastore_preflight_contract.py`.
+
+A separately approved live read-only run passed at `ok=45 changed=1
+unreachable=0 failed=0`; its sanitized schema-v1 artifact recorded
+`v1.36.2+k3s1`, `config_status=present_safe`,
+`data_dir_source=config_override_unknown`, and unknown datastore/encryption/rotation
+stages. This remains unknown evidence, not a backup/recovery or mutation approval.
+The offline source pin is official K3s tag `v1.36.2+k3s1`, commit
+`01b6f04aaa69e8b09303f0393d4b4f1811da23aa`. Any recovery operation remains
+**NOT RUN/BLOCKED**.
 
 ## Selected direction
 

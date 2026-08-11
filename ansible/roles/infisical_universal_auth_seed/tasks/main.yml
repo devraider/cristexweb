@@ -156,7 +156,7 @@
 - name: Require enabled stable encryption and proved datastore recovery before Secret writes
   ansible.builtin.assert:
     that:
-      - infisical_universal_auth_seed_internal_datastore_evidence.schema_version == 1
+      - infisical_universal_auth_seed_internal_datastore_evidence.schema_version == 2
       - infisical_universal_auth_seed_internal_datastore_evidence.evidence_class == 'read-only-k3s-datastore-encryption-preflight'
       - infisical_universal_auth_seed_internal_datastore_evidence.keys() | sort == ['datastore', 'disclosure_controls', 'encryption', 'evidence_class', 'health', 'invocation', 'k3s', 'schema_version'] | sort
       - infisical_universal_auth_seed_internal_datastore_evidence.invocation.keys() | sort == ['check_mode', 'diff_mode', 'elevated_approved', 'elevated_requested', 'one_host_limit'] | sort
@@ -168,7 +168,7 @@
       - infisical_universal_auth_seed_internal_datastore_evidence.k3s.keys() | sort == ['config_status', 'data_dir_source', 'exec_start_status', 'executable_status', 'version'] | sort
       - infisical_universal_auth_seed_internal_datastore_evidence.k3s.executable_status == 'safe'
       - infisical_universal_auth_seed_internal_datastore_evidence.k3s.exec_start_status == 'available'
-      - infisical_universal_auth_seed_internal_datastore_evidence.k3s.data_dir_source in ['default_no_config', 'explicit_arg']
+      - infisical_universal_auth_seed_internal_datastore_evidence.k3s.data_dir_source in ['default_no_config', 'config_default', 'explicit_arg']
       - infisical_universal_auth_seed_internal_datastore_evidence.k3s.version is string
       - infisical_universal_auth_seed_internal_datastore_evidence.k3s.version is match('^v[0-9]+[.][0-9]+[.][0-9]+[+]k3s[0-9]+$')
       - infisical_universal_auth_seed_internal_datastore_evidence.datastore.keys() | sort == ['etcd_marker_present', 'external_endpoint_explicit', 'sqlite_marker_present', 'type'] | sort

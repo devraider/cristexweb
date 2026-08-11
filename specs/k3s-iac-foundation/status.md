@@ -18,12 +18,16 @@ note: |
   no general operational Python
   or collector exists. A separate source-only, check-only
   `k3s_datastore_preflight` role/playbook/wrapper is now offline-validated with
-  fixed read-only argv under `no_log`, strict fail-closed parsers, exact
+  fixed read-only argv under `no_log`, a bounded private mode-`0600` config slurp,
+  strict duplicate/type/mapping/YAML and encryption-JSON parsers, exact
   one-host/check/diff/elevation gates, a deterministic mode-`0600` controller
-  artifact, and synthetic disclosure fixtures. It reports only the schema-v1
+  artifact, and synthetic disclosure fixtures. Enhanced source reports only the schema-v2
   validated version/stages, datastore markers, encryption stage, service/Node
-  health, and disclosure-control booleans; it has not contacted a host and does
-  not mutate backup, restore, encryption, host, cluster, or Secret state. One
+  health, and disclosure-control booleans; private raw config/status facts are
+  cleared before report construction. One separately approved live read-only run
+  passed at `ok=45 changed=1 unreachable=0 failed=0`; its only change was the
+  ignored sanitized artifact, and it did not mutate backup, restore, encryption,
+  host, cluster, or Secret state. One
   explicitly approved SSH ping and
   non-elevated one-host check/diff run passed and generated the ignored mode-0600
   host-only report. The approved bootstrap directly requested only
@@ -335,10 +339,17 @@ note: |
   source/Actions reads, the final integrated source validation passed 253/253 offline
   contracts, all 23 playbook syntax checks, executable datastore parser fixtures,
   production-profile lint with zero findings across 162 processed files, Python and
-  shell syntax, and diff checks. The k3s datastore/encryption preflight now treats
-  unread configuration as unknown, binds only default/exact data directories,
-  normalizes encryption status, rejects stage-only evidence, and protects every fixed
-  remote/controller path component. The Universal Auth seed additionally requires a
+  shell syntax, and diff checks. The k3s datastore/encryption preflight now privately parses only the bounded
+  fixed config and official JSON `EncryptionState`, emits `config_default` only
+  for safely parsed absent/exact-default data directories, requires `hashmatch`
+  while keeping initial `start` distinct from completed `reencrypt_finished`,
+  treats custom/unsafe/malformed input as unknown,
+  merges only safe external/cluster-init booleans, and protects every fixed
+  remote/controller path component. A separately approved live read-only run
+  passed `ok=45 changed=1 unreachable=0 failed=0` and retained sanitized unknown
+  datastore/encryption/rotation evidence (`config_status=present_safe`,
+  `data_dir_source=config_override_unknown`). Official K3s source pin:
+  `v1.36.2+k3s1` / `01b6f04aaa69e8b09303f0393d4b4f1811da23aa`. The Universal Auth seed additionally requires a
   fresh maximum-24-hour recovery attestation bound to the exact preflight SHA-256,
   k3s version, and datastore type. No such attestation exists, so credential-bearing
   Secret writes remain blocked. Logical provisioning uses file-mounted credentials,
