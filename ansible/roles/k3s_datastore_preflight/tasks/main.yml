@@ -34,6 +34,8 @@
     - k3s_datastore_preflight_internal_version_result
     - k3s_datastore_preflight_internal_exec_start_result
     - k3s_datastore_preflight_internal_environment_results
+    - k3s_datastore_preflight_internal_environment_post_results
+    - k3s_datastore_preflight_internal_environment_file_path_states
     - k3s_datastore_preflight_internal_environment_file_states
     - k3s_datastore_preflight_internal_environment_file_post_states
     - k3s_datastore_preflight_internal_environment_file_key_count_result
@@ -113,6 +115,8 @@
         k3s_datastore_preflight_environment_file_paths ==
         ['/etc/default/k3s', '/etc/sysconfig/k3s',
         '/etc/systemd/system/k3s.service.env']
+      - k3s_datastore_preflight_environment_file_path_components ==
+        ['/etc', '/etc/systemd', '/etc/systemd/system']
       - k3s_datastore_preflight_config_path == '/etc/rancher/k3s/config.yaml'
       - k3s_datastore_preflight_config_max_bytes == 65536
       - k3s_datastore_preflight_encryption_output_max_bytes == 65536
@@ -232,6 +236,33 @@
   loop: "{{ k3s_datastore_preflight_internal_config_path_states.results }}"
   loop_control:
     label: redacted-config-component
+  no_log: true
+
+- name: Inspect every fixed k3s EnvironmentFile parent path component
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ k3s_datastore_preflight_environment_file_path_components }}"
+  register: k3s_datastore_preflight_internal_environment_file_path_states
+  no_log: true
+
+- name: Require root-owned non-symlinked k3s EnvironmentFile parent path components
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isdir | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == 'root'
+      - item.stat.gr_name == 'root'
+      - item.stat.mode in ['0700', '0711', '0750', '0755']
+    fail_msg: >-
+      ENVIRONMENT_PATH_GUARD: a fixed k3s EnvironmentFile parent is missing,
+      symlinked, foreign-owned, non-directory, or writable beyond the reviewed modes.
+  loop: "{{ k3s_datastore_preflight_internal_environment_file_path_states.results }}"
+  loop_control:
+    label: redacted-environment-component
   no_log: true
 
 - name: Inspect every canonical controller output path component
@@ -465,7 +496,7 @@
          k3s_datastore_preflight_internal_environment_file_states.results[2].stat.mode | default('') == '0600' and
          k3s_datastore_preflight_internal_environment_file_states.results[2].stat.nlink | default(0) | int == 1 and
          k3s_datastore_preflight_internal_environment_file_states.results[2].stat.size is number and
-         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.size | int > 0 and
+         k3s_datastore_preflight_internal_environment_file_states.results[2].stat.size | int >= 0 and
          k3s_datastore_preflight_internal_environment_file_states.results[2].stat.size | int <= k3s_datastore_preflight_config_max_bytes }}
   changed_when: false
   no_log: true
@@ -478,7 +509,7 @@
       - --count
       - --extended-regexp
       - >-
-        ^[[:space:]]*(export[[:space:]]+)?K3S_(DATA_DIR|DATASTORE_ENDPOINT|DATASTORE_CAFILE|DATASTORE_CERTFILE|DATASTORE_KEYFILE|DATASTORE_INSECURE_SKIP_VERIFY|CLUSTER_INIT|SECRETS_ENCRYPTION)[[:space:]]*=
+        ^[[:space:]]*(export[[:space:]]+)?K3S_(CONFIG_FILE|DATA_DIR|DATASTORE_ENDPOINT|DATASTORE_CAFILE|DATASTORE_CERTFILE|DATASTORE_KEYFILE|DATASTORE_INSECURE_SKIP_VERIFY|CLUSTER_INIT|CLUSTER_RESET|SECRETS_ENCRYPTION)[[:space:]]*=
       - --
       - /etc/systemd/system/k3s.service.env
   register: k3s_datastore_preflight_internal_environment_file_key_count_result
@@ -501,6 +532,29 @@
     - not (k3s_datastore_preflight_internal_environment_file_key_count_result.failed | default(false) | bool)
     - not (k3s_datastore_preflight_internal_environment_file_key_count_result.skipped | default(false) | bool)
   changed_when: false
+  no_log: true
+
+- name: Read fixed k3s service environment properties after private counting
+  ansible.builtin.command:
+    argv:
+      - "{{ k3s_datastore_preflight_systemctl_binary }}"
+      - show
+      - "--property={{ item }}"
+      - --value
+      - k3s.service
+  loop:
+    - Environment
+    - EnvironmentFiles
+  loop_control:
+    label: service-environment-metadata-post
+  register: k3s_datastore_preflight_internal_environment_post_results
+  when:
+    - k3s_datastore_preflight_internal_environment_file_read_allowed | bool
+    - not (k3s_datastore_preflight_internal_environment_file_key_count_result.failed | default(false) | bool)
+    - not (k3s_datastore_preflight_internal_environment_file_key_count_result.skipped | default(false) | bool)
+  changed_when: false
+  failed_when: false
+  check_mode: false
   no_log: true
 
 - name: Read the fixed k3s encryption status command without logging output
@@ -560,6 +614,8 @@
     k3s_datastore_preflight_internal_version_result: null
     k3s_datastore_preflight_internal_exec_start_result: null
     k3s_datastore_preflight_internal_environment_results: null
+    k3s_datastore_preflight_internal_environment_post_results: null
+    k3s_datastore_preflight_internal_environment_file_path_states: null
     k3s_datastore_preflight_internal_environment_file_states: null
     k3s_datastore_preflight_internal_environment_file_post_states: null
     k3s_datastore_preflight_internal_environment_file_key_count_result: null

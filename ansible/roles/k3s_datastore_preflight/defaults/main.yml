@@ -12,6 +12,10 @@ k3s_datastore_preflight_environment_file_paths:
   - /etc/default/k3s
   - /etc/sysconfig/k3s
   - /etc/systemd/system/k3s.service.env
+k3s_datastore_preflight_environment_file_path_components:
+  - /etc
+  - /etc/systemd
+  - /etc/systemd/system
 k3s_datastore_preflight_config_path: /etc/rancher/k3s/config.yaml
 # Keep the private config read bounded before any slurp. This is intentionally
 # fixed in the role invocation gate; callers cannot widen the read.

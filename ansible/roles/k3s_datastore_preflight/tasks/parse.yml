@@ -314,18 +314,33 @@
   changed_when: false
   no_log: true
 
-- name: Establish the exact pinned k3s EnvironmentFiles property privately
+- name: Establish the exact stable pinned k3s EnvironmentFiles property privately
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_environment_file_path_exact: >-
       {{ k3s_datastore_preflight_internal_environment_results.results | default([]) | length == 2 and
+         k3s_datastore_preflight_internal_environment_post_results.results | default([]) | length == 2 and
          k3s_datastore_preflight_internal_environment_results.results[0].rc | default(1) | int == 0 and
+         k3s_datastore_preflight_internal_environment_results.results[0].stderr | default('') | length == 0 and
          k3s_datastore_preflight_internal_environment_results.results[0].stdout | default('') | length == 0 and
          k3s_datastore_preflight_internal_environment_results.results[1].rc | default(1) | int == 0 and
          k3s_datastore_preflight_internal_environment_results.results[1].stderr | default('') | length == 0 and
          k3s_datastore_preflight_internal_environment_results.results[1].stdout_lines | default([]) ==
          ['/etc/default/k3s (ignore_errors=yes)',
           '/etc/sysconfig/k3s (ignore_errors=yes)',
-          '/etc/systemd/system/k3s.service.env (ignore_errors=yes)'] }}
+          '/etc/systemd/system/k3s.service.env (ignore_errors=yes)'] and
+         k3s_datastore_preflight_internal_environment_post_results.results[0].rc | default(1) | int == 0 and
+         k3s_datastore_preflight_internal_environment_post_results.results[0].stderr | default('') | length == 0 and
+         k3s_datastore_preflight_internal_environment_post_results.results[0].stdout | default('') | length == 0 and
+         k3s_datastore_preflight_internal_environment_post_results.results[1].rc | default(1) | int == 0 and
+         k3s_datastore_preflight_internal_environment_post_results.results[1].stderr | default('') | length == 0 and
+         k3s_datastore_preflight_internal_environment_post_results.results[1].stdout_lines | default([]) ==
+         ['/etc/default/k3s (ignore_errors=yes)',
+          '/etc/sysconfig/k3s (ignore_errors=yes)',
+          '/etc/systemd/system/k3s.service.env (ignore_errors=yes)'] and
+         k3s_datastore_preflight_internal_environment_results.results[0].stdout ==
+         k3s_datastore_preflight_internal_environment_post_results.results[0].stdout and
+         k3s_datastore_preflight_internal_environment_results.results[1].stdout_lines ==
+         k3s_datastore_preflight_internal_environment_post_results.results[1].stdout_lines }}
   changed_when: false
   no_log: true
 
@@ -386,12 +401,11 @@
 - name: Require absent systemd environment and safe exact environment-file overrides
   ansible.builtin.set_fact:
     k3s_datastore_preflight_internal_environment_overrides_absent: >-
-      {{ k3s_datastore_preflight_internal_environment_results.results | default([]) | length == 2 and
-         k3s_datastore_preflight_internal_environment_results.results[0].rc | default(1) | int == 0 and
-         k3s_datastore_preflight_internal_environment_results.results[1].rc | default(1) | int == 0 and
+      {{ k3s_datastore_preflight_internal_environment_file_path_exact | bool and
+         k3s_datastore_preflight_internal_environment_file_content_stable | bool and
+         k3s_datastore_preflight_internal_environment_file_relevant_keys_absent | bool and
          k3s_datastore_preflight_internal_environment_results.results[0].stdout | default('') | length == 0 and
-         (k3s_datastore_preflight_internal_environment_results.results[1].stdout | default('') | length == 0 or
-          k3s_datastore_preflight_internal_environment_file_relevant_keys_absent | bool) }}
+         k3s_datastore_preflight_internal_environment_post_results.results[0].stdout | default('') | length == 0 }}
   changed_when: false
   no_log: true
 

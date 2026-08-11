@@ -31,8 +31,45 @@
       stdout_lines: ['{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server ; ignore_errors=no }']
     k3s_datastore_preflight_internal_environment_results:
       results:
-        - {rc: 0, stdout: '', stdout_lines: []}
-        - {rc: 0, stdout: '', stdout_lines: []}
+        - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+        - rc: 0
+          stderr: ''
+          stdout: |-
+            /etc/default/k3s (ignore_errors=yes)
+            /etc/sysconfig/k3s (ignore_errors=yes)
+            /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+          stdout_lines:
+            - /etc/default/k3s (ignore_errors=yes)
+            - /etc/sysconfig/k3s (ignore_errors=yes)
+            - /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+    k3s_datastore_preflight_internal_environment_post_results:
+      results:
+        - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+        - rc: 0
+          stderr: ''
+          stdout: |-
+            /etc/default/k3s (ignore_errors=yes)
+            /etc/sysconfig/k3s (ignore_errors=yes)
+            /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+          stdout_lines:
+            - /etc/default/k3s (ignore_errors=yes)
+            - /etc/sysconfig/k3s (ignore_errors=yes)
+            - /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+    k3s_datastore_preflight_internal_environment_file_read_allowed: true
+    k3s_datastore_preflight_internal_environment_file_states:
+      results:
+        - {stat: {exists: false}}
+        - {stat: {exists: false}}
+        - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', nlink: 1, dev: 1, inode: 2, size: 0, mtime: 3, ctime: 4}}
+    k3s_datastore_preflight_internal_environment_file_post_states:
+      results:
+        - {stat: {exists: false}}
+        - {stat: {exists: false}}
+        - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', nlink: 1, dev: 1, inode: 2, size: 0, mtime: 3, ctime: 4}}
+    k3s_datastore_preflight_internal_environment_file_key_count_result:
+      rc: 1
+      stdout: '0'
+      stderr: ''
     k3s_datastore_preflight_internal_encryption_result:
       rc: 0
       stdout: '{"stage":"start","activekey":"fixture-active-key","enable":true,"hashmatch":true,"inactivekeys":["fixture-inactive-key"]}'
@@ -474,8 +511,13 @@
         k3s_datastore_preflight_internal_config_slurp_result: {skipped: true, failed: false}
         k3s_datastore_preflight_internal_environment_results:
           results:
-            - {rc: 0, stdout: '', stdout_lines: []}
-            - {rc: 0, stdout: '', stdout_lines: []}
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+        k3s_datastore_preflight_internal_environment_post_results:
+          results:
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+        k3s_datastore_preflight_internal_environment_file_read_allowed: false
         k3s_datastore_preflight_internal_exec_start_result:
           rc: 0
           stdout: '{ path=/usr/local/bin/k3s ; argv[]=/usr/local/bin/k3s server --data-dir /var/lib/rancher/k3s ; ignore_errors=no }'
@@ -488,7 +530,7 @@
         that:
           - k3s_datastore_preflight_internal_config_status == 'unsafe'
           - k3s_datastore_preflight_internal_data_dir_arg_exact_marker | bool
-          - k3s_datastore_preflight_internal_data_dir_source == 'unknown'
+          - k3s_datastore_preflight_internal_data_dir_source == 'environment_override_unknown'
           - k3s_datastore_preflight_internal_datastore_type == 'unknown'
       changed_when: false
 
@@ -544,17 +586,30 @@
                 - /etc/default/k3s (ignore_errors=yes)
                 - /etc/sysconfig/k3s (ignore_errors=yes)
                 - /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+        k3s_datastore_preflight_internal_environment_post_results:
+          results:
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+            - rc: 0
+              stderr: ''
+              stdout: |-
+                /etc/default/k3s (ignore_errors=yes)
+                /etc/sysconfig/k3s (ignore_errors=yes)
+                /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+              stdout_lines:
+                - /etc/default/k3s (ignore_errors=yes)
+                - /etc/sysconfig/k3s (ignore_errors=yes)
+                - /etc/systemd/system/k3s.service.env (ignore_errors=yes)
         k3s_datastore_preflight_internal_environment_file_read_allowed: true
         k3s_datastore_preflight_internal_environment_file_states:
           results:
             - {stat: {exists: false}}
             - {stat: {exists: false}}
-            - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', nlink: 1, dev: 1, inode: 2, size: 28, mtime: 3, ctime: 4}}
+            - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', nlink: 1, dev: 1, inode: 2, size: 0, mtime: 3, ctime: 4}}
         k3s_datastore_preflight_internal_environment_file_post_states:
           results:
             - {stat: {exists: false}}
             - {stat: {exists: false}}
-            - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', nlink: 1, dev: 1, inode: 2, size: 28, mtime: 3, ctime: 4}}
+            - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', nlink: 1, dev: 1, inode: 2, size: 0, mtime: 3, ctime: 4}}
         k3s_datastore_preflight_internal_environment_file_key_count_result:
           rc: 1
           stdout: '0'
@@ -618,6 +673,132 @@
           - k3s_datastore_preflight_internal_data_dir_source == 'environment_override_unknown'
       changed_when: false
 
+    - name: Bind an EnvironmentFile with the wrong mode
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_environment_file_states:
+          results:
+            - {stat: {exists: false}}
+            - {stat: {exists: false}}
+            - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0644', nlink: 1, dev: 1, inode: 2, size: 0, mtime: 3, ctime: 4}}
+        k3s_datastore_preflight_internal_environment_file_post_states:
+          results:
+            - {stat: {exists: false}}
+            - {stat: {exists: false}}
+            - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0644', nlink: 1, dev: 1, inode: 2, size: 0, mtime: 3, ctime: 4}}
+        k3s_datastore_preflight_internal_environment_file_key_count_result:
+          rc: 1
+          stdout: '0'
+          stderr: ''
+      changed_when: false
+    - name: Run wrong-mode EnvironmentFile parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require wrong EnvironmentFile mode to fail closed
+      ansible.builtin.assert:
+        that:
+          - not (k3s_datastore_preflight_internal_environment_file_content_stable | bool)
+          - not (k3s_datastore_preflight_internal_environment_overrides_absent | bool)
+      changed_when: false
+
+    - name: Bind a grep failure result without stale key state
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_environment_file_states:
+          results:
+            - {stat: {exists: false}}
+            - {stat: {exists: false}}
+            - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', nlink: 1, dev: 1, inode: 2, size: 0, mtime: 3, ctime: 4}}
+        k3s_datastore_preflight_internal_environment_file_post_states:
+          results:
+            - {stat: {exists: false}}
+            - {stat: {exists: false}}
+            - {stat: {exists: true, isreg: true, islnk: false, pw_name: root, gr_name: root, mode: '0600', nlink: 1, dev: 1, inode: 2, size: 0, mtime: 3, ctime: 4}}
+        k3s_datastore_preflight_internal_environment_file_key_count_result:
+          rc: 2
+          stdout: '0'
+          stderr: ''
+      changed_when: false
+    - name: Run grep-failure EnvironmentFile parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require grep rc2 to fail closed without stale state
+      ansible.builtin.assert:
+        that:
+          - not (k3s_datastore_preflight_internal_environment_file_content_stable | bool)
+          - k3s_datastore_preflight_internal_environment_file_key_count | int == -1
+          - not (k3s_datastore_preflight_internal_environment_file_relevant_keys_absent | bool)
+          - not (k3s_datastore_preflight_internal_environment_overrides_absent | bool)
+      changed_when: false
+
+    - name: Bind a non-numeric grep count
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_environment_file_key_count_result:
+          rc: 1
+          stdout: 'not-a-count'
+          stderr: ''
+      changed_when: false
+    - name: Run non-numeric grep-count parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require a non-numeric grep count to fail closed
+      ansible.builtin.assert:
+        that:
+          - not (k3s_datastore_preflight_internal_environment_file_content_stable | bool)
+          - k3s_datastore_preflight_internal_environment_file_key_count | int == -1
+          - not (k3s_datastore_preflight_internal_environment_overrides_absent | bool)
+      changed_when: false
+
+    - name: Bind a skipped grep result to prove no stale state survives
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_environment_file_key_count_result:
+          skipped: true
+          failed: false
+      changed_when: false
+    - name: Run skipped grep parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require skipped grep to clear prior relevant-key state
+      ansible.builtin.assert:
+        that:
+          - not (k3s_datastore_preflight_internal_environment_file_content_stable | bool)
+          - k3s_datastore_preflight_internal_environment_file_key_count | int == -1
+          - not (k3s_datastore_preflight_internal_environment_file_relevant_keys_absent | bool)
+          - not (k3s_datastore_preflight_internal_environment_overrides_absent | bool)
+      changed_when: false
+
+    - name: Bind nonempty Environment stderr in the exact pre/post closure
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_internal_environment_results:
+          results:
+            - {rc: 0, stdout: '', stderr: 'unexpected', stdout_lines: []}
+            - rc: 0
+              stderr: ''
+              stdout: |-
+                /etc/default/k3s (ignore_errors=yes)
+                /etc/sysconfig/k3s (ignore_errors=yes)
+                /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+              stdout_lines:
+                - /etc/default/k3s (ignore_errors=yes)
+                - /etc/sysconfig/k3s (ignore_errors=yes)
+                - /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+        k3s_datastore_preflight_internal_environment_post_results:
+          results:
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+            - rc: 0
+              stderr: ''
+              stdout: |-
+                /etc/default/k3s (ignore_errors=yes)
+                /etc/sysconfig/k3s (ignore_errors=yes)
+                /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+              stdout_lines:
+                - /etc/default/k3s (ignore_errors=yes)
+                - /etc/sysconfig/k3s (ignore_errors=yes)
+                - /etc/systemd/system/k3s.service.env (ignore_errors=yes)
+      changed_when: false
+    - name: Run nonempty Environment stderr parser fixture
+      ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
+    - name: Require nonempty Environment stderr to fail closed
+      ansible.builtin.assert:
+        that:
+          - not (k3s_datastore_preflight_internal_environment_file_path_exact | bool)
+          - not (k3s_datastore_preflight_internal_environment_overrides_absent | bool)
+      changed_when: false
+
     - name: Bind a foreign EnvironmentFiles property closure
       ansible.builtin.set_fact:
         k3s_datastore_preflight_internal_environment_results:
@@ -647,8 +828,13 @@
           content: '***'
         k3s_datastore_preflight_internal_environment_results:
           results:
-            - {rc: 0, stdout: '', stdout_lines: []}
-            - {rc: 0, stdout: '', stdout_lines: []}
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+        k3s_datastore_preflight_internal_environment_post_results:
+          results:
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+            - {rc: 0, stdout: '', stderr: '', stdout_lines: []}
+        k3s_datastore_preflight_internal_environment_file_read_allowed: false
       changed_when: false
     - name: Run bounded parser fixture 22
       ansible.builtin.include_tasks: ../ansible/roles/k3s_datastore_preflight/tasks/parse.yml
@@ -656,7 +842,7 @@
       ansible.builtin.assert:
         that:
           - not (k3s_datastore_preflight_internal_config_parse_valid | bool)
-          - k3s_datastore_preflight_internal_data_dir_source == 'unknown'
+          - k3s_datastore_preflight_internal_data_dir_source == 'environment_override_unknown'
           - k3s_datastore_preflight_internal_datastore_type == 'unknown'
       changed_when: false
 

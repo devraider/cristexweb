@@ -4,6 +4,7 @@ import json
 import os
 import stat
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -92,7 +93,10 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "k3s_datastore_preflight_internal_config_post_state",
             "k3s_datastore_preflight_internal_config_content_stable",
             "k3s_datastore_preflight_internal_environment_results",
+            "k3s_datastore_preflight_internal_environment_post_results",
             "k3s_datastore_preflight_environment_file_paths",
+            "k3s_datastore_preflight_environment_file_path_components",
+            "k3s_datastore_preflight_internal_environment_file_path_states",
             "k3s_datastore_preflight_internal_environment_file_states",
             "k3s_datastore_preflight_internal_environment_file_post_states",
             "k3s_datastore_preflight_internal_environment_file_key_count_result",
@@ -100,6 +104,9 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             "k3s_datastore_preflight_internal_environment_file_relevant_keys_absent",
             "k3s_datastore_preflight_internal_environment_overrides_absent",
             "/etc/systemd/system/k3s.service.env",
+            "ENVIRONMENT_PATH_GUARD",
+            "CONFIG_FILE|DATA_DIR",
+            "CLUSTER_INIT|CLUSTER_RESET|SECRETS_ENCRYPTION",
             "/usr/bin/grep",
             "--count",
             "EnvironmentFiles",
@@ -123,6 +130,8 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
         self.assertIn("--count", environment_count_task)
         self.assertIn("no_log: true", environment_count_task)
         self.assertNotIn("ansible.builtin.slurp", environment_count_task)
+        self.assertIn("K3S_(CONFIG_FILE|DATA_DIR", environment_count_task)
+        self.assertIn("CLUSTER_INIT|CLUSTER_RESET|SECRETS_ENCRYPTION", environment_count_task)
         for forbidden in (
             "ansible.builtin.shell:",
             "ansible.builtin.raw:",
@@ -154,6 +163,31 @@ class K3sDatastorePreflightContractTests(unittest.TestCase):
             self.assertIn("no_log: true", block)
             self.assertIn("check_mode: false", block)
             self.assertIn("failed_when: false", block)
+
+    def test_environment_grep_regex_matches_only_reviewed_k3s_keys(self) -> None:
+        tasks = (ROLE / "tasks/main.yml").read_text()
+        block = tasks.split(
+            "Count only datastore and encryption keys in the exact k3s service EnvironmentFile",
+            1,
+        )[1].split("\n- name:", 1)[0]
+        regex = block.split("- >-", 1)[1].splitlines()[1].strip()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "environment"
+            path.write_text(
+                "K3S_CONFIG_FILE=/etc/rancher/k3s/config.yaml\n"
+                "export K3S_CLUSTER_RESET=true\n"
+                "  K3S_DATA_DIR=/var/lib/rancher/k3s\n"
+                "NOT_K3S_CONFIG_FILE=ignored\n"
+            )
+            result = subprocess.run(
+                ["/usr/bin/grep", "--text", "--count", "--extended-regexp", regex, "--", str(path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertEqual(0, result.returncode)
+        self.assertEqual("3\n", result.stdout)
+        self.assertEqual("", result.stderr)
 
     def test_report_template_has_exact_sanitized_schema(self) -> None:
         template = (ROLE / "templates/report.json.j2").read_text()
