@@ -95,7 +95,8 @@ without reading values. An unused debug-exposed age identity was revoked/regener
 before upload/Kubernetes. The hardened retry proved early cleanup, encrypted-pending
 resume and a Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the
 same expired controller OAuth. That transfer path is superseded by guarded host
-rclone source. MQA-03 remains pending until host install/idempotence, host OAuth,
+rclone source. The corrected host install passed; MQA-03 remains pending until
+installer idempotence, host OAuth,
 encrypted transfer/readback/controller decrypt, proxy Secret recovery/write,
 Operator check/apply/idempotence, live admission/RBAC/traffic,
 Universal Auth, ConfigMap sync, rotation, revocation, and recovery pass. A separate
@@ -146,7 +147,7 @@ selected.
 | MQA-14 | KIF-022–KIF-024 | GitHub-hosted delivery containment | Reviewed infrastructure and application CI runs pass on the exact revision with read-only permissions, no Secret/package/deploy path, and future publication emits immutable digest/SBOM/provenance evidence without rebuilding for PROD | PARTIAL — infrastructure run `31311995461` passed exact commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`; private application-run result is unobserved and publication remains BLOCKED |
 | MQA-15 | KIF-012–KIF-017, KIF-021 | Private Reactive Resume DEV | Digest-pinned DEV instance uses the exact private Keycloak client and its dedicated PostgreSQL scope; cross-environment/database access and public/admin exposure fail closed; backup/restore succeeds | PENDING — source policy only; image, callbacks, objects, Secrets, database, and runtime are blocked |
 | MQA-16 | KIF-002, KIF-005, KIF-010, KIF-012, KIF-015 | Private Argo CD bootstrap | Guarded check/apply/idempotence, CRD establishment, all four workloads, TLS/login, exact NetworkPolicy flows and negatives, and recovery pass without public exposure | PENDING — source contracts pass; Secrets and live runtime remain blocked |
-| MQA-17 | KIF-002, KIF-005, KIF-007, KIF-013–KIF-015, KIF-027, KIF-030 | Host rclone and encrypted proxy recovery | Pinned host install/idempotence, non-root host OAuth, ciphertext-only staging, immutable Drive upload/readback, controller decrypt, cleanup, exact marker, and recovery evidence pass without host plaintext or age identity | PARTIAL — installer check passed twice; the first apply stopped at changed=0 on nested-module dispatch, and the second created only the ignored controller cache before stopping at ok=24/changed=2 on an unrendered operator default. Both fixes validate offline; corrected host retry/idempotence, OAuth, Drive, and Secret remain pending |
+| MQA-17 | KIF-002, KIF-005, KIF-007, KIF-013–KIF-015, KIF-027, KIF-030 | Host rclone and encrypted proxy recovery | Pinned host install/idempotence, non-root host OAuth, ciphertext-only staging, immutable Drive upload/readback, controller decrypt, cleanup, exact marker, and recovery evidence pass without host plaintext or age identity | PARTIAL — after two historical pre-host-mutation stops and reviewed fixes, a fresh check passed at ok=25/changed=1 and the separately approved corrected install passed at ok=34/changed=4, selected verified rclone 1.71.1, and preserved k3s/Tailscale. The idempotence apply passed at ok=32/changed=0. A read-only transfer check stopped at ok=15/changed=0 on missing/unsafe OAuth config metadata before OAuth or Drive access. OAuth, Drive, and Secret remain pending |
 
 ## Public exposure checklist
 
@@ -199,17 +200,15 @@ apply.
 
 ## MQA-17 — Host rclone, OAuth, and encrypted proxy recovery transfer
 
-Status: **PARTIAL / CORRECTED HOST APPLY RETRY PENDING**. Installer check passed
-twice at `ok=25 changed=1 failed=0`. The first apply stopped before host mutation at
-`ok=22 changed=0 failed=1` because `ansible.builtin.file` requires Ansible's
-`normal` action fallback when invoked from a custom action. After that fix, the next
-apply created only the exact ignored controller cache and stopped before host
-mutation at `ok=24 changed=2 failed=1`: the guard consumed the raw templated role
-default instead of the resolved operator. Both rclone roles now bind the rendered
-operator into the attested preflight, both plugins consume that protected field, and
-focused/full validation passes. Retry apply and require changed=0 idempotence, then
-verify exact version/digests, root-owned
-cache/payload/selector and unchanged k3s/Tailscale. Complete OAuth later
+Status: **PARTIAL / INSTALL AND IDEMPOTENCE PASSED; HOST OAUTH PENDING**. Historical
+applies stopped before host mutation on nested action dispatch and an unresolved
+operator default. Both fixes pass focused/full validation and independent review. A
+fresh check passed at `ok=25 changed=1 failed=0`; the corrected install passed at
+`ok=34 changed=4 failed=0`; the separately approved idempotence apply passed at
+`ok=32 changed=0 failed=0`. Exact version `1.71.1`, digests,
+root-owned cache/payload/selector, and unchanged k3s/Tailscale passed. A read-only
+transfer check stopped at `ok=15 changed=0 failed=1` on missing/unsafe OAuth config
+metadata before OAuth or Drive access. Complete OAuth next
 as the inventory-resolved non-root operator using the exact host config path and a
 reviewed temporary SSH callback tunnel; do not record config/token content. Review
 transfer check separately from apply. Apply must show only the exact pending

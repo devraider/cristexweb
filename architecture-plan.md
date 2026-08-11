@@ -709,6 +709,11 @@ readback decryption/relationship verification, and age private-key custody. Exac
 source exists for the current encrypted pending proxy bundle and a bound
 `drive-verified` gate. Installer check passed twice; two apply attempts stopped
 before host mutation, with the second retaining only the exact ignored controller
-cache. Both discovered guard defects now pass offline regressions, but the corrected
-host install/idempotence, OAuth, transfer, cleanup, Secret creation, Infisical, Argo,
-and database backup runtime remain **NOT RUN/BLOCKED**.
+cache. Both discovered guard defects pass offline regressions. A fresh check passed
+at `ok=25 changed=1 failed=0`; the separately approved corrected install passed at
+`ok=34 changed=4 failed=0`, selected verified rclone `1.71.1`, and preserved
+k3s/Tailscale health. The separately approved idempotence apply passed at
+`ok=32 changed=0 failed=0`. A read-only transfer check stopped at
+`ok=15 changed=0 failed=1` on missing/unsafe OAuth config metadata before OAuth or
+Drive access. Host OAuth, transfer, cleanup, Secret creation, Infisical, Argo, and
+database backup runtime remain **NOT RUN/BLOCKED**.

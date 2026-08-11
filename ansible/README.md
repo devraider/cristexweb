@@ -699,10 +699,15 @@ passed twice at `ok=25 changed=1 failed=0`. Two applies stopped before host muta
 the first at `changed=0` on missing normal-module dispatch, and the second at
 `ok=24 changed=2 failed=1` after creating only the exact ignored controller cache,
 when the action guard received an unrendered role default for the operator. The
-resolved operator is now copied into the attested internal binding for both rclone
-guards, and focused/full offline validation passes. Host install/idempotence, OAuth,
-Drive transfer, cleanup, and proxy Secret runtime remain **NOT RUN/BLOCKED**.
-Apply approvals are separate; installer sudo is interactive only.
+resolved operator is copied into the attested internal binding for both rclone
+guards, and focused/full offline validation passes. A fresh check passed at
+`ok=25 changed=1 failed=0`; the separately approved corrected install then passed at
+`ok=34 changed=4 failed=0`, selected verified rclone `1.71.1`, and preserved
+k3s/Tailscale health. The separately approved idempotence apply passed at
+`ok=32 changed=0 failed=0`. A read-only transfer check then stopped safely at
+`ok=15 changed=0 failed=1` on missing/unsafe OAuth config metadata, before OAuth or
+Drive access. Host OAuth, Drive transfer, cleanup, and proxy Secret runtime remain
+**NOT RUN/BLOCKED**. Apply approvals are separate; installer sudo is interactive only.
 
 ## Guarded shared logical database provisioning
 

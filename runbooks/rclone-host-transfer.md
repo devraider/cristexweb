@@ -2,20 +2,20 @@
 
 ## Status
 
-**INSTALLER CHECK PASSED TWICE; TWO APPLIES STOPPED BEFORE HOST MUTATION; RETRY
-PENDING.** The approved installer check and its reconfirmation both passed at
-`ok=25 changed=1 failed=0`; the sole change was the check-mode prediction. The first
-apply stopped at `ok=22 changed=0 failed=1` when nested
-`ansible.builtin.file` dispatch lacked Ansible's `normal` action fallback. After that
-fix, the approved retry created/downloaded only the exact ignored controller cache
-and stopped at `ok=24 changed=2 failed=1` before its first host mutation because the
-action guard read the raw `{{ ansible_user }}` role default instead of a rendered
-operator identity. Both rclone roles now put the resolved operator in their attested
-internal bindings, and both action guards consume only that protected value. The
-focused 9-test contract, full 256-test suite, 23 syntax checks, production lint over
-162 files, compile, shell syntax, and diff checks pass. No host install, rollback,
-OAuth, Google Drive transfer, host staging, Secret, Kubernetes, Infisical, or Argo
-mutation has completed.
+**INSTALLER APPLY AND IDEMPOTENCE PASSED; HOST OAUTH PENDING.** Earlier approved applies stopped
+before host mutation on missing nested-module dispatch and an unrendered operator
+default. Both fixes pass focused/full offline validation and independent review. A
+fresh canonical check passed at `ok=25 changed=1 unreachable=0 failed=0 skipped=11`;
+the sole change was the check-mode prediction. The separately approved corrected
+apply then passed at `ok=34 changed=4 unreachable=0 failed=0 skipped=2`. It created
+only the exact host cache/config parent closure, transferred and extracted the pinned
+payload, selected `/usr/local/bin/rclone`, verified exact version `1.71.1`, and
+preserved k3s/Tailscale health. Controller cache preparation converged without
+change. The separately approved idempotence apply passed at
+`ok=32 changed=0 unreachable=0 failed=0 skipped=4`. A subsequent read-only transfer
+check stopped at `ok=15 changed=0 failed=1` on missing/unsafe OAuth config metadata,
+before OAuth or Drive access. No rollback, OAuth, Google Drive transfer, proxy
+ciphertext staging, Secret, Kubernetes, Infisical, or Argo mutation completed.
 
 ## Ownership and custody boundary
 
@@ -36,9 +36,8 @@ controller, transfers the archive to `/var/cache/rclone`, installs the root-owne
 Rollback removes only that exact selector. Versioned payload and cache are retained.
 Check mode makes no changes. Apply may ask for sudo interactively; sudo credentials
 must never be passed through variables, environment, or files. Both paths require
-separate live approval. Check passed twice. The first apply made no change; the
-second changed only the ignored controller cache before stopping. The corrected
-host-install retry and idempotence remain **NOT RUN**.
+separate live approval. After the two historical stopped applies, a fresh check, corrected install, and
+idempotence apply passed as recorded above.
 
 ## OAuth gate
 
@@ -54,7 +53,8 @@ controller. Review the rclone-provided localhost callback port, open only that
 temporary `ssh -L` tunnel, complete consent in the local browser, close the tunnel,
 and verify host config ownership and mode `0600`. No token belongs in Git, Ansible
 extra vars, evidence, shell history, or logs. OAuth and independent Google-account
-recovery are **NOT RUN/BLOCKED**.
+recovery are **NOT RUN/BLOCKED**. The first post-install transfer check stopped
+safely on absent/unsafe OAuth config metadata before `listremotes` or Drive access.
 
 ## Exact pending transfer
 

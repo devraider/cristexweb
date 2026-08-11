@@ -57,9 +57,14 @@ note: |
   before host mutation at `ok=24 changed=2 unreachable=0 failed=1 skipped=0` because
   the action guard read the raw templated operator role default. Both rclone roles
   now bind the rendered operator identity into the attested internal preflight and
-  both action guards consume it; focused and full offline validation pass. Corrected
-  host-install retry/idempotence/rollback, OAuth, transfer/readback/cleanup, and
-  Secret runtime remain NOT RUN/BLOCKED.
+  both action guards consume it; focused and full offline validation pass. A fresh
+  check passed at `ok=25 changed=1 failed=0`; the separately approved corrected
+  install passed at `ok=34 changed=4 unreachable=0 failed=0 skipped=2`, selected
+  verified rclone `1.71.1`, and preserved k3s/Tailscale health. The separately
+  approved idempotence apply passed at `ok=32 changed=0 failed=0`. A read-only
+  transfer check stopped safely at `ok=15 changed=0 failed=1` on missing/unsafe
+  OAuth config metadata before OAuth or Drive access. Rollback, host OAuth,
+  transfer/readback/cleanup, and Secret runtime remain NOT RUN/BLOCKED.
   Guarded deployable source now also exists for the exact private Argo CD core: three
   Ansible-owned CRDs and 29 namespaced objects, no ApplicationSet runtime, Secret,
   cluster RBAC, or public exposure. The wrapper fails closed until three exact,
@@ -259,7 +264,7 @@ note: |
   hardened retry proved zero plaintext-temp residue, retained one encrypted pending
   bundle/checksum and Keychain copy, and zero Kubernetes Secrets, then stopped on the
   same expired controller Drive OAuth. That path is superseded. Runtime remains unrun
-  pending host rclone install/idempotence, interactive host OAuth, guarded encrypted
+  pending interactive host OAuth and guarded encrypted
   transfer/readback/controller decrypt, exact proxy Secret recovery/write,
   Operator check/apply/idempotence, and live admission/
   RBAC/traffic proof.

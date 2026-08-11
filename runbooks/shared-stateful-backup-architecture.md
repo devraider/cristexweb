@@ -8,8 +8,11 @@ path, or executable job. Pinned host rclone `1.71.1` is now the transfer-tool
 direction. Its installer check passed twice. The first apply stopped at `changed=0`
 on a now-validated action-dispatch fix; the second created only the exact ignored
 controller cache and stopped at `ok=24 changed=2 failed=1` before host mutation on
-an unrendered operator default. The identity-binding fix passes offline review, but
-the corrected install retry/idempotence remain pending. The source profile fixes daily archives,
+an unrendered operator default. The identity-binding fix passes offline review. A
+fresh check passed at `ok=25 changed=1 failed=0`; the separately approved corrected
+install passed at `ok=34 changed=4 failed=0` and selected verified rclone `1.71.1`.
+The separately approved idempotence apply passed at `ok=32 changed=0 failed=0`.
+The source profile fixes daily archives,
 14-day local/off-node retention, RPO `24h`, and RTO `4h`; no backup or restore has
 run.
 
@@ -40,9 +43,10 @@ recovery evidence.
 The direction is Google Drive through pinned host `rclone 1.71.1` using immutable
 `rclone copy`/`copyto` semantics. The reviewed Linux archive and extracted binary
 have exact SHA-256 pins, and the host installer uses controller-cache verification,
-host transfer, a root-owned versioned payload, and a selector-only rollback. That
-installer has not run. Database backup transfer remains intended rather than
-approved until the remote identity, root folder identity, credentials, staging, and
+host transfer, a root-owned versioned payload, and a selector-only rollback. The
+corrected installer passed and selected verified version `1.71.1`; its idempotence
+apply passed at `changed=0`. Database backup transfer remains intended rather than approved until the
+remote identity, root folder identity, credentials, staging, and
 recovery procedure are selected. Database/service credentials remain Infisical-owned,
 but the host OAuth bootstrap is an explicit circular-dependency exception: it is
 created interactively on the host, is never committed or logged, and cannot use
@@ -72,7 +76,7 @@ runbook update. Wildcard or dynamic paths are forbidden.
 
 ## Remaining decisions and stop gate
 
-The exact host tool is selected but its install is not run. Google Drive identity
+The exact host tool is installed and idempotent. Google Drive identity
 and folder, local staging path and capacity, credential recovery, encryption-key recovery, schedule
 implementation, retention enforcement, and measured RPO/RTO remain unselected or
 unproved.

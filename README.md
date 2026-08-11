@@ -445,7 +445,12 @@ retains plaintext verification and the age identity. Installer check passed twic
 The first apply stopped at `changed=0` on missing normal-module dispatch; the next
 retry created only the verified ignored controller cache and stopped at
 `ok=24 changed=2 failed=1` before host mutation because the action guard consumed an
-unrendered operator default. Both focused fixes now pass the 256-test offline suite,
-23 syntax checks, and production lint. Host installation/idempotence, OAuth,
-transfer, cleanup, `drive-verified`, and later Secret bootstrap remain
-**NOT RUN/BLOCKED**.
+unrendered operator default. Both focused fixes pass the 256-test offline suite,
+23 syntax checks, and production lint. A fresh check passed at
+`ok=25 changed=1 failed=0`; the separately approved corrected install then passed at
+`ok=34 changed=4 failed=0`, selected verified rclone `1.71.1`, and preserved
+k3s/Tailscale health. The separately approved idempotence apply passed at
+`ok=32 changed=0 failed=0`. A read-only transfer check then stopped safely at
+`ok=15 changed=0 failed=1` on missing/unsafe OAuth config metadata, before OAuth or
+Drive access. Host OAuth, transfer, cleanup, `drive-verified`, and later Secret
+bootstrap remain **NOT RUN/BLOCKED**.

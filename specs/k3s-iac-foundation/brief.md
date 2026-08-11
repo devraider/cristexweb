@@ -191,7 +191,12 @@ fixed immutable host `copyto` uploads/readbacks. The Mac keeps age identity and
 plaintext verification. Secret mutation requires an exact `drive-verified` marker.
 Installer check passed twice; two applies stopped before host mutation, with the
 second retaining only the exact ignored controller cache. Both discovered source
-defects now pass offline regressions. Corrected host install/idempotence, OAuth,
-Drive transfer/readback/cleanup, Secret, Infisical, Argo, and database-backup runtime
-remain **NOT RUN/BLOCKED**; see
+defects pass offline regressions. A fresh check passed at
+`ok=25 changed=1 failed=0`; the separately approved corrected install passed at
+`ok=34 changed=4 failed=0`, selected verified rclone `1.71.1`, and preserved
+k3s/Tailscale health. The separately approved idempotence apply passed at
+`ok=32 changed=0 failed=0`. A read-only transfer check stopped at
+`ok=15 changed=0 failed=1` on missing/unsafe OAuth config metadata before OAuth or
+Drive access. Host OAuth, Drive transfer/readback/cleanup, Secret, Infisical, Argo,
+and database-backup runtime remain **NOT RUN/BLOCKED**; see
 [`rclone-host-transfer.md`](../../runbooks/rclone-host-transfer.md).
