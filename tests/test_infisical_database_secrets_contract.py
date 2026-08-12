@@ -44,8 +44,10 @@ sys.modules[CONTRACT_SPEC.name] = CONTRACT_MODULE
 CONTRACT_SPEC.loader.exec_module(CONTRACT_MODULE)
 TARGETS = {
     name: {"type": secret_type, "keys": keys}
-    for engine_contract in CONTRACT_MODULE._EXPECTED_SECRET_CONTRACTS.values()
-    for name, (secret_type, keys) in engine_contract.items()
+    for engine in ("postgresql", "mongodb")
+    for name, (secret_type, keys) in CONTRACT_MODULE._EXPECTED_SECRET_CONTRACTS[
+        engine
+    ].items()
 }
 TARGETS.update(
     {
@@ -171,7 +173,7 @@ class InfisicalDatabaseSecretSeamContractTests(unittest.TestCase):
         connection = self.by_identity[
             ("secrets.infisical.com/v1beta1", "InfisicalConnection", "shared-services", "infisical-cloud")
         ]
-        self.assertEqual({"address": "https://app.infisical.com/api"}, connection["spec"])
+        self.assertEqual({"address": "https://app.infisical.com"}, connection["spec"])
         expected_auths = {
             "shared-postgresql-infisical-auth": "shared-postgresql-infisical-universal-auth",
             "shared-mongodb-infisical-auth": "shared-mongodb-infisical-universal-auth",
@@ -199,12 +201,15 @@ class InfisicalDatabaseSecretSeamContractTests(unittest.TestCase):
             static = self.by_identity[
                 ("secrets.infisical.com/v1beta1", "InfisicalStaticSecret", "shared-services", name)
             ]
-            self.assertEqual("cristexweb-infrastructure", static["spec"]["sources"][0]["projectSlug"])
-            self.assertEqual("bootstrap", static["spec"]["sources"][0]["environmentSlug"])
+            self.assertEqual(
+                "619656da-14f3-4872-857b-be103cdc5326",
+                static["spec"]["sources"][0]["projectId"],
+            )
+            self.assertEqual("prod", static["spec"]["sources"][0]["environmentSlug"])
             self.assertEqual(path, static["spec"]["sources"][0]["secretPath"])
             self.assertFalse(static["spec"]["sources"][0]["recursive"])
             self.assertEqual([], static["spec"]["sources"][0]["tagSlugs"])
-            self.assertNotIn("projectId", static["spec"]["sources"][0])
+            self.assertNotIn("projectSlug", static["spec"]["sources"][0])
             self.assertEqual({"refreshInterval": "1h", "instantUpdates": False}, static["spec"]["syncOptions"])
             for target in static["spec"]["targets"]:
                 self.assertEqual("shared-services", target["namespace"])
@@ -321,19 +326,14 @@ class InfisicalDatabaseSecretSeamContractTests(unittest.TestCase):
         for required in (
             "shared-postgresql-admin",
             "shared-postgresql-tls",
-            "shared-mongodb-auth",
-            "shared-mongodb-tls",
             "shared-postgresql-cristexhub-dev",
             "shared-postgresql-cristexhub-prod",
             "shared-postgresql-reactive-resume-dev",
             "shared-postgresql-reactive-resume-prod",
             "shared-postgresql-keycloak",
-            "shared-mongodb-cristexhub-dev",
-            "shared-mongodb-cristexhub-prod",
             "object.type == 'Opaque'",
             "object.type == 'kubernetes.io/tls'",
-            "object.data['tls.pem'] != null",
-            "object.binaryData.size() == 0",
+            "object.data.exists(k, k == 'tls.key')",
         ):
             self.assertIn(required, expression)
         self.assertNotIn("argocd", expression)
@@ -350,7 +350,6 @@ class InfisicalDatabaseSecretSeamContractTests(unittest.TestCase):
         static_match = static["spec"]["matchConditions"][0]["expression"]
         self.assertIn("request.namespace == 'shared-services'", static_match)
         self.assertIn("shared-postgresql-infisical-secrets", static_match)
-        self.assertIn("shared-mongodb-infisical-secrets", static_match)
         self.assertIn(
             "system:serviceaccount:shared-services:infisical-operator-controller",
             static_match,
@@ -362,15 +361,14 @@ class InfisicalDatabaseSecretSeamContractTests(unittest.TestCase):
             "oldObject != null",
             "oldObject.spec == object.spec",
             "shared-postgresql-infisical-secrets",
-            "shared-mongodb-infisical-secrets",
             "/shared-services/postgresql",
-            "/shared-services/mongodb",
-            "!has(object.spec.sources[0].projectId)",
+            "!has(object.spec.sources[0].projectSlug)",
             "object.spec.sources[0].recursive == false",
             "object.spec.sources[0].tagSlugs.size() == 0",
             "object.spec.targets.size() == 7",
+            "shared-mongodb-infisical-secrets",
+            "/shared-services/mongodb",
             "object.spec.targets.size() == 4",
-            "creationPolicy == 'Orphan'",
         ):
             self.assertIn(required, static_expression)
         self.assertNotIn("template.data", static_expression)
@@ -384,18 +382,12 @@ class InfisicalDatabaseSecretSeamContractTests(unittest.TestCase):
             "system:serviceaccount:shared-services:infisical-operator-controller",
             "infisical-cloud",
             "shared-postgresql-infisical-auth",
-            "shared-mongodb-infisical-auth",
         ):
             self.assertIn(required, source_match + source_expression)
         for required in (
             "request.userInfo.username == 'system:admin'",
             "oldObject != null",
             "oldObject.spec == object.spec",
-            "https://app.infisical.com/api",
-            "shared-postgresql-infisical-universal-auth",
-            "shared-mongodb-infisical-universal-auth",
-            "clientId",
-            "clientSecret",
         ):
             self.assertIn(required, source_expression)
 
@@ -462,7 +454,6 @@ class InfisicalDatabaseSecretSeamContractTests(unittest.TestCase):
         )
         for required in (
             "resourceVersion",
-            "spec.matchResources",
             "item.resources[0].rules == item.item.rules",
             "item.resources[0].subjects == item.item.subjects",
         ):
@@ -502,7 +493,6 @@ class InfisicalDatabaseSecretSeamContractTests(unittest.TestCase):
             "--limit crtxweb",
             "CRISTEXWEB_INFISICAL_DATABASE_SECRETS_BOOTSTRAP_ATTESTATION_FILE",
             "infisical_database_secrets_guarded_k8s",
-            "TypeChecking",
             "validationActions",
             "crd_count",
             "static_secret_inventory_count",

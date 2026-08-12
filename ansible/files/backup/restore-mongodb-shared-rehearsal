@@ -1,0 +1,141 @@
+#!/bin/sh
+set -eu
+umask 077
+PATH=/usr/local/bin:/usr/bin:/bin
+export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null
+project_id=619656da-14f3-4872-857b-be103cdc5326
+infisical_path=/shared-services/backup-recovery
+remote_root=drive:cristexweb-recovery/mongodb/shared-mongodb
+rclone_config=/home/paul/.config/rclone/rclone.conf
+namespace=shared-services
+image='quay.io/mongodb/mongodb-community-server:8.0.12-ubi8@sha256:5500852ab0693ac56134cecf5ad45d3b81d25e4681f4f960a834e48cd34fe71b'
+run_id=$(/usr/bin/date -u +%Y%m%dt%H%M%Sz | /usr/bin/tr '[:upper:]' '[:lower:]')-$$
+pod=mongodb-restore-rehearsal-$run_id
+work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-mongodb-restore.XXXXXX)
+uid=
+delete_restore_pod() {
+  [ -n "$uid" ] || return 0
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)
+  current_owner=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.metadata.labels.app\.kubernetes\.io/name}' 2>/dev/null || true)
+  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.metadata.labels.cristex\.io/run-id}' 2>/dev/null || true)
+  [ "$current_uid" = "$uid" ] && [ "$current_owner" = mongodb-restore-rehearsal ] && [ "$current_run_id" = "$run_id" ] || return 1
+  /usr/bin/printf '{"kind":"DeleteOptions","apiVersion":"v1","propagationPolicy":"Orphan","preconditions":{"uid":"%s"}}\n' "$uid" >"$work/delete.json"
+  /usr/local/bin/kubectl delete --raw "/api/v1/namespaces/$namespace/pods/$pod" -f "$work/delete.json" >/dev/null
+  /usr/local/bin/kubectl -n "$namespace" wait --for=delete "pod/$pod" --timeout=120s >/dev/null 2>&1 || true
+  [ -z "$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o name 2>/dev/null || true)" ]
+  uid=
+}
+cleanup() { delete_restore_pod >/dev/null 2>&1 || true; /usr/bin/rm -rf -- "$work"; }
+trap cleanup EXIT HUP INT TERM
+chmod 0700 "$work"
+latest=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sort | /usr/bin/tail -1 | /usr/bin/tr -d '/')
+printf '%s\n' "$latest" | /usr/bin/grep -Eq '^20[0-9]{6}T[0-9]{6}Z$' || { printf '%s\n' 'restore_status=failed stage=remote_catalog'; exit 1; }
+remote="$remote_root/$latest"
+for leaf in shared-mongodb.archive.gz.age shared-mongodb.archive.gz.age.sha256 manifest.json; do
+  /usr/local/bin/rclone --config "$rclone_config" copyto "$remote/$leaf" "$work/$leaf"
+done
+(cd "$work" && /usr/bin/sha256sum -c shared-mongodb.archive.gz.age.sha256 >/dev/null)
+expected_sha=$(/usr/bin/cut -d ' ' -f 1 "$work/shared-mongodb.archive.gz.age.sha256")
+archive_bytes=$(/usr/bin/stat -c %s "$work/shared-mongodb.archive.gz.age")
+FILE="$work/manifest.json" TIMESTAMP="$latest" EXPECTED_SHA="$expected_sha" ARCHIVE_BYTES="$archive_bytes" /usr/bin/python3 - <<'PY'
+import json,os
+x=json.load(open(os.environ['FILE']))
+assert set(x)=={'schema','service','purpose','created_at_utc','archive','archive_bytes','archive_sha256','encryption','source_version','consistency'}
+assert x['schema']==1 and x['service']=='mongodb' and x['purpose']=='shared-mongodb'
+assert x['created_at_utc']==os.environ['TIMESTAMP'] and x['archive']=='shared-mongodb.archive.gz.age'
+assert x['encryption']=='age-x25519' and x['source_version']=='8.0.12' and x['consistency']=='replica-set-oplog'
+assert x['archive_sha256']==os.environ['EXPECTED_SHA']
+assert x['archive_bytes']==int(os.environ['ARCHIVE_BYTES'])
+PY
+/home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY \
+  --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity"
+chmod 0600 "$work/identity"
+/usr/bin/age -d -i "$work/identity" "$work/shared-mongodb.archive.gz.age" | /usr/bin/gzip -d >"$work/shared-mongodb.archive"
+[ -s "$work/shared-mongodb.archive" ]
+/usr/bin/rm -f -- "$work/identity"
+cat >"$work/pod.yaml" <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: $pod
+  namespace: $namespace
+  labels:
+    app.kubernetes.io/name: mongodb-restore-rehearsal
+    cristex.io/run-id: $run_id
+spec:
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 2000
+    runAsGroup: 2000
+    fsGroup: 2000
+    seccompProfile: {type: RuntimeDefault}
+  initContainers:
+    - name: initialize-data-permissions
+      image: $image
+      imagePullPolicy: IfNotPresent
+      command: ["/bin/sh", "-ec", "chown 2000:2000 /data/db && chmod 0700 /data/db"]
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+          add: ["CHOWN", "FOWNER"]
+      resources:
+        requests: {cpu: 10m, memory: 32Mi}
+        limits: {cpu: 100m, memory: 64Mi}
+      volumeMounts:
+        - {name: data, mountPath: /data/db}
+  containers:
+    - name: mongod
+      image: $image
+      imagePullPolicy: IfNotPresent
+      command: ["/bin/sh", "-ec"]
+      args: ["exec /usr/bin/mongod --dbpath /data/db --bind_ip 127.0.0.1 --port 27017 --logpath /tmp/mongod.log"]
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 2000
+        runAsGroup: 2000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests: {cpu: 100m, memory: 256Mi}
+        limits: {cpu: "1", memory: 1Gi}
+      volumeMounts:
+        - {name: data, mountPath: /data/db}
+        - {name: transfer, mountPath: /restore}
+        - {name: tmp, mountPath: /tmp}
+      readinessProbe:
+        exec:
+          command: ["/usr/bin/mongosh", "--quiet", "--norc", "--host", "127.0.0.1", "--eval", "quit(db.adminCommand({ping:1}).ok == 1 ? 0 : 1)"]
+        periodSeconds: 2
+        failureThreshold: 90
+  volumes:
+    - {name: data, emptyDir: {}}
+    - {name: transfer, emptyDir: {}}
+    - {name: tmp, emptyDir: {}}
+EOF
+/usr/local/bin/kubectl apply -f "$work/pod.yaml" >/dev/null
+uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.metadata.uid}')
+[ -n "$uid" ]
+/usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$pod" --timeout=240s >/dev/null
+/usr/local/bin/kubectl -n "$namespace" cp "$work/shared-mongodb.archive" "$pod:/restore/shared-mongodb.archive" -c mongod >/dev/null
+/usr/local/bin/kubectl -n "$namespace" exec "$pod" -c mongod -- \
+  /usr/bin/mongorestore --archive=/restore/shared-mongodb.archive --oplogReplay --stopOnError --quiet
+/usr/local/bin/kubectl -n "$namespace" exec "$pod" -c mongod -- /usr/bin/mongosh --quiet --norc --host 127.0.0.1 \
+  --eval 'EJSON.stringify(db.adminCommand({listDatabases:1,nameOnly:true}).databases.map(x=>x.name).sort())' >"$work/databases.json"
+catalog_count=$(FILE="$work/databases.json" /usr/bin/python3 - <<'PY'
+import json,os
+x=set(json.load(open(os.environ['FILE'])))
+assert x <= {'admin','config','local','cristexhub_dev','cristexhub_prod'}
+assert {'admin','config','local'} <= x
+print(len(x-{'admin','config','local'}))
+PY
+)
+/usr/bin/rm -f -- "$work/shared-mongodb.archive" "$work/databases.json"
+delete_restore_pod
+printf 'restore_status=success source_timestamp=%s target=isolated-emptydir application_database_count=%s checksum=verified private_residue=none\n' "$latest" "$catalog_count"

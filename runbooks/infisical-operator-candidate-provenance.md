@@ -166,10 +166,14 @@ Every item below still blocks deployable Infisical Operator controller source an
    committed CR/reference objects; Infisical owns generated Secret values. No
    bootstrap credential may enter Git, OpenTofu state/plan, command arguments,
    environment examples, CI logs, or review artifacts.
-10. **Environment separation and bootstrap circularity:** use separate
-    infrastructure, DEV, and PROD identities/environments. Resolve private Git and
-    operator bootstrap ordering without assuming the operator can create credentials
-    needed before Argo or the operator itself starts.
+10. **Environment separation and bootstrap circularity:** current licensing leaves
+    the infrastructure project without a separate `bootstrap` environment, so its
+    guarded source uses the fixed Infisical slug `prod`. Keep infrastructure, DEV,
+    and PROD identities, credentials, logical paths, and authorization scopes
+    separate; the shared vendor environment slug is not a security boundary and
+    authorizes no Kubernetes PROD state. Resolve private Git and operator bootstrap
+    ordering without assuming the operator can create credentials needed before
+    Argo or the operator itself starts.
 11. **Single-node availability:** one replica on one physical node is a shared
     failure domain. Accept the availability risk and define restart, alerting,
     recovery, and soak expectations.

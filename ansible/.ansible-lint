@@ -4,3 +4,5 @@ exclude_paths:
   - .ansible/
   - files/components/infisical-operator/
   - files/components/argocd/
+  - files/components/cloudnative-pg/operator/
+  - files/components/mongodb-operator/operator/

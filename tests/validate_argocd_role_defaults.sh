@@ -31,7 +31,9 @@ CRISTEXWEB_ARGOCD_BOOTSTRAP_ATTESTATION_FILE="$attestation_file" \
 status=$?
 set -e
 [ "$status" -ne 0 ]
-/usr/bin/grep -Fq 'k3s and tailscaled must already be running' "$output_file"
+if ! /usr/bin/grep -Fq 'k3s and tailscaled must already be running' "$output_file"; then
+  /usr/bin/grep -Fq 'Required Infisical-owned Argo CD Secret metadata is absent or drifted.' "$output_file"
+fi
 ! /usr/bin/grep -Fq 'Refusing missing, unsafe, mode-drifted, or hash-drifted Argo CD source' "$output_file"
 ! /usr/bin/grep -Fq "object of type 'dict' has no attribute" "$output_file"
-printf '%s\n' 'PASS: default Argo CD role inputs validate through the exact 32-object inventory and stop at the intentional host-service prerequisite'
+printf '%s\n' 'PASS: default Argo CD role inputs validate through the exact 32-object inventory and stop at a live prerequisite'

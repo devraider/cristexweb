@@ -38,11 +38,11 @@ Kubernetes before a separately approved seam check/apply. These are identifiers,
 metadata, and source shape only; values remain outside Git and Ansible logs.
 
 - Infisical Cloud project slug: `cristexweb-infrastructure`.
-- Infisical environment slug: `bootstrap`.
+- Infisical environment slug: `prod` (this is an Infisical Cloud slug only; it does not activate Kubernetes `cristexhub-prod`).
 - Infisical secret path: `/argocd`.
 - Kubernetes credential Secret: `argocd/argocd-infisical-universal-auth`.
 - Credential Secret type: `Opaque`; exact keys: `clientId`, `clientSecret`; exact labels `app.kubernetes.io/managed-by=ansible`, `app.kubernetes.io/part-of=infisical-operator`, `cristex.io/component=infisical-runtime-auth`, and `cristex.io/value-owner=infisical-cloud`; no owner references, binary data, or immutability.
-- The seven Infisical keys at `bootstrap:/argocd`:
+- The seven Infisical keys at `prod:/argocd`:
   `ARGOCD_ADMIN_PASSWORD_BCRYPT`, `ARGOCD_ADMIN_PASSWORD_MTIME`,
   `ARGOCD_SERVER_SECRETKEY`, `ARGOCD_REDIS_AUTH`, `ARGOCD_TLS_CA_CRT`,
   `ARGOCD_TLS_CRT`, and `ARGOCD_TLS_KEY`.

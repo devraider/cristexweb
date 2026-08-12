@@ -17,7 +17,7 @@ _EXPECTED_OBJECT_HASHES = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-auth-boundary'): 'a0d80a5bad4c3c52fdf95dfae20b912db7e3488f4a1be90f409f00895938b6d5',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-auth-boundary'): 'e88892bbdc180e4b2924c23e64e1abcfd0192ff5047860b9e49f30568c26c3fb',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-connection-boundary'): '56280a16a89f4b512b3f92a91d2fa7f4402399bdff69cfb0c340839f08ce85c5',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-connection-boundary'): '76319803c2d15bacbf7fcc81ed3e161228612d3f3e6aea5b4209bea9e0c37a22',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-connection-boundary'): 'b431ee7f881015e1d2befc99599f6690b66035c20f816f967a68e563735b65bf',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-dynamic-secret-boundary'): '2537e670376a526f41f43347a2ae5037052929a8ba981ee4f91aef57820a0994',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-dynamic-secret-boundary'): '16ff041a377381b5ef2e33957d3c8b05229627b524211b672fb1f29045f3679d',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-push-secret-boundary'): 'abb1279c9b9bd85b8ba01ee2bd7e86fb49901c708762e20d05a946860463e90f',
@@ -26,7 +26,7 @@ _EXPECTED_OBJECT_HASHES = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-secret-boundary'): 'b166a692b8b00ec5abf143efda8a06e1353aa65ff6bec07f044aafd686036350',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-static-secret-boundary'): '832215eddbb15d770c1796439a2b44cfb9089950a68c91629f2d780b08d82ad6',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-static-secret-boundary'): '9077d2b464665bb5f7de442ea51b7285e940d166cbaf2d119096f0ccceb8244e',
-    ('apps/v1', 'Deployment', 'shared-services', 'infisical-operator-controller'): 'ac70091417f528c52b55c19909d89b8c6f3cc08887c9a7b05eeb0fbd27c6b980',
+    ('apps/v1', 'Deployment', 'shared-services', 'infisical-operator-controller'): '75bc5587aea33dbe364c92d94749fe0e01e3c52e6b7848b489263059dc1ed9e9',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalauths.secrets.infisical.com'): '7f42a95da11f97758214bb8d6d1a177a848d02d42e9c6154fb8f84724c234326',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalconnections.secrets.infisical.com'): '41e6e2c61260de61229d997f67426c26fcddcb4e584cef45485646111ca69181',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicaldynamicsecrets.secrets.infisical.com'): 'b95d44aef7023641d00a552e3dbc9b14667de82983d8911a2fd73bcf25ab5f91',
@@ -37,12 +37,12 @@ _EXPECTED_OBJECT_HASHES = {
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-allow-dns'): '704e12ee3f8194423adb402329348ed0d97a368c7a46625ccd8458da99df139b',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-allow-proxy'): '084c4f4e3958d10974120001b27db3d3b6f76649bc7937d085443948b568fe0f',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-default-deny'): '61e257689c071585b4de18a8ae75566890376411ce3748f4834adc42c4e93af3',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-proxy-allow-dns'): '8527d992addb62e7e87cd63c6fa8650440ada048ea35426eb6f79fcf87af6b0a',
+    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-proxy-allow-dns'): 'e27f0a87f41eca215d7bae816cc862915d4f12226a23332687408ada90d68a0b',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-proxy-allow-external-https'): '9dc44e4314ca42eb1d563535730ae20c811e9ae7ff99c8a5f875a9447f472e23',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-proxy-allow-operator'): 'cbb771d5776b96882f18204d1b75b37cc01be3ba650ed88f4e69bde5756c7ee0',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-proxy-default-deny'): '5e0ea313a3c00a2aaa59a9e19617d275d085f6c891370818091e72ac907b78a3',
-    ('v1', 'ConfigMap', 'shared-services', 'infisical-egress-proxy'): '7ad69c24d6a704d3e8fd6ce88480e61910a632148fb469ab0ee89c3bc63f6b24',
-    ('apps/v1', 'Deployment', 'shared-services', 'infisical-egress-proxy'): '7361d75e44463c631320c5a52c8637999fd4aaf69a2ede054f4e1f5922192240',
+    ('v1', 'ConfigMap', 'shared-services', 'infisical-egress-proxy'): '316ae27fb54908a227f27dbd1c515aaa326d65d835789e4e7beb5044f9f55e56',
+    ('apps/v1', 'Deployment', 'shared-services', 'infisical-egress-proxy'): '544f46636ad0e24c1ff8c0d79276a5f8f73a3b8cb4c9aaa509ce56976fa3544f',
     ('v1', 'Service', 'shared-services', 'infisical-egress-proxy'): 'bab34babc51d833e660dca64ddfd72850932f5c5c00fcb7294cbbce8b9f6de6e',
     ('v1', 'ServiceAccount', 'shared-services', 'infisical-operator-controller'): 'bf36af4af47dc8c8b8df12c4b41855b036882180098131352634fc387920b792',
     ('rbac.authorization.k8s.io/v1', 'Role', 'shared-services', 'infisical-operator-leader-election'): 'd5218ad9fc5e308d583f0d7aee1281bfd494ff59dc53d73b2ea5ea112f88c007',
@@ -56,10 +56,10 @@ _EXPECTED_OBJECT_HASHES = {
     ('v1', 'ServiceAccount', 'shared-services', 'infisical-egress-proxy'): 'f55214941e54d1215e8c9c8b9e383bc48248b753f707c3dd9436464fb4629ed4',
 }
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
-_EXPECTED_TASK_SOURCE = (
-    "/Users/paul/Projects/cristexweb/ansible/roles/"
-    "infisical_operator_bootstrap/tasks/main.yml"
-)
+_EXPECTED_TASK_SOURCES = {
+    "/Users/paul/Projects/cristexweb/ansible/roles/infisical_operator_bootstrap/tasks/main.yml",
+    "/home/paul/projects/cristexweb/ansible/roles/infisical_operator_bootstrap/tasks/main.yml",
+}
 
 
 def _canonical_hash(value: dict[str, Any]) -> str:
@@ -76,7 +76,7 @@ class ActionModule(KubernetesActionModule):
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
         task_source = str(self._task.get_path()).rsplit(":", 1)[0]
-        if task_source != _EXPECTED_TASK_SOURCE:
+        if task_source not in _EXPECTED_TASK_SOURCES:
             return {
                 "changed": False,
                 "failed": True,

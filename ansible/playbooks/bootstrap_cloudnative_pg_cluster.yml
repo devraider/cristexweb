@@ -1,0 +1,112 @@
+---
+- name: Bootstrap the shared PostgreSQL CloudNativePG cluster
+  hosts: k3s_servers
+  gather_facts: false
+  become: false
+  vars:
+    source_path: "{{ playbook_dir }}/../files/components/cloudnative-pg/cluster/shared-postgresql.yaml"
+    source_sha256: 66d11edb16ff7610907c4bb834d64a64fc0a85783b65d56c582d721430a0da0d
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    credential_secrets:
+      - shared-postgresql-admin
+      - shared-postgresql-cristexhub-dev
+      - shared-postgresql-cristexhub-prod
+      - shared-postgresql-reactive-resume-dev
+      - shared-postgresql-reactive-resume-prod
+      - shared-postgresql-keycloak
+  tasks:
+    - name: Inspect the exact PostgreSQL cluster source
+      ansible.builtin.stat:
+        path: "{{ source_path }}"
+        checksum_algorithm: sha256
+      register: source_stat
+      delegate_to: localhost
+
+    - name: Require the exact protected PostgreSQL cluster source
+      ansible.builtin.assert:
+        that:
+          - source_stat.stat.exists
+          - source_stat.stat.isreg
+          - not source_stat.stat.islnk
+          - source_stat.stat.mode == '0644'
+          - source_stat.stat.checksum == source_sha256
+
+    - name: Load the exact PostgreSQL cluster closure
+      ansible.builtin.set_fact:
+        cluster_objects: "{{ lookup('ansible.builtin.file', source_path) | from_yaml_all | list }}"
+
+    - name: Require one Cluster, five DatabaseRoles, and five Databases
+      ansible.builtin.assert:
+        that:
+          - cluster_objects | length == 11
+          - cluster_objects | selectattr('kind', 'equalto', 'Cluster') | list | length == 1
+          - cluster_objects | selectattr('kind', 'equalto', 'DatabaseRole') | list | length == 5
+          - cluster_objects | selectattr('kind', 'equalto', 'Database') | list | length == 5
+
+    - name: Query the exact Infisical materialized credentials
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: shared-services
+        name: "{{ item }}"
+        kubeconfig: "{{ kubeconfig }}"
+      loop: "{{ credential_secrets }}"
+      register: credentials
+      no_log: true
+
+    - name: Require exact credential metadata without reading values
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - item.resources[0].type in ['Opaque', 'kubernetes.io/basic-auth']
+          - item.resources[0].data.keys() | sort == ['password', 'username']
+          - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
+          - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+      loop: "{{ credentials.results }}"
+      no_log: true
+
+    - name: Reconcile the exact CloudNativePG cluster and logical object closure
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ item }}"
+        kubeconfig: "{{ kubeconfig }}"
+      loop: "{{ cluster_objects }}"
+      loop_control:
+        label: "{{ item.kind }}/{{ item.metadata.name }}"
+
+    - name: Wait for the shared PostgreSQL cluster to become healthy
+      kubernetes.core.k8s_info:
+        api_version: postgresql.cnpg.io/v1
+        kind: Cluster
+        namespace: shared-services
+        name: shared-postgresql
+        kubeconfig: "{{ kubeconfig }}"
+      register: cluster_status
+      until: >-
+        cluster_status.resources | length == 1 and
+        (cluster_status.resources[0].status.readyInstances | default(0) | int) == 1 and
+        (cluster_status.resources[0].status.conditions | default([]) |
+         selectattr('type', 'equalto', 'Ready') |
+         selectattr('status', 'equalto', 'True') | list | length) == 1
+      retries: 6
+      delay: 5
+      when: not ansible_check_mode
+
+    - name: Query the persistent PostgreSQL volume claim
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: shared-services
+        label_selectors:
+          - cnpg.io/cluster=shared-postgresql
+        kubeconfig: "{{ kubeconfig }}"
+      register: cluster_pvcs
+      when: not ansible_check_mode
+
+    - name: Require one bound 40Gi PostgreSQL volume claim
+      ansible.builtin.assert:
+        that:
+          - cluster_pvcs.resources | length == 1
+          - cluster_pvcs.resources[0].status.phase == 'Bound'
+          - cluster_pvcs.resources[0].spec.resources.requests.storage == '40Gi'
+      when: not ansible_check_mode

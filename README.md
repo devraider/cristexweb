@@ -31,9 +31,10 @@ live recovery installed the verified CLI at `ok=39 changed=6 failed=0`, and the
 second run converged at `ok=30 changed=0 failed=0` without requiring host egress.
 The protected directory still contains no state file, and no provider operation or
 external resource exists. The root `opentofu/` source is Cloudflare-only and has zero
-resources. Committed Kubernetes source now contains exactly four Namespace
-manifests: `argocd`, `platform-edge`, `shared-services`, and source-only
-`cristexhub-dev`. The historical
+resources. Committed Kubernetes source now contains exactly five Namespace
+manifests: `argocd`, `platform-edge`, `shared-services`, `mongodb-system`, and
+source-only `cristexhub-dev`. The MongoDB operator control plane runs in
+`mongodb-system` and watches the MongoDB runtime retained in `shared-services`. The historical
 `argocd`/`platform-edge` wrapper check, first apply, and idempotence retry completed
 under separate approvals and that exception remains closed. Exact present-only
 source and a new dedicated guarded wrapper now exist for `shared-services`. After a
@@ -121,8 +122,10 @@ Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the same expir
 controller OAuth. That transfer path is superseded: guarded host transfer/readback and exact
 `drive-verified` now pass; exactly three proxy bootstrap Secrets exist. The 40-object
 idle Infisical Operator/proxy closure passed check/apply/idempotence and is Available.
-No Infisical CR, Universal Auth value, application/database Secret, PROD scope, or
-self-hosted Infisical server exists at runtime. A separate source-only
+No Infisical CR, Universal Auth value, application/database Secret, Kubernetes or
+application PROD scope, or self-hosted Infisical server exists at runtime. The fixed
+Infisical Cloud environment slug `prod` is only a licensing-constrained source
+identifier and does not activate any of those PROD scopes. A separate source-only
 [Infisical Argo CD Secret materialization seam](runbooks/infisical-argocd-secret-materialization.md)
 freezes one same-Namespace Universal Auth reference, one Connection/Auth/StaticSecret
 closure, exactly three orphaned Argo Secret targets, additive exact-name Secret and
@@ -441,6 +444,8 @@ The complete reproducible commands and actual results are recorded in
 ## Guarded host rclone source
 
 [Guarded host rclone and proxy recovery transfer](runbooks/rclone-host-transfer.md)
+
+[Shared stateful backup architecture and guarded Keycloak PostgreSQL scheduler](runbooks/shared-stateful-backup-architecture.md)
 keeps every rclone/Google Drive command on the Debian k3s/database host while the Mac
 retains plaintext verification and the age identity. Installer check passed twice.
 The first apply stopped at `changed=0` on missing normal-module dispatch; the next

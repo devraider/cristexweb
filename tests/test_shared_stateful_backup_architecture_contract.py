@@ -24,7 +24,7 @@ class SharedStatefulBackupArchitectureContractTests(unittest.TestCase):
             "cristex-shared-stateful-backup-v1", self.policy["policy_schema"]
         )
         self.assertEqual(
-            "source-policy-only-runtime-blocked", self.policy["policy_status"]
+            "postgresql-keycloak-scheduler-active", self.policy["policy_status"]
         )
         self.assertEqual(
             {"postgresql", "mongodb", "rabbitmq"}, set(self.policy["services"])
@@ -59,10 +59,10 @@ class SharedStatefulBackupArchitectureContractTests(unittest.TestCase):
         self.assertTrue(archive["separate_consumer_paths_required"])
         self.assertFalse(archive["destructive_mirror_allowed"])
 
-    def test_google_drive_direction_is_not_falsely_selected(self) -> None:
+    def test_google_drive_host_transfer_is_exactly_selected(self) -> None:
         destination = self.policy["destination"]
         self.assertEqual("google-drive", destination["direction"])
-        self.assertEqual("intended-not-approved", destination["selection_status"])
+        self.assertEqual("approved-google-drive-host-transfer", destination["selection_status"])
         self.assertEqual("pinned-host-rclone-copy", destination["tool_direction"])
         self.assertEqual("1.71.1", str(destination["rclone_version"]))
         self.assertEqual(
@@ -73,9 +73,9 @@ class SharedStatefulBackupArchitectureContractTests(unittest.TestCase):
             "5409cb410e49903af3517654ccc65c89d89f9dc12d7a97b0e13e09a9be6dc74a",
             destination["linux_amd64_binary_sha256"],
         )
-        self.assertEqual("source-only-not-run", destination["host_install_status"])
-        self.assertIsNone(destination["remote_identity"])
-        self.assertIsNone(destination["root_folder_identity"])
+        self.assertEqual("rclone-1.71.1-and-age-1.2.1-installed", destination["host_install_status"])
+        self.assertEqual("drive", destination["remote_identity"])
+        self.assertEqual("cristexweb-recovery", destination["root_folder_identity"])
         self.assertEqual(
             "host-operator-secret-zero", destination["oauth_credential_owner"]
         )
@@ -130,16 +130,40 @@ class SharedStatefulBackupArchitectureContractTests(unittest.TestCase):
         self.assertEqual("24h", schedule["rpo"])
         self.assertEqual("4h", schedule["rto"])
         self.assertEqual("14d", self.policy["local_staging"]["retention"])
-        self.assertIsNone(self.policy["local_staging"]["path"])
-        self.assertTrue(
-            all(value is False for value in self.policy["promotion_gates"].values())
-        )
-        self.assertFalse(self.policy["executable_source_allowed"])
+        self.assertEqual("/var/lib/cristexweb-backup", self.policy["local_staging"]["path"])
+        gates = self.policy["promotion_gates"]
+        for completed in (
+            "backup_tool_host_install_completed",
+            "destination_identity_accepted",
+            "staging_capacity_and_path_accepted",
+            "schedules_and_retention_accepted",
+            "encryption_key_recovery_proved",
+            "integrity_verification_proved",
+            "isolated_postgresql_restore_proved",
+            "isolated_mongodb_restore_proved",
+            "operator_retrieval_workflow_proved",
+            "runtime_approved",
+        ):
+            self.assertTrue(gates[completed])
+        for pending in set(gates) - {
+            "backup_tool_host_install_completed",
+            "destination_identity_accepted",
+            "staging_capacity_and_path_accepted",
+            "schedules_and_retention_accepted",
+            "encryption_key_recovery_proved",
+            "integrity_verification_proved",
+            "isolated_postgresql_restore_proved",
+            "isolated_mongodb_restore_proved",
+            "operator_retrieval_workflow_proved",
+            "runtime_approved",
+        }:
+            self.assertFalse(gates[pending])
+        self.assertTrue(self.policy["executable_source_allowed"])
 
     def test_runbook_and_policy_are_value_free_and_private(self) -> None:
         normalized = " ".join(self.runbook_text.split())
         for required in (
-            "POLICY ONLY — RUNTIME BLOCKED",
+            "POSTGRESQL KEYCLOAK SCHEDULER ACTIVE",
             "Easy access means private authenticated operator retrieval",
             "metadata-only catalog",
             "pinned host `rclone 1.71.1`",
@@ -147,7 +171,7 @@ class SharedStatefulBackupArchitectureContractTests(unittest.TestCase):
             "never `rclone sync`",
             "definitions recovery is not queued-message recovery",
             "isolated restore",
-            "No CronJob, Job, PVC, Secret, Service, public download endpoint, or executable wrapper",
+            "No CronJob, Job, PVC, Kubernetes Secret, Service, or public download endpoint",
         ):
             self.assertIn(required, normalized)
         combined = f"{self.policy_text}\n{self.runbook_text}"

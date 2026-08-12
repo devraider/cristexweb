@@ -48,10 +48,10 @@ _EXPECTED_OBJECT_HASHES = {('apiextensions.k8s.io/v1', 'CustomResourceDefinition
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 _EXPECTED_CRD_ARGUMENT_KEYS = _EXPECTED_ARGUMENT_KEYS | {"wait_condition"}
 _EXPECTED_CRD_WAIT_CONDITION = {"type": "Established", "status": "True"}
-_EXPECTED_TASK_SOURCE = (
-    "/Users/paul/Projects/cristexweb/ansible/roles/"
-    "argocd_bootstrap/tasks/main.yml"
-)
+_EXPECTED_TASK_SOURCES = {
+    "/Users/paul/Projects/cristexweb/ansible/roles/argocd_bootstrap/tasks/main.yml",
+    "/home/paul/projects/cristexweb/ansible/roles/argocd_bootstrap/tasks/main.yml",
+}
 
 
 def _canonical_hash(value: dict[str, Any]) -> str:
@@ -68,7 +68,7 @@ class ActionModule(KubernetesActionModule):
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
         task_source = str(self._task.get_path()).rsplit(":", 1)[0]
-        if task_source != _EXPECTED_TASK_SOURCE:
+        if task_source not in _EXPECTED_TASK_SOURCES:
             return {
                 "changed": False,
                 "failed": True,

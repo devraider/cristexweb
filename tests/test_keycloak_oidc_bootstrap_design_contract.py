@@ -146,12 +146,19 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             for path in root.rglob("*")
             if path.is_file()
         ]
-        self.assertFalse(any("keycloak" in path.name.lower() for path in operational))
+        self.assertFalse(
+            any(
+                "keycloak" in path.name.lower() and "backup" not in path.name.lower()
+                for path in operational
+            )
+        )
         self.assertEqual(
             {
                 "ansible/bin/bootstrap-postgresql",
+                "ansible/bin/configure-postgresql-keycloak-backup",
                 "ansible/bin/provision-shared-postgresql",
                 "ansible/playbooks/bootstrap_postgresql.yml",
+                "ansible/playbooks/configure_postgresql_keycloak_backup.yml",
                 "ansible/playbooks/provision_shared_postgresql.yml",
                 "ansible/roles/postgresql_bootstrap/defaults/main.yml",
                 "ansible/roles/postgresql_bootstrap/tasks/main.yml",
@@ -189,18 +196,21 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "infisical-argocd-secrets",
             "infisical-database-secrets",
             "mongodb",
+            "mongodb-operator",
             "postgresql",
+            "cloudnative-pg",
         ):
             expected_public_inputs.update(
                 str(path.relative_to(ROOT / "ansible/files"))
                 for path in (ROOT / "ansible/files/components" / component).rglob("*")
                 if path.is_file()
             )
-        expected_public_inputs.update(
-            str(path.relative_to(ROOT / "ansible/files"))
-            for path in (ROOT / "ansible/files/database-provisioning").rglob("*")
-            if path.is_file()
-        )
+        for source_directory in ("database-provisioning", "backup"):
+            expected_public_inputs.update(
+                str(path.relative_to(ROOT / "ansible/files"))
+                for path in (ROOT / "ansible/files" / source_directory).rglob("*")
+                if path.is_file()
+            )
         self.assertEqual(
             expected_public_inputs,
             {

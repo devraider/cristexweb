@@ -53,7 +53,7 @@ source-only value lane; the materializer never reads values into Git, source has
 Ansible output, command arguments, or review artifacts.
 
 - Infisical project slug: `cristexweb-infrastructure`.
-- Infisical environment slug: `bootstrap`.
+- Infisical environment slug: `prod` (this is an Infisical Cloud slug only; it does not activate Kubernetes `cristexhub-prod`).
 - PostgreSQL path: `/shared-services/postgresql`.
 - MongoDB path: `/shared-services/mongodb`.
 - `shared-services/Secret/shared-postgresql-infisical-universal-auth`, type

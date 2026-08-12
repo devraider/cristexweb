@@ -14,28 +14,28 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 )
 
 _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-alternate-target-boundary'): "16eaade61d5a3cef75d9f79f9785bc41be9eb63d1f69bc528e74af12bb53fcee",
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-secret-write-boundary'): "3744c9bac0070bc0364669e927fd43774503e09fe10564ea010cd9979905ff04",
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-source-boundary'): "93ac173f35cfa55d086e8317e05cc0188db8e543445cfa719cdf685e4cca3faa",
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-static-secret-boundary'): "08aff9727579184866e1729df105dd41abf1868acb3eddd408c3795ab2295b9d",
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-alternate-target-boundary'): "c9a3c52a98e06ec04a38cd132e58eae3b37953dadfc248ae5fa02ef1ac886e69",
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-secret-write-boundary'): "aee4580bba72d6271cbbd4d4f856338fa85ce2df1b0d3f7cbb9e7a752c02dd8d",
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-source-boundary'): "09ff778eebb18a6e8cd3cac7f8cdcb811c0578a0af56b3387a381b1d2ddfdbf6",
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-static-secret-boundary'): "5068c028a8136394dc598506bb8a82ba2bc8bb748e3371d1610d7e986ded7c49",
-    ('rbac.authorization.k8s.io/v1', 'Role', 'shared-services', 'infisical-database-secret-writer'): "1db4069a1a4cd85bcce1e349725640f62a9bd7ddfd554d932c5bc60ddb6b1924",
-    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'shared-services', 'infisical-database-secret-writer'): "dcbbc0a696753a3c18340eb05bebb4e71ace0c375e3726f61e163e0a196486f1",
-    ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'shared-services', 'shared-mongodb-infisical-auth'): "6246745f80e59d68016a8bb805d4b6512c38aeb0eeacca86e9574d139b568359",
-    ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'shared-services', 'shared-postgresql-infisical-auth'): "b32652088ec3a205cba528446a1380d39363ee916597408a8e15164e035abee1",
-    ('secrets.infisical.com/v1beta1', 'InfisicalConnection', 'shared-services', 'infisical-cloud'): "8859a197b569957cede83a2bcab417cc825dbd34ac12e9c9af183ef2142bd8c8",
-    ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'shared-services', 'shared-mongodb-infisical-secrets'): "433981f38e289a26754f22fb707ad2445ea12fb328789ab70e68c8d472ebfe1a",
-    ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'shared-services', 'shared-postgresql-infisical-secrets'): "fa77496068bb080c74432ebca2c76a185a8cb942f1aa22cd3dbd5fa3130b7b31",
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-alternate-target-boundary'): 'c9a3c52a98e06ec04a38cd132e58eae3b37953dadfc248ae5fa02ef1ac886e69',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-alternate-target-boundary'): '16eaade61d5a3cef75d9f79f9785bc41be9eb63d1f69bc528e74af12bb53fcee',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-secret-write-boundary'): 'aee4580bba72d6271cbbd4d4f856338fa85ce2df1b0d3f7cbb9e7a752c02dd8d',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-secret-write-boundary'): '2e4dffc87b8a829ca532c6a46844bdb931ddc3f2a5562181ddc41a400cfc054a',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-source-boundary'): '09ff778eebb18a6e8cd3cac7f8cdcb811c0578a0af56b3387a381b1d2ddfdbf6',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-source-boundary'): '858a123d08565695ae07be7f7036be869557175812e7096addf068213c3a2a01',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-static-secret-boundary'): '5068c028a8136394dc598506bb8a82ba2bc8bb748e3371d1610d7e986ded7c49',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-static-secret-boundary'): 'e90239295218e12faeb711072e8b9088a5065777c1b1ec66a92c98090e345298',
+    ('rbac.authorization.k8s.io/v1', 'Role', 'shared-services', 'infisical-database-secret-writer'): '344e4a3b0ea222e1a6f8c35de2db4621dd31861b099eedb11a92f5db42027fab',
+    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'shared-services', 'infisical-database-secret-writer'): 'dcbbc0a696753a3c18340eb05bebb4e71ace0c375e3726f61e163e0a196486f1',
+    ('secrets.infisical.com/v1beta1', 'InfisicalConnection', 'shared-services', 'infisical-cloud'): '12a4c1f435d7c82c9a368ed09067dcc87adfd5f53a359486cf6d4313348ae4c5',
+    ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'shared-services', 'shared-mongodb-infisical-auth'): '6246745f80e59d68016a8bb805d4b6512c38aeb0eeacca86e9574d139b568359',
+    ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'shared-services', 'shared-mongodb-infisical-secrets'): '8d5ea212693ecee4208be9b0e51891a3a5385be10bd0ed6850c87d047c8e38b8',
+    ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'shared-services', 'shared-postgresql-infisical-auth'): 'b32652088ec3a205cba528446a1380d39363ee916597408a8e15164e035abee1',
+    ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'shared-services', 'shared-postgresql-infisical-secrets'): 'cfbf3216d827f61565dfd02dea46652150f3010cb5280bfee84be30818b27aa8',
 }
 _EXPECTED_IDENTITY_SET_SHA256 = "7cb8035f3189e6bd5d4d36186a5666cbf5e62b6c1e8606dc4e6dea9ea9dbad67"
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
-_EXPECTED_TASK_SOURCE = (
-    "/Users/paul/Projects/cristexweb/ansible/roles/"
-    "infisical_database_secrets_bootstrap/tasks/main.yml"
-)
+_EXPECTED_TASK_SOURCES = {
+    "/Users/paul/Projects/cristexweb/ansible/roles/infisical_database_secrets_bootstrap/tasks/main.yml",
+    "/home/paul/projects/cristexweb/ansible/roles/infisical_database_secrets_bootstrap/tasks/main.yml",
+}
 
 
 def _canonical_hash(value: dict[str, Any]) -> str:
@@ -63,7 +63,7 @@ class ActionModule(KubernetesActionModule):
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
         task_source = str(self._task.get_path()).rsplit(":", 1)[0]
-        if task_source != _EXPECTED_TASK_SOURCE:
+        if task_source not in _EXPECTED_TASK_SOURCES:
             return {
                 "changed": False,
                 "failed": True,
@@ -104,7 +104,7 @@ class ActionModule(KubernetesActionModule):
             and _integer(binding.get("source_count")) == 5
             and _integer(binding.get("alternate_target_count")) == 3
             and _integer(binding.get("target_count")) == 11
-            and _integer(binding.get("static_secret_inventory_count")) in (0, 1, 2)
+            and _integer(binding.get("static_secret_inventory_count")) in (0, 1)
             and _integer(binding.get("crd_count")) == 6
             and binding.get("credential_contract") is True
             and binding.get("target_contract") is True

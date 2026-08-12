@@ -198,6 +198,7 @@ tls:
       - localhost
       - shared-mongodb.shared-services.svc
       - shared-mongodb.shared-services.svc.cluster.local
+      - shared-mongodb-0.shared-mongodb-svc.shared-services.svc.cluster.local
   postgresql_secret_keys:
     - ca.crt
     - tls.crt
@@ -238,7 +239,7 @@ resources:
 infisical_bootstrap:
   lane: ansible/files/policies/infisical-secret-zero-lane.yml
   project_slug: cristexweb-infrastructure
-  environment_slug: bootstrap
+  environment_slug: prod
   runtime_credential_secrets:
     postgresql: shared-services/shared-postgresql-infisical-universal-auth
     mongodb: shared-services/shared-mongodb-infisical-universal-auth
@@ -269,7 +270,7 @@ provisioning:
   require_exact_infisical_consumer_secrets: true
   infisical_source:
     project_slug: cristexweb-infrastructure
-    environment_slug: bootstrap
+    environment_slug: prod
     paths:
       postgresql: /shared-services/postgresql
       mongodb: /shared-services/mongodb

@@ -20,9 +20,10 @@ cristex.io/value-owner=infisical-cloud
 ```
 
 The reviewed Infisical source seam uses project `cristexweb-infrastructure`,
-environment `bootstrap`, and `/shared-services/postgresql` or
-`/shared-services/mongodb`; those identifiers carry no values or permission to
-contact Infisical. The lane never creates, generates, exports, logs, rotates, or
+environment `prod`, and `/shared-services/postgresql` or
+`/shared-services/mongodb`; `prod` is the Infisical Cloud environment slug
+only and does not activate Kubernetes `cristexhub-prod`. Those identifiers carry
+no values or permission to contact Infisical. The lane never creates, generates, exports, logs, rotates, or
 places credential values in argv. Missing, wrong-type, wrong-key, foreign, short, or username-mismatched
 Secrets fail closed. Password rotation is a separate approved operation and is never
 inferred from Secret drift.

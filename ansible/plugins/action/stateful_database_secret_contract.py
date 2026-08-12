@@ -18,6 +18,10 @@ _TASK_SOURCE_CONTRACTS = {
         "postgresql_bootstrap/tasks/main.yml"
     ): "postgresql",
     (
+        "/home/paul/projects/cristexweb/ansible/roles/"
+        "postgresql_bootstrap/tasks/main.yml"
+    ): "postgresql",
+    (
         "/Users/paul/Projects/cristexweb/ansible/roles/"
         "mongodb_bootstrap/tasks/main.yml"
     ): "mongodb",
@@ -32,6 +36,7 @@ _REQUIRED_TLS_DNS_NAMES = {
         "localhost",
         "shared-mongodb.shared-services.svc",
         "shared-mongodb.shared-services.svc.cluster.local",
+        "shared-mongodb-0.shared-mongodb-svc.shared-services.svc.cluster.local",
     },
 }
 _EXPECTED_SECRET_CONTRACTS = {

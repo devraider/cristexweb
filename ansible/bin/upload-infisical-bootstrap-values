@@ -273,7 +273,7 @@ if [ -f "$pending_marker" ]; then
     printf '%s\n' 'refusing an Infisical pending marker bound to another project' >&2
     exit 77
   }
-  /usr/bin/grep -Fx 'environment=bootstrap' "$pending_marker" >/dev/null || {
+  /usr/bin/grep -Fx 'environment=prod' "$pending_marker" >/dev/null || {
     printf '%s\n' 'refusing an Infisical pending marker bound to another environment' >&2
     exit 77
   }
@@ -437,7 +437,7 @@ else
 
   printf '%s' 'mongodb_admin' >"$bundle_directory/mongodb/MONGODB_ADMIN_USERNAME"
   random_hex_file "$bundle_directory/mongodb/MONGODB_ADMIN_PASSWORD"
-  generate_tls mongodb shared-mongodb.shared-services.svc localhost shared-mongodb.shared-services.svc shared-mongodb.shared-services.svc.cluster.local
+  generate_tls mongodb shared-mongodb.shared-services.svc localhost shared-mongodb.shared-services.svc shared-mongodb.shared-services.svc.cluster.local shared-mongodb-0.shared-mongodb-svc.shared-services.svc.cluster.local
   /bin/cp -p -- "$bundle_directory/mongodb/ca.crt" "$bundle_directory/mongodb/MONGODB_TLS_CA_CRT"
   /bin/cat "$bundle_directory/mongodb/tls.crt" "$bundle_directory/mongodb/tls.key" >"$bundle_directory/mongodb/MONGODB_TLS_PEM"
 
@@ -459,7 +459,7 @@ else
   random_hex_file "$bundle_directory/mongodb/MONGODB_CRISTEXHUB_PROD_PASSWORD"
 
   cat >"$bundle_directory/manifest.json" <<'EOF'
-{"projectSlug":"cristexweb-infrastructure","environmentSlug":"bootstrap","paths":{"argocd":"/argocd","postgresql":"/shared-services/postgresql","mongodb":"/shared-services/mongodb"},"keySets":{"argocd":["ARGOCD_ADMIN_PASSWORD_BCRYPT","ARGOCD_ADMIN_PASSWORD_MTIME","ARGOCD_SERVER_SECRETKEY","ARGOCD_REDIS_AUTH","ARGOCD_TLS_CA_CRT","ARGOCD_TLS_CRT","ARGOCD_TLS_KEY"],"postgresql":["POSTGRESQL_ADMIN_USERNAME","POSTGRESQL_ADMIN_PASSWORD","POSTGRESQL_TLS_CA_CRT","POSTGRESQL_TLS_CRT","POSTGRESQL_TLS_KEY","POSTGRESQL_CRISTEXHUB_DEV_USERNAME","POSTGRESQL_CRISTEXHUB_DEV_PASSWORD","POSTGRESQL_CRISTEXHUB_PROD_USERNAME","POSTGRESQL_CRISTEXHUB_PROD_PASSWORD","POSTGRESQL_REACTIVE_RESUME_DEV_USERNAME","POSTGRESQL_REACTIVE_RESUME_DEV_PASSWORD","POSTGRESQL_REACTIVE_RESUME_PROD_USERNAME","POSTGRESQL_REACTIVE_RESUME_PROD_PASSWORD","POSTGRESQL_KEYCLOAK_USERNAME","POSTGRESQL_KEYCLOAK_PASSWORD"],"mongodb":["MONGODB_ADMIN_USERNAME","MONGODB_ADMIN_PASSWORD","MONGODB_TLS_CA_CRT","MONGODB_TLS_PEM","MONGODB_CRISTEXHUB_DEV_USERNAME","MONGODB_CRISTEXHUB_DEV_PASSWORD","MONGODB_CRISTEXHUB_PROD_USERNAME","MONGODB_CRISTEXHUB_PROD_PASSWORD"]}}
+{"projectSlug":"cristexweb-infrastructure","environmentSlug":"prod","paths":{"argocd":"/argocd","postgresql":"/shared-services/postgresql","mongodb":"/shared-services/mongodb"},"keySets":{"argocd":["ARGOCD_ADMIN_PASSWORD_BCRYPT","ARGOCD_ADMIN_PASSWORD_MTIME","ARGOCD_SERVER_SECRETKEY","ARGOCD_REDIS_AUTH","ARGOCD_TLS_CA_CRT","ARGOCD_TLS_CRT","ARGOCD_TLS_KEY"],"postgresql":["POSTGRESQL_ADMIN_USERNAME","POSTGRESQL_ADMIN_PASSWORD","POSTGRESQL_TLS_CA_CRT","POSTGRESQL_TLS_CRT","POSTGRESQL_TLS_KEY","POSTGRESQL_CRISTEXHUB_DEV_USERNAME","POSTGRESQL_CRISTEXHUB_DEV_PASSWORD","POSTGRESQL_CRISTEXHUB_PROD_USERNAME","POSTGRESQL_CRISTEXHUB_PROD_PASSWORD","POSTGRESQL_REACTIVE_RESUME_DEV_USERNAME","POSTGRESQL_REACTIVE_RESUME_DEV_PASSWORD","POSTGRESQL_REACTIVE_RESUME_PROD_USERNAME","POSTGRESQL_REACTIVE_RESUME_PROD_PASSWORD","POSTGRESQL_KEYCLOAK_USERNAME","POSTGRESQL_KEYCLOAK_PASSWORD"],"mongodb":["MONGODB_ADMIN_USERNAME","MONGODB_ADMIN_PASSWORD","MONGODB_TLS_CA_CRT","MONGODB_TLS_PEM","MONGODB_CRISTEXHUB_DEV_USERNAME","MONGODB_CRISTEXHUB_DEV_PASSWORD","MONGODB_CRISTEXHUB_PROD_USERNAME","MONGODB_CRISTEXHUB_PROD_PASSWORD"]}}
 EOF
   chmod 600 "$bundle_directory/manifest.json"
   /bin/rm -f -- \
@@ -493,7 +493,7 @@ EOF
     printf 'artifact=%s\n' "$artifact_name"
     printf 'sha256=%s\n' "$expected_checksum"
     printf 'project=cristexweb-infrastructure\n'
-    printf 'environment=bootstrap\n'
+    printf 'environment=prod\n'
     printf 'paths=/argocd,/shared-services/postgresql,/shared-services/mongodb\n'
     printf 'writer_argocd_sha256=%s\n' "$argocd_writer_sha256"
     printf 'writer_postgresql_sha256=%s\n' "$postgresql_writer_sha256"
@@ -513,7 +513,7 @@ fi
   (.paths | keys | sort) == ["argocd", "mongodb", "postgresql"] and
   (.keySets | keys | sort) == ["argocd", "mongodb", "postgresql"] and
   .projectSlug == "cristexweb-infrastructure" and
-  .environmentSlug == "bootstrap" and
+  .environmentSlug == "prod" and
   .paths == {
     argocd: "/argocd",
     postgresql: "/shared-services/postgresql",
@@ -584,7 +584,7 @@ metadata_keys() {
   expected_keys=$3
   status=$4
   metadata_response="$temporary_directory/$component-metadata.json"
-  metadata_url="$api_base/v3/secrets?projectSlug=cristexweb-infrastructure&environmentSlug=bootstrap&secretPath=$path"
+  metadata_url="$api_base/v3/secrets?projectSlug=cristexweb-infrastructure&environmentSlug=prod&secretPath=$path"
   api_request GET "$metadata_url" '' "$metadata_response" "$component-metadata"
   "$jq_tool" -e --argjson expected "$expected_keys" --arg status "$status" \
     '(.secrets | type == "array") and
@@ -645,7 +645,7 @@ upload_component() {
   esac
   # Build through file inputs only; each rawfile argument is a protected pathname.
   if [ "$component" = argocd ]; then
-    "$jq_tool" -n --arg project cristexweb-infrastructure --arg environment bootstrap --arg secretPath "$path" \
+    "$jq_tool" -n --arg project cristexweb-infrastructure --arg environment prod --arg secretPath "$path" \
       --rawfile k1 "$value_dir/ARGOCD_ADMIN_PASSWORD_BCRYPT" --rawfile k2 "$value_dir/ARGOCD_ADMIN_PASSWORD_MTIME" \
       --rawfile k3 "$value_dir/ARGOCD_SERVER_SECRETKEY" --rawfile k4 "$value_dir/ARGOCD_REDIS_AUTH" \
       --rawfile k5 "$value_dir/ARGOCD_TLS_CA_CRT" --rawfile k6 "$value_dir/ARGOCD_TLS_CRT" --rawfile k7 "$value_dir/ARGOCD_TLS_KEY" \
@@ -658,7 +658,7 @@ upload_component() {
         {secretKey:"ARGOCD_TLS_CRT",secretValue:$k6},
         {secretKey:"ARGOCD_TLS_KEY",secretValue:$k7}]} ' >"$request_body" 2>"$temporary_directory/$component-upload-body-error"
   elif [ "$component" = postgresql ]; then
-    "$jq_tool" -n --arg project cristexweb-infrastructure --arg environment bootstrap --arg secretPath "$path" \
+    "$jq_tool" -n --arg project cristexweb-infrastructure --arg environment prod --arg secretPath "$path" \
       --rawfile k1 "$value_dir/POSTGRESQL_ADMIN_USERNAME" --rawfile k2 "$value_dir/POSTGRESQL_ADMIN_PASSWORD" \
       --rawfile k3 "$value_dir/POSTGRESQL_TLS_CA_CRT" --rawfile k4 "$value_dir/POSTGRESQL_TLS_CRT" --rawfile k5 "$value_dir/POSTGRESQL_TLS_KEY" \
       --rawfile k6 "$value_dir/POSTGRESQL_CRISTEXHUB_DEV_USERNAME" --rawfile k7 "$value_dir/POSTGRESQL_CRISTEXHUB_DEV_PASSWORD" \
@@ -683,7 +683,7 @@ upload_component() {
         {secretKey:"POSTGRESQL_KEYCLOAK_USERNAME",secretValue:$k14},
         {secretKey:"POSTGRESQL_KEYCLOAK_PASSWORD",secretValue:$k15}]} ' >"$request_body" 2>"$temporary_directory/$component-upload-body-error"
   else
-    "$jq_tool" -n --arg project cristexweb-infrastructure --arg environment bootstrap --arg secretPath "$path" \
+    "$jq_tool" -n --arg project cristexweb-infrastructure --arg environment prod --arg secretPath "$path" \
       --rawfile k1 "$value_dir/MONGODB_ADMIN_USERNAME" --rawfile k2 "$value_dir/MONGODB_ADMIN_PASSWORD" \
       --rawfile k3 "$value_dir/MONGODB_TLS_CA_CRT" --rawfile k4 "$value_dir/MONGODB_TLS_PEM" \
       --rawfile k5 "$value_dir/MONGODB_CRISTEXHUB_DEV_USERNAME" --rawfile k6 "$value_dir/MONGODB_CRISTEXHUB_DEV_PASSWORD" \
@@ -747,7 +747,7 @@ upload_component mongodb /shared-services/mongodb '["MONGODB_ADMIN_USERNAME","MO
   printf 'artifact=%s\n' "$artifact_name"
   printf 'sha256=%s\n' "$expected_checksum"
   printf 'project=cristexweb-infrastructure\n'
-  printf 'environment=bootstrap\n'
+  printf 'environment=prod\n'
   printf 'paths=/argocd,/shared-services/postgresql,/shared-services/mongodb\n'
 } >"$completed_marker"
 chmod 600 "$completed_marker"

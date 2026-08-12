@@ -21,10 +21,10 @@ _EXPECTED_OBJECT_HASHES = {
     ('apps/v1', 'StatefulSet', 'shared-services', 'shared-mongodb'): 'ae04c4c70d2f5bfce9b3850f2b17d52e8739e15649b507e1a0950d18b5f38094',
 }
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
-_EXPECTED_TASK_SOURCE = (
-    '/Users/paul/Projects/cristexweb/ansible/roles/'
-    'mongodb_bootstrap/tasks/main.yml'
-)
+_EXPECTED_TASK_SOURCES = {
+    '/Users/paul/Projects/cristexweb/ansible/roles/mongodb_bootstrap/tasks/main.yml',
+    '/home/paul/projects/cristexweb/ansible/roles/mongodb_bootstrap/tasks/main.yml',
+}
 _EXPECTED_IDENTITY_SET_SHA256 = '2dafb88dd68d2031c0e558a9c8b18b2ee5bdd6c6f7116163e222c7dbe71c470e'
 
 
@@ -46,7 +46,7 @@ class ActionModule(KubernetesActionModule):
         tags = list(context.CLIARGS.get('tags') or [])
         skip_tags = list(context.CLIARGS.get('skip_tags') or [])
         task_source = str(self._task.get_path()).rsplit(':', 1)[0]
-        if task_source != _EXPECTED_TASK_SOURCE:
+        if task_source not in _EXPECTED_TASK_SOURCES:
             return {
                 'changed': False,
                 'failed': True,

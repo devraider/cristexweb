@@ -233,7 +233,8 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
         self.assertEqual("kubernetes.default.svc", env["KUBERNETES_SERVICE_HOST"])
         self.assertEqual("443", env["KUBERNETES_SERVICE_PORT"])
         self.assertEqual(".svc,.cluster.local,kubernetes.default.svc,localhost,127.0.0.1", env["NO_PROXY"])
-        self.assertEqual("/etc/ssl/certs:/etc/infisical-proxy-ca", env["SSL_CERT_DIR"])
+        self.assertEqual("/etc/infisical-proxy-ca/ca.crt", env["SSL_CERT_FILE"])
+        self.assertNotIn("SSL_CERT_DIR", env)
         self.assertEqual("infisical-egress-proxy-tls", pod["volumes"][0]["secret"]["secretName"])
         self.assertEqual(
             {"secretKeyRef": {"name": "infisical-egress-proxy-client", "key": "proxy-url"}},

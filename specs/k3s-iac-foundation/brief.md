@@ -176,8 +176,10 @@ closure contains no Infisical CR, but a separate source-only
 freezes one same-Namespace Universal Auth reference, one Connection/Auth/StaticSecret
 closure, exactly three orphaned targets, additive exact-name Secret/workload-list
 RBAC, and fail-closed admission. It adds no credential Secret or value; source
-check/apply, sync, target values, and runtime remain **NOT RUN/BLOCKED**. PROD scope
-and self-hosted Infisical server remain absent.
+check/apply, sync, target values, and runtime remain **NOT RUN/BLOCKED**. Kubernetes
+and application PROD scope plus the self-hosted Infisical server remain absent; the
+fixed Infisical Cloud environment slug `prod` is only a licensing-constrained source
+identifier and does not activate those scopes.
 Provider initialization, state, plan, and apply also remain unrun.
 Beyond the bounded public-source evidence reads, this deliverable performs no host
 mutation, authenticated Cloudflare/GitHub/Infisical/registry operation, database,

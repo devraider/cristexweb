@@ -22,10 +22,10 @@ _EXPECTED_OBJECT_HASHES = {
     ("apps/v1", "StatefulSet", "shared-services", "shared-postgresql"): "5bb45cf3ed5db37ca01bd53444ee93ea7a0aefe7be43a151b1572e882dfd1b2f",
 }
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
-_EXPECTED_TASK_SOURCE = (
-    "/Users/paul/Projects/cristexweb/ansible/roles/"
-    "postgresql_bootstrap/tasks/main.yml"
-)
+_EXPECTED_TASK_SOURCES = {
+    "/Users/paul/Projects/cristexweb/ansible/roles/postgresql_bootstrap/tasks/main.yml",
+    "/home/paul/projects/cristexweb/ansible/roles/postgresql_bootstrap/tasks/main.yml",
+}
 _EXPECTED_IDENTITY_SET_SHA256 = (
     "29c7c24d94405550370d3528c12df31e6beeea06dda23edfba417d3e15a8baf4"
 )
@@ -56,7 +56,7 @@ class ActionModule(KubernetesActionModule):
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
         task_source = str(self._task.get_path()).rsplit(":", 1)[0]
-        if task_source != _EXPECTED_TASK_SOURCE:
+        if task_source not in _EXPECTED_TASK_SOURCES:
             return {
                 "changed": False,
                 "failed": True,

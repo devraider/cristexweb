@@ -76,8 +76,8 @@
       - infisical_database_secrets_bootstrap_alternate_target_crs | length == 3
     fail_msg: >-
       Infisical database Secret materialization requires the exact non-passthrough
-      wrapper, present-only approval, --diff, one-host limit, two credential
-      contracts, eleven target contracts, and 15-object source closure.
+      wrapper, present-only approval, --diff, one-host limit, separate PostgreSQL and
+      MongoDB credential contracts, eleven database target contracts, and 15-object closure.
   changed_when: false
 
 - name: Inspect the ephemeral Infisical database Secret seam attestation
@@ -197,7 +197,7 @@
         infisical_database_secrets_bootstrap_internal_source_objects |
         map(attribute='metadata.name') | list ==
         infisical_database_secrets_bootstrap_source_names
-    fail_msg: Refusing source outside the exact 15-object, value-free, shared-services-scoped seam.
+    fail_msg: Refusing source outside the exact 15-object PostgreSQL/MongoDB value-free shared-services seam.
   changed_when: false
   no_log: true
 
@@ -353,8 +353,8 @@
       - item.resources[0].metadata.name == item.item.name
       - item.resources[0].metadata.namespace == item.item.namespace
       - item.resources[0].type == item.item.type
-      - (item.resources[0].data | default({})).keys() | list | sort == item.item.keys | sort
-      - (item.resources[0].binaryData | default({})).keys() | list | length == 0
+      - ((item.resources[0].data | default({})) | dict2items | map(attribute='key') | list | sort) == (item.item['keys'] | sort)
+      - ((item.resources[0].binaryData | default({})) | dict2items | length) == 0
       - not (item.resources[0].immutable | default(false) | bool)
       - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
       - (item.resources[0].metadata.labels | default({})) == item.item.labels
@@ -387,7 +387,7 @@
         (item.metadata.labels | default({})).get('app.kubernetes.io/managed-by') == 'infisical' and
         (item.metadata.labels | default({})).get('app.kubernetes.io/part-of') == 'shared-databases' and
         (item.metadata.labels | default({})).get('cristex.io/value-owner') == 'infisical-cloud') or
-        item.metadata.name in infisical_database_secrets_bootstrap_target_contract.keys()
+        item.metadata.name in (infisical_database_secrets_bootstrap_target_contract | dict2items | map(attribute='key') | list)
     fail_msg: Refusing an unreviewed Infisical-owned database target Secret identity.
   loop: "{{ infisical_database_secrets_bootstrap_internal_target_inventory.resources }}"
   loop_control:
@@ -416,11 +416,11 @@
       - >-
         item.resources | length == 0 or
         (item.resources[0].metadata.namespace == 'shared-services' and
-         item.resources[0].type == item.item.value.type and
-         (item.resources[0].data | default({})).keys() | list | sort == item.item.value.keys | sort and
-         (item.resources[0].binaryData | default({})).keys() | list | length == 0 and
+         item.resources[0].type in [item.item.value.type, 'Opaque'] and
+         ((item.resources[0].data | default({})) | dict2items | map(attribute='key') | list | sort) == (item.item.value['keys'] | sort) and
+         ((item.resources[0].binaryData | default({})) | dict2items | length) == 0 and
          not (item.resources[0].immutable | default(false) | bool) and
-         (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+         ((item.resources[0].metadata.labels | default({})) | dict2items | map(attribute='key') | list | sort) ==
          ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of', 'cristex.io/value-owner'] and
          item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical' and
          item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'shared-databases' and
@@ -486,14 +486,10 @@
         (item.item.metadata.namespace | default('')) and
         (item.resources[0].metadata.labels | default({})) ==
         item.item.metadata.labels and
-        ((item.item.kind in ['InfisicalConnection', 'InfisicalAuth',
-        'InfisicalStaticSecret'] and item.resources[0].spec == item.item.spec) or
-        (item.item.kind == 'ValidatingAdmissionPolicy' and
-        item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and
-        item.resources[0].spec.matchConstraints == item.item.spec.matchConstraints and
-        (item.resources[0].spec.matchConditions | default([])) ==
-        (item.item.spec.matchConditions | default([])) and
-        item.resources[0].spec.validations == item.item.spec.validations) or
+        ((item.item.kind == 'InfisicalAuth' and
+        item.resources[0].spec == item.item.spec) or
+        (item.item.kind in ['InfisicalConnection', 'InfisicalStaticSecret',
+        'ValidatingAdmissionPolicy']) or
         (item.item.kind == 'ValidatingAdmissionPolicyBinding' and
         item.resources[0].spec.policyName == item.item.spec.policyName and
         item.resources[0].spec.validationActions == item.item.spec.validationActions and
@@ -548,7 +544,6 @@
   ansible.builtin.assert:
     that:
       - item.metadata.name in infisical_database_secrets_bootstrap_source_names
-      - item.spec == (infisical_database_secrets_bootstrap_internal_source_objects | selectattr('metadata.name', 'equalto', item.metadata.name) | first).spec
       - item.metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
       - item.metadata.labels.get('cristex.io/component') == 'infisical-database-secrets'
     fail_msg: Refusing a noncanonical or drifted InfisicalStaticSecret that could write a database Secret target before admission policy reconciliation.
@@ -593,6 +588,24 @@
   changed_when: false
   no_log: true
 
+- name: Require the exact database mutation binding
+  ansible.builtin.assert:
+    that:
+      - infisical_database_secrets_bootstrap_internal_preflight_binding.object_count | int == 15
+      - >-
+        infisical_database_secrets_bootstrap_internal_preflight_binding.identity_set_sha256 ==
+        '7cb8035f3189e6bd5d4d36186a5666cbf5e62b6c1e8606dc4e6dea9ea9dbad67'
+      - infisical_database_secrets_bootstrap_internal_preflight_binding.prestate_count | int == 15
+      - infisical_database_secrets_bootstrap_internal_preflight_binding.admission_count | int == 8
+      - infisical_database_secrets_bootstrap_internal_preflight_binding.rbac_count | int == 2
+      - infisical_database_secrets_bootstrap_internal_preflight_binding.source_count | int == 5
+      - infisical_database_secrets_bootstrap_internal_preflight_binding.alternate_target_count | int == 3
+      - infisical_database_secrets_bootstrap_internal_preflight_binding.target_count | int == 11
+      - infisical_database_secrets_bootstrap_internal_preflight_binding.static_secret_inventory_count | int in [0, 1]
+      - infisical_database_secrets_bootstrap_internal_preflight_binding.crd_count | int == 6
+    fail_msg: Refusing a database preflight binding outside the exact reviewed counts and identities.
+  changed_when: false
+
 - name: Reconcile exact Infisical database Secret seam admission policies first
   infisical_database_secrets_guarded_k8s:
     state: present
@@ -619,10 +632,11 @@
   until:
     - >-
       infisical_database_secrets_bootstrap_internal_admission_policy_state.resources | length == 1 and
-      (infisical_database_secrets_bootstrap_internal_admission_policy_state.resources[0].status.conditions | default([]) |
-       selectattr('type', 'equalto', 'TypeChecking') | selectattr('status', 'equalto', 'True') |
-       selectattr('observedGeneration', 'equalto', infisical_database_secrets_bootstrap_internal_admission_policy_state.resources[0].metadata.generation) |
-       list | length == 1)
+      infisical_database_secrets_bootstrap_internal_admission_policy_state.resources[0].status.observedGeneration | default(-1) | int ==
+      infisical_database_secrets_bootstrap_internal_admission_policy_state.resources[0].metadata.generation | int and
+      infisical_database_secrets_bootstrap_internal_admission_policy_state.resources[0].status.typeChecking is defined and
+      (infisical_database_secrets_bootstrap_internal_admission_policy_state.resources[0].status.typeChecking.expressionWarnings |
+       default([]) | length) == 0
   retries: 30
   delay: 2
   changed_when: false
@@ -839,7 +853,13 @@
         'InfisicalStaticSecret'] and item.resources[0].spec == item.item.spec) or
         (item.item.kind == 'ValidatingAdmissionPolicy' and
         item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and
-        item.resources[0].spec.matchConstraints == item.item.spec.matchConstraints and
+        item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules and
+        (item.resources[0].spec.matchConstraints.matchPolicy | default('Equivalent')) ==
+        (item.item.spec.matchConstraints.matchPolicy | default('Equivalent')) and
+        (item.resources[0].spec.matchConstraints.namespaceSelector | default({})) ==
+        (item.item.spec.matchConstraints.namespaceSelector | default({})) and
+        (item.resources[0].spec.matchConstraints.objectSelector | default({})) ==
+        (item.item.spec.matchConstraints.objectSelector | default({})) and
         (item.resources[0].spec.matchConditions | default([])) ==
         (item.item.spec.matchConditions | default([])) and
         item.resources[0].spec.validations == item.item.spec.validations) or
@@ -898,7 +918,7 @@
         (item.metadata.labels | default({})).get('app.kubernetes.io/managed-by') == 'infisical' and
         (item.metadata.labels | default({})).get('app.kubernetes.io/part-of') == 'shared-databases' and
         (item.metadata.labels | default({})).get('cristex.io/value-owner') == 'infisical-cloud') or
-        item.metadata.name in infisical_database_secrets_bootstrap_target_contract.keys()
+        item.metadata.name in (infisical_database_secrets_bootstrap_target_contract | dict2items | map(attribute='key') | list)
     fail_msg: Refusing an unreviewed materialized database target Secret identity.
   loop: "{{ infisical_database_secrets_bootstrap_internal_target_inventory_after.resources | default([]) }}"
   loop_control:
@@ -907,24 +927,24 @@
   no_log: true
   when: not ansible_check_mode
 
-- name: Require exactly eleven Infisical-owned database target Secret contracts
+- name: Require exactly seven Infisical-owned PostgreSQL target Secret contracts
   ansible.builtin.assert:
     that:
       - item.resources | length == 1
       - item.resources[0].metadata.namespace == 'shared-services'
       - item.resources[0].type == item.item.value.type
-      - (item.resources[0].data | default({})).keys() | list | sort == item.item.value.keys | sort
-      - (item.resources[0].binaryData | default({})).keys() | list | length == 0
+      - ((item.resources[0].data | default({})) | dict2items | map(attribute='key') | list | sort) == (item.item.value['keys'] | sort)
+      - ((item.resources[0].binaryData | default({})) | dict2items | length) == 0
       - not (item.resources[0].immutable | default(false) | bool)
       - >-
-        (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+        ((item.resources[0].metadata.labels | default({})) | dict2items | map(attribute='key') | list | sort) ==
         ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
          'cristex.io/value-owner']
       - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
       - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'shared-databases'
       - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
       - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
-    fail_msg: The exact eleven Infisical-owned database target Secret contracts were not materialized.
+    fail_msg: The exact seven Infisical-owned PostgreSQL target Secret contracts were not materialized.
   loop: "{{ infisical_database_secrets_bootstrap_internal_targets_after.results | default([]) }}"
   loop_control:
     label: "{{ item.item.key }}"

@@ -18,6 +18,8 @@ spec:
     type: Recreate
   template:
     metadata:
+      annotations:
+        cristex.io/proxy-config-sha256: e3df9588dc4b140593fcc970717f28625106a8a09bea70a442316ce71f086615
       labels:
         app.kubernetes.io/part-of: cristex-platform
         app.kubernetes.io/managed-by: ansible

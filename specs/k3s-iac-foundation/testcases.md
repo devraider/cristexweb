@@ -3606,8 +3606,9 @@ apply, or runtime mutation. The existing 40-object idle Infisical closure was no
 changed. The seam source freezes Connection `infisical-cloud`, Auth
 `argocd-infisical-auth`, StaticSecret `argocd-infisical-secrets`, credential
 Secret metadata `argocd/argocd-infisical-universal-auth`, project slug
-`cristexweb-infrastructure`, environment `bootstrap`, path `/argocd`, and exactly
-seven non-secret source key names.
+`cristexweb-infrastructure`, Infisical environment `prod`, path `/argocd`, and exactly
+seven non-secret source key names. The Infisical `prod` slug does not activate the
+Kubernetes `cristexhub-prod` Namespace or PROD workloads/routes.
 
 ```bash
 uv sync --locked --offline
@@ -3937,3 +3938,141 @@ shape `{"stage":"","activekey":""}` only as encryption `disabled` with rotation
 `not_applicable`. It does not convert absent encryption configuration into permission
 to write Secrets. The 15 focused contracts, 757-task executable parser fixture, two
 affected syntax checks, focused production lint, and diff check pass.
+
+## Approved one-time Infisical PostgreSQL value upload — 2026-08-11
+
+The operator explicitly approved a one-time Linux-host CLI exception after selecting
+project `cristexweb-infrastructure`. Metadata-only preflight confirmed the fixed
+Infisical environment `prod` existed and `/shared-services/postgresql` did not.
+The operation created only folders `shared-services/postgresql`, generated values in
+a private temporary directory, and uploaded one exact file-bound batch containing
+15 PostgreSQL administrator, TLS, and reserved consumer keys. No value appeared in
+argv, environment, command output, or this evidence.
+
+Sanitized acceptance evidence:
+
+```text
+folders_created=shared-services,shared-services/postgresql
+pre_upload_secret_count=0
+remote_key_count=15
+remote_key_closure=exact
+credential_contract=valid
+TLS direct-CA, exact localhost/service/cluster-local SANs, and leaf/key match=valid
+plaintext_temp_residue=none
+Infisical CLI=0.43.121
+```
+
+This exception created no Universal Auth identity, Kubernetes Secret, Infisical CR,
+workload, PVC, database, Namespace, route, or PROD activation. The canonical broad
+uploader must fail closed on this now-prepopulated PostgreSQL path. Any later password
+replacement is rotation and must preserve the exact usernames, key closure, password
+contract, and TLS relationships. Universal Auth, database Secret materialization,
+PostgreSQL check/apply/idempotence, and runtime remain **NOT RUN/BLOCKED**.
+
+## MongoDB operator namespace migration — 2026-08-12
+
+The operator explicitly approved moving the MongoDB Community Operator control plane
+from `shared-services` to the dedicated `mongodb-system` Namespace and removing the
+superseded control-plane objects from `shared-services`. The existing MongoDB custom
+resource, Pod, Services, Secrets, and PVCs remained in `shared-services`.
+
+Sanitized acceptance evidence:
+
+```text
+mongodb-system Namespace=created
+mongodb-system/mongodb-kubernetes-operator=1/1 Running
+WATCH_NAMESPACE=shared-services
+cross-namespace get MongoDBCommunity/update StatefulSet=yes
+old shared-services operator Deployment and ServiceAccount=absent
+shared-mongodb phase=Running version=8.0.12 members=1
+shared-mongodb-0=2/2 Ready, zero restarts
+MongoDB PVCs=80Gi Bound + 5Gi Bound
+new operator reconciliation=successful; TLS config valid; all agents at goal state
+PostgreSQL and MongoDB data Pods=uninterrupted
+```
+
+## Approved Keycloak PostgreSQL backup preparation — 2026-08-12
+
+The operator approved host-managed systemd scheduling, direct encrypted Google Drive
+backup, Infisical custody for the private age identity, and one isolated restore
+rehearsal before timer activation. The guarded dependency play installed exact Debian
+`age 1.2.1-1+b5`; post-state verified `amd64`, k3s active, and Tailscale active. The
+host rclone `drive:` remote passed authentication without token output.
+
+A dedicated age identity was generated in protected host storage, uploaded by
+file-bound Infisical CLI input to `prod:/shared-services/backup-recovery`, fetched
+into private temporary memory-backed storage for exact comparison, and securely
+removed from the host. Sanitized evidence:
+
+```text
+Infisical remote key count=1
+remote key closure=SHARED_DATABASE_BACKUP_AGE_IDENTITY only
+remote/local private identity equality=valid
+host private identity residue=none
+host public recipient=retained
+secret value output=none
+```
+
+Guarded Ansible source now defines an unprivileged hardened oneshot service and a
+daily persistent timer for only PostgreSQL database `keycloak`. It performs custom
+`pg_dump`, compression, age encryption, SHA-256/manifest generation, immutable
+rclone upload, exact readback comparison, plaintext cleanup, sanitized journald
+receipts, and bounded encrypted local retention. Install/test/enable remain separate;
+timer enablement is blocked until the Google Drive download/decrypt/isolated
+PostgreSQL 17 restore rehearsal passes with zero residue.
+
+The first backup test then passed through the installed systemd service. It produced
+an encrypted custom-format dump, exact checksum and value-free manifest, uploaded the
+three leaves immutably, downloaded each leaf, and verified byte equality. The first
+restore attempt stopped safely on an RFC 1123 uppercase Pod name before object
+creation. The corrected retry created and removed only its exact temporary Pod but
+stopped on root-owned `emptyDir` permissions. A same-image, capability-bounded init
+container corrected only UID/GID `999` data-directory ownership. The final isolated
+restore passed and cleanup removed the exact UID-bound Pod and all private temporary
+material.
+
+```text
+backup service result=success
+Google Drive leaf closure=archive + checksum + manifest
+readback=verified
+host plaintext residue=none
+host private age identity=absent
+isolated PostgreSQL 17 restore=success
+restore target storage=emptyDir
+restore Pod residue=none
+private decryption/key residue=none
+shared-postgresql Ready=true, restarts=0
+k3s/tailscaled=active
+backup timer initial gate=disabled/inactive
+final enable apply=enabled/active (waiting)
+final idempotence=ok=18 changed=0 failed=0
+next scheduled trigger=registered by systemd
+```
+
+## MongoDB shared backup scheduler source — 2026-08-12
+
+A separate guarded host source closure now mirrors the accepted PostgreSQL scheduler
+without modifying or coupling its active timer. It targets the complete
+`shared-mongodb` one-member replica set and uses the existing Infisical-owned admin
+credential only through a mode-`0700` memory-backed temporary config fed on stdin to
+`mongodump`; no credential enters argv, environment, journal, or evidence. TLS is
+CA-validated against the exact operator-mounted CA, and `--oplog` provides a
+replica-set-consistent archive.
+
+The source encrypts to the same pinned public age recipient, performs immutable
+Google Drive upload plus exact readback, retains only encrypted local artifacts, and
+defines a separate daily `03:45` systemd timer. Restore source retrieves the private
+identity temporarily from Infisical and restores into a digest-pinned MongoDB
+`8.0.12` Pod with `emptyDir`, no Service/PVC/Kubernetes Secret/token, bounded init
+permissions, exact UID-precondition cleanup, and sanitized receipt. Installation, oplog-consistent backup, immutable Google Drive readback, Infisical-key
+decrypt, isolated MongoDB `8.0.12` restore, exact UID-bound cleanup, production
+non-mutation, and zero residue passed. The MongoDB timer remains disabled/inactive
+then its final enable apply passed, activated the timer, and idempotence converged at
+`ok=18 changed=0 failed=0`.
+
+
+The manifest now declares `mongodb-system`, places only the operator Deployment and
+operator ServiceAccount there, keeps workload ServiceAccount and namespaced RBAC in
+`shared-services`, and pins `WATCH_NAMESPACE=shared-services`. MongoDB TLS identity
+contracts now include the operator-used member FQDN in addition to localhost and the
+stable Service identities. Backup/restore and production acceptance remain blocked.

@@ -2,11 +2,16 @@
 
 ## Status and boundary
 
-This is a source-only, separately guarded secret-zero lane. It has not contacted
-Infisical, a Kubernetes API, an inventory host, a Keychain, a registry, or an
-account. It adds no Infisical account, identity, project, environment, CR, workload,
-route, database, PVC, or committed Secret value. Runtime remains
-**NOT RUN/BLOCKED**.
+This is a separately guarded secret-zero lane. One explicitly approved one-time
+Linux-host CLI exception created `prod:/shared-services/postgresql` in the existing
+Infisical project and uploaded the exact 15 PostgreSQL administrator, TLS, and
+reserved consumer keys. Generated usernames/passwords and direct-CA TLS passed the
+exact no-output contracts, remote key closure was exactly 15, and plaintext temporary
+residue was zero. The exception did not create Universal Auth identities or
+Kubernetes credential/target Secrets, Infisical CRs, workloads, routes, databases,
+PVCs, or committed values. Those runtime stages remain **NOT RUN/BLOCKED**. The
+canonical broad uploader must fail closed on the now-populated PostgreSQL path; any
+later replacement is a separately controlled rotation, not bootstrap retry.
 
 The canonical value-free contract is
 [`infisical-secret-zero-lane.yml`](../ansible/files/policies/infisical-secret-zero-lane.yml).
@@ -38,7 +43,7 @@ Runtime credentials are never reused for upload, and one component's credentials
 are never used for another component. The fixed value destination is:
 
 - project slug `cristexweb-infrastructure`;
-- environment slug `bootstrap`;
+- environment slug `prod` (Infisical Cloud only; Kubernetes `cristexhub-prod` remains inactive);
 - Argo CD path `/argocd`;
 - PostgreSQL path `/shared-services/postgresql`; and
 - MongoDB path `/shared-services/mongodb`.
@@ -181,8 +186,12 @@ mode-`0600` pending/progress marker, and a completed marker may remain under:
 The age identity is held separately in the controller's protected age directory and
 login Keychain; it never reaches a host or Infisical. A pending run resumes only the
 same artifact after checking its filename, checksum, encrypted decrypt, project,
-environment, path, identity, and key-set bindings. Missing or mismatched custody,
-checksum, marker, API revision, or path state is **UNKNOWN — STOP**.
+environment, path, identity, and key-set bindings. Any artifact or marker bound to
+the superseded Infisical environment `bootstrap` is deliberately rejected; there is
+no implicit retargeting to `prod`. Such residue requires a separately reviewed,
+value-preserving recovery decision based on verified remote revision metadata, or
+proven no-write cleanup, before a new bundle may be generated. Missing or mismatched
+custody, checksum, marker, API revision, or path state is **UNKNOWN — STOP**.
 
 A completed marker refuses implicit regeneration or rotation. There is no `--rotate`
 flag. Replacing a value or identity requires a separately reviewed, expiring

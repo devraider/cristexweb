@@ -148,7 +148,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         self.assertEqual(
             [{
                 "projectSlug": "cristexweb-infrastructure",
-                "environmentSlug": "bootstrap",
+                "environmentSlug": "prod",
                 "secretPath": "/argocd",
                 "recursive": False,
                 "tagSlugs": [],
@@ -291,7 +291,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "argocd-infisical-secrets",
             "argocd-infisical-auth",
             "cristexweb-infrastructure",
-            "bootstrap",
+            "prod",
             "argocd-secret",
             "argocd-redis",
             "argocd-server-tls",

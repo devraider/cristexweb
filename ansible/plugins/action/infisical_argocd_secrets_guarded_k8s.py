@@ -16,7 +16,7 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
     ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-alternate-target-boundary"): 'e83729093168045791912a4802ab4d930250241dfd6186181eb89d51ca8955d8',
     ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-secret-write-boundary"): '9f18768a400a1e235bc9fc8d5e67fa14df01052613522c8108c1429510482e33',
-    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-static-secret-boundary"): '7b7d326e847714f538c470ead7a3454b1f469cd81c35a5d82158a08a2ef81fc0',
+    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-static-secret-boundary"): 'efd17b24c9037605017d4567e3884d68521d9455ee82b9daf97a8244e132e6b8',
     ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-source-boundary"): '700a7ee8542805d4ece728f0abe4b9efd70d1982160eb0f179b25b537ecf0b0a',
     ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicyBinding", "", "infisical-argocd-alternate-target-boundary"): '9fe628a53a33301c095b1a6ac3c6007fde1377ced3e1e5800960f79133952477',
     ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicyBinding", "", "infisical-argocd-secret-write-boundary"): '07ebbfc58d15281eed817e054f7d6483bbed21a99b0d10deb9322cf0e3fbc631',
@@ -26,7 +26,7 @@ _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
     ("rbac.authorization.k8s.io/v1", "RoleBinding", "argocd", "infisical-argocd-secret-writer"): '355d7899cdcbc9a86c7bc21741d46f99d3c0d4905978ec44964b24c6ac69713b',
     ("secrets.infisical.com/v1beta1", "InfisicalAuth", "argocd", "argocd-infisical-auth"): '88518d0fcc938aea1109edba6ac793c7a8b35d65c98160556b360f450c605c26',
     ("secrets.infisical.com/v1beta1", "InfisicalConnection", "argocd", "infisical-cloud"): 'e8539e82bbb91f590d829610c3e4c78b640cf8571a8d58f1b7e957e7123fa41c',
-    ("secrets.infisical.com/v1beta1", "InfisicalStaticSecret", "argocd", "argocd-infisical-secrets"): 'bfded8e5ce5c15a5fef44c81b6326e087b23c266049627e0345e4035836b109c'
+    ("secrets.infisical.com/v1beta1", "InfisicalStaticSecret", "argocd", "argocd-infisical-secrets"): '083c2d01b8f6a91e5d46cc13a4df12978f7df78bc2d48942cf7ea9953988c1a4'
 }
 _EXPECTED_IDENTITY_SET_SHA256 = "23623b2be563e41d19483994371f67c3ab9d2f2e94919cbd22588d32883aca33"
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}

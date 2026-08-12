@@ -241,6 +241,7 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
                 "localhost",
                 "shared-mongodb.shared-services.svc",
                 "shared-mongodb.shared-services.svc.cluster.local",
+                "shared-mongodb-0.shared-mongodb-svc.shared-services.svc.cluster.local",
             },
             set(self.policy["tls"]["certificate_identities"]["mongodb"]),
         )
@@ -302,8 +303,10 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "ansible/bin/bootstrap-postgresql",
+                "ansible/bin/configure-postgresql-keycloak-backup",
                 "ansible/bin/provision-shared-postgresql",
                 "ansible/playbooks/bootstrap_postgresql.yml",
+                "ansible/playbooks/configure_postgresql_keycloak_backup.yml",
                 "ansible/playbooks/provision_shared_postgresql.yml",
                 "ansible/roles/postgresql_bootstrap/defaults/main.yml",
                 "ansible/roles/postgresql_bootstrap/tasks/main.yml",
@@ -320,8 +323,10 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "ansible/bin/bootstrap-mongodb",
+                "ansible/bin/configure-mongodb-shared-backup",
                 "ansible/bin/provision-shared-mongodb",
                 "ansible/playbooks/bootstrap_mongodb.yml",
+                "ansible/playbooks/configure_mongodb_shared_backup.yml",
                 "ansible/playbooks/provision_shared_mongodb.yml",
                 "ansible/roles/mongodb_bootstrap/defaults/main.yml",
                 "ansible/roles/mongodb_bootstrap/tasks/main.yml",

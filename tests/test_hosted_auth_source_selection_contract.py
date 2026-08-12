@@ -301,12 +301,19 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
             for path in root.rglob("*")
             if path.is_file()
         ]
-        self.assertFalse(any("keycloak" in path.name.lower() for path in operational))
+        self.assertFalse(
+            any(
+                "keycloak" in path.name.lower() and "backup" not in path.name.lower()
+                for path in operational
+            )
+        )
         self.assertEqual(
             {
                 "ansible/bin/bootstrap-postgresql",
+                "ansible/bin/configure-postgresql-keycloak-backup",
                 "ansible/bin/provision-shared-postgresql",
                 "ansible/playbooks/bootstrap_postgresql.yml",
+                "ansible/playbooks/configure_postgresql_keycloak_backup.yml",
                 "ansible/playbooks/provision_shared_postgresql.yml",
                 "ansible/roles/postgresql_bootstrap/defaults/main.yml",
                 "ansible/roles/postgresql_bootstrap/tasks/main.yml",
@@ -322,8 +329,10 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual(
             {
                 "ansible/bin/bootstrap-mongodb",
+                "ansible/bin/configure-mongodb-shared-backup",
                 "ansible/bin/provision-shared-mongodb",
                 "ansible/playbooks/bootstrap_mongodb.yml",
+                "ansible/playbooks/configure_mongodb_shared_backup.yml",
                 "ansible/playbooks/provision_shared_mongodb.yml",
                 "ansible/roles/mongodb_bootstrap/defaults/main.yml",
                 "ansible/roles/mongodb_bootstrap/tasks/main.yml",

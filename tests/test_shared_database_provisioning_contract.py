@@ -80,7 +80,7 @@ class SharedDatabaseProvisioningContractTests(unittest.TestCase):
         self.assertTrue(all(v["activation"] == "inactive" for v in mongo["consumers"].values()))
         provisioning = self.policy["provisioning"]
         self.assertEqual("cristexweb-infrastructure", provisioning["infisical_source"]["project_slug"])
-        self.assertEqual("bootstrap", provisioning["infisical_source"]["environment_slug"])
+        self.assertEqual("prod", provisioning["infisical_source"]["environment_slug"])
         self.assertEqual(
             {"postgresql": "/shared-services/postgresql", "mongodb": "/shared-services/mongodb"},
             provisioning["infisical_source"]["paths"],

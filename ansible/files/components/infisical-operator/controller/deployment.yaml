@@ -17,6 +17,9 @@ spec:
     type: Recreate
   template:
     metadata:
+      annotations:
+        cristex.io/identity-access-generation: "4"
+        cristex.io/proxy-config-sha256: e3df9588dc4b140593fcc970717f28625106a8a09bea70a442316ce71f086615
       labels:
         app.kubernetes.io/part-of: cristex-platform
         app.kubernetes.io/managed-by: ansible
@@ -51,8 +54,8 @@ spec:
           value: '443'
         - name: NO_PROXY
           value: .svc,.cluster.local,kubernetes.default.svc,localhost,127.0.0.1
-        - name: SSL_CERT_DIR
-          value: /etc/ssl/certs:/etc/infisical-proxy-ca
+        - name: SSL_CERT_FILE
+          value: /etc/infisical-proxy-ca/ca.crt
         - name: HTTPS_PROXY
           valueFrom:
             secretKeyRef:
@@ -103,4 +106,4 @@ spec:
           items:
           - key: ca.crt
             path: ca.crt
-          defaultMode: 288
+          defaultMode: 292

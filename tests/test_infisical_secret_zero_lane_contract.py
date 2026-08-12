@@ -80,9 +80,12 @@ class InfisicalSecretZeroLaneContractTests(unittest.TestCase):
 
     def test_policy_freezes_project_paths_credentials_and_keys(self) -> None:
         self.assertEqual("cristexweb-infrastructure", self.policy["project_slug"])
-        self.assertEqual("bootstrap", self.policy["environment_slug"])
+        self.assertEqual("prod", self.policy["environment_slug"])
         self.assertEqual("cristexweb-infrastructure", self.policy["infisical_project_slug"])
-        self.assertEqual("bootstrap", self.policy["infisical_environment_slug"])
+        self.assertEqual("prod", self.policy["infisical_environment_slug"])
+        self.assertTrue(self.policy["scope_separation"]["infisical_environment_is_prod"])
+        self.assertEqual("not-authorized", self.policy["scope_separation"]["kubernetes_cristexhub_prod_activation"])
+        self.assertEqual("absent", self.policy["scope_separation"]["kubernetes_prod_namespace_or_path"])
         self.assertEqual(
             {
                 "argocd": "/argocd",
@@ -166,11 +169,9 @@ class InfisicalSecretZeroLaneContractTests(unittest.TestCase):
             source_text = "\n".join(path.read_text() for path in db_component.glob("*.yaml"))
             for required in (
                 "shared-postgresql-infisical-universal-auth",
-                "shared-mongodb-infisical-universal-auth",
                 "/shared-services/postgresql",
-                "/shared-services/mongodb",
-                "cristexweb-infrastructure",
-                "bootstrap",
+                "619656da-14f3-4872-857b-be103cdc5326",
+                "prod",
             ):
                 self.assertIn(required, source_text)
         database_policy = yaml.safe_load(
@@ -274,6 +275,22 @@ class InfisicalSecretZeroLaneContractTests(unittest.TestCase):
         self.assertNotIn("echo \"$", self.upload_source)
         self.assertNotIn("CRISTEXWEB_INFISICAL_FAKE_ENDPOINT", self.upload_source)
         self.assertIn("[ \"$api_base\" = 'https://app.infisical.com/api' ]", self.upload_source)
+        for required_prod_binding in (
+            "environment=prod",
+            '"environmentSlug":"prod"',
+            'environmentSlug == "prod"',
+            "environmentSlug=prod",
+            "--arg environment prod",
+        ):
+            self.assertIn(required_prod_binding, self.upload_source)
+        for superseded_bootstrap_binding in (
+            "environment=bootstrap",
+            '"environmentSlug":"bootstrap"',
+            'environmentSlug == "bootstrap"',
+            "environmentSlug=bootstrap",
+            "--arg environment bootstrap",
+        ):
+            self.assertNotIn(superseded_bootstrap_binding, self.upload_source)
         for secret_name in (
             "clientId",
             "clientSecret",

@@ -1,0 +1,94 @@
+#!/bin/sh
+set -eu
+umask 077
+PATH=/usr/local/bin:/usr/bin:/bin
+export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null
+
+namespace=shared-services
+resource=shared-mongodb
+pod=shared-mongodb-0
+recipient_file=/etc/cristexweb-backup/age.recipient
+recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
+rclone_config=/home/paul/.config/rclone/rclone.conf
+archive_root=/var/lib/cristexweb-backup/mongodb/shared-mongodb
+remote_root=drive:cristexweb-recovery/mongodb/shared-mongodb
+lock_file=/run/lock/cristexweb-mongodb-shared-backup.lock
+
+exec 9>"$lock_file"
+/usr/bin/flock -n 9 || { printf '%s\n' 'backup_status=refused reason=concurrent_run'; exit 75; }
+[ -f "$recipient_file" ] && [ ! -L "$recipient_file" ] &&
+  [ "$(/usr/bin/sha256sum "$recipient_file" | /usr/bin/cut -d ' ' -f 1)" = "$recipient_sha256" ] || {
+  printf '%s\n' 'backup_status=failed stage=recipient_contract'; exit 1;
+}
+recipient=$(/usr/bin/tr -d '\n' <"$recipient_file")
+printf '%s\n' "$recipient" | /usr/bin/grep -Eq '^age1[0-9a-z]+$' || exit 1
+[ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] &&
+  [ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || {
+  printf '%s\n' 'backup_status=failed stage=rclone_config_contract'; exit 1;
+}
+phase=$(/usr/local/bin/kubectl -n "$namespace" get mongodbcommunity "$resource" -o jsonpath='{.status.phase}')
+version=$(/usr/local/bin/kubectl -n "$namespace" get mongodbcommunity "$resource" -o jsonpath='{.status.version}')
+ready=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.status.containerStatuses[?(@.name=="mongod")].ready}')
+[ "$phase" = Running ] && [ "$version" = 8.0.12 ] && [ "$ready" = true ] || {
+  printf '%s\n' 'backup_status=failed stage=mongodb_readiness'; exit 1;
+}
+ca_path=$(/usr/local/bin/kubectl -n "$namespace" exec "$pod" -c mongod -- /bin/sh -ec 'set -- /var/lib/tls/ca/*.pem; [ "$#" -eq 1 ]; printf %s "$1"')
+printf '%s\n' "$ca_path" | /usr/bin/grep -Eq '^/var/lib/tls/ca/[0-9a-f]{64}\.pem$' || {
+  printf '%s\n' 'backup_status=failed stage=tls_ca_contract'; exit 1;
+}
+
+timestamp=$(/usr/bin/date -u +%Y%m%dT%H%M%SZ)
+run_directory="$archive_root/$timestamp"
+remote_directory="$remote_root/$timestamp"
+[ ! -e "$run_directory" ] || { printf '%s\n' 'backup_status=refused reason=local_timestamp_collision'; exit 73; }
+/usr/bin/install -d -m 0700 "$run_directory"
+work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-mongodb-backup.XXXXXX)
+cleanup() {
+  /usr/bin/rm -rf -- "$work"
+  /usr/bin/rm -f -- "$run_directory/shared-mongodb.archive"
+}
+trap cleanup EXIT HUP INT TERM
+chmod 0700 "$work"
+/usr/local/bin/kubectl -n "$namespace" get secret shared-mongodb-auth -o json >"$work/secret.json"
+SECRET="$work/secret.json" OUT="$work/config.json" CA_PATH="$ca_path" /usr/bin/python3 - <<'PY'
+import base64,json,os,urllib.parse
+x=json.load(open(os.environ['SECRET']))
+assert x['type']=='Opaque' and set(x['data'])=={'username','password'}
+u=base64.b64decode(x['data']['username']).decode()
+p=base64.b64decode(x['data']['password']).decode()
+assert u=='mongodb_admin' and p
+ca=urllib.parse.quote(os.environ['CA_PATH'],safe='')
+uri='mongodb://'+urllib.parse.quote(u,safe='')+'@localhost:27017/?authSource=admin&replicaSet=shared-mongodb&tls=true&tlsCAFile='+ca
+with open(os.environ['OUT'],'w') as f: json.dump({'uri':uri,'password':p},f)
+PY
+chmod 0600 "$work/secret.json" "$work/config.json"
+start_epoch=$(/usr/bin/date +%s)
+/usr/local/bin/kubectl -n "$namespace" exec -i "$pod" -c mongod -- \
+  /usr/bin/mongodump --config=/dev/stdin --archive --oplog --quiet \
+  <"$work/config.json" >"$run_directory/shared-mongodb.archive"
+[ -s "$run_directory/shared-mongodb.archive" ] || { printf '%s\n' 'backup_status=failed stage=mongodump_empty'; exit 1; }
+/usr/bin/gzip -9 -c "$run_directory/shared-mongodb.archive" | \
+  /usr/bin/age -r "$recipient" -o "$run_directory/shared-mongodb.archive.gz.age"
+/usr/bin/rm -f -- "$run_directory/shared-mongodb.archive"
+/usr/bin/rm -rf -- "$work"
+trap - EXIT HUP INT TERM
+(cd "$run_directory" && /usr/bin/sha256sum shared-mongodb.archive.gz.age >shared-mongodb.archive.gz.age.sha256)
+archive_bytes=$(/usr/bin/stat -c %s "$run_directory/shared-mongodb.archive.gz.age")
+archive_sha256=$(/usr/bin/cut -d ' ' -f 1 "$run_directory/shared-mongodb.archive.gz.age.sha256")
+duration_seconds=$(( $(/usr/bin/date +%s) - start_epoch ))
+/usr/bin/printf '{"schema":1,"service":"mongodb","purpose":"shared-mongodb","created_at_utc":"%s","archive":"shared-mongodb.archive.gz.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","source_version":"8.0.12","consistency":"replica-set-oplog"}\n' \
+  "$timestamp" "$archive_bytes" "$archive_sha256" >"$run_directory/manifest.json"
+for leaf in shared-mongodb.archive.gz.age shared-mongodb.archive.gz.age.sha256 manifest.json; do
+  /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/$leaf" "$remote_directory/$leaf"
+done
+readback=$(/usr/bin/mktemp -d "$run_directory/.readback.XXXXXX")
+trap '/usr/bin/rm -rf -- "$readback"' EXIT HUP INT TERM
+for leaf in shared-mongodb.archive.gz.age shared-mongodb.archive.gz.age.sha256 manifest.json; do
+  /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_directory/$leaf" "$readback/$leaf"
+  /usr/bin/cmp -s "$run_directory/$leaf" "$readback/$leaf" || { printf 'backup_status=failed stage=readback leaf=%s\n' "$leaf"; exit 1; }
+done
+/usr/bin/rm -rf -- "$readback"
+trap - EXIT HUP INT TERM
+/usr/bin/find "$archive_root" -mindepth 1 -maxdepth 1 -type d -mtime +14 \
+  -name '20[0-9][0-9][01][0-9][0-3][0-9]T[0-2][0-9][0-5][0-9][0-5][0-9]Z' -exec /usr/bin/rm -rf -- {} +
+printf 'backup_status=success service=mongodb purpose=shared-mongodb timestamp=%s archive_bytes=%s duration_seconds=%s readback=verified consistency=oplog\n' "$timestamp" "$archive_bytes" "$duration_seconds"

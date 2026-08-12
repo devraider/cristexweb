@@ -265,7 +265,7 @@
       - item.resources | length == 1
       - item.resources[0].metadata.namespace == 'shared-services'
       - item.resources[0].type == item.item.value.type
-      - (item.resources[0].data | default({})).keys() | list | sort == item.item.value.keys | sort
+      - ((item.resources[0].data | default({})) | dict2items | map(attribute='key') | list | sort) == (item.item.value['keys'] | sort)
       - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
       - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'shared-databases'
       - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
@@ -376,7 +376,7 @@
         ((item.resources[0].metadata.labels | default({})).get('app.kubernetes.io/managed-by', '') == 'ansible' and
          (item.resources[0].metadata.labels | default({})).get('cristex.io/component', '') == 'postgresql' and
          (item.item.kind != 'ConfigMap' or
-          item.resources[0].data.keys() | list | sort == ['pg_hba.conf']) and
+          (item.resources[0].data | dict2items | map(attribute='key') | list | sort) == ['pg_hba.conf']) and
          (item.item.kind != 'ServiceAccount' or
           (not (item.resources[0].automountServiceAccountToken | default(false)) and
            item.resources[0].secrets | default([]) | length == 0 and

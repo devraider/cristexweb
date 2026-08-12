@@ -16,7 +16,13 @@ note: |
   MongoDB/PostgreSQL object-closure guards, and two fixed logical-provisioning
   execution/Kubernetes guards);
   no general operational Python
-  or collector exists. A separate source-only, check-only
+  or collector exists. One explicitly approved one-time Linux-host Infisical CLI
+  exception created `prod:/shared-services/postgresql` and uploaded exactly 15
+  PostgreSQL administrator/TLS/reserved-consumer keys. Random 64-hex password,
+  fixed-username, direct-CA TLS/SAN/key-pair, exact remote-key-closure, and zero
+  plaintext-temp-residue checks passed without value output. No Kubernetes Secret,
+  Infisical CR, workload, PVC, database, route, or PROD activation was created;
+  Universal Auth and materialization remain blocked. A separate source-only, check-only
   `k3s_datastore_preflight` role/playbook/wrapper is now offline-validated with
   fixed read-only argv under `no_log`, a bounded private mode-`0600` config slurp,
   strict duplicate/type/mapping/YAML and encryption-JSON parsers, exact
@@ -310,8 +316,11 @@ note: |
   remains empty; provider initialization/lockfile, state creation/encryption, Google
   Drive copy and restore, plan, apply, and every external resource remain NOT
   RUN/BLOCKED.
-  Global committed Kubernetes source now defines exactly four Namespace manifests:
-  `argocd`, `platform-edge`, `shared-services`, and source-only `cristexhub-dev`.
+  Global committed Kubernetes source now defines exactly five Namespace manifests:
+  `argocd`, `platform-edge`, `shared-services`, `mongodb-system`, and source-only
+  `cristexhub-dev`. The separately approved MongoDB operator migration created
+  `mongodb-system`; its control plane now runs there and watches the existing
+  `shared-services` database runtime.
   The closed historical bounded Ansible bootstrap defines and loads only `argocd`
   and `platform-edge`, requires state present and
   exact bootstrap/future-owner labels, refuses forged internal results and foreign

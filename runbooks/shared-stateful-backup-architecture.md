@@ -2,87 +2,126 @@
 
 ## Status
 
-**POLICY ONLY — RUNTIME BLOCKED.** This design covers PostgreSQL, MongoDB, and
-RabbitMQ recovery artifacts without selecting a credential, folder, local staging
-path, or executable job. Pinned host rclone `1.71.1` is now the transfer-tool
-direction. Its installer check passed twice. The first apply stopped at `changed=0`
-on a now-validated action-dispatch fix; the second created only the exact ignored
-controller cache and stopped at `ok=24 changed=2 failed=1` before host mutation on
-an unrendered operator default. The identity-binding fix passes offline review. A
-fresh check passed at `ok=25 changed=1 failed=0`; the separately approved corrected
-install passed at `ok=34 changed=4 failed=0` and selected verified rclone `1.71.1`.
-The separately approved idempotence apply passed at `ok=32 changed=0 failed=0`.
-The source profile fixes daily archives,
-14-day local/off-node retention, RPO `24h`, and RTO `4h`; no backup or restore has
-run.
+**POSTGRESQL KEYCLOAK SCHEDULER ACTIVE.** The operator approved and completed a
+host-managed systemd scheduler for encrypted PostgreSQL backups
+to Google Drive, followed by an isolated restore rehearsal before enabling the daily
+timer. The pinned host `rclone 1.71.1` and Debian `age 1.2.1-1+b5` are installed. The
+existing host-only `drive:` OAuth remote passed an authenticated request without
+exposing token content. The dedicated age private identity is held only in Infisical
+Cloud at `prod:/shared-services/backup-recovery`; the host retains only its public
+recipient.
 
-The canonical contract is
+Installation, one encrypted immutable backup with exact readback, Infisical-held key
+recovery, isolated PostgreSQL 17 restore, cleanup, timer enablement, and idempotence
+all passed. The timer is enabled and active (`waiting`) for the daily schedule.
+
+The active scheduled slice covers PostgreSQL database `keycloak`. A separate guarded
+MongoDB source closure is now ready but runtime-uninstalled: it targets the complete
+`shared-mongodb` replica set, uses authenticated CA-validated TLS and
+`mongodump --archive --oplog`, encrypts to the same public age recipient, uploads to
+`drive:cristexweb-recovery/mongodb/shared-mongodb/<timestamp>/`, and schedules at
+`03:45` host time plus bounded jitter. Its installation, oplog-consistent backup, immutable readback, Infisical-key decrypt,
+isolated MongoDB `8.0.12` restore, and cleanup now pass; its timer is enabled and active (`waiting`), and the final repeated apply converged
+at `changed=0`.
+Other PostgreSQL consumers, RabbitMQ, remote deletion/retention, and production
+acceptance require separate reviewed extensions. The canonical contract is
 [`shared-stateful-backup-architecture.yml`](../ansible/files/policies/shared-stateful-backup-architecture.yml).
+
+## Selected host implementation
+
+The only entrypoint is:
+
+```text
+ansible/bin/configure-postgresql-keycloak-backup check|apply|test|restore|enable-check|enable-apply
+ansible/bin/configure-mongodb-shared-backup check|apply|test|restore|enable-check|enable-apply
+```
+
+`check` and `apply` install source while keeping the timer disabled. `test` performs
+one separately approved backup through the systemd service. `enable-check` predicts
+timer activation, and `enable-apply` was executed only after the encrypted archive has
+been downloaded from Google Drive, checked, decrypted with the Infisical-held age
+identity in protected temporary storage, and restored into an isolated PostgreSQL 17
+test runtime without touching the source database.
+
+The daily schedule is `03:15` host time with a bounded 15-minute randomized delay,
+`Persistent=true`, RPO direction `24h`, and local encrypted retention `14d`. Remote
+objects are never removed automatically. The service runs as the non-root operator,
+uses the existing group-readable k3s kubeconfig and host-only rclone configuration,
+and has systemd hardening plus an exclusive lock.
 
 ## Easy and safe operator access
 
 Easy access means private authenticated operator retrieval, never a public download
-page or anonymous share. A metadata-only catalog must show service, consumer or
-purpose, timestamp, integrity status, and restore-test status without exposing
-archive contents, credentials, personal data, connection strings, or encryption
-material.
+page or anonymous share. A metadata-only catalog shows service, database, timestamp,
+archive size, checksum, upload/readback result, and restore-test status without
+archive contents, credentials, personal data, connection strings, OAuth material, or
+encryption keys.
 
-Archives use the predictable layout `service/consumer-or-purpose/timestamp`. The
-selected implementation must provide a simple private list, retrieve, verify, and
-isolated-restore workflow with redacted status output. The off-node destination is
-not mounted as live application data.
+Visibility and traceability use:
+
+```bash
+systemctl status cristexweb-postgresql-keycloak-backup.timer
+systemctl list-timers cristexweb-postgresql-keycloak-backup.timer
+journalctl -u cristexweb-postgresql-keycloak-backup.service
+```
+
+The journal emits only sanitized stages and a final one-line receipt. Google Drive
+uses the exact immutable layout:
+
+```text
+cristexweb-recovery/postgresql/keycloak/<UTC timestamp>/
+  keycloak.dump.gz.age
+  keycloak.dump.gz.age.sha256
+  manifest.json
+```
 
 ## Archive and transfer contract
 
-Every archive is compressed, encrypted, timestamped, checksum-manifested, and copied
-with non-destructive immutable semantics. Encryption-key custody is independent from
-the backup credential. Consumer or purpose paths remain separate. Integrity
-verification and an isolated restore are mandatory; a successful upload is not
-recovery evidence.
+The service discovers the ready CloudNativePG primary, executes PostgreSQL 17
+`pg_dump` for only database `keycloak`, compresses it, encrypts it to the public age
+recipient, removes plaintext under a trap, and creates SHA-256 plus value-free JSON
+metadata. It uploads each exact leaf with `rclone copyto --immutable`, downloads each
+leaf to a private temporary readback directory, requires byte equality, and removes
+readback residue. Use immutable copy semantics; never `rclone sync`, move, purge, delete, or a public share.
 
-The direction is Google Drive through pinned host `rclone 1.71.1` using immutable
-`rclone copy`/`copyto` semantics. The reviewed Linux archive and extracted binary
-have exact SHA-256 pins, and the host installer uses controller-cache verification,
-host transfer, a root-owned versioned payload, and a selector-only rollback. The
-corrected installer passed and selected verified version `1.71.1`; its idempotence
-apply passed at `changed=0`. Database backup transfer remains intended rather than approved until the
-remote identity, root folder identity, credentials, staging, and
-recovery procedure are selected. Database/service credentials remain Infisical-owned,
-but the host OAuth bootstrap is an explicit circular-dependency exception: it is
-created interactively on the host, is never committed or logged, and cannot use
-Infisical as its sole recovery source. Google-account reauthorization and independent
-account recovery remain mandatory. Use `rclone copy`; never `rclone sync`.
-Destructive mirror semantics are forbidden.
+The Google Drive OAuth token exists only in the host operator's mode-`0600` rclone
+configuration. The age private identity exists only in Infisical and is fetched only
+for an explicitly approved restore into trapped private temporary storage. Neither
+value is committed, passed in argv/environment, written to evidence, or logged.
 
-## Service-specific recovery
+## Isolated restore acceptance
+
+A successful upload is not recovery evidence. Before timer activation, the rehearsal
+must:
+
+1. select one exact timestamped Google Drive archive;
+2. download archive, checksum, and manifest into mode-`0700` temporary storage;
+3. verify manifest closure and SHA-256 before decryption;
+4. retrieve the exact age identity from Infisical without output;
+5. decrypt and decompress only inside the trapped directory;
+6. restore into a temporary PostgreSQL `17.10` runtime with isolated empty storage;
+7. validate the restored database/catalog and expected Keycloak schema state;
+8. remove the temporary runtime and all plaintext/key residue; and
+9. record only sanitized duration, checksum status, restore result, and zero residue.
+
+The production `shared-postgresql` Cluster, database `keycloak`, role, Secret, and PVC
+remained unchanged throughout. The final enable apply converged at `changed=0` and
+verified both `enabled` and `active`; the next scheduled run was registered by
+systemd.
+
+## Service-specific recovery and future admission
 
 PostgreSQL uses application-consistent logical dumps with role and ownership
-recreation. MongoDB uses application-consistent logical dumps compatible with the
-selected topology and recreates bounded users and roles. Every current database
-consumer receives a separate archive path and isolated restore proof.
+recreation. MongoDB uses one replica-set-wide oplog-consistent archive; the MongoDB
+Community Operator plus Infisical remain declarative owners for user/SCRAM recreation,
+while the archive recovers application data and compatible database metadata. Its
+restore rehearsal uses the same immutable `8.0.12` image digest, isolated `emptyDir`,
+no Service/PVC/Secret, and exact UID-precondition cleanup. RabbitMQ definitions recovery is not queued-message recovery. Each future
+service or consumer requires an exact archive path, capacity/retention review,
+integrity check, isolated restore, RPO/RTO disposition, and policy/test/runbook
+change; wildcard admission is forbidden.
 
-RabbitMQ definitions and policies require a protected definitions artifact, but
-RabbitMQ definitions recovery is not queued-message recovery. The current direction
-classifies Celery messages as non-authoritative and reconcilable from application
-state; application reconciliation must still be proved. A definitions export alone
-must never be presented as durable-message recovery.
-
-## Future consumer admission
-
-Future services, consumers, or recovery purposes require a reviewed exact policy
-change. Each addition receives an exact archive path, retention and capacity review,
-integrity check, isolated restore plan, RPO/RTO disposition, and policy, test, and
-runbook update. Wildcard or dynamic paths are forbidden.
-
-## Remaining decisions and stop gate
-
-The exact host tool is installed and idempotent. Google Drive identity
-and folder, local staging path and capacity, credential recovery, encryption-key recovery, schedule
-implementation, retention enforcement, and measured RPO/RTO remain unselected or
-unproved.
-
-No CronJob, Job, PVC, Secret, Service, public download endpoint, or executable
-wrapper is added by this increment. Stop before executable source until every
-promotion gate passes and a separately approved isolated restore proves recovery.
-No host, disk, registry, Google Drive, Infisical, Kubernetes API, backup, restore, or
-runtime operation is authorized here.
+No CronJob, Job, PVC, Kubernetes Secret, Service, or public download endpoint is
+created by this host scheduler. Backup credentials remain isolated from application
+credentials. Measured multi-run RPO/RTO, independent Google-account recovery, remote retention,
+other databases, and production recovery acceptance remain blocked until evidenced.

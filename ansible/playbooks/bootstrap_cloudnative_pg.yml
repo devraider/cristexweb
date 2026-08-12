@@ -1,0 +1,94 @@
+---
+- name: Bootstrap the pinned CloudNativePG operator closure
+  hosts: k3s_servers
+  gather_facts: false
+  become: false
+  vars:
+    cnpg_source: "{{ playbook_dir }}/../files/components/cloudnative-pg/operator/cnpg-1.30.0.yaml"
+    cnpg_source_sha256: 222430f2eca24d5b2373d15151b55520d8fd3733c9717c9cb3ea4fd65d875ae2
+    cnpg_kubeconfig: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Inspect the pinned CloudNativePG source
+      ansible.builtin.stat:
+        path: "{{ cnpg_source }}"
+        checksum_algorithm: sha256
+      register: cnpg_source_stat
+      delegate_to: localhost
+
+    - name: Require the exact protected CloudNativePG source
+      ansible.builtin.assert:
+        that:
+          - cnpg_source_stat.stat.exists
+          - cnpg_source_stat.stat.isreg
+          - not cnpg_source_stat.stat.islnk
+          - cnpg_source_stat.stat.mode == '0644'
+          - cnpg_source_stat.stat.checksum == cnpg_source_sha256
+
+    - name: Load the exact CloudNativePG object closure
+      ansible.builtin.set_fact:
+        cnpg_objects: "{{ lookup('ansible.builtin.file', cnpg_source) | from_yaml_all | list }}"
+
+    - name: Require the exact upstream object count and pinned controller image
+      ansible.builtin.assert:
+        that:
+          - cnpg_objects | length == 26
+          - cnpg_objects | selectattr('kind', 'equalto', 'Namespace') | map(attribute='metadata.name') | list == ['cnpg-system']
+          - >-
+            (cnpg_objects | selectattr('kind', 'equalto', 'Deployment') | first).spec.template.spec.containers[0].image ==
+            'ghcr.io/cloudnative-pg/cloudnative-pg@sha256:a2701eb97cdd2a34b1fdb2cb51987f544b706e40bec72ae7146cd8580efefebb'
+
+    - name: Reconcile the CloudNativePG Namespace and CRDs first
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ item }}"
+        kubeconfig: "{{ cnpg_kubeconfig }}"
+      loop: "{{ cnpg_objects }}"
+      loop_control:
+        label: "{{ item.kind }}/{{ item.metadata.name }}"
+      when: item.kind in ['Namespace', 'CustomResourceDefinition']
+
+    - name: Wait for all CloudNativePG CRDs to become Established
+      kubernetes.core.k8s_info:
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        name: "{{ item.metadata.name }}"
+        kubeconfig: "{{ cnpg_kubeconfig }}"
+      register: cnpg_crd_status
+      until: >-
+        cnpg_crd_status.resources | length == 1 and
+        (cnpg_crd_status.resources[0].status.conditions | default([]) |
+         selectattr('type', 'equalto', 'Established') |
+         selectattr('status', 'equalto', 'True') | list | length) == 1
+      retries: 30
+      delay: 2
+      loop: "{{ cnpg_objects | selectattr('kind', 'equalto', 'CustomResourceDefinition') | list }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+      when: not ansible_check_mode
+
+    - name: Reconcile the remaining CloudNativePG operator closure
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ item }}"
+        kubeconfig: "{{ cnpg_kubeconfig }}"
+      loop: "{{ cnpg_objects }}"
+      loop_control:
+        label: "{{ item.kind }}/{{ item.metadata.namespace | default('cluster') }}/{{ item.metadata.name }}"
+      when:
+        - not ansible_check_mode
+        - item.kind not in ['Namespace', 'CustomResourceDefinition']
+
+    - name: Wait for the CloudNativePG controller to become Available
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        namespace: cnpg-system
+        name: cnpg-controller-manager
+        kubeconfig: "{{ cnpg_kubeconfig }}"
+      register: cnpg_controller
+      until: >-
+        cnpg_controller.resources | length == 1 and
+        (cnpg_controller.resources[0].status.availableReplicas | default(0) | int) == 1
+      retries: 60
+      delay: 5
+      when: not ansible_check_mode
