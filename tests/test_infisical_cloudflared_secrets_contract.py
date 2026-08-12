@@ -39,6 +39,8 @@ class InfisicalCloudflaredSecretsContractTests(unittest.TestCase):
         self.assertEqual(target[0]["namespace"], "platform-edge")
         self.assertEqual(target[0]["secretType"], "Opaque")
         self.assertEqual(target[0]["creationPolicy"], "Orphan")
+        self.assertEqual(target[0]["metadata"], {"annotations": {}, "labels": {"app.kubernetes.io/managed-by": "infisical", "app.kubernetes.io/part-of": "cloudflared", "cristex.io/value-owner": "infisical-cloud"}})
+        self.assertEqual(target[0]["template"]["engineVersion"], "v1")
         self.assertEqual(set(target[0]["template"]["data"]), {"token"})
         self.assertEqual(target[0]["template"]["data"]["token"], "{{ .CLOUDFLARE_TUNNEL_TOKEN.Value }}")
         self.assertNotRegex(path.read_text(), r"CLOUDFLARE_TUNNEL_TOKEN\s*:\s*[^'{\s]")

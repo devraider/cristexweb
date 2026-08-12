@@ -26,7 +26,7 @@ _EXPECTED_OBJECT_HASHES = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-secret-boundary'): 'b166a692b8b00ec5abf143efda8a06e1353aa65ff6bec07f044aafd686036350',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-static-secret-boundary'): '832215eddbb15d770c1796439a2b44cfb9089950a68c91629f2d780b08d82ad6',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-static-secret-boundary'): '9077d2b464665bb5f7de442ea51b7285e940d166cbaf2d119096f0ccceb8244e',
-    ('apps/v1', 'Deployment', 'shared-services', 'infisical-operator-controller'): '75bc5587aea33dbe364c92d94749fe0e01e3c52e6b7848b489263059dc1ed9e9',
+    ('apps/v1', 'Deployment', 'shared-services', 'infisical-operator-controller'): '323c2705f0837e8742029ba2ab11788134fcb3d000cfbb1f2ef2969e238ceb24',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalauths.secrets.infisical.com'): '7f42a95da11f97758214bb8d6d1a177a848d02d42e9c6154fb8f84724c234326',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalconnections.secrets.infisical.com'): '41e6e2c61260de61229d997f67426c26fcddcb4e584cef45485646111ca69181',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicaldynamicsecrets.secrets.infisical.com'): 'b95d44aef7023641d00a552e3dbc9b14667de82983d8911a2fd73bcf25ab5f91',
@@ -49,9 +49,11 @@ _EXPECTED_OBJECT_HASHES = {
     ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'shared-services', 'infisical-operator-leader-election'): 'dd46e7a333843000d89acfadddb4721fbbc76fb013d96f519b080e442786bfed',
     ('rbac.authorization.k8s.io/v1', 'Role', 'argocd', 'infisical-operator-manager'): '3cfdec9ae3381288a8ee1f38c3ee767e0927b7b52e1a422093c4336b566c2cf6',
     ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-dev', 'infisical-operator-manager'): 'fc7b9bec413011bebc7cb594c1dd879a45bd583f9f6b3ce79da796d405687d2f',
+    ('rbac.authorization.k8s.io/v1', 'Role', 'platform-edge', 'infisical-operator-manager'): '0994ab8bd09c31eab914af4b40554bdeae334c73fa6b1060ad55aab4946c0bfe',
     ('rbac.authorization.k8s.io/v1', 'Role', 'shared-services', 'infisical-operator-manager'): '93d4c93736c897f417d4b4852c60321869ce66a87a1460133a017adff0dd2c2f',
     ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'argocd', 'infisical-operator-manager'): '2c345c7df6437be34e1c720181b77541e3b81f657bcf42ab36c8c53884d1cf87',
     ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-dev', 'infisical-operator-manager'): '8da014ed8d1b35011c4fc0a0ef32a8a640d04827be6b339b912dc3b4ab7d08c6',
+    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'platform-edge', 'infisical-operator-manager'): '316c4db0365565930b69ade6f92f8e5675a3ab91ee94eebf0a803519d21051f4',
     ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'shared-services', 'infisical-operator-manager'): '9d6333a5979cdf887d1f13e1663c60b007d5b141d7da0ad74512d60eca61a26c',
     ('v1', 'ServiceAccount', 'shared-services', 'infisical-egress-proxy'): 'f55214941e54d1215e8c9c8b9e383bc48248b753f707c3dd9436464fb4629ed4',
 }
@@ -105,9 +107,9 @@ class ActionModule(KubernetesActionModule):
         valid_binding = (
             isinstance(binding, dict)
             and binding.get("attestation_sha256") == expected_attestation_sha256
-            and int(binding.get("object_count", -1)) == 40
+            and int(binding.get("object_count", -1)) == 42
             and int(binding.get("crd_count", -1)) == 6
-            and int(binding.get("prestate_count", -1)) == 40
+            and int(binding.get("prestate_count", -1)) == 42
             and int(binding.get("proxy_secret_count", -1)) == 3
             and binding.get("api_service_contract") is True
             and binding.get("service_contract") is True

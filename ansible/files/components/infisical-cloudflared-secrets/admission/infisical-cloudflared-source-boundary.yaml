@@ -24,11 +24,11 @@ spec:
   matchConditions:
   - name: cloudflared-source-identities
     expression: request.namespace == 'platform-edge' && (request.userInfo.username
-      == 'system:serviceaccount:platform-edge:infisical-operator-controller' || object.metadata.name
+      == 'system:serviceaccount:shared-services:infisical-operator-controller' || object.metadata.name
       in ['infisical-cloud','cloudflared-infisical-auth'])
   validations:
   - expression: (request.userInfo.username == 'system:admin' || (request.userInfo.username
-      == 'system:serviceaccount:platform-edge:infisical-operator-controller' && oldObject
+      == 'system:serviceaccount:shared-services:infisical-operator-controller' && oldObject
       != null && oldObject.spec == object.spec)) && object.metadata.labels.size()
       == 3 && object.metadata.labels['app.kubernetes.io/part-of'] == 'cristex-platform'
       && object.metadata.labels['app.kubernetes.io/managed-by'] == 'ansible' && object.metadata.labels['cristex.io/component']

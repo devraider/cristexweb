@@ -41,19 +41,15 @@ infisical_operator_bootstrap_manifest_paths:
   - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/manager-role-argocd.yaml"
   - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/manager-role-cristexhub-dev.yaml"
   - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/manager-role-shared-services.yaml"
+  - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/manager-role-platform-edge.yaml"
+  - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/manager-rolebinding-platform-edge.yaml"
   - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/manager-rolebinding-argocd.yaml"
   - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/manager-rolebinding-cristexhub-dev.yaml"
   - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/manager-rolebinding-shared-services.yaml"
   - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/proxy-serviceaccount.yaml"
 infisical_operator_bootstrap_crd_count: 6
-infisical_operator_bootstrap_object_count: 40
+infisical_operator_bootstrap_object_count: 42
 infisical_operator_bootstrap_expected_hashes:
-  crds/infisicalauths.yaml: 993ed3a8c0417d15d18f11d3e4b7ec4d84b7ee08b301aea6a4b4359a9660e9fd
-  crds/infisicalconnections.yaml: 2b4e37a0ee7b4b99cf721d2ad817d3a5b29edcf32c143ac930a335db4e9bc6cb
-  crds/infisicaldynamicsecrets.yaml: 321dd095151c9a4216ddb2d5805c84ed32c1ed8ff9939f7fc8f89f24c3baf967
-  crds/infisicalpushsecrets.yaml: 79a5b8e8c5b49d8c5e55da3f5cef4c20f1a1fc5dae8db904f6e37e86a26164bb
-  crds/infisicalsecrets.yaml: 876c726cab8574fe156a80630554e769ae9fef4449531f91041b032d98593290
-  crds/infisicalstaticsecrets.yaml: 96ed82d99c7d8471e81b7cfba4a912badc98516e1f1859390a7ca94e18ab03be
   admission/infisical-auth-boundary-binding.yaml: 06199a935d0b2d766ff4039f5d533ed5fbf9e00035eaf947370da851594e3623
   admission/infisical-auth-boundary.yaml: 127d67ca1325e17113db6f54ac0bf335dc5fbfdac9e82eb4b828455705b771bd
   admission/infisical-connection-boundary-binding.yaml: 4004a695f53c78f9a00655db1c986ee5d9d09fa178b3e3a9edd49ed2021bed02
@@ -66,7 +62,13 @@ infisical_operator_bootstrap_expected_hashes:
   admission/infisical-secret-boundary.yaml: 4f884ca73ed9beab062482fcc767d57b03b370a4ea7a2483176603d469a28851
   admission/infisical-static-secret-boundary-binding.yaml: 50ba30d873c85183ce2949bd6638715442bb4128cb299a67f7ec06ecf831ea1d
   admission/infisical-static-secret-boundary.yaml: 6dcd126875de08988e5ea04962a5bac7040654688546d5af381673e6e7a75b51
-  controller/deployment.yaml: c7eb74e6645f7d1e36f1a0bf478e274e358da1088adcaa6dc2cb3a0ed7307645
+  controller/deployment.yaml: 7b663f61bf4138e99b798a8d416033ac3e6ba078fabe16a5d7347ae251bd0010
+  crds/infisicalauths.yaml: 993ed3a8c0417d15d18f11d3e4b7ec4d84b7ee08b301aea6a4b4359a9660e9fd
+  crds/infisicalconnections.yaml: 2b4e37a0ee7b4b99cf721d2ad817d3a5b29edcf32c143ac930a335db4e9bc6cb
+  crds/infisicaldynamicsecrets.yaml: 321dd095151c9a4216ddb2d5805c84ed32c1ed8ff9939f7fc8f89f24c3baf967
+  crds/infisicalpushsecrets.yaml: 79a5b8e8c5b49d8c5e55da3f5cef4c20f1a1fc5dae8db904f6e37e86a26164bb
+  crds/infisicalsecrets.yaml: 876c726cab8574fe156a80630554e769ae9fef4449531f91041b032d98593290
+  crds/infisicalstaticsecrets.yaml: 96ed82d99c7d8471e81b7cfba4a912badc98516e1f1859390a7ca94e18ab03be
   network/infisical-operator-allow-api.yaml: 9570004716331fde5f148c962c1c943da30a6d87fde0f06092c4d1825cab32c1
   network/infisical-operator-allow-dns.yaml: acec9707302a50e02453f1c4e6e4aa3bc9d44fda416664ea35c8fd87757b4eb7
   network/infisical-operator-allow-proxy.yaml: 730f277d535ff42e1bc288f99e2aed52045d391b4c897bb9f34d25fc8b61b008
@@ -83,11 +85,14 @@ infisical_operator_bootstrap_expected_hashes:
   rbac/leader-election-rolebinding.yaml: ca45eed47fc798663cfbc9ceff9145e744cd4555fb0c5b496d90fcd99a31d698
   rbac/manager-role-argocd.yaml: 57addbea2754c869aeb3bdd7068d7946de5ce69c51a0a7ebe6923c6b74072192
   rbac/manager-role-cristexhub-dev.yaml: b7db2696fe7cd13d207face936b59460057f7f2498d5da810c6c52fc8a0f7063
+  rbac/manager-role-platform-edge.yaml: f61466c806a40075f9981920d9aa0a5c0c40fdb54fbd66d6adfb35c3b451fce1
   rbac/manager-role-shared-services.yaml: 7a17479c8650f009494007739c58dc9a674cce48319072dea62d41cafb1ca17b
   rbac/manager-rolebinding-argocd.yaml: 27bb6b8d48aea1aa5591069f401bb7da88eeb9b99361e23df18137abaa4e5eb1
   rbac/manager-rolebinding-cristexhub-dev.yaml: ac27ba55eb609d953d1547ee5d55829b234becdd0fed42c35f53215843e1ec6f
+  rbac/manager-rolebinding-platform-edge.yaml: ad01e54cb747e01edf2cb2a1edfa8ef987b1525683b5be25f48f81d9282918f8
   rbac/manager-rolebinding-shared-services.yaml: e87f1b94f67842f1a6490318ced93946a0da7018633fa4f7f6206e8a267351b7
   rbac/proxy-serviceaccount.yaml: c255c77e87f1980f72d0464e64f4199c3b9d1b72b61b9e40ef52f55f46c7327d
+
 infisical_operator_bootstrap_proxy_secret_contract:
   infisical-egress-proxy-tls:
     - ca.crt

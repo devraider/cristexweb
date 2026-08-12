@@ -10,6 +10,13 @@
       - infisical_cloudflared_secrets_bootstrap_manifest_paths | length == 13
       - infisical_cloudflared_secrets_bootstrap_expected_hashes | length == 13
       - >-
+        infisical_cloudflared_secrets_bootstrap_credential_contract ==
+        {'name': 'cloudflared-infisical-universal-auth', 'namespace': 'platform-edge',
+        'type': 'Opaque', 'keys': ['clientId', 'clientSecret'], 'labels':
+        {'app.kubernetes.io/managed-by': 'ansible', 'app.kubernetes.io/part-of':
+        'infisical-operator', 'cristex.io/component': 'infisical-runtime-auth',
+        'cristex.io/value-owner': 'infisical-cloud'}}
+      - >-
         infisical_cloudflared_secrets_bootstrap_target_contract ==
         {'cloudflared-token': {'type': 'Opaque', 'keys': ['token']}}
     fail_msg: Refusing unapproved or non-check-only Cloudflare token materialization.
@@ -22,6 +29,32 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_CLOUDFLARED_SECRETS_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_CLOUDFLARED_SECRETS_BOOTSTRAP_ATTESTATION_FILE') | length > 0
     fail_msg: Refusing direct or unattested invocation.
+  changed_when: false
+  no_log: true
+
+- name: Query the precreated cloudflared Universal Auth Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: platform-edge
+    name: cloudflared-infisical-universal-auth
+    kubeconfig: '{{ infisical_cloudflared_secrets_bootstrap_kubeconfig }}'
+  register: infisical_cloudflared_secrets_bootstrap_internal_credential
+  changed_when: false
+  no_log: true
+
+- name: Require exact cloudflared Universal Auth Secret metadata
+  ansible.builtin.assert:
+    that:
+      - infisical_cloudflared_secrets_bootstrap_internal_credential.resources | length == 1
+      - infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].metadata.name == 'cloudflared-infisical-universal-auth'
+      - infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].metadata.namespace == 'platform-edge'
+      - infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].type == 'Opaque'
+      - (infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].data | default({})).keys() | list | sort == ['clientId', 'clientSecret']
+      - (infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].binaryData | default({})).keys() | list | length == 0
+      - (infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - (infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].metadata.labels | default({})) == infisical_cloudflared_secrets_bootstrap_credential_contract.labels
+    fail_msg: The exact precreated cloudflared Universal Auth Secret metadata is absent or drifted; values remain unread.
   changed_when: false
   no_log: true
 
