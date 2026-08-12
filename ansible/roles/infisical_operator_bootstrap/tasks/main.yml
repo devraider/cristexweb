@@ -140,7 +140,7 @@
     that:
       - infisical_operator_bootstrap_internal_manifests | length == 42
       - infisical_operator_bootstrap_internal_crds | length == 6
-      - infisical_operator_bootstrap_internal_runtime_objects | length == 34
+      - infisical_operator_bootstrap_internal_runtime_objects | length == 36
       - infisical_operator_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
       - infisical_operator_bootstrap_internal_manifests | selectattr('metadata.name', 'search', 'clustergenerator') | list | length == 0
       - infisical_operator_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ClusterRole') | list | length == 0
