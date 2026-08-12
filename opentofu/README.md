@@ -56,3 +56,16 @@ single-node failure domain; encrypted timestamped off-node copies to Google Driv
 independent key recovery, integrity verification, and isolated restore are
 prerequisites before any provider-backed plan or apply. Until that evidence exists,
 state recovery is `UNKNOWN — STOP` and no apply is permitted.
+
+## Encrypted state recovery boundary
+
+The Ansible-owned host workflow `configure-opentofu-state-backup` is the only
+approved source for encrypted local state copies. It protects
+`/var/lib/opentofu/cristexweb/foundation.tfstate`, encrypts with the public age
+recipient, uploads immutable timestamped leaves under
+`drive:cristexweb-recovery/opentofu/foundation/`, and reads them back byte-for-byte.
+The private identity is retrieved only during the isolated restore rehearsal from
+Infisical `prod:/shared-services/backup-recovery`; it is never retained on the
+host, in OpenTofu state, or in Git. The timer remains disabled until an approved
+backup, decrypt, `tofu state list` validation, cleanup, and non-mutation rehearsal
+passes. No backup or restore command is run by source authoring.

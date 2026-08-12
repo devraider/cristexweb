@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily CristexWeb encrypted OpenTofu state backup
+[Timer]
+OnCalendar=*-*-* 02:45:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=cristexweb-opentofu-state-backup.service
+[Install]
+WantedBy=timers.target
