@@ -206,6 +206,7 @@ metadata:
                 ANSIBLE / "bin/bootstrap-argocd",
                 ANSIBLE / "bin/bootstrap-mongodb",
                 ANSIBLE / "bin/bootstrap-postgresql",
+                ANSIBLE / "bin/bootstrap-keycloak",
                 ANSIBLE / "bin/bootstrap-cloudnative-pg",
                 ANSIBLE / "bin/bootstrap-cloudnative-pg-cluster",
                 ANSIBLE / "bin/install-backup-dependencies",

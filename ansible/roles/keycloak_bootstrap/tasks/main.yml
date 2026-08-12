@@ -40,6 +40,7 @@
       - keycloak_bootstrap_deployment_name == 'keycloak'
       - keycloak_bootstrap_secret_contract['shared-postgresql-keycloak'].keys | sort == ['password', 'username']
       - keycloak_bootstrap_secret_contract['shared-postgresql-ca'].keys | sort == ['ca.crt', 'ca.key']
+      - keycloak_bootstrap_secret_contract['keycloak-bootstrap-admin'].keys | sort == ['password', 'username']
     fail_msg: Keycloak requires the exact guarded present-only seven-object closure.
   changed_when: false
 
@@ -201,7 +202,9 @@
       - item.resources[0].type == item.item.value.type
       - item.resources[0].data.keys() | sort == item.item.value.keys | sort
       - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') in ['infisical', 'cloudnative-pg']
-      - item.resources[0].metadata.labels.get('cristex.io/value-owner', 'cloudnative-pg') in ['infisical-cloud', 'cloudnative-pg']
+      - >-
+        item.item.key == 'shared-postgresql-ca' or
+        item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
   loop: "{{ keycloak_bootstrap_internal_secrets.results }}"
   loop_control:
     label: "{{ item.item.key }}"

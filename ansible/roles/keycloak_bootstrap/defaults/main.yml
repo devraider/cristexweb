@@ -22,7 +22,7 @@ keycloak_bootstrap_expected_hashes:
   network/keycloak-private-ingress.yaml: 28b81a5999b7aa90d8344c108949d929bba3c0e7df497e6d35647a3e1641620c
   rbac/serviceaccount-keycloak.yaml: 787f9cd56c9ede1dc6dc664d8126fc85ce3ee084f483bd0f9944ce0249177d68
   runtime/service-keycloak.yaml: 582da5974c418188515048399d3eed1759b3779bfd4f71f5048aaa02bd75e092
-  runtime/deployment-keycloak.yaml: 93b4f8dfec4217d3cf18c5cbd413b79a0d9ef60cee7280f760e0d88576bd867f
+  runtime/deployment-keycloak.yaml: c3c85ff321e67d3179c9155c89395e4064cc04f82a0d31b7222a6a04a227d095
 keycloak_bootstrap_identity_set_sha256: 88aeba94640844a5447fb96b7583d648cffeefb771951e335c8e7f9dca658d24
 keycloak_bootstrap_namespace: shared-services
 keycloak_bootstrap_service_name: keycloak
@@ -34,3 +34,6 @@ keycloak_bootstrap_secret_contract:
   shared-postgresql-ca:
     type: Opaque
     keys: [ca.crt, ca.key]
+  keycloak-bootstrap-admin:
+    type: Opaque
+    keys: [password, username]

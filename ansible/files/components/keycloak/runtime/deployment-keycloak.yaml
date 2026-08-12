@@ -47,22 +47,25 @@ spec:
               protocol: TCP
           env:
             - {name: KC_DB, value: postgres}
-            - {name: KC_DB_URL, value: "jdbc:postgresql://shared-postgresql-rw.shared-services.svc.cluster.local:5432/keycloak?sslmode=verify-full&sslrootcert=/opt/keycloak/conf/postgresql-ca.crt"}
+            - {name: KC_DB_URL, value: "jdbc:postgresql://shared-postgresql-rw.shared-services.svc:5432/keycloak?sslmode=verify-full&sslrootcert=/opt/keycloak/conf/postgresql-ca.crt"}
             - {name: KC_DB_USERNAME, valueFrom: {secretKeyRef: {name: shared-postgresql-keycloak, key: username}}}
             - {name: KC_DB_PASSWORD, valueFrom: {secretKeyRef: {name: shared-postgresql-keycloak, key: password}}}
+            - {name: KC_BOOTSTRAP_ADMIN_USERNAME, valueFrom: {secretKeyRef: {name: keycloak-bootstrap-admin, key: username}}}
+            - {name: KC_BOOTSTRAP_ADMIN_PASSWORD, valueFrom: {secretKeyRef: {name: keycloak-bootstrap-admin, key: password}}}
             - {name: KC_HTTP_ENABLED, value: "true"}
             - {name: KC_HEALTH_ENABLED, value: "true"}
-            - {name: KC_HOSTNAME_STRICT, value: "false"}
+            - {name: KC_HOSTNAME, value: "https://auth.cristex-soft.com"}
+            - {name: KC_HOSTNAME_STRICT, value: "true"}
             - {name: KC_PROXY_HEADERS, value: xforwarded}
           volumeMounts:
-            - {name: postgres-ca, mountPath: /opt/keycloak/conf/postgresql-ca.crt, subPath: ca.crt, readOnly: true}
+            - {name: postgresql-ca, mountPath: /opt/keycloak/conf/postgresql-ca.crt, subPath: ca.crt, readOnly: true}
             - {name: keycloak-data, mountPath: /opt/keycloak/data}
           resources:
             requests: {cpu: 250m, memory: 512Mi}
             limits: {cpu: "1", memory: 1Gi}
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: false
             capabilities: {drop: [ALL]}
           startupProbe:
             httpGet: {path: /health/ready, port: management, scheme: HTTP}
@@ -80,7 +83,7 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
       volumes:
-        - name: postgres-ca
+        - name: postgresql-ca
           secret:
             secretName: shared-postgresql-ca
             items: [{key: ca.crt, path: ca.crt}]

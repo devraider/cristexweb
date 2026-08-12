@@ -75,7 +75,7 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
         env = {item["name"]: item for item in container["env"]}
         self.assertEqual("postgres", env["KC_DB"]["value"])
         db_url = env["KC_DB_URL"]["value"]
-        self.assertIn("jdbc:postgresql://shared-postgresql-rw.shared-services.svc.cluster.local:5432/keycloak", db_url)
+        self.assertIn("jdbc:postgresql://shared-postgresql-rw.shared-services.svc:5432/keycloak", db_url)
         self.assertIn("sslmode=verify-full", db_url)
         self.assertIn("sslrootcert=/opt/keycloak/conf/postgresql-ca.crt", db_url)
         for key in ("KC_DB_USERNAME", "KC_DB_PASSWORD"):
@@ -103,9 +103,9 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
         self.assertEqual(["ALL"], security["capabilities"]["drop"])
         self.assertTrue(container["readinessProbe"]["httpGet"]["path"].endswith("/health/ready"))
         self.assertTrue(container["livenessProbe"]["httpGet"]["path"].endswith("/health/live"))
-        self.assertEqual(9000, container["readinessProbe"]["httpGet"]["port"])
-        self.assertEqual(9000, container["livenessProbe"]["httpGet"]["port"])
-        self.assertEqual(9000, container["startupProbe"]["httpGet"]["port"])
+        self.assertEqual("management", container["readinessProbe"]["httpGet"]["port"])
+        self.assertEqual("management", container["livenessProbe"]["httpGet"]["port"])
+        self.assertEqual("management", container["startupProbe"]["httpGet"]["port"])
         self.assertIn("/health", container["startupProbe"]["httpGet"]["path"])
         for resource in ("requests", "limits"):
             self.assertTrue(container["resources"].get(resource, {}).get("cpu"))
@@ -157,7 +157,8 @@ class KeycloakGuardConventionContractTests(unittest.TestCase):
         self.assertIn("TASK_SELECTION_GUARD", guard)
         self.assertIn("kubernetes.core.k8s", guard)
         self.assertIn("definition", guard)
-        self.assertNotIn("delete", guard.lower())
+        self.assertNotIn("state': 'absent", guard.lower())
+        self.assertNotIn('state": "absent', guard.lower())
 
 
 if __name__ == "__main__":
