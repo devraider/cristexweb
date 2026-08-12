@@ -279,6 +279,9 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
                 "seed_infisical_universal_auth.yml",
                 "upload-infisical-bootstrap-values",
                 "infisical_universal_auth_seed_guarded_k8s.py",
+                "bootstrap-infisical-cloudflared-secrets",
+                "bootstrap_infisical_cloudflared_secrets.yml",
+                "infisical_cloudflared_secrets_guarded_k8s.py",
             },
             {path.name for path in operational if "infisical" in str(path).lower()},
         )

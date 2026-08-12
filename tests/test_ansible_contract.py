@@ -43,8 +43,10 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/infisical_database_secrets_guarded_k8s.py"),
             Path("ansible/plugins/action/database_provisioning_guarded_exec.py"),
             Path("ansible/plugins/action/database_provisioning_guarded_k8s.py"),
+            Path("ansible/plugins/action/cloudflared_guarded_k8s.py"),
+            Path("ansible/plugins/action/infisical_cloudflared_secrets_guarded_k8s.py"),
         }
-        self.assertEqual(17, len(allowed_action_plugins))
+        self.assertEqual(19, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -126,6 +128,16 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/rabbitmq_bootstrap/defaults/main.yml",
             "roles/rabbitmq_bootstrap/tasks/main.yml",
             "bin/configure-rabbitmq-definitions-backup",
+            "bin/bootstrap-cloudflared",
+            "bin/bootstrap-infisical-cloudflared-secrets",
+            "playbooks/bootstrap_cloudflared.yml",
+            "playbooks/bootstrap_infisical_cloudflared_secrets.yml",
+            "plugins/action/cloudflared_guarded_k8s.py",
+            "plugins/action/infisical_cloudflared_secrets_guarded_k8s.py",
+            "roles/cloudflared_bootstrap/defaults/main.yml",
+            "roles/cloudflared_bootstrap/tasks/main.yml",
+            "roles/infisical_cloudflared_secrets_bootstrap/defaults/main.yml",
+            "roles/infisical_cloudflared_secrets_bootstrap/tasks/main.yml",
             "playbooks/configure_rabbitmq_definitions_backup.yml",
             "files/backup/rabbitmq-shared-definitions-backup",
             "files/backup/restore-rabbitmq-definitions-rehearsal",
@@ -246,6 +258,8 @@ class AnsibleLayoutTests(unittest.TestCase):
             "infisical-keycloak-secrets",
             "rabbitmq",
             "infisical-rabbitmq-secrets",
+            "cloudflared",
+            "infisical-cloudflared-secrets",
         ):
             required.extend(
                 str(path.relative_to(ANSIBLE))

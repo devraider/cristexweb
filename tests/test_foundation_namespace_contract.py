@@ -221,8 +221,10 @@ metadata:
                 ANSIBLE / "bin/preflight-k3s-datastore",
                 ANSIBLE / "bin/seed-infisical-universal-auth",
                 ANSIBLE / "bin/upload-infisical-bootstrap-values",
+                ANSIBLE / "bin/bootstrap-cloudflared",
+                ANSIBLE / "bin/bootstrap-infisical-cloudflared-secrets",
             },
-            {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()},
+            {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()}, # includes separately guarded component entrypoints
         )
         entrypoint = ENTRYPOINT.read_text()
         task_start_fixture = TASK_START_FIXTURE.read_text()

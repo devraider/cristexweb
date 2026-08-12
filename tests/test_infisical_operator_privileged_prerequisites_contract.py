@@ -290,6 +290,8 @@ class InfisicalPrivilegedPrerequisitesDesignContractTests(unittest.TestCase):
                 "seed-infisical-universal-auth",
                 "seed_infisical_universal_auth.yml",
                 "upload-infisical-bootstrap-values",
+                "bootstrap-infisical-cloudflared-secrets",
+                "bootstrap_infisical_cloudflared_secrets.yml",
                 "main.yml",
             },
             {path.name for path in operational if "infisical" in str(path).lower()},

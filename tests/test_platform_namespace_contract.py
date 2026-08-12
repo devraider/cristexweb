@@ -173,6 +173,8 @@ metadata:
                 ANSIBLE / "bin/preflight-k3s-datastore",
                 ANSIBLE / "bin/seed-infisical-universal-auth",
                 ANSIBLE / "bin/upload-infisical-bootstrap-values",
+                ANSIBLE / "bin/bootstrap-cloudflared",
+                ANSIBLE / "bin/bootstrap-infisical-cloudflared-secrets",
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()},
         )
