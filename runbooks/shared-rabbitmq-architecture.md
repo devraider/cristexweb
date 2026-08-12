@@ -2,76 +2,80 @@
 
 ## Status
 
-**POLICY ONLY — RUNTIME BLOCKED.** This value-free design places one shared RabbitMQ
-engine in the future `shared-services` Namespace. It does not select an image,
-topology, Service, port, storage, queue policy, credential, or executable object and
-does not claim that RabbitMQ exists.
-
-The canonical contract is
+**SOURCE SELECTED — RUNTIME BLOCKED.** The one shared RabbitMQ engine source is now
+selected for deterministic offline authoring, but no Kubernetes runtime has been
+applied. The canonical contract is
 [`shared-rabbitmq-architecture.yml`](../ansible/files/policies/shared-rabbitmq-architecture.yml).
+
+The selected source is the official Docker image `docker.io/library/rabbitmq:4.3.4-management`,
+using the verified linux/amd64 child digest
+`sha256:cd4fd60136781671d125ed68ac4b67900c0726b55e2e8b98719daa616a63240b`.
+The future topology is one direct, single-node StatefulSet in `shared-services`;
+this is not highly available and is not operator-managed.
 
 ## Placement and current consumers
 
-CristexHub DEV and CristexHub PROD are the exact current consumers. Each receives a
-dedicated vhost, dedicated workload user, Infisical-owned credential, permissions
-limited to its vhost, resource-limit scope, and recovery scope. The one broker is a
-shared failure and contention domain; vhost isolation does not provide availability
-or kernel isolation.
+The broker belongs in `shared-services` with one retained `local-path` 20Gi
+ReadWriteOnce PVC at `/var/lib/rabbitmq`. The future private Services are
+`shared-rabbitmq-amqps` on AMQPS port 5671 and `shared-rabbitmq-management` on
+HTTPS management port 15671. Neither Service receives an Ingress, NodePort,
+LoadBalancer, Cloudflare Tunnel, or public route.
 
-Redis remains environment-local. Keycloak and Reactive Resume do not receive
-RabbitMQ access from this policy.
+CristexHub DEV and PROD are the exact current consumers with dedicated vhost permissions. DEV uses vhost
+`/cristexhub-dev` and principal `cristexhub_dev_rabbitmq`; PROD uses
+`/cristexhub-prod` and principal `cristexhub_prod_rabbitmq`. Each receives a
+separate Infisical-owned credential, permissions limited to its vhost, dedicated
+limits, and a separate recovery scope. Keycloak and Reactive Resume do not receive
+RabbitMQ access from this policy. The broker remains a shared failure and
+contention domain; vhost isolation is not availability or kernel isolation.
 
 ## Future consumer admission
 
-A future consumer is added only through a reviewed exact policy change. Wildcard,
-dynamic, default, or implicit consumers are forbidden. Each addition must define an
-exact identifier, dedicated vhost, dedicated principal and Infisical credential,
-permissions and limits, capacity review, negative cross-vhost tests, recovery
-disposition, and matching policy, test, and runbook updates.
+Every future consumer requires a reviewed exact policy change; wildcard or dynamic admission is forbidden.
 
 ## Authorization and management
 
 Cross-vhost access defaults to deny. Workload users cannot create users, vhosts, or
 policies and cannot receive administrator or wildcard configure/write/read access.
-The default guest account is disabled for hosted use. Negative tests must deny DEV
-to PROD, PROD to DEV, workload administration, and public management access.
+The default guest account is disabled for hosted use. Required negative tests deny
+DEV to PROD, PROD to DEV, workload administration, and public management access.
+Management is available only through private authenticated operator access over HTTPS and is never a public application
+route.
 
-RabbitMQ management remains available only through private authenticated operator
-access. It receives no public route, Ingress, NodePort, LoadBalancer, or Cloudflare
-Tunnel. Private management does not weaken workload-user restrictions.
+## TLS and resources
+
+TLS is required for both listeners. The selected broker certificate is owned by
+Infisical and must cover exactly:
+
+- `localhost`
+- `shared-rabbitmq.shared-services.svc`
+- `shared-rabbitmq.shared-services.svc.cluster.local`
+
+The planned StatefulSet resource bounds are CPU 250m / 1 core and memory 512Mi /
+1Gi (requests / limits). These are source-selection values, not runtime evidence.
 
 ## Backup and message recovery
 
-The shared
-[backup architecture](shared-stateful-backup-architecture.md) governs encrypted,
-off-node, integrity-checked recovery artifacts. RabbitMQ definitions and policies
-must be reproducible from value-free Git policy plus Infisical-owned credentials.
-Exported definitions are sensitive recovery material and never belong in Git.
+The shared [backup architecture](shared-stateful-backup-architecture.md) governs
+encrypted, off-node, integrity-checked recovery artifacts. RabbitMQ definitions
+and policies must be reproducible from value-free Git policy plus Infisical-owned
+credentials. Exported definitions are sensitive recovery material and never belong
+in Git.
 
 RabbitMQ definitions recovery is not queued-message recovery. Celery broker messages
 have the current direction **non-authoritative and reconcilable**: authoritative job
 state remains in application databases, and application reconciliation must prove
-that interrupted or lost jobs recover safely. This is a direction, not accepted
-runtime evidence. If any future queue becomes authoritative, stop and add a separate
-consistent message-store backup and isolated restore design before promotion.
+that interrupted or lost jobs recover safely. Definitions restore, queued-message
+reconciliation, measured RPO/RTO, and production recovery acceptance remain blocked.
+If any future queue becomes authoritative, stop and add a separate consistent
+message-store backup and isolated restore design before promotion.
 
-## Resource, storage, and source blockers
+## Runtime gates
 
-Repository, version, immutable linux/amd64 digest, topology, StorageClass, PVC
-capacity, reclaim behavior, TLS identity, Service identity and ports, requests,
-limits, connection limits, vhost limits, queue limits, probes, disruption behavior,
-and NetworkPolicy flows remain unselected. The mutable local Compose
-`rabbitmq:3-management` input is not a hosted source selection.
-
-## Executable-source stop gate
-
-No StatefulSet, Deployment, Service, PVC, Secret, Job, CronJob, or NetworkPolicy is
-added by this increment. It also adds no Ansible role, playbook, wrapper, Helm values,
-Argo Application, route, generated credential, or backup command.
-
-Stop before executable source until immutable image trust and recovery, topology,
-storage, resources and limits, TLS, private NetworkPolicy, Infisical secret-zero
-recovery, definitions restore, message reconciliation, one-writer handoff, and
-runtime approval all pass. The `shared-services` Namespace check and separately
-approved first apply/idempotence passed, with final `changed=0`; every RabbitMQ
-runtime gate remains separately approved and **NOT RUN**.
+The source selection and offline policy contract are complete, but the following
+remain **NOT RUN/BLOCKED**: Infisical secret-zero recovery, runtime check/apply,
+private AMQPS and management validation, DEV/PROD negative authorization tests,
+definitions backup/isolated restore, queued-message reconciliation, measured RPO/RTO,
+and one-writer handoff. No StatefulSet, Deployment, Service, PVC, Secret, Job, CronJob, or NetworkPolicy
+has been applied; no operator, role, playbook, wrapper, route, generated credential,
+or backup command has been added by this policy increment.

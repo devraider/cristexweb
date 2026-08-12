@@ -1,6 +1,6 @@
 ---
 policy_schema: cristex-shared-rabbitmq-v1
-policy_status: source-policy-only-runtime-blocked
+policy_status: source-selected-runtime-blocked
 namespace: shared-services
 credential_value_owner: infisical-cloud
 engine:
@@ -8,23 +8,24 @@ engine:
   namespace: shared-services
   model: one-shared-engine
   source:
-    selection: unselected
-    repository: null
-    version: null
-    linux_amd64_digest: null
-    trust_accepted: false
-  topology: unselected
+    selection: official-docker-image
+    repository: docker.io/library/rabbitmq
+    version: 4.3.4-management
+    linux_amd64_digest: sha256:cd4fd60136781671d125ed68ac4b67900c0726b55e2e8b98719daa616a63240b
+    pull_reference: docker.io/library/rabbitmq@sha256:cd4fd60136781671d125ed68ac4b67900c0726b55e2e8b98719daa616a63240b
+    trust_accepted: true
+  topology: direct-single-node-statefulset
   consumers:
     cristexhub-dev:
-      vhost: dedicated-vhost
-      principal: dedicated-workload-user
+      vhost: /cristexhub-dev
+      principal: cristexhub_dev_rabbitmq
       credential_value_owner: infisical-cloud
       permissions_scope: dedicated-vhost-only
       limits_scope: dedicated
       recovery_scope: dedicated
     cristexhub-prod:
-      vhost: dedicated-vhost
-      principal: dedicated-workload-user
+      vhost: /cristexhub-prod
+      principal: cristexhub_prod_rabbitmq
       credential_value_owner: infisical-cloud
       permissions_scope: dedicated-vhost-only
       limits_scope: dedicated
@@ -57,9 +58,10 @@ authorization:
     - public-management-access
 exposure:
   future_scope: cluster-internal-only
-  service_identity: null
-  amqp_port: null
-  management_port: null
+  service_identity: shared-rabbitmq-amqps
+  management_service_identity: shared-rabbitmq-management
+  amqp_port: 5671
+  management_port: 15671
   management_route: private-authenticated-only
   forbidden:
     - Ingress
@@ -69,21 +71,31 @@ exposure:
     - public-route
     - public-management
 storage:
-  storage_class: unselected
-  capacity: unselected
-  access_mode: unselected
-  data_path: unselected
-  retention_and_reclaim: unselected
+  storage_class: local-path
+  capacity: 20Gi
+  access_mode: ReadWriteOnce
+  data_path: /var/lib/rabbitmq
+  retention_and_reclaim: retained
 resources:
-  requests: unselected
-  limits: unselected
-  connection_limits: unselected
-  queue_limits: unselected
-  vhost_limits: unselected
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  connection_limits: dedicated-per-consumer
+  queue_limits: dedicated-per-consumer
+  vhost_limits: dedicated-per-consumer
 tls:
   required: true
   certificate_value_owner: infisical-cloud
-  exact_identity_selected: false
+  exact_identity_selected: true
+  sans:
+    - localhost
+    - shared-rabbitmq.shared-services.svc
+    - shared-rabbitmq.shared-services.svc.cluster.local
+  amqp_listener: amqps-only
+  management_listener: https-only
 backup_and_restore:
   policy_path: ansible/files/policies/shared-stateful-backup-architecture.yml
   definitions_scope: definitions-and-policies
@@ -92,13 +104,13 @@ backup_and_restore:
   definitions_restore_proved: false
   message_reconciliation_proved: false
 promotion_gates:
-  immutable_source_selected: false
-  image_trust_and_recovery_accepted: false
-  topology_accepted: false
-  storage_design_accepted: false
-  resources_and_limits_accepted: false
-  tls_design_accepted: false
-  network_policy_accepted: false
+  immutable_source_selected: true
+  image_trust_and_recovery_accepted: true
+  topology_accepted: true
+  storage_design_accepted: true
+  resources_and_limits_accepted: true
+  tls_design_accepted: true
+  network_policy_accepted: true
   infisical_bootstrap_recovery_proved: false
   definitions_restore_proved: false
   message_reconciliation_proved: false

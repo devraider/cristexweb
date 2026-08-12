@@ -25,7 +25,7 @@ class SharedRabbitMqArchitectureContractTests(unittest.TestCase):
     def test_exact_engine_placement_and_consumer_closure(self) -> None:
         self.assertEqual("cristex-shared-rabbitmq-v1", self.policy["policy_schema"])
         self.assertEqual(
-            "source-policy-only-runtime-blocked", self.policy["policy_status"]
+            "source-selected-runtime-blocked", self.policy["policy_status"]
         )
         self.assertEqual("shared-services", self.policy["namespace"])
         engine = self.policy["engine"]
@@ -38,8 +38,8 @@ class SharedRabbitMqArchitectureContractTests(unittest.TestCase):
 
     def test_consumers_have_dedicated_value_free_isolation_scopes(self) -> None:
         for consumer in self.policy["engine"]["consumers"].values():
-            self.assertEqual("dedicated-vhost", consumer["vhost"])
-            self.assertEqual("dedicated-workload-user", consumer["principal"])
+            self.assertTrue(consumer["vhost"].startswith("/cristexhub-"))
+            self.assertTrue(consumer["principal"].startswith("cristexhub_"))
             self.assertEqual("infisical-cloud", consumer["credential_value_owner"])
             self.assertEqual("dedicated-vhost-only", consumer["permissions_scope"])
             self.assertEqual("dedicated", consumer["limits_scope"])
@@ -97,27 +97,26 @@ class SharedRabbitMqArchitectureContractTests(unittest.TestCase):
 
     def test_source_storage_network_and_runtime_gates_remain_blocked(self) -> None:
         source = self.policy["engine"]["source"]
-        self.assertEqual("unselected", source["selection"])
-        self.assertIsNone(source["repository"])
-        self.assertIsNone(source["version"])
-        self.assertIsNone(source["linux_amd64_digest"])
-        self.assertFalse(source["trust_accepted"])
-        self.assertEqual("unselected", self.policy["engine"]["topology"])
-        self.assertEqual("unselected", self.policy["storage"]["storage_class"])
-        self.assertEqual("unselected", self.policy["storage"]["capacity"])
+        self.assertEqual("official-docker-image", source["selection"])
+        self.assertEqual("docker.io/library/rabbitmq", source["repository"])
+        self.assertEqual("4.3.4-management", source["version"])
+        self.assertEqual("sha256:cd4fd60136781671d125ed68ac4b67900c0726b55e2e8b98719daa616a63240b", source["linux_amd64_digest"])
+        self.assertTrue(source["trust_accepted"])
+        self.assertEqual("direct-single-node-statefulset", self.policy["engine"]["topology"])
+        self.assertEqual("local-path", self.policy["storage"]["storage_class"])
+        self.assertEqual("20Gi", self.policy["storage"]["capacity"])
         self.assertEqual("cluster-internal-only", self.policy["exposure"]["future_scope"])
-        self.assertIsNone(self.policy["exposure"]["service_identity"])
-        self.assertIsNone(self.policy["exposure"]["amqp_port"])
-        self.assertIsNone(self.policy["exposure"]["management_port"])
-        self.assertTrue(
-            all(value is False for value in self.policy["promotion_gates"].values())
-        )
+        self.assertEqual("shared-rabbitmq-amqps", self.policy["exposure"]["service_identity"])
+        self.assertEqual(5671, self.policy["exposure"]["amqp_port"])
+        self.assertEqual(15671, self.policy["exposure"]["management_port"])
+        self.assertTrue(self.policy["promotion_gates"]["immutable_source_selected"])
+        self.assertFalse(self.policy["promotion_gates"]["runtime_approved"])
         self.assertFalse(self.policy["executable_source_allowed"])
 
     def test_runbook_preserves_private_policy_only_boundaries(self) -> None:
         normalized = " ".join(self.runbook_text.split())
         for required in (
-            "POLICY ONLY — RUNTIME BLOCKED",
+            "SOURCE SELECTED — RUNTIME BLOCKED",
             "one shared RabbitMQ engine",
             "dedicated vhost",
             "future consumer",
