@@ -137,3 +137,52 @@ Until these gates close, the rollback for this increment is only a Git revert of
 this documentation and its offline contract test. There is no runtime rollback
 because no Cloudflare resource, token, Kubernetes object, route, or deployment was
 created.
+
+## Phased route contract — source-only, runtime blocked
+
+The future traffic path is fixed as:
+
+`Cloudflare → cloudflared/platform-edge → Traefik/kube-system → Keycloak/shared-services`.
+
+This is a value-free architecture contract only. It does not add cloudflared
+manifests, a tunnel, DNS, an Ingress, an API token, a Tunnel token, or a public
+route. The canonical policy is
+[`ansible/files/policies/cloudflare-edge-architecture.yml`](../ansible/files/policies/cloudflare-edge-architecture.yml).
+
+### Explicit phase boundaries
+
+Each phase requires its own review and approval; approval of one phase never
+implies another:
+
+1. Verify the Cloudflare account and zone identity with read-only access.
+2. Review OpenTofu provider/state custody, encryption, off-node backup, and restore.
+3. Create the exact remotely managed Tunnel and materialize its token from
+   Infisical path `prod:/platform-edge/cloudflared`, key
+   `CLOUDFLARE_TUNNEL_TOKEN`, without value output.
+4. Reconcile one private cloudflared connector in `platform-edge` only after
+   Argo CD ownership handoff is evidenced (or a separate bounded bootstrap is
+   approved). No cloudflared object may be placed in `shared-services`.
+5. Reconcile the exact Traefik route to the private `keycloak` Service only.
+6. Publish the reviewed `auth.cristex-soft.com` DNS/hostname route.
+7. Run private and public positive/negative validation, then separately approve
+   any production cutover.
+
+No runtime phase is currently approved or run. The token must never appear in
+Git, OpenTofu state/plan, argv, environment examples, logs, or evidence.
+
+### Route and negative tests
+
+The only future public surface is browser authentication for the reviewed
+`cristexhub` realm. Keycloak administration, management, master realm,
+health/metrics, Argo CD, DEV, PostgreSQL, MongoDB, RabbitMQ, and direct origin
+addresses must remain publicly unreachable. The connector must not expose its
+metrics, debug, diagnostics, configuration, or quick-tunnel handlers. The
+connection-aware readiness endpoint is required; an independent health response
+alone is insufficient.
+
+Before route approval, evidence must show the exact Cloudflare-to-connector-to-
+Traefik-to-Keycloak flow, private origin reachability, positive issuer/discovery,
+negative public admin/management and data reachability, direct-origin closure,
+and no token-bearing evidence. A route rollback must disable only the exact
+route/record, preserve private Keycloak health, retain administrative privacy,
+and prove zero token residue. Routine rollback must not use blind destroy.

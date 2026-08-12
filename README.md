@@ -467,3 +467,12 @@ passed `ok=39 changed=7`; proxy Secret bootstrap passed `ok=15 changed=1`. The
 Infisical Operator then passed check `ok=24 changed=2`, apply `ok=29 changed=2`, and
 idempotence `ok=29 changed=0`. Universal Auth, database Secrets, and database runtime
 remain **NOT RUN/BLOCKED**.
+
+The source-only Cloudflare edge policy now fixes the phased future flow
+`Cloudflare → cloudflared/platform-edge → Traefik/kube-system → Keycloak/shared-services`.
+It separates Cloudflare account/state, Tunnel/token, connector, Traefik, DNS,
+validation, and production approvals; requires negative public reachability for
+Keycloak administration/management, master, health/metrics, DEV, Argo, databases,
+RabbitMQ, and direct origins; and defines exact-route rollback. It adds no
+cloudflared runtime source, Tunnel, DNS record, Ingress, token, or public route;
+runtime remains **NOT RUN/BLOCKED**.

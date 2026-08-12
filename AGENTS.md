@@ -216,3 +216,22 @@ removes only exact host ciphertext staging residue.
 5. Every task or lane executed in parallel must use its own git worktree. Never allow parallel writers to share a checkout; the orchestrator integrates and validates worktree results.
 6. There are no real clients yet. Within the repository's safety and approval boundaries, prefer the fastest reversible solution and iteration speed over complexity, premature abstraction, or long-term optimization; assume the implementation may be rewritten.
 7. One-time operational work, such as initial server setup, may be handled in real time outside the full recurring loop when that is faster. This exception does not waive any Safety gate, explicit operator approval, verification, or accurate evidence requirement in this file.
+
+## Cloudflare edge source-only boundary
+
+The approved architecture direction is `Cloudflare -> cloudflared/platform-edge ->
+Traefik/kube-system -> Keycloak/shared-services`. The value-free canonical policy
+is `ansible/files/policies/cloudflare-edge-architecture.yml`, with the phased
+source-only route contract recorded in `runbooks/cloudflared-candidate-provenance.md`.
+Cloudflare account/state, Tunnel/token, connector, Traefik, DNS, validation, and
+production cutover each require separate explicit approval; no phase implies
+another. The future public surface is only the reviewed Keycloak browser-auth
+hostname. Keycloak administration/management/master/health/metrics, DEV, Argo,
+data services, and direct origins must remain publicly unreachable. The Tunnel
+token belongs only in Infisical at `prod:/platform-edge/cloudflared`, key
+`CLOUDFLARE_TUNNEL_TOKEN`; it must never enter Git, OpenTofu state/plan, argv,
+environment examples, logs, or evidence. No cloudflared executable source,
+Tunnel, DNS record, route, or runtime is currently approved or run. Rollback
+must disable only the exact route/record, preserve private Keycloak health and
+administrative privacy, rotate/revoke the token through Infisical when needed,
+and avoid blind destroy.
