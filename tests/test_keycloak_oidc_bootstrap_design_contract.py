@@ -127,11 +127,14 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         )
         self.assertFalse(any(path.name in {"Chart.yaml", "values.yaml"} for path in KUBERNETES.rglob("*")))
         self.assertEqual(
-            {"README.md", "backend.tf", "providers.tf", "versions.tf"},
+            {
+                "README.md", "backend.tf", "cloudflare.tf", "outputs.tf",
+                "providers.tf", "variables.tf", "versions.tf",
+            },
             {path.name for path in OPENTOFU.iterdir() if path.is_file()},
         )
         combined_tofu = "\n".join(path.read_text() for path in OPENTOFU.glob("*.tf"))
-        self.assertNotRegex(combined_tofu, r"(?m)^\s*(?:resource|data|module|import|variable|output)\s+")
+        self.assertNotRegex(combined_tofu, r"(?m)^\s*(?:data|module|import)\s+")
         self.assertEqual(
             {"ci.yml"},
             {

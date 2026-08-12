@@ -34,7 +34,10 @@ class OpenTofuContractTests(unittest.TestCase):
 
     def test_scaffold_is_cloudflare_only_and_resource_free(self) -> None:
         self.assertEqual(
-            {"README.md", "backend.tf", "providers.tf", "versions.tf"},
+            {
+                "README.md", "backend.tf", "cloudflare.tf", "outputs.tf",
+                "providers.tf", "variables.tf", "versions.tf",
+            },
             {path.name for path in TOFU.iterdir() if path.is_file()},
         )
         for required in (
@@ -42,26 +45,30 @@ class OpenTofuContractTests(unittest.TestCase):
             'source  = "cloudflare/cloudflare"',
             'version = "= 5.23.0"',
             'provider "cloudflare" {}',
+            'resource "cloudflare_zero_trust_tunnel_cloudflared"',
+            'resource "cloudflare_zero_trust_tunnel_cloudflared_config"',
+            'resource "cloudflare_dns_record"',
             'backend "local"',
             'path = "/var/lib/opentofu/cristexweb/foundation.tfstate"',
         ):
             self.assertIn(required, self.hcl)
         for forbidden in (
-            'resource "',
-            'data "',
-            'module "',
-            'variable "',
-            'output "',
-            'import {',
-            'moved {',
-            "hashicorp/kubernetes",
-            "hashicorp/helm",
-            "integrations/github",
-            "kubernetes_",
-            "helm_",
-            "kubectl_",
+            'data "', 'module "', 'import {', 'moved {',
+            "hashicorp/kubernetes", "hashicorp/helm", "integrations/github",
+            "kubernetes_", "helm_", "kubectl_", "tunnel_secret",
+            "zero_trust_tunnel_cloudflared_token",
         ):
             self.assertNotIn(forbidden, self.hcl)
+
+    def test_cloudflare_exposure_and_token_boundary(self) -> None:
+        for required in (
+            'config_src = "cloudflare"', 'source     = "cloudflare"',
+            'hostname = var.public_hostname', 'service = "http_status:404"',
+            'type    = "CNAME"', 'proxied = true', 'prevent_destroy = true',
+            'MANUAL_INFISICAL_HANDOFF_REQUIRED',
+        ):
+            self.assertIn(required, self.hcl)
+        self.assertNotIn('cloudflare_zero_trust_tunnel_cloudflared_token', self.hcl)
 
     def test_installer_is_exactly_pinned_gated_and_provenanced(self) -> None:
         for required in (

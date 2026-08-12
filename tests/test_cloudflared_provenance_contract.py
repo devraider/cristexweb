@@ -153,7 +153,10 @@ class CloudflaredCandidateProvenanceContractTests(unittest.TestCase):
             any(path.name in {"Chart.yaml", "values.yaml"} for path in KUBERNETES.rglob("*"))
         )
         self.assertEqual(
-            {"README.md", "backend.tf", "providers.tf", "versions.tf"},
+            {
+                "README.md", "backend.tf", "cloudflare.tf", "outputs.tf",
+                "providers.tf", "variables.tf", "versions.tf",
+            },
             {path.name for path in OPENTOFU.iterdir() if path.is_file()},
         )
         self.assertEqual(
@@ -162,8 +165,11 @@ class CloudflaredCandidateProvenanceContractTests(unittest.TestCase):
         )
         self.assertEqual('provider "cloudflare" {}\n', (OPENTOFU / "providers.tf").read_text())
         hcl = "\n".join(path.read_text() for path in OPENTOFU.glob("*.tf"))
-        for forbidden_block in ("resource", "data", "module", "import", "variable", "output"):
+        for forbidden_block in ("data", "module", "import"):
             self.assertNotRegex(hcl, rf"(?m)^\s*{forbidden_block}\s+[\"{{]")
+        self.assertIn('resource "cloudflare_zero_trust_tunnel_cloudflared"', hcl)
+        self.assertNotIn("tunnel_secret", hcl)
+        self.assertNotIn("zero_trust_tunnel_cloudflared_token", hcl)
 
     def test_candidate_record_hygiene_and_documentation_links(self) -> None:
         self.assertNotIn("```", self.text)

@@ -224,12 +224,16 @@ class InfisicalOperatorCandidateProvenanceContractTests(unittest.TestCase):
             )
         )
         self.assertEqual(
-            {"README.md", "backend.tf", "providers.tf", "versions.tf"},
+            {
+                "README.md", "backend.tf", "cloudflare.tf", "outputs.tf",
+                "providers.tf", "variables.tf", "versions.tf",
+            },
             {path.name for path in OPENTOFU.iterdir() if path.is_file()},
         )
         hcl = "\n".join(path.read_text() for path in OPENTOFU.glob("*.tf"))
-        for forbidden_block in ("resource", "data", "module", "import", "variable", "output"):
+        for forbidden_block in ("data", "module", "import"):
             self.assertNotRegex(hcl, rf"(?m)^\s*{forbidden_block}\s+[\"{{]")
+        self.assertIn('resource "cloudflare_zero_trust_tunnel_cloudflared"', hcl)
 
         for relative in (
             "README.md",
