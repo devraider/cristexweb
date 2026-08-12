@@ -56,7 +56,7 @@ reboot recovery playbook, and the executed temporary NetworkPolicy probe under
 `ansible/`. Effective-user readability, warning-free
 fresh-session cluster listing, both idempotence checks, SSH/Tailscale return, Ready
 node, and kubeconfig recovery passed.
-Python is used for offline contract tests and seventeen exact-scope Ansible action
+Python is used for offline contract tests and twenty exact-scope Ansible action
 plugins: seven Namespace/Infisical/database Secret mutation guards, two guarded host
 rclone install/transfer boundaries, two no-log Secret cryptographic validators, two
 MongoDB/PostgreSQL object-closure guards, and two fixed logical-provisioning guards.
