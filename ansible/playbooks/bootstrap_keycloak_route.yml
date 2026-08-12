@@ -1,0 +1,7 @@
+---
+- name: Guarded Keycloak route bootstrap
+  hosts: k3s_servers
+  gather_facts: false
+  become: false
+  roles:
+    - role: keycloak_route_bootstrap

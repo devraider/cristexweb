@@ -175,6 +175,8 @@ metadata:
                 ANSIBLE / "bin/upload-infisical-bootstrap-values",
                 ANSIBLE / "bin/bootstrap-cloudflared",
                 ANSIBLE / "bin/bootstrap-infisical-cloudflared-secrets",
+                ANSIBLE / "bin/bootstrap-keycloak-route",
+                ANSIBLE / "bin/configure-opentofu-state-backup",
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()},
         )

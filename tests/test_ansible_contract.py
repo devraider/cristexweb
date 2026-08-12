@@ -45,8 +45,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/database_provisioning_guarded_k8s.py"),
             Path("ansible/plugins/action/cloudflared_guarded_k8s.py"),
             Path("ansible/plugins/action/infisical_cloudflared_secrets_guarded_k8s.py"),
+            Path("ansible/plugins/action/keycloak_route_guarded_k8s.py"),
         }
-        self.assertEqual(19, len(allowed_action_plugins))
+        self.assertEqual(20, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -138,11 +139,22 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/cloudflared_bootstrap/tasks/main.yml",
             "roles/infisical_cloudflared_secrets_bootstrap/defaults/main.yml",
             "roles/infisical_cloudflared_secrets_bootstrap/tasks/main.yml",
+            "bin/bootstrap-keycloak-route",
+            "playbooks/bootstrap_keycloak_route.yml",
+            "plugins/action/keycloak_route_guarded_k8s.py",
+            "roles/keycloak_route_bootstrap/defaults/main.yml",
+            "roles/keycloak_route_bootstrap/tasks/main.yml",
             "playbooks/configure_rabbitmq_definitions_backup.yml",
             "files/backup/rabbitmq-shared-definitions-backup",
             "files/backup/restore-rabbitmq-definitions-rehearsal",
             "files/backup/cristexweb-rabbitmq-definitions-backup.service",
             "files/backup/cristexweb-rabbitmq-definitions-backup.timer",
+            "files/backup/cristexweb-opentofu-state-backup.service",
+            "files/backup/cristexweb-opentofu-state-backup.timer",
+            "files/backup/opentofu-state-backup",
+            "files/backup/restore-opentofu-state-rehearsal",
+            "bin/configure-opentofu-state-backup",
+            "playbooks/configure_opentofu_state_backup.yml",
             "bin/provision-shared-postgresql",
             "bin/provision-shared-mongodb",
             "playbooks/provision_shared_postgresql.yml",
@@ -260,6 +272,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "infisical-rabbitmq-secrets",
             "cloudflared",
             "infisical-cloudflared-secrets",
+            "keycloak-route",
         ):
             required.extend(
                 str(path.relative_to(ANSIBLE))

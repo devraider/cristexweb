@@ -1,0 +1,14 @@
+---
+keycloak_route_bootstrap_approved: false
+keycloak_route_bootstrap_state: present
+keycloak_route_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+keycloak_route_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+keycloak_route_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+keycloak_route_bootstrap_manifest_paths:
+  - "{{ keycloak_route_bootstrap_repository_root }}/ansible/files/components/keycloak-route/network/allow-traefik.yaml"
+  - "{{ keycloak_route_bootstrap_repository_root }}/ansible/files/components/keycloak-route/route/ingress-auth.yaml"
+keycloak_route_bootstrap_object_count: 2
+keycloak_route_bootstrap_namespace: shared-services
+keycloak_route_bootstrap_expected_hashes:
+  network/allow-traefik.yaml: 596523166734ce470cc1baa5ecef90b84414a58ac0310049fcc5b6e7a541653a
+  route/ingress-auth.yaml: 449b770152c04bf2bf0fd7df131b60f8ad78799798d78d2b3671b73f7750c17f

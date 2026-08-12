@@ -152,9 +152,13 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "ansible/bin/bootstrap-keycloak",
+                "ansible/bin/bootstrap-keycloak-route",
                 "ansible/playbooks/bootstrap_keycloak.yml",
                 "ansible/roles/keycloak_bootstrap/defaults/main.yml",
                 "ansible/roles/keycloak_bootstrap/tasks/main.yml",
+                "ansible/playbooks/bootstrap_keycloak_route.yml",
+                "ansible/roles/keycloak_route_bootstrap/defaults/main.yml",
+                "ansible/roles/keycloak_route_bootstrap/tasks/main.yml",
             },
             {
                 str(path.relative_to(ROOT))
@@ -210,6 +214,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "infisical-rabbitmq-secrets",
             "cloudflared",
             "infisical-cloudflared-secrets",
+            "keycloak-route",
             "rabbitmq",
             "mongodb",
             "mongodb-operator",
