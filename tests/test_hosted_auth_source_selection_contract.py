@@ -307,6 +307,10 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "ansible/playbooks/bootstrap_keycloak.yml",
                 "ansible/roles/keycloak_bootstrap/defaults/main.yml",
                 "ansible/roles/keycloak_bootstrap/tasks/main.yml",
+                "ansible/bin/bootstrap-keycloak-route",
+                "ansible/playbooks/bootstrap_keycloak_route.yml",
+                "ansible/roles/keycloak_route_bootstrap/defaults/main.yml",
+                "ansible/roles/keycloak_route_bootstrap/tasks/main.yml",
             },
             {
                 str(path.relative_to(ROOT))

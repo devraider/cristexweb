@@ -143,7 +143,7 @@ evidence. Separate guarded [logical database provisioning](runbooks/shared-datab
 consumes precreated per-consumer Secrets through temporary UID-bound helper Pods;
 all empty reservations and PROD activation remain **NOT RUN/BLOCKED**. No general
 host baseline or deployment exists.
-Python is otherwise test-only; twenty-one exact-scope Ansible action plugins are
+Python is otherwise test-only; twenty exact-scope Ansible action plugins are
 the reviewed focused exception—seven enforce existing Namespace/Infisical/database
 Secret mutation boundaries, two guard host rclone install/transfer, two perform no-log
 cryptographic validation of exact Argo and stateful-database Secret contracts, two

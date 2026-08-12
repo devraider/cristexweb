@@ -216,6 +216,7 @@ metadata:
                 ANSIBLE / "bin/configure-rabbitmq-definitions-backup",
                 ANSIBLE / "bin/bootstrap-cloudflared",
                 ANSIBLE / "bin/bootstrap-infisical-cloudflared-secrets",
+                ANSIBLE / "bin/bootstrap-keycloak-route",
                 ANSIBLE / "bin/configure-opentofu-state-backup",
                 ANSIBLE / "bin/provision-shared-postgresql",
                 ANSIBLE / "bin/provision-shared-mongodb",

@@ -59,7 +59,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "specs/k3s-iac-foundation/status.md",
         ):
             normalized = " ".join((ROOT / relative).read_text().split())
-            self.assertIn("twenty-one exact-scope Ansible action plugins", normalized, relative)
+            self.assertIn("twenty exact-scope Ansible action plugins", normalized, relative)
 
     def test_minimal_ansible_layout_exists(self) -> None:
         required = [

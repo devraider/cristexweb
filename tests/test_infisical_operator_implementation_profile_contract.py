@@ -287,7 +287,7 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
         )
         component_root = ROOT / "ansible/files/components/infisical-operator"
         self.assertTrue(component_root.is_dir())
-        self.assertEqual(40, len(list(component_root.rglob("*.yaml"))))
+        self.assertEqual(42, len(list(component_root.rglob("*.yaml"))))
 
         normalized = " ".join(self.runbook.split())
         for required in (

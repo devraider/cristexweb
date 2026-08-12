@@ -546,7 +546,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             self.assertNotIn(forbidden, text)
         self.assertFalse(any(obj["kind"] == "Secret" for obj in self.objects))
         idle = ROOT / "ansible/files/components/infisical-operator"
-        self.assertEqual(40, len(list(idle.rglob("*.yaml"))))
+        self.assertEqual(42, len(list(idle.rglob("*.yaml"))))
         self.assertIn("runtime remains **NOT RUN/BLOCKED**", (ROOT / "runbooks/infisical-argocd-secret-materialization.md").read_text())
 
 
