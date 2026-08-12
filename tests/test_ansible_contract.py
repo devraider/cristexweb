@@ -61,6 +61,7 @@ class AnsibleLayoutTests(unittest.TestCase):
     def test_minimal_ansible_layout_exists(self) -> None:
         required = [
             ".ansible-lint",
+            ".ansible-lint-ignore",
             "ansible.cfg",
             "requirements.yml",
             "README.md",
