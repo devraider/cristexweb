@@ -1,0 +1,23 @@
+apiVersion: secrets.infisical.com/v1beta1
+kind: InfisicalAuth
+metadata:
+  name: cloudflared-infisical-auth
+  namespace: platform-edge
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-cloudflared-secrets
+spec:
+  infisicalConnectionRef:
+    name: infisical-cloud
+    namespace: platform-edge
+  method: universal
+  universal:
+    clientIdRef:
+      name: cloudflared-infisical-universal-auth
+      namespace: platform-edge
+      key: clientId
+    clientSecretRef:
+      name: cloudflared-infisical-universal-auth
+      namespace: platform-edge
+      key: clientSecret
