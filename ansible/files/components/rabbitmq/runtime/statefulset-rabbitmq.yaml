@@ -1,0 +1,152 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: shared-rabbitmq
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: shared-rabbitmq
+    app.kubernetes.io/part-of: shared-rabbitmq
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/component: rabbitmq
+    cristex.io/desired-owner: argocd
+spec:
+  serviceName: shared-rabbitmq-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shared-rabbitmq
+      app.kubernetes.io/part-of: shared-rabbitmq
+  updateStrategy:
+    type: RollingUpdate
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  volumeClaimTemplates:
+    - metadata:
+        name: rabbitmq-data
+        labels:
+          app.kubernetes.io/name: shared-rabbitmq
+          app.kubernetes.io/part-of: shared-rabbitmq
+          app.kubernetes.io/managed-by: ansible
+          cristex.io/component: rabbitmq
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 20Gi
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: shared-rabbitmq
+        app.kubernetes.io/part-of: shared-rabbitmq
+        app.kubernetes.io/managed-by: ansible
+        cristex.io/component: rabbitmq
+        cristex.io/rabbitmq-client: shared-rabbitmq
+    spec:
+      serviceAccountName: shared-rabbitmq
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 120
+      initContainers:
+        - name: definitions
+          image: docker.io/library/rabbitmq@sha256:cd4fd60136781671d125ed68ac4b67900c0726b55e2e8b98719daa616a63240b
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              umask 077
+              u=$(cat /run/rabbitmq-secrets/admin/username)
+              p=$(cat /run/rabbitmq-secrets/admin/password)
+              du=$(cat /run/rabbitmq-secrets/dev/username)
+              dp=$(cat /run/rabbitmq-secrets/dev/password)
+              pu=$(cat /run/rabbitmq-secrets/prod/username)
+              pp=$(cat /run/rabbitmq-secrets/prod/password)
+              printf '{"users":[{"name":"%s","password":"%s","tags":"administrator"},{"name":"%s","password":"%s","tags":""},{"name":"%s","password":"%s","tags":""}],"vhosts":[{"name":"/cristexhub-dev"},{"name":"/cristexhub-prod"}],"permissions":[{"user":"%s","vhost":"/cristexhub-dev","configure":"^$","write":"^[^*]+$","read":"^[^*]+$"},{"user":"%s","vhost":"/cristexhub-prod","configure":"^$","write":"^[^*]+$","read":"^[^*]+$"}]}' "$u" "$p" "$du" "$dp" "$pu" "$pp" "$du" "$pu" > /run/definitions/definitions.json
+              chmod 0600 /run/definitions/definitions.json
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - {name: definitions, mountPath: /run/definitions}
+            - {name: admin-secret, mountPath: /run/rabbitmq-secrets/admin, readOnly: true}
+            - {name: dev-secret, mountPath: /run/rabbitmq-secrets/dev, readOnly: true}
+            - {name: prod-secret, mountPath: /run/rabbitmq-secrets/prod, readOnly: true}
+      containers:
+        - name: rabbitmq
+          image: docker.io/library/rabbitmq@sha256:cd4fd60136781671d125ed68ac4b67900c0726b55e2e8b98719daa616a63240b
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: amqps, containerPort: 5671, protocol: TCP}
+            - {name: management-https, containerPort: 15671, protocol: TCP}
+          env:
+            - {name: RABBITMQ_CONFIG_FILE, value: /etc/rabbitmq/rabbitmq.conf}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          startupProbe:
+            exec:
+              command: [rabbitmq-diagnostics, -q, check_running]
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command: [rabbitmq-diagnostics, -q, check_running]
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: [rabbitmq-diagnostics, -q, check_running]
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - {name: rabbitmq-data, mountPath: /var/lib/rabbitmq}
+            - {name: config, mountPath: /etc/rabbitmq/rabbitmq.conf, subPath: rabbitmq.conf, readOnly: true}
+            - {name: config, mountPath: /etc/rabbitmq/enabled_plugins, subPath: enabled_plugins, readOnly: true}
+            - {name: tls, mountPath: /etc/rabbitmq/tls, readOnly: true}
+            - {name: definitions, mountPath: /etc/rabbitmq/definitions, readOnly: true}
+      volumes:
+        - name: config
+          configMap:
+            name: shared-rabbitmq-config
+            defaultMode: 0444
+        - name: tls
+          secret:
+            secretName: shared-rabbitmq-tls
+            defaultMode: 0440
+        - name: definitions
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+        - name: admin-secret
+          secret:
+            secretName: shared-rabbitmq-admin
+            items: [{key: username, path: username}, {key: password, path: password}]
+            defaultMode: 0440
+        - name: dev-secret
+          secret:
+            secretName: shared-rabbitmq-cristexhub-dev
+            items: [{key: username, path: username}, {key: password, path: password}]
+            defaultMode: 0440
+        - name: prod-secret
+          secret:
+            secretName: shared-rabbitmq-cristexhub-prod
+            items: [{key: username, path: username}, {key: password, path: password}]
+            defaultMode: 0440

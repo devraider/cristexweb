@@ -1,0 +1,34 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: shared-rabbitmq-allow-ingress
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: shared-rabbitmq
+    app.kubernetes.io/part-of: shared-rabbitmq
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: rabbitmq
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: shared-rabbitmq
+      app.kubernetes.io/part-of: shared-rabbitmq
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: [cristexhub-dev, cristexhub-prod]
+          podSelector:
+            matchLabels:
+              cristex.io/rabbitmq-client: shared-rabbitmq
+      ports:
+        - {protocol: TCP, port: 5671}
+    - from:
+        - podSelector:
+            matchLabels:
+              cristex.io/rabbitmq-management-client: "true"
+      ports:
+        - {protocol: TCP, port: 15671}

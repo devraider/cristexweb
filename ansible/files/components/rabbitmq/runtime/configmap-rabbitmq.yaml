@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shared-rabbitmq-config
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: shared-rabbitmq
+    app.kubernetes.io/part-of: shared-rabbitmq
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: rabbitmq
+data:
+  enabled_plugins: |
+    [rabbitmq_management].
+  rabbitmq.conf: |
+    listeners.tcp = none
+    listeners.ssl.default = 5671
+    ssl_options.cacertfile = /etc/rabbitmq/tls/ca.crt
+    ssl_options.certfile = /etc/rabbitmq/tls/tls.crt
+    ssl_options.keyfile = /etc/rabbitmq/tls/tls.key
+    ssl_options.verify = verify_none
+    ssl_options.fail_if_no_peer_cert = false
+    management.tcp.port = none
+    management.ssl.port = 15671
+    management.ssl.cacertfile = /etc/rabbitmq/tls/ca.crt
+    management.ssl.certfile = /etc/rabbitmq/tls/tls.crt
+    management.ssl.keyfile = /etc/rabbitmq/tls/tls.key
+    management.load_definitions = /etc/rabbitmq/definitions/definitions.json
+    loopback_users.guest = false
+    disk_free_limit.absolute = 2GB
+    vm_memory_high_watermark.relative = 0.6
