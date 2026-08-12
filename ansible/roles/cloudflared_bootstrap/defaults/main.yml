@@ -13,11 +13,11 @@ cloudflared_bootstrap_manifest_paths:
   - "{{ cloudflared_bootstrap_repository_root }}/ansible/files/components/cloudflared/runtime/deployment-cloudflared.yaml"
 cloudflared_bootstrap_object_count: 5
 cloudflared_bootstrap_expected_hashes:
-  network/cloudflared-allow-egress.yaml: fce78463a40f32a168d76fe5a12040d5858819d481bbf68f6ef79c1188715a8c
+  network/cloudflared-allow-egress.yaml: 18c57482889f584cf56f0354de56fefa71225a51e2ba45f4d74e505234215580
   network/cloudflared-allow-traefik-origin.yaml: 14eda1346a2f5e284bbee4d36c766880adc9cdfa69d6fdf25008bab39ed5bf17
   network/cloudflared-default-deny.yaml: 93df153fd30d7ec7584efb16d400e60df4f00b5ccd66114717ca62a41cb5e345
   rbac/serviceaccount-cloudflared.yaml: 83fce17e99d8d09689acd95b5a1f0821f837fb3efe90f727017e92d16694b10d
-  runtime/deployment-cloudflared.yaml: fd6faeef8f17ebfe562fc12b3ccadc9b77433eaddb5f03ada491d945dc99edc9
+  runtime/deployment-cloudflared.yaml: f0be1e2308d20434bcfd2744be860a168a31112e73f30c707fbe8107bba0e4f4
 
 cloudflared_bootstrap_identity_set_sha256: edc38bcf9d7f0313076c47a3c70c8f2ca878dfed2a2dcf0ea190eca06e8a29db
 cloudflared_bootstrap_namespace: platform-edge

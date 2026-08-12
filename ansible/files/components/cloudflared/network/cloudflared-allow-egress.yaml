@@ -41,6 +41,9 @@ spec:
               - 198.18.0.0/15
               - 198.51.100.0/24
               - 203.0.113.0/24
+      # Cloudflare publishes a changing anycast endpoint set; Kubernetes NetworkPolicy
+      # cannot safely express DNS-name or provider-owned IP-set egress. This bounded
+      # public 7844 exception is therefore explicit and must be enforced upstream.
       ports:
         - {protocol: TCP, port: 7844}
         - {protocol: UDP, port: 7844}

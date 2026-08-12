@@ -104,6 +104,9 @@ class CloudflaredCandidateProvenanceContractTests(unittest.TestCase):
             "restrict the metrics, debug, quick-tunnel, diagnostics, and configuration surface",
             "Readiness must use connection-aware `/ready`; `/healthcheck` alone cannot prove that the tunnel can carry traffic",
             "does not copy the published address lists",
+            "Kubernetes NetworkPolicy cannot express DNS-name or Cloudflare-managed anycast IP-set destinations",
+            "bounded public TCP/UDP `7844` exception",
+            "compensated by node/host egress controls",
         ):
             self.assertIn(required, self.normalized)
 

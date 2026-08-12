@@ -51,7 +51,10 @@
       - not (cloudflared_bootstrap_internal_attestation_state.stat.islnk | default(false))
       - cloudflared_bootstrap_internal_attestation_state.stat.pw_name == cloudflared_bootstrap_controller_user
       - cloudflared_bootstrap_internal_attestation_state.stat.mode == '0600'
-      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_CLOUDFLARED_BOOTSTRAP_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_CLOUDFLARED_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_CLOUDFLARED_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CLOUDFLARED_BOOTSTRAP_TOKEN') ~ ':entrypoint'
     fail_msg: Refusing invalid cloudflared attestation.
   delegate_to: localhost
   changed_when: false
@@ -74,7 +77,10 @@
       - item.stat.isreg | default(false)
       - not (item.stat.islnk | default(false))
       - item.stat.mode == '0644'
-      - item.stat.checksum == cloudflared_bootstrap_expected_hashes[item.item | replace(cloudflared_bootstrap_repository_root ~ '/ansible/files/components/cloudflared/', '')]
+      - >-
+        item.stat.checksum == cloudflared_bootstrap_expected_hashes[
+        item.item | replace(cloudflared_bootstrap_repository_root ~
+        '/ansible/files/components/cloudflared/', '')]
       - item.item.startswith(cloudflared_bootstrap_repository_root ~ '/ansible/files/components/cloudflared/')
     fail_msg: Refusing missing, unsafe, or hash-drifted cloudflared source.
   loop: "{{ cloudflared_bootstrap_internal_manifest_states.results }}"
@@ -83,14 +89,19 @@
 
 - name: Load exact cloudflared objects
   ansible.builtin.set_fact:
-    cloudflared_bootstrap_internal_manifests: "{{ (cloudflared_bootstrap_internal_manifests | default([])) + [lookup('ansible.builtin.file', item) | from_yaml] }}"
+    cloudflared_bootstrap_internal_manifests: >-
+      {{ (cloudflared_bootstrap_internal_manifests | default([])) +
+      [lookup('ansible.builtin.file', item) | from_yaml] }}
   loop: "{{ cloudflared_bootstrap_manifest_paths }}"
   changed_when: false
   no_log: true
 
 - name: Bind exact cloudflared identities
   ansible.builtin.set_fact:
-    cloudflared_bootstrap_internal_identity_keys: "{{ (cloudflared_bootstrap_internal_identity_keys | default([])) + [item.apiVersion ~ '|' ~ item.kind ~ '|' ~ (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}"
+    cloudflared_bootstrap_internal_identity_keys: >-
+      {{ (cloudflared_bootstrap_internal_identity_keys | default([])) +
+      [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+      (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
   loop: "{{ cloudflared_bootstrap_internal_manifests }}"
   changed_when: false
   no_log: true
@@ -222,9 +233,26 @@
   ansible.builtin.assert:
     that:
       - item.resources | length == 1
+      - item.resources[0].apiVersion == item.item.apiVersion
+      - item.resources[0].kind == item.item.kind
+      - item.resources[0].metadata.namespace == item.item.metadata.namespace
+      - item.resources[0].metadata.name == item.item.metadata.name
+      - item.resources[0].metadata.labels == item.item.metadata.labels
       - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
       - item.resources[0].metadata.labels.get('cristex.io/component') == 'cloudflared'
+      - item.resources[0].metadata.uid is defined
   loop: "{{ cloudflared_bootstrap_internal_poststate.results | default([]) }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact cloudflared post-state closure
+  ansible.builtin.assert:
+    that:
+      - cloudflared_bootstrap_internal_poststate.results | length == cloudflared_bootstrap_object_count
+      - (cloudflared_bootstrap_internal_poststate.results | map(attribute='resources') | map('length') | list | sum) == cloudflared_bootstrap_object_count
+      - (cloudflared_bootstrap_internal_poststate.results | map(attribute='item.metadata.name') | list | unique | length) == cloudflared_bootstrap_object_count
+    fail_msg: Refusing incomplete or duplicate cloudflared live closure.
   changed_when: false
   no_log: true
   when: not ansible_check_mode

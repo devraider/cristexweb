@@ -88,7 +88,12 @@ prove that the tunnel can carry traffic.
 The official firewall documentation identifies the required edge transport and
 endpoints. This record intentionally does not copy the published address lists.
 Exact DNS, Cloudflare-edge, and selected Traefik origin flows must be reviewed and
-tested in the component NetworkPolicy before deployment.
+tested in the component NetworkPolicy before deployment. Kubernetes NetworkPolicy
+cannot express DNS-name or Cloudflare-managed anycast IP-set destinations; the
+source therefore has a bounded public TCP/UDP `7844` exception with reserved/private
+ranges excluded. This is an explicit residual, not an exact Cloudflare allowlist,
+and must be compensated by node/host egress controls or an equivalent upstream
+firewall before production acceptance.
 
 ## Blocking decisions and evidence
 

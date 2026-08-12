@@ -31,6 +31,10 @@ class CloudflaredRuntimeContractTests(unittest.TestCase):
         container = pod["spec"]["containers"][0]
         self.assertRegex(container["image"], r"cloudflare/cloudflared@sha256:[0-9a-f]{64}$")
         self.assertEqual(65532, pod["spec"]["securityContext"]["runAsUser"])
+        self.assertEqual(65532, pod["spec"]["securityContext"]["runAsGroup"])
+        self.assertEqual(65532, pod["spec"]["securityContext"]["fsGroup"])
+        self.assertEqual("OnRootMismatch", pod["spec"]["securityContext"]["fsGroupChangePolicy"])
+        self.assertIn(pod["spec"]["volumes"][0]["secret"]["defaultMode"], (0o440, "0440"))
         self.assertTrue(container["securityContext"]["readOnlyRootFilesystem"])
         self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
         self.assertEqual(["ALL"], container["securityContext"]["capabilities"]["drop"])
