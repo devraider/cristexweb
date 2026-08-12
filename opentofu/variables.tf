@@ -48,7 +48,7 @@ variable "traefik_origin_service" {
   default     = "http://traefik.kube-system.svc.cluster.local:80"
 
   validation {
-    condition     = can(regex("^https?://[a-z0-9.-]+(:[0-9]{1,5})?$", var.traefik_origin_service))
-    error_message = "traefik_origin_service must be a private HTTP(S) service URL with no path or credentials."
+    condition     = var.traefik_origin_service == "http://traefik.kube-system.svc.cluster.local:80"
+    error_message = "traefik_origin_service is fixed to the private bundled Traefik Service URL."
   }
 }

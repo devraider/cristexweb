@@ -112,8 +112,8 @@ class CloudflaredCandidateProvenanceContractTests(unittest.TestCase):
 
     def test_blockers_and_exact_source_only_boundary_are_enforced(self) -> None:
         for required in (
-            "**CANDIDATE — NOT DEPLOYABLE — NOT SELECTED.**",
-            "Runtime evidence is **NOT RUN**",
+            "**SOURCE SELECTED — RUNTIME NOT RUN/BLOCKED.**",
+            "The reviewed cloudflared and Infisical token-materialization source closures exist",
             "Human trust, version selection, and soak",
             "publisher signature, SBOM, vulnerability review, and trusted build evidence",
             "independent off-node availability",
@@ -134,6 +134,7 @@ class CloudflaredCandidateProvenanceContractTests(unittest.TestCase):
             "Runtime approvals",
             "deny unrelated namespace, control-plane, metadata, metrics, debug, quick-tunnel, configuration, and public access",
             "does not select a release, authorize a Cloudflare resource, approve a route or hostname, or add an OpenTofu resource, Kubernetes object, chart, values file, credential, or secret value",
+            "Reviewed cloudflared and Infisical token-materialization manifests now exist as source",
             "Any future cloudflared namespaced objects belong only in `platform-edge`",
             "Keycloak, PostgreSQL, MongoDB, and the Infisical Operator belong in `shared-services`, not `platform-edge`",
         ):

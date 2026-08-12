@@ -1,8 +1,8 @@
-# cloudflared candidate provenance — source-only evidence
+# cloudflared provenance — selected source, runtime blocked
 
 ## Status and boundary
 
-**CANDIDATE — NOT DEPLOYABLE — NOT SELECTED.** Runtime evidence is **NOT RUN**.
+**SOURCE SELECTED — RUNTIME NOT RUN/BLOCKED.** The reviewed cloudflared and Infisical token-materialization source closures exist, but no runtime apply or public route has been approved or executed.
 
 This document records controller-side public-source research captured at
 `2026-08-07T06:13:42Z`. It does not select a release, authorize a Cloudflare
@@ -11,7 +11,7 @@ object, chart, values file, credential, or secret value. The ignored research fi
 are evidence inputs only; they are not committed deployment source. No inventory,
 SSH, host, become, kubeconfig, Kubernetes API, Cloudflare-authenticated API or
 provider, secret store, deployment, or route was used to collect or validate this
-evidence. A later repository commit is source traceability, not runtime evidence.
+evidence. Repository commits provide source traceability, not runtime evidence.
 
 The candidate may become deployable source only after every blocker below is
 resolved, a human accepts the provenance/trust evidence and selects the version,
@@ -97,11 +97,11 @@ firewall before production acceptance.
 
 ## Blocking decisions and evidence
 
-All items below block deployable cloudflared source and runtime:
+All items below block cloudflared runtime and public-route activation:
 
 1. **Human trust, version selection, and soak:** accept or reject the unsigned
    tag/commit and other provenance gaps, select or reject `2026.7.3`, and approve a
-   compatibility and soak policy. This candidate record is not selection.
+   compatibility and soak policy. The source is selected for offline authoring, but runtime selection remains blocked.
 2. **Image assurance and availability:** obtain or explicitly disposition an image
    publisher signature, SBOM, vulnerability review, and trusted build evidence;
    prove independent off-node availability of the exact selected linux/amd64 child
@@ -149,9 +149,9 @@ The future traffic path is fixed as:
 
 `Cloudflare → cloudflared/platform-edge → Traefik/kube-system → Keycloak/shared-services`.
 
-This is a value-free architecture contract only. It does not add cloudflared
-manifests, a tunnel, DNS, an Ingress, an API token, a Tunnel token, or a public
-route. The canonical policy is
+This is a value-free architecture contract only. Reviewed cloudflared and
+Infisical token-materialization manifests now exist as source, but no tunnel, DNS,
+Ingress, API token, Tunnel token value, or public route has been applied. The canonical policy is
 [`ansible/files/policies/cloudflare-edge-architecture.yml`](../ansible/files/policies/cloudflare-edge-architecture.yml).
 
 ### Explicit phase boundaries

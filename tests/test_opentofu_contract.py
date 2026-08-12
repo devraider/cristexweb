@@ -385,6 +385,11 @@ class OpenTofuContractTests(unittest.TestCase):
                 "- opentofu_install_state == 'present'", self.task(task_name)
             )
 
+    def test_origin_is_fixed_to_private_bundled_traefik(self) -> None:
+        variables = (ROOT / "opentofu/variables.tf").read_text()
+        self.assertIn('condition     = var.traefik_origin_service == "http://traefik.kube-system.svc.cluster.local:80"', variables)
+        self.assertNotIn("can(regex(\"^https?://", variables)
+
     def test_version_command_is_non_root_and_provider_operations_remain_blocked(self) -> None:
         for forbidden in (
             "ansible.builtin.shell:",

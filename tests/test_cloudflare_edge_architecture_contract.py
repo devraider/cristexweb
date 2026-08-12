@@ -30,6 +30,7 @@ class CloudflareEdgeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("keycloak", path["private_origin_service"])
         self.assertTrue(path["direct_origin_wan_exposure"] == "forbidden")
         self.assertTrue(path["origin_network_scope"] == "cluster-internal-only")
+        self.assertEqual("http://traefik.kube-system.svc.cluster.local:80", self.policy["route"]["target"])
 
     def test_explicit_approval_boundaries_and_blocked_runtime(self) -> None:
         approvals = self.policy["approvals"]
@@ -46,9 +47,11 @@ class CloudflareEdgeArchitectureContractTests(unittest.TestCase):
             "production_cutover",
         ):
             self.assertEqual("separate", approvals["phases"][phase])
-        self.assertFalse(self.policy["executable_source_allowed"])
+        self.assertTrue(self.policy["executable_source_allowed"])
+        self.assertEqual("selected-source-runtime-blocked", self.policy["runtime_source_status"])
         self.assertIn("Each phase requires its own review and approval", self.normalized)
         self.assertIn("No runtime phase is currently approved or run", self.normalized)
+        self.assertIn("source closures exist", self.normalized)
 
     def test_secret_and_surface_boundaries(self) -> None:
         token = self.policy["cloudflared"]

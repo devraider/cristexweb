@@ -59,7 +59,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "specs/k3s-iac-foundation/status.md",
         ):
             normalized = " ".join((ROOT / relative).read_text().split())
-            self.assertIn("seventeen exact-scope Ansible action plugins", normalized, relative)
+            self.assertIn("twenty-one exact-scope Ansible action plugins", normalized, relative)
 
     def test_minimal_ansible_layout_exists(self) -> None:
         required = [
@@ -129,6 +129,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/rabbitmq_bootstrap/defaults/main.yml",
             "roles/rabbitmq_bootstrap/tasks/main.yml",
             "bin/configure-rabbitmq-definitions-backup",
+            "bin/configure-opentofu-state-backup",
             "bin/bootstrap-cloudflared",
             "bin/bootstrap-infisical-cloudflared-secrets",
             "playbooks/bootstrap_cloudflared.yml",

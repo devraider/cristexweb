@@ -61,7 +61,7 @@ traefik:
   direct_nodeport_or_loadbalancer: forbidden
 route:
   mode: exact-reviewed-hostname-route
-  target: http://keycloak.shared-services.svc.cluster.local:8080
+  target: http://traefik.kube-system.svc.cluster.local:80
   route_scope: browser-authentication-only
   allowed_paths:
     - /realms/cristexhub/*
@@ -156,4 +156,5 @@ promotion_gates:
   rollback_verified: false
   public_route_approved: false
   runtime_approved: false
-executable_source_allowed: false
+executable_source_allowed: true
+runtime_source_status: selected-source-runtime-blocked

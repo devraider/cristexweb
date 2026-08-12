@@ -30,8 +30,8 @@ reviewed controller-transfer check then passed at `ok=33 changed=6 failed=0`, th
 live recovery installed the verified CLI at `ok=39 changed=6 failed=0`, and the
 second run converged at `ok=30 changed=0 failed=0` without requiring host egress.
 The protected directory still contains no state file, and no provider operation or
-external resource exists. The root `opentofu/` source is Cloudflare-only and has zero
-resources. Committed Kubernetes source now contains exactly five Namespace
+external resource has been executed. The root `opentofu/` source contains the reviewed
+Cloudflare Tunnel/DNS resource definitions, but remains uninitialized and unapplied. Committed Kubernetes source now contains exactly five Namespace
 manifests: `argocd`, `platform-edge`, `shared-services`, `mongodb-system`, and
 source-only `cristexhub-dev`. The MongoDB operator control plane runs in
 `mongodb-system` and watches the MongoDB runtime retained in `shared-services`. The historical
@@ -95,11 +95,12 @@ readiness. Image trust/pullability, Secret materialization, provisioning, logica
 authorization, backup/restore, recovery, check/apply/idempotence, and all runtime
 acceptance remain blocked. No workload, Secret, route, or runtime is approved.
 A separate
-[source-only cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
-binds official release, unsigned source, immutable linux/amd64 image, token-file,
-health, and edge-transport evidence. It is also **CANDIDATE — NOT DEPLOYABLE — NOT
-SELECTED**, with runtime **NOT RUN**, and adds no OpenTofu resource, Kubernetes
-object, secret, route, or deployment source. A third
+[source-only cloudflared provenance record](runbooks/cloudflared-candidate-provenance.md)
+binds the selected official release, unsigned source, immutable linux/amd64 image,
+token-file, health, and edge-transport evidence. Reviewed cloudflared and Infisical
+token-materialization source closures now exist, but runtime is **NOT RUN/BLOCKED**;
+no Secret value, Kubernetes object, Cloudflare resource, DNS record, route, or
+deployment has been applied. A third
 [source-only Infisical Operator candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
 distinguishes the incomplete public `v0.11.8` distribution observation from the
 version-aligned `v0.11.7` set. The separate
@@ -142,7 +143,7 @@ evidence. Separate guarded [logical database provisioning](runbooks/shared-datab
 consumes precreated per-consumer Secrets through temporary UID-bound helper Pods;
 all empty reservations and PROD activation remain **NOT RUN/BLOCKED**. No general
 host baseline or deployment exists.
-Python is otherwise test-only; seventeen exact-scope Ansible action plugins are
+Python is otherwise test-only; twenty-one exact-scope Ansible action plugins are
 the reviewed focused exception—seven enforce existing Namespace/Infisical/database
 Secret mutation boundaries, two guard host rclone install/transfer, two perform no-log
 cryptographic validation of exact Argo and stateful-database Secret contracts, two
@@ -358,7 +359,7 @@ ansible/                 # discovery plus guarded host/Kubernetes/database sourc
   files/components/       # hash-bound Argo, Infisical, PostgreSQL, and MongoDB source
   files/vendor/           # hash-bound public chart/provenance/key inputs only
   files/policies/         # value-free identity, database, backup, and application policies
-opentofu/                # zero-resource Cloudflare-only scaffold
+opentofu/                # reviewed Cloudflare Tunnel/DNS source; apply blocked
 kubernetes/              # exact platform/application Namespace source; future Argo desired state
 runbooks/                # recovery, provenance, guarded source, materialization, and provisioning records
   argocd-hardened-design.md
@@ -380,9 +381,10 @@ tests/                   # offline contract tests and negative/executable parser
 ```
 
 The repository now includes source-only guarded Argo, Infisical, PostgreSQL,
-standalone MongoDB, Secret-materialization, protected-value, datastore-preflight, and
-logical-provisioning closures under `ansible/`; their runtime remains blocked unless
-explicitly recorded otherwise. The zero-resource `opentofu/` scaffold, three platform
+standalone MongoDB, Secret-materialization, protected-value, datastore-preflight,
+logical-provisioning, and cloudflared closures under `ansible/`; their runtime remains
+blocked unless explicitly recorded otherwise. The reviewed Cloudflare Tunnel/DNS
+`opentofu/` source remains unapplied, three platform
 Namespace manifests plus the source-only `cristexhub-dev` application Namespace under
 `kubernetes/`, the current runbook set, and offline `tests/` also exist. An exact
 manifest and a distinct guarded wrapper now exist
@@ -473,6 +475,7 @@ The source-only Cloudflare edge policy now fixes the phased future flow
 It separates Cloudflare account/state, Tunnel/token, connector, Traefik, DNS,
 validation, and production approvals; requires negative public reachability for
 Keycloak administration/management, master, health/metrics, DEV, Argo, databases,
-RabbitMQ, and direct origins; and defines exact-route rollback. It adds no
-cloudflared runtime source, Tunnel, DNS record, Ingress, token, or public route;
-runtime remains **NOT RUN/BLOCKED**.
+RabbitMQ, and direct origins; and defines exact-route rollback. Reviewed cloudflared
+runtime and Infisical token-materialization source now exist, but no Tunnel, DNS
+record, Ingress, token value, or public route has been applied; runtime remains
+**NOT RUN/BLOCKED**.
