@@ -159,7 +159,16 @@ class SharedRabbitMqArchitectureContractTests(unittest.TestCase):
             for path in root.rglob("*")
             if path.is_file()
         ]
-        self.assertFalse(any("rabbit" in path.name.lower() for path in operational))
+        allowed = {
+            "ansible/bin/configure-rabbitmq-definitions-backup",
+            "ansible/playbooks/configure_rabbitmq_definitions_backup.yml",
+        }
+        actual = {
+            str(path.relative_to(ROOT))
+            for path in operational
+            if "rabbit" in path.name.lower()
+        }
+        self.assertEqual(allowed, actual)
 
 
 if __name__ == "__main__":

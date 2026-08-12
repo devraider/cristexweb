@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily CristexWeb RabbitMQ definitions backup
+
+[Timer]
+OnCalendar=*-*-* 04:15:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=cristexweb-rabbitmq-definitions-backup.service
+
+[Install]
+WantedBy=timers.target

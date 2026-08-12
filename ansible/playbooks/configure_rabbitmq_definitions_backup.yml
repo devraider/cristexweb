@@ -1,0 +1,155 @@
+---
+- name: Configure guarded RabbitMQ definitions backup scheduler
+  hosts: crtxweb
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  serial: 1
+  vars:
+    rabbitmq_definitions_backup_approved: false
+    rabbitmq_definitions_backup_mode: install
+    rabbitmq_definitions_backup_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+  pre_tasks:
+    - name: Require bounded RabbitMQ backup approval
+      ansible.builtin.assert:
+        that:
+          - rabbitmq_definitions_backup_approved | bool
+          - lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_DEFINITIONS_BACKUP_ENTRYPOINT') == 'v1'
+          - (ansible_limit | default('') | string) == 'crtxweb'
+          - ansible_play_hosts_all | length == 1
+          - rabbitmq_definitions_backup_mode in ['install', 'test', 'restore', 'enable']
+        fail_msg: Refusing RabbitMQ backup outside the bounded wrapper.
+      changed_when: false
+    - name: Collect package facts
+      ansible.builtin.package_facts:
+        manager: apt
+    - name: Require pinned age
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.packages.age | default([]) | length == 1
+          - ansible_facts.packages.age[0].version == '1.2.1-1+b5'
+          - ansible_facts.packages.age[0].arch == 'amd64'
+      changed_when: false
+    - name: Check protected backup inputs
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+      loop:
+        - /usr/local/bin/rclone
+        - /home/paul/.config/rclone/rclone.conf
+        - /home/paul/.config/cristexweb/backup/shared-database-backup.recipient
+      register: rabbitmq_backup_inputs
+    - name: Require protected backup inputs
+      ansible.builtin.assert:
+        that:
+          - rabbitmq_backup_inputs.results[0].stat.islnk | default(false)
+          - rabbitmq_backup_inputs.results[1].stat.isreg | default(false)
+          - rabbitmq_backup_inputs.results[1].stat.mode == '0600'
+          - rabbitmq_backup_inputs.results[2].stat.isreg | default(false)
+          - rabbitmq_backup_inputs.results[2].stat.mode == '0644'
+      changed_when: false
+  tasks:
+    - name: Create protected RabbitMQ backup directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - {path: /etc/cristexweb-backup, owner: root, group: paul, mode: '0750'}
+        - {path: /usr/local/libexec/cristexweb, owner: root, group: root, mode: '0755'}
+        - {path: /var/lib/cristexweb-backup, owner: paul, group: paul, mode: '0700'}
+        - {path: /var/lib/cristexweb-backup/rabbitmq, owner: paul, group: paul, mode: '0700'}
+        - {path: /var/lib/cristexweb-backup/rabbitmq/definitions, owner: paul, group: paul, mode: '0700'}
+    - name: Install public age recipient
+      ansible.builtin.copy:
+        src: /home/paul/.config/cristexweb/backup/shared-database-backup.recipient
+        dest: /etc/cristexweb-backup/age.recipient
+        owner: root
+        group: paul
+        mode: '0640'
+    - name: Install RabbitMQ backup and restore executables
+      ansible.builtin.copy:
+        src: "{{ rabbitmq_definitions_backup_repository_root }}/ansible/files/backup/{{ item.src }}"
+        dest: "/usr/local/libexec/cristexweb/{{ item.dest }}"
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - {src: rabbitmq-shared-definitions-backup, dest: rabbitmq-shared-definitions-backup}
+        - {src: restore-rabbitmq-definitions-rehearsal, dest: restore-rabbitmq-definitions-rehearsal}
+    - name: Install RabbitMQ systemd units
+      ansible.builtin.copy:
+        src: "{{ rabbitmq_definitions_backup_repository_root }}/ansible/files/backup/{{ item }}"
+        dest: "/etc/systemd/system/{{ item }}"
+        owner: root
+        group: root
+        mode: '0644'
+      loop:
+        - cristexweb-rabbitmq-definitions-backup.service
+        - cristexweb-rabbitmq-definitions-backup.timer
+      register: rabbitmq_units
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: rabbitmq_units.changed
+    - name: Keep timer disabled until restore acceptance
+      ansible.builtin.systemd_service:
+        name: cristexweb-rabbitmq-definitions-backup.timer
+        enabled: false
+        state: stopped
+      when:
+        - rabbitmq_definitions_backup_mode in ['install', 'test', 'restore']
+        - not ansible_check_mode
+    - name: Run approved RabbitMQ definitions backup test
+      ansible.builtin.systemd_service:
+        name: cristexweb-rabbitmq-definitions-backup.service
+        state: started
+      when:
+        - rabbitmq_definitions_backup_mode == 'test'
+        - not ansible_check_mode
+    - name: Run approved isolated definitions restore
+      ansible.builtin.command:
+        argv: [/usr/local/libexec/cristexweb/restore-rabbitmq-definitions-rehearsal]
+      become: false
+      register: rabbitmq_restore_result
+      changed_when: true
+      when:
+        - rabbitmq_definitions_backup_mode == 'restore'
+        - not ansible_check_mode
+    - name: Require sanitized restore receipt
+      ansible.builtin.assert:
+        that:
+          - rabbitmq_restore_result.stdout is match('^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z target=isolated-emptydir checksum=verified private_residue=none definitions_only=true message_recovery=not_claimed$')
+      changed_when: false
+      when:
+        - rabbitmq_definitions_backup_mode == 'restore'
+        - not ansible_check_mode
+    - name: Enable accepted timer
+      ansible.builtin.systemd_service:
+        name: cristexweb-rabbitmq-definitions-backup.timer
+        enabled: true
+        state: started
+      when: rabbitmq_definitions_backup_mode == 'enable'
+  post_tasks:
+    - name: Verify host services
+      ansible.builtin.service_facts:
+    - name: Verify requested timer state
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, "{{ item }}", cristexweb-rabbitmq-definitions-backup.timer]
+      loop: [is-active, is-enabled]
+      register: rabbitmq_timer_state
+      changed_when: false
+      check_mode: false
+      failed_when: false
+      when:
+        - rabbitmq_definitions_backup_mode == 'enable'
+        - not ansible_check_mode
+    - name: Require service health and timer state
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['k3s.service'].state == 'running'
+          - ansible_facts.services['tailscaled.service'].state == 'running'
+          - ansible_check_mode or rabbitmq_definitions_backup_mode != 'enable' or (rabbitmq_timer_state.results[0].stdout == 'active' and rabbitmq_timer_state.results[1].stdout == 'enabled')
+      changed_when: false
