@@ -13,6 +13,7 @@ lock_file=/run/lock/cristexweb-opentofu-state-backup.lock
 exec 9>"$lock_file"
 /usr/bin/flock -n 9 || { printf '%s\n' 'backup_status=refused reason=concurrent_run'; exit 75; }
 [ -f "$state_file" ] && [ ! -L "$state_file" ] && [ "$(/usr/bin/stat -c '%U:%G:%a' "$state_file")" = 'paul:paul:600' ] || { printf '%s\n' 'backup_status=failed stage=state_contract'; exit 1; }
+/usr/local/bin/tofu state list -state="$state_file" >/dev/null 2>&1 || { printf '%s\n' 'backup_status=failed stage=state_validation'; exit 1; }
 [ -f "$recipient_file" ] && [ ! -L "$recipient_file" ] && [ "$(/usr/bin/sha256sum "$recipient_file" | /usr/bin/cut -d ' ' -f1)" = "$recipient_sha256" ] || { printf '%s\n' 'backup_status=failed stage=recipient_contract'; exit 1; }
 recipient=$(/usr/bin/tr -d '\n' <"$recipient_file")
 printf '%s\n' "$recipient" | /usr/bin/grep -Eq '^age1[0-9a-z]+$' || exit 1

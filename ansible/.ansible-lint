@@ -8,3 +8,6 @@ exclude_paths:
   - files/components/mongodb-operator/operator/
   - files/components/keycloak/
   - files/components/rabbitmq/
+  - files/components/cloudflared/
+  - files/components/infisical-cloudflared-secrets/
+  - files/components/keycloak-route/

@@ -1,2 +1,7 @@
 playbooks/configure_rabbitmq_definitions_backup.yml no-handler
 playbooks/configure_rabbitmq_definitions_backup.yml yaml[line-length]
+playbooks/configure_opentofu_state_backup.yml no-handler
+playbooks/configure_opentofu_state_backup.yml yaml[line-length]
+roles/infisical_cloudflared_secrets_bootstrap/tasks/main.yml yaml[line-length]
+roles/infisical_cloudflared_secrets_bootstrap/tasks/main.yml jinja[spacing]
+roles/keycloak_route_bootstrap/tasks/main.yml yaml[line-length]

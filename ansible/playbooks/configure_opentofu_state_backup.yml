@@ -35,6 +35,7 @@
         follow: false
       loop:
         - /usr/local/bin/rclone
+        - /opt/rclone/1.71.1/rclone
         - /home/paul/.config/rclone/rclone.conf
         - /home/paul/.config/cristexweb/backup/shared-database-backup.recipient
         - /var/lib/opentofu/cristexweb/foundation.tfstate
@@ -43,27 +44,48 @@
       ansible.builtin.assert:
         that:
           - opentofu_state_backup_inputs.results[0].stat.islnk | default(false)
+          - opentofu_state_backup_inputs.results[0].stat.lnk_source == '/opt/rclone/1.71.1/rclone'
+          - opentofu_state_backup_inputs.results[0].stat.pw_name == 'root'
           - opentofu_state_backup_inputs.results[1].stat.isreg | default(false)
-          - opentofu_state_backup_inputs.results[1].stat.mode == '0600'
+          - opentofu_state_backup_inputs.results[1].stat.pw_name == 'root'
+          - opentofu_state_backup_inputs.results[1].stat.mode == '0755'
           - opentofu_state_backup_inputs.results[2].stat.isreg | default(false)
-          - opentofu_state_backup_inputs.results[2].stat.mode == '0644'
+          - opentofu_state_backup_inputs.results[2].stat.pw_name == 'paul'
+          - opentofu_state_backup_inputs.results[2].stat.mode == '0600'
           - opentofu_state_backup_inputs.results[3].stat.isreg | default(false)
-          - opentofu_state_backup_inputs.results[3].stat.mode == '0600'
+          - opentofu_state_backup_inputs.results[3].stat.pw_name == 'paul'
+          - opentofu_state_backup_inputs.results[3].stat.mode == '0644'
+          - opentofu_state_backup_mode == 'install' or (opentofu_state_backup_inputs.results[4].stat.isreg | default(false))
+          - opentofu_state_backup_mode == 'install' or opentofu_state_backup_inputs.results[4].stat.pw_name == 'paul'
+          - opentofu_state_backup_mode == 'install' or opentofu_state_backup_inputs.results[4].stat.mode == '0600'
+      changed_when: false
+    - name: Verify the sole configured rclone remote without reading its token
+      ansible.builtin.command:
+        argv: [/usr/local/bin/rclone, --config, /home/paul/.config/rclone/rclone.conf, listremotes]
+      become: false
+      register: opentofu_state_backup_rclone_remotes
+      changed_when: false
+      check_mode: false
+      no_log: true
+    - name: Require the exact Google Drive remote
+      ansible.builtin.assert:
+        that:
+          - opentofu_state_backup_rclone_remotes.stdout_lines == ['drive:']
       changed_when: false
   tasks:
     - name: Create protected OpenTofu backup directories
       ansible.builtin.file:
         path: "{{ item.path }}"
         state: directory
-        owner: paul
-        group: paul
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
         mode: "{{ item.mode }}"
       loop:
-        - {path: /etc/cristexweb-backup, mode: '0750'}
-        - {path: /usr/local/libexec/cristexweb, mode: '0755'}
-        - {path: /var/lib/cristexweb-backup, mode: '0700'}
-        - {path: /var/lib/cristexweb-backup/opentofu, mode: '0700'}
-        - {path: /var/lib/cristexweb-backup/opentofu/foundation, mode: '0700'}
+        - {path: /etc/cristexweb-backup, owner: root, group: paul, mode: '0750'}
+        - {path: /usr/local/libexec/cristexweb, owner: root, group: root, mode: '0755'}
+        - {path: /var/lib/cristexweb-backup, owner: paul, group: paul, mode: '0700'}
+        - {path: /var/lib/cristexweb-backup/opentofu, owner: paul, group: paul, mode: '0700'}
+        - {path: /var/lib/cristexweb-backup/opentofu/foundation, owner: paul, group: paul, mode: '0700'}
     - name: Install public age recipient
       ansible.builtin.copy:
         src: /home/paul/.config/cristexweb/backup/shared-database-backup.recipient
