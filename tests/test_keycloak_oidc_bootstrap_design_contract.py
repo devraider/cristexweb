@@ -146,11 +146,18 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             for path in root.rglob("*")
             if path.is_file()
         ]
-        self.assertFalse(
-            any(
-                "keycloak" in path.name.lower() and "backup" not in path.name.lower()
+        self.assertEqual(
+            {
+                "ansible/bin/bootstrap-keycloak",
+                "ansible/playbooks/bootstrap_keycloak.yml",
+                "ansible/roles/keycloak_bootstrap/defaults/main.yml",
+                "ansible/roles/keycloak_bootstrap/tasks/main.yml",
+            },
+            {
+                str(path.relative_to(ROOT))
                 for path in operational
-            )
+                if "keycloak" in str(path).lower() and "backup" not in path.name.lower()
+            },
         )
         self.assertEqual(
             {
@@ -199,6 +206,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "mongodb-operator",
             "postgresql",
             "cloudnative-pg",
+            "keycloak",
         ):
             expected_public_inputs.update(
                 str(path.relative_to(ROOT / "ansible/files"))

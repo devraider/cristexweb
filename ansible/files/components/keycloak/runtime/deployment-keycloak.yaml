@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/component: keycloak
+    cristex.io/desired-owner: argocd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+      app.kubernetes.io/part-of: cristex-platform
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak
+        app.kubernetes.io/part-of: cristex-platform
+        app.kubernetes.io/managed-by: ansible
+        cristex.io/component: keycloak
+        cristex.io/database-client: shared-postgresql
+    spec:
+      serviceAccountName: keycloak
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak@sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2
+          imagePullPolicy: IfNotPresent
+          args: [start]
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: management
+              containerPort: 9000
+              protocol: TCP
+          env:
+            - {name: KC_DB, value: postgres}
+            - {name: KC_DB_URL, value: "jdbc:postgresql://shared-postgresql-rw.shared-services.svc.cluster.local:5432/keycloak?sslmode=verify-full&sslrootcert=/opt/keycloak/conf/postgresql-ca.crt"}
+            - {name: KC_DB_USERNAME, valueFrom: {secretKeyRef: {name: shared-postgresql-keycloak, key: username}}}
+            - {name: KC_DB_PASSWORD, valueFrom: {secretKeyRef: {name: shared-postgresql-keycloak, key: password}}}
+            - {name: KC_HTTP_ENABLED, value: "true"}
+            - {name: KC_HEALTH_ENABLED, value: "true"}
+            - {name: KC_HOSTNAME_STRICT, value: "false"}
+            - {name: KC_PROXY_HEADERS, value: xforwarded}
+          volumeMounts:
+            - {name: postgres-ca, mountPath: /opt/keycloak/conf/postgresql-ca.crt, subPath: ca.crt, readOnly: true}
+            - {name: keycloak-data, mountPath: /opt/keycloak/data}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          startupProbe:
+            httpGet: {path: /health/ready, port: management, scheme: HTTP}
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: {path: /health/ready, port: management, scheme: HTTP}
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /health/live, port: management, scheme: HTTP}
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: postgres-ca
+          secret:
+            secretName: shared-postgresql-ca
+            items: [{key: ca.crt, path: ca.crt}]
+            defaultMode: 0444
+        - name: keycloak-data
+          emptyDir:
+            sizeLimit: 2Gi

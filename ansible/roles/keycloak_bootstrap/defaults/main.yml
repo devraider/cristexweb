@@ -1,0 +1,36 @@
+---
+# Exact seven-object private Keycloak closure. Hashes are regenerated from the
+# committed leaves whenever the reviewed source changes.
+keycloak_bootstrap_approved: false
+keycloak_bootstrap_state: present
+keycloak_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+keycloak_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+keycloak_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+keycloak_bootstrap_manifest_paths:
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/network/keycloak-default-deny.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/network/keycloak-allow-dns.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/network/keycloak-allow-postgresql.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/network/keycloak-private-ingress.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/rbac/serviceaccount-keycloak.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/runtime/service-keycloak.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/runtime/deployment-keycloak.yaml"
+keycloak_bootstrap_object_count: 7
+keycloak_bootstrap_expected_hashes:
+  network/keycloak-default-deny.yaml: 1fd1e77b5d0b7fe7c41480b89c2109f3d37b776e5658ddf892b5c8a73c87648b
+  network/keycloak-allow-dns.yaml: eab84089cf6ae7a33126db9068664f8f7e6865cde65dc2a54c2f4f6e7ba18a25
+  network/keycloak-allow-postgresql.yaml: a21ea138d61f4ec78d0b3839765d6b8499cd39fd6525a3bda5c6df1c70bea414
+  network/keycloak-private-ingress.yaml: 28b81a5999b7aa90d8344c108949d929bba3c0e7df497e6d35647a3e1641620c
+  rbac/serviceaccount-keycloak.yaml: 787f9cd56c9ede1dc6dc664d8126fc85ce3ee084f483bd0f9944ce0249177d68
+  runtime/service-keycloak.yaml: 582da5974c418188515048399d3eed1759b3779bfd4f71f5048aaa02bd75e092
+  runtime/deployment-keycloak.yaml: 93b4f8dfec4217d3cf18c5cbd413b79a0d9ef60cee7280f760e0d88576bd867f
+keycloak_bootstrap_identity_set_sha256: 88aeba94640844a5447fb96b7583d648cffeefb771951e335c8e7f9dca658d24
+keycloak_bootstrap_namespace: shared-services
+keycloak_bootstrap_service_name: keycloak
+keycloak_bootstrap_deployment_name: keycloak
+keycloak_bootstrap_secret_contract:
+  shared-postgresql-keycloak:
+    type: Opaque
+    keys: [password, username]
+  shared-postgresql-ca:
+    type: Opaque
+    keys: [ca.crt, ca.key]
