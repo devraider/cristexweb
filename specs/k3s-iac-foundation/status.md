@@ -10,7 +10,7 @@ note: |
   Operational implementation is limited to read-only Ansible discovery, the
   executed two-package dependency bootstrap, executed group-scoped k3s administrator
   access, executed user-scoped kubectl client defaults, and the executed one-reboot
-  recovery verifier. Python is limited to offline tests plus sixteen exact-scope
+  recovery verifier. Python is limited to offline tests plus seventeen exact-scope
   Ansible action plugins (seven exact mutation guards, two focused host-rclone
   boundary guards, two no-log Secret cryptographic validators, two standalone
   MongoDB/PostgreSQL object-closure guards, and two fixed logical-provisioning

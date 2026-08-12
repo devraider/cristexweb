@@ -10,10 +10,10 @@ import yaml
 ROOT = Path(__file__).parents[1]
 COMPONENT = ROOT / "ansible/files/components/infisical-rabbitmq-secrets"
 TARGETS = {
-    "rabbitmq-admin": ("Opaque", {"username", "password", "passwordHash"}),
-    "rabbitmq-tls": ("kubernetes.io/tls", {"ca.crt", "tls.crt", "tls.key"}),
-    "rabbitmq-cristexhub-dev": ("Opaque", {"username", "password", "passwordHash"}),
-    "rabbitmq-cristexhub-prod": ("Opaque", {"username", "password", "passwordHash"}),
+    "shared-rabbitmq-admin": ("Opaque", {"username", "password", "passwordHash"}),
+    "shared-rabbitmq-tls": ("kubernetes.io/tls", {"ca.crt", "tls.crt", "tls.key"}),
+    "shared-rabbitmq-cristexhub-dev": ("Opaque", {"username", "password", "passwordHash"}),
+    "shared-rabbitmq-cristexhub-prod": ("Opaque", {"username", "password", "passwordHash"}),
 }
 
 

@@ -1,0 +1,8 @@
+---
+- name: Bootstrap the private RabbitMQ workload
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  roles:
+    - role: rabbitmq_bootstrap

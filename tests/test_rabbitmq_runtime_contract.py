@@ -31,12 +31,12 @@ class RabbitMqRuntimeSourceContractTests(unittest.TestCase):
             cls.by_kind.setdefault(item["kind"], []).append(item)
 
     def test_exact_private_source_closure(self) -> None:
-        self.assertEqual(9, len(self.objects))
+        self.assertEqual(10, len(self.objects))
         self.assertEqual(1, len(self.by_kind["StatefulSet"]))
         self.assertEqual(3, len(self.by_kind["Service"]))
         self.assertEqual(1, len(self.by_kind["ServiceAccount"]))
         self.assertEqual(1, len(self.by_kind["ConfigMap"]))
-        self.assertEqual(3, len(self.by_kind["NetworkPolicy"]))
+        self.assertEqual(4, len(self.by_kind["NetworkPolicy"]))
         self.assertNotIn("Ingress", self.by_kind)
         self.assertNotIn("Secret", self.by_kind)
         self.assertNotIn("Job", self.by_kind)
@@ -80,6 +80,8 @@ class RabbitMqRuntimeSourceContractTests(unittest.TestCase):
         for value in ("/cristexhub-dev", "/cristexhub-prod", 'configure":"^$', "administrator"):
             self.assertIn(value, script)
         self.assertNotIn(".*", script)
+        self.assertIn("password_hash", script)
+        self.assertNotIn('"password"', script)
         self.assertIn("shared-rabbitmq-admin", json.dumps(sts))
         self.assertIn("shared-rabbitmq-cristexhub-dev", json.dumps(sts))
         self.assertIn("shared-rabbitmq-cristexhub-prod", json.dumps(sts))
@@ -99,7 +101,7 @@ class RabbitMqRuntimeSourceContractTests(unittest.TestCase):
         for line in ledger:
             digest, name = line.split(maxsplit=1)
             expected[name] = digest
-        self.assertEqual(7, len(expected))
+        self.assertEqual(10, len(expected))
         for path in sorted(COMPONENT.rglob("*.yaml")):
             relative = str(path.relative_to(COMPONENT))
             self.assertEqual(expected[relative], hashlib.sha256(path.read_bytes()).hexdigest())

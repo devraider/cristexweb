@@ -1,0 +1,315 @@
+---
+- name: Reject externally supplied RabbitMQ internal variables
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing supplied RabbitMQ variable {{ item }}."
+  loop:
+    - rabbitmq_bootstrap_internal_attestation_state
+    - rabbitmq_bootstrap_internal_manifest_states
+    - rabbitmq_bootstrap_internal_manifests
+    - rabbitmq_bootstrap_internal_identity_keys
+    - rabbitmq_bootstrap_internal_namespace
+    - rabbitmq_bootstrap_internal_service_facts
+    - rabbitmq_bootstrap_internal_kubeconfig_state
+    - rabbitmq_bootstrap_internal_secrets
+    - rabbitmq_bootstrap_internal_prestate
+    - rabbitmq_bootstrap_internal_preflight_binding
+    - rabbitmq_bootstrap_internal_apply
+    - rabbitmq_bootstrap_internal_poststate
+    - rabbitmq_bootstrap_internal_statefulset
+  changed_when: false
+
+- name: Require the guarded RabbitMQ approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - rabbitmq_bootstrap_approved | bool
+      - rabbitmq_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - rabbitmq_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - rabbitmq_bootstrap_manifest_paths | length == 10
+      - rabbitmq_bootstrap_expected_hashes | length == 10
+      - rabbitmq_bootstrap_object_count == 10
+      - rabbitmq_bootstrap_namespace == 'shared-services'
+      - rabbitmq_bootstrap_service_name == 'shared-rabbitmq'
+      - rabbitmq_bootstrap_statefulset_name == 'shared-rabbitmq'
+      - rabbitmq_bootstrap_secret_contract['shared-rabbitmq-admin']['keys'] | sort == ['password', 'passwordHash', 'username']
+      - rabbitmq_bootstrap_secret_contract['shared-rabbitmq-tls']['keys'] | sort == ['ca.crt', 'tls.crt', 'tls.key']
+      - rabbitmq_bootstrap_secret_contract['shared-rabbitmq-cristexhub-dev']['keys'] | sort == ['password', 'passwordHash', 'username']
+      - rabbitmq_bootstrap_secret_contract['shared-rabbitmq-cristexhub-prod']['keys'] | sort == ['password', 'passwordHash', 'username']
+    fail_msg: RabbitMQ requires the exact guarded present-only 10-object closure.
+  changed_when: false
+
+- name: Inspect the ephemeral RabbitMQ attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_BOOTSTRAP_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+  register: rabbitmq_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run RabbitMQ attestation
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (rabbitmq_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - rabbitmq_bootstrap_internal_attestation_state.stat.pw_name == rabbitmq_bootstrap_controller_user
+      - rabbitmq_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_RABBITMQ_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing an invalid RabbitMQ attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact RabbitMQ source leaves
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: "{{ rabbitmq_bootstrap_manifest_paths }}"
+  register: rabbitmq_bootstrap_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+
+- name: Require hash-bound RabbitMQ source leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - >-
+        item.stat.checksum == rabbitmq_bootstrap_expected_hashes[
+        item.item | replace(rabbitmq_bootstrap_repository_root ~
+        '/ansible/files/components/rabbitmq/', '')]
+      - item.item.startswith(rabbitmq_bootstrap_repository_root ~ '/ansible/files/components/rabbitmq/')
+    fail_msg: Refusing missing, unsafe, or hash-drifted RabbitMQ source.
+  loop: "{{ rabbitmq_bootstrap_internal_manifest_states.results }}"
+  delegate_to: localhost
+  changed_when: false
+
+- name: Load exact RabbitMQ objects
+  ansible.builtin.set_fact:
+    rabbitmq_bootstrap_internal_manifests: >-
+      {{ (rabbitmq_bootstrap_internal_manifests | default([])) +
+         [lookup('ansible.builtin.file', item) | from_yaml] }}
+  loop: "{{ rabbitmq_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact RabbitMQ identities
+  ansible.builtin.set_fact:
+    rabbitmq_bootstrap_internal_identity_keys: >-
+      {{ (rabbitmq_bootstrap_internal_identity_keys | default([])) +
+         [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+          (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
+  loop: "{{ rabbitmq_bootstrap_internal_manifests }}"
+  changed_when: false
+  no_log: true
+
+- name: Require the exact 10-object value-free RabbitMQ inventory
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_bootstrap_internal_manifests | length == 10
+      - rabbitmq_bootstrap_internal_identity_keys | unique | length == 10
+      - rabbitmq_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 4
+      - rabbitmq_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ServiceAccount') | list | length == 1
+      - rabbitmq_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Service') | list | length == 3
+      - rabbitmq_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'StatefulSet') | list | length == 1
+      - rabbitmq_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - rabbitmq_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Ingress') | list | length == 0
+    fail_msg: Refusing a RabbitMQ source outside the exact private 10-object closure.
+  changed_when: false
+
+- name: Capture host service health
+  ansible.builtin.service_facts:
+  register: rabbitmq_bootstrap_internal_service_facts
+  check_mode: false
+
+- name: Require k3s and Tailscale health
+  ansible.builtin.assert:
+    that:
+      - (rabbitmq_bootstrap_internal_service_facts.ansible_facts.services | default({})).get('k3s.service', {}).get('state', '') == 'running'
+      - (rabbitmq_bootstrap_internal_service_facts.ansible_facts.services | default({})).get('tailscaled.service', {}).get('state', '') == 'running'
+  changed_when: false
+
+- name: Inspect protected kubeconfig
+  ansible.builtin.stat:
+    path: "{{ rabbitmq_bootstrap_kubeconfig }}"
+    follow: false
+  register: rabbitmq_bootstrap_internal_kubeconfig_state
+  no_log: true
+  changed_when: false
+
+- name: Require group-scoped Kubernetes administrator access
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_bootstrap_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (rabbitmq_bootstrap_internal_kubeconfig_state.stat.islnk | default(false))
+      - rabbitmq_bootstrap_internal_kubeconfig_state.stat.pw_name == 'root'
+      - rabbitmq_bootstrap_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+      - rabbitmq_bootstrap_internal_kubeconfig_state.stat.mode == '0640'
+  changed_when: false
+  no_log: true
+
+- name: Query the exact shared-services Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: shared-services
+    kubeconfig: "{{ rabbitmq_bootstrap_kubeconfig }}"
+  register: rabbitmq_bootstrap_internal_namespace
+  changed_when: false
+
+- name: Require the established shared-services Namespace
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_bootstrap_internal_namespace.resources | length == 1
+      - rabbitmq_bootstrap_internal_namespace.resources[0].status.phase == 'Active'
+      - rabbitmq_bootstrap_internal_namespace.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'cristex-platform'
+      - rabbitmq_bootstrap_internal_namespace.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible'
+      - rabbitmq_bootstrap_internal_namespace.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
+  changed_when: false
+
+- name: Query exact precreated RabbitMQ database Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: shared-services
+    name: "{{ item.key }}"
+    kubeconfig: "{{ rabbitmq_bootstrap_kubeconfig }}"
+  loop: "{{ rabbitmq_bootstrap_secret_contract | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: rabbitmq_bootstrap_internal_secrets
+  changed_when: false
+  no_log: true
+
+- name: Require exact Secret metadata without reading values
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].type == item.item.value.type
+      - item.resources[0].data.keys() | sort == item.item.value['keys'] | sort
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') in ['infisical', 'cloudnative-pg']
+      - >-
+        item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'shared-rabbitmq'
+      - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+  loop: "{{ rabbitmq_bootstrap_internal_secrets.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  changed_when: false
+  no_log: true
+
+- name: Query exact RabbitMQ object pre-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ rabbitmq_bootstrap_kubeconfig }}"
+  loop: "{{ rabbitmq_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: rabbitmq_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Refuse foreign existing RabbitMQ objects
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('cristex.io/component') == 'rabbitmq'
+      - item.resources | length == 0 or item.resources[0].metadata.name == item.item.metadata.name
+  loop: "{{ rabbitmq_bootstrap_internal_prestate.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind the protected RabbitMQ preflight
+  ansible.builtin.set_fact:
+    rabbitmq_bootstrap_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_BOOTSTRAP_TOKEN') | hash('sha256') }}"
+      object_count: "{{ rabbitmq_bootstrap_internal_manifests | length }}"
+      identity_set_sha256: "{{ rabbitmq_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
+      prestate_count: "{{ rabbitmq_bootstrap_internal_prestate.results | length }}"
+      secret_count: "{{ rabbitmq_bootstrap_internal_secrets.results | length }}"
+      namespace_contract: true
+      service_contract: true
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Reconcile only the approved RabbitMQ objects
+  rabbitmq_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ rabbitmq_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ rabbitmq_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: rabbitmq_bootstrap_internal_apply
+  no_log: true
+
+- name: Query exact RabbitMQ post-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ rabbitmq_bootstrap_kubeconfig }}"
+  loop: "{{ rabbitmq_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: rabbitmq_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact RabbitMQ post-state ownership
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources[0].metadata.labels.get('cristex.io/component') == 'rabbitmq'
+  loop: "{{ rabbitmq_bootstrap_internal_poststate.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Wait for the RabbitMQ StatefulSet readiness
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: StatefulSet
+    namespace: shared-services
+    name: shared-rabbitmq
+    kubeconfig: "{{ rabbitmq_bootstrap_kubeconfig }}"
+  register: rabbitmq_bootstrap_internal_statefulset
+  until:
+    - rabbitmq_bootstrap_internal_statefulset.resources | length == 1
+    - rabbitmq_bootstrap_internal_statefulset.resources[0].status.readyReplicas | default(0) | int == 1
+    - rabbitmq_bootstrap_internal_statefulset.resources[0].status.updatedReplicas | default(0) | int == 1
+    - >-
+      rabbitmq_bootstrap_internal_statefulset.resources[0].metadata.generation | int ==
+      rabbitmq_bootstrap_internal_statefulset.resources[0].status.observedGeneration | int
+  retries: 60
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode

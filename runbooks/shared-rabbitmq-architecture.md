@@ -11,7 +11,9 @@ The selected source is the official Docker image `docker.io/library/rabbitmq:4.3
 using the verified linux/amd64 child digest
 `sha256:cd4fd60136781671d125ed68ac4b67900c0726b55e2e8b98719daa616a63240b`.
 The future topology is one direct, single-node StatefulSet in `shared-services`;
-this is not highly available and is not operator-managed.
+this is not highly available and is not operator-managed. The `shared-services`
+Namespace approved first apply/idempotence passed at `changed=0`; that checkpoint did
+not itself authorize RabbitMQ runtime.
 
 ## Placement and current consumers
 

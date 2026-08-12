@@ -160,6 +160,8 @@ class SharedRabbitMqArchitectureContractTests(unittest.TestCase):
             if path.is_file()
         ]
         allowed = {
+            "ansible/bin/bootstrap-rabbitmq",
+            "ansible/playbooks/bootstrap_rabbitmq.yml",
             "ansible/bin/configure-rabbitmq-definitions-backup",
             "ansible/playbooks/configure_rabbitmq_definitions_backup.yml",
         }

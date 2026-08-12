@@ -1,0 +1,47 @@
+---
+rabbitmq_bootstrap_approved: false
+rabbitmq_bootstrap_state: present
+rabbitmq_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+rabbitmq_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+rabbitmq_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+rabbitmq_bootstrap_manifest_paths:
+  - "{{ rabbitmq_bootstrap_repository_root }}/ansible/files/components/rabbitmq/network/rabbitmq-default-deny.yaml"
+  - "{{ rabbitmq_bootstrap_repository_root }}/ansible/files/components/rabbitmq/network/rabbitmq-allow-dns.yaml"
+  - "{{ rabbitmq_bootstrap_repository_root }}/ansible/files/components/rabbitmq/network/rabbitmq-allow-client.yaml"
+  - "{{ rabbitmq_bootstrap_repository_root }}/ansible/files/components/rabbitmq/network/rabbitmq-allow-management.yaml"
+  - "{{ rabbitmq_bootstrap_repository_root }}/ansible/files/components/rabbitmq/rbac/serviceaccount-rabbitmq.yaml"
+  - "{{ rabbitmq_bootstrap_repository_root }}/ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml"
+  - "{{ rabbitmq_bootstrap_repository_root }}/ansible/files/components/rabbitmq/runtime/service-rabbitmq-headless.yaml"
+  - "{{ rabbitmq_bootstrap_repository_root }}/ansible/files/components/rabbitmq/runtime/service-rabbitmq.yaml"
+  - "{{ rabbitmq_bootstrap_repository_root }}/ansible/files/components/rabbitmq/runtime/service-rabbitmq-management.yaml"
+  - "{{ rabbitmq_bootstrap_repository_root }}/ansible/files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml"
+rabbitmq_bootstrap_object_count: 10
+rabbitmq_bootstrap_expected_hashes:
+  network/rabbitmq-allow-client.yaml: 195c6e49bde4178a9115db69c3f5f2cfba677343fbde85e6e64973649ee599da
+  network/rabbitmq-allow-dns.yaml: 15b0bffed8637def697437d5a675c7b836d017a3ae2699612318b3d4626f6023
+  network/rabbitmq-allow-management.yaml: 3afb177262f73a9a0d8e480d7543ceddf7c3e25d646a5e7ecf7155a0c1ece311
+  network/rabbitmq-default-deny.yaml: 798d95cb59320bc10df6daa47c6a46680e81ccf87608ecd720e09cb2e5c1f76d
+  rbac/serviceaccount-rabbitmq.yaml: 0041b9c8f86b0d967238b39d6d15eb8867ede336c5460f64b1d537dcfc488a91
+  runtime/configmap-rabbitmq.yaml: 663c006190e6e5e03e7c22d198cb41245d2ab3b7dab406acb4fdefe00a10a2d5
+  runtime/service-rabbitmq-headless.yaml: 6e6f12febee01f84d7df70e3788a943238baef1c4b60fe5a753555f140380916
+  runtime/service-rabbitmq-management.yaml: 4ed3c1b6a61f8e49bb8545840d60678c5607ec26f09ec0e572258c20f00179d5
+  runtime/service-rabbitmq.yaml: d395ba50ffd4c80542eed345a6f27ec524a61ceb169d453668632d107af61227
+  runtime/statefulset-rabbitmq.yaml: 0bb2589cf8dd4a5068d459bd74b9ad7ea2e8ddc6aed4d1caa7264baa92eec8dc
+rabbitmq_bootstrap_identity_set_sha256: 29a53fb0f3a280db0bdd5c0e59b69b56a4cf031c2e1a9da5f92170fae1e0bb5e
+rabbitmq_bootstrap_namespace: shared-services
+rabbitmq_bootstrap_service_name: shared-rabbitmq
+rabbitmq_bootstrap_statefulset_name: shared-rabbitmq
+rabbitmq_bootstrap_pvc_name: rabbitmq-data-shared-rabbitmq-0
+rabbitmq_bootstrap_secret_contract:
+  shared-rabbitmq-admin:
+    type: Opaque
+    keys: [password, passwordHash, username]
+  shared-rabbitmq-tls:
+    type: kubernetes.io/tls
+    keys: [ca.crt, tls.crt, tls.key]
+  shared-rabbitmq-cristexhub-dev:
+    type: Opaque
+    keys: [password, passwordHash, username]
+  shared-rabbitmq-cristexhub-prod:
+    type: Opaque
+    keys: [password, passwordHash, username]

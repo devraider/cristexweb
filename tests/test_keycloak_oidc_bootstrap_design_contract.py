@@ -203,6 +203,8 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "infisical-argocd-secrets",
             "infisical-database-secrets",
             "infisical-keycloak-secrets",
+            "infisical-rabbitmq-secrets",
+            "rabbitmq",
             "mongodb",
             "mongodb-operator",
             "postgresql",

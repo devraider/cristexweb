@@ -212,6 +212,8 @@ metadata:
                 ANSIBLE / "bin/install-backup-dependencies",
                 ANSIBLE / "bin/configure-postgresql-keycloak-backup",
                 ANSIBLE / "bin/configure-mongodb-shared-backup",
+                ANSIBLE / "bin/bootstrap-rabbitmq",
+                ANSIBLE / "bin/configure-rabbitmq-definitions-backup",
                 ANSIBLE / "bin/provision-shared-postgresql",
                 ANSIBLE / "bin/provision-shared-mongodb",
                 ANSIBLE / "bin/install-rclone",

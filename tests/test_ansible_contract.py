@@ -38,12 +38,13 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/mongodb_guarded_k8s.py"),
             Path("ansible/plugins/action/postgresql_guarded_k8s.py"),
             Path("ansible/plugins/action/keycloak_guarded_k8s.py"),
+            Path("ansible/plugins/action/rabbitmq_guarded_k8s.py"),
             Path("ansible/plugins/action/stateful_database_secret_contract.py"),
             Path("ansible/plugins/action/infisical_database_secrets_guarded_k8s.py"),
             Path("ansible/plugins/action/database_provisioning_guarded_exec.py"),
             Path("ansible/plugins/action/database_provisioning_guarded_k8s.py"),
         }
-        self.assertEqual(16, len(allowed_action_plugins))
+        self.assertEqual(17, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -55,7 +56,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "specs/k3s-iac-foundation/status.md",
         ):
             normalized = " ".join((ROOT / relative).read_text().split())
-            self.assertIn("sixteen exact-scope Ansible action plugins", normalized, relative)
+            self.assertIn("seventeen exact-scope Ansible action plugins", normalized, relative)
 
     def test_minimal_ansible_layout_exists(self) -> None:
         required = [
@@ -117,6 +118,17 @@ class AnsibleLayoutTests(unittest.TestCase):
             "bin/install-backup-dependencies",
             "bin/configure-postgresql-keycloak-backup",
             "bin/configure-mongodb-shared-backup",
+            "bin/bootstrap-rabbitmq",
+            "playbooks/bootstrap_rabbitmq.yml",
+            "plugins/action/rabbitmq_guarded_k8s.py",
+            "roles/rabbitmq_bootstrap/defaults/main.yml",
+            "roles/rabbitmq_bootstrap/tasks/main.yml",
+            "bin/configure-rabbitmq-definitions-backup",
+            "playbooks/configure_rabbitmq_definitions_backup.yml",
+            "files/backup/rabbitmq-shared-definitions-backup",
+            "files/backup/restore-rabbitmq-definitions-rehearsal",
+            "files/backup/cristexweb-rabbitmq-definitions-backup.service",
+            "files/backup/cristexweb-rabbitmq-definitions-backup.timer",
             "bin/provision-shared-postgresql",
             "bin/provision-shared-mongodb",
             "playbooks/provision_shared_postgresql.yml",
@@ -230,6 +242,8 @@ class AnsibleLayoutTests(unittest.TestCase):
             "cloudnative-pg",
             "keycloak",
             "infisical-keycloak-secrets",
+            "rabbitmq",
+            "infisical-rabbitmq-secrets",
         ):
             required.extend(
                 str(path.relative_to(ANSIBLE))

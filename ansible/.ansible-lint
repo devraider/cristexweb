@@ -6,3 +6,5 @@ exclude_paths:
   - files/components/argocd/
   - files/components/cloudnative-pg/operator/
   - files/components/mongodb-operator/operator/
+  - files/components/keycloak/
+  - files/components/rabbitmq/

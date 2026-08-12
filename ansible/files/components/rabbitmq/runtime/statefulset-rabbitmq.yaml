@@ -66,12 +66,12 @@ spec:
             - |
               umask 077
               u=$(cat /run/rabbitmq-secrets/admin/username)
-              p=$(cat /run/rabbitmq-secrets/admin/password)
+              h=$(cat /run/rabbitmq-secrets/admin/passwordHash)
               du=$(cat /run/rabbitmq-secrets/dev/username)
-              dp=$(cat /run/rabbitmq-secrets/dev/password)
+              dh=$(cat /run/rabbitmq-secrets/dev/passwordHash)
               pu=$(cat /run/rabbitmq-secrets/prod/username)
-              pp=$(cat /run/rabbitmq-secrets/prod/password)
-              printf '{"users":[{"name":"%s","password":"%s","tags":"administrator"},{"name":"%s","password":"%s","tags":""},{"name":"%s","password":"%s","tags":""}],"vhosts":[{"name":"/cristexhub-dev"},{"name":"/cristexhub-prod"}],"permissions":[{"user":"%s","vhost":"/cristexhub-dev","configure":"^$","write":"^[^*]+$","read":"^[^*]+$"},{"user":"%s","vhost":"/cristexhub-prod","configure":"^$","write":"^[^*]+$","read":"^[^*]+$"}]}' "$u" "$p" "$du" "$dp" "$pu" "$pp" "$du" "$pu" > /run/definitions/definitions.json
+              ph=$(cat /run/rabbitmq-secrets/prod/passwordHash)
+              printf '{"users":[{"name":"%s","password_hash":"%s","hashing_algorithm":"rabbit_password_hashing_sha256","tags":"administrator"},{"name":"%s","password_hash":"%s","hashing_algorithm":"rabbit_password_hashing_sha256","tags":""},{"name":"%s","password_hash":"%s","hashing_algorithm":"rabbit_password_hashing_sha256","tags":""}],"vhosts":[{"name":"/cristexhub-dev"},{"name":"/cristexhub-prod"}],"permissions":[{"user":"%s","vhost":"/cristexhub-dev","configure":"^$","write":"^[^*]+$","read":"^[^*]+$"},{"user":"%s","vhost":"/cristexhub-prod","configure":"^$","write":"^[^*]+$","read":"^[^*]+$"}]}' "$u" "$h" "$du" "$dh" "$pu" "$ph" "$du" "$pu" > /run/definitions/definitions.json
               chmod 0600 /run/definitions/definitions.json
           securityContext:
             allowPrivilegeEscalation: false
@@ -88,7 +88,7 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - {name: amqps, containerPort: 5671, protocol: TCP}
-            - {name: management-https, containerPort: 15671, protocol: TCP}
+            - {name: mgmt-https, containerPort: 15671, protocol: TCP}
           env:
             - {name: RABBITMQ_CONFIG_FILE, value: /etc/rabbitmq/rabbitmq.conf}
           securityContext:
@@ -138,15 +138,15 @@ spec:
         - name: admin-secret
           secret:
             secretName: shared-rabbitmq-admin
-            items: [{key: username, path: username}, {key: password, path: password}]
+            items: [{key: username, path: username}, {key: passwordHash, path: passwordHash}]
             defaultMode: 0440
         - name: dev-secret
           secret:
             secretName: shared-rabbitmq-cristexhub-dev
-            items: [{key: username, path: username}, {key: password, path: password}]
+            items: [{key: username, path: username}, {key: passwordHash, path: passwordHash}]
             defaultMode: 0440
         - name: prod-secret
           secret:
             secretName: shared-rabbitmq-cristexhub-prod
-            items: [{key: username, path: username}, {key: password, path: password}]
+            items: [{key: username, path: username}, {key: passwordHash, path: passwordHash}]
             defaultMode: 0440

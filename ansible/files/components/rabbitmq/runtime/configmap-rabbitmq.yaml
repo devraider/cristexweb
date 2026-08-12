@@ -19,7 +19,6 @@ data:
     ssl_options.keyfile = /etc/rabbitmq/tls/tls.key
     ssl_options.verify = verify_none
     ssl_options.fail_if_no_peer_cert = false
-    management.tcp.port = none
     management.ssl.port = 15671
     management.ssl.cacertfile = /etc/rabbitmq/tls/ca.crt
     management.ssl.certfile = /etc/rabbitmq/tls/tls.crt

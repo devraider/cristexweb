@@ -1,0 +1,2 @@
+playbooks/configure_rabbitmq_definitions_backup.yml no-handler
+playbooks/configure_rabbitmq_definitions_backup.yml yaml[line-length]
