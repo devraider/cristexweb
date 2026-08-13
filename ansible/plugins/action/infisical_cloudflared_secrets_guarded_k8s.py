@@ -30,10 +30,10 @@ _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
 }
 _EXPECTED_IDENTITY_SET_SHA256 = "6830878ab0fa1a088806c3474b78b87c261d8ca6b2a574e9616823d37bd83e82"
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
-_EXPECTED_TASK_SOURCE = (
-    "/Users/paul/Projects/cristexweb/ansible/roles/"
-    "infisical_cloudflared_secrets_bootstrap/tasks/main.yml"
-)
+_EXPECTED_TASK_SOURCES = {
+    "/Users/paul/Projects/cristexweb/ansible/roles/infisical_cloudflared_secrets_bootstrap/tasks/main.yml",
+    "/home/paul/projects/cristexweb/ansible/roles/infisical_cloudflared_secrets_bootstrap/tasks/main.yml",
+}
 
 
 def _canonical_hash(value: dict[str, Any]) -> str:
@@ -54,7 +54,7 @@ class ActionModule(KubernetesActionModule):
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
         task_source = str(self._task.get_path()).rsplit(":", 1)[0]
-        if task_source != _EXPECTED_TASK_SOURCE:
+        if task_source not in _EXPECTED_TASK_SOURCES:
             return {
                 "changed": False,
                 "failed": True,
