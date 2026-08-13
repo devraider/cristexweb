@@ -25,7 +25,7 @@ spec:
     - expression: request.namespace in ['shared-services', 'argocd', 'cristexhub-dev', 'platform-edge']
       message: Only the four reviewed namespaces may contain Infisical custom resources.
       reason: Forbidden
-    - expression: "!has(object.spec.address) || object.spec.address == '' || object.spec.address == 'https://app.infisical.com/api'"
+    - expression: "!has(object.spec.address) || object.spec.address == '' || object.spec.address == 'https://app.infisical.com'"
       message: Only Infisical Cloud API is allowed.
       reason: Forbidden
     - expression: "!has(object.spec.tls) || !has(object.spec.tls.caCertificate) || object.spec.tls.caCertificate.namespace == request.namespace"

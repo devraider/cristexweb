@@ -33,7 +33,7 @@ spec:
       == 3 && object.metadata.labels['app.kubernetes.io/part-of'] == 'cristex-platform'
       && object.metadata.labels['app.kubernetes.io/managed-by'] == 'ansible' && object.metadata.labels['cristex.io/component']
       == 'infisical-cloudflared-secrets' && ((object.kind == 'InfisicalConnection'
-      && object.metadata.name == 'infisical-cloud' && object.spec.address == 'https://app.infisical.com/api')
+      && object.metadata.name == 'infisical-cloud' && object.spec.address == 'https://app.infisical.com')
       || (object.kind == 'InfisicalAuth' && object.metadata.name == 'cloudflared-infisical-auth'
       && object.spec.method == 'universal' && object.spec.infisicalConnectionRef.name
       == 'infisical-cloud' && object.spec.infisicalConnectionRef.namespace == 'platform-edge'
