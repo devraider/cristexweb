@@ -12,6 +12,6 @@ metadata:
     cristex.io/desired-owner: argocd
 spec:
   redirectRegex:
-    regex: '^https://auth\.cristex-soft\.com/?$'
+    regex: '^https?://auth\.cristex-soft\.com/?$'
     replacement: https://auth.cristex-soft.com/realms/cristexhub/account
     permanent: false

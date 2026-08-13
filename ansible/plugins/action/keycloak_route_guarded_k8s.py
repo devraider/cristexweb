@@ -7,7 +7,7 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule 
 _EXPECTED_OBJECT_HASHES = {
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-route-allow-traefik'): '14d2efe72a3c2092a28aeadb6b89a42c44b376090eda45f5a118c10435c12718',
     ('networking.k8s.io/v1', 'Ingress', 'shared-services', 'keycloak-auth'): '1928cf33e90636eb1d88792d632a8cdd677737448939b4624dc56cb7b47f259f',
-    ('traefik.io/v1alpha1', 'Middleware', 'shared-services', 'keycloak-root-redirect'): 'bf8c156030f90b426d2ecbefe9c5072f5944e9d1055a3909aec50fe8f374588a',
+    ('traefik.io/v1alpha1', 'Middleware', 'shared-services', 'keycloak-root-redirect'): 'f546c5a6732591f45c9b36759b1052a4e0a9010d1060a68c90ee3e37baca3153',
 }
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
 _EXPECTED_TASK_SOURCES = {

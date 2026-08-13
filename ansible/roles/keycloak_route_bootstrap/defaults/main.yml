@@ -13,4 +13,4 @@ keycloak_route_bootstrap_namespace: shared-services
 keycloak_route_bootstrap_expected_hashes:
   network/allow-traefik.yaml: 596523166734ce470cc1baa5ecef90b84414a58ac0310049fcc5b6e7a541653a
   route/ingress-auth.yaml: a7664453f9f546486aea6023bb88e5ccc26ea025ce3fbf89679e59fe676cad7d
-  route/middleware-root-redirect.yaml: 4b816f39a3cb4965f2ec68835c992553d8eb044be581d03c80e9245a1647db12
+  route/middleware-root-redirect.yaml: 658e3367b133506c989da572e9bbc4657d0ae914e8b66817fa7a7b4bf220ca6f
