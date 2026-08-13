@@ -67,7 +67,7 @@ infisical_cloudflared_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-source-boundary-binding.yaml'
     sha256: 12f85bce3c981d5c73069a6291e26923ab8503cababf3568d754f65ec04e2d2f
   - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-source-boundary.yaml'
-    sha256: e709688cd2517f214ad8196f8bbb8e43c3593608466d6fc11ae9ecdcb3c44743
+    sha256: b6ce478199e498957bf4191f79b8675ae162e77718edb953d679d2dbaa7dfc39
   - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-static-secret-boundary-binding.yaml'
     sha256: 72ac5f484d714adb3e04ab77f0a5d5d6f8af1b38f040350e4e140c313928e9ce
   - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-static-secret-boundary.yaml'
@@ -81,4 +81,4 @@ infisical_cloudflared_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/source/cloudflared-infisical-secrets.yaml'
     sha256: ea233ee077fa62431ed564baae5f1d02c006fc3ac49cf7b9b8889e57a0739c53
   - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/source/infisical-cloud-connection.yaml'
-    sha256: 593f0ecab6a59d345c9d520c90cec21573f70259f2b7aa2bd35486a90c1787b2
+    sha256: 50e12196bc330c8e1c85b884b5c57b24f3f7023988707bdc9c77072329f79571
