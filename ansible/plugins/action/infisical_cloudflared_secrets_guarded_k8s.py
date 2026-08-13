@@ -23,7 +23,7 @@ _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cloudflared-static-secret-boundary'): 'd8c4fef8ab84a70982755a19d884b3f6eac56a97dc58aa94aebc39005db411b6',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cloudflared-static-secret-boundary'): '95cf92bcc189268b10c358ab425dfb1569f52236d23735ad601a355e27b53c75',
     ('rbac.authorization.k8s.io/v1', 'Role', 'platform-edge', 'infisical-cloudflared-secret-writer'): '0a1b9897f285f3be997ed07d5bc1d06ea29ada7b6c53f34e80c94eb016b2f861',
-    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'platform-edge', 'infisical-cloudflared-secret-writer'): 'd7b58f970c65fefa7af5c6129f198c55eae11e6b99ce502a1c1012716dc3398e',
+    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'platform-edge', 'infisical-cloudflared-secret-writer'): '6ed489cff71d6d0c30e54043d8a07459dc6180d98114d886b09e406497438bb4',
     ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'platform-edge', 'cloudflared-infisical-auth'): '14eb767db221fd5dfb70f05ca9832f04aa7e9c58e71aeb06dc5522f1676e6443',
     ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'platform-edge', 'cloudflared-infisical-secrets'): 'e1c6797867de747d095899ad2620ef61755f3596f09b9d0607e9d151dfc289fc',
     ('secrets.infisical.com/v1beta1', 'InfisicalConnection', 'platform-edge', 'infisical-cloud'): '270730090639acc030932f1b1911e3a36cadbcf2d564fe06d4f0a14bb05b7be7',

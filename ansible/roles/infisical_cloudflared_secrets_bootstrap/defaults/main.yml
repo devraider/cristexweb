@@ -75,7 +75,7 @@ infisical_cloudflared_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/rbac/cloudflared-secret-writer-role.yaml'
     sha256: 09a22acae5581021c925861c523c91cb7b2e780483fbb7f235ab9806af8a2615
   - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/rbac/cloudflared-secret-writer-rolebinding.yaml'
-    sha256: 4f4e078c4eb0ba013e72357b6ac1b9ce180011fc146057fddd8392453fe16afc
+    sha256: 7e68460c116872f2c184f7e0c111886c7dd50181b3bd835ad62f64ace2767f7a
   - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/source/cloudflared-infisical-auth.yaml'
     sha256: 2b393e23ff0dd7321e03eae3e8c71d9b19bd430a4b3806ff7489b6b669ce5e36
   - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/source/cloudflared-infisical-secrets.yaml'
