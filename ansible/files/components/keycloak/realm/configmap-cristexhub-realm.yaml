@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-cristexhub
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/component: keycloak
+    cristex.io/desired-owner: ansible
+immutable: true
+data:
+  cristexhub-realm.json: |
+    {
+      "realm": "cristexhub",
+      "enabled": true,
+      "displayName": "CristexHub",
+      "sslRequired": "external",
+      "registrationAllowed": false,
+      "registrationEmailAsUsername": false,
+      "rememberMe": true,
+      "verifyEmail": true,
+      "loginWithEmailAllowed": true,
+      "duplicateEmailsAllowed": false,
+      "resetPasswordAllowed": true,
+      "editUsernameAllowed": false,
+      "bruteForceProtected": true,
+      "organizationsEnabled": true,
+      "defaultSignatureAlgorithm": "RS256",
+      "groups": [
+        {"name": "argocd-admin"},
+        {"name": "argocd-readonly"},
+        {"name": "cristexhub-dev-super-admin"},
+        {"name": "cristexhub-prod-super-admin"}
+      ]
+    }

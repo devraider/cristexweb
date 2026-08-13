@@ -16,7 +16,7 @@ EXPECTED_IMAGE = (
 )
 EXPECTED_HOSTNAME = "https://auth.cristex-soft.com"
 EXPECTED_NAMESPACE = "shared-services"
-EXPECTED_SOURCE_OBJECTS = 7
+EXPECTED_SOURCE_OBJECTS = 8
 
 
 def _yaml_objects() -> list[dict[str, Any]]:
@@ -38,14 +38,15 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
         for obj in cls.objects:
             cls.by_kind.setdefault(obj["kind"], []).append(obj)
 
-    def test_source_is_exactly_the_private_seven_object_closure(self) -> None:
+    def test_source_is_exactly_the_private_eight_object_closure(self) -> None:
         self.assertEqual(EXPECTED_SOURCE_OBJECTS, len(self.objects))
         self.assertEqual(1, len(self.by_kind.get("ServiceAccount", [])))
         self.assertEqual(1, len(self.by_kind.get("Service", [])))
         self.assertEqual(1, len(self.by_kind.get("Deployment", [])))
         self.assertEqual(4, len(self.by_kind.get("NetworkPolicy", [])))
+        self.assertEqual(1, len(self.by_kind.get("ConfigMap", [])))
         self.assertEqual(
-            {"ServiceAccount", "Service", "Deployment", "NetworkPolicy"},
+            {"ServiceAccount", "Service", "Deployment", "NetworkPolicy", "ConfigMap"},
             set(self.by_kind),
         )
         for obj in self.objects:
@@ -62,6 +63,15 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
         self.assertEqual(EXPECTED_IMAGE, container["image"])
         self.assertNotIn("start-dev", " ".join(container.get("command", []) + container.get("args", [])))
         self.assertIn("start", container.get("command", []) + container.get("args", []))
+        self.assertIn("--import-realm", container.get("args", []))
+        realm = self.by_kind["ConfigMap"][0]
+        self.assertEqual("keycloak-realm-cristexhub", realm["metadata"]["name"])
+        self.assertTrue(realm["immutable"])
+        import json
+        realm_json = json.loads(realm["data"]["cristexhub-realm.json"])
+        self.assertEqual("cristexhub", realm_json["realm"])
+        self.assertTrue(realm_json["organizationsEnabled"])
+        self.assertFalse(any(key in realm_json for key in ("users", "clients", "credentials")))
         self.assertEqual("keycloak", deployment["spec"]["selector"]["matchLabels"].get("app.kubernetes.io/name"))
         self.assertEqual(
             EXPECTED_HOSTNAME,

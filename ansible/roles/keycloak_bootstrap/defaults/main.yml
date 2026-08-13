@@ -1,5 +1,5 @@
 ---
-# Exact seven-object private Keycloak closure. Hashes are regenerated from the
+# Exact eight-object private Keycloak and realm-bootstrap closure. Hashes are regenerated from the
 # committed leaves whenever the reviewed source changes.
 keycloak_bootstrap_approved: false
 keycloak_bootstrap_state: present
@@ -11,19 +11,21 @@ keycloak_bootstrap_manifest_paths:
   - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/network/keycloak-allow-dns.yaml"
   - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/network/keycloak-allow-postgresql.yaml"
   - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/network/keycloak-private-ingress.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/realm/configmap-cristexhub-realm.yaml"
   - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/rbac/serviceaccount-keycloak.yaml"
   - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/runtime/service-keycloak.yaml"
   - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/runtime/deployment-keycloak.yaml"
-keycloak_bootstrap_object_count: 7
+keycloak_bootstrap_object_count: 8
 keycloak_bootstrap_expected_hashes:
-  network/keycloak-default-deny.yaml: 1fd1e77b5d0b7fe7c41480b89c2109f3d37b776e5658ddf892b5c8a73c87648b
   network/keycloak-allow-dns.yaml: eab84089cf6ae7a33126db9068664f8f7e6865cde65dc2a54c2f4f6e7ba18a25
   network/keycloak-allow-postgresql.yaml: a21ea138d61f4ec78d0b3839765d6b8499cd39fd6525a3bda5c6df1c70bea414
+  network/keycloak-default-deny.yaml: 1fd1e77b5d0b7fe7c41480b89c2109f3d37b776e5658ddf892b5c8a73c87648b
   network/keycloak-private-ingress.yaml: 28b81a5999b7aa90d8344c108949d929bba3c0e7df497e6d35647a3e1641620c
   rbac/serviceaccount-keycloak.yaml: 787f9cd56c9ede1dc6dc664d8126fc85ce3ee084f483bd0f9944ce0249177d68
+  realm/configmap-cristexhub-realm.yaml: d4a020a635fb904871837771d8d37c4bd03dee54dfc826bf1f2f8afbde546d98
+  runtime/deployment-keycloak.yaml: e85801832aa22e90b63d5b2191e31d4563d81fad626ccbf5f905579226965202
   runtime/service-keycloak.yaml: 582da5974c418188515048399d3eed1759b3779bfd4f71f5048aaa02bd75e092
-  runtime/deployment-keycloak.yaml: c3c85ff321e67d3179c9155c89395e4064cc04f82a0d31b7222a6a04a227d095
-keycloak_bootstrap_identity_set_sha256: 88aeba94640844a5447fb96b7583d648cffeefb771951e335c8e7f9dca658d24
+keycloak_bootstrap_identity_set_sha256: f44c9e2b7bfff7d7b3365a1f82b3910fe4741969b428fcebd94cff80e53ed912
 keycloak_bootstrap_namespace: shared-services
 keycloak_bootstrap_service_name: keycloak
 keycloak_bootstrap_deployment_name: keycloak

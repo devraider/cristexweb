@@ -32,16 +32,16 @@
       - (ansible_limit | default('')) == 'crtxweb'
       - ansible_play_hosts_all | length == 1
       - keycloak_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
-      - keycloak_bootstrap_manifest_paths | length == 7
-      - keycloak_bootstrap_expected_hashes | length == 7
-      - keycloak_bootstrap_object_count == 7
+      - keycloak_bootstrap_manifest_paths | length == 8
+      - keycloak_bootstrap_expected_hashes | length == 8
+      - keycloak_bootstrap_object_count == 8
       - keycloak_bootstrap_namespace == 'shared-services'
       - keycloak_bootstrap_service_name == 'keycloak'
       - keycloak_bootstrap_deployment_name == 'keycloak'
       - keycloak_bootstrap_secret_contract['shared-postgresql-keycloak']['keys'] | sort == ['password', 'username']
       - keycloak_bootstrap_secret_contract['shared-postgresql-ca']['keys'] | sort == ['ca.crt', 'ca.key']
       - keycloak_bootstrap_secret_contract['keycloak-bootstrap-admin']['keys'] | sort == ['password', 'username']
-    fail_msg: Keycloak requires the exact guarded present-only seven-object closure.
+    fail_msg: Keycloak requires the exact guarded present-only eight-object closure.
   changed_when: false
 
 - name: Inspect the ephemeral Keycloak attestation
@@ -117,18 +117,19 @@
   changed_when: false
   no_log: true
 
-- name: Require the exact seven-object value-free Keycloak inventory
+- name: Require the exact eight-object value-free Keycloak inventory
   ansible.builtin.assert:
     that:
-      - keycloak_bootstrap_internal_manifests | length == 7
-      - keycloak_bootstrap_internal_identity_keys | unique | length == 7
+      - keycloak_bootstrap_internal_manifests | length == 8
+      - keycloak_bootstrap_internal_identity_keys | unique | length == 8
       - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 4
       - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ServiceAccount') | list | length == 1
       - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Service') | list | length == 1
       - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Deployment') | list | length == 1
+      - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ConfigMap') | list | length == 1
       - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
       - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Ingress') | list | length == 0
-    fail_msg: Refusing a Keycloak source outside the exact private seven-object closure.
+    fail_msg: Refusing a Keycloak source outside the exact private eight-object closure.
   changed_when: false
 
 - name: Capture host service health

@@ -37,7 +37,7 @@ spec:
         - name: keycloak
           image: quay.io/keycloak/keycloak@sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2
           imagePullPolicy: IfNotPresent
-          args: [start]
+          args: [start, --import-realm]
           ports:
             - name: http
               containerPort: 8080
@@ -60,6 +60,7 @@ spec:
           volumeMounts:
             - {name: postgresql-ca, mountPath: /opt/keycloak/conf/postgresql-ca.crt, subPath: ca.crt, readOnly: true}
             - {name: keycloak-data, mountPath: /opt/keycloak/data}
+            - {name: cristexhub-realm, mountPath: /opt/keycloak/data/import, readOnly: true}
           resources:
             requests: {cpu: 250m, memory: 512Mi}
             limits: {cpu: "1", memory: 1Gi}
@@ -83,6 +84,10 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
       volumes:
+        - name: cristexhub-realm
+          configMap:
+            name: keycloak-realm-cristexhub
+            items: [{key: cristexhub-realm.json, path: cristexhub-realm.json}]
         - name: postgresql-ca
           secret:
             secretName: shared-postgresql-ca
