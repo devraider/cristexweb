@@ -17,7 +17,7 @@ _EXPECTED_OBJECT_HASHES = {
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-default-deny'): '0f8bea5dee6a64cd3e2bc79277c78bfa79fd589e4d794a333b7e112aabb7b729',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-private-ingress'): 'cd1a018187695a7a34807d12a604bf1fd4ab40d660057cca6a8b8559bc8889f2',
     ('v1', 'ServiceAccount', 'shared-services', 'keycloak'): 'ed90a0cbed8a407b9ac89912267befc31e4d3c7f1a5b05ece8a676f05036353e',
-    ('v1', 'ConfigMap', 'shared-services', 'keycloak-realm-cristexhub'): 'da26f07153810b4742d7350c560412f389e94e1e8aff762bc4464dd5b0fdbbea',
+    ('v1', 'ConfigMap', 'shared-services', 'keycloak-realm-cristexhub'): '5268883af726ec0f6f22f638155e16533235c2b5c548c43d4c8aa2ea086b75ec',
     ('apps/v1', 'Deployment', 'shared-services', 'keycloak'): '063a504822c755da3302acbcf678be96fc513ddb054b06f0e68d5ba2309c4557',
     ('v1', 'Service', 'shared-services', 'keycloak'): 'a6d6285f1f0c315f2d2fd8d3adb7adad02925cd1ed2d176f9ca403a3750bcf2f',
 }

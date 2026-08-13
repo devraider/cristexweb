@@ -12,7 +12,7 @@ metadata:
     cristex.io/desired-owner: ansible
 immutable: true
 data:
-  cristexhub-realm.json: |
+  cristexhub-realm.json: |-
     {
       "realm": "cristexhub",
       "enabled": true,
