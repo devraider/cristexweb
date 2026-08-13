@@ -1,2 +1,3 @@
 596523166734ce470cc1baa5ecef90b84414a58ac0310049fcc5b6e7a541653a  network/allow-traefik.yaml
-945e66ba1e78496499eba708a5372b45a3e01d2b5e78752f1061baea3398dd63  route/ingress-auth.yaml
+a7664453f9f546486aea6023bb88e5ccc26ea025ce3fbf89679e59fe676cad7d  route/ingress-auth.yaml
+4b816f39a3cb4965f2ec68835c992553d8eb044be581d03c80e9245a1647db12  route/middleware-root-redirect.yaml

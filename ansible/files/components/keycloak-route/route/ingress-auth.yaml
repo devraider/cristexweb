@@ -10,12 +10,21 @@ metadata:
     cristex.io/bootstrap-writer: ansible
     cristex.io/component: keycloak-route
     cristex.io/desired-owner: argocd
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: shared-services-keycloak-root-redirect@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
     - host: auth.cristex-soft.com
       http:
         paths:
+          - path: /
+            pathType: Exact
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8080
           - path: /realms/cristexhub
             pathType: Prefix
             backend:

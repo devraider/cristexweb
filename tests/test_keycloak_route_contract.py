@@ -14,10 +14,15 @@ class KeycloakRouteContractTests(unittest.TestCase):
         self.assertEqual('traefik', ingress['spec']['ingressClassName'])
         paths = ingress['spec']['rules'][0]['http']['paths']
         self.assertEqual('auth.cristex-soft.com', ingress['spec']['rules'][0]['host'])
-        self.assertEqual(['/realms/cristexhub', '/resources'], [path['path'] for path in paths])
-        self.assertTrue(all(path['pathType'] == 'Prefix' for path in paths))
+        self.assertEqual(['/', '/realms/cristexhub', '/resources'], [path['path'] for path in paths])
+        self.assertEqual('Exact', paths[0]['pathType'])
+        self.assertTrue(all(path['pathType'] == 'Prefix' for path in paths[1:]))
         self.assertTrue(all(path['backend']['service'] == {'name': 'keycloak', 'port': {'number': 8080}} for path in paths))
-        self.assertNotIn('/', [path['path'] for path in paths])
+        self.assertEqual('shared-services-keycloak-root-redirect@kubernetescrd', ingress['metadata']['annotations']['traefik.ingress.kubernetes.io/router.middlewares'])
+        middleware = next(x for x in self.objects if x['kind'] == 'Middleware')
+        self.assertEqual('keycloak-root-redirect', middleware['metadata']['name'])
+        self.assertEqual('^https://auth\\.cristex-soft\\.com/?$', middleware['spec']['redirectRegex']['regex'])
+        self.assertEqual('https://auth.cristex-soft.com/realms/cristexhub/account', middleware['spec']['redirectRegex']['replacement'])
         self.assertNotIn('/admin', [path['path'] for path in paths])
         self.assertNotIn('/realms/master', [path['path'] for path in paths])
     def test_network_policy_only_allows_traefik_keycloak_port(self):
