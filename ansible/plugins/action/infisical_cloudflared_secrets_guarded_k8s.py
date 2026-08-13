@@ -13,7 +13,7 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
     ActionModule as KubernetesActionModule,
 )
 
-_EXPECTED_OBJECT_HASHES: dict[tuple[st_EXPECTED_OBJECT_HASHES = {
+_EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cloudflared-alternate-target-boundary'): '90f371e3af05875c8929d0df96423294780b5b47be54f0ddc483dff84e544e95',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cloudflared-alternate-target-boundary'): '8ea8c9137aaabf7b78df019e46ddd5fa7371a144678e6d9e5358cbaf699a7866',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cloudflared-secret-write-boundary'): '125cd4eff2021a0f30297196974454aa6edba4f3e0409400fc40092a6ece9c4a',
