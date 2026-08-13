@@ -10,7 +10,7 @@ _EXPECTED_OBJECT_HASHES = {
     ('networking.k8s.io/v1', 'NetworkPolicy', 'platform-edge', 'cloudflared-allow-traefik-origin'): 'a0fae89f3799ab5be4623484d132830710fbd51e804ea88cdb83055c3ab7c8ce',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'platform-edge', 'cloudflared-default-deny'): '04d11614782f936cdcd89367d1622f42dd520dc71fc688d76567a808b2202e06',
     ('v1', 'ServiceAccount', 'platform-edge', 'cloudflared'): '34051c2d22c673a246f1ee9459d9f3b8b414c292e9b9527a4f4d55bb85955c8d',
-    ('apps/v1', 'Deployment', 'platform-edge', 'cloudflared'): '60c58601ebe76cd52edd953ffa730fcd71b16c921c7e5aeb0bf3fed3267116dc',
+    ('apps/v1', 'Deployment', 'platform-edge', 'cloudflared'): '20dc3b1558a73ce5456861ae12c9720366212f1fb623bb7445e06568dac4bf1a',
 }
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
 _EXPECTED_TASK_SOURCES = {'/Users/paul/Projects/cristexweb/ansible/roles/cloudflared_bootstrap/tasks/main.yml', '/home/paul/projects/cristexweb/ansible/roles/cloudflared_bootstrap/tasks/main.yml'}

@@ -28,7 +28,12 @@ spec:
       automountServiceAccountToken: false
       dnsPolicy: None
       dnsConfig:
-        nameservers: [1.1.1.1, 1.0.0.1]
+        nameservers: [10.43.0.10, 1.1.1.1, 1.0.0.1]
+        searches: [platform-edge.svc.cluster.local, svc.cluster.local, cluster.local]
+        options:
+          - {name: ndots, value: "5"}
+          - {name: timeout, value: "1"}
+          - {name: attempts, value: "1"}
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
