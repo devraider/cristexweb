@@ -50,7 +50,7 @@ class CloudflaredRuntimeContractTests(unittest.TestCase):
         self.assertEqual(["Ingress", "Egress"], policies["cloudflared-default-deny"]["spec"]["policyTypes"])
         ports = {port["port"] for rule in policies["cloudflared-allow-egress"]["spec"]["egress"] for port in rule["ports"]}
         self.assertIn(7844, ports)
-        self.assertEqual({80, 443}, {port["port"] for port in policies["cloudflared-allow-traefik-origin"]["spec"]["egress"][0]["ports"]})
+        self.assertEqual({80, 8000}, {port["port"] for port in policies["cloudflared-allow-traefik-origin"]["spec"]["egress"][0]["ports"]})
 
     def test_infisical_source_owns_token_secret_without_value(self):
         source = ROOT / "ansible/files/components/infisical-cloudflared-secrets/source/cloudflared-infisical-secrets.yaml"

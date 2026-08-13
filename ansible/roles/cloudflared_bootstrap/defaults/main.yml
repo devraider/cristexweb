@@ -14,7 +14,7 @@ cloudflared_bootstrap_manifest_paths:
 cloudflared_bootstrap_object_count: 5
 cloudflared_bootstrap_expected_hashes:
   network/cloudflared-allow-egress.yaml: 08c9c667cfbf9c168f28315f04227fa3d4d083241228aecbbb2e022d1741ac23
-  network/cloudflared-allow-traefik-origin.yaml: 14eda1346a2f5e284bbee4d36c766880adc9cdfa69d6fdf25008bab39ed5bf17
+  network/cloudflared-allow-traefik-origin.yaml: dafab8341d59590a825f128d5eaee16c3e48bffb69b88e6deb45c8bc51a19035
   network/cloudflared-default-deny.yaml: 93df153fd30d7ec7584efb16d400e60df4f00b5ccd66114717ca62a41cb5e345
   rbac/serviceaccount-cloudflared.yaml: 83fce17e99d8d09689acd95b5a1f0821f837fb3efe90f727017e92d16694b10d
   runtime/deployment-cloudflared.yaml: 78bac8a23ef8007e76fe16f23adc6ee985eb8d80de04561ec0c0b2132dfbd63c

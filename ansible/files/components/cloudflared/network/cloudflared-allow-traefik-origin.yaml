@@ -25,5 +25,6 @@ spec:
             matchLabels:
               app.kubernetes.io/name: traefik
       ports:
+        # Keep both the Service port and its current post-DNAT Traefik web target.
         - {protocol: TCP, port: 80}
-        - {protocol: TCP, port: 443}
+        - {protocol: TCP, port: 8000}
