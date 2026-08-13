@@ -86,7 +86,7 @@ spec:
             items:
               - key: token
                 path: token
-            defaultMode: "0440"
+            defaultMode: 288
         - name: tmp
           emptyDir:
             medium: Memory
