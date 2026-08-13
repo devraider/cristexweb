@@ -6,7 +6,7 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule 
 
 _EXPECTED_OBJECT_HASHES = {
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-route-allow-traefik'): '14d2efe72a3c2092a28aeadb6b89a42c44b376090eda45f5a118c10435c12718',
-    ('networking.k8s.io/v1', 'Ingress', 'shared-services', 'keycloak-auth'): '1873812e15bd0a63707bf0a27babc9df01d9021acae5cd1c4199bcc43670ea7f',
+    ('networking.k8s.io/v1', 'Ingress', 'shared-services', 'keycloak-auth'): '6bc4a462f1ab8b6c50fd726f2eb1377a647b273a0725e6e23b9b7cda37da5286',
 }
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
 _EXPECTED_TASK_SOURCES = {

@@ -16,7 +16,14 @@ spec:
     - host: auth.cristex-soft.com
       http:
         paths:
-          - path: /
+          - path: /realms/cristexhub
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8080
+          - path: /resources
             pathType: Prefix
             backend:
               service:

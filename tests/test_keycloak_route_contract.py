@@ -12,7 +12,14 @@ class KeycloakRouteContractTests(unittest.TestCase):
         ingress = next(x for x in self.objects if x['kind']=='Ingress')
         self.assertEqual('shared-services', ingress['metadata']['namespace'])
         self.assertEqual('traefik', ingress['spec']['ingressClassName'])
-        self.assertEqual([{'host':'auth.cristex-soft.com','http':{'paths':[{'path':'/','pathType':'Prefix','backend':{'service':{'name':'keycloak','port':{'number':8080}}}}]}}], ingress['spec']['rules'])
+        paths = ingress['spec']['rules'][0]['http']['paths']
+        self.assertEqual('auth.cristex-soft.com', ingress['spec']['rules'][0]['host'])
+        self.assertEqual(['/realms/cristexhub', '/resources'], [path['path'] for path in paths])
+        self.assertTrue(all(path['pathType'] == 'Prefix' for path in paths))
+        self.assertTrue(all(path['backend']['service'] == {'name': 'keycloak', 'port': {'number': 8080}} for path in paths))
+        self.assertNotIn('/', [path['path'] for path in paths])
+        self.assertNotIn('/admin', [path['path'] for path in paths])
+        self.assertNotIn('/realms/master', [path['path'] for path in paths])
     def test_network_policy_only_allows_traefik_keycloak_port(self):
         policy = next(x for x in self.objects if x['kind']=='NetworkPolicy')
         self.assertEqual(['Ingress'], policy['spec']['policyTypes'])
