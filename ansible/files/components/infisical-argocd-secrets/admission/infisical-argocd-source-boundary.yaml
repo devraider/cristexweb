@@ -44,7 +44,7 @@ spec:
         'infisical-argocd-secrets' &&
         ((object.kind == 'InfisicalConnection' &&
         object.metadata.name == 'infisical-cloud' &&
-        object.spec.address == 'https://app.infisical.com/api') ||
+        object.spec.address == 'https://app.infisical.com') ||
         (object.kind == 'InfisicalAuth' &&
         object.metadata.name == 'argocd-infisical-auth' &&
         object.spec.method == 'universal' &&

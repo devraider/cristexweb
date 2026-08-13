@@ -14,26 +14,28 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 )
 
 _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
-    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-alternate-target-boundary"): 'e83729093168045791912a4802ab4d930250241dfd6186181eb89d51ca8955d8',
-    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-secret-write-boundary"): '9f18768a400a1e235bc9fc8d5e67fa14df01052613522c8108c1429510482e33',
-    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-static-secret-boundary"): 'efd17b24c9037605017d4567e3884d68521d9455ee82b9daf97a8244e132e6b8',
-    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicy", "", "infisical-argocd-source-boundary"): '700a7ee8542805d4ece728f0abe4b9efd70d1982160eb0f179b25b537ecf0b0a',
-    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicyBinding", "", "infisical-argocd-alternate-target-boundary"): '9fe628a53a33301c095b1a6ac3c6007fde1377ced3e1e5800960f79133952477',
-    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicyBinding", "", "infisical-argocd-secret-write-boundary"): '07ebbfc58d15281eed817e054f7d6483bbed21a99b0d10deb9322cf0e3fbc631',
-    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicyBinding", "", "infisical-argocd-static-secret-boundary"): '11bf7f48ae4e746136a8d64fe6c1b8b090738424c06eaafaf00d0f79fd32826c',
-    ("admissionregistration.k8s.io/v1", "ValidatingAdmissionPolicyBinding", "", "infisical-argocd-source-boundary"): 'b3b105477003f52c56a1dd999adc71891a3a808940e36917359e14fb9cbf661c',
-    ("rbac.authorization.k8s.io/v1", "Role", "argocd", "infisical-argocd-secret-writer"): '625fab82d18ec8fe8ec3b50d509d3f9415cb36e13ac52d736ce2d3877ffee3bd',
-    ("rbac.authorization.k8s.io/v1", "RoleBinding", "argocd", "infisical-argocd-secret-writer"): '355d7899cdcbc9a86c7bc21741d46f99d3c0d4905978ec44964b24c6ac69713b',
-    ("secrets.infisical.com/v1beta1", "InfisicalAuth", "argocd", "argocd-infisical-auth"): '88518d0fcc938aea1109edba6ac793c7a8b35d65c98160556b360f450c605c26',
-    ("secrets.infisical.com/v1beta1", "InfisicalConnection", "argocd", "infisical-cloud"): 'e8539e82bbb91f590d829610c3e4c78b640cf8571a8d58f1b7e957e7123fa41c',
-    ("secrets.infisical.com/v1beta1", "InfisicalStaticSecret", "argocd", "argocd-infisical-secrets"): '083c2d01b8f6a91e5d46cc13a4df12978f7df78bc2d48942cf7ea9953988c1a4'
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-alternate-target-boundary'): '9fe628a53a33301c095b1a6ac3c6007fde1377ced3e1e5800960f79133952477',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-alternate-target-boundary'): 'e83729093168045791912a4802ab4d930250241dfd6186181eb89d51ca8955d8',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-secret-write-boundary'): '07ebbfc58d15281eed817e054f7d6483bbed21a99b0d10deb9322cf0e3fbc631',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-secret-write-boundary'): '24be75a61d092574c33e127fa5f5e6e9462952fbf7b04567dcfd34e56c42ce1e',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-source-boundary'): 'b3b105477003f52c56a1dd999adc71891a3a808940e36917359e14fb9cbf661c',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-source-boundary'): 'a2834bef0fd3efb25b05f604f5136626b0b0e038d8e3716437e7ea78aa335238',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-static-secret-boundary'): '11bf7f48ae4e746136a8d64fe6c1b8b090738424c06eaafaf00d0f79fd32826c',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-static-secret-boundary'): '18509ed4da8ed870f52d5a0f8325df4868007526683ebcdc4913ac34cdc226a9',
+    ('rbac.authorization.k8s.io/v1', 'Role', 'argocd', 'infisical-argocd-secret-writer'): '625fab82d18ec8fe8ec3b50d509d3f9415cb36e13ac52d736ce2d3877ffee3bd',
+    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'argocd', 'infisical-argocd-secret-writer'): '355d7899cdcbc9a86c7bc21741d46f99d3c0d4905978ec44964b24c6ac69713b',
+    ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'argocd', 'argocd-infisical-auth'): '88518d0fcc938aea1109edba6ac793c7a8b35d65c98160556b360f450c605c26',
+    ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'argocd', 'argocd-infisical-secrets'): 'd4b7f5b9456e02a7b9035761bd8788f0f2189f021eddaa71d6961a72712a6941',
+    ('secrets.infisical.com/v1beta1', 'InfisicalConnection', 'argocd', 'infisical-cloud'): 'd8ea88e0dccaadaea0765b7b488370f5d8adf007892528ff24e68740d667bff3',
 }
-_EXPECTED_IDENTITY_SET_SHA256 = "23623b2be563e41d19483994371f67c3ab9d2f2e94919cbd22588d32883aca33"
+# Canonical source identity digest: 23623b2be563e41d19483994371f67c3ab9d2f2e94919cbd22588d32883aca33
+# Ansible/Jinja joins the protected runtime identity list with literal ``\\n``.
+_EXPECTED_IDENTITY_SET_SHA256 = "1bffb930b5aaaa129000320c6124f0fdf87f1774e0391fadd44ffb055fe658c3"
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
-_EXPECTED_TASK_SOURCE = (
-    "/Users/paul/Projects/cristexweb/ansible/roles/"
-    "infisical_argocd_secrets_bootstrap/tasks/main.yml"
-)
+_EXPECTED_TASK_SOURCES = {
+    "/Users/paul/Projects/cristexweb/ansible/roles/infisical_argocd_secrets_bootstrap/tasks/main.yml",
+    "/home/paul/projects/cristexweb/ansible/roles/infisical_argocd_secrets_bootstrap/tasks/main.yml",
+}
 
 
 def _canonical_hash(value: dict[str, Any]) -> str:
@@ -54,7 +56,7 @@ class ActionModule(KubernetesActionModule):
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
         task_source = str(self._task.get_path()).rsplit(":", 1)[0]
-        if task_source != _EXPECTED_TASK_SOURCE:
+        if task_source not in _EXPECTED_TASK_SOURCES:
             return {
                 "changed": False,
                 "failed": True,

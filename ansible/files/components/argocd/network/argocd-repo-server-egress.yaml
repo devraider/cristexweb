@@ -26,9 +26,7 @@ spec:
       port: 53
     - protocol: TCP
       port: 53
-  - to:
-    - {}
-    ports:
+  - ports:
     - protocol: TCP
       port: 443
   - to:

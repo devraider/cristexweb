@@ -118,7 +118,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         connection = self.by_identity[
             ("secrets.infisical.com/v1beta1", "InfisicalConnection", "argocd", "infisical-cloud")
         ]
-        self.assertEqual({"address": "https://app.infisical.com/api"}, connection["spec"])
+        self.assertEqual({"address": "https://app.infisical.com"}, connection["spec"])
         auth = self.by_identity[
             ("secrets.infisical.com/v1beta1", "InfisicalAuth", "argocd", "argocd-infisical-auth")
         ]
@@ -147,7 +147,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         )
         self.assertEqual(
             [{
-                "projectSlug": "cristexweb-infrastructure",
+                "projectId": "619656da-14f3-4872-857b-be103cdc5326",
                 "environmentSlug": "prod",
                 "secretPath": "/argocd",
                 "recursive": False,
@@ -155,11 +155,11 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             }],
             static["spec"]["sources"],
         )
-        self.assertEqual({"refreshInterval": "1h", "instantUpdates": False}, static["spec"]["syncOptions"])
+        self.assertEqual({"refreshInterval": "5m", "instantUpdates": False}, static["spec"]["syncOptions"])
         source = static["spec"]["sources"][0]
         self.assertFalse(source.get("recursive"))
         self.assertEqual([], source.get("tagSlugs"))
-        self.assertNotIn("projectId", source)
+        self.assertNotIn("projectSlug", source)
 
     def test_source_fields_match_the_promoted_v0117_crds(self) -> None:
         crds = {
@@ -194,7 +194,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             set(static_spec["required"]),
         )
         source_properties = static_spec["properties"]["sources"]["items"]["properties"]
-        self.assertTrue({"projectSlug", "environmentSlug", "secretPath"} <= set(source_properties))
+        self.assertTrue({"projectId", "environmentSlug", "secretPath"} <= set(source_properties))
         target_properties = static_spec["properties"]["targets"]["items"]["properties"]
         self.assertEqual({"Owner", "Orphan"}, set(target_properties["creationPolicy"]["enum"]))
         self.assertEqual({"Secret", "ConfigMap"}, set(target_properties["kind"]["enum"]))
@@ -290,17 +290,17 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "oldObject.spec == object.spec",
             "argocd-infisical-secrets",
             "argocd-infisical-auth",
-            "cristexweb-infrastructure",
+            "619656da-14f3-4872-857b-be103cdc5326",
             "prod",
             "argocd-secret",
             "argocd-redis",
             "argocd-server-tls",
-            "!has(object.spec.sources[0].projectId)",
+            "!has(object.spec.sources[0].projectSlug)",
             "has(object.spec.sources[0].recursive)",
             "object.spec.sources[0].recursive == false",
             "has(object.spec.sources[0].tagSlugs)",
             "object.spec.sources[0].tagSlugs.size() == 0",
-            "object.spec.syncOptions.refreshInterval == '1h'",
+            "object.spec.syncOptions.refreshInterval == '5m'",
             "has(object.spec.syncOptions.instantUpdates)",
             "object.spec.syncOptions.instantUpdates == false",
             "object.spec.targets.size() == 3",
@@ -333,7 +333,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "request.userInfo.username == 'system:admin'",
             "oldObject != null",
             "oldObject.spec == object.spec",
-            "https://app.infisical.com/api",
+            "https://app.infisical.com",
             "argocd-infisical-universal-auth",
             "clientId",
             "clientSecret",

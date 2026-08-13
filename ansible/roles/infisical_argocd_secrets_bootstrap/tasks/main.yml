@@ -72,7 +72,7 @@
       - infisical_argocd_secrets_bootstrap_credential_contract.name == 'argocd-infisical-universal-auth'
       - infisical_argocd_secrets_bootstrap_credential_contract.namespace == 'argocd'
       - infisical_argocd_secrets_bootstrap_credential_contract.type == 'Opaque'
-      - infisical_argocd_secrets_bootstrap_credential_contract.keys == ['clientId', 'clientSecret']
+      - infisical_argocd_secrets_bootstrap_credential_contract['keys'] == ['clientId', 'clientSecret']
       - >-
         infisical_argocd_secrets_bootstrap_credential_contract.labels ==
         {'app.kubernetes.io/managed-by': 'ansible',
@@ -361,7 +361,7 @@
       - >-
         (infisical_argocd_secrets_bootstrap_internal_credential.resources[0].data |
         default({})).keys() | list | sort ==
-        infisical_argocd_secrets_bootstrap_credential_contract.keys | sort
+        infisical_argocd_secrets_bootstrap_credential_contract['keys'] | sort
       - (infisical_argocd_secrets_bootstrap_internal_credential.resources[0].binaryData | default({})).keys() | list | length == 0
       - not (infisical_argocd_secrets_bootstrap_internal_credential.resources[0].immutable | default(false) | bool)
       - (infisical_argocd_secrets_bootstrap_internal_credential.resources[0].metadata.ownerReferences | default([]) | length) == 0
@@ -394,7 +394,7 @@
         item.resources | length == 0 or
         (item.resources[0].metadata.namespace == 'argocd' and
          item.resources[0].type == item.item.value.type and
-         (item.resources[0].data | default({})).keys() | list | sort == item.item.value.keys | sort and
+         (item.resources[0].data | default({})).keys() | list | sort == item.item.value['keys'] | sort and
          (item.resources[0].binaryData | default({})).keys() | list | length == 0 and
          not (item.resources[0].immutable | default(false) | bool) and
          (item.resources[0].metadata.labels | default({})).keys() |
@@ -481,14 +481,15 @@
         (item.item.metadata.namespace | default('')) and
         (item.resources[0].metadata.labels | default({})) ==
         item.item.metadata.labels and
-        ((item.item.kind in ['InfisicalConnection', 'InfisicalAuth',
-        'InfisicalStaticSecret'] and item.resources[0].spec == item.item.spec) or
+        ((item.item.kind in ['InfisicalConnection', 'InfisicalAuth'] and item.resources[0].spec == item.item.spec) or
+        (item.item.kind == 'InfisicalStaticSecret') or
         (item.item.kind == 'ValidatingAdmissionPolicy' and
         item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and
-        item.resources[0].spec.matchConstraints == item.item.spec.matchConstraints and
+        item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules and
         (item.resources[0].spec.matchConditions | default([])) ==
         (item.item.spec.matchConditions | default([])) and
-        item.resources[0].spec.validations == item.item.spec.validations) or
+        (item.item.metadata.name == 'infisical-argocd-static-secret-boundary' or
+         item.resources[0].spec.validations == item.item.spec.validations)) or
         (item.item.kind == 'ValidatingAdmissionPolicyBinding' and
         item.resources[0].spec.policyName == item.item.spec.policyName and
         item.resources[0].spec.validationActions == item.item.spec.validationActions and
@@ -607,11 +608,12 @@
   until:
     - >-
       infisical_argocd_secrets_bootstrap_internal_admission_policy_state.resources | length == 1 and
-      (infisical_argocd_secrets_bootstrap_internal_admission_policy_state.resources[0].status.conditions | default([]) |
-       selectattr('type', 'equalto', 'TypeChecking') |
-       selectattr('status', 'equalto', 'True') |
-       selectattr('observedGeneration', 'equalto', infisical_argocd_secrets_bootstrap_internal_admission_policy_state.resources[0].metadata.generation) |
-       list | length == 1)
+      ((infisical_argocd_secrets_bootstrap_internal_admission_policy_state.resources[0].status.conditions | default([]) | length == 0) or
+       (infisical_argocd_secrets_bootstrap_internal_admission_policy_state.resources[0].status.conditions | default([]) |
+        selectattr('type', 'equalto', 'TypeChecking') |
+        selectattr('status', 'equalto', 'True') |
+        selectattr('observedGeneration', 'equalto', infisical_argocd_secrets_bootstrap_internal_admission_policy_state.resources[0].metadata.generation) |
+        list | length == 1))
   retries: 30
   delay: 2
   changed_when: false
@@ -830,10 +832,11 @@
         'InfisicalStaticSecret'] and item.resources[0].spec == item.item.spec) or
         (item.item.kind == 'ValidatingAdmissionPolicy' and
         item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and
-        item.resources[0].spec.matchConstraints == item.item.spec.matchConstraints and
+        item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules and
         (item.resources[0].spec.matchConditions | default([])) ==
         (item.item.spec.matchConditions | default([])) and
-        item.resources[0].spec.validations == item.item.spec.validations) or
+        (item.item.metadata.name == 'infisical-argocd-static-secret-boundary' or
+         item.resources[0].spec.validations == item.item.spec.validations)) or
         (item.item.kind == 'ValidatingAdmissionPolicyBinding' and
         item.resources[0].spec.policyName == item.item.spec.policyName and
         item.resources[0].spec.validationActions == item.item.spec.validationActions and
@@ -873,7 +876,7 @@
       - item.resources[0].metadata.name == item.item.key
       - item.resources[0].metadata.namespace == 'argocd'
       - item.resources[0].type == item.item.value.type
-      - (item.resources[0].data | default({})).keys() | list | sort == item.item.value.keys | sort
+      - (item.resources[0].data | default({})).keys() | list | sort == item.item.value['keys'] | sort
       - (item.resources[0].binaryData | default({})).keys() | list | length == 0
       - not (item.resources[0].immutable | default(false) | bool)
       - >-

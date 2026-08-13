@@ -24,6 +24,8 @@ _EXPECTED_MATERIALIZER_TASK_SOURCE = (
 _TASK_SOURCE_CONTRACTS = {
     _EXPECTED_TASK_SOURCE: "argocd-bootstrap",
     _EXPECTED_MATERIALIZER_TASK_SOURCE: "infisical-materializer",
+    "/home/paul/projects/cristexweb/ansible/roles/argocd_bootstrap/tasks/main.yml": "argocd-bootstrap",
+    "/home/paul/projects/cristexweb/ansible/roles/infisical_argocd_secrets_bootstrap/tasks/main.yml": "infisical-materializer",
 }
 _BCRYPT_PATTERN = re.compile(r"^\$2[aby]\$12\$[./A-Za-z0-9]{53}$")
 _UTC_RFC3339_PATTERN = re.compile(

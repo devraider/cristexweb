@@ -13,7 +13,10 @@ script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd
 repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
 controller_home="$(CDPATH= cd -- "$repository_root/../.." && pwd -P)"
 controller_user="$(/usr/bin/id -un)"
-[ "$repository_root" = "$controller_home/Projects/cristexweb" ] || { printf '%s\n' 'refusing a repository outside the pinned controller path' >&2; exit 78; }
+case "$repository_root" in
+  "$controller_home/Projects/cristexweb"|"$controller_home/projects/cristexweb") ;;
+  *) printf '%s\n' 'refusing a repository outside the pinned controller path' >&2; exit 78 ;;
+esac
 controller="$repository_root/.venv/bin/ansible-playbook"
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || { printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2; exit 69; }
 cd -- "$repository_root/ansible"
