@@ -18,7 +18,7 @@ _EXPECTED_OBJECT_HASHES = {
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-private-ingress'): 'cd1a018187695a7a34807d12a604bf1fd4ab40d660057cca6a8b8559bc8889f2',
     ('v1', 'ServiceAccount', 'shared-services', 'keycloak'): 'ed90a0cbed8a407b9ac89912267befc31e4d3c7f1a5b05ece8a676f05036353e',
     ('v1', 'ConfigMap', 'shared-services', 'keycloak-realm-cristexhub'): '5268883af726ec0f6f22f638155e16533235c2b5c548c43d4c8aa2ea086b75ec',
-    ('apps/v1', 'Deployment', 'shared-services', 'keycloak'): '063a504822c755da3302acbcf678be96fc513ddb054b06f0e68d5ba2309c4557',
+    ('apps/v1', 'Deployment', 'shared-services', 'keycloak'): 'da363ddb93cbce74c6c479b50553e2b6249baea724ec7c60a2556409354e609f',
     ('v1', 'Service', 'shared-services', 'keycloak'): 'a6d6285f1f0c315f2d2fd8d3adb7adad02925cd1ed2d176f9ca403a3750bcf2f',
 }
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
