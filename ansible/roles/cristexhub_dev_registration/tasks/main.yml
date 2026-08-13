@@ -1,0 +1,67 @@
+- name: Reject externally supplied registration internals
+  ansible.builtin.assert:
+    that: item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied registration internal {{ item }}."
+  loop: [cristexhub_dev_registration_internal_manifests, cristexhub_dev_registration_internal_states, cristexhub_dev_registration_internal_attestation_state]
+  changed_when: false
+- name: Require the exact non-passthrough registration contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_DEV_REGISTRATION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_DEV_REGISTRATION_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_DEV_REGISTRATION_ATTESTATION_FILE') | length > 0
+      - cristexhub_dev_registration_approved | bool
+      - cristexhub_dev_registration_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - cristexhub_dev_registration_manifest_paths | length == 4
+      - cristexhub_dev_registration_expected_hashes | length == 4
+      - cristexhub_dev_registration_repository == 'https://github.com/devraider/cristexhub.git'
+      - cristexhub_dev_registration_revision == '147bbbf7042e4bbca4bdd026494a855437238654'
+      - cristexhub_dev_registration_path == 'infra/kubernetes/cristexhub-dev'
+    fail_msg: Refusing unapproved or non-canonical CristexHub DEV registration.
+  changed_when: false
+- name: Inspect canonical registration manifests
+  ansible.builtin.stat:
+    path: '{{ item }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: '{{ cristexhub_dev_registration_manifest_paths }}'
+  register: cristexhub_dev_registration_internal_states
+  delegate_to: localhost
+  changed_when: false
+- name: Require hash-bound registration manifests
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - item.stat.mode == '0644'
+      - item.stat.checksum == (cristexhub_dev_registration_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - item.item.startswith(cristexhub_dev_registration_repository_root ~ '/ansible/files/components/cristexhub-dev-registration/')
+    fail_msg: Refusing hash-drifted registration source.
+  loop: '{{ cristexhub_dev_registration_internal_states.results }}'
+  delegate_to: localhost
+  changed_when: false
+- name: Load exact registration objects
+  ansible.builtin.set_fact:
+    cristexhub_dev_registration_internal_manifests: '{{ (cristexhub_dev_registration_internal_manifests | default([])) + [(lookup("ansible.builtin.file", item) | from_yaml)] }}'
+  loop: '{{ cristexhub_dev_registration_manifest_paths }}'
+  changed_when: false
+  no_log: true
+- name: Block apply until image and Secret gates pass
+  ansible.builtin.assert:
+    that: false
+    fail_msg: 'APPLY_BLOCKED: zero image digests or absent cristexhub-dev-runtime Secret; check-only source is permitted.'
+  when: not ansible_check_mode
+  changed_when: false
+- name: Reconcile registration source in check mode only
+  cristexhub_dev_registration_guarded_k8s:
+    state: present
+    definition: '{{ item }}'
+    kubeconfig: '{{ cristexhub_dev_registration_kubeconfig }}'
+    wait: false
+    wait_timeout: 60
+  loop: '{{ cristexhub_dev_registration_internal_manifests }}'
+  when: ansible_check_mode
+  no_log: true

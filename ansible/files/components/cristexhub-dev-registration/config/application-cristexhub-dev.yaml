@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cristexhub-dev
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: cristexhub-dev
+    app.kubernetes.io/part-of: cristexhub
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: cristexhub-dev-registration
+spec:
+  project: cristexhub-dev
+  source:
+    repoURL: https://github.com/devraider/cristexhub.git
+    targetRevision: 147bbbf7042e4bbca4bdd026494a855437238654
+    path: infra/kubernetes/cristexhub-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cristexhub-dev
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - Prune=false
+      - ServerSideApply=false
+      - Replace=false
+      - FailOnSharedResource=true
