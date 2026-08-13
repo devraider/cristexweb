@@ -53,7 +53,7 @@ _EXPECTED_OBJECT_HASHES = {
     ('rbac.authorization.k8s.io/v1', 'Role', 'shared-services', 'infisical-operator-manager'): '93d4c93736c897f417d4b4852c60321869ce66a87a1460133a017adff0dd2c2f',
     ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'argocd', 'infisical-operator-manager'): '2c345c7df6437be34e1c720181b77541e3b81f657bcf42ab36c8c53884d1cf87',
     ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-dev', 'infisical-operator-manager'): '8da014ed8d1b35011c4fc0a0ef32a8a640d04827be6b339b912dc3b4ab7d08c6',
-    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'platform-edge', 'infisical-operator-manager'): '316c4db0365565930b69ade6f92f8e5675a3ab91ee94eebf0a803519d21051f4',
+    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'platform-edge', 'infisical-operator-manager'): '46de61159cb67208490028dd9666c4db663e8082227bab14003e8afaa4e34fda',
     ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'shared-services', 'infisical-operator-manager'): '9d6333a5979cdf887d1f13e1663c60b007d5b141d7da0ad74512d60eca61a26c',
     ('v1', 'ServiceAccount', 'shared-services', 'infisical-egress-proxy'): 'f55214941e54d1215e8c9c8b9e383bc48248b753f707c3dd9436464fb4629ed4',
 }

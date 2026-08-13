@@ -89,7 +89,7 @@ infisical_operator_bootstrap_expected_hashes:
   rbac/manager-role-shared-services.yaml: 7a17479c8650f009494007739c58dc9a674cce48319072dea62d41cafb1ca17b
   rbac/manager-rolebinding-argocd.yaml: 27bb6b8d48aea1aa5591069f401bb7da88eeb9b99361e23df18137abaa4e5eb1
   rbac/manager-rolebinding-cristexhub-dev.yaml: ac27ba55eb609d953d1547ee5d55829b234becdd0fed42c35f53215843e1ec6f
-  rbac/manager-rolebinding-platform-edge.yaml: ad01e54cb747e01edf2cb2a1edfa8ef987b1525683b5be25f48f81d9282918f8
+  rbac/manager-rolebinding-platform-edge.yaml: 6154d942aa4baf97b306be93222d2685b41bd131ab71debead380e9a35778a0f
   rbac/manager-rolebinding-shared-services.yaml: e87f1b94f67842f1a6490318ced93946a0da7018633fa4f7f6206e8a267351b7
   rbac/proxy-serviceaccount.yaml: c255c77e87f1980f72d0464e64f4199c3b9d1b72b61b9e40ef52f55f46c7327d
 
