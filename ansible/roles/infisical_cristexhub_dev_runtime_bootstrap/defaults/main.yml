@@ -1,0 +1,81 @@
+# Source-only guarded CristexHub DEV runtime materialization. Values are never committed.
+cristexhub_dev_runtime_bootstrap_approved: false
+cristexhub_dev_runtime_bootstrap_state: present
+cristexhub_dev_runtime_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+cristexhub_dev_runtime_bootstrap_repository_root: '{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}'
+cristexhub_dev_runtime_bootstrap_controller_user: '{{ lookup(''ansible.builtin.env'', ''USER'') }}'
+cristexhub_dev_runtime_bootstrap_namespace: cristexhub-dev
+cristexhub_dev_runtime_bootstrap_project_id: 619656da-14f3-4872-857b-be103cdc5326
+cristexhub_dev_runtime_bootstrap_environment_slug: prod
+cristexhub_dev_runtime_bootstrap_secret_path: /cristexhub/dev/runtime
+cristexhub_dev_runtime_bootstrap_credential_name: cristexhub-dev-infisical-universal-auth
+cristexhub_dev_runtime_bootstrap_manifest_paths:
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-secret-write-boundary.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-secret-write-boundary-binding.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-alternate-target-boundary.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-alternate-target-boundary-binding.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-static-secret-boundary.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-static-secret-boundary-binding.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-source-boundary.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-source-boundary-binding.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/rbac/infisical-cristexhub-dev-runtime-secret-writer-role.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/rbac/infisical-cristexhub-dev-runtime-secret-writer-rolebinding.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/source/infisical-cloud-connection.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/source/cristexhub-dev-infisical-auth.yaml'
+  - '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/source/cristexhub-dev-runtime-static-secret.yaml'
+cristexhub_dev_runtime_bootstrap_object_count: 13
+cristexhub_dev_runtime_bootstrap_expected_hashes:
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-secret-write-boundary.yaml'
+    sha256: a0a995f18b382a3fb66dc763404d93cd85e6e89b6e987000bff204e7a1b1a42d
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-secret-write-boundary-binding.yaml'
+    sha256: b28eb9b84a02b38d56b1d0adcee3e05b8b676586b65dbcb4940eaffcc1c1f737
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-alternate-target-boundary.yaml'
+    sha256: 9203fdeebbb7ff5214a0d3d9349f23a034d64f13f6b58773cc705959b5a2143d
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-alternate-target-boundary-binding.yaml'
+    sha256: 7b7ccf78b685bda93a9001a1709ae292469474daec046cae003660b25df15295
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-static-secret-boundary.yaml'
+    sha256: 70a96306c5320132a8d75909fbbe78ed11c0c5296a14b65d9ca7baf6f31f5444
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-static-secret-boundary-binding.yaml'
+    sha256: fd1f33bcfe4f3b3ee782feed6cddf933b16a4ede060602852daa23d3ebc5b85f
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-source-boundary.yaml'
+    sha256: 53e3d2cd8f634ded49fa96c900afc6f2d01ea6be63c12291ee56a48669e7d049
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/admission/infisical-cristexhub-dev-runtime-source-boundary-binding.yaml'
+    sha256: 5fc0c5cdf0092dda14285ccbed8f0f5d92b76ccfefb565926def0d40e1479230
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/rbac/infisical-cristexhub-dev-runtime-secret-writer-role.yaml'
+    sha256: ad0397cbdde902db79e2ed86df5170a4816cfba7db8333c495cd22148d64e2d9
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/rbac/infisical-cristexhub-dev-runtime-secret-writer-rolebinding.yaml'
+    sha256: 3d37265b4f0a8412db8e8fdab6fb5857baa9689f4545d0153adb61623aa85e34
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/source/infisical-cloud-connection.yaml'
+    sha256: 9963951d000e7c50ec3a9dc24ed7aeb3408cfae9e9c6eee9e602c4b503e0c011
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/source/cristexhub-dev-infisical-auth.yaml'
+    sha256: 5d5ffd513fdfdff8a64ddef37842517912ce853095022ba1f7b4c71638d61eeb
+  - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/source/cristexhub-dev-runtime-static-secret.yaml'
+    sha256: 8ed60e9c1276021d62bcf406286c48449199eb2167333e084bafc6e418bea636
+cristexhub_dev_runtime_bootstrap_admission_count: 8
+cristexhub_dev_runtime_bootstrap_rbac_count: 2
+cristexhub_dev_runtime_bootstrap_source_count: 3
+cristexhub_dev_runtime_bootstrap_credential_contract:
+  name: cristexhub-dev-infisical-universal-auth
+  namespace: cristexhub-dev
+  type: Opaque
+  keys:
+    - clientId
+    - clientSecret
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: infisical-operator
+    cristex.io/component: infisical-runtime-auth
+    cristex.io/value-owner: infisical-cloud
+cristexhub_dev_runtime_bootstrap_target_keys:
+  - MONGODB_URL
+  - RABBITMQ_URL
+  - REDIS_URL
+  - REDIS_PASSWORD
+  - FERNET_KEY
+  - OIDC_CLIENT_SECRET
+  - OAUTH2_PROXY_COOKIE_SECRET
+cristexhub_dev_runtime_bootstrap_target_name: cristexhub-dev-runtime
+cristexhub_dev_runtime_bootstrap_labels:
+  app.kubernetes.io/managed-by: infisical
+  app.kubernetes.io/part-of: cristexhub
+  cristex.io/value-owner: infisical-cloud
