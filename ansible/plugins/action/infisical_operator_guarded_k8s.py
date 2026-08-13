@@ -33,7 +33,7 @@ _EXPECTED_OBJECT_HASHES = {
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalpushsecrets.secrets.infisical.com'): '0c54458642f347452e3c1e307e896d2ea5c1a22c5f1768b332afc99621b7b70e',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalsecrets.secrets.infisical.com'): 'c6c6ec44ebc89ec80d231892300bc43bc2bd2fe185b6e835c8a3c9db0b0b68c5',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalstaticsecrets.secrets.infisical.com'): '057ab7cb5b343dac044d627350c396056798bb2f4bb7096b87bbc7544eee45ad',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-allow-api'): '1bb14b20a9170c739b56e6ca6068f31398cfdf3cf3ffb45d49a2a08245607200',
+    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-allow-api'): '4cb16e5388015ea9aae12787fc52558e9ef17e79640b8434f7ec6bd91c60ace4',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-allow-dns'): '704e12ee3f8194423adb402329348ed0d97a368c7a46625ccd8458da99df139b',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-allow-proxy'): '084c4f4e3958d10974120001b27db3d3b6f76649bc7937d085443948b568fe0f',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'infisical-operator-default-deny'): '61e257689c071585b4de18a8ae75566890376411ce3748f4834adc42c4e93af3',
