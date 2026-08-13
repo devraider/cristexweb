@@ -16,7 +16,7 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 _EXPECTED_OBJECT_HASHES = {
     ('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'default'): 'e48d5332aaa18c8528ae19f1b83bf00c86450ab39a66c363e4816403ee6cfd56',
     ('v1', 'ConfigMap', 'argocd', 'argocd-cm'): 'c39ba507f18a496857ff8b4ae8530901fe635949bf49717516f421170892c0ae',
-    ('v1', 'ConfigMap', 'argocd', 'argocd-cmd-params-cm'): 'ebef67aa72a3e8b4f1d017fb6ed973ee0f8437c74b05f27d14dcf66359a7afc5',
+    ('v1', 'ConfigMap', 'argocd', 'argocd-cmd-params-cm'): '985c443cb0a810c3c7441a767c34982338ce236955b3118e3afe87cc527e0621',
     ('v1', 'ConfigMap', 'argocd', 'argocd-gpg-keys-cm'): '6a0e06577b23b81c66c2cb98d403fe38b4a2f4b3259e42e31e2b60a85033fa50',
     ('v1', 'ConfigMap', 'argocd', 'argocd-rbac-cm'): '99e5a36e57c3315f8e1c2ae63035f5c9a08f206ee2e14ef047fd83bed0b404e4',
     ('v1', 'ConfigMap', 'argocd', 'argocd-redis-health-configmap'): 'b0ef48a7933de03be6a72f1c90459772ce166cc38fbb93c2aaee7b820cac3982',

@@ -46,7 +46,7 @@ argocd_bootstrap_expected_hashes:
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/config/configmap-argocd-cm.yaml'
   sha256: 9f3eb931dd0a3fbbc10b0899be9d61d3e3d6987ad25d68846be8b9747ce84246
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/config/configmap-argocd-cmd-params-cm.yaml'
-  sha256: 7716e45c45dc1b44de11b4bf680f38999698413831c36aa4c86c214c16e627ec
+  sha256: bc61942f41cad5389fc58576c17fedacbe821c07e6e0cf552779d5078e1d911e
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/config/configmap-argocd-gpg-keys-cm.yaml'
   sha256: ee19c8dee1318bb5e58ce3ad6878a7079ebdda89ebcfc849e11b6d4c2ac04d98
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/config/configmap-argocd-rbac-cm.yaml'

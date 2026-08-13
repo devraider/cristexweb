@@ -127,6 +127,7 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         self.assertEqual([{"group": "*", "kind": "*"}], spec["clusterResourceBlacklist"])
         self.assertEqual([{"group": "*", "kind": "*"}], spec["namespaceResourceBlacklist"])
         params = self.by_identity[("v1", "ConfigMap", "argocd", "argocd-cmd-params-cm")]
+        self.assertEqual("true", params["data"]["server.insecure"])
         self.assertNotIn("application.namespaces", params["data"])
         server_role = self.by_identity[("rbac.authorization.k8s.io/v1", "Role", "argocd", "argocd-server")]
         project_rules = [rule for rule in server_role["rules"] if "appprojects" in rule["resources"]]

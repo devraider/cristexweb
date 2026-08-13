@@ -13,7 +13,7 @@ metadata:
     app.kubernetes.io/version: v3.5.0-sha256-521d6b62ecd0434c9cc6e9242a74f0e1137bb8fc0026b2c48
     cristex.io/component: argocd
 data:
-  server.insecure: 'false'
+  server.insecure: 'true'
   server.disable.auth: 'false'
   server.enable.proxy.extension: 'false'
   reposerver.enable.git.submodule: 'false'

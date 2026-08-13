@@ -1,0 +1,190 @@
+---
+- name: Reject externally supplied Argo CD route internals
+  ansible.builtin.assert:
+    that: item not in vars
+  loop:
+    - argocd_route_bootstrap_internal_attestation_state
+    - argocd_route_bootstrap_internal_manifest_states
+    - argocd_route_bootstrap_internal_manifests
+    - argocd_route_bootstrap_internal_identity_keys
+    - argocd_route_bootstrap_internal_namespace
+    - argocd_route_bootstrap_internal_kubeconfig_state
+    - argocd_route_bootstrap_internal_prestate
+    - argocd_route_bootstrap_internal_preflight_binding
+    - argocd_route_bootstrap_internal_poststate
+  changed_when: false
+- name: Require guarded Argo CD route approval
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_ROUTE_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_ROUTE_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_ROUTE_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - argocd_route_bootstrap_approved | bool
+      - argocd_route_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - argocd_route_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - argocd_route_bootstrap_manifest_paths | length == 2
+      - argocd_route_bootstrap_expected_hashes | length == 2
+      - argocd_route_bootstrap_object_count == 2
+      - argocd_route_bootstrap_namespace == 'argocd'
+    fail_msg: Argo CD route requires exact guarded three-object present-only closure.
+  changed_when: false
+- name: Inspect route attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_ROUTE_BOOTSTRAP_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+  register: argocd_route_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+- name: Require route attestation
+  ansible.builtin.assert:
+    that:
+      - argocd_route_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (argocd_route_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - argocd_route_bootstrap_internal_attestation_state.stat.pw_name == argocd_route_bootstrap_controller_user
+      - argocd_route_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_ROUTE_BOOTSTRAP_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_ROUTE_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+- name: Inspect exact route source leaves
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: "{{ argocd_route_bootstrap_manifest_paths }}"
+  register: argocd_route_bootstrap_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+- name: Require hash-bound route source leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - item.stat.checksum == argocd_route_bootstrap_expected_hashes[item.item | replace(argocd_route_bootstrap_repository_root ~ '/ansible/files/components/argocd-route/', '')]
+      - item.item.startswith(argocd_route_bootstrap_repository_root ~ '/ansible/files/components/argocd-route/')
+  loop: "{{ argocd_route_bootstrap_internal_manifest_states.results }}"
+  delegate_to: localhost
+  changed_when: false
+- name: Load exact route objects
+  ansible.builtin.set_fact:
+    argocd_route_bootstrap_internal_manifests: "{{ (argocd_route_bootstrap_internal_manifests | default([])) + [lookup('ansible.builtin.file', item) | from_yaml] }}"
+  loop: "{{ argocd_route_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+- name: Bind exact route identities
+  ansible.builtin.set_fact:
+    argocd_route_bootstrap_internal_identity_keys: "{{ (argocd_route_bootstrap_internal_identity_keys | default([])) + [item.apiVersion ~ '|' ~ item.kind ~ '|' ~ (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}"
+  loop: "{{ argocd_route_bootstrap_internal_manifests }}"
+  changed_when: false
+  no_log: true
+- name: Require exact value-free route inventory
+  ansible.builtin.assert:
+    that:
+      - argocd_route_bootstrap_internal_manifests | length == 2
+      - argocd_route_bootstrap_internal_identity_keys | unique | length == 2
+      - argocd_route_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Ingress') | list | length == 1
+      - argocd_route_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 1
+      - argocd_route_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+  changed_when: false
+- name: Inspect protected kubeconfig
+  ansible.builtin.stat:
+    path: "{{ argocd_route_bootstrap_kubeconfig }}"
+    follow: false
+  register: argocd_route_bootstrap_internal_kubeconfig_state
+  changed_when: false
+  no_log: true
+- name: Require protected kubeconfig
+  ansible.builtin.assert:
+    that:
+      - argocd_route_bootstrap_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (argocd_route_bootstrap_internal_kubeconfig_state.stat.islnk | default(false))
+      - argocd_route_bootstrap_internal_kubeconfig_state.stat.pw_name == 'root'
+      - argocd_route_bootstrap_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+      - argocd_route_bootstrap_internal_kubeconfig_state.stat.mode == '0640'
+  changed_when: false
+  no_log: true
+- name: Query argocd namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: argocd
+    kubeconfig: "{{ argocd_route_bootstrap_kubeconfig }}"
+  register: argocd_route_bootstrap_internal_namespace
+  changed_when: false
+- name: Require established argocd namespace
+  ansible.builtin.assert:
+    that:
+      - argocd_route_bootstrap_internal_namespace.resources | length == 1
+      - argocd_route_bootstrap_internal_namespace.resources[0].status.phase == 'Active'
+  changed_when: false
+- name: Query route object pre-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ argocd_route_bootstrap_kubeconfig }}"
+  loop: "{{ argocd_route_bootstrap_internal_manifests }}"
+  register: argocd_route_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+- name: Refuse foreign existing route objects
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('cristex.io/component') == 'argocd-route'
+  loop: "{{ argocd_route_bootstrap_internal_prestate.results }}"
+  changed_when: false
+  no_log: true
+- name: Bind protected route preflight
+  ansible.builtin.set_fact:
+    argocd_route_bootstrap_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_ROUTE_BOOTSTRAP_TOKEN') | hash('sha256') }}"
+      object_count: "{{ argocd_route_bootstrap_internal_manifests | length }}"
+      identity_set_sha256: "{{ argocd_route_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
+      prestate_count: "{{ argocd_route_bootstrap_internal_prestate.results | length }}"
+      namespace_contract: true
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+- name: Reconcile only approved route objects
+  argocd_route_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ argocd_route_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ argocd_route_bootstrap_internal_manifests }}"
+  register: argocd_route_bootstrap_internal_apply
+  no_log: true
+- name: Query exact route post-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ argocd_route_bootstrap_kubeconfig }}"
+  loop: "{{ argocd_route_bootstrap_internal_manifests }}"
+  register: argocd_route_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+- name: Require exact route post-state ownership
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources[0].metadata.labels.get('cristex.io/component') == 'argocd-route'
+  loop: "{{ argocd_route_bootstrap_internal_poststate.results | default([]) }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
