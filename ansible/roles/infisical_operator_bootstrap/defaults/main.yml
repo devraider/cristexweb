@@ -53,7 +53,7 @@ infisical_operator_bootstrap_expected_hashes:
   admission/infisical-auth-boundary-binding.yaml: 06199a935d0b2d766ff4039f5d533ed5fbf9e00035eaf947370da851594e3623
   admission/infisical-auth-boundary.yaml: c5875ec8b958f0f9629acd2ab00b396c344104b0f08e8890703ae1e45623b63e
   admission/infisical-connection-boundary-binding.yaml: 4004a695f53c78f9a00655db1c986ee5d9d09fa178b3e3a9edd49ed2021bed02
-  admission/infisical-connection-boundary.yaml: 1f8ad07912aa61339a7d012f7aeb8a14583b7c924650bb9482e48efb4e7ea2ad
+  admission/infisical-connection-boundary.yaml: 8a4a394da28188ce297a82e1d43d9933d5734a0227cb2c81efd47498075e749d
   admission/infisical-dynamic-secret-boundary-binding.yaml: 5787dc757f2b2132906f8912a3fbe5817fce8b6fa6b9ac4be51e43ca49721551
   admission/infisical-dynamic-secret-boundary.yaml: cd61839468e1f0a744c804efb82f04bb6455d5ce6c025cd5ab8a27642f5afdb4
   admission/infisical-push-secret-boundary-binding.yaml: 390613e7db36d43308b44f680847757d41700f0dbcf55a66abc5a18630fb11af
