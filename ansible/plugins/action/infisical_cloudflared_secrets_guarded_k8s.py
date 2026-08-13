@@ -21,11 +21,11 @@ _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cloudflared-source-boundary'): '3496db1ef40a4487147cada821c25ac99384358acb856426a8f2ec696fc552aa',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cloudflared-source-boundary'): '9b4b9a1573cd3dc615cbfd229d8e9dfb1aa5d3498c36bf71d3964ce14042069c',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cloudflared-static-secret-boundary'): 'd8c4fef8ab84a70982755a19d884b3f6eac56a97dc58aa94aebc39005db411b6',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cloudflared-static-secret-boundary'): 'beb94b8181719e86a29b87f7568c98193c84f6474babad0df309bb5dff46677a',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cloudflared-static-secret-boundary'): '95cf92bcc189268b10c358ab425dfb1569f52236d23735ad601a355e27b53c75',
     ('rbac.authorization.k8s.io/v1', 'Role', 'platform-edge', 'infisical-cloudflared-secret-writer'): '0a1b9897f285f3be997ed07d5bc1d06ea29ada7b6c53f34e80c94eb016b2f861',
     ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'platform-edge', 'infisical-cloudflared-secret-writer'): 'd7b58f970c65fefa7af5c6129f198c55eae11e6b99ce502a1c1012716dc3398e',
     ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'platform-edge', 'cloudflared-infisical-auth'): '14eb767db221fd5dfb70f05ca9832f04aa7e9c58e71aeb06dc5522f1676e6443',
-    ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'platform-edge', 'cloudflared-infisical-secrets'): 'c4b0894dde026c49633cdd23d6a6af8e7d5db72d5753c9b00785cf0effff0400',
+    ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'platform-edge', 'cloudflared-infisical-secrets'): 'e1c6797867de747d095899ad2620ef61755f3596f09b9d0607e9d151dfc289fc',
     ('secrets.infisical.com/v1beta1', 'InfisicalConnection', 'platform-edge', 'infisical-cloud'): '270730090639acc030932f1b1911e3a36cadbcf2d564fe06d4f0a14bb05b7be7',
 }
 _EXPECTED_IDENTITY_SET_SHA256 = "6830878ab0fa1a088806c3474b78b87c261d8ca6b2a574e9616823d37bd83e82"
