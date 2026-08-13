@@ -251,7 +251,7 @@
     that:
       - cloudflared_bootstrap_internal_poststate.results | length == cloudflared_bootstrap_object_count
       - (cloudflared_bootstrap_internal_poststate.results | map(attribute='resources') | map('length') | list | sum) == cloudflared_bootstrap_object_count
-      - (cloudflared_bootstrap_internal_poststate.results | map(attribute='item.metadata.name') | list | unique | length) == cloudflared_bootstrap_object_count
+      - cloudflared_bootstrap_internal_identity_keys | unique | length == cloudflared_bootstrap_object_count
     fail_msg: Refusing incomplete or duplicate cloudflared live closure.
   changed_when: false
   no_log: true

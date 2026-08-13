@@ -6,11 +6,11 @@ from ansible import context
 from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule as KubernetesActionModule
 
 _EXPECTED_OBJECT_HASHES = {
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'platform-edge', 'cloudflared-allow-egress'): '1def16ac9ed1f1acbcbbb2a0304e8f5a498db6e44cecd897d821b1eea620ac3a',
+    ('networking.k8s.io/v1', 'NetworkPolicy', 'platform-edge', 'cloudflared-allow-egress'): '10d7e5bd1fc6e47099647855fe9237495c46c2eb8accdb7293d5677c6bebfdaf',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'platform-edge', 'cloudflared-allow-traefik-origin'): 'a0fae89f3799ab5be4623484d132830710fbd51e804ea88cdb83055c3ab7c8ce',
     ('networking.k8s.io/v1', 'NetworkPolicy', 'platform-edge', 'cloudflared-default-deny'): '04d11614782f936cdcd89367d1622f42dd520dc71fc688d76567a808b2202e06',
     ('v1', 'ServiceAccount', 'platform-edge', 'cloudflared'): '34051c2d22c673a246f1ee9459d9f3b8b414c292e9b9527a4f4d55bb85955c8d',
-    ('apps/v1', 'Deployment', 'platform-edge', 'cloudflared'): 'fdb6d2047898fed3ee02b60d48029bb0175dd59f6941cb6b09bf8cd862f84dbd',
+    ('apps/v1', 'Deployment', 'platform-edge', 'cloudflared'): '60c58601ebe76cd52edd953ffa730fcd71b16c921c7e5aeb0bf3fed3267116dc',
 }
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
 _EXPECTED_TASK_SOURCES = {'/Users/paul/Projects/cristexweb/ansible/roles/cloudflared_bootstrap/tasks/main.yml', '/home/paul/projects/cristexweb/ansible/roles/cloudflared_bootstrap/tasks/main.yml'}
