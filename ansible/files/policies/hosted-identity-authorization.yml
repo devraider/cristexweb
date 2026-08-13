@@ -25,8 +25,19 @@ clients:
   browser:
     - id: cristexhub-dev
       namespace: cristexhub-dev
-      activation: blocked-pending-exact-origin
-      callback_selected: false
+      activation: keycloak-configured-application-runtime-blocked
+      callback_selected: true
+      client_type: confidential
+      pkce_method: S256
+      redirect_uris:
+        - https://dev-hub.cristex-soft.com/oauth2/callback
+      web_origins:
+        - https://dev-hub.cristex-soft.com
+      post_logout_redirect_uris:
+        - https://dev-hub.cristex-soft.com/
+      client_secret_owner: infisical-cloud
+      client_secret_path: prod:/shared-services/keycloak
+      client_secret_key: CRISTEXHUB_DEV_OIDC_CLIENT_SECRET
     - id: cristexhub-prod
       namespace: cristexhub-prod
       activation: blocked-pending-exact-origin

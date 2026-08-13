@@ -134,9 +134,17 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
             ],
             browser_ids,
         )
-        self.assertTrue(
-            all(not entry["callback_selected"] for entry in self.policy["clients"]["browser"])
-        )
+        browser = {entry["id"]: entry for entry in self.policy["clients"]["browser"]}
+        dev = browser["cristexhub-dev"]
+        self.assertTrue(dev["callback_selected"])
+        self.assertEqual("confidential", dev["client_type"])
+        self.assertEqual("S256", dev["pkce_method"])
+        self.assertEqual(["https://dev-hub.cristex-soft.com/oauth2/callback"], dev["redirect_uris"])
+        self.assertEqual(["https://dev-hub.cristex-soft.com"], dev["web_origins"])
+        self.assertEqual(["https://dev-hub.cristex-soft.com/"], dev["post_logout_redirect_uris"])
+        self.assertEqual("infisical-cloud", dev["client_secret_owner"])
+        self.assertEqual("CRISTEXHUB_DEV_OIDC_CLIENT_SECRET", dev["client_secret_key"])
+        self.assertTrue(all(not entry["callback_selected"] for key, entry in browser.items() if key != "cristexhub-dev"))
         service_ids = [entry["id"] for entry in self.policy["clients"]["service"]]
         self.assertEqual(
             ["cristexhub-admin-svc-dev", "cristexhub-admin-svc-prod"], service_ids
