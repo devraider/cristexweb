@@ -44,7 +44,7 @@ cristexhub_dev_runtime_bootstrap_expected_hashes:
   - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/rbac/infisical-cristexhub-dev-runtime-secret-writer-role.yaml'
     sha256: ad0397cbdde902db79e2ed86df5170a4816cfba7db8333c495cd22148d64e2d9
   - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/rbac/infisical-cristexhub-dev-runtime-secret-writer-rolebinding.yaml'
-    sha256: 3d37265b4f0a8412db8e8fdab6fb5857baa9689f4545d0153adb61623aa85e34
+    sha256: bba11e87993a4cdba8f6f1def37f247f288ed65a0b599a2ca98039cba242364b
   - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/source/infisical-cloud-connection.yaml'
     sha256: 9963951d000e7c50ec3a9dc24ed7aeb3408cfae9e9c6eee9e602c4b503e0c011
   - path: '{{ cristexhub_dev_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-dev-runtime/source/cristexhub-dev-infisical-auth.yaml'

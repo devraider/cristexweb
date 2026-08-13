@@ -21,6 +21,9 @@ class RuntimeSeamTests(unittest.TestCase):
  def test_hardened_guards_are_present(self):
   t=TASKS.read_text(); self.assertIn('expected_hashes | length == 13',t); self.assertIn('prestate_count',t); self.assertIn("status.phase == 'Active'",t); self.assertIn("system:serviceaccount:shared-services:infisical-operator-controller",'\n'.join(p.read_text() for p in self.paths)); self.assertIn("template.data.exists(k, k == 'MONGODB_URL')",'\n'.join(p.read_text() for p in self.paths))
   self.assertIn("cristexhub_dev_runtime_credential.resources[0].type ==", t); self.assertIn('metadata.ownerReferences', t)
+ def test_rolebinding_targets_actual_operator_service_account(self):
+  binding=next(x for x in self.objects if x['kind']=='RoleBinding' and x['apiVersion'].startswith('rbac.authorization.k8s.io/'))
+  self.assertEqual([{'kind':'ServiceAccount','name':'infisical-operator-controller','namespace':'shared-services'}],binding['spec']['subjects'])
  def test_manifest_ledgers_and_action_hashes_are_current(self):
   ledger={line.split('  ',1)[1]:line.split('  ',1)[0] for line in (COMP/'MANIFESTS.sha256').read_text().splitlines()}
   self.assertEqual({str(p.relative_to(COMP)) for p in self.paths},set(ledger))
