@@ -5,8 +5,12 @@ Cloudflare Tunnel and DNS resource boundaries described below.
 
 This module is source-only and has not been initialized, planned, applied, or
 used against the Cloudflare API. It manages exactly one remotely managed
-Cloudflare Tunnel, its remote public-hostname configuration, and the proxied
-CNAME for `auth.cristex-soft.com`.
+Cloudflare Tunnel, its remote public-hostname configuration, the proxied CNAME
+for `auth.cristex-soft.com`, and one DNS-only A record for the private Argo CD
+endpoint at `argo.cristex-soft.com`. The Argo CD record points to the current
+Tailscale IPv4 `100.122.139.32`; access remains restricted by the host/cluster
+Tailscale-only ingress boundary and is not routed through the Cloudflare proxy
+or Tunnel.
 
 ## State and secret boundary
 
@@ -33,6 +37,11 @@ public-route or tunnel deletion.
 - `cloudflare_tunnel_name`: defaults to `cristexhub-keycloak`.
 - `public_hostname`: fixed to `auth.cristex-soft.com`.
 - `traefik_origin_service`: defaults to the private cluster Traefik Service URL.
+
+The private Argo CD record is intentionally fixed to `argo.cristex-soft.com`,
+`100.122.139.32`, DNS-only (`proxied = false`), with a 300-second TTL. A
+Tailscale address in public DNS is not itself an access control mechanism;
+private ingress enforcement and tailnet membership remain required.
 
 Identifiers must be supplied through an uncommitted variable mechanism after
 provider-backed work is separately approved. No credentials, account IDs, zone

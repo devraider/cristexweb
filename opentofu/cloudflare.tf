@@ -43,3 +43,17 @@ resource "cloudflare_dns_record" "keycloak" {
     prevent_destroy = true
   }
 }
+
+resource "cloudflare_dns_record" "argocd_tailscale" {
+  zone_id = var.cloudflare_zone_id
+  name    = "argo.cristex-soft.com"
+  type    = "A"
+  content = "100.122.139.32"
+  ttl     = 300
+  proxied = false
+  comment = "Managed by OpenTofu; private Argo CD endpoint on Tailscale"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}

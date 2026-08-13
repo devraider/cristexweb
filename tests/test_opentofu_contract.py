@@ -48,6 +48,11 @@ class OpenTofuContractTests(unittest.TestCase):
             'resource "cloudflare_zero_trust_tunnel_cloudflared"',
             'resource "cloudflare_zero_trust_tunnel_cloudflared_config"',
             'resource "cloudflare_dns_record"',
+            'resource "cloudflare_dns_record" "argocd_tailscale"',
+            'name    = "argo.cristex-soft.com"',
+            'type    = "A"',
+            'content = "100.122.139.32"',
+            'proxied = false',
             'backend "local"',
             'path = "/var/lib/opentofu/cristexweb/foundation.tfstate"',
         ):
