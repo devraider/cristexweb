@@ -46,10 +46,7 @@ _EXPECTED_OBJECT_HASHES = {('apiextensions.k8s.io/v1', 'CustomResourceDefinition
  ('v1', 'ServiceAccount', 'argocd', 'argocd-repo-server'): '1339f4a42652325f4fa74d7e0acc713f999b72bb045161ff10fc40a0c36164e7',
  ('v1', 'ServiceAccount', 'argocd', 'argocd-server'): '1f31e8c44625170dd56992f760045f4f3dff840fc4edf3a620d51ebff6e74956'}
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
-_EXPECTED_TASK_SOURCES = {
-    "/Users/paul/Projects/cristexweb/ansible/roles/argocd_bootstrap/tasks/main.yml",
-    "/home/paul/projects/cristexweb/ansible/roles/argocd_bootstrap/tasks/main.yml",
-}
+_EXPECTED_TASK_SUFFIX = "/ansible/roles/argocd_bootstrap/tasks/main.yml"
 _EXPECTED_CRD_ARGUMENT_KEYS = _EXPECTED_ARGUMENT_KEYS | {"wait_condition"}
 _EXPECTED_CRD_WAIT_CONDITION = {"type": "Established", "status": "True"}
 
@@ -67,8 +64,10 @@ class ActionModule(KubernetesActionModule):
         step = bool(context.CLIARGS.get("step"))
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
-        task_source = str(self._task.get_path()).rsplit(":", 1)[0]
-        if task_source not in _EXPECTED_TASK_SOURCES:
+        task_vars = task_vars or {}
+        task_source = str(Path(re.sub(r":\d+(?::\d+)?$", "", str(self._task.get_path()))).resolve())
+        repository_root = os.environ.get("CRISTEXWEB_REPOSITORY_ROOT", "")
+        if task_source != str(Path(repository_root).resolve()) + _EXPECTED_TASK_SUFFIX:
             return {
                 "changed": False,
                 "failed": True,
@@ -79,7 +78,6 @@ class ActionModule(KubernetesActionModule):
             }
         args = self._task.args
         definition = args.get("definition")
-        task_vars = task_vars or {}
         token = os.environ.get("CRISTEXWEB_ARGOCD_BOOTSTRAP_TOKEN", "")
         attestation_path = os.environ.get(
             "CRISTEXWEB_ARGOCD_BOOTSTRAP_ATTESTATION_FILE", ""

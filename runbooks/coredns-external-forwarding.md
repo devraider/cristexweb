@@ -17,7 +17,8 @@ The approved apply changed one field. CoreDNS was restarted once so its mounted
 Corefile reloaded. External resolution of `ssh.github.com` then passed from the
 Argo namespace. Final guarded idempotence passed with `changed=0`.
 
-Rollback uses the same guarded exact-field mechanism with old/new directives
-reviewed in reverse; blind ConfigMap replacement or Namespace/Pod deletion is
-not a rollback mechanism. The residual dependency is direct reachability to
+Rollback is intentionally not executable through this one-way wrapper. A reverse
+change requires a separately reviewed source revision that swaps the exact test
+and replacement constants; blind ConfigMap replacement or Namespace/Pod deletion
+is not a rollback mechanism. The residual dependency is direct reachability to
 Cloudflare DNS over UDP/TCP 53.

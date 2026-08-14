@@ -16,17 +16,15 @@ EXPECTED = {
     ("argoproj.io/v1alpha1", "Application", "argocd", "cristexhub-dev"),
     ("rbac.authorization.k8s.io/v1", "Role", "cristexhub-dev", "argocd-application-controller-cristexhub-dev"),
     ("rbac.authorization.k8s.io/v1", "RoleBinding", "cristexhub-dev", "argocd-application-controller-cristexhub-dev"),
-    ("rbac.authorization.k8s.io/v1", "ClusterRole", "", "argocd-application-controller-cristexhub-dev-read"),
-    ("rbac.authorization.k8s.io/v1", "ClusterRoleBinding", "", "argocd-application-controller-cristexhub-dev-read"),
+    ("v1", "Secret", "argocd", "argocd-cluster-cristexhub-dev"),
 }
 ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 TASK_SUFFIX = "/ansible/roles/cristexhub_dev_registration/tasks/main.yml"
-EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-dev'): 'dfcd394cf080d8bf6828ab4fc2e8efb51cd6bb1d640666a6544a2dba659aabe6',
- ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-dev'): 'f98759d1f8d7742c888dcf7f8bbbe14e9e1c97071afbb6c240f4c5d123eaab3e',
- ('rbac.authorization.k8s.io/v1', 'ClusterRole', '', 'argocd-application-controller-cristexhub-dev-read'): 'f183ca0f2ddb7159c72448080134be7ab5f27ed5604221451147c990f6a4c627',
- ('rbac.authorization.k8s.io/v1', 'ClusterRoleBinding', '', 'argocd-application-controller-cristexhub-dev-read'): '34702eba77569edf99d133359a6e216a09f4a1016852b6d83953fa54ead49bc1',
+EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-dev'): '09d8a1edafb8cd12b8cf971d9a9d96daec33bcf8cd35060e9135c49101ef48f0',
+ ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-dev'): '5e0ef54067ad36ea05a69aa98a6b853c1d7cf3da44d7c3cd5f6dab30e86b9804',
  ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-dev', 'argocd-application-controller-cristexhub-dev'): '43547fcbb3c42e6c222461581d6a33ce0f88490464b919d5869ed7c8424bcf26',
- ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-dev', 'argocd-application-controller-cristexhub-dev'): '653a3f04f29b3962bc30f7fb02f4db90faea5eb7fec50df8792fabe8b55d1d71'}
+ ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-dev', 'argocd-application-controller-cristexhub-dev'): '653a3f04f29b3962bc30f7fb02f4db90faea5eb7fec50df8792fabe8b55d1d71',
+ ('v1', 'Secret', 'argocd', 'argocd-cluster-cristexhub-dev'): '3ed366a3df3e87f8d79c60a2122e63b29b4246f61f350eb5bc8fe6c2e8034793'}
 
 
 def canonical(value: dict[str, Any]) -> str:
@@ -34,14 +32,15 @@ def canonical(value: dict[str, Any]) -> str:
 
 
 class ActionModule(KubernetesActionModule):
-    """Permit only the four-object, check-only CristexHub DEV registration."""
+    """Permit only the six-object, guarded CristexHub DEV registration."""
 
     def run(self, tmp: str | None = None, task_vars: dict[str, Any] | None = None) -> dict[str, Any]:
-        source = str(self._task.get_path()).rsplit(":", 1)[0]
+        source = str(Path(re.sub(r":\d+(?::\d+)?$", "", str(self._task.get_path()))).resolve())
         args = self._task.args
         definition = args.get("definition")
         task_vars = task_vars or {}
-        if not source.endswith(TASK_SUFFIX):
+        repository_root = str(Path(os.environ.get("CRISTEXWEB_REPOSITORY_ROOT", "")).resolve())
+        if source != repository_root + TASK_SUFFIX:
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: non-canonical registration task source"}
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])

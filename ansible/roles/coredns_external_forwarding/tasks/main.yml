@@ -8,6 +8,9 @@
       - ansible_diff_mode
       - (ansible_limit | default('')) == 'crtxweb'
       - ansible_play_hosts_all | length == 1
+      - coredns_external_forwarding_old_directive == '    forward . /etc/resolv.conf'
+      - coredns_external_forwarding_new_directive == '    forward . 1.1.1.1 1.0.0.1'
+      - coredns_external_forwarding_repository_root == lookup('ansible.builtin.env', 'CRISTEXWEB_REPOSITORY_ROOT')
   changed_when: false
 - name: Query k3s-owned CoreDNS ConfigMap
   kubernetes.core.k8s_info:
@@ -31,10 +34,16 @@
       - coredns_external_forwarding_state.resources | length == 1
       - coredns_external_forwarding_state.resources[0].metadata.name == 'coredns'
       - coredns_external_forwarding_state.resources[0].metadata.namespace == 'kube-system'
-      - coredns_external_forwarding_old_corefile.count(coredns_external_forwarding_old_directive) in [0, 1]
-      - coredns_external_forwarding_old_corefile.count(coredns_external_forwarding_new_directive) in [0, 1]
-      - (coredns_external_forwarding_old_corefile.count(coredns_external_forwarding_old_directive) + coredns_external_forwarding_old_corefile.count(coredns_external_forwarding_new_directive)) == 1
-      - coredns_external_forwarding_new_corefile == coredns_external_forwarding_old_corefile or coredns_external_forwarding_new_corefile.count(coredns_external_forwarding_new_directive) == 1
+      - coredns_external_forwarding_old_corefile.split('\n') | select('equalto', coredns_external_forwarding_old_directive) | list | length in [0, 1]
+      - coredns_external_forwarding_old_corefile.split('\n') | select('equalto', coredns_external_forwarding_new_directive) | list | length in [0, 1]
+      - >-
+        (coredns_external_forwarding_old_corefile.split('\n') |
+        select('equalto', coredns_external_forwarding_old_directive) | list | length) +
+        (coredns_external_forwarding_old_corefile.split('\n') |
+        select('equalto', coredns_external_forwarding_new_directive) | list | length) == 1
+      - coredns_external_forwarding_old_corefile.count(coredns_external_forwarding_old_directive) == (coredns_external_forwarding_old_corefile.split('\n') | select('equalto', coredns_external_forwarding_old_directive) | list | length)
+      - coredns_external_forwarding_old_corefile.count(coredns_external_forwarding_new_directive) == (coredns_external_forwarding_old_corefile.split('\n') | select('equalto', coredns_external_forwarding_new_directive) | list | length)
+      - coredns_external_forwarding_new_corefile == coredns_external_forwarding_old_corefile or coredns_external_forwarding_new_corefile.split('\n') | select('equalto', coredns_external_forwarding_new_directive) | list | length == 1
     fail_msg: Refusing drifted or ambiguous CoreDNS forwarding source.
   changed_when: false
 - name: Replace only the exact broken CoreDNS upstream directive

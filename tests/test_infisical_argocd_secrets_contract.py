@@ -275,6 +275,8 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "object.type == 'kubernetes.io/tls'",
             "object.data['admin.password'] != null",
             "object.data['tls.key'] != null",
+            "object.data['type'] == 'Z2l0'",
+            "object.data['url'] == 'c3NoOi8vZ2l0QHNzaC5naXRodWIuY29tOjQ0My9kZXZyYWlkZXIvY3Jpc3RleGh1Yi5naXQ='",
             "object.binaryData.size() == 0",
             "request.namespace == 'argocd'",
         ):
@@ -320,7 +322,9 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "creationPolicy == 'Orphan'",
         ):
             self.assertIn(required, static_expression)
-        self.assertNotIn("template.data", static_expression)
+        self.assertIn("t.template.data['type'] == 'git'", static_expression)
+        self.assertIn("t.template.data['url'] == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'", static_expression)
+        self.assertIn("t.template.data['sshPrivateKey']", static_expression)
         self.assertNotIn("request.namespace !=", static_expression)
         self.assertNotIn("shared-postgresql-admin", secret_expression)
         self.assertNotIn("shared-postgresql-tls", secret_expression)

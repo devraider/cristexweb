@@ -15,10 +15,10 @@
       - ansible_diff_mode
       - (ansible_limit | default('')) == 'crtxweb'
       - ansible_play_hosts_all | length == 1
-      - cristexhub_dev_registration_manifest_paths | length == 6
-      - cristexhub_dev_registration_expected_hashes | length == 6
+      - cristexhub_dev_registration_manifest_paths | length == 5
+      - cristexhub_dev_registration_expected_hashes | length == 5
       - cristexhub_dev_registration_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
-      - cristexhub_dev_registration_revision == 'a74b8ec920171587a1423b3946951b0f258a55d7'
+      - cristexhub_dev_registration_revision == 'c2ac07ca708f8e75d85e70317cc5f700f9e3f3ad'
       - cristexhub_dev_registration_path == 'infra/kubernetes/cristexhub-dev'
     fail_msg: Refusing unapproved or non-canonical CristexHub DEV registration.
   changed_when: false
@@ -82,8 +82,19 @@
       - cristexhub_dev_registration_internal_repository_secret.resources | length == 1
       - cristexhub_dev_registration_internal_repository_secret.resources[0].type == 'Opaque'
       - (cristexhub_dev_registration_internal_repository_secret.resources[0].data | default({})).keys() | list | sort == ['sshPrivateKey', 'type', 'url']
-      - cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.labels.get('argocd.argoproj.io/secret-type') == 'repository'
-      - cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
+      - cristexhub_dev_registration_internal_repository_secret.resources[0].data.type | b64decode == 'git'
+      - cristexhub_dev_registration_internal_repository_secret.resources[0].data.url | b64decode == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+      - (cristexhub_dev_registration_internal_repository_secret.resources[0].binaryData | default({})) | length == 0
+      - not (cristexhub_dev_registration_internal_repository_secret.resources[0].immutable | default(false) | bool)
+      - (cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.ownerReferences | default([])) | length == 0
+      - (cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.annotations | default({})).keys() | list == ['secrets.infisical.com/version']
+      - cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.annotations['secrets.infisical.com/version'] | length > 0
+      - >-
+        cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.labels ==
+        {'app.kubernetes.io/managed-by': 'infisical',
+        'app.kubernetes.io/part-of': 'argocd',
+        'argocd.argoproj.io/secret-type': 'repository',
+        'cristex.io/value-owner': 'infisical-cloud'}
     fail_msg: Refusing registration without the exact Namespace and Infisical-owned repository credential.
   changed_when: false
   no_log: true
@@ -96,3 +107,31 @@
     wait_timeout: 60
   loop: '{{ cristexhub_dev_registration_internal_manifests }}'
   no_log: true
+- name: Query exact live registration post-state
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.metadata.namespace | default(omit) }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ cristexhub_dev_registration_kubeconfig }}'
+  loop: '{{ cristexhub_dev_registration_internal_manifests }}'
+  register: cristexhub_dev_registration_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+- name: Require manual-sync registration post-state
+  ansible.builtin.assert:
+    that:
+      - cristexhub_dev_registration_internal_poststate.results | length == 5
+      - >-
+        (cristexhub_dev_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Application') | first).resources[0].spec.syncPolicy.automated is not defined
+      - >-
+        (cristexhub_dev_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'AppProject') | first).resources[0].spec.syncWindows ==
+        [{'kind': 'deny', 'schedule': '* * * * *', 'duration': '24h',
+        'applications': ['cristexhub-dev'], 'manualSync': false}]
+    fail_msg: Refusing registration whose live Application can synchronize before promotion gates pass.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
