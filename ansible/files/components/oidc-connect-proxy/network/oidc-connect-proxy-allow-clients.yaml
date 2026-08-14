@@ -22,7 +22,7 @@ spec:
               kubernetes.io/metadata.name: cristexhub-dev
           podSelector:
             matchLabels:
-              app.kubernetes.io/name: cristexhub-backend
+              app.kubernetes.io/name: backend
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: cristexhub-dev

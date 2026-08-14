@@ -10,18 +10,16 @@ from pathlib import Path
 from ansible import context
 from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule as KubernetesActionModule
 
-_EXPECTED_OBJECT_HASHES = {
-    ('v1', 'ConfigMap', 'shared-services', 'oidc-connect-proxy-config'): '9030f5a145cb1a0597c09e646e6063af1a22881285e269c83f2907188afbddf3',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'cristexhub-backend-allow-oidc-proxy'): 'f186bef8bc022dc08012e42418d227fc228282246a47246f3a05399fe452fb03',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'oauth2-proxy-allow-oidc-proxy'): '6a15389649dfa29a25802071c7630b5576f8ff36b55075d00e64b3a0aa8afc15',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-auth-egress'): '6b03dd1081d31d8c128c64231eee309b3570938a3b9f9767a93da9f64ed3641f',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-clients'): '2cf2e9d86eb7c97e0fd56c0fef0ac05c8ac19838401909c41695c96e7d048ec0',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-dns'): '1c6e1b62e40ad388f5033ceb00e9f80ab62c4cbe87f7bcc23ff6ecbfe51e704b',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-default-deny'): '21a51a152e008488dbb90fac6c550833f63e74d47153b93abea66f9f348dc25f',
-    ('v1', 'ServiceAccount', 'shared-services', 'oidc-connect-proxy'): 'eb8a14e1f526d468fcd756b510af7d15f0600573dd0bd788aff99bbda16d6087',
-    ('apps/v1', 'Deployment', 'shared-services', 'oidc-connect-proxy'): '2a195e654488af090290a2d9b70d9c4201556ef4da3abbc88acb67d5c6643750',
-    ('v1', 'Service', 'shared-services', 'oidc-connect-proxy'): '4ead3c00dd5ba42d341878904d36fd1d67ce25eb4dc2a3121a259b67a510d4e6',
-}
+_EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'oidc-connect-proxy'): '2a195e654488af090290a2d9b70d9c4201556ef4da3abbc88acb67d5c6643750',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'cristexhub-backend-allow-oidc-proxy'): 'b71a698a978952c068220db0dfa842409baa4394b77672bd04c532ec81b73f05',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'oauth2-proxy-allow-oidc-proxy'): '6a15389649dfa29a25802071c7630b5576f8ff36b55075d00e64b3a0aa8afc15',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-auth-egress'): '6b03dd1081d31d8c128c64231eee309b3570938a3b9f9767a93da9f64ed3641f',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-clients'): '46bbc652ec02da7906fdee095a91056b607bb1ac0c33bc310e0f18ad586129f3',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-dns'): '1c6e1b62e40ad388f5033ceb00e9f80ab62c4cbe87f7bcc23ff6ecbfe51e704b',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-default-deny'): '21a51a152e008488dbb90fac6c550833f63e74d47153b93abea66f9f348dc25f',
+ ('v1', 'ConfigMap', 'shared-services', 'oidc-connect-proxy-config'): '9030f5a145cb1a0597c09e646e6063af1a22881285e269c83f2907188afbddf3',
+ ('v1', 'Service', 'shared-services', 'oidc-connect-proxy'): '4ead3c00dd5ba42d341878904d36fd1d67ce25eb4dc2a3121a259b67a510d4e6',
+ ('v1', 'ServiceAccount', 'shared-services', 'oidc-connect-proxy'): 'eb8a14e1f526d468fcd756b510af7d15f0600573dd0bd788aff99bbda16d6087'}
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
 _EXPECTED_TASK_SOURCES = {
     '/Users/paul/Projects/cristexweb/ansible/roles/oidc_connect_proxy_bootstrap/tasks/main.yml',
