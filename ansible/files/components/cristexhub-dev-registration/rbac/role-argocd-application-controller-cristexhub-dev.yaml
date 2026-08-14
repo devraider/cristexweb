@@ -15,5 +15,5 @@ rules:
     resources: [deployments]
     verbs: [get, list, watch, create, patch]
   - apiGroups: [networking.k8s.io]
-    resources: [networkpolicies]
+    resources: [networkpolicies, ingresses]
     verbs: [get, list, watch, create, patch]

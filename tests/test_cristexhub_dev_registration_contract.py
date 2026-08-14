@@ -37,7 +37,7 @@ class RegistrationContractTests(unittest.TestCase):
         self.assertEqual([{'name':'cristexhub-dev-local','namespace':'cristexhub-dev'}], PROJECT['spec']['destinations'])
         kinds = {x['kind'] for x in PROJECT['spec']['namespaceResourceWhitelist']}
         self.assertNotIn('Secret', kinds)
-        self.assertNotIn('Ingress', kinds)
+        self.assertIn('Ingress', kinds)
         self.assertEqual([], PROJECT['spec'].get('namespaceResourceBlacklist', []))
         self.assertEqual([{'kind':'deny','schedule':'* * * * *','duration':'24h','applications':['cristexhub-dev'],'manualSync':False}], PROJECT['spec']['syncWindows'])
 

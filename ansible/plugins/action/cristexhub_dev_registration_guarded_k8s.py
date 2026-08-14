@@ -20,12 +20,11 @@ EXPECTED = {
 }
 ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 TASK_SUFFIX = "/ansible/roles/cristexhub_dev_registration/tasks/main.yml"
-EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-dev'): '09d8a1edafb8cd12b8cf971d9a9d96daec33bcf8cd35060e9135c49101ef48f0',
+EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-dev'): '0da42198c4e7e8f2ddb0d5066ad25de624af99d67a50569a0e155b0b769f0576',
  ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-dev'): 'be0425a38e3f07613d6d1cff29c9c88c1b849c1a5a874c6f57431d4caf2b96a8',
- ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-dev', 'argocd-application-controller-cristexhub-dev'): '43547fcbb3c42e6c222461581d6a33ce0f88490464b919d5869ed7c8424bcf26',
+ ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-dev', 'argocd-application-controller-cristexhub-dev'): '964edcc8a93400aa28f5dbda167e0e1a928362c2cf1b5140aa25cc26005f484d',
  ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-dev', 'argocd-application-controller-cristexhub-dev'): '653a3f04f29b3962bc30f7fb02f4db90faea5eb7fec50df8792fabe8b55d1d71',
  ('v1', 'Secret', 'argocd', 'argocd-cluster-cristexhub-dev'): '3ed366a3df3e87f8d79c60a2122e63b29b4246f61f350eb5bc8fe6c2e8034793'}
-
 
 def canonical(value: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()

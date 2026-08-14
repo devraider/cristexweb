@@ -68,7 +68,8 @@ class OpenTofuContractTests(unittest.TestCase):
     def test_cloudflare_exposure_and_token_boundary(self) -> None:
         for required in (
             'config_src = "cloudflare"', 'source     = "cloudflare"',
-            'hostname = var.public_hostname', 'service = "http_status:404"',
+            'hostname = var.public_hostname', 'hostname = "dev-hub.cristex-soft.com"',
+            'resource "cloudflare_dns_record" "cristexhub_dev"', 'service = "http_status:404"',
             'type    = "CNAME"', 'proxied = true', 'prevent_destroy = true',
             'MANUAL_INFISICAL_HANDOFF_REQUIRED',
         ):

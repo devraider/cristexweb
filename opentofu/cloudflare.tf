@@ -20,6 +20,10 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "keycloak" {
         service  = var.traefik_origin_service
       },
       {
+        hostname = "dev-hub.cristex-soft.com"
+        service  = var.traefik_origin_service
+      },
+      {
         service = "http_status:404"
       }
     ]
@@ -38,6 +42,20 @@ resource "cloudflare_dns_record" "keycloak" {
   ttl     = 1
   proxied = true
   comment = "Managed by OpenTofu; Cloudflare Tunnel to private Traefik origin"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "cloudflare_dns_record" "cristexhub_dev" {
+  zone_id = var.cloudflare_zone_id
+  name    = "dev-hub.cristex-soft.com"
+  type    = "CNAME"
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.keycloak.id}.cfargotunnel.com"
+  ttl     = 1
+  proxied = true
+  comment = "Managed by OpenTofu; Cloudflare Tunnel to CristexHub DEV via private Traefik origin"
 
   lifecycle {
     prevent_destroy = true
