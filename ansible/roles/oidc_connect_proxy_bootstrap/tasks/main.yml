@@ -1,0 +1,236 @@
+---
+- name: Reject externally supplied OIDC proxy internals
+  ansible.builtin.assert:
+    that: item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing supplied OIDC proxy variable {{ item }}."
+  loop:
+    - oidc_connect_proxy_bootstrap_internal_manifests
+    - oidc_connect_proxy_bootstrap_internal_identity_keys
+    - oidc_connect_proxy_bootstrap_internal_source_states
+    - oidc_connect_proxy_bootstrap_internal_prestate
+    - oidc_connect_proxy_bootstrap_internal_poststate
+    - oidc_connect_proxy_bootstrap_internal_preflight_binding
+  changed_when: false
+
+- name: Require guarded OIDC proxy approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_OIDC_CONNECT_PROXY_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_OIDC_CONNECT_PROXY_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_OIDC_CONNECT_PROXY_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - oidc_connect_proxy_bootstrap_approved | bool
+      - oidc_connect_proxy_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - oidc_connect_proxy_bootstrap_manifest_paths | length == 10
+      - oidc_connect_proxy_bootstrap_expected_hashes | length == 10
+      - oidc_connect_proxy_bootstrap_object_count == 10
+      - oidc_connect_proxy_bootstrap_namespace == 'shared-services'
+      - oidc_connect_proxy_bootstrap_service_name == 'oidc-connect-proxy'
+      - oidc_connect_proxy_bootstrap_deployment_name == 'oidc-connect-proxy'
+    fail_msg: Refusing anything outside the exact source-only OIDC proxy closure.
+  changed_when: false
+
+- name: Inspect private single-run OIDC proxy attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_OIDC_CONNECT_PROXY_BOOTSTRAP_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+  register: oidc_connect_proxy_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require private OIDC proxy attestation
+  ansible.builtin.assert:
+    that:
+      - oidc_connect_proxy_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (oidc_connect_proxy_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - oidc_connect_proxy_bootstrap_internal_attestation_state.stat.pw_name == oidc_connect_proxy_bootstrap_controller_user
+      - oidc_connect_proxy_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_OIDC_CONNECT_PROXY_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_OIDC_CONNECT_PROXY_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing invalid OIDC proxy attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact OIDC proxy source leaves
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: "{{ oidc_connect_proxy_bootstrap_manifest_paths }}"
+  register: oidc_connect_proxy_bootstrap_internal_source_states
+  delegate_to: localhost
+  changed_when: false
+
+- name: Require hash-bound OIDC proxy source leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - item.stat.checksum == (oidc_connect_proxy_bootstrap_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - item.item.startswith(oidc_connect_proxy_bootstrap_repository_root ~ '/ansible/files/components/oidc-connect-proxy/')
+    fail_msg: Refusing missing, unsafe, or hash-drifted OIDC proxy source.
+  loop: "{{ oidc_connect_proxy_bootstrap_internal_source_states.results }}"
+  delegate_to: localhost
+  changed_when: false
+
+- name: Load exact OIDC proxy objects
+  ansible.builtin.set_fact:
+    oidc_connect_proxy_bootstrap_internal_manifests: >-
+      {{ (oidc_connect_proxy_bootstrap_internal_manifests | default([])) +
+      [lookup('ansible.builtin.file', item) | from_yaml] }}
+  loop: "{{ oidc_connect_proxy_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact OIDC proxy identities
+  ansible.builtin.set_fact:
+    oidc_connect_proxy_bootstrap_internal_identity_keys: >-
+      {{ (oidc_connect_proxy_bootstrap_internal_identity_keys | default([])) +
+      [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+      (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
+  loop: "{{ oidc_connect_proxy_bootstrap_internal_manifests }}"
+  changed_when: false
+  no_log: true
+
+- name: Require exact value-free OIDC proxy inventory
+  ansible.builtin.assert:
+    that:
+      - oidc_connect_proxy_bootstrap_internal_manifests | length == 10
+      - oidc_connect_proxy_bootstrap_internal_identity_keys | unique | length == 10
+      - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 6
+      - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ServiceAccount') | list | length == 1
+      - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ConfigMap') | list | length == 1
+      - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Service') | list | length == 1
+      - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Deployment') | list | length == 1
+      - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Ingress') | list | length == 0
+    fail_msg: Refusing OIDC proxy source outside the exact ten-object closure.
+  changed_when: false
+
+- name: Capture host service health
+  ansible.builtin.service_facts:
+  register: oidc_connect_proxy_bootstrap_internal_service_facts
+  check_mode: false
+
+- name: Require k3s and Tailscale health
+  ansible.builtin.assert:
+    that:
+      - (oidc_connect_proxy_bootstrap_internal_service_facts.ansible_facts.services | default({})).get('k3s.service', {}).get('state', '') == 'running'
+      - (oidc_connect_proxy_bootstrap_internal_service_facts.ansible_facts.services | default({})).get('tailscaled.service', {}).get('state', '') == 'running'
+  changed_when: false
+
+- name: Query exact prerequisite Namespaces
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ item }}"
+    kubeconfig: "{{ oidc_connect_proxy_bootstrap_kubeconfig }}"
+  loop:
+    - shared-services
+    - cristexhub-dev
+  register: oidc_connect_proxy_bootstrap_internal_namespaces
+  changed_when: false
+
+- name: Require established prerequisite Namespaces
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].status.phase == 'Active'
+      - item.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible'
+  loop: "{{ oidc_connect_proxy_bootstrap_internal_namespaces.results }}"
+  changed_when: false
+
+- name: Query exact OIDC proxy object pre-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ oidc_connect_proxy_bootstrap_kubeconfig }}"
+  loop: "{{ oidc_connect_proxy_bootstrap_internal_manifests }}"
+  register: oidc_connect_proxy_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Refuse foreign existing OIDC proxy objects
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('cristex.io/component') == 'oidc-connect-proxy'
+  loop: "{{ oidc_connect_proxy_bootstrap_internal_prestate.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind protected OIDC proxy preflight
+  ansible.builtin.set_fact:
+    oidc_connect_proxy_bootstrap_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_OIDC_CONNECT_PROXY_BOOTSTRAP_TOKEN') | hash('sha256') }}"
+      object_count: 10
+      identity_set_sha256: "{{ oidc_connect_proxy_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
+      prestate_count: "{{ oidc_connect_proxy_bootstrap_internal_prestate.results | length }}"
+      namespace_contract: true
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Reconcile only approved OIDC proxy objects
+  oidc_connect_proxy_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ oidc_connect_proxy_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ oidc_connect_proxy_bootstrap_internal_manifests }}"
+  register: oidc_connect_proxy_bootstrap_internal_apply
+  no_log: true
+
+- name: Query OIDC proxy post-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ oidc_connect_proxy_bootstrap_kubeconfig }}"
+  loop: "{{ oidc_connect_proxy_bootstrap_internal_manifests }}"
+  register: oidc_connect_proxy_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact OIDC proxy post-state ownership
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.labels == item.item.metadata.labels
+      - item.resources[0].metadata.uid is defined
+  loop: "{{ oidc_connect_proxy_bootstrap_internal_poststate.results | default([]) }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Wait for OIDC proxy Deployment readiness
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: shared-services
+    name: oidc-connect-proxy
+    kubeconfig: "{{ oidc_connect_proxy_bootstrap_kubeconfig }}"
+  register: oidc_connect_proxy_bootstrap_internal_deployment
+  until:
+    - oidc_connect_proxy_bootstrap_internal_deployment.resources | length == 1
+    - oidc_connect_proxy_bootstrap_internal_deployment.resources[0].status.readyReplicas | default(0) | int == 1
+    - oidc_connect_proxy_bootstrap_internal_deployment.resources[0].status.updatedReplicas | default(0) | int == 1
+  retries: 60
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode

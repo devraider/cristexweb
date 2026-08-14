@@ -1,0 +1,22 @@
+#!/bin/sh
+set -eu
+usage='usage: ansible/bin/bootstrap-oidc-connect-proxy check|apply'
+[ "$#" -eq 1 ] && { [ "$1" = check ] || [ "$1" = apply ]; } || { printf '%s\n' "$usage" >&2; exit 64; }
+mode=$1
+[ ! -L "$0" ] || exit 66
+dir="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$0")" && pwd -P)"
+root="$(CDPATH= cd -- "$dir/../.." && pwd -P)"
+case "$root" in /Users/paul/Projects/cristexweb|/home/paul/projects/cristexweb) ;; *) exit 78 ;; esac
+controller="$root/.venv/bin/ansible-playbook"
+[ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
+user=$(/usr/bin/id -un)
+cd "$root/ansible"
+umask 077
+attestation="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-oidc-connect-proxy-bootstrap.XXXXXX")"
+token="$(/usr/bin/openssl rand -hex 32)"
+printf '%s:entrypoint\n' "$token" >"$attestation"
+cleanup() { /bin/rm -f -- "$attestation"; }
+trap cleanup EXIT HUP INT TERM
+set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_oidc_connect_proxy.yml --diff --limit crtxweb --extra-vars '{"oidc_connect_proxy_bootstrap_approved":true}'
+[ "$mode" != check ] || set -- "$@" --check
+/usr/bin/env -i HOME="${HOME:-/home/paul}" USER="$user" LOGNAME="$user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_OIDC_CONNECT_PROXY_BOOTSTRAP_ENTRYPOINT=v1 CRISTEXWEB_OIDC_CONNECT_PROXY_BOOTSTRAP_TOKEN="$token" CRISTEXWEB_OIDC_CONNECT_PROXY_BOOTSTRAP_ATTESTATION_FILE="$attestation" "$@"

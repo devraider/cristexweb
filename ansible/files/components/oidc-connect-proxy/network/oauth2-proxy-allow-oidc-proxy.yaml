@@ -1,0 +1,37 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: oauth2-proxy-allow-oidc-proxy
+  namespace: cristexhub-dev
+  labels:
+    app.kubernetes.io/name: oauth2-proxy
+    app.kubernetes.io/part-of: cristexhub
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/component: oidc-connect-proxy
+    cristex.io/desired-owner: argocd
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: shared-services
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: oidc-connect-proxy
+      ports:
+        - {protocol: TCP, port: 3128}

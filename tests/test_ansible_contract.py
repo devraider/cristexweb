@@ -46,8 +46,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/cloudflared_guarded_k8s.py"),
             Path("ansible/plugins/action/infisical_cloudflared_secrets_guarded_k8s.py"),
             Path("ansible/plugins/action/keycloak_route_guarded_k8s.py"),
+            Path("ansible/plugins/action/oidc_connect_proxy_guarded_k8s.py"),
         }
-        self.assertEqual(20, len(allowed_action_plugins))
+        self.assertEqual(21, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -59,7 +60,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "specs/k3s-iac-foundation/status.md",
         ):
             normalized = " ".join((ROOT / relative).read_text().split())
-            self.assertIn("twenty exact-scope Ansible action plugins", normalized, relative)
+            self.assertIn("twenty-one exact-scope Ansible action plugins", normalized, relative)
 
     def test_minimal_ansible_layout_exists(self) -> None:
         required = [
@@ -275,6 +276,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "cloudflared",
             "infisical-cloudflared-secrets",
             "keycloak-route",
+            "oidc-connect-proxy",
         ):
             required.extend(
                 str(path.relative_to(ANSIBLE))

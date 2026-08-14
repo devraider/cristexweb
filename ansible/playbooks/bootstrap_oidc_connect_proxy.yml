@@ -1,0 +1,9 @@
+---
+- name: Bootstrap guarded OIDC CONNECT proxy
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: oidc_connect_proxy_bootstrap
