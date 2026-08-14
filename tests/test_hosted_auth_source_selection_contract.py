@@ -389,6 +389,7 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "seed-infisical-universal-auth",
                 "seed_infisical_universal_auth.yml",
                 "upload-infisical-bootstrap-values",
+                "materialize-infisical-cristexhub-dev-runtime",
                 "bootstrap-infisical-cloudflared-secrets",
                 "bootstrap_infisical_cloudflared_secrets.yml",
                 "main.yml",

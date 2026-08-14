@@ -4105,7 +4105,7 @@ Final idempotence results were respectively `changed=0` for all four wrappers.
 
 Argo renders the pinned CristexHub revision as 18 objects and reports
 `OutOfSync`, `Missing`, with no comparison conditions. Automated sync remains
-disabled because application image digests are still zero and the seven-key
+disabled because application image digests are still zero and the eight-key
 runtime Secret/OIDC egress gates are incomplete. CoreDNS external forwarding
 now uses the exact guarded `1.1.1.1`/`1.0.0.1` field replacement; external
 `ssh.github.com` resolution passed after one controlled CoreDNS reload.

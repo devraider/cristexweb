@@ -176,6 +176,7 @@ metadata:
                 ANSIBLE / "bin/preflight-k3s-datastore",
                 ANSIBLE / "bin/seed-infisical-universal-auth",
                 ANSIBLE / "bin/upload-infisical-bootstrap-values",
+                ANSIBLE / "bin/materialize-infisical-cristexhub-dev-runtime",
                 ANSIBLE / "bin/bootstrap-cloudflared",
                 ANSIBLE / "bin/bootstrap-infisical-cloudflared-secrets",
                 ANSIBLE / "bin/bootstrap-keycloak-route",

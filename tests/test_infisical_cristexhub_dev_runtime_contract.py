@@ -6,6 +6,8 @@ DEFAULTS=ROOT/'ansible/roles/infisical_cristexhub_dev_runtime_bootstrap/defaults
 TASKS=ROOT/'ansible/roles/infisical_cristexhub_dev_runtime_bootstrap/tasks/main.yml'
 PLUGIN=ROOT/'ansible/plugins/action/infisical_cristexhub_dev_runtime_guarded_k8s.py'
 WRAPPER=ROOT/'ansible/bin/bootstrap-infisical-cristexhub-dev-runtime'
+POLICY=ROOT/'ansible/files/policies/cristexhub-dev-runtime-materialization.yml'
+COMPOSER=ROOT/'ansible/bin/materialize-infisical-cristexhub-dev-runtime'
 class RuntimeSeamTests(unittest.TestCase):
  @classmethod
  def setUpClass(cls):
@@ -15,7 +17,7 @@ class RuntimeSeamTests(unittest.TestCase):
   self.assertEqual(13,len(self.objects)); self.assertFalse(any(x['kind']=='Secret' for x in self.objects))
   self.assertEqual({'ValidatingAdmissionPolicy':4,'ValidatingAdmissionPolicyBinding':4,'Role':1,'RoleBinding':1,'InfisicalConnection':1,'InfisicalAuth':1,'InfisicalStaticSecret':1},{k:sum(x['kind']==k for x in self.objects) for k in {x['kind'] for x in self.objects}})
  def test_fixed_source_target_and_keys(self):
-  s=next(x for x in self.objects if x['kind']=='InfisicalStaticSecret'); self.assertEqual('cristexhub-dev',s['metadata']['namespace']); self.assertEqual('/cristexhub/dev/runtime',s['spec']['sources'][0]['secretPath']); self.assertEqual('prod',s['spec']['sources'][0]['environmentSlug']); self.assertEqual('619656da-14f3-4872-857b-be103cdc5326',s['spec']['sources'][0]['projectId']); self.assertEqual({'MONGODB_URL','RABBITMQ_URL','REDIS_URL','REDIS_PASSWORD','FERNET_KEY','OIDC_CLIENT_SECRET','OAUTH2_PROXY_COOKIE_SECRET'},set(s['spec']['targets'][0]['template']['data']))
+  s=next(x for x in self.objects if x['kind']=='InfisicalStaticSecret'); self.assertEqual('cristexhub-dev',s['metadata']['namespace']); self.assertEqual('/cristexhub/dev/runtime',s['spec']['sources'][0]['secretPath']); self.assertEqual('prod',s['spec']['sources'][0]['environmentSlug']); self.assertEqual('619656da-14f3-4872-857b-be103cdc5326',s['spec']['sources'][0]['projectId']); self.assertEqual({'MONGODB_URL','RABBITMQ_URL','REDIS_URL','REDIS_PASSWORD','FERNET_KEY','OIDC_CLIENT_SECRET','OAUTH2_PROXY_COOKIE_SECRET','PRIVATE_CA_BUNDLE'},set(s['spec']['targets'][0]['template']['data']))
   self.assertEqual({'address': 'https://app.infisical.com'}, next(x for x in self.objects if x['kind']=='InfisicalConnection')['spec'])
   auth=next(x for x in self.objects if x['kind']=='InfisicalAuth'); self.assertEqual('universal',auth['spec']['method']); self.assertEqual('cristexhub-dev',auth['spec']['infisicalConnectionRef']['namespace'])
  def test_hardened_guards_are_present(self):
@@ -35,4 +37,23 @@ class RuntimeSeamTests(unittest.TestCase):
   t=TASKS.read_text(); self.assertIn('cristexhub-dev-infisical-universal-auth',t); self.assertIn('BLOCKED:',t); self.assertIn('No mutation was attempted',t)
  def test_guarded_entrypoint_and_no_values(self):
   self.assertIn('check|apply',WRAPPER.read_text()); self.assertNotIn('clientSecret:', '\n'.join(p.read_text() for p in self.paths)); self.assertIn('_EXPECTED_OBJECT_HASHES',PLUGIN.read_text())
+ def test_composition_policy_binds_existing_contracts_and_tls(self):
+  policy=yaml.safe_load(POLICY.read_text())
+  self.assertEqual(policy['target_keys'], ['MONGODB_URL','RABBITMQ_URL','REDIS_URL','REDIS_PASSWORD','FERNET_KEY','OIDC_CLIENT_SECRET','OAUTH2_PROXY_COOKIE_SECRET','PRIVATE_CA_BUNDLE'])
+  self.assertEqual(policy['sources']['mongodb']['path'], '/shared-services/mongodb')
+  self.assertEqual(policy['sources']['rabbitmq']['path'], '/shared-services/rabbitmq')
+  self.assertEqual(policy['sources']['keycloak']['path'], '/shared-services/keycloak')
+  self.assertEqual(policy['sources']['mongodb']['tls_ca_file'], '/etc/cristexhub/tls/ca-bundle.pem')
+  self.assertEqual(policy['sources']['rabbitmq']['tls_ca_file'], '/etc/cristexhub/tls/ca-bundle.pem')
+  self.assertEqual(policy['authorization']['universal_auth_secret']['keys'], ['clientId','clientSecret'])
+  self.assertTrue(policy['workflow']['atomic_remote_upload'])
+  self.assertTrue(policy['authorization']['no_plaintext_output'])
+ def test_composition_entrypoint_is_guarded_and_value_safe(self):
+  t=COMPOSER.read_text()
+  self.assertIn("[ \"$1\" = apply ]",t)
+  self.assertIn('v3/secrets/raw/',t)
+  self.assertIn('/shared-services/mongodb',t); self.assertIn('/shared-services/rabbitmq',t); self.assertIn('/shared-services/keycloak',t)
+  self.assertIn('PRIVATE_CA_BUNDLE',t); self.assertIn('atomic',POLICY.read_text())
+  self.assertIn('PRIVATE KEY',t); self.assertIn('UNKNOWN — STOP',t)
+  self.assertNotIn('set +x',t)
 if __name__=='__main__': unittest.main()

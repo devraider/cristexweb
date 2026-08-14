@@ -107,6 +107,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "playbooks/seed_infisical_universal_auth.yml",
             "bin/seed-infisical-universal-auth",
             "bin/upload-infisical-bootstrap-values",
+            "bin/materialize-infisical-cristexhub-dev-runtime",
             "bin/bootstrap-argocd",
             "playbooks/bootstrap_argocd.yml",
             "bin/bootstrap-mongodb",
