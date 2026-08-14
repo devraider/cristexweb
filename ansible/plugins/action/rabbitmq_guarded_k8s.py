@@ -11,18 +11,16 @@ from typing import Any
 from ansible import context
 from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule as KubernetesActionModule
 
-_EXPECTED_OBJECT_HASHES = {
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'shared-rabbitmq-allow-client'): '1ddaf2b106b73264dddf113932136c7cb108112074c0dff4efb3619838c95602',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'shared-rabbitmq-allow-dns'): '8da7b3b828919de699caa2cf08f433e2819e5007b35fe4b21ed43eb34f578a9a',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'shared-rabbitmq-allow-management'): '800a4aff94fb5e62bd85fe3307ec144b995ce1217bba4d1ed6c7375aef69c543',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'shared-rabbitmq-default-deny'): '68f1bf1fc49db500ae169d7d64d0fc4e39dec60707865c4dfa6df1c76e86fee2',
-    ('v1', 'ServiceAccount', 'shared-services', 'shared-rabbitmq'): '2c042d1bec06a4e04beaad4cc157e29db16bad77e66c9e544d37ee3e26b03d63',
-    ('v1', 'ConfigMap', 'shared-services', 'shared-rabbitmq-config'): '2e173ef84ea82b15a00660c4ffb77989bf2da186e60656186b1f0f2439823041',
-    ('v1', 'Service', 'shared-services', 'shared-rabbitmq-headless'): '57f28c3f60ea236890de9669e79c0652a38eb7690bc3f6f3b11af07460216dc2',
-    ('v1', 'Service', 'shared-services', 'shared-rabbitmq-management'): 'd9ff999c6bb9d11edca3e19fe393a90efc110a5b9f4fdb2948b6299674b84372',
-    ('v1', 'Service', 'shared-services', 'shared-rabbitmq'): '6a4c9eb21301940011bcd646d0f71dcf022b6b8db3be8c9ee7c0a50d79ae5964',
-    ('apps/v1', 'StatefulSet', 'shared-services', 'shared-rabbitmq'): '2e2c8849755d0aedb466d12f01119eb2dbf8b50a21cc563bbdcbe0761ad2ed00',
-}
+_EXPECTED_OBJECT_HASHES = {('apps/v1', 'StatefulSet', 'shared-services', 'shared-rabbitmq'): '1bc9162ee9118e45e6ad63f0377ce446d9590698cdedcdad31dbb49da3635e24',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'shared-rabbitmq-allow-client'): '1ddaf2b106b73264dddf113932136c7cb108112074c0dff4efb3619838c95602',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'shared-rabbitmq-allow-dns'): '8da7b3b828919de699caa2cf08f433e2819e5007b35fe4b21ed43eb34f578a9a',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'shared-rabbitmq-allow-management'): '800a4aff94fb5e62bd85fe3307ec144b995ce1217bba4d1ed6c7375aef69c543',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'shared-rabbitmq-default-deny'): '68f1bf1fc49db500ae169d7d64d0fc4e39dec60707865c4dfa6df1c76e86fee2',
+ ('v1', 'ConfigMap', 'shared-services', 'shared-rabbitmq-config'): '926669de559cce22941eb9d6e7ce8279f2fec8c611b532129c7c5073f418b0ad',
+ ('v1', 'Service', 'shared-services', 'shared-rabbitmq'): '6a4c9eb21301940011bcd646d0f71dcf022b6b8db3be8c9ee7c0a50d79ae5964',
+ ('v1', 'Service', 'shared-services', 'shared-rabbitmq-headless'): '57f28c3f60ea236890de9669e79c0652a38eb7690bc3f6f3b11af07460216dc2',
+ ('v1', 'Service', 'shared-services', 'shared-rabbitmq-management'): 'd9ff999c6bb9d11edca3e19fe393a90efc110a5b9f4fdb2948b6299674b84372',
+ ('v1', 'ServiceAccount', 'shared-services', 'shared-rabbitmq'): '2c042d1bec06a4e04beaad4cc157e29db16bad77e66c9e544d37ee3e26b03d63'}
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
 _EXPECTED_TASK_SOURCES = {
     '/Users/paul/Projects/cristexweb/ansible/roles/rabbitmq_bootstrap/tasks/main.yml',
