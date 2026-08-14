@@ -77,7 +77,7 @@ class RabbitMqRuntimeSourceContractTests(unittest.TestCase):
     def test_definitions_are_vhost_scoped_without_wildcard_permissions(self) -> None:
         sts = self.by_kind["StatefulSet"][0]
         script = sts["spec"]["template"]["spec"]["initContainers"][0]["args"][0]
-        for value in ("/cristexhub-dev", "/cristexhub-prod", 'configure":"^(celery|default|high_priority|low_priority|reply[.]celery[.]pidbox|[0-9a-f-]+[.]reply[.]celery[.]pidbox|celeryev|celery[.]pidbox)$', "administrator"):
+        for value in ("/cristexhub-dev", "/cristexhub-prod", 'configure":"^(celery|default|high_priority|low_priority|reply[.]celery[.]pidbox|[0-9a-f-]+[.]reply[.]celery[.]pidbox|celeryev|celery[.]pidbox|celery@celery-worker-[0-9a-z-]+[.]celery[.]pidbox)$', "administrator"):
             self.assertIn(value, script)
         self.assertNotIn(".*", script)
         self.assertIn("password_hash", script)
