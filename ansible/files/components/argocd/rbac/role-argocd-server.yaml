@@ -17,3 +17,7 @@ rules:
   - apiGroups: ['']
     resources: [events]
     verbs: [get, list, watch]
+  - apiGroups: [argoproj.io]
+    resources: [applications]
+    resourceNames: [cristexhub-dev]
+    verbs: [update, patch]

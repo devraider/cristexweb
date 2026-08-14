@@ -78,7 +78,7 @@ argocd_bootstrap_expected_hashes:
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/rbac/role-argocd-application-controller.yaml'
   sha256: f9f4f8846abcbdab8aaf6ad7487f1d2ee1da9486037b9771e5780a99032e6874
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/rbac/role-argocd-server.yaml'
-  sha256: 2e9c7d6265dc7b3766e3e24a97425537708bab85c2f0cfe684617f6e0ebd7511
+  sha256: da5266e170cc3a1115027f8a0a62f7babc18923bed4d1ce9359de0ea0a8eaf18
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/rbac/rolebinding-argocd-application-controller.yaml'
   sha256: fa82912a30c0a99241d82e102ce3b4a1f969e3b3451168926a03e532de93c3e2
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/rbac/rolebinding-argocd-server.yaml'

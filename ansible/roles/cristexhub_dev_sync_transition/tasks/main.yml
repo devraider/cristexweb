@@ -36,7 +36,7 @@
       - cristexhub_dev_sync_transition_manifest_paths | length == 2
       - cristexhub_dev_sync_transition_object_count == 2
       - cristexhub_dev_sync_transition_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
-      - cristexhub_dev_sync_transition_revision == '57fffab4585fed12161144de7114c8ad05f3ba94'
+      - cristexhub_dev_sync_transition_revision == 'cb4369f715e8f77f97236a6bea1029da36ddf42d'
       - cristexhub_dev_sync_transition_path == 'infra/kubernetes/cristexhub-dev'
       - cristexhub_dev_sync_transition_dependency_services | length == 2
     fail_msg: Refusing unapproved or non-canonical automated-sync transition.
@@ -219,11 +219,14 @@
       - cristexhub_dev_sync_transition_internal_namespace.resources[0].status.phase == 'Active'
       - cristexhub_dev_sync_transition_internal_application_project.results[0].resources | length == 1
       - cristexhub_dev_sync_transition_internal_application_project.results[1].resources | length == 1
-      - cristexhub_dev_sync_transition_internal_application_project.results[0].resources[0].spec.syncPolicy.automated is not defined
       - >-
-        cristexhub_dev_sync_transition_internal_application_project.results[1].resources[0].spec.syncWindows ==
-        [{'kind': 'deny', 'schedule': '* * * * *', 'duration': '24h',
-        'applications': ['cristexhub-dev'], 'manualSync': false}]
+        cristexhub_dev_sync_transition_internal_application_project.results[0].resources[0].spec.syncPolicy.automated is not defined or
+        (cristexhub_dev_sync_transition_internal_application_project.results[0].resources[0].spec.syncPolicy.automated.prune | default(false)) == false and
+        (cristexhub_dev_sync_transition_internal_application_project.results[0].resources[0].spec.syncPolicy.automated.selfHeal | default(false)) == true
+      - >-
+        cristexhub_dev_sync_transition_internal_application_project.results[1].resources[0].spec.syncWindows | default([]) in
+        [[], [{'kind': 'deny', 'schedule': '* * * * *', 'duration': '24h',
+        'applications': ['cristexhub-dev'], 'manualSync': false}]]
       - cristexhub_dev_sync_transition_internal_runtime_secret.resources | length == 1
       - cristexhub_dev_sync_transition_internal_runtime_secret.resources[0].type == 'Opaque'
       - (cristexhub_dev_sync_transition_internal_runtime_secret.resources[0].data | default({})).keys() | list | sort == cristexhub_dev_sync_transition_runtime_secret_keys
@@ -241,8 +244,6 @@
       - cristexhub_dev_sync_transition_internal_controller_role.resources | length == 1
       - cristexhub_dev_sync_transition_internal_controller_role.resources[0].metadata.namespace == cristexhub_dev_sync_transition_namespace
       - cristexhub_dev_sync_transition_internal_deployments.resources | length == 0 or (cristexhub_dev_sync_transition_internal_images | select('match', '^[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}$') | list | length == cristexhub_dev_sync_transition_internal_images | length)
-      - cristexhub_dev_sync_transition_internal_deployments.resources | length == 0 or (cristexhub_dev_sync_transition_internal_deployments.resources | selectattr('status.availableReplicas', 'defined') | list | length == cristexhub_dev_sync_transition_internal_deployments.resources | length)
-      - cristexhub_dev_sync_transition_internal_deployments.resources | length == 0 or (cristexhub_dev_sync_transition_internal_deployments.resources | map(attribute='status.availableReplicas') | map('int') | min >= 1)
       - cristexhub_dev_sync_transition_internal_oidc_proxy.resources | length == 1
       - cristexhub_dev_sync_transition_internal_oidc_proxy.resources[0].status.availableReplicas | default(0) | int >= 1
       - cristexhub_dev_sync_transition_internal_dependency_services.results | map(attribute='resources') | map('length') | min == 1

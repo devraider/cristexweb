@@ -28,7 +28,7 @@ _EXPECTED_OBJECT_HASHES = {('apiextensions.k8s.io/v1', 'CustomResourceDefinition
  ('networking.k8s.io/v1', 'NetworkPolicy', 'argocd', 'argocd-repo-server-ingress'): '799ff3b1fc7f59f9723b67dec829a9a846ebb7dadd2190fd946659ce1af666f4',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'argocd', 'argocd-server-egress'): '8bd7c812fb7d60f1e20941c508ca8ebca9a89e0dfc37ec0c89f04c19f7585adf',
  ('rbac.authorization.k8s.io/v1', 'Role', 'argocd', 'argocd-application-controller'): '0587a7eabd73f3c2b0e0f9a15460cabab61e9c8d3fe707ee87f684fc69f093d0',
- ('rbac.authorization.k8s.io/v1', 'Role', 'argocd', 'argocd-server'): '0639dc10bd1a90ae01063d3848c3cb181bdb657d9a6ce34eadace33ee07ef477',
+ ('rbac.authorization.k8s.io/v1', 'Role', 'argocd', 'argocd-server'): 'e2af732f819cadc5a23f6cc1fcee3241292d71fe495384aca9364b1f6d792986',
  ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'argocd', 'argocd-application-controller'): 'bfe5fc197ce3b208c3af80d4579469d660b56eca31bb9352344d26be7dde5254',
  ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'argocd', 'argocd-server'): 'ba5296fb48cba19f8c6c6d8a3b87c5935d83e4cc2d410257138aa10d6044f496',
  ('v1', 'ConfigMap', 'argocd', 'argocd-cm'): '3d788c9a82b968db6edcf3a2323355251d542a24ad6614e1ac7922d3b3aac957',
