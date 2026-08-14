@@ -10,7 +10,7 @@ metadata:
     cristex.io/component: cristexhub-dev-registration
 spec:
   sourceRepos:
-    - https://github.com/devraider/cristexhub.git
+    - ssh://git@ssh.github.com:443/devraider/cristexhub.git
   destinations:
     - server: https://kubernetes.default.svc
       namespace: cristexhub-dev
@@ -20,15 +20,9 @@ spec:
       kind: ConfigMap
     - group: ""
       kind: Service
-    - group: ""
-      kind: ServiceAccount
     - group: apps
       kind: Deployment
     - group: networking.k8s.io
       kind: NetworkPolicy
-    - group: rbac.authorization.k8s.io
-      kind: Role
-    - group: rbac.authorization.k8s.io
-      kind: RoleBinding
   orphanedResources:
     warn: true

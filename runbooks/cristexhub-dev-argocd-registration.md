@@ -1,22 +1,34 @@
 # CristexHub DEV Argo registration
 
-This is a source-only, guarded registration closure. It creates no runtime
-workloads, Secrets, routes, or namespace. The application repository is pinned
-to `https://github.com/devraider/cristexhub.git` at commit
-`147bbbf7042e4bbca4bdd026494a855437238654` and path
+The guarded registration closure creates only a value-free `AppProject`,
+`Application`, bounded controller RBAC, and a read-only private-repository
+credential target owned by Infisical. The application source is pinned to
+`ssh://git@ssh.github.com:443/devraider/cristexhub.git`, commit
+`a74b8ec920171587a1423b3946951b0f258a55d7`, path
 `infra/kubernetes/cristexhub-dev`.
 
-The AppProject permits only namespaced ConfigMaps, Services, ServiceAccounts,
-Deployments, NetworkPolicies, Roles, and RoleBindings in the existing
-`cristexhub-dev` namespace. Cluster resources, Ingress, and Secrets are not
-allowed. The controller receives only a namespaced Role/RoleBinding.
+The AppProject permits only ConfigMaps, Services, Deployments, and
+NetworkPolicies in the existing `cristexhub-dev` namespace. It permits no
+cluster-scoped application resource, Secret, Ingress, Namespace, PVC, Role, or
+RoleBinding. Namespace writes are bounded by a Role without delete. Because
+Argo's cluster cache lists managed kinds cluster-wide, a distinct ClusterRole
+provides only `get`, `list`, and `watch` for those four resource kinds; it has no
+Secret or mutation permission.
 
-The wrapper supports `check` only while image digests remain zero placeholders
-or `cristexhub-dev-runtime` is absent. `apply` exits before Ansible and is not
-an approved operation. First sync remains a separate human approval with no
-automated sync, no pruning, no namespace creation, no finalizer, and no
-server-side replacement. The namespace remains infrastructure-owned.
+The repository deploy key is read-only, usable only through GitHub SSH on port
+443, and its private value exists only at Infisical `prod:/argocd`. Infisical
+materializes `argocd/argocd-repository-cristexhub`; no credential value is in
+Git or evidence. The controller copy used for initial verification was securely
+removed after materialization.
 
-Prerequisites before any future apply: verified nonzero image digests and
-attestation, Infisical-owned runtime Secret with exact key closure, Argo repo
-access, target namespace adoption evidence, and explicit manual-sync approval.
+`ansible/bin/bootstrap-cristexhub-dev-registration check|apply` is the only
+entrypoint. Registration is manual-sync, `Prune=false`,
+`CreateNamespace=false`, has no resource finalizer, and does not deploy the
+application. Runtime comparison passed with 18 rendered objects after bounded
+RBAC and external DNS recovery.
+
+Automatic or first manual synchronization remains blocked until all three
+application image references have verified nonzero promotion digests, the exact
+seven-key Infisical-owned `cristexhub-dev-runtime` Secret is reconciled, and the
+approved OIDC egress path is implemented and validated. Enabling automated sync
+before those gates would intentionally deploy a broken revision.

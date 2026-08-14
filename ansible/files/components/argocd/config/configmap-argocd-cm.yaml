@@ -15,4 +15,5 @@ metadata:
 data:
   admin.enabled: 'true'
   application.instanceLabelKey: argocd.argoproj.io/instance
+  resource.respectRBAC: 'strict'
   timeout.reconciliation: 180s

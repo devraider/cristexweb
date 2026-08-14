@@ -84,7 +84,9 @@
         {'argocd-secret': {'type': 'Opaque', 'keys': ['admin.password',
         'admin.passwordMtime', 'server.secretkey']}, 'argocd-redis':
         {'type': 'Opaque', 'keys': ['auth']}, 'argocd-server-tls':
-        {'type': 'kubernetes.io/tls', 'keys': ['ca.crt', 'tls.crt', 'tls.key']}}
+        {'type': 'kubernetes.io/tls', 'keys': ['ca.crt', 'tls.crt', 'tls.key']},
+        'argocd-repository-cristexhub': {'type': 'Opaque',
+        'keys': ['sshPrivateKey', 'type', 'url']}}
     fail_msg: >-
       Infisical Argo CD Secret materialization requires the exact non-passthrough
       wrapper, present-only approval, --diff, one-host limit, credential/target
@@ -397,9 +399,15 @@
          (item.resources[0].data | default({})).keys() | list | sort == item.item.value['keys'] | sort and
          (item.resources[0].binaryData | default({})).keys() | list | length == 0 and
          not (item.resources[0].immutable | default(false) | bool) and
-         (item.resources[0].metadata.labels | default({})).keys() |
-         list | sort == ['app.kubernetes.io/managed-by',
-         'app.kubernetes.io/part-of', 'cristex.io/value-owner'] and
+         ((item.item.key == 'argocd-repository-cristexhub' and
+           (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+           ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
+           'argocd.argoproj.io/secret-type', 'cristex.io/value-owner'] and
+           item.resources[0].metadata.labels.get('argocd.argoproj.io/secret-type') == 'repository') or
+          (item.item.key != 'argocd-repository-cristexhub' and
+           (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+           ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
+           'cristex.io/value-owner'])) and
          item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical' and
          item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'argocd' and
          item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud' and
@@ -498,7 +506,13 @@
         (item.item.kind == 'Role' and item.resources[0].rules == item.item.rules) or
         (item.item.kind == 'RoleBinding' and
         item.resources[0].roleRef == item.item.roleRef and
-        item.resources[0].subjects == item.item.subjects)))
+        item.resources[0].subjects == item.item.subjects) or
+        (item.item.kind == 'ValidatingAdmissionPolicy' and
+        item.item.metadata.name == 'infisical-argocd-secret-write-boundary' and
+        item.resources[0].spec.failurePolicy == 'Fail') or
+        (item.item.kind == 'Role' and
+        item.item.metadata.name == 'infisical-argocd-secret-writer' and
+        item.resources[0].rules | length == 4)))
     fail_msg: Refusing silent adoption or reconciliation of a foreign or noncanonical Infisical Argo CD Secret seam object.
   loop: "{{ infisical_argocd_secrets_bootstrap_internal_prestate.results }}"
   loop_control:
@@ -549,9 +563,18 @@
       - >-
         infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources | length == 0 or
         (infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].metadata.name == 'argocd-infisical-secrets' and
-         infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec ==
+         (infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec ==
            (infisical_argocd_secrets_bootstrap_internal_source_objects |
-            selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec)
+            selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec or
+          (infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec.infisicalAuthRef ==
+           (infisical_argocd_secrets_bootstrap_internal_source_objects |
+            selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec.infisicalAuthRef and
+           infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec.sources ==
+           (infisical_argocd_secrets_bootstrap_internal_source_objects |
+            selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec.sources and
+           infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec.targets | length == 3 and
+           infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec.targets |
+           map(attribute='name') | sort | list == ['argocd-redis', 'argocd-secret', 'argocd-server-tls'])))
     fail_msg: >-
       Refusing a noncanonical or drifted InfisicalStaticSecret that could write an
       Argo CD Secret target before admission policy reconciliation.
@@ -761,6 +784,10 @@
   loop: "{{ infisical_argocd_secrets_bootstrap_internal_source_objects }}"
   loop_control:
     label: "{{ item.kind }}/{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  when: >-
+    not (ansible_check_mode and item.kind == 'InfisicalStaticSecret' and
+    infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources | length == 1 and
+    infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec != item.spec)
   register: infisical_argocd_secrets_bootstrap_internal_source_apply
   no_log: true
 
@@ -869,7 +896,7 @@
   no_log: true
   when: not ansible_check_mode
 
-- name: Require exactly three Infisical-owned Argo CD target Secret contracts
+- name: Require exactly four Infisical-owned Argo CD target Secret contracts
   ansible.builtin.assert:
     that:
       - item.resources | length == 1
@@ -880,14 +907,20 @@
       - (item.resources[0].binaryData | default({})).keys() | list | length == 0
       - not (item.resources[0].immutable | default(false) | bool)
       - >-
-        (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
-        ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
-        'cristex.io/value-owner']
+        ((item.item.key == 'argocd-repository-cristexhub' and
+          (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+          ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
+          'argocd.argoproj.io/secret-type', 'cristex.io/value-owner'] and
+          item.resources[0].metadata.labels.get('argocd.argoproj.io/secret-type') == 'repository') or
+         (item.item.key != 'argocd-repository-cristexhub' and
+          (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+          ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
+          'cristex.io/value-owner']))
       - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
       - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'argocd'
       - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
       - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
-    fail_msg: The exact three Infisical-owned Argo CD target Secret contracts were not materialized.
+    fail_msg: The exact four Infisical-owned Argo CD target Secret contracts were not materialized.
   loop: "{{ infisical_argocd_secrets_bootstrap_internal_targets_after.results | default([]) }}"
   loop_control:
     label: "{{ item.item.key }}"
@@ -897,7 +930,9 @@
 
 - name: Validate cryptographic Argo CD Secret values after Infisical materialization
   argocd_secret_contract:
-    secret_results: "{{ infisical_argocd_secrets_bootstrap_internal_targets_after.results }}"
+    secret_results: >-
+      {{ infisical_argocd_secrets_bootstrap_internal_targets_after.results |
+         rejectattr('item.key', 'equalto', 'argocd-repository-cristexhub') | list }}
   changed_when: false
   no_log: true
   when: not ansible_check_mode

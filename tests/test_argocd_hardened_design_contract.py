@@ -129,6 +129,8 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         params = self.by_identity[("v1", "ConfigMap", "argocd", "argocd-cmd-params-cm")]
         self.assertEqual("true", params["data"]["server.insecure"])
         self.assertNotIn("application.namespaces", params["data"])
+        settings = self.by_identity[("v1", "ConfigMap", "argocd", "argocd-cm")]
+        self.assertEqual("strict", settings["data"]["resource.respectRBAC"])
         server_role = self.by_identity[("rbac.authorization.k8s.io/v1", "Role", "argocd", "argocd-server")]
         project_rules = [rule for rule in server_role["rules"] if "appprojects" in rule["resources"]]
         self.assertEqual(1, len(project_rules))
@@ -233,6 +235,8 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         combined = json.dumps(policies)
         for port in (53, 443, 6443, 8081, 6379):
             self.assertIn(f'"port": {port}', combined)
+        repo_dns = policies["argocd-repo-server-egress"]["spec"]["egress"][0]
+        self.assertIn({"ipBlock": {"cidr": "10.43.0.10/32"}}, repo_dns["to"])
         for metrics in (8082, 8083, 8084):
             self.assertNotIn(f'"port": {metrics}', combined)
 

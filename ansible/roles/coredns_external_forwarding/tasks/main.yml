@@ -1,0 +1,55 @@
+---
+- name: Require guarded CoreDNS forwarding approval
+  ansible.builtin.assert:
+    that:
+      - coredns_external_forwarding_approved | bool
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_COREDNS_FORWARDING_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_COREDNS_FORWARDING_TOKEN') is match('^[0-9a-f]{64}$')
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+  changed_when: false
+- name: Query k3s-owned CoreDNS ConfigMap
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: ConfigMap
+    namespace: kube-system
+    name: coredns
+    kubeconfig: '{{ coredns_external_forwarding_kubeconfig }}'
+  register: coredns_external_forwarding_state
+  changed_when: false
+- name: Bind exact old and desired CoreDNS content
+  ansible.builtin.set_fact:
+    coredns_external_forwarding_old_corefile: '{{ coredns_external_forwarding_state.resources[0].data.Corefile }}'
+    coredns_external_forwarding_new_corefile: '{{ coredns_external_forwarding_state.resources[0].data.Corefile | replace(coredns_external_forwarding_old_directive, coredns_external_forwarding_new_directive) }}'
+  when: coredns_external_forwarding_state.resources | length == 1
+  changed_when: false
+  no_log: true
+- name: Require exact bounded CoreDNS forwarding prestate
+  ansible.builtin.assert:
+    that:
+      - coredns_external_forwarding_state.resources | length == 1
+      - coredns_external_forwarding_state.resources[0].metadata.name == 'coredns'
+      - coredns_external_forwarding_state.resources[0].metadata.namespace == 'kube-system'
+      - coredns_external_forwarding_old_corefile.count(coredns_external_forwarding_old_directive) in [0, 1]
+      - coredns_external_forwarding_old_corefile.count(coredns_external_forwarding_new_directive) in [0, 1]
+      - (coredns_external_forwarding_old_corefile.count(coredns_external_forwarding_old_directive) + coredns_external_forwarding_old_corefile.count(coredns_external_forwarding_new_directive)) == 1
+      - coredns_external_forwarding_new_corefile == coredns_external_forwarding_old_corefile or coredns_external_forwarding_new_corefile.count(coredns_external_forwarding_new_directive) == 1
+    fail_msg: Refusing drifted or ambiguous CoreDNS forwarding source.
+  changed_when: false
+- name: Replace only the exact broken CoreDNS upstream directive
+  coredns_external_forwarding_guarded_patch:
+    api_version: v1
+    kind: ConfigMap
+    namespace: kube-system
+    name: coredns
+    kubeconfig: '{{ coredns_external_forwarding_kubeconfig }}'
+    patch:
+      - op: test
+        path: /data/Corefile
+        value: '{{ coredns_external_forwarding_old_corefile }}'
+      - op: replace
+        path: /data/Corefile
+        value: '{{ coredns_external_forwarding_new_corefile }}'
+  when: coredns_external_forwarding_old_corefile != coredns_external_forwarding_new_corefile
+  no_log: true

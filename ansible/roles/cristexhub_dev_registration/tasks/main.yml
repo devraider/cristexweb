@@ -15,10 +15,10 @@
       - ansible_diff_mode
       - (ansible_limit | default('')) == 'crtxweb'
       - ansible_play_hosts_all | length == 1
-      - cristexhub_dev_registration_manifest_paths | length == 4
-      - cristexhub_dev_registration_expected_hashes | length == 4
-      - cristexhub_dev_registration_repository == 'https://github.com/devraider/cristexhub.git'
-      - cristexhub_dev_registration_revision == '147bbbf7042e4bbca4bdd026494a855437238654'
+      - cristexhub_dev_registration_manifest_paths | length == 6
+      - cristexhub_dev_registration_expected_hashes | length == 6
+      - cristexhub_dev_registration_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+      - cristexhub_dev_registration_revision == 'a74b8ec920171587a1423b3946951b0f258a55d7'
       - cristexhub_dev_registration_path == 'infra/kubernetes/cristexhub-dev'
     fail_msg: Refusing unapproved or non-canonical CristexHub DEV registration.
   changed_when: false
@@ -49,13 +49,45 @@
   loop: '{{ cristexhub_dev_registration_manifest_paths }}'
   changed_when: false
   no_log: true
-- name: Block apply until image and Secret gates pass
-  ansible.builtin.assert:
-    that: false
-    fail_msg: 'APPLY_BLOCKED: zero image digests or absent cristexhub-dev-runtime Secret; check-only source is permitted.'
-  when: not ansible_check_mode
+- name: Query exact CristexHub DEV Namespace prerequisite
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: cristexhub-dev
+    kubeconfig: '{{ cristexhub_dev_registration_kubeconfig }}'
+  register: cristexhub_dev_registration_internal_namespace
   changed_when: false
-- name: Reconcile registration source in check mode only
+- name: Query Infisical-owned Argo repository credential metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: argocd
+    name: argocd-repository-cristexhub
+    kubeconfig: '{{ cristexhub_dev_registration_kubeconfig }}'
+  register: cristexhub_dev_registration_internal_repository_secret
+  changed_when: false
+  no_log: true
+- name: Require exact Namespace and repository credential prerequisites
+  ansible.builtin.assert:
+    that:
+      - cristexhub_dev_registration_internal_namespace.resources | length == 1
+      - cristexhub_dev_registration_internal_namespace.resources[0].status.phase == 'Active'
+      - >-
+        cristexhub_dev_registration_internal_namespace.resources[0].metadata.labels ==
+        {'app.kubernetes.io/part-of': 'cristexhub',
+        'cristex.io/environment': 'dev',
+        'cristex.io/bootstrap-writer': 'ansible',
+        'cristex.io/desired-owner': 'argocd',
+        'kubernetes.io/metadata.name': 'cristexhub-dev'}
+      - cristexhub_dev_registration_internal_repository_secret.resources | length == 1
+      - cristexhub_dev_registration_internal_repository_secret.resources[0].type == 'Opaque'
+      - (cristexhub_dev_registration_internal_repository_secret.resources[0].data | default({})).keys() | list | sort == ['sshPrivateKey', 'type', 'url']
+      - cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.labels.get('argocd.argoproj.io/secret-type') == 'repository'
+      - cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
+    fail_msg: Refusing registration without the exact Namespace and Infisical-owned repository credential.
+  changed_when: false
+  no_log: true
+- name: Reconcile registration source without synchronization
   cristexhub_dev_registration_guarded_k8s:
     state: present
     definition: '{{ item }}'
@@ -63,5 +95,4 @@
     wait: false
     wait_timeout: 60
   loop: '{{ cristexhub_dev_registration_internal_manifests }}'
-  when: ansible_check_mode
   no_log: true

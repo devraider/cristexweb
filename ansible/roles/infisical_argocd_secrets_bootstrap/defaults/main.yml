@@ -25,7 +25,7 @@ infisical_argocd_secrets_bootstrap_rbac_count: 2
 infisical_argocd_secrets_bootstrap_source_count: 3
 infisical_argocd_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-secret-write-boundary.yaml'
-    sha256: 69538b92d9e993adb8b64179587367ba2a69f7a06048d46f2639e290cfaac02d
+    sha256: 4b79eed541664ad71ab8e70403e97472a2f69d7f0378f166ee56784ff9d69b4b
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-secret-write-boundary-binding.yaml'
     sha256: fad81b63279c741743be5b6f9df356cb5a2fcfcc36bce42fc83c26b516058944
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-alternate-target-boundary.yaml'
@@ -33,7 +33,7 @@ infisical_argocd_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-alternate-target-boundary-binding.yaml'
     sha256: 79b2e4987a5f058281062a531007038bccae1b86f2151df4c32a13bed39357dd
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-static-secret-boundary.yaml'
-    sha256: 4a6b4dff14826ecc8c64d5a58db5f7d80fc9fcfcdaf99c69c17587ff9e579e0d
+    sha256: ffcb10f3465d93453ec982f0b01c77b074256a2f898ea33089a1de006b1c6b9e
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-static-secret-boundary-binding.yaml'
     sha256: 6791c56baefd4d0b8f1d15580f29cb333ae9e3441e9d2883ff859de0030376a7
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-source-boundary.yaml'
@@ -41,7 +41,7 @@ infisical_argocd_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-source-boundary-binding.yaml'
     sha256: 524ac4de30e858639926c1743461d060732933c99d5880a1e18a0d445441d5a5
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/rbac/argocd-secret-writer-role.yaml'
-    sha256: bc6c0ff94c30caefd1b6bb348fd3f7325a59fe852ad6228f2eb53504d7dd95c8
+    sha256: 05a24db44d5a1c60fc6b3f416999194ad893fd8903be3adf1099af365fffae50
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/rbac/argocd-secret-writer-rolebinding.yaml'
     sha256: e3fb3bc97cd14109e791631dd1eb252dd4fc8fa092a1f285016c59c0fe37e6c7
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/source/infisical-cloud-connection.yaml'
@@ -49,7 +49,7 @@ infisical_argocd_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/source/argocd-infisical-auth.yaml'
     sha256: dc81f9832a71fe6de15cdd693979bbef247c7bd26384903f48689191c006a81e
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/source/argocd-infisical-secrets.yaml'
-    sha256: 5df66747eee3514328d5c16591cdd96e8f432a2711a4e5764352a5b707ed8ca1
+    sha256: 89c2aedc4424280514e8927bdf471a4a608e119ef337b5b779d1b5976c9d4aa8
 infisical_argocd_secrets_bootstrap_credential_contract:
   name: argocd-infisical-universal-auth
   namespace: argocd
@@ -79,6 +79,12 @@ infisical_argocd_secrets_bootstrap_target_contract:
       - ca.crt
       - tls.crt
       - tls.key
+  argocd-repository-cristexhub:
+    type: Opaque
+    keys:
+      - sshPrivateKey
+      - type
+      - url
 infisical_argocd_secrets_bootstrap_crd_names:
   - infisicalconnections.secrets.infisical.com
   - infisicalauths.secrets.infisical.com

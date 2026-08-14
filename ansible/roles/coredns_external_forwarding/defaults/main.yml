@@ -1,0 +1,5 @@
+---
+coredns_external_forwarding_approved: false
+coredns_external_forwarding_kubeconfig: /etc/rancher/k3s/k3s.yaml
+coredns_external_forwarding_old_directive: '    forward . /etc/resolv.conf'
+coredns_external_forwarding_new_directive: '    forward . 1.1.1.1 1.0.0.1'
