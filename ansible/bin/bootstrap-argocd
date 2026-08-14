@@ -29,4 +29,4 @@ trap cleanup EXIT HUP INT TERM
 set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_argocd.yml --diff --limit crtxweb --extra-vars '{"argocd_bootstrap_approved":true}'
 [ "$mode" != check ] || set -- "$@" --check
 if [ -n "${SSH_AUTH_SOCK:-}" ]; then set -- "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" "$@"; fi
-/usr/bin/env -i HOME="$controller_home" USER="$controller_user" LOGNAME="$controller_user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_ARGOCD_BOOTSTRAP_ENTRYPOINT=v1 CRISTEXWEB_ARGOCD_BOOTSTRAP_TOKEN="$attestation_token" CRISTEXWEB_ARGOCD_BOOTSTRAP_ATTESTATION_FILE="$attestation_file" "$@"
+/usr/bin/env -i HOME="$controller_home" USER="$controller_user" LOGNAME="$controller_user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_REPOSITORY_ROOT="$repository_root" CRISTEXWEB_ARGOCD_BOOTSTRAP_ENTRYPOINT=v1 CRISTEXWEB_ARGOCD_BOOTSTRAP_TOKEN="$attestation_token" CRISTEXWEB_ARGOCD_BOOTSTRAP_ATTESTATION_FILE="$attestation_file" "$@"

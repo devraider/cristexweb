@@ -2,15 +2,16 @@
 
 state: agent:in-progress
 phase: implementing
-build: 258/258 offline contracts, 23/23 playbook syntax checks, executable parser fixtures, and production ansible-lint (162 files) pass; all new component runtime remains blocked
-date: 2026-08-11
+build: focused Argo registration, Infisical repository credential, and CoreDNS recovery contracts/syntax pass; four guarded runtime idempotence applies converge at changed=0
+date: 2026-08-14
 deploy_required_after_acceptance: yes
 
 note: |
-  Operational implementation is limited to read-only Ansible discovery, the
-  executed two-package dependency bootstrap, executed group-scoped k3s administrator
-  access, executed user-scoped kubectl client defaults, and the executed one-reboot
-  recovery verifier. Python is limited to offline tests plus twenty exact-scope
+  Operational implementation now includes the previously recorded dependency,
+  administrator-access, recovery, stateful-service, backup, Infisical, Cloudflare,
+  Keycloak, and private Argo checkpoints. The latest approved checkpoint adds a
+  read-only private CristexHub repository credential, manual-sync DEV registration,
+  bounded Argo cache RBAC, and exact-field CoreDNS external-forwarding recovery. Python is limited to offline tests plus twenty exact-scope
   Ansible action plugins (seven exact mutation guards, two focused host-rclone
   boundary guards, two no-log Secret cryptographic validators, two standalone
   MongoDB/PostgreSQL object-closure guards, and two fixed logical-provisioning

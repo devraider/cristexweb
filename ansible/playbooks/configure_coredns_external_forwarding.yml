@@ -1,0 +1,8 @@
+---
+- name: Configure exact external CoreDNS forwarding
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  serial: 1
+  roles:
+    - role: coredns_external_forwarding

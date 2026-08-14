@@ -13,29 +13,24 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
     ActionModule as KubernetesActionModule,
 )
 
-_EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-alternate-target-boundary'): '9fe628a53a33301c095b1a6ac3c6007fde1377ced3e1e5800960f79133952477',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-alternate-target-boundary'): 'e83729093168045791912a4802ab4d930250241dfd6186181eb89d51ca8955d8',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-secret-write-boundary'): '07ebbfc58d15281eed817e054f7d6483bbed21a99b0d10deb9322cf0e3fbc631',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-secret-write-boundary'): '24be75a61d092574c33e127fa5f5e6e9462952fbf7b04567dcfd34e56c42ce1e',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-source-boundary'): 'b3b105477003f52c56a1dd999adc71891a3a808940e36917359e14fb9cbf661c',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-source-boundary'): 'a2834bef0fd3efb25b05f604f5136626b0b0e038d8e3716437e7ea78aa335238',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-static-secret-boundary'): '11bf7f48ae4e746136a8d64fe6c1b8b090738424c06eaafaf00d0f79fd32826c',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-static-secret-boundary'): '18509ed4da8ed870f52d5a0f8325df4868007526683ebcdc4913ac34cdc226a9',
-    ('rbac.authorization.k8s.io/v1', 'Role', 'argocd', 'infisical-argocd-secret-writer'): '625fab82d18ec8fe8ec3b50d509d3f9415cb36e13ac52d736ce2d3877ffee3bd',
-    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'argocd', 'infisical-argocd-secret-writer'): '355d7899cdcbc9a86c7bc21741d46f99d3c0d4905978ec44964b24c6ac69713b',
-    ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'argocd', 'argocd-infisical-auth'): '88518d0fcc938aea1109edba6ac793c7a8b35d65c98160556b360f450c605c26',
-    ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'argocd', 'argocd-infisical-secrets'): 'd4b7f5b9456e02a7b9035761bd8788f0f2189f021eddaa71d6961a72712a6941',
-    ('secrets.infisical.com/v1beta1', 'InfisicalConnection', 'argocd', 'infisical-cloud'): 'd8ea88e0dccaadaea0765b7b488370f5d8adf007892528ff24e68740d667bff3',
-}
+_EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-alternate-target-boundary'): 'e83729093168045791912a4802ab4d930250241dfd6186181eb89d51ca8955d8',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-secret-write-boundary'): '939a712ba766b2203d4e8d65abdfe09079975b929fdc138f85c48edd9aa1e99b',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-source-boundary'): 'a2834bef0fd3efb25b05f604f5136626b0b0e038d8e3716437e7ea78aa335238',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-argocd-static-secret-boundary'): '81ee0012de7bea069cf8282c8b14bd0049275486886072f9be39cf9d3d583f0f',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-alternate-target-boundary'): '9fe628a53a33301c095b1a6ac3c6007fde1377ced3e1e5800960f79133952477',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-secret-write-boundary'): '07ebbfc58d15281eed817e054f7d6483bbed21a99b0d10deb9322cf0e3fbc631',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-source-boundary'): 'b3b105477003f52c56a1dd999adc71891a3a808940e36917359e14fb9cbf661c',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-argocd-static-secret-boundary'): '11bf7f48ae4e746136a8d64fe6c1b8b090738424c06eaafaf00d0f79fd32826c',
+ ('rbac.authorization.k8s.io/v1', 'Role', 'argocd', 'infisical-argocd-secret-writer'): '7e6cbef8230081d86760613de0895bae7b139935ee28501639fcd8344300650c',
+ ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'argocd', 'infisical-argocd-secret-writer'): '355d7899cdcbc9a86c7bc21741d46f99d3c0d4905978ec44964b24c6ac69713b',
+ ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'argocd', 'argocd-infisical-auth'): '88518d0fcc938aea1109edba6ac793c7a8b35d65c98160556b360f450c605c26',
+ ('secrets.infisical.com/v1beta1', 'InfisicalConnection', 'argocd', 'infisical-cloud'): 'd8ea88e0dccaadaea0765b7b488370f5d8adf007892528ff24e68740d667bff3',
+ ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'argocd', 'argocd-infisical-secrets'): '19e1d96a392a53ef6a05f12744d5a6085ffe37d0a80e30327d3f38943b0c0204'}
 # Canonical source identity digest: 23623b2be563e41d19483994371f67c3ab9d2f2e94919cbd22588d32883aca33
 # Ansible/Jinja joins the protected runtime identity list with literal ``\\n``.
 _EXPECTED_IDENTITY_SET_SHA256 = "1bffb930b5aaaa129000320c6124f0fdf87f1774e0391fadd44ffb055fe658c3"
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
-_EXPECTED_TASK_SOURCES = {
-    "/Users/paul/Projects/cristexweb/ansible/roles/infisical_argocd_secrets_bootstrap/tasks/main.yml",
-    "/home/paul/projects/cristexweb/ansible/roles/infisical_argocd_secrets_bootstrap/tasks/main.yml",
-}
+_EXPECTED_TASK_SUFFIX = "/ansible/roles/infisical_argocd_secrets_bootstrap/tasks/main.yml"
 
 
 def _canonical_hash(value: dict[str, Any]) -> str:
@@ -55,8 +50,10 @@ class ActionModule(KubernetesActionModule):
         step = bool(context.CLIARGS.get("step"))
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
-        task_source = str(self._task.get_path()).rsplit(":", 1)[0]
-        if task_source not in _EXPECTED_TASK_SOURCES:
+        task_vars = task_vars or {}
+        task_source = str(Path(re.sub(r":\d+(?::\d+)?$", "", str(self._task.get_path()))).resolve())
+        repository_root = os.environ.get("CRISTEXWEB_REPOSITORY_ROOT", "")
+        if task_source != str(Path(repository_root).resolve()) + _EXPECTED_TASK_SUFFIX:
             return {
                 "changed": False,
                 "failed": True,
@@ -68,7 +65,6 @@ class ActionModule(KubernetesActionModule):
 
         args = self._task.args
         definition = args.get("definition")
-        task_vars = task_vars or {}
         token = os.environ.get(
             "CRISTEXWEB_INFISICAL_ARGOCD_SECRETS_BOOTSTRAP_TOKEN", ""
         )

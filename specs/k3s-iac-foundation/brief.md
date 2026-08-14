@@ -115,9 +115,13 @@ Namespace, and preserved service health. Idempotence passed at
 `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the checkpoint is complete. No
 policy/workload/Secret/PVC/route is included, and PROD remains absent. The superseded `platform-secrets`/`platform-identity`
 source was never run; this source correction does not claim a live rename or
-deletion. Argo CD and Infisical now have guarded deployable source closures, but
-both remain unrun; cloudflared, Keycloak, PostgreSQL, MongoDB, Secrets, workloads,
-Services, policies, PVCs, and routes remain absent at runtime. The source-only
+deletion. Guarded Infisical and private Argo CD runtime closures are now applied
+and idempotent. The private CristexHub repository credential and value-free DEV
+AppProject/Application registration are live without synchronization; Argo renders
+18 objects at the pinned revision. PostgreSQL, MongoDB, RabbitMQ, Keycloak,
+cloudflared, their bounded Secrets/Services/policies/PVCs, and the approved Keycloak
+route are live under their recorded checkpoints. CristexHub application workloads,
+its runtime Secret, DEV public route, and every PROD workload remain absent. The source-only
 [shared database architecture](../../runbooks/shared-database-architecture.md)
 records exact engine/consumer closure, deny-first authorization, private exposure,
 and Infisical value ownership. Hash-bound present-only PostgreSQL and standalone

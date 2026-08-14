@@ -42,6 +42,10 @@ TARGETS = {
         "type": "kubernetes.io/tls",
         "keys": {"ca.crt", "tls.crt", "tls.key"},
     },
+    "argocd-repository-cristexhub": {
+        "type": "Opaque",
+        "keys": {"sshPrivateKey", "type", "url"},
+    },
 }
 TEMPLATES = {
     "argocd-secret": {
@@ -54,6 +58,11 @@ TEMPLATES = {
         "ca.crt": "{{ .ARGOCD_TLS_CA_CRT.Value }}",
         "tls.crt": "{{ .ARGOCD_TLS_CRT.Value }}",
         "tls.key": "{{ .ARGOCD_TLS_KEY.Value }}",
+    },
+    "argocd-repository-cristexhub": {
+        "type": "git",
+        "url": "ssh://git@ssh.github.com:443/devraider/cristexhub.git",
+        "sshPrivateKey": "{{ .ARGOCD_CRISTEXHUB_REPOSITORY_SSH_PRIVATE_KEY.Value }}",
     },
 }
 
@@ -220,7 +229,10 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             self.assertEqual("Secret", target["kind"])
             self.assertEqual(contract["type"], target["secretType"])
             self.assertEqual("Orphan", target["creationPolicy"])
-            self.assertEqual(TARGET_LABELS, target["metadata"]["labels"])
+            labels = dict(TARGET_LABELS)
+            if name == "argocd-repository-cristexhub":
+                labels["argocd.argoproj.io/secret-type"] = "repository"
+            self.assertEqual(labels, target["metadata"]["labels"])
             self.assertEqual({}, target["metadata"]["annotations"])
             self.assertEqual("v1", target["template"]["engineVersion"])
             self.assertEqual(TEMPLATES[name], target["template"]["data"])
@@ -263,6 +275,8 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "object.type == 'kubernetes.io/tls'",
             "object.data['admin.password'] != null",
             "object.data['tls.key'] != null",
+            "object.data['type'] == 'Z2l0'",
+            "object.data['url'] == 'c3NoOi8vZ2l0QHNzaC5naXRodWIuY29tOjQ0My9kZXZyYWlkZXIvY3Jpc3RleGh1Yi5naXQ='",
             "object.binaryData.size() == 0",
             "request.namespace == 'argocd'",
         ):
@@ -295,6 +309,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "argocd-secret",
             "argocd-redis",
             "argocd-server-tls",
+            "argocd-repository-cristexhub",
             "!has(object.spec.sources[0].projectSlug)",
             "has(object.spec.sources[0].recursive)",
             "object.spec.sources[0].recursive == false",
@@ -303,11 +318,13 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "object.spec.syncOptions.refreshInterval == '5m'",
             "has(object.spec.syncOptions.instantUpdates)",
             "object.spec.syncOptions.instantUpdates == false",
-            "object.spec.targets.size() == 3",
+            "object.spec.targets.size() == 4",
             "creationPolicy == 'Orphan'",
         ):
             self.assertIn(required, static_expression)
-        self.assertNotIn("template.data", static_expression)
+        self.assertIn("t.template.data['type'] == 'git'", static_expression)
+        self.assertIn("t.template.data['url'] == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'", static_expression)
+        self.assertIn("t.template.data['sshPrivateKey']", static_expression)
         self.assertNotIn("request.namespace !=", static_expression)
         self.assertNotIn("shared-postgresql-admin", secret_expression)
         self.assertNotIn("shared-postgresql-tls", secret_expression)
@@ -355,7 +372,10 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             set(next(rule for rule in secret_rules if "resourceNames" not in rule)["verbs"]),
         )
         update = next(rule for rule in secret_rules if "resourceNames" in rule)
-        self.assertEqual({"argocd-secret", "argocd-redis", "argocd-server-tls"}, set(update["resourceNames"]))
+        self.assertEqual(
+            {"argocd-secret", "argocd-redis", "argocd-server-tls", "argocd-repository-cristexhub"},
+            set(update["resourceNames"]),
+        )
         self.assertEqual(["update"], update["verbs"])
         create = [rule for rule in secret_rules if "resourceNames" not in rule and rule["verbs"] == ["create"]]
         self.assertEqual(1, len(create))

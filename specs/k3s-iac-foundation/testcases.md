@@ -4094,3 +4094,18 @@ Expected result: policy path, exact namespace ownership, separate approval
 phases, token non-disclosure, deny-first public surfaces, negative reachability,
 rollback, and blocked-runtime assertions pass. The route remains unapproved and
 runtime remains NOT RUN/BLOCKED.
+
+## CristexHub DEV Argo registration and DNS recovery — 2026-08-14
+
+The approved repository credential was uploaded to Infisical without value
+output and materialized as `argocd/argocd-repository-cristexhub`. The local
+private deploy key was securely removed after SSH-over-443 verification.
+Guarded Infisical, Argo core, registration, and CoreDNS checks/applies passed.
+Final idempotence results were respectively `changed=0` for all four wrappers.
+
+Argo renders the pinned CristexHub revision as 18 objects and reports
+`OutOfSync`, `Missing`, with no comparison conditions. Automated sync remains
+disabled because application image digests are still zero and the seven-key
+runtime Secret/OIDC egress gates are incomplete. CoreDNS external forwarding
+now uses the exact guarded `1.1.1.1`/`1.0.0.1` field replacement; external
+`ssh.github.com` resolution passed after one controlled CoreDNS reload.

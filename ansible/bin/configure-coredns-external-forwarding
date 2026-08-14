@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+[ "$#" -eq 1 ] && { [ "$1" = check ] || [ "$1" = apply ]; } || exit 64
+mode=$1
+root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
+controller="$root/.venv/bin/ansible-playbook"
+[ -x "$controller" ] || exit 69
+attestation=$(mktemp "${TMPDIR:-/tmp}/coredns-forwarding.XXXXXX")
+token=$(openssl rand -hex 32)
+printf '%s:coredns-forwarding\n' "$token" >"$attestation"
+chmod 0600 "$attestation"
+trap 'rm -f "$attestation"' EXIT HUP INT TERM
+cd "$root/ansible"
+if [ "$mode" = check ]; then check_arg=--check; else check_arg=; fi
+exec env -i HOME="${HOME}" USER="${USER}" LOGNAME="${USER}" PATH=/usr/bin:/bin:/usr/sbin:/sbin ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_REPOSITORY_ROOT="$root" CRISTEXWEB_COREDNS_FORWARDING_ENTRYPOINT=v1 CRISTEXWEB_COREDNS_FORWARDING_TOKEN="$token" CRISTEXWEB_COREDNS_FORWARDING_ATTESTATION_FILE="$attestation" "$controller" -i .ansible/inventory.local.yml playbooks/configure_coredns_external_forwarding.yml --diff --limit crtxweb --extra-vars '{"coredns_external_forwarding_approved":true}' ${check_arg:+"$check_arg"}
