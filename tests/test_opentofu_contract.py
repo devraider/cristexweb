@@ -36,7 +36,7 @@ class OpenTofuContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "README.md", "backend.tf", "cloudflare.tf", "outputs.tf",
-                "providers.tf", "variables.tf", "versions.tf",
+                "providers.tf", "variables.tf", "versions.tf", ".terraform.lock.hcl",
             },
             {path.name for path in TOFU.iterdir() if path.is_file()},
         )
@@ -459,7 +459,7 @@ class OpenTofuContractTests(unittest.TestCase):
             "controller-transfer retry and idempotence remain unrun",
         ):
             self.assertNotIn(obsolete, self.brief)
-        self.assertFalse((TOFU / ".terraform.lock.hcl").exists())
+        self.assertTrue((TOFU / ".terraform.lock.hcl").is_file())
         self.assertEqual([], list(TOFU.rglob("*.tfstate")))
         self.assertEqual([], list(TOFU.rglob("*.tfplan")))
 
