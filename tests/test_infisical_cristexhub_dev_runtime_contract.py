@@ -25,7 +25,9 @@ class RuntimeSeamTests(unittest.TestCase):
   self.assertIn("cristexhub_dev_runtime_credential.resources[0].type ==", t); self.assertIn('metadata.ownerReferences', t)
  def test_rolebinding_targets_actual_operator_service_account(self):
   binding=next(x for x in self.objects if x['kind']=='RoleBinding' and x['apiVersion'].startswith('rbac.authorization.k8s.io/'))
-  self.assertEqual([{'kind':'ServiceAccount','name':'infisical-operator-controller','namespace':'shared-services'}],binding['spec']['subjects'])
+  self.assertEqual('Role', binding['roleRef']['kind'])
+  self.assertEqual('infisical-cristexhub-dev-runtime-secret-writer', binding['roleRef']['name'])
+  self.assertEqual([{'kind':'ServiceAccount','name':'infisical-operator-controller','namespace':'shared-services'}],binding['subjects'])
  def test_manifest_ledgers_and_action_hashes_are_current(self):
   ledger={line.split('  ',1)[1]:line.split('  ',1)[0] for line in (COMP/'MANIFESTS.sha256').read_text().splitlines()}
   self.assertEqual({str(p.relative_to(COMP)) for p in self.paths},set(ledger))

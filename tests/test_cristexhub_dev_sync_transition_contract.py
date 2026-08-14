@@ -37,7 +37,8 @@ class AutomatedSyncTransitionContractTests(unittest.TestCase):
         for gate in ('image', 'runtime Secret', 'namespace-scoped Argo cache', 'OIDC proxy', 'dependency'):
             self.assertIn(gate, tasks)
         self.assertIn('all automated-sync promotion gates', tasks)
-        self.assertIn('cristexhub-oidc-proxy', defaults)
+        self.assertIn('oidc-connect-proxy', defaults)
+        self.assertIn('PRIVATE_CA_BUNDLE', defaults)
         self.assertNotIn('clientSecret:', str(APP))
         self.assertNotIn('password:', str(APP))
 

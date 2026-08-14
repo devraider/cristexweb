@@ -65,7 +65,7 @@ class ActionModule(KubernetesActionModule):
             and binding.get('attestation_sha256') == hashlib.sha256(token.encode()).hexdigest()
             and int(binding.get('object_count', -1)) == 10
             and int(binding.get('prestate_count', -1)) == 10
-            and binding.get('identity_set_sha256') == '3e6b49e0a7e95675f61dfe922092b3fef1c53643fb9cba64fce8cac07a68ad57'
+            and binding.get('identity_set_sha256') == 'c748d703754d4a434775ca966a51130151ffcf019b26f7389953c2d4378bfa85'
             and binding.get('namespace_contract') is True
             and binding.get('no_delete_path') is True
         )

@@ -28,7 +28,7 @@ oidc_connect_proxy_bootstrap_expected_hashes:
   - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/rbac/serviceaccount-oidc-connect-proxy.yaml", sha256: 4df1006ab1777c3f3aa7e5ebe5eae09424798ed64e0a5ea8a5fcdae76be244e8}
   - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/runtime/deployment-oidc-connect-proxy.yaml", sha256: e669a8f38a90cc1d9f974ba72e78e7746ad1711e0be48baf0f89e21bdbc81d7f}
   - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/runtime/service-oidc-connect-proxy.yaml", sha256: 6a28fc9ba9a355be663a0cd8683221e0eb792dc096652cb4d54feb53666da6e4}
-oidc_connect_proxy_bootstrap_identity_set_sha256: 3e6b49e0a7e95675f61dfe922092b3fef1c53643fb9cba64fce8cac07a68ad57
+oidc_connect_proxy_bootstrap_identity_set_sha256: c748d703754d4a434775ca966a51130151ffcf019b26f7389953c2d4378bfa85
 oidc_connect_proxy_bootstrap_namespace: shared-services
 oidc_connect_proxy_bootstrap_service_name: oidc-connect-proxy
 oidc_connect_proxy_bootstrap_deployment_name: oidc-connect-proxy

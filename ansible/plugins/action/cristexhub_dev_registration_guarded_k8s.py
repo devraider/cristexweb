@@ -21,7 +21,7 @@ EXPECTED = {
 ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 TASK_SUFFIX = "/ansible/roles/cristexhub_dev_registration/tasks/main.yml"
 EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-dev'): '09d8a1edafb8cd12b8cf971d9a9d96daec33bcf8cd35060e9135c49101ef48f0',
- ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-dev'): '5e0ef54067ad36ea05a69aa98a6b853c1d7cf3da44d7c3cd5f6dab30e86b9804',
+ ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-dev'): 'be0425a38e3f07613d6d1cff29c9c88c1b849c1a5a874c6f57431d4caf2b96a8',
  ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-dev', 'argocd-application-controller-cristexhub-dev'): '43547fcbb3c42e6c222461581d6a33ce0f88490464b919d5869ed7c8424bcf26',
  ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-dev', 'argocd-application-controller-cristexhub-dev'): '653a3f04f29b3962bc30f7fb02f4db90faea5eb7fec50df8792fabe8b55d1d71',
  ('v1', 'Secret', 'argocd', 'argocd-cluster-cristexhub-dev'): '3ed366a3df3e87f8d79c60a2122e63b29b4246f61f350eb5bc8fe6c2e8034793'}

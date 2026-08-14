@@ -4,7 +4,7 @@ The guarded registration closure creates only a value-free `AppProject`,
 `Application`, bounded controller RBAC, and a read-only private-repository
 credential target owned by Infisical. The application source is pinned to
 `ssh://git@ssh.github.com:443/devraider/cristexhub.git`, commit
-`c2ac07ca708f8e75d85e70317cc5f700f9e3f3ad`, path
+`57fffab4585fed12161144de7114c8ad05f3ba94`, path
 `infra/kubernetes/cristexhub-dev`.
 
 The AppProject permits only ConfigMaps, Services, Deployments, and

@@ -14,18 +14,18 @@ cristexhub_dev_sync_transition_runtime_secret_keys:
   - MONGODB_URL
   - OAUTH2_PROXY_COOKIE_SECRET
   - OIDC_CLIENT_SECRET
+  - PRIVATE_CA_BUNDLE
   - RABBITMQ_URL
   - REDIS_PASSWORD
   - REDIS_URL
-cristexhub_dev_sync_transition_oidc_proxy_deployment: cristexhub-oidc-proxy
+cristexhub_dev_sync_transition_oidc_proxy_namespace: shared-services
+cristexhub_dev_sync_transition_oidc_proxy_deployment: oidc-connect-proxy
 cristexhub_dev_sync_transition_dependency_services:
-  - {namespace: shared-services, name: shared-postgresql-rw}
-  - {namespace: shared-services, name: shared-mongodb}
+  - {namespace: shared-services, name: shared-mongodb-svc}
   - {namespace: shared-services, name: shared-rabbitmq}
-  - {namespace: cristexhub-dev, name: cristexhub-dev-redis}
 cristexhub_dev_sync_transition_repository: ssh://git@ssh.github.com:443/devraider/cristexhub.git
-cristexhub_dev_sync_transition_revision: c2ac07ca708f8e75d85e70317cc5f700f9e3f3ad
+cristexhub_dev_sync_transition_revision: 57fffab4585fed12161144de7114c8ad05f3ba94
 cristexhub_dev_sync_transition_path: infra/kubernetes/cristexhub-dev
 cristexhub_dev_sync_transition_expected_hashes:
-  '{{ cristexhub_dev_sync_transition_repository_root }}/ansible/files/components/cristexhub-dev-sync-transition/config/appproject-cristexhub-dev-automated.yaml': f84abd4c95b2eb6cda12a4529b82218a4820f91158ced3f5af2830b866797d7c
-  '{{ cristexhub_dev_sync_transition_repository_root }}/ansible/files/components/cristexhub-dev-sync-transition/config/application-cristexhub-dev-automated.yaml': 6b67a4a37722e955b0fae328ce3b4cd6b7bf3abf37fbf497e60875dee8dc05e3
+  appproject-cristexhub-dev-automated.yaml: f84abd4c95b2eb6cda12a4529b82218a4820f91158ced3f5af2830b866797d7c
+  application-cristexhub-dev-automated.yaml: 4c5bf491ccaa9eec4f6b238a47212f1241c4e03ee88a998a25b83d487e028fb1

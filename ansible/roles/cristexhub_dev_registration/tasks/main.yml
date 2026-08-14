@@ -18,7 +18,7 @@
       - cristexhub_dev_registration_manifest_paths | length == 5
       - cristexhub_dev_registration_expected_hashes | length == 5
       - cristexhub_dev_registration_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
-      - cristexhub_dev_registration_revision == 'c2ac07ca708f8e75d85e70317cc5f700f9e3f3ad'
+      - cristexhub_dev_registration_revision == '57fffab4585fed12161144de7114c8ad05f3ba94'
       - cristexhub_dev_registration_path == 'infra/kubernetes/cristexhub-dev'
     fail_msg: Refusing unapproved or non-canonical CristexHub DEV registration.
   changed_when: false
