@@ -35,3 +35,28 @@ application image references have verified nonzero promotion digests, the exact
 eight-key Infisical-owned `cristexhub-dev-runtime` Secret is reconciled, and the
 approved OIDC egress path is implemented and validated. Enabling automated sync
 before those gates would intentionally deploy a broken revision.
+
+## Guarded automated-sync transition (source-only)
+
+`ansible/bin/bootstrap-cristexhub-dev-sync-transition check|apply` is a separate,
+source-only transition. It is not part of registration and has not been run. The
+active registration manifest remains manual-sync with its deny window. The
+transition candidate removes that deny window only while replacing the
+Application with `automated.prune=false`, `automated.selfHeal=true`,
+`automated.allowEmpty=false`, and `Prune=false`.
+
+The guarded role refuses the transition unless every gate is observed in the
+private API: every DEV Deployment and init container uses a digest-qualified
+image and is Available; the orphaned Infisical-owned runtime Secret has exactly
+its seven keys and metadata closure; the Argo cluster Secret has
+`clusterResources=false` and only the `cristexhub-dev` namespace; the
+namespace-scoped controller Role exists; the OIDC proxy Deployment is Available;
+and every declared PostgreSQL, MongoDB, RabbitMQ, and Redis dependency has a
+Service and ready Endpoints. It also requires the current Application to remain
+manual and the current AppProject deny window to be exact before writing either
+candidate object. No Secret value is read into output, and no prune, namespace
+creation, resource replacement, or finalizer is enabled.
+
+This source transition does not assert that any gate passed and does not
+activate live. A separately reviewed check/apply/idempotence run and private
+runtime validation remain required.

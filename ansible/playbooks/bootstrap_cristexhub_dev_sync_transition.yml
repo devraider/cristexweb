@@ -1,0 +1,9 @@
+---
+- name: Guard CristexHub DEV Argo automated-sync transition
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: cristexhub_dev_sync_transition
