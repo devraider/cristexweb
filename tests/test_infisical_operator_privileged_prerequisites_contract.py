@@ -291,6 +291,8 @@ class InfisicalPrivilegedPrerequisitesDesignContractTests(unittest.TestCase):
                 "seed_infisical_universal_auth.yml",
                 "upload-infisical-bootstrap-values",
                 "materialize-infisical-cristexhub-dev-runtime",
+                "bootstrap-infisical-cristexhub-dev-runtime",
+                "bootstrap_infisical_cristexhub_dev_runtime.yml",
                 "bootstrap-infisical-cloudflared-secrets",
                 "bootstrap_infisical_cloudflared_secrets.yml",
                 "main.yml",

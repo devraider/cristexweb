@@ -128,7 +128,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         self.assertFalse(any(path.name in {"Chart.yaml", "values.yaml"} for path in KUBERNETES.rglob("*")))
         self.assertEqual(
             {
-                "README.md", "backend.tf", "cloudflare.tf", "outputs.tf",
+                ".terraform.lock.hcl", "README.md", "backend.tf", "cloudflare.tf", "outputs.tf",
                 "providers.tf", "variables.tf", "versions.tf",
             },
             {path.name for path in OPENTOFU.iterdir() if path.is_file()},
@@ -195,6 +195,8 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "policies/infisical-operator-privileged-prerequisites.yml",
             "policies/infisical-operator-implementation-profile.yml",
             "policies/infisical-secret-zero-lane.yml",
+            "policies/cristexhub-dev-runtime-materialization.yml",
+            "policies/argocd-ui-tls-lifecycle.yml",
             "vendor/argocd/10.3.0/SHA256SUMS",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz.prov",
@@ -208,6 +210,11 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         for component in (
             "infisical-operator",
             "argocd",
+            "argocd-route",
+            "cristexhub-dev-registration",
+            "cristexhub-dev-sync-transition",
+            "infisical-cristexhub-dev-runtime",
+            "oidc-connect-proxy",
             "infisical-argocd-secrets",
             "infisical-database-secrets",
             "infisical-keycloak-secrets",

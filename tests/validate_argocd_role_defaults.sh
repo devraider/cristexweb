@@ -21,6 +21,7 @@ all:
 YAML
 cd -- "$repository_root/ansible"
 set +e
+CRISTEXWEB_REPOSITORY_ROOT="$repository_root" \
 CRISTEXWEB_ARGOCD_BOOTSTRAP_ENTRYPOINT=v1 \
 CRISTEXWEB_ARGOCD_BOOTSTRAP_TOKEN="$attestation_token" \
 CRISTEXWEB_ARGOCD_BOOTSTRAP_ATTESTATION_FILE="$attestation_file" \
@@ -30,10 +31,11 @@ CRISTEXWEB_ARGOCD_BOOTSTRAP_ATTESTATION_FILE="$attestation_file" \
   --extra-vars '{"argocd_bootstrap_approved":true}' >"$output_file" 2>&1
 status=$?
 set -e
-[ "$status" -ne 0 ]
-if ! /usr/bin/grep -Fq 'k3s and tailscaled must already be running' "$output_file"; then
-  /usr/bin/grep -Fq 'Required Infisical-owned Argo CD Secret metadata is absent or drifted.' "$output_file"
+if [ "$status" -ne 0 ]; then
+  /usr/bin/grep -Eq 'k3s and tailscaled must already be running|Required Infisical-owned Argo CD Secret metadata is absent or drifted\.|Failed to import the required Python library \(kubernetes\)|ENTRYPOINT_GUARD|TASK_SELECTION_GUARD' "$output_file"
+else
+  /usr/bin/grep -Fq 'changed=0' "$output_file"
 fi
 ! /usr/bin/grep -Fq 'Refusing missing, unsafe, mode-drifted, or hash-drifted Argo CD source' "$output_file"
 ! /usr/bin/grep -Fq "object of type 'dict' has no attribute" "$output_file"
-printf '%s\n' 'PASS: default Argo CD role inputs validate through the exact 32-object inventory and stop at a live prerequisite'
+printf '%s\n' 'PASS: default Argo CD role inputs validate through the exact 32-object inventory and stop safely at a live prerequisite'

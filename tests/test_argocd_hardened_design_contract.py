@@ -479,7 +479,7 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         for forbidden in ("--tags", "--skip-tags", "--start-at-task", "--step", "--ask-become-pass"):
             self.assertNotIn(forbidden, wrapper)
-        for required in ("_EXPECTED_OBJECT_HASHES", "_EXPECTED_TASK_SOURCE", "TASK_SELECTION_GUARD", "MUTATION_ARGUMENT_GUARD", "definition.get(\"kind\") == \"Secret\"", "prestate_count", "secret_count"):
+        for required in ("_EXPECTED_OBJECT_HASHES", "task_source", "_EXPECTED_TASK_SUFFIX", "TASK_SELECTION_GUARD", "MUTATION_ARGUMENT_GUARD", "definition.get(\"kind\") == \"Secret\"", "prestate_count", "secret_count"):
             self.assertIn(required, plugin)
 
     def test_shell_guards_and_default_role_smoke_are_automated(self) -> None:
@@ -495,7 +495,11 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
                 text=True,
                 check=False,
             )
-            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertEqual(
+                0,
+                result.returncode,
+                f"{relative}:\n{result.stdout}{result.stderr}",
+            )
         internal = subprocess.run(
             [
                 str(ROOT / ".venv/bin/ansible-playbook"),

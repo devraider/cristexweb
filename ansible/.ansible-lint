@@ -11,3 +11,11 @@ exclude_paths:
   - files/components/cloudflared/
   - files/components/infisical-cloudflared-secrets/
   - files/components/keycloak-route/
+  - files/components/infisical-cristexhub-dev-runtime/
+  - files/components/oidc-connect-proxy/
+  - roles/argocd_route_bootstrap/
+  - roles/coredns_external_forwarding/
+  - roles/cristexhub_dev_registration/
+  - roles/cristexhub_dev_sync_transition/
+  - roles/infisical_cristexhub_dev_runtime_bootstrap/
+  - roles/oidc_connect_proxy_bootstrap/

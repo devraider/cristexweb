@@ -158,7 +158,7 @@ class CloudflaredCandidateProvenanceContractTests(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "README.md", "backend.tf", "cloudflare.tf", "outputs.tf",
+                ".terraform.lock.hcl", "README.md", "backend.tf", "cloudflare.tf", "outputs.tf",
                 "providers.tf", "variables.tf", "versions.tf",
             },
             {path.name for path in OPENTOFU.iterdir() if path.is_file()},

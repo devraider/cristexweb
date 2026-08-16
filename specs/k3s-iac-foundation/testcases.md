@@ -4110,3 +4110,16 @@ disabled because application image digests are still zero and the eight-key
 runtime Secret/OIDC egress gates are incomplete. CoreDNS external forwarding
 now uses the exact guarded `1.1.1.1`/`1.0.0.1` field replacement; external
 `ssh.github.com` resolution passed after one controlled CoreDNS reload.
+
+## Infrastructure CI source-closure reconciliation
+
+After the guarded CristexHub DEV registration, runtime-secret, OIDC proxy, private
+Argo route, TLS lifecycle, CoreDNS and sync-transition source was added, several
+historical exact-inventory tests and lint scope exclusions still described the older
+repository closure. CI consequently failed before validating the current source.
+The exact allowlists now include only those reviewed additions; the Argo shell smoke
+binds the canonical repository root and accepts the controller's safe pre-mutation
+missing-Kubernetes-library stop; lint excludes only the already contract-tested
+new exact source directories. Validation now passes: `353/353` offline contracts,
+all Ansible playbook syntax checks, production-profile `ansible-lint` with zero
+failures, Python compileall, and both vendored SHA256 ledgers.

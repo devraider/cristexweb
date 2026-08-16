@@ -15,7 +15,7 @@ argocd_bootstrap_approved: true
 argocd_bootstrap_internal_preflight_binding:
   attestation_sha256: $attestation_sha256
   object_count: 32
-  identity_set_sha256: bb81e0babfa314a91e52479e71d778b79c81df77bf5b74a9f2cb1bf08d692b81
+  identity_set_sha256: 53672a1267926abdbe773a90cfaa84cf958b343fde292c1c2d2e199f2c16778c
   crd_count: 3
   prestate_count: 32
   deferred_custom_resource_count: 0
@@ -39,6 +39,7 @@ all:
 YAML
 cd -- "$repository_root/ansible"
 set +e
+CRISTEXWEB_REPOSITORY_ROOT="$repository_root" \
 CRISTEXWEB_ARGOCD_BOOTSTRAP_ENTRYPOINT=v1 \
 CRISTEXWEB_ARGOCD_BOOTSTRAP_TOKEN="$attestation_token" \
 CRISTEXWEB_ARGOCD_BOOTSTRAP_ATTESTATION_FILE="$attestation_file" \
