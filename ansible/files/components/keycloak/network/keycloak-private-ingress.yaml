@@ -27,5 +27,12 @@ spec:
         - podSelector:
             matchLabels:
               cristex.io/keycloak-private-client: "true"
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cristexhub-dev
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: backend
+              cristex.io/keycloak-private-client: "true"
       ports:
         - {protocol: TCP, port: 8080}

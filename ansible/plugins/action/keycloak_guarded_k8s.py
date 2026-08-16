@@ -11,16 +11,14 @@ from typing import Any
 from ansible import context
 from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule as KubernetesActionModule
 
-_EXPECTED_OBJECT_HASHES = {
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-allow-dns'): '46d30870622a3e117fb1f96917a6bd7eebdb78ca304f73462f90263e8918ace6',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-allow-postgresql'): '7063ee97ed33e6aff5c81b00c8f91da5cfbd2b56e129277763493b5c94f0e4d4',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-default-deny'): '0f8bea5dee6a64cd3e2bc79277c78bfa79fd589e4d794a333b7e112aabb7b729',
-    ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-private-ingress'): 'cd1a018187695a7a34807d12a604bf1fd4ab40d660057cca6a8b8559bc8889f2',
-    ('v1', 'ServiceAccount', 'shared-services', 'keycloak'): 'ed90a0cbed8a407b9ac89912267befc31e4d3c7f1a5b05ece8a676f05036353e',
-    ('v1', 'ConfigMap', 'shared-services', 'keycloak-realm-cristexhub'): '5268883af726ec0f6f22f638155e16533235c2b5c548c43d4c8aa2ea086b75ec',
-    ('apps/v1', 'Deployment', 'shared-services', 'keycloak'): '7c2cdce2b6b0f6b45d1ccad138ed9c8f3f403b040139d4c7adbb13524b8147b7',
-    ('v1', 'Service', 'shared-services', 'keycloak'): 'a6d6285f1f0c315f2d2fd8d3adb7adad02925cd1ed2d176f9ca403a3750bcf2f',
-}
+_EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'keycloak'): '7c2cdce2b6b0f6b45d1ccad138ed9c8f3f403b040139d4c7adbb13524b8147b7',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-allow-dns'): '46d30870622a3e117fb1f96917a6bd7eebdb78ca304f73462f90263e8918ace6',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-allow-postgresql'): '7063ee97ed33e6aff5c81b00c8f91da5cfbd2b56e129277763493b5c94f0e4d4',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-default-deny'): '0f8bea5dee6a64cd3e2bc79277c78bfa79fd589e4d794a333b7e112aabb7b729',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-private-ingress'): 'a75fa78c148593bbb43df0cd893be3f15c33386c6e4fa51f08ec8e176ed2c57d',
+ ('v1', 'ConfigMap', 'shared-services', 'keycloak-realm-cristexhub'): '5268883af726ec0f6f22f638155e16533235c2b5c548c43d4c8aa2ea086b75ec',
+ ('v1', 'Service', 'shared-services', 'keycloak'): 'a6d6285f1f0c315f2d2fd8d3adb7adad02925cd1ed2d176f9ca403a3750bcf2f',
+ ('v1', 'ServiceAccount', 'shared-services', 'keycloak'): 'ed90a0cbed8a407b9ac89912267befc31e4d3c7f1a5b05ece8a676f05036353e'}
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
 _EXPECTED_TASK_SOURCES = {
     '/Users/paul/Projects/cristexweb/ansible/roles/keycloak_bootstrap/tasks/main.yml',

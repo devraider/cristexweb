@@ -20,7 +20,7 @@ keycloak_bootstrap_expected_hashes:
   network/keycloak-allow-dns.yaml: eab84089cf6ae7a33126db9068664f8f7e6865cde65dc2a54c2f4f6e7ba18a25
   network/keycloak-allow-postgresql.yaml: a21ea138d61f4ec78d0b3839765d6b8499cd39fd6525a3bda5c6df1c70bea414
   network/keycloak-default-deny.yaml: 1fd1e77b5d0b7fe7c41480b89c2109f3d37b776e5658ddf892b5c8a73c87648b
-  network/keycloak-private-ingress.yaml: 28b81a5999b7aa90d8344c108949d929bba3c0e7df497e6d35647a3e1641620c
+  network/keycloak-private-ingress.yaml: e62264ffa0086113eb40f43b5a24fb22f41c6e05447f7dec8223ad72f6bff353
   rbac/serviceaccount-keycloak.yaml: 787f9cd56c9ede1dc6dc664d8126fc85ce3ee084f483bd0f9944ce0249177d68
   realm/configmap-cristexhub-realm.yaml: 468c66e2bdec44a847aa97dc761d8d11aca530559bf66b2ea5df758394ce5e91
   runtime/deployment-keycloak.yaml: ade722b68928102436aa70c679919aeca95605eb53773d074946475eda699d80
