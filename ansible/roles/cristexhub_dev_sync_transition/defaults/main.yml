@@ -25,8 +25,8 @@ cristexhub_dev_sync_transition_dependency_services:
   - {namespace: shared-services, name: shared-mongodb-svc}
   - {namespace: shared-services, name: shared-rabbitmq}
 cristexhub_dev_sync_transition_repository: ssh://git@ssh.github.com:443/devraider/cristexhub.git
-cristexhub_dev_sync_transition_revision: 8916f56c9a6515fdfc335e00e7e4c0879735717d
+cristexhub_dev_sync_transition_revision: 0629c11a8b7a9804ed7fbbc3b6550683de5d454f
 cristexhub_dev_sync_transition_path: infra/kubernetes/cristexhub-dev
 cristexhub_dev_sync_transition_expected_hashes:
   appproject-cristexhub-dev-automated.yaml: 00ab28336aa2076bf173d101addf8952556f7c97e0a7e6d61a20c4ffb506ceca
-  application-cristexhub-dev-automated.yaml: cbbcb91fdc579ff9fceca2af93e9b96dcb680c61fbb2aa1a0d5a3d8ea0e1c5c8
+  application-cristexhub-dev-automated.yaml: 9aba1071a80266d2f7b4f9bae26cb199c5f56463e69960f3d89324fb792272c4
