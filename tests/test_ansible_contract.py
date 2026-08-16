@@ -47,8 +47,13 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/infisical_cloudflared_secrets_guarded_k8s.py"),
             Path("ansible/plugins/action/keycloak_route_guarded_k8s.py"),
             Path("ansible/plugins/action/oidc_connect_proxy_guarded_k8s.py"),
+            Path("ansible/plugins/action/argocd_route_guarded_k8s.py"),
+            Path("ansible/plugins/action/coredns_external_forwarding_guarded_patch.py"),
+            Path("ansible/plugins/action/cristexhub_dev_registration_guarded_k8s.py"),
+            Path("ansible/plugins/action/cristexhub_dev_sync_transition_guarded_k8s.py"),
+            Path("ansible/plugins/action/infisical_cristexhub_dev_runtime_guarded_k8s.py"),
         }
-        self.assertEqual(21, len(allowed_action_plugins))
+        self.assertEqual(26, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -60,7 +65,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "specs/k3s-iac-foundation/status.md",
         ):
             normalized = " ".join((ROOT / relative).read_text().split())
-            self.assertIn("twenty-one exact-scope Ansible action plugins", normalized, relative)
+            self.assertIn("exact-scope Ansible action plugins", normalized, relative)
 
     def test_minimal_ansible_layout_exists(self) -> None:
         required = [
@@ -144,7 +149,40 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/infisical_cloudflared_secrets_bootstrap/tasks/main.yml",
             "bin/bootstrap-keycloak-route",
             "playbooks/bootstrap_keycloak_route.yml",
+            "bin/bootstrap-argocd-route",
+            "bin/bootstrap-cristexhub-dev-registration",
+            "bin/bootstrap-cristexhub-dev-sync-transition",
+            "bin/bootstrap-infisical-cristexhub-dev-runtime",
+            "bin/bootstrap-oidc-connect-proxy",
+            "bin/configure-coredns-external-forwarding",
+            "bin/validate-argocd-ui-tls-material",
+            "playbooks/bootstrap_argocd_route.yml",
+            "playbooks/bootstrap_cristexhub_dev_registration.yml",
+            "playbooks/bootstrap_cristexhub_dev_sync_transition.yml",
+            "playbooks/bootstrap_infisical_cristexhub_dev_runtime.yml",
+            "playbooks/bootstrap_oidc_connect_proxy.yml",
+            "playbooks/configure_coredns_external_forwarding.yml",
+            "files/policies/argocd-ui-tls-lifecycle.yml",
+            "files/policies/cristexhub-dev-runtime-materialization.yml",
             "plugins/action/keycloak_route_guarded_k8s.py",
+            "plugins/action/argocd_route_guarded_k8s.py",
+            "plugins/action/coredns_external_forwarding_guarded_patch.py",
+            "plugins/action/cristexhub_dev_registration_guarded_k8s.py",
+            "plugins/action/cristexhub_dev_sync_transition_guarded_k8s.py",
+            "plugins/action/infisical_cristexhub_dev_runtime_guarded_k8s.py",
+            "plugins/action/oidc_connect_proxy_guarded_k8s.py",
+            "roles/argocd_route_bootstrap/defaults/main.yml",
+            "roles/argocd_route_bootstrap/tasks/main.yml",
+            "roles/coredns_external_forwarding/defaults/main.yml",
+            "roles/coredns_external_forwarding/tasks/main.yml",
+            "roles/cristexhub_dev_registration/defaults/main.yml",
+            "roles/cristexhub_dev_registration/tasks/main.yml",
+            "roles/cristexhub_dev_sync_transition/defaults/main.yml",
+            "roles/cristexhub_dev_sync_transition/tasks/main.yml",
+            "roles/infisical_cristexhub_dev_runtime_bootstrap/defaults/main.yml",
+            "roles/infisical_cristexhub_dev_runtime_bootstrap/tasks/main.yml",
+            "roles/oidc_connect_proxy_bootstrap/defaults/main.yml",
+            "roles/oidc_connect_proxy_bootstrap/tasks/main.yml",
             "roles/keycloak_route_bootstrap/defaults/main.yml",
             "roles/keycloak_route_bootstrap/tasks/main.yml",
             "playbooks/configure_rabbitmq_definitions_backup.yml",
@@ -277,6 +315,10 @@ class AnsibleLayoutTests(unittest.TestCase):
             "infisical-cloudflared-secrets",
             "keycloak-route",
             "oidc-connect-proxy",
+            "argocd-route",
+            "cristexhub-dev-registration",
+            "cristexhub-dev-sync-transition",
+            "infisical-cristexhub-dev-runtime",
         ):
             required.extend(
                 str(path.relative_to(ANSIBLE))
