@@ -30,6 +30,8 @@ spec:
     spec:
       serviceAccountName: keycloak
       automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: keycloak-ghcr-pull
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -38,7 +40,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: keycloak
-          image: quay.io/keycloak/keycloak@sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2
+          image: ghcr.io/devraider/cristexhub/keycloak@sha256:c1c49aa925127c2a9277f9d0d6fffee888030a4c5710e8478c0a5b26ccbda0ac
           imagePullPolicy: IfNotPresent
           args: [start, --import-realm]
           ports:

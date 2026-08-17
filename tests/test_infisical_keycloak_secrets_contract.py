@@ -40,12 +40,16 @@ class InfisicalKeycloakSecretsContractTests(unittest.TestCase):
             "tagSlugs": [],
         }])
         targets = source["spec"]["targets"]
-        self.assertEqual(len(targets), 1)
-        target = targets[0]
-        self.assertEqual(target["name"], "keycloak-bootstrap-admin")
-        self.assertEqual(target["secretType"], "Opaque")
-        self.assertEqual(target["creationPolicy"], "Orphan")
-        self.assertEqual(sorted(target["template"]["data"]), ["password", "username"])
+        self.assertEqual(len(targets), 2)
+        by_name = {target["name"]: target for target in targets}
+        admin = by_name["keycloak-bootstrap-admin"]
+        self.assertEqual(admin["secretType"], "Opaque")
+        self.assertEqual(admin["creationPolicy"], "Orphan")
+        self.assertEqual(sorted(admin["template"]["data"]), ["password", "username"])
+        pull = by_name["keycloak-ghcr-pull"]
+        self.assertEqual(pull["secretType"], "kubernetes.io/dockerconfigjson")
+        self.assertEqual(pull["creationPolicy"], "Orphan")
+        self.assertEqual(sorted(pull["template"]["data"]), [".dockerconfigjson"])
         self.assertNotRegex(
             (COMPONENT / "source/keycloak-infisical-secrets.yaml").read_text(),
             r"(?:password|username):\s*[^'{\s][^\n]*",
@@ -79,7 +83,10 @@ class InfisicalKeycloakSecretsContractTests(unittest.TestCase):
             (COMPONENT / "rbac/keycloak-secret-writer-role.yaml").read_text()
         )
         secret_rules = [rule for rule in role["rules"] if "secrets" in rule["resources"]]
-        self.assertIn("keycloak-bootstrap-admin", secret_rules[1]["resourceNames"])
+        self.assertEqual(
+            {"keycloak-bootstrap-admin", "keycloak-ghcr-pull"},
+            set(secret_rules[1]["resourceNames"]),
+        )
         self.assertNotIn("delete", {verb for rule in secret_rules for verb in rule["verbs"]})
         binding = yaml.safe_load(
             (COMPONENT / "rbac/keycloak-secret-writer-rolebinding.yaml").read_text()

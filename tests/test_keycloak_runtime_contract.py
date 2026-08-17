@@ -11,8 +11,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENT = ROOT / "ansible/files/components/keycloak"
 EXPECTED_IMAGE = (
-    "quay.io/keycloak/keycloak@sha256:"
-    "7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2"
+    "ghcr.io/devraider/cristexhub/keycloak@sha256:"
+    "c1c49aa925127c2a9277f9d0d6fffee888030a4c5710e8478c0a5b26ccbda0ac"
 )
 EXPECTED_HOSTNAME = "https://auth.cristex-soft.com"
 EXPECTED_NAMESPACE = "shared-services"
@@ -59,6 +59,7 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
         self.assertEqual(1, deployment["spec"]["replicas"])
         pod_spec = deployment["spec"]["template"]["spec"]
         self.assertFalse(pod_spec.get("automountServiceAccountToken", True))
+        self.assertEqual([{"name": "keycloak-ghcr-pull"}], pod_spec["imagePullSecrets"])
         container = next(c for c in pod_spec["containers"] if c["name"] == "keycloak")
         self.assertEqual(EXPECTED_IMAGE, container["image"])
         self.assertNotIn("start-dev", " ".join(container.get("command", []) + container.get("args", [])))

@@ -4123,3 +4123,21 @@ missing-Kubernetes-library stop; lint excludes only the already contract-tested
 new exact source directories. Validation now passes: `353/353` offline contracts,
 all Ansible playbook syntax checks, production-profile `ansible-lint` with zero
 failures, Python compileall, and both vendored SHA256 ledgers.
+
+## Branded hosted Keycloak theme
+
+The CristexHub-owned theme `1.1.0` was built as a private immutable image from the
+exact Keycloak `26.7.1` digest with SBOM/provenance and promoted as
+`ghcr.io/devraider/cristexhub/keycloak@sha256:c1c49aa925127c2a9277f9d0d6fffee888030a4c5710e8478c0a5b26ccbda0ac`.
+The existing GHCR Docker configuration was copied without value output into
+Infisical `prod:/shared-services/keycloak`, exact remote equality was verified, and
+a create-only `kubernetes.io/dockerconfigjson` pull Secret was installed in
+`shared-services`. Updated source extends the future Infisical materialization and
+admission closure to that exact target; the absent dedicated Universal Auth remains
+a fail-closed rotation/materialization follow-up.
+
+Keycloak guarded check predicted one Deployment change; apply converged with
+`changed=1`, and idempotence passed with `changed=0`. The live realm now selects
+`loginTheme=cristexhub`. Public login HTML references only the local custom CSS, the
+served SVG equals the reviewed Cristex Soft asset, and public `/admin/` and
+`/realms/master` both remain `404`. No Secret value was printed.

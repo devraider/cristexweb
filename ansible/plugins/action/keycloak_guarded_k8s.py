@@ -11,7 +11,7 @@ from typing import Any
 from ansible import context
 from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule as KubernetesActionModule
 
-_EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'keycloak'): '7c2cdce2b6b0f6b45d1ccad138ed9c8f3f403b040139d4c7adbb13524b8147b7',
+_EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'keycloak'): 'b9197a985e2e307c6587ec1147175cfe2a77c230e44dcc698b937e5f921a953a',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-allow-dns'): '46d30870622a3e117fb1f96917a6bd7eebdb78ca304f73462f90263e8918ace6',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-allow-postgresql'): '7063ee97ed33e6aff5c81b00c8f91da5cfbd2b56e129277763493b5c94f0e4d4',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-default-deny'): '0f8bea5dee6a64cd3e2bc79277c78bfa79fd589e4d794a333b7e112aabb7b729',
