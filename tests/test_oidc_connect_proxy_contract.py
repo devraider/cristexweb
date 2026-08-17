@@ -75,7 +75,14 @@ class OidcConnectProxyContractTests(unittest.TestCase):
         self.assertEqual(["Ingress", "Egress"], deny["policyTypes"])
         self.assertNotIn("egress", deny)
         clients = policies["oidc-connect-proxy-allow-clients"]["spec"]["ingress"]
-        self.assertEqual(2, len(clients[0]["from"]))
+        self.assertEqual(3, len(clients[0]["from"]))
+        self.assertEqual(
+            {"backend", "celery-worker", "oauth2-proxy"},
+            {
+                peer["podSelector"]["matchLabels"]["app.kubernetes.io/name"]
+                for peer in clients[0]["from"]
+            },
+        )
         self.assertEqual({3128}, {port["port"] for port in clients[0]["ports"]})
         external = policies["oidc-connect-proxy-allow-auth-egress"]["spec"]["egress"][0]
         self.assertEqual({443}, {port["port"] for port in external["ports"]})

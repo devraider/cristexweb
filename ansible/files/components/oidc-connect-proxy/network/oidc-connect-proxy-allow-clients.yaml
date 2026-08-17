@@ -28,6 +28,12 @@ spec:
               kubernetes.io/metadata.name: cristexhub-dev
           podSelector:
             matchLabels:
+              app.kubernetes.io/name: celery-worker
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cristexhub-dev
+          podSelector:
+            matchLabels:
               app.kubernetes.io/name: oauth2-proxy
       ports:
         - protocol: TCP

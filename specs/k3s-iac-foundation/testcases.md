@@ -4158,3 +4158,16 @@ Guarded check predicted one change, apply converged with `changed=1`, and idempo
 passed at `changed=0`. From the backend Pod, unauthenticated DeepSeek `/models`
 returned the expected `401` (transport reachable), Keycloak discovery remained
 `200`, and `example.com` remained blocked. No API token value was read or output.
+
+## Celery AI proxy client admission and DEV rollout
+
+The exact CONNECT-proxy ingress closure now admits the `cristexhub-dev` Celery
+worker in addition to backend and oauth2-proxy; Squid still permits only the exact
+Keycloak and DeepSeek HTTPS hosts. Guarded proxy check/apply passed, and idempotence
+converged at `changed=0`. Argo revision
+`8e83e43e72eae04141d5d6f89ed52761a3cf0de8` reached `Synced / Healthy`; backend,
+frontend and Celery use promoted immutable images. From the worker Pod,
+DeepSeek `/models` returned expected unauthenticated `401`, proving transport through
+the proxy without token output. Celery is Ready with zero restarts and no deprecated
+pidbox queue reconnect loop. The prior stuck import recovered to `pending_review`
+after its queued task was consumed; the operator can retry it safely.
