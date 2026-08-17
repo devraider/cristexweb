@@ -4179,3 +4179,8 @@ Argo revision `cdc97f49d89298d01f1a06c160147e2e23732e8f` reached
 Celery rollouts completed. The runtime now appends an explicit JSON instruction and
 registered schema for `json_mode`, satisfying DeepSeek V4's requirement that prompts
 mention JSON while avoiding unsupported thinking-mode `tool_choice`.
+
+DeepSeek structured-completion correction revision
+`1d930a46c24b465dbd349bbfab871abc455bbd0e` reached `Synced / Healthy`; the
+Celery rollout completed. The promoted runtime disables DeepSeek thinking for
+bounded structured extraction, preventing reasoning-only exhaustion at 2048 tokens.
