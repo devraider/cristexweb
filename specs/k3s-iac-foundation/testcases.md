@@ -4189,3 +4189,29 @@ Resume education-degree compatibility revision
 `ccf861877fbec4fac7ee70bdb852243096abdde5` reached `Synced / Healthy`; backend,
 Celery, and frontend rollouts completed. Resume parsing now preserves optional degree
 data rather than rejecting valid provider output.
+
+### CRISTEXHUB-DEV-REVIEW-FIXES-PROMOTION — 2026-08-17
+
+The guarded automated-sync source advances only `Application/cristexhub-dev` from
+the previously verified revision to immutable application revision
+`9c4ce3cd624fac3239a58d759778f46846cedd97`. That revision selects the
+source-bound backend and frontend GHCR digests published for
+`86e729e2704c461337a6a1d55684f0304b2a3c4e`; `prune=false`, `selfHeal=true`,
+`CreateNamespace=false`, and the existing destination/project boundaries remain
+unchanged. Focused offline contracts passed (`19 tests`) before the guarded check.
+Runtime check/apply, rollout, Argo health, image identity, and public/private smoke
+results follow below.
+
+The guarded check passed at `ok=22 changed=1 failed=0 skipped=2`; apply passed at
+`ok=24 changed=1 failed=0 skipped=0`. Argo reached the requested revision and the
+new frontend/Celery images became Ready, but backend startup was blocked before
+migration `030`: Beanie requested the new sparse unique
+`background_action_event_dedupe` index while MongoDB's one-member replica-set
+index build remained at commit-readiness. Repeated startup attempts created a
+bounded queue of identical builds. After verifying 69 records and zero existing
+`event_key` values, recovery aborted only the exact in-progress index builds; no
+records or collections were deleted. The source-bound rollback to
+`ccf861877fbec4fac7ee70bdb852243096abdde5` passed guarded check/apply and restored
+Argo `Synced / Healthy` plus backend `1/1` readiness. The new images remain
+published but are **not deployed**. Reattempt is blocked until the MongoDB internal
+TLS/index-commit path is reviewed and repaired under a separate stateful approval.
