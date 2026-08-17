@@ -4215,3 +4215,7 @@ records or collections were deleted. The source-bound rollback to
 Argo `Synced / Healthy` plus backend `1/1` readiness. The new images remain
 published but are **not deployed**. Reattempt is blocked until the MongoDB internal
 TLS/index-commit path is reviewed and repaired under a separate stateful approval.
+Final recovery held a 30-second clear observation window after aborting the last
+queued exact build; all 69 records remained and no `event_key` value or plaintext
+credential residue was introduced. Public root returned `200`, OIDC start returned
+`302`, and all five DEV Deployments were Ready.
