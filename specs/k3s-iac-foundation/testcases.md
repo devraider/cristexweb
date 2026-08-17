@@ -4149,3 +4149,12 @@ The guarded Argo revision transition to
 `Synced / Healthy`, the frontend rollout completed, and the public
 `/employees/import` response now carries the exact least-privilege directive
 `frame-src 'self' blob:`. A subsequent guarded apply converged at `changed=0`.
+
+## Exact DeepSeek HTTPS proxy admission
+
+The shared CONNECT proxy now admits exactly `api.deepseek.com:443` in addition to
+the existing public Keycloak hostname; arbitrary HTTPS destinations remain denied.
+Guarded check predicted one change, apply converged with `changed=1`, and idempotence
+passed at `changed=0`. From the backend Pod, unauthenticated DeepSeek `/models`
+returned the expected `401` (transport reachable), Keycloak discovery remained
+`200`, and `example.com` remained blocked. No API token value was read or output.

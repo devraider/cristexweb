@@ -42,14 +42,21 @@ class OidcConnectProxyContractTests(unittest.TestCase):
         config = self.by_name["oidc-connect-proxy-config"]["data"]["squid.conf"]
         self.assertIn("http_port 3128", config)
         self.assertIn("acl connect_method method CONNECT", config)
-        self.assertIn("acl oidc_host dstdomain auth.cristex-soft.com", config)
+        self.assertIn(
+            "acl allowed_https_host dstdomain auth.cristex-soft.com api.deepseek.com",
+            config,
+        )
         self.assertIn("acl tls_port port 443", config)
         self.assertIn("http_access deny !connect_method", config)
         self.assertIn("http_access deny !tls_port", config)
-        self.assertIn("http_access deny !oidc_host", config)
+        self.assertIn("http_access deny !allowed_https_host", config)
         self.assertIn("http_access deny all", config)
         self.assertIn("access_log none", config)
-        self.assertNotRegex(config, r"(?m)^\s*acl\s+.*\bdstdomain\s+(?!auth\.cristex-soft\.com\b)")
+        domain_lines = [line.strip() for line in config.splitlines() if " dstdomain " in line]
+        self.assertEqual(
+            ["acl allowed_https_host dstdomain auth.cristex-soft.com api.deepseek.com"],
+            domain_lines,
+        )
 
     def test_network_policies_are_least_privilege(self):
         policies = {obj["metadata"]["name"]: obj for obj in self.objects if obj["kind"] == "NetworkPolicy"}
@@ -87,6 +94,13 @@ class OidcConnectProxyContractTests(unittest.TestCase):
         self.assertTrue(pod["spec"]["securityContext"]["runAsNonRoot"])
         container = pod["spec"]["containers"][0]
         self.assertRegex(container["image"], r"ubuntu/squid@sha256:[0-9a-f]{64}$")
+        config_hash = hashlib.sha256(
+            (COMPONENT / "config/configmap-oidc-connect-proxy.yaml").read_bytes()
+        ).hexdigest()
+        self.assertEqual(
+            config_hash,
+            pod["metadata"]["annotations"]["cristex.io/proxy-config-sha256"],
+        )
         self.assertEqual(13, pod["spec"]["securityContext"]["runAsUser"])
         self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
         self.assertTrue(container["securityContext"]["readOnlyRootFilesystem"])
