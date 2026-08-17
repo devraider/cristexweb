@@ -4141,3 +4141,11 @@ Keycloak guarded check predicted one Deployment change; apply converged with
 `loginTheme=cristexhub`. Public login HTML references only the local custom CSS, the
 served SVG equals the reviewed Cristex Soft asset, and public `/admin/` and
 `/realms/master` both remain `404`. No Secret value was printed.
+
+## CristexHub DEV authenticated PDF CSP correction
+
+The guarded Argo revision transition to
+`7985616c6278fc7c3122fe5ca9fe197ff1d7b9b8` passed apply. Argo reached
+`Synced / Healthy`, the frontend rollout completed, and the public
+`/employees/import` response now carries the exact least-privilege directive
+`frame-src 'self' blob:`. A subsequent guarded apply converged at `changed=0`.
