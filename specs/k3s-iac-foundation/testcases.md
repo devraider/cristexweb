@@ -4171,3 +4171,11 @@ DeepSeek `/models` returned expected unauthenticated `401`, proving transport th
 the proxy without token output. Celery is Ready with zero restarts and no deprecated
 pidbox queue reconnect loop. The prior stuck import recovered to `pending_review`
 after its queued task was consumed; the operator can retry it safely.
+
+## DeepSeek V4 JSON-mode runtime correction
+
+Argo revision `cdc97f49d89298d01f1a06c160147e2e23732e8f` reached
+`Synced / Healthy` with promoted immutable backend/frontend images. Backend and
+Celery rollouts completed. The runtime now appends an explicit JSON instruction and
+registered schema for `json_mode`, satisfying DeepSeek V4's requirement that prompts
+mention JSON while avoiding unsupported thinking-mode `tool_choice`.
