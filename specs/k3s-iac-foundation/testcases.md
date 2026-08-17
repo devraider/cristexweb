@@ -4184,3 +4184,8 @@ DeepSeek structured-completion correction revision
 `1d930a46c24b465dbd349bbfab871abc455bbd0e` reached `Synced / Healthy`; the
 Celery rollout completed. The promoted runtime disables DeepSeek thinking for
 bounded structured extraction, preventing reasoning-only exhaustion at 2048 tokens.
+
+Resume education-degree compatibility revision
+`ccf861877fbec4fac7ee70bdb852243096abdde5` reached `Synced / Healthy`; backend,
+Celery, and frontend rollouts completed. Resume parsing now preserves optional degree
+data rather than rejecting valid provider output.
