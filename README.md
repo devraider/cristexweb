@@ -61,11 +61,21 @@ Universal Auth names, nine-key `cristexhub-prod-runtime` plus separate
 least-privilege writer RBAC, manifest/action hashes, and guarded check/apply source.
 The PROD Namespace and Universal Auth values are absent, so its check/apply, sync,
 Secret values, workload, and promotion remain **NOT RUN/BLOCKED**; the fixed
-Infisical `prod` slug remains only a Cloud identifier.
+Infisical `prod` slug remains only a Cloud identifier. A separate guarded
+[CristexHub PROD Argo registration](runbooks/cristexhub-prod-argocd-registration.md)
+source now pins the protected-main application revision
+`751885a42798d282e168131db147f13694a0a621` in a five-object, namespaced,
+permanently sync-denied closure. Its wrapper check/apply and every sync transition
+remain **NOT RUN/BLOCKED** and do not imply Namespace, Secret, workload, or route
+activation.
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
-it does not claim a live rename or deletion. No Argo CD, cloudflared, Infisical
-Operator, Keycloak, PostgreSQL, MongoDB, Secret, workload, Service, policy, PVC, or
-route has been deployed. The Argo CD candidate and release records bind chart
+it does not claim a live rename or deletion. Runtime checkpoint history remains recorded in `AGENTS.md` and the component
+runbooks; this source-only increment performs no runtime action. The
+The live `cristexhub-prod` Namespace, Secrets, registration objects, workload,
+and route remain absent. The source-selection paragraphs below preserve historical pre-runtime
+checkpoints and must not be read as current live-absence evidence; `AGENTS.md` is
+authoritative for completed runtime checkpoints. The Argo CD candidate and release
+records bind chart
 `10.3.0`, app `v3.5.0`, provenance, and exact linux/amd64 image children. The
 [guarded Argo CD bootstrap](runbooks/argocd-hardened-design.md) now promotes an exact
 32-object committed-manifest closure: three Ansible-owned CRDs plus a deny-all default
@@ -159,13 +169,13 @@ evidence. Separate guarded [logical database provisioning](runbooks/shared-datab
 consumes precreated per-consumer Secrets through temporary UID-bound helper Pods;
 all empty reservations and PROD activation remain **NOT RUN/BLOCKED**. No general
 host baseline or deployment exists.
-Python is otherwise test-only; twenty-eight exact-scope Ansible action plugins are
+Python is otherwise test-only; twenty-nine exact-scope Ansible action plugins are
 the reviewed focused exception—ten enforce canonical Namespace and
 Infisical/Argo/database/CristexHub DEV/PROD Secret/seam/Universal Auth mutation
 boundaries, two guard host rclone install/transfer, two perform no-log cryptographic
 validation of exact Argo and stateful-database Secret contracts, five guard the
 standalone MongoDB, PostgreSQL, Keycloak, RabbitMQ, and OIDC CONNECT proxy object
-closures, four guard cloudflared/route closures, three guard CoreDNS/DEV
+closures, four guard cloudflared/route closures, four guard CoreDNS/DEV/PROD
 registration/sync boundaries, and two guard fixed temporary logical-provisioning
 execution/Kubernetes objects. No
 general-purpose operational Python or infrastructure collector exists.
@@ -228,7 +238,8 @@ gateway remain in the separate CristexHub application repository.
 25. [`runbooks/infisical-universal-auth-value-lane.md`](runbooks/infisical-universal-auth-value-lane.md) — protected value generation/upload contracts and Secret-at-rest recovery gate.
 26. [`runbooks/shared-database-provisioning.md`](runbooks/shared-database-provisioning.md) — guarded empty-reservation provisioning and helper isolation boundary.
 27. [`runbooks/infisical-cristexhub-prod-runtime-materialization.md`](runbooks/infisical-cristexhub-prod-runtime-materialization.md) — exact source-only CristexHub PROD runtime Secret seam and blocked gates.
-28. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+28. [`runbooks/cristexhub-prod-argocd-registration.md`](runbooks/cristexhub-prod-argocd-registration.md) — exact-revision, permanently sync-denied source-only PROD Argo registration.
+29. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -374,7 +385,7 @@ ansible/                 # discovery plus guarded host/Kubernetes/database sourc
   bin/                    # non-passthrough operational entrypoints
   inventory/
   playbooks/
-  plugins/action/         # twenty-eight exact-scope mutation/validation guards
+  plugins/action/         # twenty-nine exact-scope mutation/validation guards
   roles/                  # bounded discovery, host, Namespace, controller, Secret, and database roles
   files/components/       # hash-bound Argo, Infisical, PostgreSQL, and MongoDB source
   files/vendor/           # hash-bound public chart/provenance/key inputs only
@@ -405,9 +416,9 @@ The repository now includes source-only guarded Argo, Infisical, PostgreSQL,
 standalone MongoDB, Secret-materialization, protected-value, datastore-preflight,
 logical-provisioning, and cloudflared closures under `ansible/`; their runtime remains
 blocked unless explicitly recorded otherwise. The reviewed Cloudflare Tunnel/DNS
-`opentofu/` source remains unapplied, five persistent Namespace manifests under
-`kubernetes/` plus separate source-only `cristexhub-prod` Namespace source, the
-current runbook set, and offline `tests/` also exist. The `cristexhub-prod` live
+`opentofu/` source remains unapplied, exactly five persistent Namespace manifests
+under `kubernetes/` including source-only `cristexhub-prod`, the current runbook
+set, and offline `tests/` also exist. The `cristexhub-prod` live
 Namespace remains absent and its check/apply/API path is blocked. An exact
 manifest and a distinct guarded wrapper now exist
 for `shared-services`; its interactive check retry predicted exactly that one

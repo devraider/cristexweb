@@ -1,0 +1,48 @@
+cristexhub_prod_registration_approved: false
+cristexhub_prod_registration_state: present
+cristexhub_prod_registration_kubeconfig: /etc/rancher/k3s/k3s.yaml
+cristexhub_prod_registration_repository_root: >-
+  {{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}
+cristexhub_prod_registration_controller_user: >-
+  {{ lookup('ansible.builtin.env', 'USER') }}
+cristexhub_prod_registration_manifest_paths:
+  - >-
+    {{ cristexhub_prod_registration_repository_root
+    }}/ansible/files/components/cristexhub-prod-registration/config/appproject-cristexhub-prod.yaml
+  - >-
+    {{ cristexhub_prod_registration_repository_root
+    }}/ansible/files/components/cristexhub-prod-registration/config/application-cristexhub-prod.yaml
+  - >-
+    {{ cristexhub_prod_registration_repository_root
+    }}/ansible/files/components/cristexhub-prod-registration/rbac/role-argocd-application-controller-cristexhub-prod.yaml
+  - >-
+    {{ cristexhub_prod_registration_repository_root
+    }}/ansible/files/components/cristexhub-prod-registration/rbac/rolebinding-argocd-application-controller-cristexhub-prod.yaml
+  - >-
+    {{ cristexhub_prod_registration_repository_root
+    }}/ansible/files/components/cristexhub-prod-registration/config/secret-cluster-cristexhub-prod.yaml
+cristexhub_prod_registration_object_count: 5
+cristexhub_prod_registration_repository: ssh://git@ssh.github.com:443/devraider/cristexhub.git
+cristexhub_prod_registration_revision: 751885a42798d282e168131db147f13694a0a621
+cristexhub_prod_registration_path: infra/kubernetes/cristexhub-prod
+cristexhub_prod_registration_expected_hashes:
+  - path: >-
+      {{ cristexhub_prod_registration_repository_root
+      }}/ansible/files/components/cristexhub-prod-registration/config/appproject-cristexhub-prod.yaml
+    sha256: 1d0f854084f1ca85548244719bf588547abcca5cd7adcc75fc4758fc9ca611a7
+  - path: >-
+      {{ cristexhub_prod_registration_repository_root
+      }}/ansible/files/components/cristexhub-prod-registration/config/application-cristexhub-prod.yaml
+    sha256: 2fbe7a35608376f34b4c395d7785d27615a402332504ee99435fc79b9d520375
+  - path: >-
+      {{ cristexhub_prod_registration_repository_root
+      }}/ansible/files/components/cristexhub-prod-registration/rbac/role-argocd-application-controller-cristexhub-prod.yaml
+    sha256: f5606f2b58299fb1ce67dab48273513e57dd0ca0613795f9d976b1509fd33977
+  - path: >-
+      {{ cristexhub_prod_registration_repository_root
+      }}/ansible/files/components/cristexhub-prod-registration/rbac/rolebinding-argocd-application-controller-cristexhub-prod.yaml
+    sha256: 1957e9e7ab1cc9cbedf9ff70273cb6f5567eec41082300302bb17fecba6b37f5
+  - path: >-
+      {{ cristexhub_prod_registration_repository_root
+      }}/ansible/files/components/cristexhub-prod-registration/config/secret-cluster-cristexhub-prod.yaml
+    sha256: 65bbf39cc07645b9630e6fade5bae90a93e9f3299cf791534e532ff667765fb2

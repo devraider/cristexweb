@@ -1,0 +1,8 @@
+- name: Register guarded CristexHub PROD Argo application
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: cristexhub_prod_registration

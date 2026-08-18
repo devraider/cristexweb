@@ -240,6 +240,7 @@ metadata:
                 ANSIBLE / "bin/materialize-infisical-cristexhub-dev-runtime",
                 ANSIBLE / "bin/bootstrap-argocd-route",
                 ANSIBLE / "bin/bootstrap-cristexhub-dev-registration",
+                ANSIBLE / "bin/bootstrap-cristexhub-prod-registration",
                 ANSIBLE / "bin/bootstrap-cristexhub-dev-sync-transition",
                 ANSIBLE / "bin/bootstrap-infisical-cristexhub-dev-runtime",
                 ANSIBLE / "bin/bootstrap-infisical-cristexhub-prod-runtime",

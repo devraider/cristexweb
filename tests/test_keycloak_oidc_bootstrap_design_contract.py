@@ -234,6 +234,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "argocd",
             "argocd-route",
             "cristexhub-dev-registration",
+            "cristexhub-prod-registration",
             "cristexhub-dev-sync-transition",
             "infisical-cristexhub-dev-runtime",
             "infisical-cristexhub-prod-runtime",

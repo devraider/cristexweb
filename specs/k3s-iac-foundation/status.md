@@ -2,8 +2,8 @@
 
 state: agent:in-progress
 phase: implementing
-build: focused Argo registration, Infisical repository credential, and CoreDNS recovery contracts/syntax pass; four guarded runtime idempotence applies converge at changed=0
-date: 2026-08-14
+build: 385 offline contracts plus PROD Argo registration compile/shell/playbook syntax pass; exact five-object source remains NOT RUN/BLOCKED
+date: 2026-08-18
 deploy_required_after_acceptance: yes
 
 note: |
@@ -11,7 +11,7 @@ note: |
   administrator-access, recovery, stateful-service, backup, Infisical, Cloudflare,
   Keycloak, and private Argo checkpoints. The latest approved checkpoint adds a
   read-only private CristexHub repository credential, manual-sync DEV registration,
-  bounded Argo cache RBAC, and exact-field CoreDNS external-forwarding recovery. Python is limited to offline tests plus twenty-eight exact-scope
+  bounded Argo cache RBAC, and exact-field CoreDNS external-forwarding recovery. Python is limited to offline tests plus twenty-nine exact-scope
   Ansible action plugins (Namespace, Infisical/Argo/database and CristexHub DEV/PROD
   Secret, registration/sync, CoreDNS, proxy, Universal Auth, and related object-boundary
   guards; two focused host-rclone boundary guards; two no-log Secret cryptographic
@@ -30,7 +30,11 @@ note: |
   `/cristexhub/prod/runtime`, independent PROD Auth/Universal Auth names, the
   nine-key runtime plus `cristexhub-prod-ghcr-pull`, scoped VAP/bindings, additive
   RBAC, hashes, and guarded source; its absent Namespace/identity values keep
-  check/apply, sync, values, and runtime NOT RUN/BLOCKED. A separate source-only, check-only
+  check/apply, sync, values, and runtime NOT RUN/BLOCKED. A separate five-object
+  PROD Argo registration source pins protected-main revision
+  `751885a42798d282e168131db147f13694a0a621`, uses namespace-scoped no-delete RBAC,
+  and remains manual behind an always-active deny window; registration check/apply
+  and every sync transition are NOT RUN/BLOCKED. A separate source-only, check-only
   `k3s_datastore_preflight` role/playbook/wrapper is now offline-validated with
   fixed read-only argv under `no_log`, a bounded private mode-`0600` config slurp,
   strict duplicate/type/mapping/YAML and encryption-JSON parsers, exact

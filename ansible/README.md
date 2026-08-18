@@ -539,7 +539,7 @@ approvals. The separate [Reactive Resume policy](../runbooks/reactive-resume-hos
 private DEV in MVP intent while keeping its image, callbacks, objects, Secrets, and
 runtime blocked. GitHub CI may run only syntax/lint and offline contracts from this
 source; it supplies no inventory and invokes no operational wrapper. The repository
-contains twenty-eight exact-scope action plugins; these focused Python exceptions
+contains twenty-nine exact-scope action plugins; these focused Python exceptions
 are source guards/validators only, not a general operational collector.
 
 Each component requires a dedicated non-passthrough entrypoint and frozen

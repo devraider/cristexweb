@@ -1,0 +1,109 @@
+#!/bin/sh
+set -eu
+
+usage='usage: ansible/bin/bootstrap-cristexhub-prod-registration check|apply'
+if [ "$#" -ne 1 ] || { [ "$1" != check ] && [ "$1" != apply ]; }; then
+  printf '%s\n' "$usage" >&2
+  printf '%s\n' 'refusing passthrough arguments and task-selection controls' >&2
+  exit 64
+fi
+mode=$1
+script_path=$0
+if [ -L "$script_path" ]; then
+  printf '%s\n' 'refusing a symlinked PROD registration entrypoint' >&2
+  exit 66
+fi
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && /bin/pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && /bin/pwd -P)"
+expected_repository_root=/home/paul/projects/cristexweb
+if [ "$repository_root" != "$expected_repository_root" ]; then
+  printf '%s\n' 'refusing PROD registration outside the pinned controller repository' >&2
+  exit 78
+fi
+controller_home="$(CDPATH= cd -- "$repository_root/../.." && /bin/pwd -P)"
+controller_user="$(/usr/bin/id -un)"
+controller="$repository_root/.venv/bin/ansible-playbook"
+if [ ! -f "$controller" ] || [ ! -x "$controller" ] || [ -L "$controller" ]; then
+  printf '%s\n' 'refusing an absent, non-executable, or symlinked pinned Ansible controller' >&2
+  exit 69
+fi
+cd -- "$repository_root/ansible"
+
+umask 077
+attestation_file=
+child_pid=
+cleanup_file() {
+  if [ -n "$attestation_file" ]; then
+    /bin/rm -f -- "$attestation_file"
+  fi
+}
+terminate_child() {
+  signal_status=$1
+  trap '' HUP INT TERM
+  if [ -n "$child_pid" ] && /bin/kill -0 "$child_pid" 2>/dev/null; then
+    /bin/kill -TERM -- "-$child_pid" 2>/dev/null || true
+    remaining=5
+    while [ "$remaining" -gt 0 ] && /bin/kill -0 "$child_pid" 2>/dev/null; do
+      /bin/sleep 1
+      remaining=$((remaining - 1))
+    done
+    if /bin/kill -0 "$child_pid" 2>/dev/null; then
+      /bin/kill -KILL -- "-$child_pid" 2>/dev/null || true
+    fi
+    wait "$child_pid" 2>/dev/null || true
+  fi
+  cleanup_file
+  trap - EXIT
+  exit "$signal_status"
+}
+trap cleanup_file EXIT
+trap 'terminate_child 129' HUP
+trap 'terminate_child 130' INT
+trap 'terminate_child 143' TERM
+attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexhub-prod-registration.XXXXXX")"
+attestation_token="$(/usr/bin/openssl rand -hex 32)"
+printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+
+set -- \
+  "$controller" \
+  -i .ansible/inventory.local.yml \
+  playbooks/bootstrap_cristexhub_prod_registration.yml \
+  --diff \
+  --limit crtxweb \
+  --extra-vars cristexhub_prod_registration_approved=true
+if [ "$mode" = check ]; then
+  set -- "$@" --check
+fi
+
+pending_signal=
+trap 'pending_signal=129' HUP
+trap 'pending_signal=130' INT
+trap 'pending_signal=143' TERM
+/usr/bin/setsid /usr/bin/env -i \
+  "HOME=$controller_home" \
+  "USER=$controller_user" \
+  "LOGNAME=$controller_user" \
+  'PATH=/usr/bin:/bin:/usr/sbin:/sbin' \
+  'LC_ALL=C.UTF-8' \
+  "ANSIBLE_CONFIG=$PWD/ansible.cfg" \
+  "CRISTEXWEB_REPOSITORY_ROOT=$repository_root" \
+  'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT=v1' \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TOKEN=$attestation_token" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ATTESTATION_FILE=$attestation_file" \
+  "$@" &
+child_pid=$!
+trap 'terminate_child 129' HUP
+trap 'terminate_child 130' INT
+trap 'terminate_child 143' TERM
+if [ -n "$pending_signal" ]; then
+  terminate_child "$pending_signal"
+fi
+set +e
+wait "$child_pid"
+status=$?
+set -e
+child_pid=
+trap - HUP INT TERM
+cleanup_file
+trap - EXIT
+exit "$status"
