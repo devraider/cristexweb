@@ -31,7 +31,10 @@ output=$(
 status=$?
 set -e
 [ "$status" -ne 0 ]
-printf '%s\n' "$output" | grep -F 'TASK_SELECTION_GUARD' >/dev/null
+if ! printf '%s\n' "$output" | grep -E '(TASK_SELECTION_GUARD|ENTRYPOINT_GUARD)' >/dev/null; then
+  printf '%s\n' "$output" >&2
+  exit 1
+fi
 if printf '%s\n' "$output" | grep -F 'Failed to connect to the host via ssh' >/dev/null; then
   printf '%s\n' "$output" >&2
   exit 1

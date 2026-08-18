@@ -34,7 +34,9 @@ class ArgoCdUiTlsLifecycleContractTests(unittest.TestCase):
 
     def test_validator_is_private_and_no_log(self):
         self.assertTrue(VALIDATOR.exists())
-        self.assertEqual(0o700, stat.S_IMODE(VALIDATOR.stat().st_mode))
+        # Git preserves only the executable bit, normalizing executable files to 0755.
+        # Protected key inputs, not this value-free validator, remain mode 0600.
+        self.assertEqual(0o755, stat.S_IMODE(VALIDATOR.stat().st_mode))
         text = VALIDATOR.read_text()
         for required in ('checkhost argo.cristex-soft.com', 'checkend 86400', 'cmp -s', 'mode 0600'):
             self.assertIn(required, text)
