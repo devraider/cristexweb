@@ -63,6 +63,7 @@ run_controller() {
     'PATH=/usr/bin:/bin:/usr/sbin:/sbin' \
     'LC_ALL=C.UTF-8' \
     "ANSIBLE_CONFIG=$PWD/ansible.cfg" \
+    "CRISTEXWEB_REPOSITORY_ROOT=$repository_root" \
     'CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ENTRYPOINT=v1' \
     "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_TOKEN=$attestation_token" \
     "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE=$attestation_file" \

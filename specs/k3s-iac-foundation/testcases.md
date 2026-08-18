@@ -79,7 +79,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-NS-04 | KIF-002, KIF-003, KIF-005, KIF-013–KIF-017, KIF-021, KIF-026–KIF-030 | Shared-services placement correction | Replace never-run `platform-secrets`/`platform-identity` source with one exact present-only `shared-services` Namespace; reserve `platform-edge` for cloudflared; place Infisical Operator, separate Keycloak, and one general PostgreSQL instance in commons intent; give Keycloak only a dedicated logical database/role/credential on that engine | PASS — 78 focused and 115 full offline tests, 9 syntax checks, production lint, fail-closed fixtures, archive hashes, links, closure, hygiene, and historical-source preservation passed; no discovery, check, apply, deletion, workload, Secret, database, route, or runtime operation |
 | KIF-NS-05 | KIF-002, KIF-005, KIF-016, KIF-030 | Shared-services Namespace runtime | A successful wrapper check predicts only the absent exact `shared-services` Namespace; separately approved first apply creates/verifies it; separately approved idempotence converges at changed=0 | PASS — check retry passed at `ok=20 changed=1 failed=0`; first apply passed at `ok=22 changed=1 failed=0`; separately approved idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact identity/three labels/`Active` and k3s/Tailscale health preserved. No component was deployed |
 | KIF-NS-06 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub DEV Namespace source and runtime | Dedicated guarded source reconciles only `cristexhub-dev` with four approved labels and present-only semantics; check predicts only that Namespace without mutation; first apply creates/verifies it; idempotence converges; PROD runtime and all other kinds remain absent | PASS — check passed at `ok=20 changed=1 failed=0 skipped=2`; first apply passed at `ok=22 changed=1 failed=0 skipped=0`; idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact labels/`Active` and service health preserved |
-| KIF-NS-07 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub PROD Namespace source-only bootstrap closure | Dedicated non-passthrough source defines only `cristexhub-prod` with exact four PROD labels, SHA-256 manifest binding, private attestation/preflight binding, foreign-existing refusal, present-only semantics, and no deletion path; wrapper check/apply require separate approvals and remain blocked | PASS SOURCE-ONLY / CHECK-APPLY NOT RUN-BLOCKED — focused offline contract validates the manifest, hash ledger, wrapper, playbook, role, action guard, negative fixtures, runbook, and blocked evidence; no wrapper, kubectl, Ansible operational play, provider command, Secret read, Kubernetes API, or runtime operation was executed |
+| KIF-NS-07 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub PROD Namespace source-only bootstrap closure | Dedicated non-passthrough source defines only `cristexhub-prod` with exact four PROD labels, a non-overridable literal SHA-256 manifest binding, canonical task-source/action-only guard, private attestation/preflight binding, foreign-existing refusal, present-only semantics, and no deletion path; wrapper check/apply require separate approvals and remain blocked | PASS SOURCE-ONLY / CHECK-APPLY NOT RUN-BLOCKED — focused offline contract validates the manifest, literal hash, wrapper, playbook, role, action guard, forged-internal/action-only/task-selection negatives, runbook, and blocked evidence; no operational wrapper, kubectl, Ansible play, provider command, Secret read, Kubernetes API, or runtime operation was executed |
 
 ## CristexHub PROD Namespace source-only validation
 
@@ -95,6 +95,8 @@ for path in (
     Path('ansible/playbooks/bootstrap_cristexhub_prod_namespace.yml'),
     Path('ansible/roles/cristexhub_prod_namespace_bootstrap/defaults/main.yml'),
     Path('ansible/roles/cristexhub_prod_namespace_bootstrap/tasks/main.yml'),
+    Path('tests/reject_cristexhub_prod_namespace_action_only.yml'),
+    Path('tests/reject_cristexhub_prod_namespace_internal_injection.yml'),
 ):
     yaml.safe_load(path.read_text())
 PY
@@ -109,11 +111,14 @@ git diff --cached --quiet
 ```
 
 Actual result: **PASS** — 7 focused offline contract tests, YAML parsing, Python
-compile, shell syntax, diff hygiene, and no-staged-files checks. No wrapper,
-kubectl, Ansible operational play, provider command, Secret read, Kubernetes API,
-host mutation, push, or deploy was run. Wrapper check/apply and all runtime,
-PROD validation, and idempotence evidence remain **NOT RUN/BLOCKED** pending
-separate approvals.
+compile, shell syntax, diff hygiene, and no-staged-files checks. The controller-side
+negative regressions reject forged internal state and direct action-only invocation
+before any Kubernetes module; when the ignored `.venv` controller is unavailable,
+the tests retain the fixtures/contract statically and mark only that executable
+negative subcase skipped. No operational wrapper, kubectl, Ansible operational play,
+provider command, Secret read, Kubernetes API, host mutation, push, or deploy was run.
+Wrapper check/apply and all runtime, PROD validation, and idempotence evidence remain
+**NOT RUN/BLOCKED** pending separate approvals.
 | KIF-MONGO-01 | KIF-002, KIF-005, KIF-018, KIF-021, KIF-023, KIF-030 | Guarded standalone MongoDB source closure | Exact hash-bound manifests define one standalone non-authoritative `shared-mongodb` StatefulSet with the pinned MongoDB digest, one replica, private ClusterIP, tokenless ServiceAccount, retained `80Gi` local-path RWO PVC template, exact resources/probes, no delete path, no Secret values, no public exposure, and default-deny/exact consumer ingress | PASS SOURCE-ONLY — focused source/architecture contracts, syntax, production lint, compile, and diff checks passed; no Secret, host, Kubernetes API, provider, Infisical, or runtime operation was accessed |
 | KIF-MONGO-02 | KIF-002, KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | MongoDB official-entrypoint temporary-init TLS nuance | Final args include `--auth --tlsMode=requireTLS`, `--tlsCertificateKeyFile=/etc/mongodb/tls/tls.pem`, and `--tlsCAFile=/etc/mongodb/tls/ca.crt`; each probe authenticates through environment references without password argv and fails when a plaintext ping succeeds, so temporary loopback `allowTLS` cannot become Ready | PASS SOURCE-ONLY — focused contract checks final args, TLS Secret refs, explicit plaintext-negative probe logic, `allowTLS` documentation, and no plaintext value |
 | KIF-MONGO-03 | KIF-018, KIF-019, KIF-021, KIF-023, KIF-026–KIF-030 | Future MongoDB plaintext/auth/authority negatives | A separately approved private runtime QA must reject plaintext MongoDB connections, invalid CA/hostname, bad credentials, cross-database access, workload user/role administration, and any attempt to claim replica-set transactions or authoritative data from this standalone pod | NOT RUN/BLOCKED — no Secret materialization, Kubernetes apply, client, backup/restore, negative runtime test, replica-set/transaction/HA decision, or authoritative-data acceptance exists |
@@ -2426,7 +2431,9 @@ Signer authorization/revocation and image trust/SBOM/vulnerability/recovery rema
 blocked. Infisical chart cryptographic verification remains NOT RUN. Exact rendered
 controller objects, scoped RBAC, secret-zero recovery, callbacks/origins, k3s
 admission, check/apply/idempotence, and all runtime evidence remain NOT RUN/BLOCKED.
-At this 2026-08-08 checkpoint, the exact four Namespace manifests were unchanged,
+At this historical 2026-08-08 checkpoint, the then-current four Namespace
+manifests were unchanged; this predates the later separate `cristexhub-prod`
+source-only manifest and must not be read as current live Namespace evidence.
 and `platform-secrets` plus `platform-identity` runtime remained NOT RUN. KIF-NS-04
 later superseded those two never-run source leaves with `shared-services`; it did not
 rewrite or imply runtime evidence for this historical validation.
@@ -3262,7 +3269,7 @@ All 10 playbooks: syntax PASS
 Action plugin compile: PASS
 Production-profile lint: 0 failures, 0 warnings in 54 files processed
 Markdown links/hygiene: PASS, 28 repository-owned files
-Kubernetes source: PASS, exactly four Namespace manifests
+Kubernetes source: PASS, exactly five persistent Namespace manifests plus separate source-only `cristexhub-prod` Namespace source; the live PROD Namespace remains absent
 Diff hygiene/no staged files: PASS
 ```
 

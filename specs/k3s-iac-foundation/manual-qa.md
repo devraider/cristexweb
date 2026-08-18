@@ -118,7 +118,10 @@ because the managed-profile rollback path has not been executed and verified, ev
 though warning-free fresh-session behavior passed. These results do not satisfy the
 remaining manual cases. The offline `shared-services` source correction adds no live
 Namespace, workload, database, credential, or route and therefore closes no manual
-case. Future placement is cloudflared-only `platform-edge`, with the Infisical
+case. The separate exact present-only `cristexhub-prod` Namespace manifest, guarded
+wrapper, and action source now exist, but the live PROD Namespace remains absent;
+its check/apply/API path and all runtime gates are NOT RUN/BLOCKED. Future placement
+is cloudflared-only `platform-edge`, with the Infisical
 Operator, separate Keycloak deployment, one general PostgreSQL engine, and one
 shared MongoDB engine in `shared-services`. The value-free database policy closes no
 manual case: PostgreSQL and MongoDB source-only contracts exist, but Secret

@@ -78,21 +78,30 @@ PKCE `S256`, and permits exactly this callback:
 `https://hub.cristex-soft.com/oauth2/callback`. Its only web origin is
 `https://hub.cristex-soft.com` and its only post-logout redirect is
 `https://hub.cristex-soft.com/`. The client secret is an Infisical-owned value at
-`prod:/shared-services/keycloak`, represented only by the key name
-`CRISTEXHUB_PROD_OIDC_CLIENT_SECRET`; no value is present here. Reactive Resume and
+`prod:/cristexhub/prod/runtime`, represented only by the key name
+`OIDC_CLIENT_SECRET`, which is the same source/key projected by the PROD runtime
+StaticSecret; no value is present here. Reactive Resume and
 Argo CD browser clients remain inactive until their own exact private callbacks and
 origins are selected; no hostname or route is invented.
 
+The per-client group authorization contract is explicit and environment-bound:
+
+| Client | Accepted tenant-role form | Accepted super-administrator form | Rejected forms |
+|---|---|---|---|
+| `cristexhub-dev` | `cristexhub-dev-<organization-alias>-<role>` with only `admin`, `hr`, `viewer`, or `interviewer` | `cristexhub-dev-super-admin` | Every `cristexhub-prod-*` group, every unmatched form, and missing/ambiguous groups |
+| `cristexhub-prod` | `cristexhub-prod-<organization-alias>-<role>` with only `admin`, `hr`, `viewer`, or `interviewer` | `cristexhub-prod-super-admin` | Every `cristexhub-dev-*` group, every unmatched form, and missing/ambiguous groups |
+
 The PROD client is environment-bound to the exact role-group template
 `cristexhub-prod-<organization-alias>-<role>` and super-administrator group
-`cristexhub-prod-super-admin`; DEV uses the corresponding `cristexhub-dev-*`
-groups. The claims contract emits roles from `groups` and organizations from
-`organization`, requires `sub`, `email`, `email_verified`, and
-`preferred_username`, and does not use full group paths. Missing, unverified,
-ambiguous, or cross-environment group claims fail closed; the policy's canonical
-missing/ambiguous decision is `deny`. The application owns dynamic Organizations,
-memberships, and organization role groups; Ansible owns static realm settings,
-client/mappers, and the static Argo groups.
+`cristexhub-prod-super-admin`; DEV uses the corresponding exact
+`cristexhub-dev-<organization-alias>-<role>` and
+`cristexhub-dev-super-admin` forms. The claims contract emits roles from `groups`
+and organizations from `organization`, requires `sub`, `email`, `email_verified`,
+and `preferred_username`, and does not use full group paths. Missing, unverified,
+ambiguous, unmatched, or cross-environment group claims fail closed; the policy's
+canonical missing/ambiguous decision is `deny`. The application owns dynamic
+Organizations, memberships, and organization role groups; Ansible owns static
+realm settings, client/mappers, and the static Argo groups.
 
 Namespace trust is explicit: `platform-edge` is reserved for cloudflared only;
 `shared-services` contains the Infisical Cloud Operator, a separate Keycloak

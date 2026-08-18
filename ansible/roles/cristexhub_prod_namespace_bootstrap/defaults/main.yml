@@ -12,7 +12,3 @@ cristexhub_prod_namespace_bootstrap_controller_path_components:
   - "{{ cristexhub_prod_namespace_bootstrap_repository_root }}/kubernetes/applications/namespaces"
 cristexhub_prod_namespace_bootstrap_manifest_paths:
   - "{{ cristexhub_prod_namespace_bootstrap_repository_root }}/kubernetes/applications/namespaces/cristexhub-prod.yaml"
-cristexhub_prod_namespace_bootstrap_expected_hashes:
-  - path: >-
-      {{ cristexhub_prod_namespace_bootstrap_repository_root }}/kubernetes/applications/namespaces/cristexhub-prod.yaml
-    sha256: f029bb06bb698c6ddc3e083985f754bd326de8b18804523d1300eae54e8260d0

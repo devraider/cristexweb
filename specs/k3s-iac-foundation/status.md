@@ -11,10 +11,12 @@ note: |
   administrator-access, recovery, stateful-service, backup, Infisical, Cloudflare,
   Keycloak, and private Argo checkpoints. The latest approved checkpoint adds a
   read-only private CristexHub repository credential, manual-sync DEV registration,
-  bounded Argo cache RBAC, and exact-field CoreDNS external-forwarding recovery. Python is limited to offline tests plus twenty-three exact-scope
-  Ansible action plugins (nine exact Namespace/Infisical/CristexHub DEV/PROD
-  mutation guards, two focused host-rclone boundary guards, two no-log Secret cryptographic validators, two standalone
-  MongoDB/PostgreSQL object-closure guards, and two fixed logical-provisioning
+  bounded Argo cache RBAC, and exact-field CoreDNS external-forwarding recovery. Python is limited to offline tests plus twenty-eight exact-scope
+  Ansible action plugins (Namespace, Infisical/Argo/database and CristexHub DEV/PROD
+  Secret, registration/sync, CoreDNS, proxy, Universal Auth, and related object-boundary
+  guards; two focused host-rclone boundary guards; two no-log Secret cryptographic
+  validators; five standalone MongoDB/PostgreSQL/Keycloak/RabbitMQ/OIDC object-closure
+  guards; four cloudflared/route closures; and two fixed logical-provisioning
   execution/Kubernetes guards);
   no general operational Python
   or collector exists. One explicitly approved one-time Linux-host Infisical CLI
@@ -175,8 +177,10 @@ note: |
   `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created/verified all four labels
   and `Active`, and preserved k3s/Tailscale health. Idempotence passed at
   `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; exact post-state/service health
-  remained valid and the Namespace checkpoint is complete. No policy/workload/Secret/
-  PVC/route exists, and `cristexhub-prod` remains absent. The superseded
+  remained valid and the Namespace checkpoint is complete. Separate exact present-only
+  `cristexhub-prod` Namespace source and its guarded wrapper now exist, but the live
+  Namespace remains absent and its check/apply/API path is NOT RUN/BLOCKED. No
+  policy/workload/Secret/PVC/route exists. The superseded
   `platform-secrets`/`platform-identity` source never ran, and this offline correction
   performs no live rename or deletion. Component source/credentials,
   resource/GVR/discovery inventory, Infisical Universal Auth recovery, live
@@ -324,9 +328,11 @@ note: |
   remains empty; provider initialization/lockfile, state creation/encryption, Google
   Drive copy and restore, plan, apply, and every external resource remain NOT
   RUN/BLOCKED.
-  Global committed Kubernetes source now defines exactly five Namespace manifests:
-  `argocd`, `platform-edge`, `shared-services`, `mongodb-system`, and source-only
-  `cristexhub-dev`. The separately approved MongoDB operator migration created
+  Global committed Kubernetes source now defines exactly five persistent Namespace
+  manifests: `argocd`, `platform-edge`, `shared-services`, `mongodb-system`, and
+  source-only `cristexhub-dev`; separate committed source-only `cristexhub-prod`
+  Namespace material exists, but its live Namespace remains absent. The separately
+  approved MongoDB operator migration created
   `mongodb-system`; its control plane now runs there and watches the existing
   `shared-services` database runtime.
   The closed historical bounded Ansible bootstrap defines and loads only `argocd`

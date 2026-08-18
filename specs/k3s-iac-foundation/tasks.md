@@ -374,6 +374,10 @@ logs, or bootstrap cannot be recovered.
   k3s/Tailscale health preserved.
 - [ ] Select exact DEV service accounts, RBAC, quota, limit, and default-deny/allow
   policy values before adding those object kinds (`KIF-016`, `KIF-019`, `KIF-021`).
+- [x] Add the exact present-only, value-free CristexHub PROD Namespace source,
+  guarded wrapper/action, literal manifest hash, canonical task-source/attestation/
+  preflight gates, and offline action-only/injection negatives; do not run it
+  (`KIF-002`, `KIF-005`, `KIF-006`, `KIF-010`, `KIF-016`, `KIF-030`).
 - [ ] Keep `cristexhub-prod` absent until DEV validation, recovery, and soak satisfy
   KIF-025 and a separate PROD Namespace approval is granted.
 - [x] Add the source-only, fail-closed CristexHub PROD runtime Infisical seam with

@@ -38,6 +38,25 @@ clients:
       client_secret_owner: infisical-cloud
       client_secret_path: prod:/shared-services/keycloak
       client_secret_key: CRISTEXHUB_DEV_OIDC_CLIENT_SECRET
+      group_authorization:
+        environment: dev
+        accepted_group_forms:
+          tenant_role:
+            template: cristexhub-dev-<organization-alias>-<role>
+            allowed_roles:
+              - admin
+              - hr
+              - viewer
+              - interviewer
+          super_admin:
+            exact: cristexhub-dev-super-admin
+        rejected_group_forms:
+          cross_environment: deny
+          examples:
+            - cristexhub-prod-<organization-alias>-<role>
+            - cristexhub-prod-super-admin
+          unmatched: deny
+        missing_or_ambiguous: deny
     - id: cristexhub-prod
       namespace: cristexhub-prod
       activation: keycloak-configured-application-runtime-blocked
@@ -51,8 +70,27 @@ clients:
       post_logout_redirect_uris:
         - https://hub.cristex-soft.com/
       client_secret_owner: infisical-cloud
-      client_secret_path: prod:/shared-services/keycloak
-      client_secret_key: CRISTEXHUB_PROD_OIDC_CLIENT_SECRET
+      client_secret_path: prod:/cristexhub/prod/runtime
+      client_secret_key: OIDC_CLIENT_SECRET
+      group_authorization:
+        environment: prod
+        accepted_group_forms:
+          tenant_role:
+            template: cristexhub-prod-<organization-alias>-<role>
+            allowed_roles:
+              - admin
+              - hr
+              - viewer
+              - interviewer
+          super_admin:
+            exact: cristexhub-prod-super-admin
+        rejected_group_forms:
+          cross_environment: deny
+          examples:
+            - cristexhub-dev-<organization-alias>-<role>
+            - cristexhub-dev-super-admin
+          unmatched: deny
+        missing_or_ambiguous: deny
     - id: reactive-resume-dev
       namespace: cristexhub-dev
       activation: blocked-pending-exact-origin

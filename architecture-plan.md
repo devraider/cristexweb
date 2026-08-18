@@ -25,9 +25,9 @@ with strict, fail-closed version/datastore/config/encryption/service/Node stages
 A separately approved live read-only run passed at `ok=45 changed=1`; the only
 change was its ignored sanitized controller artifact, and it performed no backup,
 restore, encryption, host, cluster, or Secret mutation.
-Python is limited to offline contract tests plus fifteen exact-scope Ansible action
-plugins that enforce reviewed mutation and cryptographic boundaries; it is not a
-general operational implementation. Source-only guarded closures now exist for Argo,
+Python is limited to offline contract tests plus twenty-eight exact-scope Ansible
+action plugins that enforce reviewed mutation and cryptographic boundaries; it is
+not a general operational implementation. Source-only guarded closures now exist for Argo,
 Infisical, PostgreSQL, standalone MongoDB, Secret materialization, and empty logical
 reservations, but no hosted orchestration, DNS, tunnel, deployed GitOps runtime,
 credential-bearing Secret write, live database, backup/restore, or operational
@@ -73,8 +73,8 @@ scaffold. The first live run stopped after two bounded directory tasks because t
 host had no route to GitHub. The reviewed controller-cache and Ansible-transfer
 recovery subsequently passed check, live installation, and a `changed=0` rerun; the
 pinned CLI and selector now exist without host egress. Committed Kubernetes desired
-state now contains exactly four Namespace manifests: `argocd`, `platform-edge`,
-`shared-services`, and source-only `cristexhub-dev`. The closed historical bootstrap owns only `argocd` and
+state now contains exactly five Namespace manifests: `argocd`, `platform-edge`,
+`shared-services`, `cristexhub-dev`, and source-only `cristexhub-prod`. The closed historical bootstrap owns only `argocd` and
 `platform-edge`; the distinct present-only `shared-services` bootstrap passed check
 and separately approved first apply/idempotence; the final run converged at
 `changed=0`. A dedicated [CristexHub DEV Namespace bootstrap](runbooks/cristexhub-dev-namespace-bootstrap.md)
@@ -82,15 +82,17 @@ is exact present-only source with four approved labels. Its separately approved 
 passed at `ok=20 changed=1 unreachable=0 failed=0 skipped=2` without mutation. Its
 first apply passed at `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created and
 verified only the exact Namespace, and preserved service health. Idempotence passed
-at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the checkpoint is complete and
-`cristexhub-prod` is absent. The superseded `platform-secrets`/`platform-identity` source never
-ran, and its removal is not a live rename or deletion. The separately approved
-historical first apply created exactly those
-two Active Namespaces with the reviewed labels. The separately approved idempotence
-checkpoint first stopped before Kubernetes reconciliation on failed local sudo
-authentication at `changed=0`; its retry passed at `ok=21 changed=0 failed=0` with
-exact post-state and service-health verification. No workload or other persistent
-kind exists from this increment. The source-only
+at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the DEV checkpoint is complete.
+The committed `cristexhub-prod` manifest and its dedicated guarded present-only
+source are source-only; no PROD Namespace was created by this increment, and its
+check/apply remain blocked pending DEV validation, recovery, soak, and separate
+approval. The superseded `platform-secrets`/`platform-identity` source never ran,
+and its removal is not a live rename or deletion. The separately approved historical
+first apply created exactly those two Active Namespaces with the reviewed labels. The
+separately approved idempotence checkpoint first stopped before Kubernetes
+reconciliation on failed local sudo authentication at `changed=0`; its retry passed
+at `ok=21 changed=0 failed=0` with exact post-state and service-health verification.
+No workload or other persistent kind exists from this increment. The source-only
 [Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
 records chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
 immutable linux/amd64 images, and curated online/static readiness evidence. The
@@ -252,7 +254,7 @@ Tailscale do not replace application OIDC/JWT enforcement.
 | `platform-edge` | Cloudflare Tunnel connector only; no Keycloak, Infisical Operator, database, or route exists; every route remains separately approved |
 | `shared-services` | Exact present-only Namespace exists after passed check/first apply/idempotence; future placement for the Infisical Cloud Operator, separate Keycloak, one PostgreSQL, one MongoDB, and one shared RabbitMQ engine remains undeployed |
 | `cristexhub-dev` | Exact Namespace exists idempotently after passed check/first apply/idempotence; all four labels, `Active`, and service health were verified; future DEV applications and environment-local dependencies remain undeployed |
-| `cristexhub-prod` | Absent and without executable Namespace source; blocked until DEV validation, recovery, and soak |
+| `cristexhub-prod` | Exact four-label Namespace manifest and guarded present-only source exist source-only; no live Namespace was created; check/apply remain blocked until DEV validation, recovery, and soak |
 | Optional backup/monitoring namespaces | Added only when their first workload is approved |
 
 Namespace names organize ownership but are not a hard security boundary. Service
@@ -540,9 +542,11 @@ verification must meet the declared RPO/RTO before PROD.
   RBAC authorizes Argo actions; Kubernetes RBAC independently constrains controller
   ServiceAccounts. Direct Argo OIDC is selected and Dex remains absent. The issuer,
   `argocd` client ID, `argocd-admin`/`argocd-readonly` groups, and deny-default
-  mapping are fixed by value-free policy. Exact private callback/origin, TLS,
-  materialized value, workload/PVC, route, database recovery, and runtime remain
-  blocked.
+  mapping are fixed by value-free policy. CristexHub DEV and PROD clients likewise
+  have exact per-client environment tenant-role and super-administrator group forms;
+  unmatched, missing/ambiguous, and cross-environment groups are denied. Exact
+  private callback/origin, TLS, materialized value, workload/PVC, route, database
+  recovery, and runtime remain blocked.
 - Current source-only cloudflared evidence: the
   [candidate provenance record](runbooks/cloudflared-candidate-provenance.md) binds
   release, unsigned source, architecture-specific image, token-file, health, and

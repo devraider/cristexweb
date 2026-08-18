@@ -25,7 +25,10 @@ The dedicated closure owns only:
 - `ansible/playbooks/bootstrap_cristexhub_prod_namespace.yml`;
 - `ansible/plugins/action/cristexhub_prod_namespace_guarded_k8s.py`;
 - `ansible/roles/cristexhub_prod_namespace_bootstrap/`; and
-- the focused offline contracts and negative fixtures under `tests/`.
+- the focused offline contracts and negative fixtures under `tests/`, including
+  `reject_cristexhub_prod_namespace_action_only.yml`,
+  `reject_cristexhub_prod_namespace_internal_injection.yml`, and
+  `reject_cristexhub_prod_namespace_task_start.sh`.
 
 The manifest is exactly one value-free object:
 
@@ -41,10 +44,11 @@ metadata:
     cristex.io/desired-owner: argocd
 ```
 
-The committed manifest is hash-pinned in the role defaults with SHA-256
-`f029bb06bb698c6ddc3e083985f754bd326de8b18804523d1300eae54e8260d0`. The role
-checks the exact regular non-symlink manifest leaf, mode and ownership, canonical
-repository ancestors, and matching SHA-256 before any mutation-capable task.
+The committed manifest is bound to the non-overridable SHA-256 literal
+`f029bb06bb698c6ddc3e083985f754bd326de8b18804523d1300eae54e8260d0` in the role
+and action plugin; it is not an extra-vars/defaults input. The role checks the
+exact regular non-symlink manifest leaf, mode and ownership, canonical repository
+ancestors, and matching SHA-256 before any mutation-capable task.
 
 ## Guarded execution contract
 
@@ -60,10 +64,13 @@ non-symlinked, controller-owned, mode `0600`, and contains the matching token
 marker. It requires explicit approval, `state: present`, diff mode, exactly one
 selected host, the existing root:`k3s-admin` mode-`0640` kubeconfig, and running
 k3s/Tailscale services. The role's internal-variable guard runs first, and the
-mutating action independently rejects task-selection controls and any arguments
-outside the exact Namespace definition. The in-run preflight binds the
-attestation SHA-256, exact manifest SHA-256, manifest identity, pre-state, path
-counts, kubeconfig contract, and service contract before the mutation task.
+mutating action independently binds its canonical role-task source, wrapper
+attestation, exact approved/state values, complete internal preflight object,
+task-selection controls, and arguments outside the exact Namespace definition.
+The in-run preflight binds the attestation SHA-256, exact manifest SHA-256,
+manifest identity, pre-state, path counts, kubeconfig contract, and service
+contract before the mutation task. Direct action-only invocation and forged
+internal/preflight values are rejected before the Kubernetes module.
 
 Only `state: present` is implemented. Before a future approved run, the role
 queries only `cristexhub-prod`; if it exists with any missing, changed, or extra
@@ -86,11 +93,14 @@ stage:
 3. Treat any later idempotence or PROD validation as a new approval sequence; no
    such evidence is claimed here.
 
-The focused offline contract verifies the exact manifest, hash ledger, wrapper
-allowlist and non-passthrough boundary, attestation and internal-variable guards,
-foreign-existing refusal, present-only/no-delete semantics, and blocked status.
-It performs no wrapper invocation, kubectl call, Ansible operational play,
-provider command, or Secret read.
+The focused offline contract verifies the exact manifest, literal hash binding,
+wrapper allowlist and non-passthrough boundary, canonical task-source/action-only
+negative, attestation and internal-variable guards, forged preflight injection
+negative, foreign-existing refusal, present-only/no-delete semantics, and blocked
+status. The negative fixtures run only localhost controller-side guards when the
+pinned offline controller is available; they perform no wrapper invocation,
+kubectl call, Ansible operational play, provider command, Kubernetes API access,
+or Secret read.
 
 ## Stop conditions
 

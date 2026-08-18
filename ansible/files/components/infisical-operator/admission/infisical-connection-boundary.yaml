@@ -22,8 +22,8 @@ spec:
           - infisicalconnections
         scope: Namespaced
   validations:
-    - expression: request.namespace in ['shared-services', 'argocd', 'cristexhub-dev', 'platform-edge']
-      message: Only the four reviewed namespaces may contain Infisical custom resources.
+    - expression: request.namespace in ['shared-services', 'argocd', 'cristexhub-dev', 'cristexhub-prod', 'platform-edge']
+      message: Only the five reviewed namespaces may contain Infisical custom resources.
       reason: Forbidden
     - expression: "!has(object.spec.address) || object.spec.address == '' || object.spec.address == 'https://app.infisical.com'"
       message: Only Infisical Cloud API is allowed.

@@ -13,6 +13,12 @@ ROOT = Path(__file__).resolve().parents[1]
 ANSIBLE = ROOT / "ansible"
 KUBERNETES = ROOT / "kubernetes"
 POLICY = ANSIBLE / "files/policies/hosted-identity-authorization.yml"
+PROD_RUNTIME_POLICY = ANSIBLE / "files/policies/cristexhub-prod-runtime-materialization.yml"
+PROD_RUNTIME_STATIC_SECRET = (
+    ANSIBLE
+    / "files/components/infisical-cristexhub-prod-runtime/source/"
+    / "cristexhub-prod-runtime-static-secret.yaml"
+)
 DATABASE_POLICY = ANSIBLE / "files/policies/shared-database-architecture.yml"
 
 ARGO_VENDOR = ANSIBLE / "files/vendor/argocd/10.3.0"
@@ -43,6 +49,8 @@ class HostedAuthSourceSelectionContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.policy_text = POLICY.read_text()
         cls.policy = yaml.safe_load(cls.policy_text)
+        cls.prod_runtime_policy = yaml.safe_load(PROD_RUNTIME_POLICY.read_text())
+        cls.prod_runtime_static_secret = yaml.safe_load(PROD_RUNTIME_STATIC_SECRET.read_text())
         cls.database_policy = yaml.safe_load(DATABASE_POLICY.read_text())
 
     def test_exact_vendor_closure_and_hashes(self) -> None:
@@ -143,6 +151,7 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual(["https://dev-hub.cristex-soft.com"], dev["web_origins"])
         self.assertEqual(["https://dev-hub.cristex-soft.com/"], dev["post_logout_redirect_uris"])
         self.assertEqual("infisical-cloud", dev["client_secret_owner"])
+        self.assertEqual("prod:/shared-services/keycloak", dev["client_secret_path"])
         self.assertEqual("CRISTEXHUB_DEV_OIDC_CLIENT_SECRET", dev["client_secret_key"])
 
         prod = browser["cristexhub-prod"]
@@ -155,8 +164,9 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual(["https://hub.cristex-soft.com"], prod["web_origins"])
         self.assertEqual(["https://hub.cristex-soft.com/"], prod["post_logout_redirect_uris"])
         self.assertEqual("infisical-cloud", prod["client_secret_owner"])
-        self.assertEqual("prod:/shared-services/keycloak", prod["client_secret_path"])
-        self.assertEqual("CRISTEXHUB_PROD_OIDC_CLIENT_SECRET", prod["client_secret_key"])
+        self.assertEqual("prod:/cristexhub/prod/runtime", prod["client_secret_path"])
+        self.assertEqual("OIDC_CLIENT_SECRET", prod["client_secret_key"])
+        self.assertNotIn("CRISTEXHUB_PROD_OIDC_CLIENT_SECRET", self.policy_text)
 
         self.assertTrue(
             all(
@@ -188,6 +198,131 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual("cristexhub-dev-super-admin", roles["dev_super_admin_group"])
         self.assertEqual("cristexhub-prod-super-admin", roles["prod_super_admin_group"])
         self.assertEqual("deny", roles["missing_or_ambiguous_group"])
+
+    def test_prod_oidc_source_is_shared_with_runtime_static_secret(self) -> None:
+        source = self.prod_runtime_policy["oidc_client_secret_source"]
+        self.assertEqual(
+            {
+                "owner": "infisical-cloud",
+                "project_id": "619656da-14f3-4872-857b-be103cdc5326",
+                "environment_slug": "prod",
+                "path": "/cristexhub/prod/runtime",
+                "key": "OIDC_CLIENT_SECRET",
+                "target_key": "OIDC_CLIENT_SECRET",
+                "values": "absent",
+            },
+            source,
+        )
+        prod = {
+            entry["id"]: entry for entry in self.policy["clients"]["browser"]
+        }["cristexhub-prod"]
+        self.assertEqual(
+            f'{source["environment_slug"]}:{source["path"]}',
+            prod["client_secret_path"],
+        )
+        self.assertEqual(source["owner"], prod["client_secret_owner"])
+        self.assertEqual(source["key"], prod["client_secret_key"])
+        self.assertEqual(source["project_id"], self.prod_runtime_policy["project"]["id"])
+        self.assertEqual(source["environment_slug"], self.prod_runtime_policy["project"]["environment"])
+        self.assertEqual(source["path"], self.prod_runtime_policy["project"]["source_path"])
+        self.assertEqual(source["path"], self.prod_runtime_policy["sources"]["infisical"]["path"])
+
+        static_spec = self.prod_runtime_static_secret["spec"]
+        self.assertEqual(
+            {
+                "projectId": source["project_id"],
+                "environmentSlug": source["environment_slug"],
+                "secretPath": source["path"],
+                "recursive": False,
+                "tagSlugs": [],
+            },
+            static_spec["sources"][0],
+        )
+        runtime_target = static_spec["targets"][0]
+        self.assertEqual(source["target_key"], "OIDC_CLIENT_SECRET")
+        self.assertEqual(
+            "{{ .OIDC_CLIENT_SECRET.Value }}",
+            runtime_target["template"]["data"][source["target_key"]],
+        )
+        self.assertIn(source["target_key"], self.prod_runtime_policy["target_keys"])
+
+    def test_cristexhub_clients_have_explicit_environment_group_authorization(self) -> None:
+        roles = self.policy["roles"]["cristexhub"]
+        browser = {entry["id"]: entry for entry in self.policy["clients"]["browser"]}
+        for environment, other_environment in (("dev", "prod"), ("prod", "dev")):
+            authorization = browser[f"cristexhub-{environment}"]["group_authorization"]
+            accepted = authorization["accepted_group_forms"]
+            self.assertEqual(environment, authorization["environment"])
+            self.assertEqual(
+                f"cristexhub-{environment}-<organization-alias>-<role>",
+                accepted["tenant_role"]["template"],
+            )
+            self.assertEqual(roles["values"], accepted["tenant_role"]["allowed_roles"])
+            self.assertEqual(
+                f"cristexhub-{environment}-super-admin",
+                accepted["super_admin"]["exact"],
+            )
+            rejected = authorization["rejected_group_forms"]
+            self.assertEqual("deny", rejected["cross_environment"])
+            self.assertEqual("deny", rejected["unmatched"])
+            self.assertEqual("deny", authorization["missing_or_ambiguous"])
+            self.assertEqual(
+                [
+                    f"cristexhub-{other_environment}-<organization-alias>-<role>",
+                    f"cristexhub-{other_environment}-super-admin",
+                ],
+                rejected["examples"],
+            )
+
+    @staticmethod
+    def _accepted_group(group: str, authorization: dict) -> bool:
+        accepted = authorization["accepted_group_forms"]
+        if group == accepted["super_admin"]["exact"]:
+            return True
+        template = accepted["tenant_role"]["template"]
+        prefix, alias_marker, suffix = template.partition("<organization-alias>")
+        role_prefix, role_marker, role_suffix = suffix.partition("<role>")
+        if not alias_marker or not role_marker or role_suffix:
+            return False
+        roles = "|".join(
+            re.escape(role) for role in accepted["tenant_role"]["allowed_roles"]
+        )
+        pattern = (
+            re.escape(prefix)
+            + r"[a-z0-9]+(?:-[a-z0-9]+)*"
+            + re.escape(role_prefix)
+            + f"(?:{roles})"
+        )
+        return re.fullmatch(pattern, group) is not None
+
+    def test_environment_group_authorization_denies_cross_environment_and_ambiguous_groups(
+        self,
+    ) -> None:
+        browser = {entry["id"]: entry for entry in self.policy["clients"]["browser"]}
+        for environment, other_environment in (("dev", "prod"), ("prod", "dev")):
+            authorization = browser[f"cristexhub-{environment}"]["group_authorization"]
+            accepted = authorization["accepted_group_forms"]
+            self.assertTrue(
+                self._accepted_group(
+                    f"cristexhub-{environment}-acme-admin", authorization
+                )
+            )
+            self.assertTrue(
+                self._accepted_group(
+                    accepted["super_admin"]["exact"], authorization
+                )
+            )
+            for group in (
+                f"cristexhub-{other_environment}-acme-admin",
+                f"cristexhub-{other_environment}-super-admin",
+                f"cristexhub-{environment}-acme-owner",
+                f"cristexhub-{environment}-acme-admin-extra",
+                "cristexhub-unknown-acme-admin",
+            ):
+                self.assertFalse(self._accepted_group(group, authorization), group)
+            self.assertEqual("deny", authorization["missing_or_ambiguous"])
+            self.assertEqual("deny", authorization["rejected_group_forms"]["cross_environment"])
+            self.assertEqual("deny", authorization["rejected_group_forms"]["unmatched"])
 
     def test_argocd_and_namespace_authorization_is_deny_first(self) -> None:
         argo = self.policy["roles"]["argocd"]

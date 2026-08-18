@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import hashlib
-import re
+import os
 import stat
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -20,6 +22,8 @@ TESTCASES = ROOT / "specs/k3s-iac-foundation/testcases.md"
 TASK_START_FIXTURE = ROOT / "tests/reject_cristexhub_prod_namespace_task_start.sh"
 CLEAN_CONTROLLER_FIXTURE = ROOT / "tests/validate_cristexhub_prod_namespace_clean_controller.sh"
 INTERNAL_INJECTION_FIXTURE = ROOT / "tests/reject_cristexhub_prod_namespace_internal_injection.yml"
+ACTION_ONLY_FIXTURE = ROOT / "tests/reject_cristexhub_prod_namespace_action_only.yml"
+_EXPECTED_MANIFEST_SHA256 = "f029bb06bb698c6ddc3e083985f754bd326de8b18804523d1300eae54e8260d0"
 
 
 class CristexhubProdNamespaceBootstrapContractTests(unittest.TestCase):
@@ -77,27 +81,32 @@ metadata:
         ):
             self.assertNotIn(forbidden, self.manifest)
 
-    def test_manifest_hash_is_pinned_to_the_committed_bytes(self) -> None:
-        configured = re.search(
-            r"sha256:\s*([0-9a-f]{64})",
-            self.defaults,
-        )
-        self.assertIsNotNone(configured)
+    def test_manifest_hash_is_a_non_overridable_literal(self) -> None:
         self.assertEqual(
-            configured.group(1),
+            _EXPECTED_MANIFEST_SHA256,
             hashlib.sha256(MANIFEST.read_bytes()).hexdigest(),
         )
+        self.assertNotIn("cristexhub_prod_namespace_bootstrap_expected_hashes", self.defaults)
+        self.assertIn(
+            f"item.stat.checksum == '{_EXPECTED_MANIFEST_SHA256}'",
+            self.tasks,
+        )
+        self.assertIn(
+            f"['{_EXPECTED_MANIFEST_SHA256}']",
+            self.tasks,
+        )
+        self.assertIn(
+            f'_EXPECTED_MANIFEST_SHA256 = "{_EXPECTED_MANIFEST_SHA256}"',
+            self.action_plugin,
+        )
         for required in (
-            "cristexhub_prod_namespace_bootstrap_expected_hashes | length == 1",
-            "map(attribute='path') | list ==",
-            "select('match', '^[0-9a-f]{64}$')",
             "get_checksum: true",
             "checksum_algorithm: sha256",
             "item.stat.checksum ==",
             "manifest_sha256:",
             "manifest_sha256 ==",
         ):
-            self.assertIn(required, self.defaults + self.tasks)
+            self.assertIn(required, self.tasks)
 
     def test_exact_playbook_role_and_source_closure(self) -> None:
         self.assertEqual(
@@ -153,7 +162,6 @@ metadata:
             "cristexhub_prod_namespace_bootstrap_approved: false",
             "cristexhub_prod_namespace_bootstrap_state: present",
             "kubernetes/applications/namespaces/cristexhub-prod.yaml",
-            "cristexhub_prod_namespace_bootstrap_expected_hashes",
             "['cristexhub-prod']",
             "item.metadata.name == 'cristexhub-prod'",
             "item.metadata.labels['app.kubernetes.io/part-of'] == 'cristexhub'",
@@ -185,12 +193,20 @@ metadata:
             'context.CLIARGS.get("step")',
             'context.CLIARGS.get("tags")',
             'context.CLIARGS.get("skip_tags")',
+            "_EXPECTED_TASK_SOURCE",
+            "canonical guarded role task source",
+            "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE",
+            "valid_attestation",
+            "valid_binding",
+            "cristexhub_prod_namespace_bootstrap_approved",
+            "cristexhub_prod_namespace_bootstrap_state",
             "TASK_SELECTION_GUARD",
             "MUTATION_ARGUMENT_GUARD",
             'self._task.action = "kubernetes.core.k8s"',
             '"state": "present"',
             '"name": "cristexhub-prod"',
             '"cristex.io/environment": "prod"',
+            "no_delete_path",
         ):
             self.assertIn(required, self.action_plugin)
         for forbidden in (
@@ -226,6 +242,7 @@ metadata:
             "playbooks/bootstrap_cristexhub_prod_namespace.yml",
             "/usr/bin/env -i",
             "LC_ALL=C.UTF-8",
+            "CRISTEXWEB_REPOSITORY_ROOT=$repository_root",
             "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ENTRYPOINT=v1",
             "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_TOKEN=$attestation_token",
             "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE=$attestation_file",
@@ -254,9 +271,11 @@ metadata:
                 path.stat().st_mode
                 & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH),
             )
+        self.assertTrue(ACTION_ONLY_FIXTURE.is_file())
         task_start = TASK_START_FIXTURE.read_text()
         clean = CLEAN_CONTROLLER_FIXTURE.read_text()
         injection = INTERNAL_INJECTION_FIXTURE.read_text()
+        action_only = ACTION_ONLY_FIXTURE.read_text()
         for required in (
             "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ENTRYPOINT=v1",
             "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_TOKEN",
@@ -273,6 +292,75 @@ metadata:
         self.assertIn("name: cristexhub_prod_namespace_bootstrap", injection)
         self.assertIn("INTERNAL_VARIABLE_GUARD", injection)
         self.assertNotIn("kubernetes.core", injection)
+        self.assertIn("canonical guarded role task source", self.action_plugin)
+        self.assertIn("manifest_sha256", action_only)
+        self.assertIn("cristexhub_prod_namespace_bootstrap_approved: true", action_only)
+        self.assertNotIn("kubernetes.core", injection)
+
+        controller = ROOT / ".venv/bin/ansible-playbook"
+        if not controller.is_file():
+            self.skipTest("offline controller environment is not installed")
+
+        token = "a" * 64
+        with tempfile.TemporaryDirectory() as directory:
+            attestation_file = Path(directory) / "attestation"
+            attestation_file.write_text(f"{token}:entrypoint\n")
+            attestation_file.chmod(0o600)
+            env = os.environ.copy()
+            env.update(
+                {
+                    "ANSIBLE_CONFIG": str(ROOT / "ansible/ansible.cfg"),
+                    "CRISTEXWEB_REPOSITORY_ROOT": str(ROOT),
+                    "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ENTRYPOINT": "v1",
+                    "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_TOKEN": token,
+                    "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE": str(attestation_file),
+                }
+            )
+            action_result = subprocess.run(
+                [
+                    str(controller),
+                    "-i",
+                    "localhost,",
+                    str(ACTION_ONLY_FIXTURE),
+                ],
+                cwd=ROOT / "ansible",
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertNotEqual(0, action_result.returncode)
+        action_output = action_result.stdout + action_result.stderr
+        self.assertIn("ENTRYPOINT_GUARD", action_output)
+        self.assertIn("canonical guarded role task source", action_output)
+        self.assertNotIn("Failed to connect", action_output)
+
+        injection_env = os.environ.copy()
+        injection_env.update(
+            {
+                "ANSIBLE_CONFIG": str(ROOT / "ansible/ansible.cfg"),
+                "ANSIBLE_ROLES_PATH": str(ROOT / "ansible/roles"),
+            }
+        )
+        injection_result = subprocess.run(
+            [
+                str(controller),
+                "-i",
+                "localhost,",
+                str(INTERNAL_INJECTION_FIXTURE),
+                "--extra-vars",
+                '{"cristexhub_prod_namespace_bootstrap_internal_preflight_binding":{}}',
+            ],
+            cwd=ROOT / "ansible",
+            env=injection_env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, injection_result.returncode)
+        injection_output = injection_result.stdout + injection_result.stderr
+        self.assertIn("INTERNAL_VARIABLE_GUARD", injection_output)
+        self.assertNotIn("Failed to connect", injection_output)
 
     def test_runbook_and_testcase_keep_all_runtime_blocked(self) -> None:
         normalized = " ".join(self.runbook.split())

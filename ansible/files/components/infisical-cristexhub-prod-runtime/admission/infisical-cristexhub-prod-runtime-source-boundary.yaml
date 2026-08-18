@@ -22,16 +22,14 @@ spec:
       - infisicalauths
       scope: Namespaced
   matchConditions:
-  - name: runtime-source-identities
-    expression: request.namespace == 'cristexhub-prod' && (request.userInfo.username
-      == 'system:serviceaccount:shared-services:infisical-operator-controller' || object.metadata.name
-      in ['infisical-cloud','cristexhub-prod-infisical-auth'])
+  - name: runtime-source-namespace
+    expression: request.namespace == 'cristexhub-prod'
   validations:
   - expression: >-
-      (request.userInfo.username == 'system:admin' ||
-      (request.userInfo.username ==
-      'system:serviceaccount:shared-services:infisical-operator-controller' && oldObject
-      != null && oldObject.spec == object.spec)) && object.metadata.labels.size() == 3 &&
+      ((request.userInfo.username == 'system:admin' && request.operation == 'CREATE') ||
+      (request.userInfo.username == 'system:serviceaccount:shared-services:infisical-operator-controller' &&
+      request.operation == 'UPDATE' && oldObject != null && oldObject.spec == object.spec)) &&
+      object.metadata.namespace == 'cristexhub-prod' && object.metadata.labels.size() == 3 &&
       object.metadata.labels['app.kubernetes.io/part-of'] == 'cristex-platform' &&
       object.metadata.labels['app.kubernetes.io/managed-by'] == 'ansible' &&
       object.metadata.labels['cristex.io/component'] == 'infisical-cristexhub-prod-runtime' &&
@@ -44,5 +42,5 @@ spec:
       object.spec.universal.clientIdRef.namespace == 'cristexhub-prod' && object.spec.universal.clientIdRef.key == 'clientId' &&
       object.spec.universal.clientSecretRef.name == 'cristexhub-prod-infisical-universal-auth' &&
       object.spec.universal.clientSecretRef.namespace == 'cristexhub-prod' && object.spec.universal.clientSecretRef.key == 'clientSecret'))
-    message: Only the exact guarded runtime Connection and Auth identities are allowed.
+    message: Only the exact guarded runtime Connection and Auth identities may be created or reconciled.
     reason: Forbidden

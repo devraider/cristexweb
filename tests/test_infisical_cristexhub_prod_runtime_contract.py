@@ -19,6 +19,7 @@ PLUGIN = ROOT / "ansible/plugins/action/infisical_cristexhub_prod_runtime_guarde
 WRAPPER = ROOT / "ansible/bin/bootstrap-infisical-cristexhub-prod-runtime"
 PLAYBOOK = ROOT / "ansible/playbooks/bootstrap_infisical_cristexhub_prod_runtime.yml"
 POLICY = ROOT / "ansible/files/policies/cristexhub-prod-runtime-materialization.yml"
+HOSTED_POLICY = ROOT / "ansible/files/policies/hosted-identity-authorization.yml"
 
 NAMESPACE = "cristexhub-prod"
 COMPONENT_NAME = "infisical-cristexhub-prod-runtime"
@@ -55,6 +56,8 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             for obj in cls.objects
         }
         cls.text = "\n".join(path.read_text() for path in cls.paths)
+        cls.policy = yaml.safe_load(POLICY.read_text())
+        cls.hosted_policy = yaml.safe_load(HOSTED_POLICY.read_text())
 
     def test_exact_value_free_object_closure(self) -> None:
         self.assertEqual(13, len(self.objects))
@@ -100,6 +103,10 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         targets = static["spec"]["targets"]
         self.assertEqual([RUNTIME_NAME, PULL_NAME], [target["name"] for target in targets])
         self.assertEqual(set(RUNTIME_KEYS), set(targets[0]["template"]["data"]))
+        self.assertEqual(
+            "{{ .OIDC_CLIENT_SECRET.Value }}",
+            targets[0]["template"]["data"]["OIDC_CLIENT_SECRET"],
+        )
         self.assertEqual("Opaque", targets[0]["secretType"])
         self.assertEqual("kubernetes.io/dockerconfigjson", targets[1]["secretType"])
         self.assertEqual({".dockerconfigjson"}, set(targets[1]["template"]["data"]))
@@ -127,6 +134,58 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         connection = next(obj for obj in self.objects if obj["kind"] == "InfisicalConnection")
         self.assertEqual(NAMESPACE, connection["metadata"]["namespace"])
         self.assertEqual({"address": "https://app.infisical.com"}, connection["spec"])
+
+    def test_prod_oidc_source_contract_matches_hosted_identity_policy(self) -> None:
+        source = self.policy["oidc_client_secret_source"]
+        self.assertEqual(
+            {
+                "owner": "infisical-cloud",
+                "project_id": PROJECT_ID,
+                "environment_slug": "prod",
+                "path": "/cristexhub/prod/runtime",
+                "key": "OIDC_CLIENT_SECRET",
+                "target_key": "OIDC_CLIENT_SECRET",
+                "values": "absent",
+            },
+            source,
+        )
+        prod = {
+            entry["id"]: entry for entry in self.hosted_policy["clients"]["browser"]
+        }["cristexhub-prod"]
+        self.assertEqual(
+            f'{source["environment_slug"]}:{source["path"]}',
+            prod["client_secret_path"],
+        )
+        self.assertEqual(source["owner"], prod["client_secret_owner"])
+        self.assertEqual(source["key"], prod["client_secret_key"])
+        self.assertEqual(source["project_id"], self.policy["project"]["id"])
+        self.assertEqual(source["environment_slug"], self.policy["project"]["environment"])
+        self.assertEqual(source["path"], self.policy["project"]["source_path"])
+        self.assertEqual(source["path"], self.policy["sources"]["infisical"]["path"])
+        static = next(obj for obj in self.objects if obj["kind"] == "InfisicalStaticSecret")
+        self.assertEqual(
+            {
+                "projectId": source["project_id"],
+                "environmentSlug": source["environment_slug"],
+                "secretPath": source["path"],
+                "recursive": False,
+                "tagSlugs": [],
+            },
+            static["spec"]["sources"][0],
+        )
+        self.assertIn("_EXPECTED_OIDC_CLIENT_SECRET_SOURCE", PLUGIN.read_text())
+        self.assertIn("_EXPECTED_OIDC_CLIENT_SECRET_TEMPLATE", PLUGIN.read_text())
+        self.assertIn(
+            "prod:/cristexhub/prod/runtime#OIDC_CLIENT_SECRET",
+            (COMPONENT / "source/cristexhub-prod-runtime-static-secret.yaml").read_text(),
+        )
+        runtime_data = static["spec"]["targets"][0]["template"]["data"]
+        self.assertEqual(source["target_key"], "OIDC_CLIENT_SECRET")
+        self.assertEqual(
+            "{{ .OIDC_CLIENT_SECRET.Value }}",
+            runtime_data[source["target_key"]],
+        )
+        self.assertIn(source["target_key"], self.policy["target_keys"])
 
     def test_fail_closed_vaps_are_prod_scoped_and_exact(self) -> None:
         policies = [obj for obj in self.objects if obj["kind"] == "ValidatingAdmissionPolicy"]

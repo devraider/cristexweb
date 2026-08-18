@@ -44,6 +44,9 @@
         cristexhub_prod_namespace_bootstrap_repository_root ==
         (playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname)
       - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REPOSITORY_ROOT') ==
+        cristexhub_prod_namespace_bootstrap_repository_root
+      - >-
         cristexhub_prod_namespace_bootstrap_controller_path_components ==
         [cristexhub_prod_namespace_bootstrap_repository_root,
          cristexhub_prod_namespace_bootstrap_repository_root ~ '/kubernetes',
@@ -53,18 +56,6 @@
         cristexhub_prod_namespace_bootstrap_manifest_paths ==
         [cristexhub_prod_namespace_bootstrap_repository_root ~
            '/kubernetes/applications/namespaces/cristexhub-prod.yaml']
-      - cristexhub_prod_namespace_bootstrap_expected_hashes | length == 1
-      - >-
-        cristexhub_prod_namespace_bootstrap_expected_hashes |
-        map(attribute='path') | list ==
-        cristexhub_prod_namespace_bootstrap_manifest_paths
-      - >-
-        cristexhub_prod_namespace_bootstrap_expected_hashes |
-        map(attribute='path') | list | unique | length == 1
-      - >-
-        cristexhub_prod_namespace_bootstrap_expected_hashes |
-        map(attribute='sha256') | list |
-        select('match', '^[0-9a-f]{64}$') | list | length == 1
     fail_msg: >-
       CristexHub PROD Namespace bootstrap requires its non-passthrough controller entrypoint,
       explicit approval, --diff, the exact one-host limit, state present, the protected
@@ -172,11 +163,7 @@
         cristexhub_prod_namespace_bootstrap_internal_controller_path_states.results[0].stat.gr_name
       - item.stat.mode == '0644'
       - (item.item | ansible.builtin.realpath) == item.item
-      - >-
-        item.stat.checksum ==
-        (cristexhub_prod_namespace_bootstrap_expected_hashes |
-         selectattr('path', 'equalto', item.item) |
-         map(attribute='sha256') | first)
+      - item.stat.checksum == 'f029bb06bb698c6ddc3e083985f754bd326de8b18804523d1300eae54e8260d0'
       - >-
         item.item.startswith(
           cristexhub_prod_namespace_bootstrap_repository_root ~
@@ -397,8 +384,7 @@
     - cristexhub_prod_namespace_bootstrap_internal_preflight_binding.manifest_path_count == 1
     - >-
       cristexhub_prod_namespace_bootstrap_internal_preflight_binding.manifest_sha256 ==
-      (cristexhub_prod_namespace_bootstrap_expected_hashes |
-       map(attribute='sha256') | list)
+      ['f029bb06bb698c6ddc3e083985f754bd326de8b18804523d1300eae54e8260d0']
     - cristexhub_prod_namespace_bootstrap_internal_preflight_binding.kubeconfig_contract | bool
     - cristexhub_prod_namespace_bootstrap_internal_preflight_binding.service_contract | bool
     - cristexhub_prod_namespace_bootstrap_internal_preflight_binding.no_delete_path | bool

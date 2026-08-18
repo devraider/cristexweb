@@ -24,7 +24,7 @@ recover DEV and PROD without presenting a single node as highly available.
 - Bundled k3s Traefik remains the sole ingress controller.
 - DEV and administration remain private through host Tailscale.
 - Only approved PROD application routes become public through Cloudflare Tunnel.
-- Exact [CristexHub DEV Namespace source](../../runbooks/cristexhub-dev-namespace-bootstrap.md) exists with four approved labels. Its check passed at `ok=20 changed=1 unreachable=0 failed=0 skipped=2` without mutation. The first apply passed at `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created/verified the exact Namespace, and preserved service health. Idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the checkpoint is complete. `cristexhub-prod` remains absent; the source-only PROD runtime Infisical seam is now a separate value-free blocked contract, and Namespace/runtime promotion remains gated on DEV validation, recovery, soak, Namespace approval, and independent identity values.
+- Exact [CristexHub DEV Namespace source](../../runbooks/cristexhub-dev-namespace-bootstrap.md) exists with four approved labels. Its check passed at `ok=20 changed=1 unreachable=0 failed=0 skipped=2` without mutation. The first apply passed at `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created/verified the exact Namespace, and preserved service health. Idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the checkpoint is complete. Separate exact present-only [CristexHub PROD Namespace source](../../runbooks/cristexhub-prod-namespace-bootstrap.md) also exists with four approved labels, but `cristexhub-prod` remains live-absent and its check/apply/API path is NOT RUN/BLOCKED; the source-only PROD runtime Infisical seam is a separate value-free blocked contract, and Namespace/runtime promotion remains gated on DEV validation, recovery, soak, Namespace approval, and independent identity values.
 - `platform-edge` is reserved for cloudflared. Future `shared-services` placement is the Infisical Cloud Operator, a separate Keycloak deployment, one general PostgreSQL engine, one shared MongoDB engine, and one shared RabbitMQ engine; the exact Namespace now exists after passed check/first apply/idempotence, with final `changed=0`, while every component runtime remains NOT RUN. CristexHub DEV/PROD use dedicated scopes on both shared engines; Keycloak and environment-local Reactive Resume DEV/PROD use dedicated PostgreSQL logical databases, owner roles, credentials, migrations, and backup scopes. The canonical database, RabbitMQ, backup, and Reactive Resume policies are value-free and runtime-blocked. RabbitMQ DEV/PROD consumers have dedicated vhost/user/permission/limit/recovery scopes; future consumers require reviewed exact changes. Backup access is private/authenticated through a metadata-only catalog and non-destructive encrypted off-node copy direction. The database source profile fixes NVMe `local-path`, 40/80 GiB PVCs, bounded resources, standard private Services/TLS, daily archives, 14-day retention, RPO 24h, and RTO 4h. PostgreSQL and standalone non-authoritative MongoDB now have offline-pinned, hash-bound, present-only source closures with exact cryptographic Secret validation. A separate source-only guarded Infisical database Secret seam freezes one shared Connection, separate engine Auth/credential identities, two path-scoped StaticSecrets, four exact target contracts, namespace-scoped VAP/bindings, and additive writer RBAC; all values, sync, check/apply/idempotence, trust/recovery, and runtime remain blocked. RabbitMQ storage/ports, exact backup destination identities, all live Secret material, trust/recovery, check/apply/idempotence, and runtime proof remain unselected or blocked.
 - Redis remains per environment.
 
@@ -56,10 +56,12 @@ reboot recovery playbook, and the executed temporary NetworkPolicy probe under
 `ansible/`. Effective-user readability, warning-free
 fresh-session cluster listing, both idempotence checks, SSH/Tailscale return, Ready
 node, and kubeconfig recovery passed.
-Python is used for offline contract tests and twenty-three exact-scope Ansible action
-plugins: nine Namespace/Infisical/database and CristexHub DEV/PROD Secret mutation
-guards, two guarded host rclone install/transfer boundaries, two no-log Secret cryptographic validators, two
-MongoDB/PostgreSQL object-closure guards, and two fixed logical-provisioning guards.
+Python is used for offline contract tests and twenty-eight exact-scope Ansible action
+plugins: ten canonical Namespace and Infisical/database/Argo and CristexHub DEV/PROD
+Secret/seam/Universal Auth mutation guards, two guarded host rclone install/transfer
+boundaries, two no-log Secret cryptographic validators, five MongoDB/PostgreSQL/
+Keycloak/RabbitMQ/OIDC object-closure guards, four cloudflared/route closures, three
+CoreDNS/DEV registration/sync guards, and two fixed logical-provisioning guards.
 No general-purpose operational Python or infrastructure
 collector exists. One
 approved non-elevated check/diff run produced

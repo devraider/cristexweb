@@ -16,6 +16,10 @@ remains absent; its Namespace and workload promotion require separate approvals.
 - Environment slug: `prod` — an Infisical Cloud identifier only; it is not
   Kubernetes PROD activation.
 - Exact non-recursive source path: `/cristexhub/prod/runtime`; tags are empty.
+- Shared PROD OIDC client-secret source contract: Infisical environment `prod`,
+  path `/cristexhub/prod/runtime`, key `OIDC_CLIENT_SECRET`, and the same target
+  key `OIDC_CLIENT_SECRET`; this is the value-free source used by the hosted
+  Keycloak PROD client policy. No alternate source or value mapping is allowed.
 - Kubernetes target Namespace: `cristexhub-prod` (must already exist and be
   `Active`; this seam never creates a Namespace).
 - Source identity: `cristexhub-prod-infisical-auth`, using the separately
@@ -63,8 +67,9 @@ PROD promotion remain separate gates.
 
 ## Offline evidence
 
-The focused contract test verifies the exact source path/environment, independent
-PROD names and identity, nine-key runtime closure, separate GHCR target, VAP
+The focused contract test verifies the exact source path/environment, the shared
+value-free PROD OIDC client-secret source contract, independent PROD names and
+identity, nine-key runtime closure, separate GHCR target, VAP
 scope/failure policy, Role/RoleBinding boundaries, manifest/default/action hashes,
 wrapper gates, and blocked policy/runbook statements. Run only offline validation:
 

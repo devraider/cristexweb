@@ -515,7 +515,7 @@ no-delete/no-workload-write RBAC, byte/canonical/identity
 hashes, and negative fixtures. Its credential values, check/apply, sync, rotation,
 recovery, and runtime remain NOT RUN/BLOCKED. A separate source-only [CristexHub
 PROD runtime Infisical seam](../runbooks/infisical-cristexhub-prod-runtime-materialization.md)
-freezes the exact `/cristexhub/prod/runtime` source in the absent
+freezes the exact `/cristexhub/prod/runtime` source for the committed, but live-absent,
 `cristexhub-prod` Namespace, independent `cristexhub-prod-infisical-auth` and
 Universal Auth names, nine runtime keys plus `cristexhub-prod-ghcr-pull`, exact
 PROD-scoped VAP/bindings, additive least-privilege RBAC, hash-bound manifests, and
@@ -538,7 +538,9 @@ backup remain policy-only; the database closures are source-ready but not runtim
 approvals. The separate [Reactive Resume policy](../runbooks/reactive-resume-hosted-architecture.md) includes
 private DEV in MVP intent while keeping its image, callbacks, objects, Secrets, and
 runtime blocked. GitHub CI may run only syntax/lint and offline contracts from this
-source; it supplies no inventory and invokes no operational wrapper.
+source; it supplies no inventory and invokes no operational wrapper. The repository
+contains twenty-eight exact-scope action plugins; these focused Python exceptions
+are source guards/validators only, not a general operational collector.
 
 Each component requires a dedicated non-passthrough entrypoint and frozen
 source/object closure with separate check, apply, and idempotence evidence. For the
@@ -580,8 +582,12 @@ approvals. No further foundation command is authorized by this documentation.
 The dedicated [CristexHub DEV Namespace bootstrap](../runbooks/cristexhub-dev-namespace-bootstrap.md)
 owns only `cristexhub-dev` with four approved labels. Its guarded wrapper is distinct,
 and its dedicated action rejects controller task-selection context plus any mutation
-argument drift before delegating to the pinned Kubernetes module. `cristexhub-prod`
-remains absent. Its separately approved check passed at
+argument drift before delegating to the pinned Kubernetes module. The separate
+[CristexHub PROD Namespace bootstrap](../runbooks/cristexhub-prod-namespace-bootstrap.md)
+contains only the exact four-label present-only source and independently rejects
+canonical-task-source, wrapper-attestation, approved/state, preflight, and action
+argument bypasses. `cristexhub-prod` remains live-absent; its wrapper check/apply and
+API path are NOT RUN/BLOCKED. The DEV separately approved check passed at
 `ok=20 changed=1 unreachable=0 failed=0 skipped=2`, with one exact predicted
 Namespace change and no mutation. The first apply passed at
 `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created/verified only that

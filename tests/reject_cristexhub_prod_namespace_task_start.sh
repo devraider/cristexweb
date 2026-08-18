@@ -21,6 +21,8 @@ cristexhub_prod_namespace_bootstrap_internal_preflight_binding:
     - cristexhub-prod
   controller_path_count: 4
   manifest_path_count: 1
+  manifest_sha256:
+    - f029bb06bb698c6ddc3e083985f754bd326de8b18804523d1300eae54e8260d0
   kubeconfig_contract: true
   service_contract: true
   no_delete_path: true
@@ -42,7 +44,8 @@ YAML
 
 cd -- "$repository_root/ansible"
 set +e
-CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ENTRYPOINT=v1 \
+CRISTEXWEB_REPOSITORY_ROOT="$repository_root" \
+  CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ENTRYPOINT=v1 \
   CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_TOKEN="$attestation_token" \
   CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE="$attestation_file" \
   "$repository_root/.venv/bin/ansible-playbook" \

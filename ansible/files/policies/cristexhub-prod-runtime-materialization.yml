@@ -31,6 +31,20 @@ target_keys:
   - PRIVATE_CA_BUNDLE
   - CODE_RUNNER_AUTH_TOKEN
 
+# This value-free source contract is shared with the hosted Keycloak PROD
+# client policy. The target template below must remain a direct, same-key
+# projection of this Infisical key; no alternate PROD client-secret source is
+# permitted. No existing PROD OIDC source requires a separate mapping, so this
+# runtime path/key pair is canonical.
+oidc_client_secret_source:
+  owner: infisical-cloud
+  project_id: 619656da-14f3-4872-857b-be103cdc5326
+  environment_slug: prod
+  path: /cristexhub/prod/runtime
+  key: OIDC_CLIENT_SECRET
+  target_key: OIDC_CLIENT_SECRET
+  values: absent
+
 sources:
   infisical:
     path: /cristexhub/prod/runtime

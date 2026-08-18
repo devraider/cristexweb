@@ -31,9 +31,11 @@ live recovery installed the verified CLI at `ok=39 changed=6 failed=0`, and the
 second run converged at `ok=30 changed=0 failed=0` without requiring host egress.
 The protected directory still contains no state file, and no provider operation or
 external resource has been executed. The root `opentofu/` source contains the reviewed
-Cloudflare Tunnel/DNS resource definitions, but remains uninitialized and unapplied. Committed Kubernetes source now contains exactly five Namespace
+Cloudflare Tunnel/DNS resource definitions, but remains uninitialized and unapplied. Committed Kubernetes source now contains exactly five persistent Namespace
 manifests: `argocd`, `platform-edge`, `shared-services`, `mongodb-system`, and
-source-only `cristexhub-dev`. The MongoDB operator control plane runs in
+source-only `cristexhub-dev`; the separate committed `cristexhub-prod` Namespace
+manifest and guarded present-only wrapper are source-only, while the live Namespace
+remains absent. The MongoDB operator control plane runs in
 `mongodb-system` and watches the MongoDB runtime retained in `shared-services`. The historical
 `argocd`/`platform-edge` wrapper check, first apply, and idempotence retry completed
 under separate approvals and that exception remains closed. Exact present-only
@@ -51,7 +53,8 @@ without mutation. The first apply passed at
 `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created/verified the exact
 Namespace and preserved k3s/Tailscale health. Idempotence passed at
 `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the Namespace checkpoint is
-complete and `cristexhub-prod` remains absent. A separate source-only, fail-closed
+complete and `cristexhub-prod` remains absent; its exact Namespace source exists
+but no PROD Namespace check/apply has run. A separate source-only, fail-closed
 [CristexHub PROD runtime Infisical seam](runbooks/infisical-cristexhub-prod-runtime-materialization.md)
 now freezes the exact `/cristexhub/prod/runtime` source, independent PROD Auth and
 Universal Auth names, nine-key `cristexhub-prod-runtime` plus separate
@@ -157,12 +160,15 @@ evidence. Separate guarded [logical database provisioning](runbooks/shared-datab
 consumes precreated per-consumer Secrets through temporary UID-bound helper Pods;
 all empty reservations and PROD activation remain **NOT RUN/BLOCKED**. No general
 host baseline or deployment exists.
-Python is otherwise test-only; twenty-three exact-scope Ansible action plugins are
-the reviewed focused exception—nine enforce existing Namespace/Infisical/database
-and CristexHub DEV/PROD Secret mutation boundaries, two guard host rclone install/transfer, two perform no-log
-cryptographic validation of exact Argo and stateful-database Secret contracts, five
-guard the standalone MongoDB, PostgreSQL, Keycloak, RabbitMQ, and OIDC CONNECT proxy object closures, three guard cloudflared/route closures, and two guard fixed
-temporary logical-provisioning execution/Kubernetes objects. No
+Python is otherwise test-only; twenty-eight exact-scope Ansible action plugins are
+the reviewed focused exception—ten enforce canonical Namespace and
+Infisical/Argo/database/CristexHub DEV/PROD Secret/seam/Universal Auth mutation
+boundaries, two guard host rclone install/transfer, two perform no-log cryptographic
+validation of exact Argo and stateful-database Secret contracts, five guard the
+standalone MongoDB, PostgreSQL, Keycloak, RabbitMQ, and OIDC CONNECT proxy object
+closures, four guard cloudflared/route closures, three guard CoreDNS/DEV
+registration/sync boundaries, and two guard fixed temporary logical-provisioning
+execution/Kubernetes objects. No
 general-purpose operational Python or infrastructure collector exists.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
@@ -369,7 +375,7 @@ ansible/                 # discovery plus guarded host/Kubernetes/database sourc
   bin/                    # non-passthrough operational entrypoints
   inventory/
   playbooks/
-  plugins/action/         # seventeen exact-scope mutation/validation guards
+  plugins/action/         # twenty-eight exact-scope mutation/validation guards
   roles/                  # bounded discovery, host, Namespace, controller, Secret, and database roles
   files/components/       # hash-bound Argo, Infisical, PostgreSQL, and MongoDB source
   files/vendor/           # hash-bound public chart/provenance/key inputs only
@@ -400,9 +406,10 @@ The repository now includes source-only guarded Argo, Infisical, PostgreSQL,
 standalone MongoDB, Secret-materialization, protected-value, datastore-preflight,
 logical-provisioning, and cloudflared closures under `ansible/`; their runtime remains
 blocked unless explicitly recorded otherwise. The reviewed Cloudflare Tunnel/DNS
-`opentofu/` source remains unapplied, three platform
-Namespace manifests plus the source-only `cristexhub-dev` application Namespace under
-`kubernetes/`, the current runbook set, and offline `tests/` also exist. An exact
+`opentofu/` source remains unapplied, five persistent Namespace manifests under
+`kubernetes/` plus separate source-only `cristexhub-prod` Namespace source, the
+current runbook set, and offline `tests/` also exist. The `cristexhub-prod` live
+Namespace remains absent and its check/apply/API path is blocked. An exact
 manifest and a distinct guarded wrapper now exist
 for `shared-services`; its interactive check retry predicted exactly that one
 Namespace, the separately approved first apply created and verified it, and the
