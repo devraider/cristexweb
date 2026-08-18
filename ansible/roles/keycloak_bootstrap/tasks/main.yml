@@ -1,0 +1,315 @@
+---
+- name: Reject externally supplied Keycloak internal variables
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing supplied Keycloak variable {{ item }}."
+  loop:
+    - keycloak_bootstrap_internal_attestation_state
+    - keycloak_bootstrap_internal_manifest_states
+    - keycloak_bootstrap_internal_manifests
+    - keycloak_bootstrap_internal_identity_keys
+    - keycloak_bootstrap_internal_namespace
+    - keycloak_bootstrap_internal_service_facts
+    - keycloak_bootstrap_internal_kubeconfig_state
+    - keycloak_bootstrap_internal_secrets
+    - keycloak_bootstrap_internal_prestate
+    - keycloak_bootstrap_internal_preflight_binding
+    - keycloak_bootstrap_internal_apply
+    - keycloak_bootstrap_internal_poststate
+    - keycloak_bootstrap_internal_deployment
+  changed_when: false
+
+- name: Require the guarded Keycloak approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - keycloak_bootstrap_approved | bool
+      - keycloak_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - keycloak_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - keycloak_bootstrap_manifest_paths | length == 8
+      - keycloak_bootstrap_expected_hashes | length == 8
+      - keycloak_bootstrap_object_count == 8
+      - keycloak_bootstrap_namespace == 'shared-services'
+      - keycloak_bootstrap_service_name == 'keycloak'
+      - keycloak_bootstrap_deployment_name == 'keycloak'
+      - keycloak_bootstrap_secret_contract['shared-postgresql-keycloak']['keys'] | sort == ['password', 'username']
+      - keycloak_bootstrap_secret_contract['shared-postgresql-ca']['keys'] | sort == ['ca.crt', 'ca.key']
+      - keycloak_bootstrap_secret_contract['keycloak-bootstrap-admin']['keys'] | sort == ['password', 'username']
+    fail_msg: Keycloak requires the exact guarded present-only eight-object closure.
+  changed_when: false
+
+- name: Inspect the ephemeral Keycloak attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_BOOTSTRAP_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+  register: keycloak_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run Keycloak attestation
+  ansible.builtin.assert:
+    that:
+      - keycloak_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (keycloak_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - keycloak_bootstrap_internal_attestation_state.stat.pw_name == keycloak_bootstrap_controller_user
+      - keycloak_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_KEYCLOAK_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing an invalid Keycloak attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact Keycloak source leaves
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: "{{ keycloak_bootstrap_manifest_paths }}"
+  register: keycloak_bootstrap_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+
+- name: Require hash-bound Keycloak source leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - >-
+        item.stat.checksum == keycloak_bootstrap_expected_hashes[
+        item.item | replace(keycloak_bootstrap_repository_root ~
+        '/ansible/files/components/keycloak/', '')]
+      - item.item.startswith(keycloak_bootstrap_repository_root ~ '/ansible/files/components/keycloak/')
+    fail_msg: Refusing missing, unsafe, or hash-drifted Keycloak source.
+  loop: "{{ keycloak_bootstrap_internal_manifest_states.results }}"
+  delegate_to: localhost
+  changed_when: false
+
+- name: Load exact Keycloak objects
+  ansible.builtin.set_fact:
+    keycloak_bootstrap_internal_manifests: >-
+      {{ (keycloak_bootstrap_internal_manifests | default([])) +
+         [lookup('ansible.builtin.file', item) | from_yaml] }}
+  loop: "{{ keycloak_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact Keycloak identities
+  ansible.builtin.set_fact:
+    keycloak_bootstrap_internal_identity_keys: >-
+      {{ (keycloak_bootstrap_internal_identity_keys | default([])) +
+         [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+          (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
+  loop: "{{ keycloak_bootstrap_internal_manifests }}"
+  changed_when: false
+  no_log: true
+
+- name: Require the exact eight-object value-free Keycloak inventory
+  ansible.builtin.assert:
+    that:
+      - keycloak_bootstrap_internal_manifests | length == 8
+      - keycloak_bootstrap_internal_identity_keys | unique | length == 8
+      - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 4
+      - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ServiceAccount') | list | length == 1
+      - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Service') | list | length == 1
+      - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Deployment') | list | length == 1
+      - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ConfigMap') | list | length == 1
+      - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - keycloak_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Ingress') | list | length == 0
+    fail_msg: Refusing a Keycloak source outside the exact private eight-object closure.
+  changed_when: false
+
+- name: Capture host service health
+  ansible.builtin.service_facts:
+  register: keycloak_bootstrap_internal_service_facts
+  check_mode: false
+
+- name: Require k3s and Tailscale health
+  ansible.builtin.assert:
+    that:
+      - (keycloak_bootstrap_internal_service_facts.ansible_facts.services | default({})).get('k3s.service', {}).get('state', '') == 'running'
+      - (keycloak_bootstrap_internal_service_facts.ansible_facts.services | default({})).get('tailscaled.service', {}).get('state', '') == 'running'
+  changed_when: false
+
+- name: Inspect protected kubeconfig
+  ansible.builtin.stat:
+    path: "{{ keycloak_bootstrap_kubeconfig }}"
+    follow: false
+  register: keycloak_bootstrap_internal_kubeconfig_state
+  no_log: true
+  changed_when: false
+
+- name: Require group-scoped Kubernetes administrator access
+  ansible.builtin.assert:
+    that:
+      - keycloak_bootstrap_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (keycloak_bootstrap_internal_kubeconfig_state.stat.islnk | default(false))
+      - keycloak_bootstrap_internal_kubeconfig_state.stat.pw_name == 'root'
+      - keycloak_bootstrap_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+      - keycloak_bootstrap_internal_kubeconfig_state.stat.mode == '0640'
+  changed_when: false
+  no_log: true
+
+- name: Query the exact shared-services Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: shared-services
+    kubeconfig: "{{ keycloak_bootstrap_kubeconfig }}"
+  register: keycloak_bootstrap_internal_namespace
+  changed_when: false
+
+- name: Require the established shared-services Namespace
+  ansible.builtin.assert:
+    that:
+      - keycloak_bootstrap_internal_namespace.resources | length == 1
+      - keycloak_bootstrap_internal_namespace.resources[0].status.phase == 'Active'
+      - keycloak_bootstrap_internal_namespace.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'cristex-platform'
+      - keycloak_bootstrap_internal_namespace.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible'
+      - keycloak_bootstrap_internal_namespace.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
+  changed_when: false
+
+- name: Query exact precreated Keycloak database Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: shared-services
+    name: "{{ item.key }}"
+    kubeconfig: "{{ keycloak_bootstrap_kubeconfig }}"
+  loop: "{{ keycloak_bootstrap_secret_contract | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: keycloak_bootstrap_internal_secrets
+  changed_when: false
+  no_log: true
+
+- name: Require exact Secret metadata without reading values
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].type == item.item.value.type
+      - item.resources[0].data.keys() | sort == item.item.value['keys'] | sort
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') in ['infisical', 'cloudnative-pg']
+      - >-
+        item.item.key == 'shared-postgresql-ca' or
+        item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+  loop: "{{ keycloak_bootstrap_internal_secrets.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  changed_when: false
+  no_log: true
+
+- name: Query exact Keycloak object pre-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ keycloak_bootstrap_kubeconfig }}"
+  loop: "{{ keycloak_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: keycloak_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Refuse foreign existing Keycloak objects
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('cristex.io/component') == 'keycloak'
+      - item.resources | length == 0 or item.resources[0].metadata.name == item.item.metadata.name
+  loop: "{{ keycloak_bootstrap_internal_prestate.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind the protected Keycloak preflight
+  ansible.builtin.set_fact:
+    keycloak_bootstrap_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_BOOTSTRAP_TOKEN') | hash('sha256') }}"
+      object_count: "{{ keycloak_bootstrap_internal_manifests | length }}"
+      identity_set_sha256: "{{ keycloak_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
+      prestate_count: "{{ keycloak_bootstrap_internal_prestate.results | length }}"
+      secret_count: "{{ keycloak_bootstrap_internal_secrets.results | length }}"
+      namespace_contract: true
+      service_contract: true
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Reconcile only the approved Keycloak objects
+  keycloak_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ keycloak_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ keycloak_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: keycloak_bootstrap_internal_apply
+  no_log: true
+
+- name: Query exact Keycloak post-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ keycloak_bootstrap_kubeconfig }}"
+  loop: "{{ keycloak_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: keycloak_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact Keycloak post-state ownership
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources[0].metadata.labels.get('cristex.io/component') == 'keycloak'
+  loop: "{{ keycloak_bootstrap_internal_poststate.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Wait for the Keycloak Deployment readiness
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: shared-services
+    name: keycloak
+    kubeconfig: "{{ keycloak_bootstrap_kubeconfig }}"
+  register: keycloak_bootstrap_internal_deployment
+  until:
+    - keycloak_bootstrap_internal_deployment.resources | length == 1
+    - keycloak_bootstrap_internal_deployment.resources[0].status.readyReplicas | default(0) | int == 1
+    - keycloak_bootstrap_internal_deployment.resources[0].status.updatedReplicas | default(0) | int == 1
+    - >-
+      keycloak_bootstrap_internal_deployment.resources[0].metadata.generation | int ==
+      keycloak_bootstrap_internal_deployment.resources[0].status.observedGeneration | int
+  retries: 60
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode

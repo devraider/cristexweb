@@ -1,0 +1,741 @@
+---
+# yamllint disable rule:line-length rule:indentation
+- name: Reject externally supplied MongoDB provisioning state
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied MongoDB provisioning
+      internal variable {{ item }}.
+  loop:
+    - shared_database_provisioning_internal_preflight_binding
+    - shared_mongodb_provisioning_internal_preflight_binding
+    - shared_mongodb_provisioning_internal_attestation
+    - shared_mongodb_provisioning_internal_service_facts
+    - shared_mongodb_provisioning_internal_kubeconfig
+    - shared_mongodb_provisioning_internal_namespace
+    - shared_mongodb_provisioning_internal_statefulset
+    - shared_mongodb_provisioning_internal_pod
+    - shared_mongodb_provisioning_internal_engine_secrets
+    - shared_mongodb_provisioning_internal_consumer_secrets
+    - shared_mongodb_provisioning_internal_stale_pods
+    - shared_mongodb_provisioning_internal_stale_policies
+    - shared_mongodb_provisioning_internal_check
+    - shared_mongodb_provisioning_internal_helper_pod
+    - shared_mongodb_provisioning_internal_helper_policy
+    - shared_mongodb_provisioning_internal_helper_pod_state
+    - shared_mongodb_provisioning_internal_helper_policy_state
+    - shared_mongodb_provisioning_internal_helper_pod_cleanup_state
+    - shared_mongodb_provisioning_internal_helper_policy_cleanup_state
+    - shared_mongodb_provisioning_internal_helper_pod_residue
+    - shared_mongodb_provisioning_internal_helper_policy_residue
+    - shared_mongodb_provisioning_internal_helper_pod_uid
+    - shared_mongodb_provisioning_internal_helper_policy_uid
+    - shared_mongodb_provisioning_internal_run_id
+    - shared_mongodb_provisioning_internal_helper_pod_name
+    - shared_mongodb_provisioning_internal_helper_policy_name
+    - shared_mongodb_provisioning_internal_marker
+    - shared_mongodb_provisioning_internal_changed
+  changed_when: false
+
+- name: Require the guarded MongoDB logical provisioning contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_ATTESTATION_FILE') | length > 0
+      - shared_mongodb_provisioning_approved | bool
+      - shared_mongodb_provisioning_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - shared_mongodb_provisioning_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - shared_mongodb_provisioning_namespace == 'shared-services'
+      - shared_mongodb_provisioning_helper_image == 'docker.io/library/mongo@sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4'
+      - shared_mongodb_provisioning_scopes | length == 2
+      - >-
+        shared_mongodb_provisioning_scopes ==
+        [{'consumer': 'cristexhub-dev', 'database': 'cristexhub_dev',
+        'user': 'cristexhub_dev_user', 'secret':
+        'shared-mongodb-cristexhub-dev', 'other_database':
+        'cristexhub_prod', 'activation': 'inactive'},
+        {'consumer': 'cristexhub-prod', 'database': 'cristexhub_prod',
+        'user': 'cristexhub_prod_user', 'secret':
+        'shared-mongodb-cristexhub-prod', 'other_database':
+        'cristexhub_dev', 'activation': 'inactive'}]
+      - shared_mongodb_provisioning_scopes | map(attribute='activation') | unique | list == ['inactive']
+      - shared_mongodb_provisioning_secret_contract.type == 'Opaque'
+      - shared_mongodb_provisioning_secret_contract.keys | sort == ['password', 'username'] | sort
+    fail_msg: >-
+      MongoDB logical provisioning requires the non-passthrough wrapper, exact
+      empty reservations, precreated Infisical credentials, --diff, and present-only state.
+  changed_when: false
+
+- name: Inspect the private single-run MongoDB provisioning attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: shared_mongodb_provisioning_internal_attestation
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require the exact MongoDB provisioning attestation
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_provisioning_internal_attestation.stat.exists | default(false)
+      - shared_mongodb_provisioning_internal_attestation.stat.isreg | default(false)
+      - not (shared_mongodb_provisioning_internal_attestation.stat.islnk | default(false))
+      - shared_mongodb_provisioning_internal_attestation.stat.pw_name == shared_mongodb_provisioning_controller_user
+      - shared_mongodb_provisioning_internal_attestation.stat.mode == '0600'
+      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing a missing, reusable, foreign-owned, or invalid MongoDB provisioning attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Capture host service facts before MongoDB provisioning
+  ansible.builtin.service_facts:
+  register: shared_mongodb_provisioning_internal_service_facts
+  check_mode: false
+  changed_when: false
+
+- name: Require k3s and Tailscale before MongoDB provisioning
+  ansible.builtin.assert:
+    that:
+      - (shared_mongodb_provisioning_internal_service_facts.ansible_facts.services | default({})).get('k3s.service', {}).get('state', '') == 'running'
+      - (shared_mongodb_provisioning_internal_service_facts.ansible_facts.services | default({})).get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: k3s and tailscaled must already be running.
+  changed_when: false
+
+- name: Inspect the protected k3s kubeconfig for MongoDB provisioning
+  ansible.builtin.stat:
+    path: "{{ shared_mongodb_provisioning_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: shared_mongodb_provisioning_internal_kubeconfig
+  no_log: true
+  changed_when: false
+
+- name: Require group-scoped k3s administrator access without sudo
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_provisioning_internal_kubeconfig.stat.exists | default(false)
+      - shared_mongodb_provisioning_internal_kubeconfig.stat.isreg | default(false)
+      - not (shared_mongodb_provisioning_internal_kubeconfig.stat.islnk | default(false))
+      - shared_mongodb_provisioning_internal_kubeconfig.stat.pw_name == 'root'
+      - shared_mongodb_provisioning_internal_kubeconfig.stat.gr_name == 'k3s-admin'
+      - shared_mongodb_provisioning_internal_kubeconfig.stat.mode == '0640'
+    fail_msg: Refusing MongoDB provisioning without root:k3s-admin mode-0640 kubeconfig.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact shared-services Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ shared_mongodb_provisioning_namespace }}"
+    kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+  register: shared_mongodb_provisioning_internal_namespace
+  changed_when: false
+
+- name: Require the established shared-services Namespace contract
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_provisioning_internal_namespace.resources | length == 1
+      - shared_mongodb_provisioning_internal_namespace.resources[0].status.phase == 'Active'
+      - shared_mongodb_provisioning_internal_namespace.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'cristex-platform'
+      - shared_mongodb_provisioning_internal_namespace.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible'
+      - shared_mongodb_provisioning_internal_namespace.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
+    fail_msg: Refusing MongoDB provisioning in a missing or drifted Namespace.
+  changed_when: false
+
+- name: Query the Ready MongoDB StatefulSet and Pod
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ shared_mongodb_provisioning_namespace }}"
+    name: "{{ item.name }}"
+    kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+  loop:
+    - api_version: apps/v1
+      kind: StatefulSet
+      name: "{{ shared_mongodb_provisioning_statefulset_name }}"
+    - api_version: v1
+      kind: Pod
+      name: "{{ shared_mongodb_provisioning_pod_name }}"
+  register: shared_mongodb_provisioning_internal_statefulset
+  changed_when: false
+  no_log: true
+
+- name: Require one Ready MongoDB engine Pod
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_provisioning_internal_statefulset.results[0].resources | length == 1
+      - shared_mongodb_provisioning_internal_statefulset.results[0].resources[0].spec.replicas == 1
+      - shared_mongodb_provisioning_internal_statefulset.results[0].resources[0].spec.template.spec.containers | map(attribute='image') | select('equalto', shared_mongodb_provisioning_helper_image) | list | length == 1
+      - shared_mongodb_provisioning_internal_statefulset.results[1].resources | length == 1
+      - shared_mongodb_provisioning_internal_statefulset.results[1].resources[0].status.phase == 'Running'
+      - shared_mongodb_provisioning_internal_statefulset.results[1].resources[0].status.containerStatuses[0].ready | bool
+      - shared_mongodb_provisioning_internal_statefulset.results[1].resources[0].spec.containers | map(attribute='name') | list == [shared_mongodb_provisioning_container]
+    fail_msg: Refusing logical provisioning without the exact Ready shared MongoDB Pod.
+  changed_when: false
+  no_log: true
+
+- name: Query MongoDB administrator and TLS Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: "{{ shared_mongodb_provisioning_namespace }}"
+    name: "{{ item }}"
+    kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+  loop:
+    - "{{ shared_mongodb_provisioning_admin_secret }}"
+    - "{{ shared_mongodb_provisioning_tls_secret }}"
+  register: shared_mongodb_provisioning_internal_engine_secrets
+  changed_when: false
+  no_log: true
+
+- name: Require MongoDB administrator and TLS Secret metadata
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.namespace == shared_mongodb_provisioning_namespace
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'shared-databases'
+      - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+      - >-
+        (item.item == shared_mongodb_provisioning_admin_secret and
+         item.resources[0].type == 'Opaque' and
+         (item.resources[0].data | default({})).keys() | list | sort == ['password', 'username'] | sort) or
+        (item.item == shared_mongodb_provisioning_tls_secret and
+         item.resources[0].type == 'Opaque' and
+         (item.resources[0].data | default({})).keys() | list | sort == ['ca.crt', 'tls.pem'] | sort)
+    fail_msg: Required MongoDB administrator/TLS Secret metadata is absent or drifted.
+  loop: "{{ shared_mongodb_provisioning_internal_engine_secrets.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  changed_when: false
+  no_log: true
+
+- name: Query every exact Infisical MongoDB consumer credential Secret
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: "{{ shared_mongodb_provisioning_namespace }}"
+    name: "{{ item.secret }}"
+    kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+  loop: "{{ shared_mongodb_provisioning_scopes }}"
+  loop_control:
+    label: "{{ item.consumer }}"
+  register: shared_mongodb_provisioning_internal_consumer_secrets
+  changed_when: false
+  no_log: true
+
+- name: Require exact precreated Infisical MongoDB consumer credential contracts
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.secret
+      - item.resources[0].metadata.namespace == shared_mongodb_provisioning_namespace
+      - item.resources[0].type == 'Opaque'
+      - (item.resources[0].data | default({})).keys() | list | sort == ['password', 'username'] | sort
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'shared-databases'
+      - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+      - (item.resources[0].data.username | b64decode) == item.item.user
+      - (item.resources[0].data.password | b64decode) | length >= 32
+    fail_msg: >-
+      MongoDB consumer credentials must be precreated by Infisical with the exact
+      username; values are never generated or rotated by this role.
+  loop: "{{ shared_mongodb_provisioning_internal_consumer_secrets.results }}"
+  loop_control:
+    label: "{{ item.item.consumer }}"
+  changed_when: false
+  no_log: true
+
+- name: Refuse stale MongoDB helper Pods
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ shared_mongodb_provisioning_namespace }}"
+    label_selectors:
+      - cristex.io/component=database-logical-provisioning
+      - cristex.io/provisioning-engine=mongodb
+  register: shared_mongodb_provisioning_internal_stale_pods
+  changed_when: false
+  no_log: true
+
+- name: Refuse stale MongoDB helper NetworkPolicies
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    namespace: "{{ shared_mongodb_provisioning_namespace }}"
+    label_selectors:
+      - cristex.io/component=database-logical-provisioning
+      - cristex.io/provisioning-engine=mongodb
+  register: shared_mongodb_provisioning_internal_stale_policies
+  changed_when: false
+  no_log: true
+
+- name: Require no stale MongoDB helper residue
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_provisioning_internal_stale_pods.resources | length == 0
+      - shared_mongodb_provisioning_internal_stale_policies.resources | length == 0
+    fail_msg: Refusing MongoDB provisioning while a previous helper Pod or NetworkPolicy remains.
+  changed_when: false
+  no_log: true
+
+- name: Bind MongoDB provisioning preflight to this invocation
+  ansible.builtin.set_fact:
+    shared_mongodb_provisioning_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN') | hash('sha256') }}"
+      engine: mongodb
+      scope_count: "{{ shared_mongodb_provisioning_scopes | length }}"
+      namespace_contract: true
+      ready_pod_contract: true
+      secret_contract: true
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Run the read-only MongoDB logical-state check first
+  database_provisioning_guarded_exec:
+    namespace: "{{ shared_mongodb_provisioning_namespace }}"
+    pod: "{{ shared_mongodb_provisioning_pod_name }}"
+    container: "{{ shared_mongodb_provisioning_container }}"
+    command:
+      - /bin/bash
+      - -ec
+      - "{{ lookup('ansible.builtin.file', shared_mongodb_provisioning_check_script, rstrip=False) }}"
+    kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+    script_name: mongodb-check.sh
+    script_sha256: "{{ shared_mongodb_provisioning_script_hashes['mongodb-check.sh'] }}"
+  register: shared_mongodb_provisioning_internal_check
+  changed_when: false
+  no_log: true
+
+- name: Derive the fixed MongoDB helper identities
+  ansible.builtin.set_fact:
+    shared_mongodb_provisioning_internal_run_id: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN')[:24] }}"
+    shared_mongodb_provisioning_internal_helper_pod_name: "shared-mongodb-provision-{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN')[:24] }}"
+    shared_mongodb_provisioning_internal_helper_policy_name: "shared-mongodb-provision-network-{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN')[:24] }}"
+  changed_when: false
+  no_log: true
+
+- name: Reconcile the temporary MongoDB helper and always remove it
+  when: not ansible_check_mode
+  block:
+    - name: Create the exact temporary MongoDB helper NetworkPolicy
+      database_provisioning_guarded_k8s:
+        state: present
+        kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+        wait: false
+        wait_timeout: 60
+        delete_options: {}
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: "{{ shared_mongodb_provisioning_internal_helper_policy_name }}"
+            namespace: "{{ shared_mongodb_provisioning_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: ansible
+              cristex.io/component: database-logical-provisioning
+              cristex.io/provisioning-engine: mongodb
+              cristex.io/provisioning-run: "{{ shared_mongodb_provisioning_internal_run_id }}"
+          spec:
+            podSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - shared-mongodb
+                    - shared-mongodb-provision-helper
+            policyTypes:
+              - Ingress
+              - Egress
+            ingress:
+              - from:
+                  - podSelector:
+                      matchLabels:
+                        app.kubernetes.io/name: shared-mongodb-provision-helper
+                        cristex.io/database-provisioner: shared-mongodb
+                        cristex.io/provisioning-run: "{{ shared_mongodb_provisioning_internal_run_id }}"
+                ports:
+                  - protocol: TCP
+                    port: 27017
+            egress:
+              - to:
+                  - podSelector:
+                      matchLabels:
+                        app.kubernetes.io/name: shared-mongodb
+                        app.kubernetes.io/part-of: shared-databases
+                ports:
+                  - protocol: TCP
+                    port: 27017
+              - to:
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: kube-system
+                    podSelector:
+                      matchLabels:
+                        k8s-app: kube-dns
+                ports:
+                  - protocol: UDP
+                    port: 53
+                  - protocol: TCP
+                    port: 53
+      register: shared_mongodb_provisioning_internal_helper_policy
+      changed_when: false
+      no_log: true
+
+    - name: Query the temporary MongoDB helper NetworkPolicy UID
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: NetworkPolicy
+        namespace: "{{ shared_mongodb_provisioning_namespace }}"
+        name: "{{ shared_mongodb_provisioning_internal_helper_policy_name }}"
+        kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+      register: shared_mongodb_provisioning_internal_helper_policy_state
+      changed_when: false
+      no_log: true
+
+    - name: Bind the temporary MongoDB helper NetworkPolicy UID
+      ansible.builtin.set_fact:
+        shared_mongodb_provisioning_internal_helper_policy_uid: "{{ shared_mongodb_provisioning_internal_helper_policy_state.resources[0].metadata.uid }}"
+      changed_when: false
+      no_log: true
+
+    - name: Create the exact temporary MongoDB helper Pod
+      database_provisioning_guarded_k8s:
+        state: present
+        kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+        wait: false
+        wait_timeout: 60
+        delete_options: {}
+        definition:
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: "{{ shared_mongodb_provisioning_internal_helper_pod_name }}"
+            namespace: "{{ shared_mongodb_provisioning_namespace }}"
+            labels:
+              app.kubernetes.io/name: shared-mongodb-provision-helper
+              app.kubernetes.io/managed-by: ansible
+              cristex.io/component: database-logical-provisioning
+              cristex.io/provisioning-engine: mongodb
+              cristex.io/provisioning-run: "{{ shared_mongodb_provisioning_internal_run_id }}"
+              cristex.io/database-provisioner: shared-mongodb
+          spec:
+            restartPolicy: Never
+            automountServiceAccountToken: false
+            nodeSelector:
+              kubernetes.io/arch: amd64
+              kubernetes.io/os: linux
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 999
+              runAsGroup: 999
+              fsGroup: 999
+              seccompProfile:
+                type: RuntimeDefault
+            containers:
+              - name: provision
+                image: "{{ shared_mongodb_provisioning_helper_image }}"
+                imagePullPolicy: IfNotPresent
+                command:
+                  - /bin/bash
+                  - -ec
+                  - "{{ lookup('ansible.builtin.file', shared_mongodb_provisioning_apply_script, rstrip=False) }}"
+                env: []
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 128Mi
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
+                securityContext:
+                  runAsNonRoot: true
+                  runAsUser: 999
+                  runAsGroup: 999
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem: true
+                  capabilities:
+                    drop:
+                      - ALL
+                  seccompProfile:
+                    type: RuntimeDefault
+                volumeMounts:
+                  - name: mongodb-admin
+                    mountPath: /run/database-credentials/shared-mongodb-auth
+                    readOnly: true
+                  - name: mongodb-cristexhub-dev
+                    mountPath: /run/database-credentials/shared-mongodb-cristexhub-dev
+                    readOnly: true
+                  - name: mongodb-cristexhub-prod
+                    mountPath: /run/database-credentials/shared-mongodb-cristexhub-prod
+                    readOnly: true
+                  - name: mongodb-tls
+                    mountPath: /run/database-tls
+                    readOnly: true
+                  - name: tmp
+                    mountPath: /tmp
+            volumes:
+              - name: mongodb-admin
+                secret:
+                  secretName: shared-mongodb-auth
+                  defaultMode: 288
+                  items: &mongodb_credential_items
+                    - key: username
+                      path: username
+                    - key: password
+                      path: password
+              - name: mongodb-cristexhub-dev
+                secret:
+                  secretName: shared-mongodb-cristexhub-dev
+                  defaultMode: 288
+                  items: *mongodb_credential_items
+              - name: mongodb-cristexhub-prod
+                secret:
+                  secretName: shared-mongodb-cristexhub-prod
+                  defaultMode: 288
+                  items: *mongodb_credential_items
+              - name: mongodb-tls
+                secret:
+                  secretName: shared-mongodb-tls
+                  defaultMode: 292
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+              - name: tmp
+                emptyDir:
+                  medium: Memory
+      register: shared_mongodb_provisioning_internal_helper_pod
+      changed_when: false
+      no_log: true
+
+    - name: Query the temporary MongoDB helper Pod UID and terminal state
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ shared_mongodb_provisioning_namespace }}"
+        name: "{{ shared_mongodb_provisioning_internal_helper_pod_name }}"
+        kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+      register: shared_mongodb_provisioning_internal_helper_pod_state
+      until:
+        - shared_mongodb_provisioning_internal_helper_pod_state.resources | length == 1
+        - shared_mongodb_provisioning_internal_helper_pod_state.resources[0].status.phase in ['Succeeded', 'Failed']
+      retries: 60
+      delay: 2
+      changed_when: false
+      no_log: true
+
+    - name: Bind the temporary MongoDB helper Pod UID
+      ansible.builtin.set_fact:
+        shared_mongodb_provisioning_internal_helper_pod_uid: "{{ shared_mongodb_provisioning_internal_helper_pod_state.resources[0].metadata.uid }}"
+        shared_mongodb_provisioning_internal_marker: "{{ shared_mongodb_provisioning_internal_helper_pod_state.resources[0].status.containerStatuses[0].state.terminated.message | default('') }}"
+      changed_when: false
+      no_log: true
+
+    - name: Require a successful sanitized MongoDB provisioning marker
+      ansible.builtin.assert:
+        that:
+          - shared_mongodb_provisioning_internal_helper_pod_state.resources[0].status.phase == 'Succeeded'
+          - shared_mongodb_provisioning_internal_marker is match('^MONGODB_PROVISION:(?:READY|CHANGED:[0-9]+)$')
+        fail_msg: MongoDB helper did not complete with an approved sanitized marker.
+      changed_when: false
+      no_log: true
+
+    - name: Reflect the MongoDB database marker rather than helper object churn
+      ansible.builtin.set_fact:
+        shared_mongodb_provisioning_internal_changed: "{{ shared_mongodb_provisioning_internal_marker is match('^MONGODB_PROVISION:CHANGED:') }}"
+      changed_when: shared_mongodb_provisioning_internal_changed | bool
+      no_log: true
+  always:
+    - name: Read the exact temporary MongoDB helper Pod before cleanup
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ shared_mongodb_provisioning_namespace }}"
+        name: "{{ shared_mongodb_provisioning_internal_helper_pod_name }}"
+        kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+      register: shared_mongodb_provisioning_internal_helper_pod_cleanup_state
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_mongodb_provisioning_internal_helper_pod_name is defined
+
+    - name: Require exact MongoDB helper Pod identity before cleanup
+      ansible.builtin.assert:
+        that:
+          - shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources | length in [0, 1]
+          - shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources | length == 0 or shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.labels.get('app.kubernetes.io/name') == 'shared-mongodb-provision-helper'
+          - shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources | length == 0 or shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.labels.get('cristex.io/component') == 'database-logical-provisioning'
+          - shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources | length == 0 or shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.labels.get('cristex.io/provisioning-engine') == 'mongodb'
+          - shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources | length == 0 or shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.labels.get('cristex.io/provisioning-run') == shared_mongodb_provisioning_internal_run_id
+          - shared_mongodb_provisioning_internal_helper_pod_uid is not defined or shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources | length == 0 or shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.uid == shared_mongodb_provisioning_internal_helper_pod_uid
+        fail_msg: Refusing MongoDB helper cleanup for an absent, replaced, or foreign Pod.
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Bind the discovered MongoDB helper Pod UID for interruption-safe cleanup
+      ansible.builtin.set_fact:
+        shared_mongodb_provisioning_internal_helper_pod_uid: "{{ shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.uid }}"
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources | length == 1
+        - shared_mongodb_provisioning_internal_helper_pod_uid is not defined
+
+    - name: Remove only the UID-bound temporary MongoDB helper Pod
+      database_provisioning_guarded_k8s:
+        state: absent
+        kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+        wait: true
+        wait_timeout: 60
+        delete_options:
+          propagationPolicy: Orphan
+          preconditions:
+            uid: "{{ shared_mongodb_provisioning_internal_helper_pod_uid }}"
+        definition:
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: "{{ shared_mongodb_provisioning_internal_helper_pod_name }}"
+            namespace: "{{ shared_mongodb_provisioning_namespace }}"
+            labels:
+              app.kubernetes.io/name: shared-mongodb-provision-helper
+              app.kubernetes.io/managed-by: ansible
+              cristex.io/component: database-logical-provisioning
+              cristex.io/provisioning-engine: mongodb
+              cristex.io/provisioning-run: "{{ shared_mongodb_provisioning_internal_run_id }}"
+              cristex.io/database-provisioner: shared-mongodb
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources | length == 1
+        - shared_mongodb_provisioning_internal_helper_pod_uid is defined
+        - shared_mongodb_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.uid == shared_mongodb_provisioning_internal_helper_pod_uid
+
+    - name: Read the exact temporary MongoDB helper NetworkPolicy before cleanup
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: NetworkPolicy
+        namespace: "{{ shared_mongodb_provisioning_namespace }}"
+        name: "{{ shared_mongodb_provisioning_internal_helper_policy_name }}"
+        kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+      register: shared_mongodb_provisioning_internal_helper_policy_cleanup_state
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_mongodb_provisioning_internal_helper_policy_name is defined
+
+    - name: Require exact MongoDB helper NetworkPolicy identity before cleanup
+      ansible.builtin.assert:
+        that:
+          - shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources | length in [0, 1]
+          - shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources | length == 0 or shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+          - shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources | length == 0 or shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.labels.get('cristex.io/component') == 'database-logical-provisioning'
+          - shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources | length == 0 or shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.labels.get('cristex.io/provisioning-engine') == 'mongodb'
+          - shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources | length == 0 or shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.labels.get('cristex.io/provisioning-run') == shared_mongodb_provisioning_internal_run_id
+          - shared_mongodb_provisioning_internal_helper_policy_uid is not defined or shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources | length == 0 or shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.uid == shared_mongodb_provisioning_internal_helper_policy_uid
+        fail_msg: Refusing MongoDB helper cleanup for an absent, replaced, or foreign NetworkPolicy.
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Bind the discovered MongoDB helper NetworkPolicy UID for interruption-safe cleanup
+      ansible.builtin.set_fact:
+        shared_mongodb_provisioning_internal_helper_policy_uid: "{{ shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.uid }}"
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources | length == 1
+        - shared_mongodb_provisioning_internal_helper_policy_uid is not defined
+
+    - name: Remove only the UID-bound temporary MongoDB helper NetworkPolicy
+      database_provisioning_guarded_k8s:
+        state: absent
+        kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+        wait: true
+        wait_timeout: 60
+        delete_options:
+          propagationPolicy: Orphan
+          preconditions:
+            uid: "{{ shared_mongodb_provisioning_internal_helper_policy_uid }}"
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: "{{ shared_mongodb_provisioning_internal_helper_policy_name }}"
+            namespace: "{{ shared_mongodb_provisioning_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: ansible
+              cristex.io/component: database-logical-provisioning
+              cristex.io/provisioning-engine: mongodb
+              cristex.io/provisioning-run: "{{ shared_mongodb_provisioning_internal_run_id }}"
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources | length == 1
+        - shared_mongodb_provisioning_internal_helper_policy_uid is defined
+        - shared_mongodb_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.uid == shared_mongodb_provisioning_internal_helper_policy_uid
+
+    - name: Verify zero MongoDB helper residue after cleanup
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ shared_mongodb_provisioning_namespace }}"
+        label_selectors:
+          - cristex.io/component=database-logical-provisioning
+          - cristex.io/provisioning-engine=mongodb
+        kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+      register: shared_mongodb_provisioning_internal_helper_pod_residue
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Require zero MongoDB helper Pod residue
+      ansible.builtin.assert:
+        that:
+          - shared_mongodb_provisioning_internal_helper_pod_residue.resources | length == 0
+        fail_msg: MongoDB helper Pod cleanup left residue.
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Verify zero MongoDB helper NetworkPolicy residue after cleanup
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: NetworkPolicy
+        namespace: "{{ shared_mongodb_provisioning_namespace }}"
+        label_selectors:
+          - cristex.io/component=database-logical-provisioning
+          - cristex.io/provisioning-engine=mongodb
+        kubeconfig: "{{ shared_mongodb_provisioning_kubeconfig }}"
+      register: shared_mongodb_provisioning_internal_helper_policy_residue
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Require zero MongoDB helper NetworkPolicy residue
+      ansible.builtin.assert:
+        that:
+          - shared_mongodb_provisioning_internal_helper_policy_residue.resources | length == 0
+        fail_msg: MongoDB helper NetworkPolicy cleanup left residue.
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode

@@ -1,0 +1,149 @@
+#!/bin/sh
+set -eu
+
+usage='usage: ansible/bin/materialize-infisical-cristexhub-dev-runtime apply'
+[ "$#" -eq 1 ] && [ "$1" = apply ] || {
+  printf '%s\n' "$usage" >&2
+  printf '%s\n' 'refusing check, dry-run, passthrough, or rotation modes' >&2
+  exit 64
+}
+script_path=$0
+[ -L "$script_path" ] && { printf '%s\n' 'refusing a symlinked runtime composition entrypoint' >&2; exit 66; }
+script_directory=$(CDPATH= cd -- "$(dirname -- "$script_path")" && pwd -P)
+repository_root=$(CDPATH= cd -- "$script_directory/../.." && pwd -P)
+case "$repository_root" in
+  /Users/paul/Projects/cristexweb|/home/paul/projects/cristexweb) ;;
+  *) printf '%s\n' 'refusing an unpinned repository path' >&2; exit 78 ;;
+esac
+
+controller_home=$(CDPATH= cd -- "$repository_root/../.." && pwd -P)
+controller_user=$(id -un)
+jq_tool=/usr/bin/jq
+curl_tool=/usr/bin/curl
+openssl_tool=/opt/homebrew/bin/openssl
+[ -x "$openssl_tool" ] || openssl_tool=/usr/bin/openssl
+for tool in "$jq_tool" "$curl_tool" "$openssl_tool" /usr/bin/mktemp /usr/bin/stat /bin/rm /bin/mv; do
+  [ -x "$tool" ] || { printf '%s\n' "refusing missing protected tool: $tool" >&2; exit 69; }
+done
+
+protected_root="$controller_home/Library/Application Support/CristexWeb/infisical/universal-auth"
+[ -d "$protected_root" ] && [ ! -L "$protected_root" ] || { printf '%s\n' 'refusing an unsafe protected-input directory' >&2; exit 77; }
+[ "$(stat -f '%OLp' "$protected_root" 2>/dev/null || stat -c '%a' "$protected_root")" = 700 ] || { printf '%s\n' 'refusing an incorrectly protected input directory' >&2; exit 77; }
+reader="$protected_root/cristexhub-dev-runtime-reader.json"
+[ -f "$reader" ] && [ ! -L "$reader" ] || { printf '%s\n' 'refusing a missing runtime read-only Universal Auth input' >&2; exit 77; }
+[ "$(stat -f '%OLp' "$reader" 2>/dev/null || stat -c '%a' "$reader")" = 600 ] || { printf '%s\n' 'refusing an incorrectly protected runtime reader input' >&2; exit 77; }
+"$jq_tool" -e 'type == "object" and (keys | sort) == ["clientId", "clientSecret"] and (.clientId | type == "string" and length > 0 and test("^[^[:cntrl:]]+$")) and (.clientSecret | type == "string" and length > 0 and test("^[^[:cntrl:]]+$"))' "$reader" >/dev/null 2>/dev/null || {
+  printf '%s\n' 'refusing malformed runtime read-only Universal Auth input' >&2; exit 77;
+}
+endpoint_file="$protected_root/api-endpoint"
+[ -f "$endpoint_file" ] && [ ! -L "$endpoint_file" ] || { printf '%s\n' 'refusing a missing Infisical endpoint input' >&2; exit 77; }
+[ "$(stat -f '%OLp' "$endpoint_file" 2>/dev/null || stat -c '%a' "$endpoint_file")" = 600 ] || { printf '%s\n' 'refusing an incorrectly protected endpoint input' >&2; exit 77; }
+api_base=$(cat "$endpoint_file")
+[ "$api_base" = https://app.infisical.com/api ] || { printf '%s\n' 'refusing an unpinned Infisical endpoint' >&2; exit 77; }
+
+umask 077
+temporary_directory=$(mktemp -d "${TMPDIR:-/tmp}/cristexweb-cristexhub-dev-runtime.XXXXXX")
+cleanup() { unset token_header_file; rm -rf -- "$temporary_directory"; }
+trap cleanup EXIT HUP INT TERM
+
+# All API bodies, responses, headers, generated values, and composed URLs remain
+# in mode-0600 files. No value is passed in argv, exported, or printed.
+token_header_file=''
+api_request() {
+  method=$1; url=$2; body=$3; response=$4; label=$5
+  config="$temporary_directory/curl-$label.conf"
+  {
+    printf 'url = "%s"\nrequest = "%s"\nsilent\nshow-error\nfail\nproto = "=https"\n' "$url" "$method"
+    [ -z "$token_header_file" ] || cat "$token_header_file"
+    [ -z "$body" ] || printf 'header = "Content-Type: application/json"\ndata-binary = "@%s"\n' "$body"
+    printf 'output = "%s"\n' "$response"
+  } >"$config"
+  chmod 600 "$config"
+  env -i PATH=/usr/bin:/bin LC_ALL=C.UTF-8 "$curl_tool" -q --config "$config" 2>"$temporary_directory/curl-$label.error" || {
+    printf '%s\n' 'refusing an unsuccessful Infisical API request' >&2; exit 77;
+  }
+}
+
+login_response="$temporary_directory/login-response.json"
+api_request POST "$api_base/v1/auth/universal-auth/login" "$reader" "$login_response" login
+token_header_file="$temporary_directory/token-header.conf"
+"$jq_tool" -er '(.accessToken | select(type == "string" and length > 0 and test("^[^[:cntrl:]]+$"))) | "header = \\\"Authorization: Bearer " + . + "\\\""' "$login_response" >"$token_header_file" 2>/dev/null || {
+  printf '%s\n' 'refusing an invalid Infisical Universal Auth response' >&2; exit 77;
+}
+chmod 600 "$token_header_file"
+
+# Read one exact key from each existing scoped source. The vendor API returns the
+# value under secret.secretValue; this selector intentionally rejects metadata,
+# missing keys, duplicates, and any non-string value.
+read_source() {
+  source_name=$1; source_path=$2; key=$3
+  response="$temporary_directory/$source_name-$key-response.json"
+  destination="$temporary_directory/$source_name-$key"
+  encoded_key=$(printf '%s' "$key" | "$jq_tool" -sRr @uri)
+  encoded_path=$(printf '%s' "$source_path" | "$jq_tool" -sRr @uri)
+  api_request GET "$api_base/v3/secrets/raw/$encoded_key?projectSlug=cristexweb-infrastructure&environmentSlug=prod&secretPath=$encoded_path" '' "$response" "$source_name-$key"
+  "$jq_tool" -er '.secret.secretValue | select(type == "string" and length > 0 and test("^[^[:cntrl:]]*$"))' "$response" >"$destination" 2>/dev/null || {
+    printf '%s\n' 'refusing an absent, malformed, or ambiguous Infisical source value' >&2; exit 77;
+  }
+  chmod 600 "$destination"
+}
+read_source mongodb /shared-services/mongodb MONGODB_CRISTEXHUB_DEV_USERNAME
+read_source mongodb /shared-services/mongodb MONGODB_CRISTEXHUB_DEV_PASSWORD
+read_source mongodb /shared-services/mongodb MONGODB_TLS_CA_CRT
+read_source rabbitmq /shared-services/rabbitmq RABBITMQ_CRISTEXHUB_DEV_USERNAME
+read_source rabbitmq /shared-services/rabbitmq RABBITMQ_CRISTEXHUB_DEV_PASSWORD
+read_source rabbitmq /shared-services/rabbitmq RABBITMQ_TLS_CA_CRT
+read_source keycloak /shared-services/keycloak CRISTEXHUB_DEV_OIDC_CLIENT_SECRET
+
+# Validate public CAs only and preserve exact source order. Private keys and leaf
+# certificates are forbidden in the application trust bundle.
+for ca in mongodb-MONGODB_TLS_CA_CRT rabbitmq-RABBITMQ_TLS_CA_CRT; do
+  [ "$(grep -c -- '-----BEGIN CERTIFICATE-----' "$temporary_directory/$ca")" -eq 1 ] || { printf '%s\n' 'refusing a non-single-certificate TLS CA source' >&2; exit 77; }
+  ! grep -q -- 'PRIVATE KEY' "$temporary_directory/$ca" || { printf '%s\n' 'refusing private key material in application CA bundle' >&2; exit 77; }
+  "$openssl_tool" x509 -in "$temporary_directory/$ca" -noout -text 2>"$temporary_directory/$ca.openssl-error" | grep -q -- 'CA:TRUE' || { printf '%s\n' 'refusing a TLS source that is not a CA certificate' >&2; exit 77; }
+done
+cat "$temporary_directory/mongodb-MONGODB_TLS_CA_CRT" "$temporary_directory/rabbitmq-RABBITMQ_TLS_CA_CRT" >"$temporary_directory/PRIVATE_CA_BUNDLE"
+chmod 600 "$temporary_directory/PRIVATE_CA_BUNDLE"
+
+# URL construction uses jq's URI encoder, so credentials can never alter the
+# authority, path, or query contract. The CA path is a workload mount contract,
+# not a secret value.
+"$jq_tool" -sRr @uri <"$temporary_directory/mongodb-MONGODB_CRISTEXHUB_DEV_USERNAME" >"$temporary_directory/mongo-user-uri"
+"$jq_tool" -sRr @uri <"$temporary_directory/mongodb-MONGODB_CRISTEXHUB_DEV_PASSWORD" >"$temporary_directory/mongo-password-uri"
+"$jq_tool" -sRr @uri <"$temporary_directory/rabbitmq-RABBITMQ_CRISTEXHUB_DEV_USERNAME" >"$temporary_directory/rabbit-user-uri"
+"$jq_tool" -sRr @uri <"$temporary_directory/rabbitmq-RABBITMQ_CRISTEXHUB_DEV_PASSWORD" >"$temporary_directory/rabbit-password-uri"
+"$jq_tool" -n --rawfile user "$temporary_directory/mongo-user-uri" --rawfile password "$temporary_directory/mongo-password-uri" '"mongodb://" + ($user|rtrimstr("\n")) + ":" + ($password|rtrimstr("\n")) + "@shared-mongodb.shared-services.svc:27017/cristexhub_dev?authSource=admin&tls=true&tlsCAFile=/etc/cristexhub/tls/ca-bundle.pem&replicaSet=shared-mongodb"' >"$temporary_directory/MONGODB_URL"
+"$jq_tool" -n --rawfile user "$temporary_directory/rabbit-user-uri" --rawfile password "$temporary_directory/rabbit-password-uri" '"amqps://" + ($user|rtrimstr("\n")) + ":" + ($password|rtrimstr("\n")) + "@shared-rabbitmq.shared-services.svc:5671/%2Fcristexhub-dev?ssl_options%5Bcert_reqs%5D=required&ssl_options%5Bca_certs%5D=/etc/cristexhub/tls/ca-bundle.pem"' >"$temporary_directory/RABBITMQ_URL"
+printf '%s\n' 'redis://cristexhub-redis.cristexhub-dev.svc:6379/0' >"$temporary_directory/REDIS_URL"
+openssl rand -hex 32 >"$temporary_directory/REDIS_PASSWORD"
+openssl rand -base64 32 | tr -d '\n' >"$temporary_directory/FERNET_KEY"
+openssl rand -base64 32 | tr -d '\n' >"$temporary_directory/OAUTH2_PROXY_COOKIE_SECRET"
+cp "$temporary_directory/keycloak-CRISTEXHUB_DEV_OIDC_CLIENT_SECRET" "$temporary_directory/OIDC_CLIENT_SECRET"
+for key in MONGODB_URL RABBITMQ_URL REDIS_URL REDIS_PASSWORD FERNET_KEY OIDC_CLIENT_SECRET OAUTH2_PROXY_COOKIE_SECRET PRIVATE_CA_BUNDLE; do
+  chmod 600 "$temporary_directory/$key"
+done
+
+# Refuse pre-existing, partial, extra, or ambiguous state; this lane has no
+# rotation flag. One batch request is the only mutation and must be followed by
+# exact key-closure and revision verification.
+metadata="$temporary_directory/metadata.json"
+api_request GET "$api_base/v3/secrets?projectSlug=cristexweb-infrastructure&environmentSlug=prod&secretPath=%2Fcristexhub%2Fdev%2Fruntime" '' "$metadata" metadata
+"$jq_tool" -e '(.secrets | type == "array") and ((.secrets | map(.secretKey)) == [])' "$metadata" >/dev/null 2>/dev/null || {
+  printf '%s\n' 'UNKNOWN — STOP: refusing existing or ambiguous runtime Infisical state' >&2; exit 77;
+}
+request="$temporary_directory/upload.json"
+"$jq_tool" -n --arg project cristexweb-infrastructure --arg environment prod --arg secretPath /cristexhub/dev/runtime \
+  --rawfile k1 "$temporary_directory/MONGODB_URL" --rawfile k2 "$temporary_directory/RABBITMQ_URL" --rawfile k3 "$temporary_directory/REDIS_URL" --rawfile k4 "$temporary_directory/REDIS_PASSWORD" \
+  --rawfile k5 "$temporary_directory/FERNET_KEY" --rawfile k6 "$temporary_directory/OIDC_CLIENT_SECRET" --rawfile k7 "$temporary_directory/OAUTH2_PROXY_COOKIE_SECRET" --rawfile k8 "$temporary_directory/PRIVATE_CA_BUNDLE" \
+  '{projectSlug:$project,environmentSlug:$environment,secretPath:$secretPath,secrets:[{secretKey:"MONGODB_URL",secretValue:$k1},{secretKey:"RABBITMQ_URL",secretValue:$k2},{secretKey:"REDIS_URL",secretValue:$k3},{secretKey:"REDIS_PASSWORD",secretValue:$k4},{secretKey:"FERNET_KEY",secretValue:$k5},{secretKey:"OIDC_CLIENT_SECRET",secretValue:$k6},{secretKey:"OAUTH2_PROXY_COOKIE_SECRET",secretValue:$k7},{secretKey:"PRIVATE_CA_BUNDLE",secretValue:$k8}]}' >"$request"
+chmod 600 "$request"
+response="$temporary_directory/upload-response.json"
+api_request POST "$api_base/v3/secrets/batch" "$request" "$response" upload
+"$jq_tool" -e '(.secrets | map(.secretKey) | sort) == ["FERNET_KEY","MONGODB_URL","OAUTH2_PROXY_COOKIE_SECRET","OIDC_CLIENT_SECRET","PRIVATE_CA_BUNDLE","RABBITMQ_URL","REDIS_PASSWORD","REDIS_URL"] and (.revision | type == "number" and . >= 1 and . == floor)' "$response" >/dev/null 2>/dev/null || {
+  printf '%s\n' 'refusing an unverified runtime Infisical upload response' >&2; exit 77;
+}
+api_request GET "$api_base/v3/secrets?projectSlug=cristexweb-infrastructure&environmentSlug=prod&secretPath=%2Fcristexhub%2Fdev%2Fruntime" '' "$metadata" readback
+"$jq_tool" -e '(.secrets | map(.secretKey) | sort) == ["FERNET_KEY","MONGODB_URL","OAUTH2_PROXY_COOKIE_SECRET","OIDC_CLIENT_SECRET","PRIVATE_CA_BUNDLE","RABBITMQ_URL","REDIS_PASSWORD","REDIS_URL"]' "$metadata" >/dev/null 2>/dev/null || {
+  printf '%s\n' 'refusing an unverified runtime Infisical key closure' >&2; exit 77;
+}
+printf '%s\n' 'CristexHub DEV runtime values composed, uploaded atomically, and key-closure verified without value disclosure.'

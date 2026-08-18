@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: cristexhub-dev
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: cristexhub-dev
+    app.kubernetes.io/part-of: cristexhub
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: cristexhub-dev-registration
+spec:
+  sourceRepos:
+    - ssh://git@ssh.github.com:443/devraider/cristexhub.git
+  destinations:
+    - name: cristexhub-dev-local
+      namespace: cristexhub-dev
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: apps
+      kind: Deployment
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: networking.k8s.io
+      kind: Ingress
+  orphanedResources:
+    warn: true
+  syncWindows:
+    - kind: deny
+      schedule: '* * * * *'
+      duration: 24h
+      applications:
+        - cristexhub-dev
+      manualSync: false

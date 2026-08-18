@@ -1,0 +1,42 @@
+---
+- name: Reject direct CristexHub PROD Namespace action-only mutation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    cristexhub_prod_namespace_bootstrap_approved: true
+    cristexhub_prod_namespace_bootstrap_state: present
+    cristexhub_prod_namespace_bootstrap_internal_preflight_binding:
+      attestation_sha256: >-
+        {{ lookup('ansible.builtin.env',
+                  'CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_TOKEN') |
+           ansible.builtin.hash('sha256') }}
+      manifest_names:
+        - cristexhub-prod
+      prestate_names:
+        - cristexhub-prod
+      controller_path_count: 4
+      manifest_path_count: 1
+      manifest_sha256:
+        - f029bb06bb698c6ddc3e083985f754bd326de8b18804523d1300eae54e8260d0
+      kubeconfig_contract: true
+      service_contract: true
+      no_delete_path: true
+  tasks:
+    - name: Attempt one exact object without the guarded role task source
+      cristexhub_prod_namespace_guarded_k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: cristexhub-prod
+            labels:
+              app.kubernetes.io/part-of: cristexhub
+              cristex.io/environment: prod
+              cristex.io/bootstrap-writer: ansible
+              cristex.io/desired-owner: argocd
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        wait: true
+        wait_timeout: 30

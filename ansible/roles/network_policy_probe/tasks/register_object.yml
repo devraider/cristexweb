@@ -1,0 +1,11 @@
+---
+- name: Record an exact probe object identity
+  ansible.builtin.set_fact:
+    network_policy_probe_owned_objects: >-
+      {{ network_policy_probe_owned_objects + [network_policy_probe_new_object] }}
+  no_log: true
+
+- name: Persist the updated exact-cleanup ledger
+  ansible.builtin.include_tasks: write_ledger.yml
+  vars:
+    network_policy_probe_ledger_objects: "{{ network_policy_probe_owned_objects }}"

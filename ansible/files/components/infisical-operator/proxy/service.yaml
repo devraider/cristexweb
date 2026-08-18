@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: infisical-egress-proxy
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-operator
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: infisical-egress-proxy
+  ports:
+    - name: https-proxy
+      port: 3129
+      targetPort: https-proxy
+      protocol: TCP

@@ -1,5 +1,5 @@
 ---
-- name: Install the approved Ansible Kubernetes module dependency
+- name: Install the approved Ansible Kubernetes module dependencies
   hosts: k3s_servers
   gather_facts: false
   become: true
@@ -22,8 +22,10 @@
       changed_when: false
 
   tasks:
-    - name: Install the Kubernetes Python client for Ansible modules
+    - name: Install the Kubernetes Python dependencies for Ansible modules
       ansible.builtin.apt:
-        name: python3-kubernetes
+        name:
+          - python3-jsonpatch
+          - python3-kubernetes
         state: present
         update_cache: false

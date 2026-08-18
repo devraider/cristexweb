@@ -1,0 +1,4 @@
+---
+infisical_proxy_secret_zero_approved: false
+infisical_proxy_secret_zero_kubeconfig: /etc/rancher/k3s/k3s.yaml
+infisical_proxy_secret_zero_definitions: []

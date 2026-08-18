@@ -1,0 +1,447 @@
+---
+- name: Reject externally supplied CristexHub DEV Namespace internal variables
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied internal variable
+      {{ item }}.
+  loop:
+    - cristexhub_dev_namespace_bootstrap_internal_attestation_state
+    - cristexhub_dev_namespace_bootstrap_internal_controller_path_states
+    - cristexhub_dev_namespace_bootstrap_internal_manifest_path_states
+    - cristexhub_dev_namespace_bootstrap_internal_manifests
+    - cristexhub_dev_namespace_bootstrap_internal_service_facts_before
+    - cristexhub_dev_namespace_bootstrap_internal_kubeconfig_state
+    - cristexhub_dev_namespace_bootstrap_internal_prestate
+    - cristexhub_dev_namespace_bootstrap_internal_preflight_binding
+    - cristexhub_dev_namespace_bootstrap_internal_poststate
+    - cristexhub_dev_namespace_bootstrap_internal_service_facts_after
+  changed_when: false
+
+- name: Require the CristexHub DEV Namespace bootstrap approval contract
+  ansible.builtin.assert:
+    that:
+      - >-
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - >-
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_TOKEN') is
+        match('^[0-9a-f]{64}$')
+      - >-
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - cristexhub_dev_namespace_bootstrap_approved | bool
+      - cristexhub_dev_namespace_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - cristexhub_dev_namespace_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - cristexhub_dev_namespace_bootstrap_controller_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - cristexhub_dev_namespace_bootstrap_controller_user == lookup('ansible.builtin.env', 'USER')
+      - >-
+        cristexhub_dev_namespace_bootstrap_repository_root ==
+        (playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname)
+      - >-
+        cristexhub_dev_namespace_bootstrap_controller_path_components ==
+        [cristexhub_dev_namespace_bootstrap_repository_root,
+         cristexhub_dev_namespace_bootstrap_repository_root ~ '/kubernetes',
+         cristexhub_dev_namespace_bootstrap_repository_root ~ '/kubernetes/applications',
+         cristexhub_dev_namespace_bootstrap_repository_root ~ '/kubernetes/applications/namespaces']
+      - >-
+        cristexhub_dev_namespace_bootstrap_manifest_paths ==
+        [cristexhub_dev_namespace_bootstrap_repository_root ~
+           '/kubernetes/applications/namespaces/cristexhub-dev.yaml']
+    fail_msg: >-
+      CristexHub DEV Namespace bootstrap requires its non-passthrough controller entrypoint,
+      explicit approval, --diff, the exact one-host limit, state present, the protected
+      k3s kubeconfig, and the exact canonical path for the committed manifest.
+  changed_when: false
+
+- name: Inspect the ephemeral Namespace bootstrap entrypoint attestation
+  ansible.builtin.stat:
+    path: >-
+      {{ lookup('ansible.builtin.env',
+                'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE') }}
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: cristexhub_dev_namespace_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run Namespace bootstrap attestation
+  ansible.builtin.assert:
+    that:
+      - cristexhub_dev_namespace_bootstrap_internal_attestation_state.stat.exists |
+        default(false)
+      - cristexhub_dev_namespace_bootstrap_internal_attestation_state.stat.isreg |
+        default(false)
+      - >-
+        not (cristexhub_dev_namespace_bootstrap_internal_attestation_state.stat.islnk |
+        default(false))
+      - >-
+        cristexhub_dev_namespace_bootstrap_internal_attestation_state.stat.pw_name ==
+        cristexhub_dev_namespace_bootstrap_controller_user
+      - cristexhub_dev_namespace_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file',
+               lookup('ansible.builtin.env',
+                      'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    fail_msg: >-
+      Refusing a missing, reusable, foreign-owned, symlinked, or invalid
+      single-run Namespace bootstrap attestation.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect every controller repository path component without following links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ cristexhub_dev_namespace_bootstrap_controller_path_components }}"
+  register: cristexhub_dev_namespace_bootstrap_internal_controller_path_states
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Refuse unsafe or noncanonical controller repository path components
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isdir | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == cristexhub_dev_namespace_bootstrap_controller_user
+      - >-
+        item.stat.gr_name ==
+        cristexhub_dev_namespace_bootstrap_internal_controller_path_states.results[0].stat.gr_name
+      - item.stat.mode == '0755'
+      - (item.item | ansible.builtin.realpath) == item.item
+    fail_msg: >-
+      Refusing a missing, symlinked, non-directory, foreign-owned, mode-drifted,
+      or noncanonical controller repository path component.
+  loop: "{{ cristexhub_dev_namespace_bootstrap_internal_controller_path_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Inspect the exact committed Namespace manifest leaves without following links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ cristexhub_dev_namespace_bootstrap_manifest_paths }}"
+  register: cristexhub_dev_namespace_bootstrap_internal_manifest_path_states
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Refuse unsafe or noncanonical committed Namespace manifest leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == cristexhub_dev_namespace_bootstrap_controller_user
+      - >-
+        item.stat.gr_name ==
+        cristexhub_dev_namespace_bootstrap_internal_controller_path_states.results[0].stat.gr_name
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - >-
+        (item.item | ansible.builtin.dirname) ==
+        cristexhub_dev_namespace_bootstrap_controller_path_components[-1]
+      - >-
+        (item.item | ansible.builtin.realpath).startswith(
+          (cristexhub_dev_namespace_bootstrap_repository_root | ansible.builtin.realpath) ~ '/')
+    fail_msg: >-
+      Refusing a missing, symlinked, non-regular, foreign-owned, mode-drifted,
+      noncanonical, or repository-external committed Namespace manifest.
+  loop: "{{ cristexhub_dev_namespace_bootstrap_internal_manifest_path_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Load the exact committed Namespace manifests on the controller
+  ansible.builtin.set_fact:
+    cristexhub_dev_namespace_bootstrap_internal_manifests: >-
+      {{ (cristexhub_dev_namespace_bootstrap_internal_manifests | default([])) +
+         [(lookup('ansible.builtin.file', item) | from_yaml)] }}
+  loop: "{{ cristexhub_dev_namespace_bootstrap_manifest_paths }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Require the exact bounded Namespace manifest contract
+  ansible.builtin.assert:
+    that:
+      - cristexhub_dev_namespace_bootstrap_internal_manifests | length == 1
+      - >-
+        cristexhub_dev_namespace_bootstrap_internal_manifests |
+        map(attribute='metadata.name') | list == ['cristexhub-dev']
+      - item.keys() | list | sort == ['apiVersion', 'kind', 'metadata']
+      - item.apiVersion == 'v1'
+      - item.kind == 'Namespace'
+      - item.metadata.keys() | list | sort == ['labels', 'name']
+      - item.metadata.name == 'cristexhub-dev'
+      - item.metadata.labels['app.kubernetes.io/part-of'] == 'cristexhub'
+      - item.metadata.labels['cristex.io/environment'] == 'dev'
+      - item.metadata.labels['cristex.io/bootstrap-writer'] == 'ansible'
+      - item.metadata.labels['cristex.io/desired-owner'] == 'argocd'
+      - item.metadata.labels | length == 4
+    fail_msg: >-
+      Refusing a manifest outside the exact cristexhub-dev Namespace, Ansible
+      bootstrap-writer, and future Argo CD desired-owner contract.
+  loop: "{{ cristexhub_dev_namespace_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  changed_when: false
+
+- name: Capture service facts before Namespace bootstrap
+  ansible.builtin.service_facts:
+  register: cristexhub_dev_namespace_bootstrap_internal_service_facts_before
+
+- name: Require k3s and Tailscale to be running before Namespace bootstrap
+  ansible.builtin.assert:
+    that:
+      - >-
+        cristexhub_dev_namespace_bootstrap_internal_service_facts_before.ansible_facts.services.get(
+          'k3s.service', {}).get('state', '') == 'running'
+      - >-
+        cristexhub_dev_namespace_bootstrap_internal_service_facts_before.ansible_facts.services.get(
+          'tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: >-
+      k3s and tailscaled must be running; Namespace bootstrap does not restart them.
+  changed_when: false
+
+- name: Inspect the protected k3s kubeconfig metadata
+  ansible.builtin.stat:
+    path: "{{ cristexhub_dev_namespace_bootstrap_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: cristexhub_dev_namespace_bootstrap_internal_kubeconfig_state
+  no_log: true
+
+- name: Require the protected group-scoped kubeconfig contract
+  ansible.builtin.assert:
+    that:
+      - >-
+        cristexhub_dev_namespace_bootstrap_internal_kubeconfig_state.stat.exists |
+        default(false)
+      - >-
+        cristexhub_dev_namespace_bootstrap_internal_kubeconfig_state.stat.isreg |
+        default(false)
+      - >-
+        not (cristexhub_dev_namespace_bootstrap_internal_kubeconfig_state.stat.islnk |
+        default(false))
+      - cristexhub_dev_namespace_bootstrap_internal_kubeconfig_state.stat.pw_name == 'root'
+      - >-
+        cristexhub_dev_namespace_bootstrap_internal_kubeconfig_state.stat.gr_name ==
+        'k3s-admin'
+      - cristexhub_dev_namespace_bootstrap_internal_kubeconfig_state.stat.mode == '0640'
+    fail_msg: >-
+      Refusing Namespace bootstrap without the existing root:k3s-admin mode-0640
+      non-symlink kubeconfig.
+  changed_when: false
+  no_log: true
+
+- name: Query only the exact CristexHub DEV Namespace pre-state
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ cristexhub_dev_namespace_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_dev_namespace_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: cristexhub_dev_namespace_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Refuse a foreign existing CristexHub DEV Namespace
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - >-
+        item.resources | length == 0 or
+        ((item.resources[0].metadata.labels | default({})).get(
+          'app.kubernetes.io/part-of', '') ==
+          item.item.metadata.labels['app.kubernetes.io/part-of'] and
+         (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/environment', '') ==
+          item.item.metadata.labels['cristex.io/environment'] and
+         (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/bootstrap-writer', '') ==
+          item.item.metadata.labels['cristex.io/bootstrap-writer'] and
+         (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/desired-owner', '') ==
+          item.item.metadata.labels['cristex.io/desired-owner'])
+    fail_msg: >-
+      An existing cristexhub-dev Namespace lacks the exact reviewed application,
+      environment, bootstrap, and future-owner labels; refusing silent adoption.
+  loop: "{{ cristexhub_dev_namespace_bootstrap_internal_prestate.results }}"
+  loop_control:
+    label: "{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind the protected CristexHub DEV Namespace preflight to this run
+  ansible.builtin.set_fact:
+    cristexhub_dev_namespace_bootstrap_internal_preflight_binding:
+      attestation_sha256: >-
+        {{ lookup('ansible.builtin.env',
+                  'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_TOKEN') |
+           ansible.builtin.hash('sha256') }}
+      manifest_names: >-
+        {{ cristexhub_dev_namespace_bootstrap_internal_manifests |
+           map(attribute='metadata.name') | list }}
+      prestate_names: >-
+        {{ cristexhub_dev_namespace_bootstrap_internal_prestate.results |
+           map(attribute='item.metadata.name') | list }}
+      controller_path_count: >-
+        {{ cristexhub_dev_namespace_bootstrap_internal_controller_path_states.results |
+           length }}
+      manifest_path_count: >-
+        {{ cristexhub_dev_namespace_bootstrap_internal_manifest_path_states.results |
+           length }}
+      kubeconfig_contract: true
+      service_contract: true
+  changed_when: false
+  no_log: true
+
+- name: Create or reconcile only the approved CristexHub DEV Namespace
+  cristexhub_dev_namespace_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    wait: true
+    wait_timeout: 30
+  loop:
+    - >-
+      {{ lookup('ansible.builtin.file',
+                (playbook_dir | ansible.builtin.dirname |
+                 ansible.builtin.dirname) ~
+                '/kubernetes/applications/namespaces/cristexhub-dev.yaml') | from_yaml }}
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when:
+    - >-
+      lookup('ansible.builtin.env',
+             'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_ENTRYPOINT') == 'v1'
+    - >-
+      lookup('ansible.builtin.env',
+             'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_TOKEN') is
+      match('^[0-9a-f]{64}$')
+    - >-
+      lookup('ansible.builtin.file',
+             lookup('ansible.builtin.env',
+                    'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE')) ==
+      lookup('ansible.builtin.env',
+             'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    - cristexhub_dev_namespace_bootstrap_internal_preflight_binding is defined
+    - >-
+      cristexhub_dev_namespace_bootstrap_internal_preflight_binding.attestation_sha256 ==
+      (lookup('ansible.builtin.env',
+              'CRISTEXWEB_CRISTEXHUB_DEV_NAMESPACE_BOOTSTRAP_TOKEN') |
+       ansible.builtin.hash('sha256'))
+    - >-
+      cristexhub_dev_namespace_bootstrap_internal_preflight_binding.manifest_names ==
+      ['cristexhub-dev']
+    - >-
+      cristexhub_dev_namespace_bootstrap_internal_preflight_binding.prestate_names ==
+      ['cristexhub-dev']
+    - cristexhub_dev_namespace_bootstrap_internal_preflight_binding.controller_path_count == 4
+    - cristexhub_dev_namespace_bootstrap_internal_preflight_binding.manifest_path_count == 1
+    - cristexhub_dev_namespace_bootstrap_internal_preflight_binding.kubeconfig_contract | bool
+    - cristexhub_dev_namespace_bootstrap_internal_preflight_binding.service_contract | bool
+    - cristexhub_dev_namespace_bootstrap_approved | bool
+    - cristexhub_dev_namespace_bootstrap_state == 'present'
+    - ansible_diff_mode
+    - (ansible_limit | default('')) == 'crtxweb'
+    - ansible_play_hosts_all | length == 1
+    - item.keys() | list | sort == ['apiVersion', 'kind', 'metadata']
+    - item.apiVersion == 'v1'
+    - item.kind == 'Namespace'
+    - item.metadata.keys() | list | sort == ['labels', 'name']
+    - item.metadata.name == 'cristexhub-dev'
+    - item.metadata.labels['app.kubernetes.io/part-of'] == 'cristexhub'
+    - item.metadata.labels['cristex.io/environment'] == 'dev'
+    - item.metadata.labels['cristex.io/bootstrap-writer'] == 'ansible'
+    - item.metadata.labels['cristex.io/desired-owner'] == 'argocd'
+    - item.metadata.labels | length == 4
+
+- name: Requery only the exact CristexHub DEV Namespace after live bootstrap
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ cristexhub_dev_namespace_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_dev_namespace_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: cristexhub_dev_namespace_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Verify exact Namespace identity and pending Argo CD desired ownership
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.metadata.name
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'app.kubernetes.io/part-of', '') ==
+          item.item.metadata.labels['app.kubernetes.io/part-of']
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/environment', '') ==
+          item.item.metadata.labels['cristex.io/environment']
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/bootstrap-writer', '') ==
+          item.item.metadata.labels['cristex.io/bootstrap-writer']
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/desired-owner', '') ==
+          item.item.metadata.labels['cristex.io/desired-owner']
+      - item.resources[0].status.phase == 'Active'
+    fail_msg: >-
+      The exact CristexHub DEV Namespace did not become Active with reviewed bootstrap
+      and future desired-owner labels.
+  loop: "{{ cristexhub_dev_namespace_bootstrap_internal_poststate.results }}"
+  loop_control:
+    label: "{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Capture service facts after Namespace bootstrap
+  ansible.builtin.service_facts:
+  register: cristexhub_dev_namespace_bootstrap_internal_service_facts_after
+
+- name: Require k3s and Tailscale to remain running
+  ansible.builtin.assert:
+    that:
+      - >-
+        cristexhub_dev_namespace_bootstrap_internal_service_facts_after.ansible_facts.services.get(
+          'k3s.service', {}).get('state', '') == 'running'
+      - >-
+        cristexhub_dev_namespace_bootstrap_internal_service_facts_after.ansible_facts.services.get(
+          'tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: "Namespace bootstrap must not stop or restart k3s or tailscaled."
+  changed_when: false

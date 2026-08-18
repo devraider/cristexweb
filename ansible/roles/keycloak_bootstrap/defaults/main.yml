@@ -1,0 +1,41 @@
+---
+# Exact eight-object private Keycloak and realm-bootstrap closure. Hashes are regenerated from the
+# committed leaves whenever the reviewed source changes.
+keycloak_bootstrap_approved: false
+keycloak_bootstrap_state: present
+keycloak_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+keycloak_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+keycloak_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+keycloak_bootstrap_manifest_paths:
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/network/keycloak-default-deny.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/network/keycloak-allow-dns.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/network/keycloak-allow-postgresql.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/network/keycloak-private-ingress.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/realm/configmap-cristexhub-realm.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/rbac/serviceaccount-keycloak.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/runtime/service-keycloak.yaml"
+  - "{{ keycloak_bootstrap_repository_root }}/ansible/files/components/keycloak/runtime/deployment-keycloak.yaml"
+keycloak_bootstrap_object_count: 8
+keycloak_bootstrap_expected_hashes:
+  network/keycloak-allow-dns.yaml: eab84089cf6ae7a33126db9068664f8f7e6865cde65dc2a54c2f4f6e7ba18a25
+  network/keycloak-allow-postgresql.yaml: a21ea138d61f4ec78d0b3839765d6b8499cd39fd6525a3bda5c6df1c70bea414
+  network/keycloak-default-deny.yaml: 1fd1e77b5d0b7fe7c41480b89c2109f3d37b776e5658ddf892b5c8a73c87648b
+  network/keycloak-private-ingress.yaml: e62264ffa0086113eb40f43b5a24fb22f41c6e05447f7dec8223ad72f6bff353
+  rbac/serviceaccount-keycloak.yaml: 787f9cd56c9ede1dc6dc664d8126fc85ce3ee084f483bd0f9944ce0249177d68
+  realm/configmap-cristexhub-realm.yaml: 468c66e2bdec44a847aa97dc761d8d11aca530559bf66b2ea5df758394ce5e91
+  runtime/deployment-keycloak.yaml: a2d8e5a835e4b4370ff730897965a64af1230d73442daabc1f7646865bbd1f0d
+  runtime/service-keycloak.yaml: 582da5974c418188515048399d3eed1759b3779bfd4f71f5048aaa02bd75e092
+keycloak_bootstrap_identity_set_sha256: f44c9e2b7bfff7d7b3365a1f82b3910fe4741969b428fcebd94cff80e53ed912
+keycloak_bootstrap_namespace: shared-services
+keycloak_bootstrap_service_name: keycloak
+keycloak_bootstrap_deployment_name: keycloak
+keycloak_bootstrap_secret_contract:
+  shared-postgresql-keycloak:
+    type: Opaque
+    keys: [password, username]
+  shared-postgresql-ca:
+    type: Opaque
+    keys: [ca.crt, ca.key]
+  keycloak-bootstrap-admin:
+    type: Opaque
+    keys: [password, username]

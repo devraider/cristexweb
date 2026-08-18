@@ -1,0 +1,108 @@
+# Foundation Namespace bootstrap
+
+## Status and boundary
+
+The exact source for `shared-services` and a dedicated bounded Ansible bootstrap
+are implemented. The first non-interactive check attempt stopped before service
+preflight or Kubernetes reconciliation because sudo input was unavailable
+(`ok=10 changed=0 unreachable=0 failed=1 skipped=0`). The interactive retry passed at
+`ok=20 changed=1 unreachable=0 failed=0 skipped=2`: the sole change-capable task
+predicted creation of exactly `shared-services`. Check mode made no mutation. The
+separately approved first apply passed at
+`ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created exactly that Namespace,
+verified its three exact labels and `Active` phase, and preserved k3s/Tailscale
+health. The separately approved idempotence apply passed at
+`ok=22 changed=0 unreachable=0 failed=0 skipped=0`; exact identity/labels/`Active`
+and k3s/Tailscale health remained valid. The Namespace checkpoint is complete. The earlier `platform-secrets` and `platform-identity` source was superseded
+before its wrapper ever ran; removing those files is not evidence of a live rename or
+deletion. This record authorizes no further Namespace run, Secret operation,
+workload, route, component deployment, or cluster mutation.
+
+The completed `argocd`/`platform-edge` bootstrap remains closed and unchanged. Its
+wrapper, role, manifests, approvals, and evidence are not reused or reopened.
+
+## Exact source closure
+
+The new bootstrap owns only:
+
+- `kubernetes/platform/namespaces/shared-services.yaml`;
+- `ansible/bin/bootstrap-foundation-namespaces`;
+- `ansible/playbooks/bootstrap_foundation_namespaces.yml`; and
+- `ansible/roles/foundation_namespace_bootstrap/`.
+
+Each manifest contains only `apiVersion: v1`, `kind: Namespace`, the exact name, and
+these three labels:
+
+- `app.kubernetes.io/part-of: cristex-platform`;
+- `cristex.io/bootstrap-writer: ansible`; and
+- `cristex.io/desired-owner: argocd`.
+
+There is no annotation, finalizer, delete path, `absent` state, passthrough argument,
+Secret, ServiceAccount, workload, Service, NetworkPolicy, PVC, chart, values file,
+route, Infisical object, Argo object, Keycloak object, or PostgreSQL object in this
+increment.
+
+## Guarded execution contract
+
+The sole entrypoint is `ansible/bin/bootstrap-foundation-namespaces`. It
+accepts exactly one mode, `check` or `apply`, uses the explicit local inventory and
+one-host limit, enables diff, prompts for the local become password, and launches the
+repository controller in an allowlisted clean environment. It supplies an ephemeral,
+single-run attestation under a component-specific environment namespace and binds
+all protected in-run preflight results immediately before reconciliation. A forged
+wrapper-format token/file alone cannot make a direct task-start invocation reach the
+Kubernetes module. Extra arguments, forged internal variables, symlinked or
+noncanonical source, unsafe modes/ownership, a foreign existing Namespace, and any
+state other than present fail closed.
+
+These controls prevent accidental direct invocation and task-selection bypass. They
+are not a privilege boundary against a malicious operator who already controls the
+same controller account, local sudo authentication, and protected kubeconfig access;
+such an operator already holds equivalent cluster authority. Operator access and
+review remain security boundaries.
+
+The role verifies k3s and Tailscale health, the protected kubeconfig metadata, exact
+manifest schema and labels, and exact existing-object identity before reconciliation.
+A live run may only create or reconcile the one exact `shared-services` Namespace
+with state present.
+Live post-state verification requires exact identity, labels, `Active` phase, and
+preserved service health. Check mode predicts changes but skips live post-state
+claims.
+
+The labels state provenance and future intent only. Ansible remains bootstrap writer;
+Argo ownership requires a later object-specific registration/adoption, successful
+sync, managed-field evidence, and cessation of Ansible reconciliation. A label alone
+is not a handoff.
+
+## Completed approval sequence
+
+The guarded sequence completed under three separate approvals:
+
+1. Completed: the separately approved wrapper check predicted only `shared-services`.
+2. Completed: the separately approved first apply created and verified only `shared-services`.
+3. Completed: the separately approved idempotence apply converged at `changed=0` and reverified exact post-state/service health.
+
+Discovery and mutation never share approval. A check result never authorizes the
+first apply, and the first apply never authorizes idempotence. No approval is inferred
+from this source or runbook.
+
+## Stop and rollback
+
+Stop on any unexpected object, foreign existing Namespace, label/schema drift,
+source/path/ownership/mode drift, task-selection attempt, missing attestation,
+kubeconfig drift, service-health failure, failed exact post-state assertion, Secret
+or workload appearance, or output containing sensitive/controller metadata.
+
+Source rollback is Git revert. Future routine runtime rollback does not delete a
+Namespace. Namespace deletion requires a separate destructive design and approval;
+this bootstrap intentionally has no deletion implementation.
+
+## Remaining blockers
+
+- later promotion from the selected offline Infisical Operator `v0.11.7` baseline through the inert [privileged-prerequisites inventory](infisical-operator-privileged-prerequisites-design.md) to separately reviewed component-specific source;
+- secret-zero and non-sensitive synchronization/recovery evidence; and
+- Argo, Keycloak/PostgreSQL, OIDC, stateful recovery, and every route/runtime gate.
+
+The `shared-services` Namespace now exists and passed check, first apply, and
+idempotence; all component/runtime checkpoints remain **NOT RUN**. A later discovery must stop rather
+than delete anything if either superseded Namespace unexpectedly exists.

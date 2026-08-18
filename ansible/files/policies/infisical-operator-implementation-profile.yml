@@ -1,0 +1,177 @@
+---
+policy_schema: cristex-infisical-operator-implementation-profile-v1
+policy_status: deployable-idle-source-selected-runtime-blocked
+capability: exact-technical-profile-and-commit-source-audit
+source:
+  component: infisical-kubernetes-operator
+  selected_version: v0.11.7
+  repository: Infisical/kubernetes-operator
+  commit: 64d2d81da3707d81dc271410da6fd88254b6c9b3
+  archive: ansible/files/vendor/infisical-operator/0.11.7/kubernetes-operator-64d2d81.tar.gz
+  archive_sha256: a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415
+  archive_member_count: 307
+  controller_source_audit_complete: true
+  evidence_archive_contains_upstream_deployable_material: true
+  evidence_archive_operational_input_allowed: false
+  chart_version: v0.11.7
+  chart_archive_sha256: 7f8846c4f6b1cdca2cea23cf00a29d12a38f42eb8da8e125dc196a1e5683aea8
+  promoted_manifest_root: ansible/files/components/infisical-operator
+  promoted_object_count: 40
+  promoted_crd_count: 6
+runtime_profile:
+  controller_namespace: shared-services
+  watched_namespaces:
+    - shared-services
+    - argocd
+    - cristexhub-dev
+  prod_watched: false
+  replicas: 1
+  metrics_bind_address: "0"
+  metrics_service_allowed: false
+  service_monitor_allowed: false
+  leader_election_selected: true
+  image: docker.io/infisical/kubernetes-operator:v0.11.7@sha256:5f1767f440407d8f10fb8bd7e051e26ecf18f16731a64273c20fe206947510ae
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  registered_namespaced_controllers:
+    - InfisicalSecret
+    - InfisicalPushSecret
+    - InfisicalDynamicSecret
+    - InfisicalConnection
+    - InfisicalAuth
+    - InfisicalStaticSecret
+  cluster_generator_controller_registered: false
+  cluster_generator_eager_watch_registered: false
+  cluster_generator_access_on_demand_only: true
+  cluster_generator_lazy_informer_possible_if_referenced: true
+  cluster_generator_references_supported: false
+crd_profile:
+  lifecycle_owner: ansible
+  chart_install_crds_allowed: false
+  namespaced_crds_selected:
+    - infisicalsecrets.secrets.infisical.com
+    - infisicalpushsecrets.secrets.infisical.com
+    - infisicaldynamicsecrets.secrets.infisical.com
+    - infisicalconnections.secrets.infisical.com
+    - infisicalauths.secrets.infisical.com
+    - infisicalstaticsecrets.secrets.infisical.com
+  cluster_generator_crd_selected: false
+  deletion_as_rollback_allowed: false
+rbac_profile:
+  manager_cluster_role_allowed: false
+  aggregate_user_roles_allowed: false
+  namespaced_roles_required:
+    - shared-services
+    - argocd
+    - cristexhub-dev
+  startup_namespaced_cr_watch_resources:
+    - infisicalsecrets
+    - infisicalpushsecrets
+    - infisicaldynamicsecrets
+    - infisicalconnections
+    - infisicalauths
+    - infisicalstaticsecrets
+  cluster_generator_permissions_allowed: false
+  token_review_allowed: false
+  subject_access_review_allowed: false
+  service_account_token_creation_allowed: false
+  universal_auth_secret_read_required: true
+  metrics_authorization_rbac_allowed: false
+  wildcard_rules_allowed: false
+  cross_namespace_wildcard_allowed: false
+secret_scope_profile:
+  - namespace: shared-services
+    logical_identity: platform-shared-services
+    logical_scope: shared-services-only
+    credentials_shared: false
+    wildcard_access_allowed: false
+  - namespace: argocd
+    logical_identity: platform-argocd
+    logical_scope: argocd-only
+    credentials_shared: false
+    wildcard_access_allowed: false
+  - namespace: cristexhub-dev
+    logical_identity: application-cristexhub-dev
+    logical_scope: cristexhub-dev-only
+    credentials_shared: false
+    wildcard_access_allowed: false
+reference_boundary:
+  same_namespace_auth_reference_required: true
+  same_namespace_connection_reference_required: true
+  same_namespace_credential_reference_required: true
+  same_namespace_source_and_target_required: true
+  cross_namespace_references_allowed: false
+  restricted_cr_authorship_required: true
+  enforcement_source_selected: true
+  negative_cross_namespace_tests_proved: false
+secret_zero_profile:
+  authentication_mechanism: universal-auth
+  bootstrap_input: interactive-no-log
+  kubernetes_secret_git_authored: false
+  credential_values_allowed_in_git: false
+  off_node_copy: age-encrypted-google-drive-copy
+  age_key_custody_separate: true
+  concrete_custodian_and_recovery_paths_selected: false
+  rotation_overlap_and_revocation_proved: false
+egress_profile:
+  architecture: separate-authenticated-squid-proxy
+  proxy_namespace: shared-services
+  allowed_hostname: app.infisical.com
+  allowed_port: 443
+  connect_method_only: true
+  tls_interception_allowed: false
+  broad_direct_443_allowed: false
+  operator_direct_internet_allowed: false
+  private_and_special_destination_denies_required: true
+  proxy_image_selected: true
+  proxy_authentication_material_selected: false
+  exact_network_policy_source_allowed: true
+  proxy_image: docker.io/ubuntu/squid@sha256:94f844158e12b52f51b4ae996515e37e8fb3e8d85e1c86caba1a297376e4ec4f
+  proxy_config_selected: true
+smoke_profile:
+  namespace: cristexhub-dev
+  identity_access: read-only
+  target_kind: ConfigMap
+  creation_policy: Orphan
+  sensitive_value_allowed: false
+  workload_reload_allowed: false
+  runtime_allowed: false
+ownership:
+  crds_and_privileged_rbac: ansible
+  controller_before_handoff: ansible
+  namespaced_references_after_evidenced_handoff: argocd
+  generated_values: infisical-cloud
+  dual_reconciliation_allowed: false
+promotion_gates:
+  foundation_namespaces_proved: true
+  source_controller_audit_complete: true
+  technical_profile_selected: true
+  chart_signature_cryptographically_verified: false
+  chart_signer_authority_accepted: false
+  crd_kubernetes_1_36_admission_proved: false
+  crd_upgrade_storage_rollback_proved: false
+  deterministic_render_proved: false
+  image_signature_or_attestation_identity_verified: false
+  image_sbom_vulnerability_disposition_accepted: false
+  encrypted_off_node_image_recovery_proved: false
+  proxy_image_and_config_selected: true
+  proxy_compatibility_proved: false
+  secret_zero_recovery_proved: false
+  generated_value_rotation_revocation_proved: false
+  same_namespace_reference_enforcement_proved: false
+  deployable_kubernetes_source_allowed: true
+  operational_ansible_source_allowed: true
+  runtime_allowed: false
+  same_namespace_reference_enforcement_source_selected: true
+prohibited_by_this_increment:
+  - credential-or-secret-value-in-git
+  - infisical-custom-resource-before-secret-zero-proof
+  - cluster-generator-crd-reference-or-permission
+  - metrics-service-or-authorization
+  - prod-namespace-scope-or-credential
+  - cluster-api-or-infisical-runtime-operation-without-guarded-entrypoint
+  - self-hosted-infisical-server

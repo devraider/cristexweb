@@ -1,0 +1,47 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: infisical-cloudflared-source-boundary
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-cloudflared-secrets
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - secrets.infisical.com
+      apiVersions:
+      - v1beta1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - infisicalconnections
+      - infisicalauths
+      scope: Namespaced
+  matchConditions:
+  - name: cloudflared-source-identities
+    expression: request.namespace == 'platform-edge' && (request.userInfo.username
+      == 'system:serviceaccount:shared-services:infisical-operator-controller' || object.metadata.name
+      in ['infisical-cloud','cloudflared-infisical-auth'])
+  validations:
+  - expression: (request.userInfo.username == 'system:admin' || (request.userInfo.username
+      == 'system:serviceaccount:shared-services:infisical-operator-controller' && oldObject
+      != null && oldObject.spec == object.spec)) && object.metadata.labels.size()
+      == 3 && object.metadata.labels['app.kubernetes.io/part-of'] == 'cristex-platform'
+      && object.metadata.labels['app.kubernetes.io/managed-by'] == 'ansible' && object.metadata.labels['cristex.io/component']
+      == 'infisical-cloudflared-secrets' && ((object.kind == 'InfisicalConnection'
+      && object.metadata.name == 'infisical-cloud' && object.spec.address == 'https://app.infisical.com')
+      || (object.kind == 'InfisicalAuth' && object.metadata.name == 'cloudflared-infisical-auth'
+      && object.spec.method == 'universal' && object.spec.infisicalConnectionRef.name
+      == 'infisical-cloud' && object.spec.infisicalConnectionRef.namespace == 'platform-edge'
+      && object.spec.universal.clientIdRef.name == 'cloudflared-infisical-universal-auth'
+      && object.spec.universal.clientIdRef.namespace == 'platform-edge' && object.spec.universal.clientIdRef.key
+      == 'clientId' && object.spec.universal.clientSecretRef.name == 'cloudflared-infisical-universal-auth'
+      && object.spec.universal.clientSecretRef.namespace == 'platform-edge' && object.spec.universal.clientSecretRef.key
+      == 'clientSecret'))
+    message: Only the guarded administrator or unchanged-spec Operator may write the
+      exact Keycloak Connection and Auth sources.
+    reason: Forbidden

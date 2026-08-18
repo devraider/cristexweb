@@ -1,0 +1,286 @@
+---
+- name: Reject externally supplied transition internals
+  ansible.builtin.assert:
+    that: item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied transition internal {{ item }}."
+  loop:
+    - cristexhub_dev_sync_transition_internal_attestation
+    - cristexhub_dev_sync_transition_internal_manifests
+    - cristexhub_dev_sync_transition_internal_manifest_states
+    - cristexhub_dev_sync_transition_internal_namespace
+    - cristexhub_dev_sync_transition_internal_runtime_secret
+    - cristexhub_dev_sync_transition_internal_cluster_secret
+    - cristexhub_dev_sync_transition_internal_controller_role
+    - cristexhub_dev_sync_transition_internal_application
+    - cristexhub_dev_sync_transition_internal_project
+    - cristexhub_dev_sync_transition_internal_application_project
+    - cristexhub_dev_sync_transition_internal_deployments
+    - cristexhub_dev_sync_transition_internal_images
+    - cristexhub_dev_sync_transition_internal_oidc_proxy
+    - cristexhub_dev_sync_transition_internal_dependency_services
+    - cristexhub_dev_sync_transition_internal_dependency_endpoints
+    - cristexhub_dev_sync_transition_internal_poststate
+  changed_when: false
+- name: Require the exact guarded transition contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_SYNC_TRANSITION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_SYNC_TRANSITION_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_SYNC_TRANSITION_ATTESTATION_FILE') | length > 0
+      - cristexhub_dev_sync_transition_approved | bool
+      - cristexhub_dev_sync_transition_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - cristexhub_dev_sync_transition_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - cristexhub_dev_sync_transition_manifest_paths | length == 2
+      - cristexhub_dev_sync_transition_object_count == 2
+      - cristexhub_dev_sync_transition_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+      - cristexhub_dev_sync_transition_revision == '2bba6aaacb0886705abc0a57f9caafac0cb67e90'
+      - cristexhub_dev_sync_transition_path == 'infra/kubernetes/cristexhub-dev'
+      - cristexhub_dev_sync_transition_dependency_services | length == 2
+    fail_msg: Refusing unapproved or non-canonical automated-sync transition.
+  changed_when: false
+- name: Inspect transition attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_SYNC_TRANSITION_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+  register: cristexhub_dev_sync_transition_internal_attestation
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+- name: Require transition attestation
+  ansible.builtin.assert:
+    that:
+      - cristexhub_dev_sync_transition_internal_attestation.stat.isreg | default(false)
+      - not (cristexhub_dev_sync_transition_internal_attestation.stat.islnk | default(false))
+      - cristexhub_dev_sync_transition_internal_attestation.stat.pw_name == cristexhub_dev_sync_transition_controller_user
+      - cristexhub_dev_sync_transition_internal_attestation.stat.mode == '0600'
+      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_SYNC_TRANSITION_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_SYNC_TRANSITION_TOKEN') ~ ':entrypoint'
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+- name: Inspect hash-bound transition source
+  ansible.builtin.stat:
+    path: '{{ item }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: '{{ cristexhub_dev_sync_transition_manifest_paths }}'
+  register: cristexhub_dev_sync_transition_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+- name: Require immutable transition source
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - item.stat.checksum == cristexhub_dev_sync_transition_expected_hashes.get(item.item | basename)
+      - item.item.startswith(cristexhub_dev_sync_transition_repository_root ~ '/ansible/files/components/cristexhub-dev-sync-transition/')
+  loop: '{{ cristexhub_dev_sync_transition_internal_manifest_states.results }}'
+  delegate_to: localhost
+  changed_when: false
+- name: Load exact transition objects
+  ansible.builtin.set_fact:
+    cristexhub_dev_sync_transition_internal_manifests: "{{ (cristexhub_dev_sync_transition_internal_manifests | default([])) + [lookup('ansible.builtin.file', item) | from_yaml] }}"
+  loop: '{{ cristexhub_dev_sync_transition_manifest_paths }}'
+  changed_when: false
+  no_log: true
+- name: Require automated-sync source safety contract
+  ansible.builtin.assert:
+    that:
+      - cristexhub_dev_sync_transition_internal_manifests | length == 2
+      - (cristexhub_dev_sync_transition_internal_manifests | selectattr('kind', 'equalto', 'Application') | list | first).spec.syncPolicy.automated.prune is false
+      - (cristexhub_dev_sync_transition_internal_manifests | selectattr('kind', 'equalto', 'Application') | list | first).spec.syncPolicy.automated.selfHeal is true
+      - (cristexhub_dev_sync_transition_internal_manifests | selectattr('kind', 'equalto', 'Application') | list | first).spec.syncPolicy.automated.allowEmpty is false
+      - "'Prune=false' in ((cristexhub_dev_sync_transition_internal_manifests | selectattr('kind', 'equalto', 'Application') | list | first).spec.syncPolicy.syncOptions)"
+      - (cristexhub_dev_sync_transition_internal_manifests | selectattr('kind', 'equalto', 'AppProject') | list | first).spec.syncWindows == []
+  changed_when: false
+- name: Query exact existing Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: '{{ cristexhub_dev_sync_transition_namespace }}'
+    kubeconfig: '{{ cristexhub_dev_sync_transition_kubeconfig }}'
+  register: cristexhub_dev_sync_transition_internal_namespace
+  changed_when: false
+- name: Query current manually gated Application and AppProject
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: '{{ item.kind }}'
+    namespace: argocd
+    name: cristexhub-dev
+    kubeconfig: '{{ cristexhub_dev_sync_transition_kubeconfig }}'
+  loop:
+    - {kind: Application}
+    - {kind: AppProject}
+  register: cristexhub_dev_sync_transition_internal_application_project
+  changed_when: false
+  no_log: true
+- name: Query exact runtime Secret
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: '{{ cristexhub_dev_sync_transition_namespace }}'
+    name: '{{ cristexhub_dev_sync_transition_runtime_secret }}'
+    kubeconfig: '{{ cristexhub_dev_sync_transition_kubeconfig }}'
+  register: cristexhub_dev_sync_transition_internal_runtime_secret
+  changed_when: false
+  no_log: true
+- name: Query namespace-scoped Argo cache registration
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: argocd
+    name: argocd-cluster-cristexhub-dev
+    kubeconfig: '{{ cristexhub_dev_sync_transition_kubeconfig }}'
+  register: cristexhub_dev_sync_transition_internal_cluster_secret
+  changed_when: false
+  no_log: true
+- name: Query namespace-scoped controller Role
+  kubernetes.core.k8s_info:
+    api_version: rbac.authorization.k8s.io/v1
+    kind: Role
+    namespace: '{{ cristexhub_dev_sync_transition_namespace }}'
+    name: argocd-application-controller-cristexhub-dev
+    kubeconfig: '{{ cristexhub_dev_sync_transition_kubeconfig }}'
+  register: cristexhub_dev_sync_transition_internal_controller_role
+  changed_when: false
+  no_log: true
+- name: Query all DEV Deployments for image and readiness gates
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: '{{ cristexhub_dev_sync_transition_namespace }}'
+    kubeconfig: '{{ cristexhub_dev_sync_transition_kubeconfig }}'
+  register: cristexhub_dev_sync_transition_internal_deployments
+  changed_when: false
+  no_log: true
+- name: Flatten all workload image references
+  ansible.builtin.set_fact:
+    cristexhub_dev_sync_transition_internal_images: "{{ (cristexhub_dev_sync_transition_internal_images | default([])) + (item.spec.template.spec.containers | default([]) | map(attribute='image') | list) + (item.spec.template.spec.initContainers | default([]) | map(attribute='image') | list) }}"
+  loop: '{{ cristexhub_dev_sync_transition_internal_deployments.resources }}'
+  changed_when: false
+  no_log: true
+- name: Query exact OIDC proxy Deployment
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: '{{ cristexhub_dev_sync_transition_oidc_proxy_namespace }}'
+    name: '{{ cristexhub_dev_sync_transition_oidc_proxy_deployment }}'
+    kubeconfig: '{{ cristexhub_dev_sync_transition_kubeconfig }}'
+  register: cristexhub_dev_sync_transition_internal_oidc_proxy
+  changed_when: false
+  no_log: true
+- name: Query dependency Services
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Service
+    namespace: '{{ item.namespace }}'
+    name: '{{ item.name }}'
+    kubeconfig: '{{ cristexhub_dev_sync_transition_kubeconfig }}'
+  loop: '{{ cristexhub_dev_sync_transition_dependency_services }}'
+  register: cristexhub_dev_sync_transition_internal_dependency_services
+  changed_when: false
+  no_log: true
+- name: Query dependency Endpoints
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Endpoints
+    namespace: '{{ item.item.namespace }}'
+    name: '{{ item.item.name }}'
+    kubeconfig: '{{ cristexhub_dev_sync_transition_kubeconfig }}'
+  loop: '{{ cristexhub_dev_sync_transition_internal_dependency_services.results }}'
+  register: cristexhub_dev_sync_transition_internal_dependency_endpoints
+  changed_when: false
+  no_log: true
+- name: Flatten dependency endpoint addresses
+  ansible.builtin.set_fact:
+    cristexhub_dev_sync_transition_internal_dependency_addresses: "{{ (cristexhub_dev_sync_transition_internal_dependency_addresses | default([])) + (((item.resources | first | default({})).subsets | default([]) | map(attribute='addresses') | list | flatten)) }}"
+  loop: '{{ cristexhub_dev_sync_transition_internal_dependency_endpoints.results }}'
+  changed_when: false
+  no_log: true
+- name: Require every dependency Service and ready Endpoint set
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].subsets | default([]) | map(attribute='addresses') | list | flatten | length > 0
+    fail_msg: Refusing automated sync because a declared dependency has no ready endpoint.
+  loop: '{{ cristexhub_dev_sync_transition_internal_dependency_endpoints.results }}'
+  changed_when: false
+  no_log: true
+- name: Require all automated-sync promotion gates
+  ansible.builtin.assert:
+    that:
+      - cristexhub_dev_sync_transition_internal_namespace.resources | length == 1
+      - cristexhub_dev_sync_transition_internal_namespace.resources[0].status.phase == 'Active'
+      - cristexhub_dev_sync_transition_internal_application_project.results[0].resources | length == 1
+      - cristexhub_dev_sync_transition_internal_application_project.results[1].resources | length == 1
+      - >-
+        cristexhub_dev_sync_transition_internal_application_project.results[0].resources[0].spec.syncPolicy.automated is not defined or
+        (cristexhub_dev_sync_transition_internal_application_project.results[0].resources[0].spec.syncPolicy.automated.prune | default(false)) == false and
+        (cristexhub_dev_sync_transition_internal_application_project.results[0].resources[0].spec.syncPolicy.automated.selfHeal | default(false)) == true
+      - >-
+        cristexhub_dev_sync_transition_internal_application_project.results[1].resources[0].spec.syncWindows | default([]) in
+        [[], [{'kind': 'deny', 'schedule': '* * * * *', 'duration': '24h',
+        'applications': ['cristexhub-dev'], 'manualSync': false}]]
+      - cristexhub_dev_sync_transition_internal_runtime_secret.resources | length == 1
+      - cristexhub_dev_sync_transition_internal_runtime_secret.resources[0].type == 'Opaque'
+      - (cristexhub_dev_sync_transition_internal_runtime_secret.resources[0].data | default({})).keys() | list | sort == cristexhub_dev_sync_transition_runtime_secret_keys
+      - >-
+        cristexhub_dev_sync_transition_internal_runtime_secret.resources[0].metadata.labels ==
+        {'app.kubernetes.io/managed-by': 'infisical',
+        'app.kubernetes.io/part-of': 'cristexhub',
+        'cristex.io/value-owner': 'infisical-cloud'}
+      - (cristexhub_dev_sync_transition_internal_runtime_secret.resources[0].metadata.ownerReferences | default([])) | length == 0
+      - cristexhub_dev_sync_transition_internal_cluster_secret.resources | length == 1
+      - cristexhub_dev_sync_transition_internal_cluster_secret.resources[0].stringData is not defined
+      - cristexhub_dev_sync_transition_internal_cluster_secret.resources[0].data.keys() | list | sort == ['clusterResources', 'config', 'name', 'namespaces', 'server']
+      - cristexhub_dev_sync_transition_internal_cluster_secret.resources[0].data.namespaces | b64decode == 'cristexhub-dev'
+      - cristexhub_dev_sync_transition_internal_cluster_secret.resources[0].data.clusterResources | b64decode == 'false'
+      - cristexhub_dev_sync_transition_internal_controller_role.resources | length == 1
+      - cristexhub_dev_sync_transition_internal_controller_role.resources[0].metadata.namespace == cristexhub_dev_sync_transition_namespace
+      - cristexhub_dev_sync_transition_internal_deployments.resources | length == 0 or (cristexhub_dev_sync_transition_internal_images | select('match', '^[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}$') | list | length == cristexhub_dev_sync_transition_internal_images | length)
+      - cristexhub_dev_sync_transition_internal_oidc_proxy.resources | length == 1
+      - cristexhub_dev_sync_transition_internal_oidc_proxy.resources[0].status.availableReplicas | default(0) | int >= 1
+      - cristexhub_dev_sync_transition_internal_dependency_services.results | map(attribute='resources') | map('length') | min == 1
+      - cristexhub_dev_sync_transition_internal_dependency_endpoints.results | map(attribute='resources') | map('length') | min == 1
+      - cristexhub_dev_sync_transition_internal_dependency_addresses | length >= cristexhub_dev_sync_transition_dependency_services | length
+    fail_msg: Refusing automated sync until image, runtime Secret, namespace cache, OIDC proxy, and dependency gates pass.
+  changed_when: false
+  no_log: true
+- name: Reconcile the two-object automated-sync transition
+  cristexhub_dev_sync_transition_guarded_k8s:
+    state: present
+    definition: '{{ item }}'
+    kubeconfig: '{{ cristexhub_dev_sync_transition_kubeconfig }}'
+    wait: false
+    wait_timeout: 60
+  loop: '{{ cristexhub_dev_sync_transition_internal_manifests }}'
+  no_log: true
+- name: Query automated-sync post-state
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.metadata.namespace }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ cristexhub_dev_sync_transition_kubeconfig }}'
+  loop: '{{ cristexhub_dev_sync_transition_internal_manifests }}'
+  register: cristexhub_dev_sync_transition_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+- name: Require safe automated-sync post-state
+  ansible.builtin.assert:
+    that:
+      - cristexhub_dev_sync_transition_internal_poststate.results | length == 2
+      - (cristexhub_dev_sync_transition_internal_poststate.results | selectattr('item.kind', 'equalto', 'Application') | first).resources[0].spec.syncPolicy.automated.prune is false
+      - (cristexhub_dev_sync_transition_internal_poststate.results | selectattr('item.kind', 'equalto', 'Application') | first).resources[0].spec.syncPolicy.automated.selfHeal is true
+      - (cristexhub_dev_sync_transition_internal_poststate.results | selectattr('item.kind', 'equalto', 'AppProject') | first).resources[0].spec.syncWindows == []
+    fail_msg: Refusing an automated-sync transition that lost safety controls.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode

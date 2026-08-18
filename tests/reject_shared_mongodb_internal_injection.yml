@@ -1,0 +1,8 @@
+---
+- name: Reject injected MongoDB bootstrap state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  roles:
+    - role: mongodb_bootstrap

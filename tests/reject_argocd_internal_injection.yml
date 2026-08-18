@@ -1,0 +1,24 @@
+---
+- name: Prove forged Argo CD bootstrap internals fail before API tasks
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Exercise the production Argo CD role with forged internals
+      block:
+        - name: Include the production Argo CD bootstrap role
+          ansible.builtin.include_role:
+            name: argocd_bootstrap
+      rescue:
+        - name: Verify the unique internal-variable guard rejected the fixture
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == 'Reject externally supplied Argo CD bootstrap internal variables'
+              - "'INTERNAL_VARIABLE_GUARD' in (ansible_failed_result | ansible.builtin.to_json)"
+        - name: Record successful fail-closed fixture behavior
+          ansible.builtin.set_fact:
+            argocd_fixture_guard_rejected: true
+    - name: Require the Argo CD role to fail closed at its first task
+      ansible.builtin.assert:
+        that: argocd_fixture_guard_rejected | default(false) | bool

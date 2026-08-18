@@ -1,0 +1,2 @@
+233bac64a0c241ae954c65e4fceb128d2237833db676478fa0807154576202fe  network/allow-traefik.yaml
+20d8c751068cfeaf4d9e36d58b92d4c8d44a49ba5ec3d0987b0c665d7c346494  route/ingress-argocd.yaml

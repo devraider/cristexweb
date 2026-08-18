@@ -1,0 +1,9 @@
+---
+- name: Bootstrap guarded CristexHub PROD runtime Infisical seam
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: infisical_cristexhub_prod_runtime_bootstrap

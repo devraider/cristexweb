@@ -1,0 +1,30 @@
+---
+- name: Describe the bounded temporary functional probe
+  ansible.builtin.debug:
+    msg:
+      requested_action: "{{ network_policy_probe_action }}"
+      check_mode: "{{ ansible_check_mode }}"
+      mutation_performed: false
+      functional_test_performed: false
+      namespace_created_or_deleted: false
+      target_namespace: default
+      public_exposure: none
+      service_exposure: ClusterIP TCP 8080 only
+      object_identity: API-generated names plus exact UID delete preconditions
+      phase_order:
+        - baseline connectivity succeeds
+        - default-deny ingress blocks the client
+        - selective allow admits only the labeled client
+        - policy rollback restores baseline connectivity
+        - exact-object cleanup verifies zero labeled residue
+      runtime_requirements:
+        - independently verified digest-qualified linux/amd64 probe image
+        - sanitized image-verification evidence reference
+        - explicit temporary Argo CD ownership exception
+        - separate create and delete approvals
+        - unique run ID and absent prior cleanup ledger
+      safety_boundary: >-
+        No Namespace is created or deleted. Every authored object uses a
+        server-generated name, a run label, a private cleanup ledger, and an exact
+        UID delete precondition. Check mode never enters mutation tasks.
+  changed_when: false

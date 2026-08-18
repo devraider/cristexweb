@@ -1,0 +1,44 @@
+[Unit]
+Description=CristexWeb encrypted OpenTofu state backup to Google Drive
+Documentation=file:///home/paul/projects/cristexweb/opentofu/README.md
+After=network-online.target rclone-host.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=paul
+Group=paul
+UMask=0077
+ExecStart=/usr/local/libexec/cristexweb/opentofu-state-backup
+TimeoutStartSec=30min
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/cristexweb-backup /run/lock /home/paul/.config/rclone
+ProtectKernelTunables=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cristexweb-opentofu-state-backup
+LogExtraFields=BACKUP_SERVICE=opentofu BACKUP_PURPOSE=state
+
+[Install]
+WantedBy=multi-user.target

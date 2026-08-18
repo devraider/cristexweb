@@ -1,0 +1,8 @@
+---
+- name: Reject direct rclone proxy transfer role invocation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  roles:
+    - role: rclone_proxy_transfer

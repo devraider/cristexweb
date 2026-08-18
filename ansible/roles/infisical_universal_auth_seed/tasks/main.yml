@@ -1,0 +1,430 @@
+---
+# yamllint disable rule:line-length rule:indentation
+- name: Reject externally supplied Universal Auth seed internals
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied Universal Auth seed
+      internal variable {{ item }}.
+  loop:
+    - infisical_universal_auth_seed_internal_attestation
+    - infisical_universal_auth_seed_internal_evidence_states
+    - infisical_universal_auth_seed_internal_evidence_contents
+    - infisical_universal_auth_seed_internal_datastore_evidence
+    - infisical_universal_auth_seed_internal_recovery_evidence
+    - infisical_universal_auth_seed_internal_datastore_evidence_sha256
+    - infisical_universal_auth_seed_internal_current_time_utc
+    - infisical_universal_auth_seed_internal_service_facts_before
+    - infisical_universal_auth_seed_internal_service_facts_after
+    - infisical_universal_auth_seed_internal_kubeconfig
+    - infisical_universal_auth_seed_internal_namespaces
+    - infisical_universal_auth_seed_internal_credentials
+    - infisical_universal_auth_seed_internal_inventory
+    - infisical_universal_auth_seed_internal_prestate
+    - infisical_universal_auth_seed_internal_poststate
+    - infisical_universal_auth_seed_internal_apply
+  changed_when: false
+  no_log: true
+
+- name: Require the apply-only Universal Auth seed approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_UNIVERSAL_AUTH_SEED_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_UNIVERSAL_AUTH_SEED_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_UNIVERSAL_AUTH_SEED_ATTESTATION_FILE') | length > 0
+      - infisical_universal_auth_seed_approved | bool
+      - not ansible_check_mode
+      - not ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - infisical_universal_auth_seed_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - >-
+        infisical_universal_auth_seed_datastore_evidence_path ==
+        infisical_universal_auth_seed_repository_root ~
+        '/ansible/.ansible/k3s-datastore-preflight.local.json'
+      - >-
+        infisical_universal_auth_seed_recovery_evidence_path ==
+        infisical_universal_auth_seed_repository_root ~
+        '/ansible/.ansible/k3s-secret-encryption-recovery.local.json'
+      - infisical_universal_auth_seed_definitions | length == 3
+      - infisical_universal_auth_seed_credential_contracts | length == 3
+      - >-
+        infisical_universal_auth_seed_definitions |
+        map(attribute='metadata.name') | list | sort ==
+        infisical_universal_auth_seed_credential_contracts |
+        map(attribute='name') | list | sort
+      - >-
+        infisical_universal_auth_seed_definitions |
+        map(attribute='metadata.namespace') | list | sort ==
+        infisical_universal_auth_seed_credential_contracts |
+        map(attribute='namespace') | list | sort
+      - >-
+        infisical_universal_auth_seed_definitions |
+        map(attribute='metadata.name') | list | unique | length == 3
+    fail_msg: >-
+      Universal Auth seed requires the exact one-host apply-only wrapper, no diff,
+      three credential contracts, and no passthrough values.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the private one-run Universal Auth seed attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_UNIVERSAL_AUTH_SEED_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: infisical_universal_auth_seed_internal_attestation
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require a valid private Universal Auth seed attestation
+  ansible.builtin.assert:
+    that:
+      - infisical_universal_auth_seed_internal_attestation.stat.exists | default(false)
+      - infisical_universal_auth_seed_internal_attestation.stat.isreg | default(false)
+      - not (infisical_universal_auth_seed_internal_attestation.stat.islnk | default(false))
+      - infisical_universal_auth_seed_internal_attestation.stat.mode == '0600'
+      - infisical_universal_auth_seed_internal_attestation.stat.pw_name == infisical_universal_auth_seed_controller_user
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_INFISICAL_UNIVERSAL_AUTH_SEED_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_UNIVERSAL_AUTH_SEED_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing a missing, symlinked, foreign-owned, or invalid Universal Auth seed attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect the required Secret-at-rest and recovery evidence
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - "{{ infisical_universal_auth_seed_datastore_evidence_path }}"
+    - "{{ infisical_universal_auth_seed_recovery_evidence_path }}"
+  register: infisical_universal_auth_seed_internal_evidence_states
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require private controller-owned Secret-at-rest and recovery evidence files
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0600'
+      - item.stat.pw_name == infisical_universal_auth_seed_controller_user
+    fail_msg: Refusing credential Secret writes without private controller-owned Secret-at-rest and recovery evidence.
+  loop: "{{ infisical_universal_auth_seed_internal_evidence_states.results }}"
+  loop_control:
+    label: evidence-file
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Read the sanitized Secret-at-rest and recovery evidence privately
+  ansible.builtin.slurp:
+    src: "{{ item }}"
+  loop:
+    - "{{ infisical_universal_auth_seed_datastore_evidence_path }}"
+    - "{{ infisical_universal_auth_seed_recovery_evidence_path }}"
+  register: infisical_universal_auth_seed_internal_evidence_contents
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Parse the sanitized Secret-at-rest and recovery evidence privately
+  ansible.builtin.set_fact:
+    infisical_universal_auth_seed_internal_datastore_evidence: >-
+      {{ infisical_universal_auth_seed_internal_evidence_contents.results[0].content |
+      b64decode | from_json }}
+    infisical_universal_auth_seed_internal_recovery_evidence: >-
+      {{ infisical_universal_auth_seed_internal_evidence_contents.results[1].content |
+      b64decode | from_json }}
+    infisical_universal_auth_seed_internal_datastore_evidence_sha256: >-
+      {{ infisical_universal_auth_seed_internal_evidence_contents.results[0].content |
+      b64decode | hash('sha256') }}
+    infisical_universal_auth_seed_internal_current_time_utc: >-
+      {{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}
+  changed_when: false
+  no_log: true
+
+- name: Require enabled stable encryption and proved datastore recovery before Secret writes
+  ansible.builtin.assert:
+    that:
+      - infisical_universal_auth_seed_internal_datastore_evidence.schema_version == 2
+      - infisical_universal_auth_seed_internal_datastore_evidence.evidence_class == 'read-only-k3s-datastore-encryption-preflight'
+      - infisical_universal_auth_seed_internal_datastore_evidence.keys() | sort == ['datastore', 'disclosure_controls', 'encryption', 'evidence_class', 'health', 'invocation', 'k3s', 'schema_version'] | sort
+      - infisical_universal_auth_seed_internal_datastore_evidence.invocation.keys() | sort == ['check_mode', 'diff_mode', 'elevated_approved', 'elevated_requested', 'one_host_limit'] | sort
+      - infisical_universal_auth_seed_internal_datastore_evidence.invocation.check_mode == true
+      - infisical_universal_auth_seed_internal_datastore_evidence.invocation.diff_mode == true
+      - infisical_universal_auth_seed_internal_datastore_evidence.invocation.one_host_limit == true
+      - infisical_universal_auth_seed_internal_datastore_evidence.invocation.elevated_requested == true
+      - infisical_universal_auth_seed_internal_datastore_evidence.invocation.elevated_approved == true
+      - infisical_universal_auth_seed_internal_datastore_evidence.k3s.keys() | sort == ['config_status', 'data_dir_source', 'exec_start_status', 'executable_status', 'version'] | sort
+      - infisical_universal_auth_seed_internal_datastore_evidence.k3s.executable_status == 'safe'
+      - infisical_universal_auth_seed_internal_datastore_evidence.k3s.exec_start_status == 'available'
+      - infisical_universal_auth_seed_internal_datastore_evidence.k3s.data_dir_source in ['default_no_config', 'config_default', 'explicit_arg']
+      - infisical_universal_auth_seed_internal_datastore_evidence.k3s.version is string
+      - infisical_universal_auth_seed_internal_datastore_evidence.k3s.version is match('^v[0-9]+[.][0-9]+[.][0-9]+[+]k3s[0-9]+$')
+      - infisical_universal_auth_seed_internal_datastore_evidence.datastore.keys() | sort == ['etcd_marker_present', 'external_endpoint_explicit', 'sqlite_marker_present', 'type'] | sort
+      - infisical_universal_auth_seed_internal_datastore_evidence.datastore.type in ['sqlite', 'embedded_etcd', 'external']
+      - infisical_universal_auth_seed_internal_datastore_evidence.encryption.keys() | sort == ['command_status', 'rotation_stage', 'status'] | sort
+      - infisical_universal_auth_seed_internal_datastore_evidence.encryption.command_status == 'available'
+      - infisical_universal_auth_seed_internal_datastore_evidence.encryption.status == 'enabled'
+      - infisical_universal_auth_seed_internal_datastore_evidence.encryption.rotation_stage == 'finished'
+      - infisical_universal_auth_seed_internal_datastore_evidence.health.keys() | sort == ['k3s_service', 'node_count', 'node_query', 'node_stage', 'ready_node_count', 'tailscaled_service'] | sort
+      - infisical_universal_auth_seed_internal_datastore_evidence.health.k3s_service == 'running'
+      - infisical_universal_auth_seed_internal_datastore_evidence.health.tailscaled_service == 'running'
+      - infisical_universal_auth_seed_internal_datastore_evidence.health.node_query == 'available'
+      - infisical_universal_auth_seed_internal_datastore_evidence.health.node_stage == 'ready'
+      - infisical_universal_auth_seed_internal_datastore_evidence.health.node_count | int >= 1
+      - infisical_universal_auth_seed_internal_datastore_evidence.health.ready_node_count | int == infisical_universal_auth_seed_internal_datastore_evidence.health.node_count | int
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.keys() | sort == ['backup_or_restore', 'config_content', 'encryption_mutation', 'key_material', 'kubeconfig_content', 'node_identifiers', 'paths_or_urls', 'raw_command_output', 'remote_mutation', 'secret_values', 'token_values'] | sort
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.remote_mutation == false
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.backup_or_restore == false
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.encryption_mutation == false
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.secret_values == false
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.key_material == false
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.token_values == false
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.config_content == false
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.kubeconfig_content == false
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.raw_command_output == false
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.node_identifiers == false
+      - infisical_universal_auth_seed_internal_datastore_evidence.disclosure_controls.paths_or_urls == false
+      - infisical_universal_auth_seed_internal_recovery_evidence.schema_version == 1
+      - infisical_universal_auth_seed_internal_recovery_evidence.evidence_class == 'k3s-secret-encryption-recovery-attestation'
+      - infisical_universal_auth_seed_internal_recovery_evidence.keys() | sort == ['attested_at_utc', 'backup_verified', 'datastore_preflight_sha256', 'datastore_type', 'evidence_class', 'expires_at_utc', 'isolated_restore_verified', 'k3s_version', 'key_material', 'key_recovery_verified', 'schema_version', 'secret_values', 'version_compatible'] | sort
+      - infisical_universal_auth_seed_internal_recovery_evidence.datastore_preflight_sha256 == infisical_universal_auth_seed_internal_datastore_evidence_sha256
+      - infisical_universal_auth_seed_internal_recovery_evidence.k3s_version == infisical_universal_auth_seed_internal_datastore_evidence.k3s.version
+      - infisical_universal_auth_seed_internal_recovery_evidence.datastore_type == infisical_universal_auth_seed_internal_datastore_evidence.datastore.type
+      - infisical_universal_auth_seed_internal_recovery_evidence.attested_at_utc is match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
+      - infisical_universal_auth_seed_internal_recovery_evidence.expires_at_utc is match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
+      - (infisical_universal_auth_seed_internal_recovery_evidence.attested_at_utc | to_datetime('%Y-%m-%dT%H:%M:%SZ')) <= (infisical_universal_auth_seed_internal_current_time_utc | to_datetime('%Y-%m-%dT%H:%M:%SZ'))
+      - (infisical_universal_auth_seed_internal_recovery_evidence.expires_at_utc | to_datetime('%Y-%m-%dT%H:%M:%SZ')) > (infisical_universal_auth_seed_internal_current_time_utc | to_datetime('%Y-%m-%dT%H:%M:%SZ'))
+      - ((infisical_universal_auth_seed_internal_recovery_evidence.expires_at_utc | to_datetime('%Y-%m-%dT%H:%M:%SZ')) - (infisical_universal_auth_seed_internal_recovery_evidence.attested_at_utc | to_datetime('%Y-%m-%dT%H:%M:%SZ'))).total_seconds() <= 86400
+      - infisical_universal_auth_seed_internal_recovery_evidence.backup_verified == true
+      - infisical_universal_auth_seed_internal_recovery_evidence.key_recovery_verified == true
+      - infisical_universal_auth_seed_internal_recovery_evidence.isolated_restore_verified == true
+      - infisical_universal_auth_seed_internal_recovery_evidence.version_compatible == true
+      - infisical_universal_auth_seed_internal_recovery_evidence.secret_values == false
+      - infisical_universal_auth_seed_internal_recovery_evidence.key_material == false
+    fail_msg: Refusing credential Secret writes until encryption is enabled and compatible backup, key recovery, and isolated restore are attested.
+  changed_when: false
+  no_log: true
+
+- name: Capture service health before Universal Auth seed
+  ansible.builtin.service_facts:
+  register: infisical_universal_auth_seed_internal_service_facts_before
+  changed_when: false
+
+- name: Require k3s and Tailscale before Universal Auth seed
+  ansible.builtin.assert:
+    that:
+      - infisical_universal_auth_seed_internal_service_facts_before.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - infisical_universal_auth_seed_internal_service_facts_before.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: k3s and tailscaled must already be running.
+  changed_when: false
+
+- name: Inspect the protected k3s kubeconfig for Universal Auth seed
+  ansible.builtin.stat:
+    path: "{{ infisical_universal_auth_seed_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: infisical_universal_auth_seed_internal_kubeconfig
+  changed_when: false
+  no_log: true
+
+- name: Require group-scoped k3s administrator access without sudo
+  ansible.builtin.assert:
+    that:
+      - infisical_universal_auth_seed_internal_kubeconfig.stat.exists | default(false)
+      - infisical_universal_auth_seed_internal_kubeconfig.stat.isreg | default(false)
+      - not (infisical_universal_auth_seed_internal_kubeconfig.stat.islnk | default(false))
+      - infisical_universal_auth_seed_internal_kubeconfig.stat.pw_name == 'root'
+      - infisical_universal_auth_seed_internal_kubeconfig.stat.gr_name == 'k3s-admin'
+      - infisical_universal_auth_seed_internal_kubeconfig.stat.mode == '0640'
+    fail_msg: Refusing Universal Auth seed without the protected root:k3s-admin kubeconfig.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact seed Namespaces
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ item.key }}"
+    kubeconfig: "{{ infisical_universal_auth_seed_kubeconfig }}"
+  loop: "{{ infisical_universal_auth_seed_namespace_contracts | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: infisical_universal_auth_seed_internal_namespaces
+  changed_when: false
+  no_log: true
+
+- name: Require the established exact seed Namespaces
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].status.phase == 'Active'
+      - item.resources[0].metadata.namespace is not defined
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == item.item.value['app.kubernetes.io/part-of']
+      - item.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == item.item.value['cristex.io/bootstrap-writer']
+      - item.resources[0].metadata.labels.get('cristex.io/desired-owner') == item.item.value['cristex.io/desired-owner']
+    fail_msg: Refusing a missing or drifted Namespace for Universal Auth seed.
+  loop: "{{ infisical_universal_auth_seed_internal_namespaces.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  changed_when: false
+  no_log: true
+
+- name: Query exact Universal Auth credential Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: "{{ item.namespace }}"
+    name: "{{ item.name }}"
+    kubeconfig: "{{ infisical_universal_auth_seed_kubeconfig }}"
+  loop: "{{ infisical_universal_auth_seed_credential_contracts }}"
+  loop_control:
+    label: "{{ item.namespace }}/{{ item.name }}"
+  register: infisical_universal_auth_seed_internal_credentials
+  changed_when: false
+  no_log: true
+
+- name: Query the complete Universal Auth credential inventory
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: "{{ item }}"
+    label_selectors:
+      - cristex.io/component=infisical-runtime-auth
+  loop:
+    - argocd
+    - shared-services
+  register: infisical_universal_auth_seed_internal_inventory
+  changed_when: false
+  no_log: true
+
+- name: Refuse extra Universal Auth credential Secret identities
+  ansible.builtin.assert:
+    that:
+      - >-
+        (item.resources | map(attribute='metadata.name') | list |
+        difference(infisical_universal_auth_seed_credential_contracts |
+        selectattr('namespace', 'equalto', item.item) | map(attribute='name') | list)) | length == 0
+    fail_msg: Refusing an extra Universal Auth credential Secret in a protected Namespace.
+  loop: "{{ infisical_universal_auth_seed_internal_inventory.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  changed_when: false
+  no_log: true
+
+- name: Refuse foreign or drifted Universal Auth credentials before mutation
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.name == item.item.name and
+         item.resources[0].metadata.namespace == item.item.namespace and
+         item.resources[0].type == item.item.type and
+         (item.resources[0].data | default({})).keys() | list | sort == item.item.keys | sort and
+         (item.resources[0].binaryData | default({})).keys() | list | length == 0 and
+         (item.resources[0].stringData | default({})).keys() | list | length == 0 and
+         (item.resources[0].metadata.annotations | default({})).keys() | list | length == 0 and
+         not (item.resources[0].immutable | default(false) | bool) and
+         (item.resources[0].metadata.ownerReferences | default([]) | length) == 0 and
+         (item.resources[0].metadata.labels | default({})) == item.item.labels and
+         ((item.resources[0].data | default({})) ==
+          (infisical_universal_auth_seed_definitions |
+           selectattr('metadata.name', 'equalto', item.item.name) |
+           selectattr('metadata.namespace', 'equalto', item.item.namespace) |
+           map(attribute='data') | first)))
+    fail_msg: >-
+      Refusing a foreign, partial, wrong-contract, immutable, or value-mismatched
+      Universal Auth credential Secret.
+  loop: "{{ infisical_universal_auth_seed_internal_credentials.results }}"
+  loop_control:
+    label: "{{ item.item.namespace }}/{{ item.item.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Refuse partial Universal Auth credential state
+  ansible.builtin.assert:
+    that:
+      - >-
+        (infisical_universal_auth_seed_internal_credentials.results |
+        selectattr('resources', 'equalto', []) | list | length) in [0, 3]
+    fail_msg: Refusing partial Universal Auth credential state; all three must be absent or already exact.
+  changed_when: false
+  no_log: true
+
+- name: Seed exactly the three Universal Auth credential Secrets
+  infisical_universal_auth_seed_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ infisical_universal_auth_seed_kubeconfig }}"
+  loop: "{{ infisical_universal_auth_seed_definitions }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  register: infisical_universal_auth_seed_internal_apply
+  no_log: true
+
+- name: Query exact Universal Auth credential post-state
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: "{{ item.namespace }}"
+    name: "{{ item.name }}"
+    kubeconfig: "{{ infisical_universal_auth_seed_kubeconfig }}"
+  loop: "{{ infisical_universal_auth_seed_credential_contracts }}"
+  loop_control:
+    label: "{{ item.namespace }}/{{ item.name }}"
+  register: infisical_universal_auth_seed_internal_poststate
+  changed_when: false
+  no_log: true
+
+- name: Require exact Universal Auth credential post-state without disclosure
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.name
+      - item.resources[0].metadata.namespace == item.item.namespace
+      - item.resources[0].type == item.item.type
+      - (item.resources[0].data | default({})).keys() | list | sort == item.item.keys | sort
+      - (item.resources[0].binaryData | default({})).keys() | list | length == 0
+      - (item.resources[0].stringData | default({})).keys() | list | length == 0
+      - (item.resources[0].metadata.annotations | default({})).keys() | list | length == 0
+      - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - not (item.resources[0].immutable | default(false) | bool)
+      - (item.resources[0].metadata.labels | default({})) == item.item.labels
+      - >-
+        item.resources[0].data ==
+        (infisical_universal_auth_seed_definitions |
+         selectattr('metadata.name', 'equalto', item.item.name) |
+         selectattr('metadata.namespace', 'equalto', item.item.namespace) |
+         map(attribute='data') | first)
+    fail_msg: Universal Auth credential post-state is absent, drifted, or value-mismatched.
+  loop: "{{ infisical_universal_auth_seed_internal_poststate.results }}"
+  loop_control:
+    label: "{{ item.item.namespace }}/{{ item.item.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Capture service health after Universal Auth seed
+  ansible.builtin.service_facts:
+  register: infisical_universal_auth_seed_internal_service_facts_after
+  changed_when: false
+
+- name: Require k3s and Tailscale after Universal Auth seed
+  ansible.builtin.assert:
+    that:
+      - infisical_universal_auth_seed_internal_service_facts_after.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - infisical_universal_auth_seed_internal_service_facts_after.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: Universal Auth seed must preserve k3s and tailscaled health.
+  changed_when: false

@@ -1,0 +1,41 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: shared-mongodb-ingress
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: shared-mongodb
+    app.kubernetes.io/instance: shared-mongodb
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+    app.kubernetes.io/part-of: shared-databases
+    cristex.io/component: mongodb
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: shared-mongodb
+      app.kubernetes.io/instance: shared-mongodb
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: cristexhub
+              cristex.io/environment: dev
+          podSelector:
+            matchLabels:
+              cristex.io/database-client: shared-mongodb
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: cristexhub
+              cristex.io/environment: prod
+          podSelector:
+            matchLabels:
+              cristex.io/database-client: shared-mongodb
+      ports:
+        - protocol: TCP
+          port: 27017

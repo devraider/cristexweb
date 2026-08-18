@@ -1,0 +1,80 @@
+---
+- name: Re-read the exact server after a denied client phase
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    api_version: v1
+    kind: Pod
+    namespace: "{{ network_policy_probe_namespace }}"
+    name: "{{ network_policy_probe_server.result.metadata.name }}"
+  register: network_policy_probe_server_control_raw
+  changed_when: false
+  no_log: true
+
+- name: Re-read the exact selectorless Service after a denied client phase
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    api_version: v1
+    kind: Service
+    namespace: "{{ network_policy_probe_namespace }}"
+    name: "{{ network_policy_probe_service.result.metadata.name }}"
+  register: network_policy_probe_service_control_raw
+  changed_when: false
+  no_log: true
+
+- name: Re-read the explicit EndpointSlice after a denied client phase
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    api_version: discovery.k8s.io/v1
+    kind: EndpointSlice
+    namespace: "{{ network_policy_probe_namespace }}"
+    name: "{{ network_policy_probe_endpoint_slice.result.metadata.name }}"
+  register: network_policy_probe_endpoint_control_raw
+  changed_when: false
+  no_log: true
+
+- name: Reject denied evidence without stable exact server controls
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_server_control_raw.resources | length == 1
+      - >-
+        network_policy_probe_server_control_raw.resources[0].metadata.uid ==
+        network_policy_probe_server.result.metadata.uid
+      - >-
+        (network_policy_probe_server_control_raw.resources[0].status.conditions |
+         default([]) |
+         selectattr('type', 'equalto', 'Ready') |
+         selectattr('status', 'equalto', 'True') | list | length) == 1
+      - >-
+        network_policy_probe_server_control_raw.resources[0].status.containerStatuses |
+        default([]) | length == 1
+      - >-
+        network_policy_probe_server_control_raw.resources[0].status.containerStatuses[0].restartCount == 0
+      - network_policy_probe_service_control_raw.resources | length == 1
+      - >-
+        network_policy_probe_service_control_raw.resources[0].metadata.uid ==
+        network_policy_probe_service.result.metadata.uid
+      - network_policy_probe_service_control_raw.resources[0].spec.type == 'ClusterIP'
+      - >-
+        network_policy_probe_service_control_raw.resources[0].spec.clusterIP ==
+        network_policy_probe_service.result.spec.clusterIP
+      - network_policy_probe_endpoint_control_raw.resources | length == 1
+      - >-
+        network_policy_probe_endpoint_control_raw.resources[0].metadata.uid ==
+        network_policy_probe_endpoint_slice.result.metadata.uid
+      - >-
+        network_policy_probe_endpoint_control_raw.resources[0].metadata.labels.get(
+        'kubernetes.io/service-name', '') == network_policy_probe_service.result.metadata.name
+      - network_policy_probe_endpoint_control_raw.resources[0].endpoints | length == 1
+      - >-
+        network_policy_probe_endpoint_control_raw.resources[0].endpoints[0].conditions.ready | bool
+      - >-
+        network_policy_probe_endpoint_control_raw.resources[0].endpoints[0].targetRef.uid ==
+        network_policy_probe_server.result.metadata.uid
+      - >-
+        network_policy_probe_server_control_raw.resources[0].status.podIP in
+        network_policy_probe_endpoint_control_raw.resources[0].endpoints[0].addresses
+    fail_msg: >-
+      Denied-client evidence is invalid because the exact server, selectorless
+      Service, or explicit EndpointSlice was not continuously healthy and unchanged.
+  changed_when: false
+  no_log: true

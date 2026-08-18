@@ -1,0 +1,8 @@
+---
+- name: Reject injected shared PostgreSQL provisioning state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  roles:
+    - role: shared_postgresql_provisioning

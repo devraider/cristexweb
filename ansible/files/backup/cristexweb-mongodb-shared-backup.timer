@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily CristexWeb shared MongoDB backup schedule
+
+[Timer]
+OnCalendar=*-*-* 03:45:00
+RandomizedDelaySec=15m
+Persistent=true
+AccuracySec=1m
+Unit=cristexweb-mongodb-shared-backup.service
+
+[Install]
+WantedBy=timers.target

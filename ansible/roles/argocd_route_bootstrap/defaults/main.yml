@@ -1,0 +1,14 @@
+---
+argocd_route_bootstrap_approved: false
+argocd_route_bootstrap_state: present
+argocd_route_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+argocd_route_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+argocd_route_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+argocd_route_bootstrap_manifest_paths:
+  - "{{ argocd_route_bootstrap_repository_root }}/ansible/files/components/argocd-route/network/allow-traefik.yaml"
+  - "{{ argocd_route_bootstrap_repository_root }}/ansible/files/components/argocd-route/route/ingress-argocd.yaml"
+argocd_route_bootstrap_object_count: 2
+argocd_route_bootstrap_namespace: argocd
+argocd_route_bootstrap_expected_hashes:
+  network/allow-traefik.yaml: 233bac64a0c241ae954c65e4fceb128d2237833db676478fa0807154576202fe
+  route/ingress-argocd.yaml: 20d8c751068cfeaf4d9e36d58b92d4c8d44a49ba5ec3d0987b0c665d7c346494

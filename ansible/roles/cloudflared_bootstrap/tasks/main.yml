@@ -1,0 +1,275 @@
+---
+- name: Reject externally supplied cloudflared internals
+  ansible.builtin.assert:
+    that: item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing supplied cloudflared variable {{ item }}."
+  loop:
+    - cloudflared_bootstrap_internal_manifests
+    - cloudflared_bootstrap_internal_identity_keys
+    - cloudflared_bootstrap_internal_prestate
+    - cloudflared_bootstrap_internal_secrets
+    - cloudflared_bootstrap_internal_preflight_binding
+    - cloudflared_bootstrap_internal_apply
+    - cloudflared_bootstrap_internal_poststate
+    - cloudflared_bootstrap_internal_deployment
+  changed_when: false
+
+- name: Require guarded cloudflared approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CLOUDFLARED_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CLOUDFLARED_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CLOUDFLARED_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - cloudflared_bootstrap_approved | bool
+      - cloudflared_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - cloudflared_bootstrap_manifest_paths | length == 5
+      - cloudflared_bootstrap_expected_hashes | length == 5
+      - cloudflared_bootstrap_object_count == 5
+      - cloudflared_bootstrap_namespace == 'platform-edge'
+      - cloudflared_bootstrap_deployment_name == 'cloudflared'
+      - cloudflared_bootstrap_secret_contract['cloudflared-token']['keys'] | sort == ['token']
+    fail_msg: cloudflared requires the exact guarded present-only five-object closure.
+  changed_when: false
+
+- name: Inspect cloudflared attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CLOUDFLARED_BOOTSTRAP_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+  register: cloudflared_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require private single-run cloudflared attestation
+  ansible.builtin.assert:
+    that:
+      - cloudflared_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (cloudflared_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - cloudflared_bootstrap_internal_attestation_state.stat.pw_name == cloudflared_bootstrap_controller_user
+      - cloudflared_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_CLOUDFLARED_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CLOUDFLARED_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing invalid cloudflared attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact cloudflared source leaves
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: "{{ cloudflared_bootstrap_manifest_paths }}"
+  register: cloudflared_bootstrap_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+
+- name: Require hash-bound cloudflared source leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - >-
+        item.stat.checksum == cloudflared_bootstrap_expected_hashes[
+        item.item | replace(cloudflared_bootstrap_repository_root ~
+        '/ansible/files/components/cloudflared/', '')]
+      - item.item.startswith(cloudflared_bootstrap_repository_root ~ '/ansible/files/components/cloudflared/')
+    fail_msg: Refusing missing, unsafe, or hash-drifted cloudflared source.
+  loop: "{{ cloudflared_bootstrap_internal_manifest_states.results }}"
+  delegate_to: localhost
+  changed_when: false
+
+- name: Load exact cloudflared objects
+  ansible.builtin.set_fact:
+    cloudflared_bootstrap_internal_manifests: >-
+      {{ (cloudflared_bootstrap_internal_manifests | default([])) +
+      [lookup('ansible.builtin.file', item) | from_yaml] }}
+  loop: "{{ cloudflared_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact cloudflared identities
+  ansible.builtin.set_fact:
+    cloudflared_bootstrap_internal_identity_keys: >-
+      {{ (cloudflared_bootstrap_internal_identity_keys | default([])) +
+      [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+      (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
+  loop: "{{ cloudflared_bootstrap_internal_manifests }}"
+  changed_when: false
+  no_log: true
+
+- name: Require exact value-free cloudflared inventory
+  ansible.builtin.assert:
+    that:
+      - cloudflared_bootstrap_internal_manifests | length == 5
+      - cloudflared_bootstrap_internal_identity_keys | unique | length == 5
+      - cloudflared_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 3
+      - cloudflared_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ServiceAccount') | list | length == 1
+      - cloudflared_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Deployment') | list | length == 1
+      - cloudflared_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - cloudflared_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Ingress') | list | length == 0
+    fail_msg: Refusing cloudflared source outside exact closure.
+  changed_when: false
+
+- name: Capture host service health
+  ansible.builtin.service_facts:
+  register: cloudflared_bootstrap_internal_service_facts
+  check_mode: false
+
+- name: Require k3s and Tailscale health
+  ansible.builtin.assert:
+    that:
+      - (cloudflared_bootstrap_internal_service_facts.ansible_facts.services | default({})).get('k3s.service', {}).get('state', '') == 'running'
+      - (cloudflared_bootstrap_internal_service_facts.ansible_facts.services | default({})).get('tailscaled.service', {}).get('state', '') == 'running'
+  changed_when: false
+
+- name: Query exact platform-edge Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: platform-edge
+    kubeconfig: "{{ cloudflared_bootstrap_kubeconfig }}"
+  register: cloudflared_bootstrap_internal_namespace
+  changed_when: false
+
+- name: Require established platform-edge Namespace
+  ansible.builtin.assert:
+    that:
+      - cloudflared_bootstrap_internal_namespace.resources | length == 1
+      - cloudflared_bootstrap_internal_namespace.resources[0].status.phase == 'Active'
+      - cloudflared_bootstrap_internal_namespace.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible'
+  changed_when: false
+
+- name: Query precreated Infisical tunnel token Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: platform-edge
+    name: cloudflared-token
+    kubeconfig: "{{ cloudflared_bootstrap_kubeconfig }}"
+  register: cloudflared_bootstrap_internal_secrets
+  changed_when: false
+  no_log: true
+
+- name: Require exact token Secret metadata without reading values
+  ansible.builtin.assert:
+    that:
+      - cloudflared_bootstrap_internal_secrets.resources | length == 1
+      - cloudflared_bootstrap_internal_secrets.resources[0].type == 'Opaque'
+      - cloudflared_bootstrap_internal_secrets.resources[0].data.keys() | sort == ['token']
+      - cloudflared_bootstrap_internal_secrets.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+      - cloudflared_bootstrap_internal_secrets.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
+  changed_when: false
+  no_log: true
+
+- name: Query exact cloudflared object pre-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ cloudflared_bootstrap_kubeconfig }}"
+  loop: "{{ cloudflared_bootstrap_internal_manifests }}"
+  register: cloudflared_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Refuse foreign existing cloudflared objects
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('cristex.io/component') == 'cloudflared'
+  loop: "{{ cloudflared_bootstrap_internal_prestate.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind protected cloudflared preflight
+  ansible.builtin.set_fact:
+    cloudflared_bootstrap_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CLOUDFLARED_BOOTSTRAP_TOKEN') | hash('sha256') }}"
+      object_count: 5
+      identity_set_sha256: "{{ cloudflared_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
+      prestate_count: "{{ cloudflared_bootstrap_internal_prestate.results | length }}"
+      secret_count: 1
+      namespace_contract: true
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Reconcile only approved cloudflared objects
+  cloudflared_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ cloudflared_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ cloudflared_bootstrap_internal_manifests }}"
+  register: cloudflared_bootstrap_internal_apply
+  no_log: true
+
+- name: Query cloudflared post-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ cloudflared_bootstrap_kubeconfig }}"
+  loop: "{{ cloudflared_bootstrap_internal_manifests }}"
+  register: cloudflared_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require cloudflared post-state ownership
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].apiVersion == item.item.apiVersion
+      - item.resources[0].kind == item.item.kind
+      - item.resources[0].metadata.namespace == item.item.metadata.namespace
+      - item.resources[0].metadata.name == item.item.metadata.name
+      - item.resources[0].metadata.labels == item.item.metadata.labels
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources[0].metadata.labels.get('cristex.io/component') == 'cloudflared'
+      - item.resources[0].metadata.uid is defined
+  loop: "{{ cloudflared_bootstrap_internal_poststate.results | default([]) }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact cloudflared post-state closure
+  ansible.builtin.assert:
+    that:
+      - cloudflared_bootstrap_internal_poststate.results | length == cloudflared_bootstrap_object_count
+      - (cloudflared_bootstrap_internal_poststate.results | map(attribute='resources') | map('length') | list | sum) == cloudflared_bootstrap_object_count
+      - cloudflared_bootstrap_internal_identity_keys | unique | length == cloudflared_bootstrap_object_count
+    fail_msg: Refusing incomplete or duplicate cloudflared live closure.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Wait for cloudflared Deployment readiness
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: platform-edge
+    name: cloudflared
+    kubeconfig: "{{ cloudflared_bootstrap_kubeconfig }}"
+  register: cloudflared_bootstrap_internal_deployment
+  until:
+    - cloudflared_bootstrap_internal_deployment.resources | length == 1
+    - cloudflared_bootstrap_internal_deployment.resources[0].status.readyReplicas | default(0) | int == 1
+    - cloudflared_bootstrap_internal_deployment.resources[0].status.updatedReplicas | default(0) | int == 1
+  retries: 60
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode

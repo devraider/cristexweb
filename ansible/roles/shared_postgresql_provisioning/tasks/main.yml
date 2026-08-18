@@ -1,0 +1,776 @@
+---
+# yamllint disable rule:line-length rule:indentation
+- name: Reject externally supplied PostgreSQL provisioning state
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied PostgreSQL provisioning
+      internal variable {{ item }}.
+  loop:
+    - shared_database_provisioning_internal_preflight_binding
+    - shared_postgresql_provisioning_internal_preflight_binding
+    - shared_postgresql_provisioning_internal_attestation
+    - shared_postgresql_provisioning_internal_service_facts
+    - shared_postgresql_provisioning_internal_kubeconfig
+    - shared_postgresql_provisioning_internal_namespace
+    - shared_postgresql_provisioning_internal_statefulset
+    - shared_postgresql_provisioning_internal_pod
+    - shared_postgresql_provisioning_internal_engine_secrets
+    - shared_postgresql_provisioning_internal_consumer_secrets
+    - shared_postgresql_provisioning_internal_stale_pods
+    - shared_postgresql_provisioning_internal_stale_policies
+    - shared_postgresql_provisioning_internal_check
+    - shared_postgresql_provisioning_internal_helper_pod
+    - shared_postgresql_provisioning_internal_helper_policy
+    - shared_postgresql_provisioning_internal_helper_pod_state
+    - shared_postgresql_provisioning_internal_helper_policy_state
+    - shared_postgresql_provisioning_internal_helper_pod_cleanup_state
+    - shared_postgresql_provisioning_internal_helper_policy_cleanup_state
+    - shared_postgresql_provisioning_internal_helper_pod_residue
+    - shared_postgresql_provisioning_internal_helper_policy_residue
+    - shared_postgresql_provisioning_internal_helper_pod_uid
+    - shared_postgresql_provisioning_internal_helper_policy_uid
+    - shared_postgresql_provisioning_internal_run_id
+    - shared_postgresql_provisioning_internal_helper_pod_name
+    - shared_postgresql_provisioning_internal_helper_policy_name
+    - shared_postgresql_provisioning_internal_marker
+    - shared_postgresql_provisioning_internal_changed
+  changed_when: false
+
+- name: Require the guarded PostgreSQL logical provisioning contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_ATTESTATION_FILE') | length > 0
+      - shared_postgresql_provisioning_approved | bool
+      - shared_postgresql_provisioning_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - shared_postgresql_provisioning_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - shared_postgresql_provisioning_namespace == 'shared-services'
+      - shared_postgresql_provisioning_helper_image == 'docker.io/library/postgres@sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b'
+      - shared_postgresql_provisioning_scopes | length == 5
+      - >-
+        shared_postgresql_provisioning_scopes ==
+        [{'consumer': 'cristexhub-dev', 'database': 'cristexhub_dev',
+        'role': 'cristexhub_dev_owner', 'secret':
+        'shared-postgresql-cristexhub-dev', 'other_database':
+        'reactive_resume_dev', 'activation': 'inactive'},
+        {'consumer': 'cristexhub-prod', 'database': 'cristexhub_prod',
+        'role': 'cristexhub_prod_owner', 'secret':
+        'shared-postgresql-cristexhub-prod', 'other_database':
+        'reactive_resume_prod', 'activation': 'inactive'},
+        {'consumer': 'reactive-resume-dev', 'database':
+        'reactive_resume_dev', 'role': 'reactive_resume_dev_owner',
+        'secret': 'shared-postgresql-reactive-resume-dev',
+        'other_database': 'cristexhub_dev', 'activation': 'inactive'},
+        {'consumer': 'reactive-resume-prod', 'database':
+        'reactive_resume_prod', 'role': 'reactive_resume_prod_owner',
+        'secret': 'shared-postgresql-reactive-resume-prod',
+        'other_database': 'cristexhub_prod', 'activation': 'inactive'},
+        {'consumer': 'keycloak', 'database': 'keycloak', 'role':
+        'keycloak_owner', 'secret': 'shared-postgresql-keycloak',
+        'other_database': 'cristexhub_dev', 'activation': 'inactive'}]
+      - shared_postgresql_provisioning_scopes | map(attribute='activation') | unique | list == ['inactive']
+      - shared_postgresql_provisioning_secret_contract.type == 'Opaque'
+      - shared_postgresql_provisioning_secret_contract.keys | sort == ['password', 'username'] | sort
+    fail_msg: >-
+      PostgreSQL logical provisioning requires the non-passthrough wrapper, exact
+      empty reservations, precreated Infisical credentials, --diff, and present-only state.
+  changed_when: false
+
+- name: Inspect the private single-run PostgreSQL provisioning attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: shared_postgresql_provisioning_internal_attestation
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require the exact PostgreSQL provisioning attestation
+  ansible.builtin.assert:
+    that:
+      - shared_postgresql_provisioning_internal_attestation.stat.exists | default(false)
+      - shared_postgresql_provisioning_internal_attestation.stat.isreg | default(false)
+      - not (shared_postgresql_provisioning_internal_attestation.stat.islnk | default(false))
+      - shared_postgresql_provisioning_internal_attestation.stat.pw_name == shared_postgresql_provisioning_controller_user
+      - shared_postgresql_provisioning_internal_attestation.stat.mode == '0600'
+      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing a missing, reusable, foreign-owned, or invalid PostgreSQL provisioning attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Capture host service facts before PostgreSQL provisioning
+  ansible.builtin.service_facts:
+  register: shared_postgresql_provisioning_internal_service_facts
+  check_mode: false
+  changed_when: false
+
+- name: Require k3s and Tailscale before PostgreSQL provisioning
+  ansible.builtin.assert:
+    that:
+      - (shared_postgresql_provisioning_internal_service_facts.ansible_facts.services | default({})).get('k3s.service', {}).get('state', '') == 'running'
+      - (shared_postgresql_provisioning_internal_service_facts.ansible_facts.services | default({})).get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: k3s and tailscaled must already be running.
+  changed_when: false
+
+- name: Inspect the protected k3s kubeconfig for PostgreSQL provisioning
+  ansible.builtin.stat:
+    path: "{{ shared_postgresql_provisioning_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: shared_postgresql_provisioning_internal_kubeconfig
+  no_log: true
+  changed_when: false
+
+- name: Require group-scoped k3s administrator access without sudo
+  ansible.builtin.assert:
+    that:
+      - shared_postgresql_provisioning_internal_kubeconfig.stat.exists | default(false)
+      - shared_postgresql_provisioning_internal_kubeconfig.stat.isreg | default(false)
+      - not (shared_postgresql_provisioning_internal_kubeconfig.stat.islnk | default(false))
+      - shared_postgresql_provisioning_internal_kubeconfig.stat.pw_name == 'root'
+      - shared_postgresql_provisioning_internal_kubeconfig.stat.gr_name == 'k3s-admin'
+      - shared_postgresql_provisioning_internal_kubeconfig.stat.mode == '0640'
+    fail_msg: Refusing PostgreSQL provisioning without root:k3s-admin mode-0640 kubeconfig.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact shared-services Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ shared_postgresql_provisioning_namespace }}"
+    kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+  register: shared_postgresql_provisioning_internal_namespace
+  changed_when: false
+
+- name: Require the established shared-services Namespace contract
+  ansible.builtin.assert:
+    that:
+      - shared_postgresql_provisioning_internal_namespace.resources | length == 1
+      - shared_postgresql_provisioning_internal_namespace.resources[0].status.phase == 'Active'
+      - shared_postgresql_provisioning_internal_namespace.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'cristex-platform'
+      - shared_postgresql_provisioning_internal_namespace.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible'
+      - shared_postgresql_provisioning_internal_namespace.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
+    fail_msg: Refusing PostgreSQL provisioning in a missing or drifted Namespace.
+  changed_when: false
+
+- name: Query the Ready PostgreSQL StatefulSet and Pod
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ shared_postgresql_provisioning_namespace }}"
+    name: "{{ item.name }}"
+    kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+  loop:
+    - api_version: apps/v1
+      kind: StatefulSet
+      name: "{{ shared_postgresql_provisioning_statefulset_name }}"
+    - api_version: v1
+      kind: Pod
+      name: "{{ shared_postgresql_provisioning_pod_name }}"
+  register: shared_postgresql_provisioning_internal_statefulset
+  changed_when: false
+  no_log: true
+
+- name: Require one Ready PostgreSQL engine Pod
+  ansible.builtin.assert:
+    that:
+      - shared_postgresql_provisioning_internal_statefulset.results[0].resources | length == 1
+      - shared_postgresql_provisioning_internal_statefulset.results[0].resources[0].spec.replicas == 1
+      - shared_postgresql_provisioning_internal_statefulset.results[0].resources[0].spec.template.spec.containers | map(attribute='image') | select('equalto', shared_postgresql_provisioning_helper_image) | list | length == 1
+      - shared_postgresql_provisioning_internal_statefulset.results[1].resources | length == 1
+      - shared_postgresql_provisioning_internal_statefulset.results[1].resources[0].status.phase == 'Running'
+      - shared_postgresql_provisioning_internal_statefulset.results[1].resources[0].status.containerStatuses[0].ready | bool
+      - shared_postgresql_provisioning_internal_statefulset.results[1].resources[0].spec.containers | map(attribute='name') | list == [shared_postgresql_provisioning_container]
+    fail_msg: Refusing logical provisioning without the exact Ready shared PostgreSQL Pod.
+  changed_when: false
+  no_log: true
+
+- name: Query PostgreSQL administrator and TLS Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: "{{ shared_postgresql_provisioning_namespace }}"
+    name: "{{ item }}"
+    kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+  loop:
+    - "{{ shared_postgresql_provisioning_admin_secret }}"
+    - "{{ shared_postgresql_provisioning_tls_secret }}"
+  register: shared_postgresql_provisioning_internal_engine_secrets
+  changed_when: false
+  no_log: true
+
+- name: Require PostgreSQL administrator and TLS Secret metadata
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.namespace == shared_postgresql_provisioning_namespace
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'shared-databases'
+      - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+      - >-
+        (item.item == shared_postgresql_provisioning_admin_secret and
+         item.resources[0].type == 'Opaque' and
+         (item.resources[0].data | default({})).keys() | list | sort == ['password', 'username'] | sort) or
+        (item.item == shared_postgresql_provisioning_tls_secret and
+         item.resources[0].type == 'kubernetes.io/tls' and
+         (item.resources[0].data | default({})).keys() | list | sort == ['ca.crt', 'tls.crt', 'tls.key'] | sort)
+    fail_msg: Required PostgreSQL administrator/TLS Secret metadata is absent or drifted.
+  loop: "{{ shared_postgresql_provisioning_internal_engine_secrets.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  changed_when: false
+  no_log: true
+
+- name: Query every exact Infisical PostgreSQL consumer credential Secret
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: "{{ shared_postgresql_provisioning_namespace }}"
+    name: "{{ item.secret }}"
+    kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+  loop: "{{ shared_postgresql_provisioning_scopes }}"
+  loop_control:
+    label: "{{ item.consumer }}"
+  register: shared_postgresql_provisioning_internal_consumer_secrets
+  changed_when: false
+  no_log: true
+
+- name: Require exact precreated Infisical consumer credential contracts
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.secret
+      - item.resources[0].metadata.namespace == shared_postgresql_provisioning_namespace
+      - item.resources[0].type == 'Opaque'
+      - (item.resources[0].data | default({})).keys() | list | sort == ['password', 'username'] | sort
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'shared-databases'
+      - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+      - (item.resources[0].data.username | b64decode) == item.item.role
+      - (item.resources[0].data.password | b64decode) | length >= 32
+    fail_msg: >-
+      PostgreSQL consumer credentials must be precreated by Infisical with the
+      exact username; values are never generated or rotated by this role.
+  loop: "{{ shared_postgresql_provisioning_internal_consumer_secrets.results }}"
+  loop_control:
+    label: "{{ item.item.consumer }}"
+  changed_when: false
+  no_log: true
+
+- name: Refuse stale PostgreSQL helper Pods
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ shared_postgresql_provisioning_namespace }}"
+    label_selectors:
+      - cristex.io/component=database-logical-provisioning
+      - cristex.io/provisioning-engine=postgresql
+  register: shared_postgresql_provisioning_internal_stale_pods
+  changed_when: false
+  no_log: true
+
+- name: Refuse stale PostgreSQL helper NetworkPolicies
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    namespace: "{{ shared_postgresql_provisioning_namespace }}"
+    label_selectors:
+      - cristex.io/component=database-logical-provisioning
+      - cristex.io/provisioning-engine=postgresql
+  register: shared_postgresql_provisioning_internal_stale_policies
+  changed_when: false
+  no_log: true
+
+- name: Require no stale PostgreSQL helper residue
+  ansible.builtin.assert:
+    that:
+      - shared_postgresql_provisioning_internal_stale_pods.resources | length == 0
+      - shared_postgresql_provisioning_internal_stale_policies.resources | length == 0
+    fail_msg: Refusing PostgreSQL provisioning while a previous helper Pod or NetworkPolicy remains.
+  changed_when: false
+  no_log: true
+
+- name: Bind PostgreSQL provisioning preflight to this invocation
+  ansible.builtin.set_fact:
+    shared_postgresql_provisioning_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN') | hash('sha256') }}"
+      engine: postgresql
+      scope_count: "{{ shared_postgresql_provisioning_scopes | length }}"
+      namespace_contract: true
+      ready_pod_contract: true
+      secret_contract: true
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Run the read-only PostgreSQL logical-state check first
+  database_provisioning_guarded_exec:
+    namespace: "{{ shared_postgresql_provisioning_namespace }}"
+    pod: "{{ shared_postgresql_provisioning_pod_name }}"
+    container: "{{ shared_postgresql_provisioning_container }}"
+    command:
+      - /bin/sh
+      - -ec
+      - "{{ lookup('ansible.builtin.file', shared_postgresql_provisioning_check_script, rstrip=False) }}"
+    kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+    script_name: postgresql-check.sh
+    script_sha256: "{{ shared_postgresql_provisioning_script_hashes['postgresql-check.sh'] }}"
+  register: shared_postgresql_provisioning_internal_check
+  changed_when: false
+  no_log: true
+
+- name: Derive the fixed PostgreSQL helper identities
+  ansible.builtin.set_fact:
+    shared_postgresql_provisioning_internal_run_id: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN')[:24] }}"
+    shared_postgresql_provisioning_internal_helper_pod_name: "shared-postgresql-provision-{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN')[:24] }}"
+    shared_postgresql_provisioning_internal_helper_policy_name: "shared-postgresql-provision-network-{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_DATABASE_PROVISIONING_TOKEN')[:24] }}"
+  changed_when: false
+  no_log: true
+
+- name: Reconcile the temporary PostgreSQL helper and always remove it
+  when: not ansible_check_mode
+  block:
+    - name: Create the exact temporary PostgreSQL helper NetworkPolicy
+      database_provisioning_guarded_k8s:
+        state: present
+        kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+        wait: false
+        wait_timeout: 60
+        delete_options: {}
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: "{{ shared_postgresql_provisioning_internal_helper_policy_name }}"
+            namespace: "{{ shared_postgresql_provisioning_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: ansible
+              cristex.io/component: database-logical-provisioning
+              cristex.io/provisioning-engine: postgresql
+              cristex.io/provisioning-run: "{{ shared_postgresql_provisioning_internal_run_id }}"
+          spec:
+            podSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - shared-postgresql
+                    - shared-postgresql-provision-helper
+            policyTypes:
+              - Ingress
+              - Egress
+            ingress:
+              - from:
+                  - podSelector:
+                      matchLabels:
+                        app.kubernetes.io/name: shared-postgresql-provision-helper
+                        cristex.io/database-provisioner: shared-postgresql
+                        cristex.io/provisioning-run: "{{ shared_postgresql_provisioning_internal_run_id }}"
+                ports:
+                  - protocol: TCP
+                    port: 5432
+            egress:
+              - to:
+                  - podSelector:
+                      matchLabels:
+                        app.kubernetes.io/name: shared-postgresql
+                        app.kubernetes.io/part-of: cristex-platform
+                ports:
+                  - protocol: TCP
+                    port: 5432
+              - to:
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: kube-system
+                    podSelector:
+                      matchLabels:
+                        k8s-app: kube-dns
+                ports:
+                  - protocol: UDP
+                    port: 53
+                  - protocol: TCP
+                    port: 53
+      register: shared_postgresql_provisioning_internal_helper_policy
+      changed_when: false
+      no_log: true
+
+    - name: Query the temporary PostgreSQL helper NetworkPolicy UID
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: NetworkPolicy
+        namespace: "{{ shared_postgresql_provisioning_namespace }}"
+        name: "{{ shared_postgresql_provisioning_internal_helper_policy_name }}"
+        kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+      register: shared_postgresql_provisioning_internal_helper_policy_state
+      changed_when: false
+      no_log: true
+
+    - name: Bind the temporary PostgreSQL helper NetworkPolicy UID
+      ansible.builtin.set_fact:
+        shared_postgresql_provisioning_internal_helper_policy_uid: "{{ shared_postgresql_provisioning_internal_helper_policy_state.resources[0].metadata.uid }}"
+      changed_when: false
+      no_log: true
+
+    - name: Create the exact temporary PostgreSQL helper Pod
+      database_provisioning_guarded_k8s:
+        state: present
+        kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+        wait: false
+        wait_timeout: 60
+        delete_options: {}
+        definition:
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: "{{ shared_postgresql_provisioning_internal_helper_pod_name }}"
+            namespace: "{{ shared_postgresql_provisioning_namespace }}"
+            labels:
+              app.kubernetes.io/name: shared-postgresql-provision-helper
+              app.kubernetes.io/managed-by: ansible
+              cristex.io/component: database-logical-provisioning
+              cristex.io/provisioning-engine: postgresql
+              cristex.io/provisioning-run: "{{ shared_postgresql_provisioning_internal_run_id }}"
+              cristex.io/database-provisioner: shared-postgresql
+          spec:
+            restartPolicy: Never
+            automountServiceAccountToken: false
+            nodeSelector:
+              kubernetes.io/arch: amd64
+              kubernetes.io/os: linux
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 999
+              runAsGroup: 999
+              fsGroup: 999
+              seccompProfile:
+                type: RuntimeDefault
+            containers:
+              - name: provision
+                image: "{{ shared_postgresql_provisioning_helper_image }}"
+                imagePullPolicy: IfNotPresent
+                command:
+                  - /bin/sh
+                  - -ec
+                  - "{{ lookup('ansible.builtin.file', shared_postgresql_provisioning_apply_script, rstrip=False) }}"
+                env: []
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 128Mi
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
+                securityContext:
+                  runAsNonRoot: true
+                  runAsUser: 999
+                  runAsGroup: 999
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem: true
+                  capabilities:
+                    drop:
+                      - ALL
+                  seccompProfile:
+                    type: RuntimeDefault
+                volumeMounts:
+                  - name: postgresql-admin
+                    mountPath: /run/database-credentials/shared-postgresql-admin
+                    readOnly: true
+                  - name: postgresql-tls
+                    mountPath: /run/database-tls
+                    readOnly: true
+                  - name: cristexhub-dev
+                    mountPath: /run/database-credentials/shared-postgresql-cristexhub-dev
+                    readOnly: true
+                  - name: cristexhub-prod
+                    mountPath: /run/database-credentials/shared-postgresql-cristexhub-prod
+                    readOnly: true
+                  - name: reactive-resume-dev
+                    mountPath: /run/database-credentials/shared-postgresql-reactive-resume-dev
+                    readOnly: true
+                  - name: reactive-resume-prod
+                    mountPath: /run/database-credentials/shared-postgresql-reactive-resume-prod
+                    readOnly: true
+                  - name: keycloak
+                    mountPath: /run/database-credentials/shared-postgresql-keycloak
+                    readOnly: true
+                  - name: tmp
+                    mountPath: /tmp
+            volumes:
+              - name: postgresql-admin
+                secret:
+                  secretName: shared-postgresql-admin
+                  defaultMode: 288
+                  items: &postgresql_credential_items
+                    - key: username
+                      path: username
+                    - key: password
+                      path: password
+              - name: postgresql-tls
+                secret:
+                  secretName: shared-postgresql-tls
+                  defaultMode: 292
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+              - name: cristexhub-dev
+                secret:
+                  secretName: shared-postgresql-cristexhub-dev
+                  defaultMode: 288
+                  items: *postgresql_credential_items
+              - name: cristexhub-prod
+                secret:
+                  secretName: shared-postgresql-cristexhub-prod
+                  defaultMode: 288
+                  items: *postgresql_credential_items
+              - name: reactive-resume-dev
+                secret:
+                  secretName: shared-postgresql-reactive-resume-dev
+                  defaultMode: 288
+                  items: *postgresql_credential_items
+              - name: reactive-resume-prod
+                secret:
+                  secretName: shared-postgresql-reactive-resume-prod
+                  defaultMode: 288
+                  items: *postgresql_credential_items
+              - name: keycloak
+                secret:
+                  secretName: shared-postgresql-keycloak
+                  defaultMode: 288
+                  items: *postgresql_credential_items
+              - name: tmp
+                emptyDir:
+                  medium: Memory
+      register: shared_postgresql_provisioning_internal_helper_pod
+      changed_when: false
+      no_log: true
+
+    - name: Query the temporary PostgreSQL helper Pod UID and terminal state
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ shared_postgresql_provisioning_namespace }}"
+        name: "{{ shared_postgresql_provisioning_internal_helper_pod_name }}"
+        kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+      register: shared_postgresql_provisioning_internal_helper_pod_state
+      until:
+        - shared_postgresql_provisioning_internal_helper_pod_state.resources | length == 1
+        - shared_postgresql_provisioning_internal_helper_pod_state.resources[0].status.phase in ['Succeeded', 'Failed']
+      retries: 60
+      delay: 2
+      changed_when: false
+      no_log: true
+
+    - name: Bind the temporary PostgreSQL helper Pod UID
+      ansible.builtin.set_fact:
+        shared_postgresql_provisioning_internal_helper_pod_uid: "{{ shared_postgresql_provisioning_internal_helper_pod_state.resources[0].metadata.uid }}"
+        shared_postgresql_provisioning_internal_marker: "{{ shared_postgresql_provisioning_internal_helper_pod_state.resources[0].status.containerStatuses[0].state.terminated.message | default('') }}"
+      changed_when: false
+      no_log: true
+
+    - name: Require a successful sanitized PostgreSQL provisioning marker
+      ansible.builtin.assert:
+        that:
+          - shared_postgresql_provisioning_internal_helper_pod_state.resources[0].status.phase == 'Succeeded'
+          - shared_postgresql_provisioning_internal_marker is match('^POSTGRESQL_PROVISION:(?:READY|CHANGED:[0-9]+)$')
+        fail_msg: PostgreSQL helper did not complete with an approved sanitized marker.
+      changed_when: false
+      no_log: true
+
+    - name: Reflect the PostgreSQL database marker rather than helper object churn
+      ansible.builtin.set_fact:
+        shared_postgresql_provisioning_internal_changed: "{{ shared_postgresql_provisioning_internal_marker is match('^POSTGRESQL_PROVISION:CHANGED:') }}"
+      changed_when: shared_postgresql_provisioning_internal_changed | bool
+      no_log: true
+  always:
+    - name: Read the exact temporary PostgreSQL helper Pod before cleanup
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ shared_postgresql_provisioning_namespace }}"
+        name: "{{ shared_postgresql_provisioning_internal_helper_pod_name }}"
+        kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+      register: shared_postgresql_provisioning_internal_helper_pod_cleanup_state
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_postgresql_provisioning_internal_helper_pod_name is defined
+
+    - name: Require exact PostgreSQL helper Pod identity before cleanup
+      ansible.builtin.assert:
+        that:
+          - shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources | length in [0, 1]
+          - shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources | length == 0 or shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.labels.get('app.kubernetes.io/name') == 'shared-postgresql-provision-helper'
+          - shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources | length == 0 or shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.labels.get('cristex.io/component') == 'database-logical-provisioning'
+          - shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources | length == 0 or shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.labels.get('cristex.io/provisioning-engine') == 'postgresql'
+          - shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources | length == 0 or shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.labels.get('cristex.io/provisioning-run') == shared_postgresql_provisioning_internal_run_id
+          - shared_postgresql_provisioning_internal_helper_pod_uid is not defined or shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources | length == 0 or shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.uid == shared_postgresql_provisioning_internal_helper_pod_uid
+        fail_msg: Refusing PostgreSQL helper cleanup for an absent, replaced, or foreign Pod.
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Bind the discovered PostgreSQL helper Pod UID for interruption-safe cleanup
+      ansible.builtin.set_fact:
+        shared_postgresql_provisioning_internal_helper_pod_uid: "{{ shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.uid }}"
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources | length == 1
+        - shared_postgresql_provisioning_internal_helper_pod_uid is not defined
+
+    - name: Remove only the UID-bound temporary PostgreSQL helper Pod
+      database_provisioning_guarded_k8s:
+        state: absent
+        kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+        wait: true
+        wait_timeout: 60
+        delete_options:
+          propagationPolicy: Orphan
+          preconditions:
+            uid: "{{ shared_postgresql_provisioning_internal_helper_pod_uid }}"
+        definition:
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: "{{ shared_postgresql_provisioning_internal_helper_pod_name }}"
+            namespace: "{{ shared_postgresql_provisioning_namespace }}"
+            labels:
+              app.kubernetes.io/name: shared-postgresql-provision-helper
+              app.kubernetes.io/managed-by: ansible
+              cristex.io/component: database-logical-provisioning
+              cristex.io/provisioning-engine: postgresql
+              cristex.io/provisioning-run: "{{ shared_postgresql_provisioning_internal_run_id }}"
+              cristex.io/database-provisioner: shared-postgresql
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources | length == 1
+        - shared_postgresql_provisioning_internal_helper_pod_uid is defined
+        - shared_postgresql_provisioning_internal_helper_pod_cleanup_state.resources[0].metadata.uid == shared_postgresql_provisioning_internal_helper_pod_uid
+
+    - name: Read the exact temporary PostgreSQL helper NetworkPolicy before cleanup
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: NetworkPolicy
+        namespace: "{{ shared_postgresql_provisioning_namespace }}"
+        name: "{{ shared_postgresql_provisioning_internal_helper_policy_name }}"
+        kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+      register: shared_postgresql_provisioning_internal_helper_policy_cleanup_state
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_postgresql_provisioning_internal_helper_policy_name is defined
+
+    - name: Require exact PostgreSQL helper NetworkPolicy identity before cleanup
+      ansible.builtin.assert:
+        that:
+          - shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources | length in [0, 1]
+          - shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources | length == 0 or shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+          - shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources | length == 0 or shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.labels.get('cristex.io/component') == 'database-logical-provisioning'
+          - shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources | length == 0 or shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.labels.get('cristex.io/provisioning-engine') == 'postgresql'
+          - shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources | length == 0 or shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.labels.get('cristex.io/provisioning-run') == shared_postgresql_provisioning_internal_run_id
+          - shared_postgresql_provisioning_internal_helper_policy_uid is not defined or shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources | length == 0 or shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.uid == shared_postgresql_provisioning_internal_helper_policy_uid
+        fail_msg: Refusing PostgreSQL helper cleanup for an absent, replaced, or foreign NetworkPolicy.
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Bind the discovered PostgreSQL helper NetworkPolicy UID for interruption-safe cleanup
+      ansible.builtin.set_fact:
+        shared_postgresql_provisioning_internal_helper_policy_uid: "{{ shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.uid }}"
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources | length == 1
+        - shared_postgresql_provisioning_internal_helper_policy_uid is not defined
+
+    - name: Remove only the UID-bound temporary PostgreSQL helper NetworkPolicy
+      database_provisioning_guarded_k8s:
+        state: absent
+        kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+        wait: true
+        wait_timeout: 60
+        delete_options:
+          propagationPolicy: Orphan
+          preconditions:
+            uid: "{{ shared_postgresql_provisioning_internal_helper_policy_uid }}"
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: "{{ shared_postgresql_provisioning_internal_helper_policy_name }}"
+            namespace: "{{ shared_postgresql_provisioning_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: ansible
+              cristex.io/component: database-logical-provisioning
+              cristex.io/provisioning-engine: postgresql
+              cristex.io/provisioning-run: "{{ shared_postgresql_provisioning_internal_run_id }}"
+      changed_when: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources | length == 1
+        - shared_postgresql_provisioning_internal_helper_policy_uid is defined
+        - shared_postgresql_provisioning_internal_helper_policy_cleanup_state.resources[0].metadata.uid == shared_postgresql_provisioning_internal_helper_policy_uid
+
+    - name: Verify zero PostgreSQL helper residue after cleanup
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ shared_postgresql_provisioning_namespace }}"
+        label_selectors:
+          - cristex.io/component=database-logical-provisioning
+          - cristex.io/provisioning-engine=postgresql
+        kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+      register: shared_postgresql_provisioning_internal_helper_pod_residue
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Require zero PostgreSQL helper Pod residue
+      ansible.builtin.assert:
+        that:
+          - shared_postgresql_provisioning_internal_helper_pod_residue.resources | length == 0
+        fail_msg: PostgreSQL helper Pod cleanup left residue.
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Verify zero PostgreSQL helper NetworkPolicy residue after cleanup
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: NetworkPolicy
+        namespace: "{{ shared_postgresql_provisioning_namespace }}"
+        label_selectors:
+          - cristex.io/component=database-logical-provisioning
+          - cristex.io/provisioning-engine=postgresql
+        kubeconfig: "{{ shared_postgresql_provisioning_kubeconfig }}"
+      register: shared_postgresql_provisioning_internal_helper_policy_residue
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Require zero PostgreSQL helper NetworkPolicy residue
+      ansible.builtin.assert:
+        that:
+          - shared_postgresql_provisioning_internal_helper_policy_residue.resources | length == 0
+        fail_msg: PostgreSQL helper NetworkPolicy cleanup left residue.
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode

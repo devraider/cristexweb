@@ -1,0 +1,29 @@
+---
+network_policy_probe_action: plan
+network_policy_probe_kubeconfig: /etc/rancher/k3s/k3s.yaml
+network_policy_probe_namespace: default
+network_policy_probe_run_id: ""
+network_policy_probe_image: ""
+network_policy_probe_image_architecture: ""
+network_policy_probe_image_verification_reference: ""
+network_policy_probe_required_architecture: linux/amd64
+network_policy_probe_ownership_exception_approved: false
+network_policy_probe_create_approved: false
+network_policy_probe_delete_approved: false
+network_policy_probe_cleanup_objects: []
+network_policy_probe_output_path: "{{ playbook_dir }}/../network-policy-probe.local.json"
+network_policy_probe_wait_retries: 30
+network_policy_probe_wait_delay_seconds: 2
+network_policy_probe_managed_by: cristexweb-network-policy-probe
+network_policy_probe_run_label: cristexweb.io/network-probe-run
+network_policy_probe_allowed_cleanup_kinds:
+  - api_version: discovery.k8s.io/v1
+    kind: EndpointSlice
+  - api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+  - api_version: v1
+    kind: Service
+  - api_version: v1
+    kind: Pod
+  - api_version: v1
+    kind: ConfigMap

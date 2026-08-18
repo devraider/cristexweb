@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "warning": "HUMAN REVIEW REQUIRED: this report contains curated infrastructure metadata. Review every field before sharing or committing; metadata projection cannot prove that all identifying information is absent.",
   "generated_at_utc": {{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') | to_json }},
   "target": {{ inventory_hostname | to_json }},
@@ -9,6 +9,40 @@
     "elevated_discovery_attempted": {{ read_only_discovery_kubernetes_attempted | bool | to_json }}
   },
   "host": {{ read_only_discovery_host_summary | to_nice_json(indent=4) | indent(2) }},
+  "storage": {
+    "block_devices": [
+{% for device in read_only_discovery_host_raw.ansible_facts.ansible_devices | default({}) | dict2items | sort(attribute='key') %}
+{% set device_sources = ['/dev/' ~ device.key] + (device.value.partitions | default({}) | list | map('regex_replace', '^', '/dev/') | list) %}
+{% set device_mounts = read_only_discovery_host_raw.ansible_facts.ansible_mounts | default([]) | selectattr('device', 'in', device_sources) | list %}
+      {
+        "name": {{ device.key | to_json }},
+        "size_bytes": {{ ((device.value.sectors | default(0) | int) * (device.value.sectorsize | default(0) | int)) | to_json }},
+        "rotational": {% if device.value.rotational is defined %}{{ ((device.value.rotational | int) != 0) | to_json }}{% else %}null{% endif %},
+        "removable": {% if device.value.removable is defined %}{{ ((device.value.removable | int) != 0) | to_json }}{% else %}null{% endif %},
+        "partition_count": {{ device.value.partitions | default({}) | length }},
+        "direct_mount_observed_for_device_or_partition": {{ (device_mounts | length > 0) | to_json }},
+        "filesystem_types_observed_while_mounted": {{ device_mounts | map(attribute='fstype') | unique | sort | list | to_json }},
+        "partitions": [
+{% for partition in device.value.partitions | default({}) | dict2items | sort(attribute='key') %}
+{% set partition_source = '/dev/' ~ partition.key %}
+{% set partition_mounts = read_only_discovery_host_raw.ansible_facts.ansible_mounts | default([]) | selectattr('device', 'equalto', partition_source) | list %}
+          {
+            "name": {{ partition.key | to_json }},
+            "size_bytes": {{ ((partition.value.sectors | default(0) | int) * (partition.value.sectorsize | default(0) | int)) | to_json }},
+            "direct_mount_observed": {{ (partition_mounts | length > 0) | to_json }},
+            "filesystem_types_observed_while_mounted": {{ partition_mounts | map(attribute='fstype') | unique | sort | list | to_json }}
+          }{% if not loop.last %},{% endif %}
+{% endfor %}
+        ]
+      }{% if not loop.last %},{% endif %}
+{% endfor %}
+    ],
+    "limitations": [
+      "Filesystem types are reported only when present in bounded Ansible mount facts.",
+      "Mount-state booleans indicate only a direct mount-source match; layered storage is not inferred.",
+      "Only the explicitly projected device, partition, filesystem-type, and mount-state indicators are emitted."
+    ]
+  },
   "k3s_datastore": {{ read_only_discovery_datastore_summary | to_nice_json(indent=4) | indent(2) }},
   "kubernetes": {
     "configuration_indicators_only": true,
@@ -25,10 +59,56 @@
         "count": {{ query_result.resources | default([]) | length }},
         "objects": [
 {% for resource in query_result.resources | default([]) %}
+{% if query_result.item.id == 'nodes' %}
+          {
+            "name": {{ resource.get('metadata', {}).get('name', 'unknown') | to_json }},
+            "namespace": {{ resource.get('metadata', {}).get('namespace', 'cluster-scoped') | to_json }},
+            "kubelet_version": {{ resource.get('status', {}).get('nodeInfo', {}).get('kubeletVersion', 'unknown') | to_json }}
+          }{% if not loop.last %},{% endif %}
+{% elif query_result.item.id == 'storage_classes' %}
+          {
+            "name": {{ resource.metadata.name | default('unknown') | to_json }},
+            "provisioner": {{ resource.provisioner | default('unknown') | to_json }},
+            "reclaim_policy": {{ resource.reclaimPolicy | default('unknown') | to_json }},
+            "volume_binding_mode": {{ resource.volumeBindingMode | default('unknown') | to_json }},
+            "allow_volume_expansion": {{ resource.allowVolumeExpansion | default(false) | bool | to_json }}
+          }{% if not loop.last %},{% endif %}
+{% elif query_result.item.id == 'persistent_volumes' %}
+          {
+            "storage_class_name": {{ resource.spec.storageClassName | default('') | to_json }},
+            "phase": {{ resource.status.phase | default('unknown') | to_json }},
+            "capacity_storage": {{ resource.spec.capacity.storage | default('unknown') | to_json }},
+            "access_modes": {{ resource.spec.accessModes | default([]) | to_json }},
+            "volume_mode": {{ resource.spec.volumeMode | default('unknown') | to_json }},
+            "reclaim_policy": {{ resource.spec.persistentVolumeReclaimPolicy | default('unknown') | to_json }},
+            "claim": {% if resource.spec.claimRef is defined %}{
+              "namespace": {{ resource.spec.claimRef.namespace | default('unknown') | regex_replace('(?i)[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', '[generated-id]') | to_json }},
+              "name": {{ resource.spec.claimRef.name | default('unknown') | regex_replace('(?i)[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', '[generated-id]') | to_json }}
+            }{% else %}null{% endif %},
+            "placement": {
+              "host_path_backend": {{ (resource.spec.hostPath is defined) | to_json }},
+              "local_volume_backend": {{ (resource.spec.local is defined) | to_json }},
+              "under_k3s_default_storage_root": {{ ((resource.spec.get('hostPath', {}).get('path', '') | string).startswith('/var/lib/rancher/k3s/storage/')) | to_json }},
+              "node_affinity_required": {{ (resource.spec.get('nodeAffinity', {}).get('required') is not none) | to_json }}
+            }
+          }{% if not loop.last %},{% endif %}
+{% elif query_result.item.kind == 'PersistentVolumeClaim' %}
+          {
+            "name": {{ resource.metadata.name | default('unknown') | regex_replace('(?i)[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', '[generated-id]') | to_json }},
+            "namespace": {{ resource.metadata.namespace | default(query_result.item.namespace) | to_json }},
+            "storage_class_name": {{ resource.spec.storageClassName | default('') | to_json }},
+            "phase": {{ resource.status.phase | default('unknown') | to_json }},
+            "requested_storage": {{ resource.spec.resources.requests.storage | default('unknown') | to_json }},
+            "access_modes": {{ resource.spec.accessModes | default([]) | to_json }},
+            "volume_mode": {{ resource.spec.volumeMode | default('unknown') | to_json }},
+            "bound_volume_present": {{ ((resource.spec.volumeName | default('') | string | length) > 0) | to_json }}
+          }{% if not loop.last %},{% endif %}
+{% else %}
           {
             "name": {{ resource.metadata.name | default('unknown') | to_json }},
             "namespace": {{ resource.metadata.namespace | default('cluster-scoped') | to_json }}
           }{% if not loop.last %},{% endif %}
+{% endif %}
 {% endfor %}
         ]
       }{% if not loop.last %},{% endif %}

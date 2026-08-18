@@ -1,0 +1,15 @@
+---
+rclone_install_approved: false
+rclone_install_rollback_approved: false
+rclone_install_state: present
+rclone_install_operator_user: "{{ ansible_user }}"
+rclone_install_version: "1.71.1"
+rclone_install_sha256sums_url: "https://downloads.rclone.org/v1.71.1/SHA256SUMS"
+rclone_install_sha256sums_sha256: "e7179eb69f2fda1b0a3c933d50a3e34e0f5f7e0fa0145c3e75110298b374d407"
+rclone_install_archive_url: "https://downloads.rclone.org/v1.71.1/rclone-v1.71.1-linux-amd64.zip"
+rclone_install_archive_sha256: "417e3da236f3a12d292da4e7287d67b1df558b8c2b280d092e563958ed724be7"
+rclone_install_binary_sha256: "5409cb410e49903af3517654ccc65c89d89f9dc12d7a97b0e13e09a9be6dc74a"
+rclone_install_archive_path: "/var/cache/rclone/rclone-v1.71.1-linux-amd64.zip"
+rclone_install_version_directory: "/opt/rclone/1.71.1"
+rclone_install_binary_path: "/opt/rclone/1.71.1/rclone"
+rclone_install_selector_path: "/usr/local/bin/rclone"

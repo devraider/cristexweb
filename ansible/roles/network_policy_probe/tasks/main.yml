@@ -1,0 +1,25 @@
+---
+- name: Validate the NetworkPolicy probe request
+  ansible.builtin.include_tasks: preflight.yml
+
+- name: Describe the NetworkPolicy probe plan
+  ansible.builtin.include_tasks: plan.yml
+  when: network_policy_probe_action == 'plan' or ansible_check_mode
+
+- name: Execute the approved temporary NetworkPolicy probe
+  ansible.builtin.include_tasks: run.yml
+  when:
+    - network_policy_probe_action == 'run'
+    - not ansible_check_mode
+
+- name: Validate exact-object cleanup without mutation
+  ansible.builtin.include_tasks: validate_cleanup.yml
+  when:
+    - network_policy_probe_action == 'cleanup'
+    - ansible_check_mode
+
+- name: Execute approved exact-object cleanup
+  ansible.builtin.include_tasks: cleanup.yml
+  when:
+    - network_policy_probe_action == 'cleanup'
+    - not ansible_check_mode

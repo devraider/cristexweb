@@ -1,0 +1,65 @@
+global:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: v3.5.0@sha256:521d6b62ecd0434c9cc6e9242a74f0e1137bb8fc0026b2c483ea88f3f17e725d
+    imagePullPolicy: IfNotPresent
+  networkPolicy:
+    create: false
+configs:
+  secret:
+    createSecret: false
+  cm:
+    admin.enabled: true
+  params:
+    server.insecure: false
+  rbac:
+    policy.default: role:readonly
+controller:
+  replicas: 1
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+dex:
+  enabled: false
+redis:
+  enabled: true
+  image:
+    repository: docker.io/library/redis
+    tag: 8.6.4-alpine@sha256:c64af41b8fc06a2d9b8fde812dd781aa157bed6fcf8ae1656ad4e79f3f9fc9b1
+  automountServiceAccountToken: false
+  serviceAccount:
+    automountServiceAccountToken: false
+  livenessProbe:
+    enabled: true
+  readinessProbe:
+    enabled: true
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {cpu: 200m, memory: 128Mi}
+redis-ha:
+  enabled: false
+redisSecretInit:
+  enabled: false
+server:
+  replicas: 1
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 250m, memory: 256Mi}
+repoServer:
+  replicas: 1
+  automountServiceAccountToken: false
+  serviceAccount:
+    automountServiceAccountToken: false
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+applicationSet:
+  replicas: 0
+notifications:
+  enabled: false
+commitServer:
+  enabled: false

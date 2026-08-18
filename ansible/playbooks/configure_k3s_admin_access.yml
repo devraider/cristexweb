@@ -1,0 +1,358 @@
+---
+- name: Configure approved group-scoped k3s administrator access
+  hosts: k3s_servers
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  serial: 1
+
+  vars:
+    k3s_admin_access_approved: false
+    k3s_admin_group: k3s-admin
+
+  pre_tasks:
+    - name: Require the k3s administrator access approval contract
+      ansible.builtin.assert:
+        that:
+          - k3s_admin_access_approved | bool
+          - (ansible_limit | default('') | string | length) > 0
+          - (ansible_play_hosts_all | length) == 1
+          - k3s_admin_user is defined
+          - k3s_admin_user is match('^[a-z_][a-z0-9_-]*$')
+          - k3s_admin_group == 'k3s-admin'
+        fail_msg: >-
+          k3s administrator access requires explicit approval, an explicit
+          one-host limit, a selected account, and the dedicated k3s-admin group.
+      changed_when: false
+
+    - name: Read local account metadata without exposing it
+      ansible.builtin.getent:
+        database: passwd
+      changed_when: false
+      no_log: true
+
+    - name: Require an existing non-root administrator account
+      ansible.builtin.assert:
+        that:
+          - k3s_admin_user in ansible_facts.getent_passwd
+          - (ansible_facts.getent_passwd[k3s_admin_user][1] | int) != 0
+        fail_msg: "The selected k3s administrator must be an existing non-root account."
+      changed_when: false
+
+    - name: Read local group metadata without exposing it
+      ansible.builtin.getent:
+        database: group
+      changed_when: false
+      no_log: true
+
+    - name: Derive the dedicated group pre-state
+      ansible.builtin.set_fact:
+        k3s_admin_group_preexists: >-
+          {{ k3s_admin_group in ansible_facts.getent_group }}
+        k3s_admin_existing_group: >-
+          {{ ansible_facts.getent_group.get(k3s_admin_group, ['', '', '']) }}
+        k3s_admin_existing_members: >-
+          {{ (ansible_facts.getent_group.get(k3s_admin_group, ['', '', ''])[2]
+              | default('', true)).split(',')
+              | reject('equalto', '') | list }}
+      no_log: true
+
+    - name: Reject an unsafe existing dedicated group GID
+      ansible.builtin.assert:
+        that:
+          - (k3s_admin_existing_group[1] | int) != 0
+        fail_msg: "The pre-existing k3s-admin group has unsafe numeric GID 0."
+      changed_when: false
+      when: k3s_admin_group_preexists | bool
+
+    - name: Reject pre-existing numeric aliases of the dedicated group
+      ansible.builtin.assert:
+        that:
+          - item.key == k3s_admin_group or (item.value[1] | string) != (k3s_admin_existing_group[1] | string)
+        fail_msg: >-
+          Another group shares the k3s-admin numeric GID; refusing to grant
+          cluster-admin kubeconfig access through an aliased group.
+      loop: "{{ ansible_facts.getent_group | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      changed_when: false
+      no_log: true
+      when: k3s_admin_group_preexists | bool
+
+    - name: Reject unexpected supplementary members of the dedicated group
+      ansible.builtin.assert:
+        that:
+          - (k3s_admin_existing_members | difference([k3s_admin_user]) | length) == 0
+        fail_msg: >-
+          The dedicated k3s-admin group already grants access to an unexpected
+          account; refusing to broaden cluster-admin access.
+      changed_when: false
+
+    - name: Reject unexpected primary members of the dedicated group
+      ansible.builtin.assert:
+        that:
+          - (item.value[2] | string) != (k3s_admin_existing_group[1] | string) or item.key == k3s_admin_user
+        fail_msg: >-
+          The dedicated k3s-admin group is already the primary group of an
+          unexpected account; refusing to broaden cluster-admin access.
+      loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      changed_when: false
+      no_log: true
+      when: k3s_admin_group_preexists | bool
+
+  tasks:
+    - name: Inspect the existing k3s configuration without reading it
+      ansible.builtin.stat:
+        path: /etc/rancher/k3s/config.yaml
+        follow: false
+        get_checksum: false
+        get_mime: false
+      register: k3s_admin_config_prestate
+      no_log: true
+
+    - name: Refuse an unsafe existing k3s configuration path
+      ansible.builtin.assert:
+        that:
+          - >-
+            not (k3s_admin_config_prestate.stat.exists | default(false)) or
+            ((k3s_admin_config_prestate.stat.isreg | default(false)) and
+             not (k3s_admin_config_prestate.stat.islnk | default(false)))
+        fail_msg: "Refusing to modify a non-regular or symlinked k3s configuration."
+      changed_when: false
+
+    - name: Inspect the rollback destination without reading it
+      ansible.builtin.stat:
+        path: /etc/rancher/k3s/config.yaml.pre-admin-access
+        follow: false
+        get_checksum: false
+        get_mime: false
+      register: k3s_admin_backup_prestate
+      no_log: true
+
+    - name: Refuse an unsafe existing rollback destination
+      ansible.builtin.assert:
+        that:
+          - >-
+            not (k3s_admin_backup_prestate.stat.exists | default(false)) or
+            ((k3s_admin_backup_prestate.stat.isreg | default(false)) and
+             not (k3s_admin_backup_prestate.stat.islnk | default(false)) and
+             k3s_admin_backup_prestate.stat.pw_name == 'root' and
+             k3s_admin_backup_prestate.stat.gr_name == 'root' and
+             k3s_admin_backup_prestate.stat.mode == '0600')
+        fail_msg: "Refusing to reuse an unsafe k3s rollback destination."
+      changed_when: false
+
+    - name: Preserve the existing k3s configuration for rollback
+      ansible.builtin.copy:
+        src: /etc/rancher/k3s/config.yaml
+        dest: /etc/rancher/k3s/config.yaml.pre-admin-access
+        remote_src: true
+        force: false
+        owner: root
+        group: root
+        mode: "0600"
+      diff: false
+      no_log: true
+      when: k3s_admin_config_prestate.stat.exists | default(false)
+
+    - name: Preserve an empty rollback baseline when config was absent
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/rancher/k3s/config.yaml.pre-admin-access
+        force: false
+        owner: root
+        group: root
+        mode: "0600"
+      diff: false
+      no_log: true
+      when: not (k3s_admin_config_prestate.stat.exists | default(false))
+
+    - name: Create the restricted k3s administrator group
+      ansible.builtin.group:
+        name: "{{ k3s_admin_group }}"
+        state: present
+
+    - name: Refresh group metadata before granting access
+      ansible.builtin.getent:
+        database: group
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Verify the dedicated group numeric identity before granting access
+      ansible.builtin.assert:
+        that:
+          - k3s_admin_group in ansible_facts.getent_group
+          - (ansible_facts.getent_group[k3s_admin_group][1] | int) != 0
+        fail_msg: "The dedicated k3s-admin group has an unsafe numeric identity."
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Verify no numeric group aliases before granting access
+      ansible.builtin.assert:
+        that:
+          - >-
+            item.key == k3s_admin_group or
+            (item.value[1] | string) !=
+            (ansible_facts.getent_group[k3s_admin_group][1] | string)
+        fail_msg: >-
+          Another group shares the k3s-admin numeric GID; refusing to grant
+          cluster-admin kubeconfig access.
+      loop: "{{ ansible_facts.getent_group | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Verify no unexpected primary members before granting access
+      ansible.builtin.assert:
+        that:
+          - >-
+            (item.value[2] | string) !=
+            (ansible_facts.getent_group[k3s_admin_group][1] | string) or
+            item.key == k3s_admin_user
+        fail_msg: >-
+          The dedicated k3s-admin numeric GID is already a primary group for an
+          unexpected account; refusing to grant cluster-admin access.
+      loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Add the approved user to the k3s administrator group
+      ansible.builtin.user:
+        name: "{{ k3s_admin_user }}"
+        groups:
+          - "{{ k3s_admin_group }}"
+        append: true
+        create_home: false
+      when: not ansible_check_mode or (k3s_admin_group_preexists | bool)
+
+    - name: Refresh dedicated group membership before configuring access
+      ansible.builtin.getent:
+        database: group
+        key: "{{ k3s_admin_group }}"
+        fail_key: true
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Verify exclusive dedicated group membership before configuring access
+      ansible.builtin.assert:
+        that:
+          - k3s_admin_user in ansible_facts.getent_group[k3s_admin_group][2].split(',')
+          - >-
+            (ansible_facts.getent_group[k3s_admin_group][2].split(',')
+             | reject('equalto', '')
+             | difference([k3s_admin_user]) | length) == 0
+        fail_msg: >-
+          The dedicated k3s-admin group does not contain exactly the selected
+          administrator account.
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Predict membership change when the group is new
+      ansible.builtin.debug:
+        msg: >-
+          Check mode: the selected user would be appended to the newly created
+          dedicated k3s-admin group.
+      changed_when: true
+      when:
+        - ansible_check_mode
+        - not (k3s_admin_group_preexists | bool)
+
+    - name: Configure the kubeconfig group
+      ansible.builtin.lineinfile:
+        path: /etc/rancher/k3s/config.yaml
+        regexp: '^write-kubeconfig-group\s*:'
+        line: 'write-kubeconfig-group: "{{ k3s_admin_group }}"'
+        create: true
+        owner: root
+        group: root
+        mode: "0600"
+      diff: false
+      no_log: true
+      notify: Restart k3s
+
+    - name: Configure the kubeconfig mode
+      ansible.builtin.lineinfile:
+        path: /etc/rancher/k3s/config.yaml
+        regexp: '^write-kubeconfig-mode\s*:'
+        line: 'write-kubeconfig-mode: "0640"'
+        create: true
+        owner: root
+        group: root
+        mode: "0600"
+      diff: false
+      no_log: true
+      notify: Restart k3s
+
+    - name: Apply the approved kubeconfig settings
+      ansible.builtin.meta: flush_handlers
+
+    - name: Inspect the regenerated kubeconfig
+      ansible.builtin.stat:
+        path: /etc/rancher/k3s/k3s.yaml
+        follow: false
+        get_checksum: false
+        get_mime: false
+      register: k3s_admin_kubeconfig
+      no_log: true
+      until: >-
+        (k3s_admin_kubeconfig.stat.exists | default(false)) and
+        (k3s_admin_kubeconfig.stat.isreg | default(false)) and
+        (k3s_admin_kubeconfig.stat.pw_name | default('') == 'root') and
+        (k3s_admin_kubeconfig.stat.gr_name | default('') == k3s_admin_group) and
+        (k3s_admin_kubeconfig.stat.mode | default('') == '0640')
+      retries: 15
+      delay: 2
+      when: not ansible_check_mode
+
+    - name: Verify the regenerated kubeconfig access
+      ansible.builtin.assert:
+        that:
+          - k3s_admin_kubeconfig.stat.exists | default(false)
+          - k3s_admin_kubeconfig.stat.isreg | default(false)
+          - k3s_admin_kubeconfig.stat.pw_name == 'root'
+          - k3s_admin_kubeconfig.stat.gr_name == k3s_admin_group
+          - k3s_admin_kubeconfig.stat.mode == '0640'
+          - k3s_admin_user in ansible_facts.getent_group[k3s_admin_group][2].split(',')
+        fail_msg: >-
+          k3s did not regenerate the kubeconfig with the approved root/k3s-admin
+          0640 access contract and selected group member.
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Inspect kubeconfig access as the approved user
+      ansible.builtin.stat:
+        path: /etc/rancher/k3s/k3s.yaml
+        follow: false
+        get_checksum: false
+        get_mime: false
+      become: true
+      become_user: "{{ k3s_admin_user }}"
+      register: k3s_admin_user_kubeconfig
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Verify kubeconfig readability as the approved user
+      ansible.builtin.assert:
+        that:
+          - k3s_admin_user_kubeconfig.stat.readable | default(false)
+        fail_msg: >-
+          The selected account cannot read the kubeconfig despite the approved
+          group and mode; inspect effective groups and parent-directory traversal.
+      changed_when: false
+      when: not ansible_check_mode
+
+  handlers:
+    - name: Restart k3s
+      ansible.builtin.service:
+        name: k3s
+        state: restarted

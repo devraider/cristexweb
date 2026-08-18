@@ -1,0 +1,24 @@
+---
+apiVersion: secrets.infisical.com/v1beta1
+kind: InfisicalAuth
+metadata:
+  name: rabbitmq-infisical-auth
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-rabbitmq-secrets
+spec:
+  infisicalConnectionRef:
+    name: infisical-cloud
+    namespace: shared-services
+  method: universal
+  universal:
+    clientIdRef:
+      name: rabbitmq-infisical-universal-auth
+      namespace: shared-services
+      key: clientId
+    clientSecretRef:
+      name: rabbitmq-infisical-universal-auth
+      namespace: shared-services
+      key: clientSecret

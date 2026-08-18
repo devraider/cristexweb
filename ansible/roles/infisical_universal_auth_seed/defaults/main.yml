@@ -1,0 +1,47 @@
+---
+# yamllint disable rule:line-length rule:indentation
+infisical_universal_auth_seed_approved: false
+infisical_universal_auth_seed_kubeconfig: /etc/rancher/k3s/k3s.yaml
+infisical_universal_auth_seed_controller_user: '{{ lookup(''ansible.builtin.env'', ''USER'') }}'
+infisical_universal_auth_seed_repository_root: '{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}'
+infisical_universal_auth_seed_datastore_evidence_path: '{{ infisical_universal_auth_seed_repository_root }}/ansible/.ansible/k3s-datastore-preflight.local.json'
+infisical_universal_auth_seed_recovery_evidence_path: '{{ infisical_universal_auth_seed_repository_root }}/ansible/.ansible/k3s-secret-encryption-recovery.local.json'
+infisical_universal_auth_seed_definitions: []
+infisical_universal_auth_seed_namespace_contracts:
+  argocd:
+    app.kubernetes.io/part-of: cristex-platform
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+  shared-services:
+    app.kubernetes.io/part-of: cristex-platform
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+infisical_universal_auth_seed_credential_contracts:
+  - component: argocd
+    name: argocd-infisical-universal-auth
+    namespace: argocd
+    type: Opaque
+    keys:
+      - clientId
+      - clientSecret
+    labels: &credential_labels
+      app.kubernetes.io/managed-by: ansible
+      app.kubernetes.io/part-of: infisical-operator
+      cristex.io/component: infisical-runtime-auth
+      cristex.io/value-owner: infisical-cloud
+  - component: shared-postgresql
+    name: shared-postgresql-infisical-universal-auth
+    namespace: shared-services
+    type: Opaque
+    keys:
+      - clientId
+      - clientSecret
+    labels: *credential_labels
+  - component: shared-mongodb
+    name: shared-mongodb-infisical-universal-auth
+    namespace: shared-services
+    type: Opaque
+    keys:
+      - clientId
+      - clientSecret
+    labels: *credential_labels

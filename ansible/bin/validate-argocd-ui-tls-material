@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+usage='usage: ansible/bin/validate-argocd-ui-tls-material CERT PEM KEY PEM'
+[ "$#" -eq 2 ] || { printf '%s\n' "$usage" >&2; exit 64; }
+cert=$1; key=$2
+for path in "$cert" "$key"; do
+  [ -f "$path" ] && [ ! -L "$path" ] || { printf '%s\n' 'Refusing missing or symlinked TLS input.' >&2; exit 66; }
+  mode=$(/usr/bin/stat -c '%a' -- "$path")
+  [ "$mode" = 600 ] || { printf '%s\n' 'Refusing TLS input outside mode 0600.' >&2; exit 66; }
+done
+/usr/bin/openssl x509 -in "$cert" -noout -checkhost argo.cristex-soft.com >/dev/null
+/usr/bin/openssl x509 -in "$cert" -noout -checkend 86400 >/dev/null
+/usr/bin/openssl x509 -in "$cert" -noout -text | /usr/bin/grep -Fq 'DNS:argo.cristex-soft.com' || { printf '%s\n' 'Refusing certificate without exact hostname SAN.' >&2; exit 66; }
+cert_pub=$(/usr/bin/mktemp); key_pub=$(/usr/bin/mktemp)
+cleanup() { /bin/rm -f -- "$cert_pub" "$key_pub"; }
+trap cleanup EXIT HUP INT TERM
+/usr/bin/openssl x509 -in "$cert" -pubkey -noout | /usr/bin/openssl pkey -pubin -outform DER | /usr/bin/sha256sum >"$cert_pub"
+/usr/bin/openssl pkey -in "$key" -pubout -outform DER | /usr/bin/sha256sum >"$key_pub"
+/usr/bin/cmp -s "$cert_pub" "$key_pub" || { printf '%s\n' 'Refusing certificate/key mismatch.' >&2; exit 66; }
+printf '%s\n' 'argocd_ui_tls_material=valid san=exact key_match=verified residue=none'

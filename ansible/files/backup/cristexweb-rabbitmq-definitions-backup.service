@@ -1,0 +1,46 @@
+[Unit]
+Description=CristexWeb encrypted RabbitMQ definitions backup to Google Drive
+Documentation=file:///home/paul/projects/cristexweb/runbooks/shared-stateful-backup-architecture.md
+After=network-online.target k3s.service tailscaled.service
+Wants=network-online.target
+Requires=k3s.service
+
+[Service]
+Type=oneshot
+User=paul
+Group=paul
+SupplementaryGroups=k3s-admin
+UMask=0077
+ExecStart=/usr/local/libexec/cristexweb/rabbitmq-shared-definitions-backup
+TimeoutStartSec=30min
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/cristexweb-backup /run/lock /home/paul/.config/rclone
+ProtectKernelTunables=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cristexweb-rabbitmq-definitions-backup
+LogExtraFields=BACKUP_SERVICE=rabbitmq BACKUP_PURPOSE=definitions
+
+[Install]
+WantedBy=multi-user.target

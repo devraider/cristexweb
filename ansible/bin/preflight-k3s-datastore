@@ -1,0 +1,66 @@
+#!/bin/sh
+set -eu
+
+usage='usage: ansible/bin/preflight-k3s-datastore check'
+if [ "$#" -ne 1 ] || [ "$1" != check ]; then
+  printf '%s\n' "$usage" >&2
+  printf '%s\n' 'refusing apply, passthrough arguments, --start-at-task, --step, tags, or task selection' >&2
+  exit 64
+fi
+
+script_path=$0
+if [ -L "$script_path" ]; then
+  printf '%s\n' 'refusing a symlinked k3s datastore preflight entrypoint' >&2
+  exit 66
+fi
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
+controller_home="$(CDPATH= cd -- "$repository_root/../.." && pwd -P)"
+controller_user="$(/usr/bin/id -un)"
+if [ "$repository_root" != "$controller_home/Projects/cristexweb" ]; then
+  printf '%s\n' 'refusing a repository outside the pinned controller path' >&2
+  exit 78
+fi
+controller="$repository_root/.venv/bin/ansible-playbook"
+if [ ! -f "$controller" ] || [ ! -x "$controller" ] || [ -L "$controller" ]; then
+  printf '%s\n' 'refusing an absent, non-executable, or symlinked pinned Ansible controller' >&2
+  exit 69
+fi
+cd -- "$repository_root/ansible"
+
+umask 077
+attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-k3s-datastore-preflight.XXXXXX")"
+attestation_token="$(/usr/bin/openssl rand -hex 32)"
+printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+/bin/chmod 0600 "$attestation_file"
+cleanup() {
+  /bin/rm -f -- "$attestation_file"
+}
+trap cleanup EXIT HUP INT TERM
+
+set -- \
+  "$controller" \
+  -i .ansible/inventory.local.yml \
+  playbooks/preflight_k3s_datastore.yml \
+  --check \
+  --diff \
+  --limit crtxweb \
+  --become \
+  --ask-become-pass \
+  --extra-vars '{"k3s_datastore_preflight_approved":true,"k3s_datastore_preflight_elevated_requested":true,"k3s_datastore_preflight_elevated_approved":true}'
+
+if [ -n "${SSH_AUTH_SOCK:-}" ]; then
+  set -- "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" "$@"
+fi
+
+/usr/bin/env -i \
+  HOME="$controller_home" \
+  USER="$controller_user" \
+  LOGNAME="$controller_user" \
+  PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+  LC_ALL=C.UTF-8 \
+  ANSIBLE_CONFIG="$PWD/ansible.cfg" \
+  CRISTEXWEB_K3S_DATASTORE_PREFLIGHT_ENTRYPOINT=v1 \
+  CRISTEXWEB_K3S_DATASTORE_PREFLIGHT_TOKEN="$attestation_token" \
+  CRISTEXWEB_K3S_DATASTORE_PREFLIGHT_ATTESTATION_FILE="$attestation_file" \
+  "$@"

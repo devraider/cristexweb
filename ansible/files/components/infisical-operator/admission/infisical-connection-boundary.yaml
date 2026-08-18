@@ -1,0 +1,33 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: infisical-connection-boundary
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-operator
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - secrets.infisical.com
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - infisicalconnections
+        scope: Namespaced
+  validations:
+    - expression: request.namespace in ['shared-services', 'argocd', 'cristexhub-dev', 'platform-edge']
+      message: Only the four reviewed namespaces may contain Infisical custom resources.
+      reason: Forbidden
+    - expression: "!has(object.spec.address) || object.spec.address == '' || object.spec.address == 'https://app.infisical.com'"
+      message: Only Infisical Cloud API is allowed.
+      reason: Forbidden
+    - expression: "!has(object.spec.tls) || !has(object.spec.tls.caCertificate) || object.spec.tls.caCertificate.namespace == request.namespace"
+      message: TLS CA references must remain in the object namespace.
+      reason: Forbidden

@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: infisical-egress-proxy
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-operator
+data:
+  squid.conf: "visible_hostname infisical-egress-proxy\ndns_nameservers 1.1.1.1\nhttps_port 3129 tls-cert=/etc/squid/proxy-tls/tls.crt tls-key=/etc/squid/proxy-tls/tls.key\nauth_param basic
+    program /usr/lib/squid/basic_ncsa_auth /etc/squid/auth/users\nauth_param basic realm cristexhub-egress\nauth_param basic credentialsttl 5 minutes\nacl authenticated
+    proxy_auth REQUIRED\nacl connect_method method CONNECT\nacl infisical_host dstdomain app.infisical.com\nacl tls_port port 443\nacl forbidden_dst dst 0.0.0.0/8
+    10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.0.0/24 192.0.2.0/24 192.168.0.0/16 198.18.0.0/15 198.51.100.0/24 203.0.113.0/24 224.0.0.0/4
+    240.0.0.0/4\nacl forbidden_dst dst ::/128 ::1/128 64:ff9b::/96 100::/64 2001:db8::/32 fc00::/7 fe80::/10 ff00::/8\nhttp_access deny !connect_method\nhttp_access
+    deny !tls_port\nhttp_access deny !infisical_host\nhttp_access deny forbidden_dst\nhttp_access allow authenticated connect_method tls_port infisical_host\nhttp_access
+    deny all\ncache deny all\naccess_log stdio:/dev/stdout\ncache_log stdio:/dev/stderr\npid_filename none\n"

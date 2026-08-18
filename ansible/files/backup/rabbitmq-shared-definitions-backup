@@ -1,0 +1,92 @@
+#!/bin/sh
+set -eu
+umask 077
+PATH=/usr/local/bin:/usr/bin:/bin
+export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null
+
+namespace=shared-services
+management_service=shared-rabbitmq-management
+admin_secret=shared-rabbitmq-admin
+tls_secret=shared-rabbitmq-tls
+recipient_file=/etc/cristexweb-backup/age.recipient
+recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
+rclone_config=/home/paul/.config/rclone/rclone.conf
+archive_root=/var/lib/cristexweb-backup/rabbitmq/definitions
+remote_root=drive:cristexweb-recovery/rabbitmq/definitions
+lock_file=/run/lock/cristexweb-rabbitmq-definitions-backup.lock
+
+exec 9>"$lock_file"
+/usr/bin/flock -n 9 || { printf '%s\n' 'backup_status=refused reason=concurrent_run'; exit 75; }
+[ -f "$recipient_file" ] && [ ! -L "$recipient_file" ] &&
+  [ "$(/usr/bin/sha256sum "$recipient_file" | /usr/bin/cut -d ' ' -f 1)" = "$recipient_sha256" ] || {
+  printf '%s\n' 'backup_status=failed stage=recipient_contract'; exit 1;
+}
+recipient=$(/usr/bin/tr -d '\n' <"$recipient_file")
+printf '%s\n' "$recipient" | /usr/bin/grep -Eq '^age1[0-9a-z]+$' || exit 1
+[ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] &&
+  [ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || {
+  printf '%s\n' 'backup_status=failed stage=rclone_config_contract'; exit 1;
+}
+
+ready=$(/usr/local/bin/kubectl -n "$namespace" get pods -l app.kubernetes.io/name=rabbitmq -o jsonpath='{.items[0].status.containerStatuses[?(@.name=="rabbitmq")].ready}')
+[ "$ready" = true ] || { printf '%s\n' 'backup_status=failed stage=rabbitmq_readiness'; exit 1; }
+
+timestamp=$(/usr/bin/date -u +%Y%m%dT%H%M%SZ)
+run_directory="$archive_root/$timestamp"
+remote_directory="$remote_root/$timestamp"
+[ ! -e "$run_directory" ] || { printf '%s\n' 'backup_status=refused reason=local_timestamp_collision'; exit 73; }
+/usr/bin/install -d -m 0700 "$run_directory"
+work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-rabbitmq-backup.XXXXXX)
+cleanup() { /usr/bin/rm -rf -- "$work"; /usr/bin/rm -f -- "$run_directory/definitions.json"; }
+trap cleanup EXIT HUP INT TERM
+chmod 0700 "$work"
+/usr/local/bin/kubectl -n "$namespace" get secret "$admin_secret" -o json >"$work/admin.json"
+/usr/local/bin/kubectl -n "$namespace" get secret "$tls_secret" -o json >"$work/tls.json"
+SECRET="$work/admin.json" TLS="$work/tls.json" /usr/bin/python3 - <<'PY'
+import base64,json,os
+secret=json.load(open(os.environ['SECRET']))
+tls=json.load(open(os.environ['TLS']))
+assert secret['type']=='Opaque' and set(secret['data'])=={'username','password'}
+assert tls['type']=='kubernetes.io/tls' and set(tls['data'])=={'ca.crt','tls.crt','tls.key'}
+for key,filename in [('ca.crt','ca.crt')]:
+    with open(os.path.join(os.path.dirname(os.environ['TLS']),filename),'wb') as f:
+        f.write(base64.b64decode(tls['data'][key]))
+with open(os.path.join(os.path.dirname(os.environ['SECRET']),'curl.conf'),'w') as f:
+    f.write('silent\nshow-error\nfail\nurl = "https://%s.%s.svc:15671/api/definitions"\nuser = "%s:%s"\ncacert = "%s"\noutput = "%s"\n' % (
+        'shared-rabbitmq-management','shared-services',
+        base64.b64decode(secret['data']['username']).decode(),
+        base64.b64decode(secret['data']['password']).decode(),
+        os.path.join(os.path.dirname(os.environ['TLS']),'ca.crt'),
+        os.path.join(os.path.dirname(os.environ['TLS']),'definitions.json')))
+PY
+chmod 0600 "$work"/*
+/usr/bin/curl --config "$work/curl.conf"
+[ -s "$work/definitions.json" ] || { printf '%s\n' 'backup_status=failed stage=definitions_empty'; exit 1; }
+FILE="$work/definitions.json" /usr/bin/python3 - <<'PY'
+import json,os
+x=json.load(open(os.environ['FILE']))
+assert isinstance(x,dict) and isinstance(x.get('vhosts'),list)
+assert isinstance(x.get('permissions',[]),list) and isinstance(x.get('queues',[]),list)
+PY
+start_epoch=$(/usr/bin/date +%s)
+/usr/bin/gzip -9 -c "$work/definitions.json" | /usr/bin/age -r "$recipient" -o "$run_directory/rabbitmq-definitions.json.gz.age"
+/usr/bin/rm -rf -- "$work"
+trap - EXIT HUP INT TERM
+(cd "$run_directory" && /usr/bin/sha256sum rabbitmq-definitions.json.gz.age >rabbitmq-definitions.json.gz.age.sha256)
+archive_bytes=$(/usr/bin/stat -c %s "$run_directory/rabbitmq-definitions.json.gz.age")
+archive_sha256=$(/usr/bin/cut -d ' ' -f 1 "$run_directory/rabbitmq-definitions.json.gz.age.sha256")
+duration_seconds=$(( $(/usr/bin/date +%s) - start_epoch ))
+/usr/bin/printf '{"schema":1,"service":"rabbitmq","purpose":"definitions","created_at_utc":"%s","archive":"rabbitmq-definitions.json.gz.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","source_version":"4.3.4","consistency":"definitions-and-policies"}\n' "$timestamp" "$archive_bytes" "$archive_sha256" >"$run_directory/manifest.json"
+for leaf in rabbitmq-definitions.json.gz.age rabbitmq-definitions.json.gz.age.sha256 manifest.json; do
+  /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/$leaf" "$remote_directory/$leaf"
+done
+readback=$(/usr/bin/mktemp -d "$run_directory/.readback.XXXXXX")
+trap '/usr/bin/rm -rf -- "$readback"' EXIT HUP INT TERM
+for leaf in rabbitmq-definitions.json.gz.age rabbitmq-definitions.json.gz.age.sha256 manifest.json; do
+  /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_directory/$leaf" "$readback/$leaf"
+  /usr/bin/cmp -s "$run_directory/$leaf" "$readback/$leaf" || { printf 'backup_status=failed stage=readback leaf=%s\n' "$leaf"; exit 1; }
+done
+/usr/bin/rm -rf -- "$readback"
+trap - EXIT HUP INT TERM
+/usr/bin/find "$archive_root" -mindepth 1 -maxdepth 1 -type d -mtime +14 -name '20[0-9][0-9][01][0-9][0-3][0-9]T[0-2][0-9][0-5][0-9][0-5][0-9]Z' -exec /usr/bin/rm -rf -- {} +
+printf 'backup_status=success service=rabbitmq purpose=definitions timestamp=%s archive_bytes=%s duration_seconds=%s readback=verified\n' "$timestamp" "$archive_bytes" "$duration_seconds"

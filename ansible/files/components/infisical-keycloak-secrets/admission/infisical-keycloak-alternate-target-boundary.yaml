@@ -1,0 +1,22 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: infisical-keycloak-alternate-target-boundary
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-keycloak-secrets
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [secrets.infisical.com]
+        apiVersions: [v1alpha1]
+        operations: [CREATE, UPDATE]
+        resources: [infisicalsecrets, infisicalpushsecrets, infisicaldynamicsecrets]
+        scope: Namespaced
+  validations:
+    - expression: request.namespace != 'shared-services'
+      message: Alternate target-producing Infisical CR kinds are forbidden in shared-services.
+      reason: Forbidden

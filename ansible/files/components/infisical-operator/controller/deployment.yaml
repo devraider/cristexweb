@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: infisical-operator-controller
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-operator
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: infisical-operator-controller
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        cristex.io/identity-access-generation: "4"
+        cristex.io/proxy-config-sha256: e3df9588dc4b140593fcc970717f28625106a8a09bea70a442316ce71f086615
+      labels:
+        app.kubernetes.io/part-of: cristex-platform
+        app.kubernetes.io/managed-by: ansible
+        cristex.io/component: infisical-operator
+        app.kubernetes.io/name: infisical-operator-controller
+    spec:
+      serviceAccountName: infisical-operator-controller
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: manager
+        image: docker.io/infisical/kubernetes-operator@sha256:5f1767f440407d8f10fb8bd7e051e26ecf18f16731a64273c20fe206947510ae
+        imagePullPolicy: IfNotPresent
+        command:
+        - /manager
+        args:
+        - --metrics-bind-address=0
+        - --leader-elect
+        - --health-probe-bind-address=:8081
+        - --namespaces=shared-services,argocd,cristexhub-dev,platform-edge
+        env:
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: cluster.local
+        - name: KUBERNETES_SERVICE_HOST
+          value: kubernetes.default.svc
+        - name: KUBERNETES_SERVICE_PORT
+          value: '443'
+        - name: NO_PROXY
+          value: .svc,.cluster.local,kubernetes.default.svc,localhost,127.0.0.1
+        - name: SSL_CERT_FILE
+          value: /etc/infisical-proxy-ca/ca.crt
+        - name: HTTPS_PROXY
+          valueFrom:
+            secretKeyRef:
+              name: infisical-egress-proxy-client
+              key: proxy-url
+        - name: INFISICAL_HOST_API
+          value: https://app.infisical.com/api
+        - name: INFISICAL_LOG_WRITER
+          value: stderr
+        ports:
+        - name: health
+          containerPort: 8081
+          protocol: TCP
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: proxy-ca
+          mountPath: /etc/infisical-proxy-ca
+          readOnly: true
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: proxy-ca
+        secret:
+          secretName: infisical-egress-proxy-tls
+          items:
+          - key: ca.crt
+            path: ca.crt
+          defaultMode: 292

@@ -1,0 +1,8 @@
+---
+- name: Bootstrap the approved private standalone MongoDB closure
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  roles:
+    - role: mongodb_bootstrap

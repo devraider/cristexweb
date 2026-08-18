@@ -1,0 +1,158 @@
+---
+# yamllint disable rule:line-length rule:indentation
+infisical_database_secrets_bootstrap_approved: false
+infisical_database_secrets_bootstrap_state: present
+infisical_database_secrets_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+infisical_database_secrets_bootstrap_repository_root: '{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}'
+infisical_database_secrets_bootstrap_controller_user: '{{ lookup(''ansible.builtin.env'', ''USER'') }}'
+infisical_database_secrets_bootstrap_namespace: shared-services
+infisical_database_secrets_bootstrap_manifest_paths:
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-secret-write-boundary.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-secret-write-boundary-binding.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-alternate-target-boundary.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-alternate-target-boundary-binding.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-static-secret-boundary.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-static-secret-boundary-binding.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-source-boundary.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-source-boundary-binding.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/rbac/infisical-database-secret-writer-role.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/rbac/infisical-database-secret-writer-rolebinding.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/source/infisical-cloud-connection.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/source/shared-postgresql-infisical-auth.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/source/shared-postgresql-infisical-secrets.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-auth.yaml'
+  - '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml'
+infisical_database_secrets_bootstrap_object_count: 15
+infisical_database_secrets_bootstrap_admission_count: 8
+infisical_database_secrets_bootstrap_rbac_count: 2
+infisical_database_secrets_bootstrap_source_count: 5
+infisical_database_secrets_bootstrap_project_slug: cristexweb-infrastructure
+infisical_database_secrets_bootstrap_environment_slug: prod
+infisical_database_secrets_bootstrap_credential_contracts:
+  - name: shared-postgresql-infisical-universal-auth
+    namespace: shared-services
+    type: Opaque
+    keys:
+      - clientId
+      - clientSecret
+    labels: &credential_labels
+      app.kubernetes.io/managed-by: ansible
+      app.kubernetes.io/part-of: infisical-operator
+      cristex.io/component: infisical-runtime-auth
+      cristex.io/value-owner: infisical-cloud
+  - name: shared-mongodb-infisical-universal-auth
+    namespace: shared-services
+    type: Opaque
+    keys:
+      - clientId
+      - clientSecret
+    labels: *credential_labels
+infisical_database_secrets_bootstrap_target_contract:
+  shared-postgresql-admin:
+    type: Opaque
+    keys:
+      - password
+      - username
+  shared-postgresql-tls:
+    type: kubernetes.io/tls
+    keys:
+      - ca.crt
+      - tls.crt
+      - tls.key
+  shared-postgresql-cristexhub-dev:
+    type: Opaque
+    keys:
+      - password
+      - username
+  shared-postgresql-cristexhub-prod:
+    type: Opaque
+    keys:
+      - password
+      - username
+  shared-postgresql-reactive-resume-dev:
+    type: Opaque
+    keys:
+      - password
+      - username
+  shared-postgresql-reactive-resume-prod:
+    type: Opaque
+    keys:
+      - password
+      - username
+  shared-postgresql-keycloak:
+    type: Opaque
+    keys:
+      - password
+      - username
+  shared-mongodb-auth:
+    type: Opaque
+    keys:
+      - password
+      - username
+  shared-mongodb-tls:
+    type: Opaque
+    keys:
+      - ca.crt
+      - tls.pem
+  shared-mongodb-cristexhub-dev:
+    type: Opaque
+    keys:
+      - password
+      - username
+  shared-mongodb-cristexhub-prod:
+    type: Opaque
+    keys:
+      - password
+      - username
+infisical_database_secrets_bootstrap_target_count: 11
+infisical_database_secrets_bootstrap_source_names:
+  - infisical-cloud
+  - shared-postgresql-infisical-auth
+  - shared-postgresql-infisical-secrets
+  - shared-mongodb-infisical-auth
+  - shared-mongodb-infisical-secrets
+infisical_database_secrets_bootstrap_crd_names:
+  - infisicalconnections.secrets.infisical.com
+  - infisicalauths.secrets.infisical.com
+  - infisicalstaticsecrets.secrets.infisical.com
+  - infisicalsecrets.secrets.infisical.com
+  - infisicalpushsecrets.secrets.infisical.com
+  - infisicaldynamicsecrets.secrets.infisical.com
+infisical_database_secrets_bootstrap_alternate_target_crs:
+  - api_version: secrets.infisical.com/v1alpha1
+    kind: InfisicalSecret
+  - api_version: secrets.infisical.com/v1alpha1
+    kind: InfisicalPushSecret
+  - api_version: secrets.infisical.com/v1alpha1
+    kind: InfisicalDynamicSecret
+infisical_database_secrets_bootstrap_expected_hashes:
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-secret-write-boundary.yaml'
+    sha256: 80896e2a3651acef585b6956793dd69f0bc3e9a10a3faaa3fc732ae812daef33
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-secret-write-boundary-binding.yaml'
+    sha256: 0556b5835602aab0b59200c7cffbb0e488cf7ecc12480f5d02c93b1e5b142699
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-alternate-target-boundary.yaml'
+    sha256: 853e8d6871dd157d75270d19c8b37ac2b1c408bacc1c7521b4284ca97543f0b5
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-alternate-target-boundary-binding.yaml'
+    sha256: 375e2362107cc27adb81345b4eb756e3b6ad3340ded6d43f46bd55202a6567d7
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-static-secret-boundary.yaml'
+    sha256: e89e986d89950ad99ee0724423c839d57a6d5a88e1e80f2b505dc7a7214e0536
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-static-secret-boundary-binding.yaml'
+    sha256: 2aacb409bc9fd357ce1de1412da2cbba9f85271d9805cfcf17efe6d45965b302
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-source-boundary.yaml'
+    sha256: e9f98618bcf69258076d7ab9f20c3979b11cbc55914bde0e33a6076f5948b1b4
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-source-boundary-binding.yaml'
+    sha256: 9d8040d516f169f19784404f511ee9e35d34fc4788b8028d15ecdaaf26d001df
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/rbac/infisical-database-secret-writer-role.yaml'
+    sha256: c1176008bd3bc591ad76fec44c0125a87c0b29f3d9ec5518e63a9574e1222db3
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/rbac/infisical-database-secret-writer-rolebinding.yaml'
+    sha256: 9963b7d7e9fe40f521d43c0000ebab768cc6f95322b90196d7d457c60523919d
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/source/infisical-cloud-connection.yaml'
+    sha256: 701558f35f7473e2476f48ddf1298d0d3fe1e9c69fdd5e4e621ef196972b5a0f
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/source/shared-postgresql-infisical-auth.yaml'
+    sha256: 74403fe4ffcb4cbce0af59c1e2b92f76d9613ebd5ce752b9a197ad7f90a979d2
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/source/shared-postgresql-infisical-secrets.yaml'
+    sha256: 72a1c0dc5a7e801eb0201b5549afcac1c61656eb1c23cbb2f44a5d2a392d8635
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-auth.yaml'
+    sha256: 7449e49d5a73da51f3915eb9e84d63800330e4d2c1142ff9539676f069660dcf
+  - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml'
+    sha256: dba0e83942063c389aadb8b11a7ac24acdbadb214bb825e3dfcc7330b619dad0

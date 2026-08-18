@@ -1,0 +1,14 @@
+---
+cristexhub_prod_namespace_bootstrap_approved: false
+cristexhub_prod_namespace_bootstrap_state: present
+cristexhub_prod_namespace_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+cristexhub_prod_namespace_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+cristexhub_prod_namespace_bootstrap_repository_root: >-
+  {{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}
+cristexhub_prod_namespace_bootstrap_controller_path_components:
+  - "{{ cristexhub_prod_namespace_bootstrap_repository_root }}"
+  - "{{ cristexhub_prod_namespace_bootstrap_repository_root }}/kubernetes"
+  - "{{ cristexhub_prod_namespace_bootstrap_repository_root }}/kubernetes/applications"
+  - "{{ cristexhub_prod_namespace_bootstrap_repository_root }}/kubernetes/applications/namespaces"
+cristexhub_prod_namespace_bootstrap_manifest_paths:
+  - "{{ cristexhub_prod_namespace_bootstrap_repository_root }}/kubernetes/applications/namespaces/cristexhub-prod.yaml"

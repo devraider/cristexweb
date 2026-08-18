@@ -1,0 +1,137 @@
+- name: Reject externally supplied registration internals
+  ansible.builtin.assert:
+    that: item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied registration internal {{ item }}."
+  loop: [cristexhub_dev_registration_internal_manifests, cristexhub_dev_registration_internal_states, cristexhub_dev_registration_internal_attestation_state]
+  changed_when: false
+- name: Require the exact non-passthrough registration contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_DEV_REGISTRATION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_DEV_REGISTRATION_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_DEV_REGISTRATION_ATTESTATION_FILE') | length > 0
+      - cristexhub_dev_registration_approved | bool
+      - cristexhub_dev_registration_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - cristexhub_dev_registration_manifest_paths | length == 5
+      - cristexhub_dev_registration_expected_hashes | length == 5
+      - cristexhub_dev_registration_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+      - cristexhub_dev_registration_revision == '57fffab4585fed12161144de7114c8ad05f3ba94'
+      - cristexhub_dev_registration_path == 'infra/kubernetes/cristexhub-dev'
+    fail_msg: Refusing unapproved or non-canonical CristexHub DEV registration.
+  changed_when: false
+- name: Inspect canonical registration manifests
+  ansible.builtin.stat:
+    path: '{{ item }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: '{{ cristexhub_dev_registration_manifest_paths }}'
+  register: cristexhub_dev_registration_internal_states
+  delegate_to: localhost
+  changed_when: false
+- name: Require hash-bound registration manifests
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - item.stat.mode == '0644'
+      - item.stat.checksum == (cristexhub_dev_registration_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - item.item.startswith(cristexhub_dev_registration_repository_root ~ '/ansible/files/components/cristexhub-dev-registration/')
+    fail_msg: Refusing hash-drifted registration source.
+  loop: '{{ cristexhub_dev_registration_internal_states.results }}'
+  delegate_to: localhost
+  changed_when: false
+- name: Load exact registration objects
+  ansible.builtin.set_fact:
+    cristexhub_dev_registration_internal_manifests: '{{ (cristexhub_dev_registration_internal_manifests | default([])) + [(lookup("ansible.builtin.file", item) | from_yaml)] }}'
+  loop: '{{ cristexhub_dev_registration_manifest_paths }}'
+  changed_when: false
+  no_log: true
+- name: Query exact CristexHub DEV Namespace prerequisite
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: cristexhub-dev
+    kubeconfig: '{{ cristexhub_dev_registration_kubeconfig }}'
+  register: cristexhub_dev_registration_internal_namespace
+  changed_when: false
+- name: Query Infisical-owned Argo repository credential metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: argocd
+    name: argocd-repository-cristexhub
+    kubeconfig: '{{ cristexhub_dev_registration_kubeconfig }}'
+  register: cristexhub_dev_registration_internal_repository_secret
+  changed_when: false
+  no_log: true
+- name: Require exact Namespace and repository credential prerequisites
+  ansible.builtin.assert:
+    that:
+      - cristexhub_dev_registration_internal_namespace.resources | length == 1
+      - cristexhub_dev_registration_internal_namespace.resources[0].status.phase == 'Active'
+      - >-
+        cristexhub_dev_registration_internal_namespace.resources[0].metadata.labels ==
+        {'app.kubernetes.io/part-of': 'cristexhub',
+        'cristex.io/environment': 'dev',
+        'cristex.io/bootstrap-writer': 'ansible',
+        'cristex.io/desired-owner': 'argocd',
+        'kubernetes.io/metadata.name': 'cristexhub-dev'}
+      - cristexhub_dev_registration_internal_repository_secret.resources | length == 1
+      - cristexhub_dev_registration_internal_repository_secret.resources[0].type == 'Opaque'
+      - (cristexhub_dev_registration_internal_repository_secret.resources[0].data | default({})).keys() | list | sort == ['sshPrivateKey', 'type', 'url']
+      - cristexhub_dev_registration_internal_repository_secret.resources[0].data.type | b64decode == 'git'
+      - cristexhub_dev_registration_internal_repository_secret.resources[0].data.url | b64decode == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+      - (cristexhub_dev_registration_internal_repository_secret.resources[0].binaryData | default({})) | length == 0
+      - not (cristexhub_dev_registration_internal_repository_secret.resources[0].immutable | default(false) | bool)
+      - (cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.ownerReferences | default([])) | length == 0
+      - (cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.annotations | default({})).keys() | list == ['secrets.infisical.com/version']
+      - cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.annotations['secrets.infisical.com/version'] | length > 0
+      - >-
+        cristexhub_dev_registration_internal_repository_secret.resources[0].metadata.labels ==
+        {'app.kubernetes.io/managed-by': 'infisical',
+        'app.kubernetes.io/part-of': 'argocd',
+        'argocd.argoproj.io/secret-type': 'repository',
+        'cristex.io/value-owner': 'infisical-cloud'}
+    fail_msg: Refusing registration without the exact Namespace and Infisical-owned repository credential.
+  changed_when: false
+  no_log: true
+- name: Reconcile registration source without synchronization
+  cristexhub_dev_registration_guarded_k8s:
+    state: present
+    definition: '{{ item }}'
+    kubeconfig: '{{ cristexhub_dev_registration_kubeconfig }}'
+    wait: false
+    wait_timeout: 60
+  loop: '{{ cristexhub_dev_registration_internal_manifests }}'
+  no_log: true
+- name: Query exact live registration post-state
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.metadata.namespace | default(omit) }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ cristexhub_dev_registration_kubeconfig }}'
+  loop: '{{ cristexhub_dev_registration_internal_manifests }}'
+  register: cristexhub_dev_registration_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+- name: Require manual-sync registration post-state
+  ansible.builtin.assert:
+    that:
+      - cristexhub_dev_registration_internal_poststate.results | length == 5
+      - >-
+        (cristexhub_dev_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Application') | first).resources[0].spec.syncPolicy.automated is not defined
+      - >-
+        (cristexhub_dev_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'AppProject') | first).resources[0].spec.syncWindows ==
+        [{'kind': 'deny', 'schedule': '* * * * *', 'duration': '24h',
+        'applications': ['cristexhub-dev'], 'manualSync': false}]
+    fail_msg: Refusing registration whose live Application can synchronize before promotion gates pass.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode

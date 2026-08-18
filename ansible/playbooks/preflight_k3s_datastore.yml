@@ -1,0 +1,10 @@
+---
+- name: Run the source-only read-only k3s datastore and encryption preflight
+  hosts: k3s_servers
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  serial: 1
+
+  roles:
+    - role: k3s_datastore_preflight

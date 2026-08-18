@@ -1,0 +1,140 @@
+---
+- name: Create the generated-name probe Pod for {{ network_policy_probe_pod_phase }}
+  kubernetes.core.k8s:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    state: present
+    generate_name: "kif-netpol-{{ network_policy_probe_pod_phase }}-"
+    definition:
+      apiVersion: v1
+      kind: Pod
+      metadata:
+        namespace: "{{ network_policy_probe_namespace }}"
+        labels:
+          app.kubernetes.io/managed-by: "{{ network_policy_probe_managed_by }}"
+          cristexweb.io/network-probe-run: "{{ network_policy_probe_run_id }}"
+          cristexweb.io/network-probe-role: "{{ network_policy_probe_pod_role }}"
+      spec:
+        activeDeadlineSeconds: 20
+        automountServiceAccountToken: false
+        restartPolicy: Never
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+          runAsGroup: 65534
+          seccompProfile:
+            type: RuntimeDefault
+        containers:
+          - name: connectivity
+            image: "{{ network_policy_probe_image }}"
+            imagePullPolicy: IfNotPresent
+            command:
+              - wget
+            args:
+              - -q
+              - -T
+              - "5"
+              - -O
+              - /dev/null
+              - >-
+                http://{{ '[' ~ network_policy_probe_service.result.spec.clusterIP ~ ']'
+                if ':' in network_policy_probe_service.result.spec.clusterIP
+                else network_policy_probe_service.result.spec.clusterIP }}:8080/
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 5m
+                memory: 8Mi
+              limits:
+                cpu: 50m
+                memory: 32Mi
+  register: network_policy_probe_client_pod
+  no_log: true
+
+- name: Register the generated client Pod before observing its result
+  ansible.builtin.include_tasks: register_object.yml
+  vars:
+    network_policy_probe_new_object:
+      api_version: v1
+      kind: Pod
+      namespace: "{{ network_policy_probe_namespace }}"
+      name: "{{ network_policy_probe_client_pod.result.metadata.name }}"
+      uid: "{{ network_policy_probe_client_pod.result.metadata.uid }}"
+
+- name: Wait for the expected terminal Pod phase | {{ network_policy_probe_expected_pod_phase }}
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ network_policy_probe_kubeconfig }}"
+    api_version: v1
+    kind: Pod
+    namespace: "{{ network_policy_probe_namespace }}"
+    name: "{{ network_policy_probe_client_pod.result.metadata.name }}"
+  register: network_policy_probe_client_terminal_raw
+  until:
+    - network_policy_probe_client_terminal_raw.resources | length == 1
+    - >-
+      network_policy_probe_client_terminal_raw.resources[0].status.phase | default('') ==
+      network_policy_probe_expected_pod_phase
+  retries: "{{ network_policy_probe_wait_retries }}"
+  delay: "{{ network_policy_probe_wait_delay_seconds }}"
+  changed_when: false
+  no_log: true
+
+- name: Require exact identity and one terminated probe container
+  ansible.builtin.assert:
+    that:
+      - network_policy_probe_client_terminal_raw.resources | length == 1
+      - >-
+        network_policy_probe_client_terminal_raw.resources[0].metadata.uid ==
+        network_policy_probe_client_pod.result.metadata.uid
+      - >-
+        network_policy_probe_client_terminal_raw.resources[0].status.phase ==
+        network_policy_probe_expected_pod_phase
+      - >-
+        network_policy_probe_client_terminal_raw.resources[0].status.containerStatuses |
+        default([]) | length == 1
+      - >-
+        network_policy_probe_client_terminal_raw.resources[0].status.containerStatuses[0].state.terminated
+        is defined
+    fail_msg: "The probe Pod did not reach the exact expected terminal state."
+  changed_when: false
+  no_log: true
+
+- name: Require a clean connectivity success result
+  ansible.builtin.assert:
+    that:
+      - >-
+        network_policy_probe_client_terminal_raw.resources[0].status.containerStatuses[0].state.terminated.exitCode == 0
+      - >-
+        network_policy_probe_client_terminal_raw.resources[0].status.containerStatuses[0].state.terminated.reason == 'Completed'
+    fail_msg: "Expected connectivity success did not terminate cleanly."
+  changed_when: false
+  no_log: true
+  when: network_policy_probe_expected_pod_phase == 'Succeeded'
+
+- name: Require an expected wget connectivity rejection
+  ansible.builtin.assert:
+    that:
+      - >-
+        network_policy_probe_client_terminal_raw.resources[0].status.containerStatuses[0].state.terminated.exitCode == 1
+      - >-
+        network_policy_probe_client_terminal_raw.resources[0].status.containerStatuses[0].state.terminated.reason == 'Error'
+      - >-
+        network_policy_probe_client_terminal_raw.resources[0].status.reason | default('')
+        not in ['Evicted', 'DeadlineExceeded', 'NodeLost', 'Shutdown']
+    fail_msg: >-
+      A denied phase failed for a reason other than the expected wget connectivity
+      rejection; it is not NetworkPolicy evidence.
+  changed_when: false
+  no_log: true
+  when: network_policy_probe_expected_pod_phase == 'Failed'
+
+- name: Record the sanitized phase result | {{ network_policy_probe_pod_phase }}
+  ansible.builtin.set_fact:
+    network_policy_probe_phase_results: >-
+      {{ network_policy_probe_phase_results | combine({
+        network_policy_probe_pod_phase: network_policy_probe_expected_pod_phase
+      }) }}

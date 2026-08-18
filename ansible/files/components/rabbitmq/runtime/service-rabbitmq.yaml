@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shared-rabbitmq
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: shared-rabbitmq
+    app.kubernetes.io/part-of: shared-rabbitmq
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: rabbitmq
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: shared-rabbitmq
+    app.kubernetes.io/part-of: shared-rabbitmq
+  ports:
+  - name: amqps
+    port: 5671
+    targetPort: amqps
+    protocol: TCP

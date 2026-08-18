@@ -1,0 +1,470 @@
+---
+- name: Reject externally supplied rclone installer internal variables
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied rclone installer internal variable {{ item }}."
+  loop:
+    - rclone_install_internal_attestation
+    - rclone_install_internal_passwd
+    - rclone_install_internal_service_facts_before
+    - rclone_install_internal_preflight_binding
+    - rclone_install_internal_host_parent_states
+    - rclone_install_internal_controller_cache_states
+    - rclone_install_internal_controller_cache_files
+    - rclone_install_internal_archive_state
+    - rclone_install_internal_binary_state
+    - rclone_install_internal_selector_state
+    - rclone_install_internal_poststate
+    - rclone_install_internal_service_facts_after
+  changed_when: false
+
+- name: Require the exact rclone installer approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_RCLONE_INSTALL_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_RCLONE_INSTALL_TOKEN') is match('^[0-9a-f]{64}$')
+      - rclone_install_approved | bool
+      - rclone_install_state in ['present', 'absent']
+      - rclone_install_state != 'absent' or (rclone_install_rollback_approved | bool)
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - rclone_install_version == '1.71.1'
+      - rclone_install_sha256sums_sha256 == 'e7179eb69f2fda1b0a3c933d50a3e34e0f5f7e0fa0145c3e75110298b374d407'
+      - rclone_install_archive_sha256 == '417e3da236f3a12d292da4e7287d67b1df558b8c2b280d092e563958ed724be7'
+      - rclone_install_binary_sha256 == '5409cb410e49903af3517654ccc65c89d89f9dc12d7a97b0e13e09a9be6dc74a'
+      - rclone_install_archive_path == '/var/cache/rclone/rclone-v1.71.1-linux-amd64.zip'
+      - rclone_install_binary_path == '/opt/rclone/1.71.1/rclone'
+      - rclone_install_selector_path == '/usr/local/bin/rclone'
+      - rclone_install_operator_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - rclone_install_operator_user == ansible_user
+    fail_msg: rclone installation requires its exact guarded wrapper, approval, pins, --diff, and one-host limit.
+  changed_when: false
+
+- name: Require the reviewed Debian 13 x86_64 host
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.system == 'Linux'
+      - ansible_facts.distribution == 'Debian'
+      - ansible_facts.distribution_major_version == '13'
+      - ansible_facts.architecture == 'x86_64'
+    fail_msg: The reviewed rclone payload is only for Debian 13 x86_64.
+  changed_when: false
+
+- name: Inspect the one-run rclone installer attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RCLONE_INSTALL_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: rclone_install_internal_attestation
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- name: Require the private rclone installer attestation
+  ansible.builtin.assert:
+    that:
+      - rclone_install_internal_attestation.stat.isreg | default(false)
+      - not (rclone_install_internal_attestation.stat.islnk | default(false))
+      - rclone_install_internal_attestation.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file',
+               lookup('ansible.builtin.env',
+                      'CRISTEXWEB_RCLONE_INSTALL_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_RCLONE_INSTALL_TOKEN') ~
+        ':entrypoint'
+  changed_when: false
+  no_log: true
+
+- name: Read host operator account metadata
+  ansible.builtin.getent:
+    database: passwd
+  changed_when: false
+  no_log: true
+
+- name: Record exact host operator account metadata
+  ansible.builtin.set_fact:
+    rclone_install_internal_passwd: "{{ ansible_facts.getent_passwd.get(rclone_install_operator_user, []) }}"
+  changed_when: false
+  no_log: true
+
+- name: Require the inventory-selected non-root host operator
+  ansible.builtin.assert:
+    that:
+      - rclone_install_internal_passwd | length >= 6
+      - (rclone_install_internal_passwd[1] | int) != 0
+      - rclone_install_internal_passwd[4] is match('^/home/[a-z_][a-z0-9_-]{0,31}$')
+    fail_msg: Refusing an absent, root, or unsafe inventory-selected host operator.
+  changed_when: false
+  no_log: true
+
+- name: Reject numeric aliases of the rclone install operator
+  ansible.builtin.assert:
+    that:
+      - >-
+        item.key == rclone_install_operator_user or
+        (item.value[1] | string) !=
+        (rclone_install_internal_passwd[1] | string)
+    fail_msg: Refusing a second account that shares the rclone operator UID.
+  loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  changed_when: false
+  no_log: true
+
+- name: Capture service facts before rclone installation
+  ansible.builtin.service_facts:
+  register: rclone_install_internal_service_facts_before
+
+- name: Require k3s and Tailscale before rclone installation
+  ansible.builtin.assert:
+    that:
+      - rclone_install_internal_service_facts_before.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - rclone_install_internal_service_facts_before.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+  changed_when: false
+
+- name: Inspect exact host rclone and operator config parent paths
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - {path: /opt/rclone, owner: root, group: root, mode: '0755'}
+    - {path: /opt/rclone/1.71.1, owner: root, group: root, mode: '0755'}
+    - {path: /var/cache/rclone, owner: root, group: root, mode: '0700'}
+    - path: "{{ rclone_install_internal_passwd[4] }}/.config"
+      owner: "{{ rclone_install_operator_user }}"
+      gid: "{{ rclone_install_internal_passwd[2] | int }}"
+      modes: ['0700', '0750', '0755']
+      create_mode: '0700'
+    - path: "{{ rclone_install_internal_passwd[4] }}/.config/rclone"
+      owner: "{{ rclone_install_operator_user }}"
+      gid: "{{ rclone_install_internal_passwd[2] | int }}"
+      mode: '0700'
+  register: rclone_install_internal_host_parent_states
+  no_log: true
+
+- name: Refuse unsafe existing host rclone or config parent paths
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (item.stat.exists | default(false)) or
+        (item.stat.isdir and not item.stat.islnk and
+         item.stat.pw_name == item.item.owner and
+         (item.item.group is not defined or
+          item.stat.gr_name == item.item.group) and
+         (item.item.gid is not defined or item.stat.gid == item.item.gid) and
+         (item.item.modes is not defined or item.stat.mode in item.item.modes) and
+         (item.item.mode is not defined or item.stat.mode == item.item.mode))
+    fail_msg: Refusing a symlinked, foreign-owned, or mode-drifted host rclone/config parent.
+  loop: "{{ rclone_install_internal_host_parent_states.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Inspect private controller rclone cache paths
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - {path: "{{ playbook_dir }}/../.ansible", mode: '0755'}
+    - {path: "{{ playbook_dir }}/../.ansible/cache", mode: '0700'}
+    - {path: "{{ playbook_dir }}/../.ansible/cache/rclone", mode: '0700'}
+  register: rclone_install_internal_controller_cache_states
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- name: Refuse unsafe existing controller rclone cache paths
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (item.stat.exists | default(false)) or
+        (item.stat.isdir and not item.stat.islnk and
+         item.stat.pw_name == lookup('ansible.builtin.env', 'USER') and
+         item.stat.mode == item.item.mode)
+    fail_msg: Refusing a symlinked, foreign-owned, or mode-drifted controller rclone cache.
+  loop: "{{ rclone_install_internal_controller_cache_states.results }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect controller-cached rclone release files
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  loop:
+    - path: "{{ playbook_dir }}/../.ansible/cache/rclone/SHA256SUMS"
+      digest: e7179eb69f2fda1b0a3c933d50a3e34e0f5f7e0fa0145c3e75110298b374d407
+    - path: "{{ playbook_dir }}/../.ansible/cache/rclone/rclone-v1.71.1-linux-amd64.zip"
+      digest: 417e3da236f3a12d292da4e7287d67b1df558b8c2b280d092e563958ed724be7
+    - path: "{{ playbook_dir }}/../.ansible/cache/rclone/rclone"
+      digest: 5409cb410e49903af3517654ccc65c89d89f9dc12d7a97b0e13e09a9be6dc74a
+  register: rclone_install_internal_controller_cache_files
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- name: Refuse unsafe or changed controller-cached rclone files
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (item.stat.exists | default(false)) or
+        (item.stat.isreg and not item.stat.islnk and
+         item.stat.pw_name == lookup('ansible.builtin.env', 'USER') and
+         item.stat.mode == '0600' and item.stat.checksum == item.item.digest)
+    fail_msg: Refusing a symlinked, foreign-owned, mode-drifted, or changed controller rclone cache file.
+  loop: "{{ rclone_install_internal_controller_cache_files.results }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact installed rclone artifacts
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  loop:
+    - "{{ rclone_install_archive_path }}"
+    - "{{ rclone_install_binary_path }}"
+    - "{{ rclone_install_selector_path }}"
+  register: rclone_install_internal_archive_state
+  no_log: true
+
+- name: Record installed artifact states
+  ansible.builtin.set_fact:
+    rclone_install_internal_binary_state: "{{ rclone_install_internal_archive_state.results[1].stat }}"
+    rclone_install_internal_selector_state: "{{ rclone_install_internal_archive_state.results[2].stat }}"
+  changed_when: false
+  no_log: true
+
+- name: Refuse changed existing rclone artifacts
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (rclone_install_internal_archive_state.results[0].stat.exists |
+             default(false)) or
+        (rclone_install_internal_archive_state.results[0].stat.isreg and
+         not rclone_install_internal_archive_state.results[0].stat.islnk and
+         rclone_install_internal_archive_state.results[0].stat.pw_name == 'root' and
+         rclone_install_internal_archive_state.results[0].stat.gr_name == 'root' and
+         rclone_install_internal_archive_state.results[0].stat.mode == '0600' and
+         rclone_install_internal_archive_state.results[0].stat.checksum ==
+         rclone_install_archive_sha256)
+      - >-
+        not (rclone_install_internal_host_parent_states.results[1].stat.exists |
+             default(false)) or
+        (rclone_install_internal_binary_state.exists | default(false))
+      - >-
+        not (rclone_install_internal_binary_state.exists | default(false)) or
+        (rclone_install_internal_binary_state.isreg and
+         not rclone_install_internal_binary_state.islnk and
+         rclone_install_internal_binary_state.pw_name == 'root' and
+         rclone_install_internal_binary_state.gr_name == 'root' and
+         rclone_install_internal_binary_state.mode == '0755' and
+         rclone_install_internal_binary_state.checksum ==
+         rclone_install_binary_sha256)
+      - >-
+        not (rclone_install_internal_selector_state.exists | default(false)) or
+        (rclone_install_internal_selector_state.islnk and
+         rclone_install_internal_selector_state.lnk_source ==
+         rclone_install_binary_path and
+         rclone_install_internal_selector_state.pw_name == 'root' and
+         rclone_install_internal_selector_state.gr_name == 'root')
+    fail_msg: Refusing a collision or digest, ownership, mode, or selector drift.
+  changed_when: false
+  no_log: true
+
+- name: Bind the guarded rclone installer preflight
+  ansible.builtin.set_fact:
+    rclone_install_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RCLONE_INSTALL_TOKEN') | ansible.builtin.hash('sha256') }}"
+      operator_user: "{{ rclone_install_operator_user }}"
+      operator_home: "{{ rclone_install_internal_passwd[4] }}"
+      operator_gid: "{{ rclone_install_internal_passwd[2] | int }}"
+      config_root_exists: >-
+        {{ rclone_install_internal_host_parent_states.results[3].stat.exists |
+           default(false) }}
+      controller_cache_complete: >-
+        {{ rclone_install_internal_controller_cache_files.results |
+           selectattr('stat.exists', 'defined') |
+           selectattr('stat.exists', 'equalto', true) | list | length == 3 }}
+      platform_contract: true
+      service_contract: true
+  changed_when: false
+  no_log: true
+
+- name: Prepare exact controller rclone cache directories
+  rclone_install_guarded:
+    operation: controller-cache-directories
+  delegate_to: localhost
+  become: false
+  when:
+    - rclone_install_state == 'present'
+    - not ansible_check_mode
+
+- name: Download and verify exact rclone release on controller
+  rclone_install_guarded:
+    operation: controller-download
+  delegate_to: localhost
+  become: false
+  when:
+    - rclone_install_state == 'present'
+    - not ansible_check_mode
+
+- name: Prepare exact host rclone and operator config directories
+  rclone_install_guarded:
+    operation: host-directories
+  when:
+    - rclone_install_state == 'present'
+    - not ansible_check_mode
+
+- name: Transfer verified rclone archive to host cache
+  rclone_install_guarded:
+    operation: host-archive-transfer
+  when:
+    - rclone_install_state == 'present'
+    - not ansible_check_mode
+    - not (rclone_install_internal_archive_state.results[0].stat.exists | default(false))
+
+- name: Extract only the exact rclone executable
+  rclone_install_guarded:
+    operation: extract
+  when:
+    - rclone_install_state == 'present'
+    - not ansible_check_mode
+    - not (rclone_install_internal_binary_state.exists | default(false))
+
+- name: Select the exact rclone executable
+  rclone_install_guarded:
+    operation: selector-present
+  when:
+    - rclone_install_state == 'present'
+    - not ansible_check_mode
+
+- name: Remove only the exact managed rclone selector
+  rclone_install_guarded:
+    operation: selector-absent
+  when:
+    - rclone_install_state == 'absent'
+    - not ansible_check_mode
+    - rclone_install_internal_selector_state.exists | default(false)
+
+- name: Predict the exact bounded rclone change in check mode
+  ansible.builtin.debug:
+    msg: "Only pinned rclone install artifacts and config parent metadata, or only the exact selector on rollback, would change."
+  changed_when: >-
+    (rclone_install_state == 'present' and
+     ((rclone_install_internal_controller_cache_files.results |
+       selectattr('stat.exists', 'defined') |
+       selectattr('stat.exists', 'equalto', true) | list | length) != 3 or
+      (rclone_install_internal_host_parent_states.results[0:3] |
+       selectattr('stat.exists', 'equalto', false) | list | length) > 0 or
+      not (rclone_install_internal_host_parent_states.results[4].stat.exists |
+           default(false)) or
+      not (rclone_install_internal_archive_state.results[0].stat.exists |
+           default(false)) or
+      not (rclone_install_internal_binary_state.exists | default(false)) or
+      not (rclone_install_internal_selector_state.exists | default(false)))) or
+    (rclone_install_state == 'absent' and
+     (rclone_install_internal_selector_state.exists | default(false)))
+  when: ansible_check_mode
+
+- name: Inspect exact rclone post-state
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  loop:
+    - /var/cache/rclone/rclone-v1.71.1-linux-amd64.zip
+    - /opt/rclone/1.71.1/rclone
+    - /usr/local/bin/rclone
+    - "{{ rclone_install_internal_passwd[4] }}/.config/rclone"
+  register: rclone_install_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact rclone post-state
+  ansible.builtin.assert:
+    that:
+      - >-
+        rclone_install_state == 'absent' or
+        (rclone_install_internal_poststate.results[0].stat.isreg and
+         not rclone_install_internal_poststate.results[0].stat.islnk and
+         rclone_install_internal_poststate.results[0].stat.pw_name == 'root' and
+         rclone_install_internal_poststate.results[0].stat.gr_name == 'root' and
+         rclone_install_internal_poststate.results[0].stat.mode == '0600' and
+         rclone_install_internal_poststate.results[0].stat.checksum ==
+         rclone_install_archive_sha256)
+      - >-
+        rclone_install_state == 'absent' or
+        (rclone_install_internal_poststate.results[1].stat.isreg and
+         not rclone_install_internal_poststate.results[1].stat.islnk and
+         rclone_install_internal_poststate.results[1].stat.pw_name == 'root' and
+         rclone_install_internal_poststate.results[1].stat.gr_name == 'root' and
+         rclone_install_internal_poststate.results[1].stat.mode == '0755' and
+         rclone_install_internal_poststate.results[1].stat.checksum ==
+         rclone_install_binary_sha256)
+      - >-
+        (rclone_install_state == 'present' and
+         rclone_install_internal_poststate.results[2].stat.islnk and
+         rclone_install_internal_poststate.results[2].stat.lnk_source ==
+         rclone_install_binary_path and
+         rclone_install_internal_poststate.results[2].stat.pw_name == 'root' and
+         rclone_install_internal_poststate.results[2].stat.gr_name == 'root') or
+        (rclone_install_state == 'absent' and
+         not (rclone_install_internal_poststate.results[2].stat.exists |
+              default(false)))
+      - >-
+        rclone_install_state == 'absent' or
+        (rclone_install_internal_poststate.results[3].stat.isdir and
+         not rclone_install_internal_poststate.results[3].stat.islnk and
+         rclone_install_internal_poststate.results[3].stat.pw_name ==
+         rclone_install_operator_user and
+         rclone_install_internal_poststate.results[3].stat.mode == '0700')
+    fail_msg: Refusing an incomplete or drifted rclone install/rollback post-state.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Verify the selected rclone version as the host operator
+  rclone_install_guarded:
+    operation: version-check
+  become: true
+  become_user: "{{ rclone_install_operator_user }}"
+  register: rclone_install_internal_version_result
+  changed_when: false
+  when:
+    - rclone_install_state == 'present'
+    - not ansible_check_mode
+
+- name: Require exact rclone version output
+  ansible.builtin.assert:
+    that:
+      - rclone_install_internal_version_result.stdout_lines[0] == 'rclone v1.71.1'
+  changed_when: false
+  when:
+    - rclone_install_state == 'present'
+    - not ansible_check_mode
+
+- name: Capture service facts after rclone installation
+  ansible.builtin.service_facts:
+  register: rclone_install_internal_service_facts_after
+
+- name: Require k3s and Tailscale after rclone installation
+  ansible.builtin.assert:
+    that:
+      - rclone_install_internal_service_facts_after.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - rclone_install_internal_service_facts_after.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+  changed_when: false

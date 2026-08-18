@@ -1,0 +1,9 @@
+---
+- name: Reject direct use of the guarded rclone transfer action
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Attempt cleanup outside canonical role source
+      rclone_proxy_transfer_guarded:
+        operation: cleanup

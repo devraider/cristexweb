@@ -1,0 +1,58 @@
+---
+- name: Install the approved database backup host dependencies
+  hosts: crtxweb
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  serial: 1
+
+  vars:
+    backup_dependencies_approved: false
+    backup_age_package_version: 1.2.1-1+b5
+
+  pre_tasks:
+    - name: Require the guarded backup dependency approval contract
+      ansible.builtin.assert:
+        that:
+          - backup_dependencies_approved | bool
+          - lookup('ansible.builtin.env', 'CRISTEXWEB_BACKUP_DEPENDENCIES_ENTRYPOINT') == 'v1'
+          - (ansible_limit | default('') | string) == 'crtxweb'
+          - (ansible_play_hosts_all | length) == 1
+          - inventory_hostname == 'crtxweb'
+          - backup_age_package_version == '1.2.1-1+b5'
+        fail_msg: >-
+          Backup dependency installation requires the canonical wrapper, explicit
+          approval, the exact host limit, and the pinned age package version.
+      changed_when: false
+
+  tasks:
+    - name: Install the pinned age encryption package
+      ansible.builtin.apt:
+        name: "age={{ backup_age_package_version }}"
+        state: present
+        update_cache: false
+
+    - name: Collect installed package facts
+      ansible.builtin.package_facts:
+        manager: apt
+
+    - name: Verify the exact installed age package
+      ansible.builtin.assert:
+        that:
+          - "'age' in ansible_facts.packages"
+          - (ansible_facts.packages.age | length) == 1
+          - ansible_facts.packages.age[0].version == backup_age_package_version
+          - ansible_facts.packages.age[0].arch == 'amd64'
+        fail_msg: Refusing an absent, extra, wrong-version, or wrong-architecture age package.
+      changed_when: false
+
+    - name: Collect service facts after dependency installation
+      ansible.builtin.service_facts:
+
+    - name: Verify critical host services remain running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['k3s.service'].state == 'running'
+          - ansible_facts.services['tailscaled.service'].state == 'running'
+        fail_msg: Refusing acceptance because k3s or Tailscale is not running.
+      changed_when: false

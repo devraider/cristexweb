@@ -1,0 +1,12 @@
+---
+- name: Reject direct k3s datastore preflight role invocation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  roles:
+    - role: k3s_datastore_preflight
+      vars:
+        k3s_datastore_preflight_approved: true
+        k3s_datastore_preflight_elevated_requested: true
+        k3s_datastore_preflight_elevated_approved: true

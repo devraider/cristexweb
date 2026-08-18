@@ -1,0 +1,25 @@
+---
+opentofu_install_approved: false
+opentofu_install_rollback_approved: false
+opentofu_install_state: present
+opentofu_install_operator_user: ""
+opentofu_install_version: "1.12.5"
+opentofu_install_archive_url: "https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_linux_amd64.tar.gz"
+opentofu_install_checksums_url: "https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_SHA256SUMS"
+opentofu_install_checksums_signature_url: "https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_SHA256SUMS.gpgsig"
+opentofu_install_checksums_sha256: "120345f8a2493375aebbca072106de425b2eb227837f8064440b8d911e36f987"
+opentofu_install_release_signer_fingerprint: "E3E6E43D84CB852EADB0051D0C0AF313E5FD9F80"
+opentofu_install_archive_sha256: "a6894d45ae7a17ce83189cce8fe04b5a65f68cefceb62455b5a6a89fa53ab38f"
+opentofu_install_binary_sha256: "36dae7ca1e4f1552a6faef27179dc16ef403203e956f31416c17b3d87a38c3f4"
+opentofu_install_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+opentofu_install_controller_runtime_root: "{{ playbook_dir }}/../.ansible"
+opentofu_install_controller_cache_root: "{{ playbook_dir }}/../.ansible/cache"
+opentofu_install_controller_cache_directory: "{{ playbook_dir }}/../.ansible/cache/opentofu"
+opentofu_install_controller_archive_path: "{{ playbook_dir }}/../.ansible/cache/opentofu/tofu_1.12.5_linux_amd64.tar.gz"
+opentofu_install_archive_path: "/var/cache/opentofu/tofu_1.12.5_linux_amd64.tar.gz"
+opentofu_install_version_dir: "/opt/opentofu/1.12.5"
+opentofu_install_version_binary: "/opt/opentofu/1.12.5/tofu"
+opentofu_install_selector_path: "/usr/local/bin/tofu"
+opentofu_install_state_root: "/var/lib/opentofu"
+opentofu_install_state_directory: "/var/lib/opentofu/cristexweb"
+opentofu_install_state_path: "/var/lib/opentofu/cristexweb/foundation.tfstate"

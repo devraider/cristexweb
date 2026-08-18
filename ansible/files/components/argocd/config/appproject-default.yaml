@@ -1,0 +1,26 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: default
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: default
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/component: project
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: argocd
+    cristex.io/component: argocd
+spec:
+  sourceRepos: []
+  destinations: []
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist: []
+  clusterResourceBlacklist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceBlacklist:
+    - group: '*'
+      kind: '*'
+  orphanedResources:
+    warn: true

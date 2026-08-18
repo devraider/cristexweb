@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oidc-connect-proxy
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: oidc-connect-proxy
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/component: oidc-connect-proxy
+    cristex.io/desired-owner: argocd
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oidc-connect-proxy
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        cristex.io/proxy-config-sha256: 535ee125b7806463d4ebaef5f55e7886c99da78ea71ba82c42c66ead0d985edd
+      labels:
+        app.kubernetes.io/name: oidc-connect-proxy
+        app.kubernetes.io/part-of: cristex-platform
+        app.kubernetes.io/managed-by: ansible
+        cristex.io/bootstrap-writer: ansible
+        cristex.io/component: oidc-connect-proxy
+    spec:
+      serviceAccountName: oidc-connect-proxy
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 13
+        runAsGroup: 13
+        fsGroup: 13
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: squid
+          image: docker.io/ubuntu/squid@sha256:94f844158e12b52f51b4ae996515e37e8fb3e8d85e1c86caba1a297376e4ec4f
+          imagePullPolicy: IfNotPresent
+          command: [/usr/sbin/squid]
+          args: [-f, /etc/squid/squid.conf, -NYC]
+          ports:
+            - name: http-proxy
+              containerPort: 3128
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 25m, memory: 64Mi}
+            limits: {cpu: 250m, memory: 256Mi}
+          startupProbe:
+            tcpSocket: {port: http-proxy}
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            tcpSocket: {port: http-proxy}
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket: {port: http-proxy}
+            periodSeconds: 20
+            failureThreshold: 3
+          volumeMounts:
+            - name: config
+              mountPath: /etc/squid/squid.conf
+              subPath: squid.conf
+              readOnly: true
+            - name: logs
+              mountPath: /var/log/squid
+            - name: spool
+              mountPath: /var/spool/squid
+            - name: run
+              mountPath: /run/squid
+      volumes:
+        - name: config
+          configMap:
+            name: oidc-connect-proxy-config
+        - name: logs
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Mi
+        - name: spool
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Mi
+        - name: run
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Mi
+      terminationGracePeriodSeconds: 30

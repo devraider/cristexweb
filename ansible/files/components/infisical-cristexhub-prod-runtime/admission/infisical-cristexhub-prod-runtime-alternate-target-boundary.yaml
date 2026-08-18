@@ -1,0 +1,31 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: infisical-cristexhub-prod-runtime-alternate-target-boundary
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-cristexhub-prod-runtime
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - secrets.infisical.com
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - infisicalsecrets
+      - infisicalpushsecrets
+      - infisicaldynamicsecrets
+      scope: Namespaced
+  matchConditions:
+  - name: runtime-alternate-target-namespace
+    expression: request.namespace == 'cristexhub-prod'
+  validations:
+  - expression: request.namespace != 'cristexhub-prod'
+    message: Alternate target-producing Infisical CR kinds are forbidden in cristexhub-prod.
+    reason: Forbidden

@@ -1,0 +1,32 @@
+---
+- name: Reject direct MongoDB action-only mutation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    mongodb_bootstrap_approved: true
+    mongodb_bootstrap_state: present
+    mongodb_bootstrap_internal_preflight_binding:
+      attestation_sha256: >-
+        {{ lookup('ansible.builtin.env', 'CRISTEXWEB_MONGODB_BOOTSTRAP_TOKEN') |
+           ansible.builtin.hash('sha256') }}
+      object_count: 5
+      identity_set_sha256: 2dafb88dd68d2031c0e558a9c8b18b2ee5bdd6c6f7116163e222c7dbe71c470e
+      prestate_count: 5
+      secret_count: 2
+      pvc_prestate_count: 0
+      namespace_contract: true
+      storage_contract: true
+      service_contract: true
+      no_delete_path: true
+  tasks:
+    - name: Attempt one exact object without canonical guarded role task source
+      mongodb_guarded_k8s:
+        state: present
+        definition: >-
+          {{ lookup('ansible.builtin.file', playbook_dir ~
+             '/../ansible/files/components/mongodb/network/mongodb-default-deny.yaml') |
+             from_yaml }}
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        wait: false
+        wait_timeout: 60

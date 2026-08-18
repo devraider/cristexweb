@@ -8,6 +8,11 @@ __pycache__/
 local-inventory-reports/
 inventory.raw*.json
 inventory.local*.json
+network-policy-probe.local*.json
+k3s-datastore-preflight.local*.json
+recovery-artifact-register.local.*
+replacement-recovery.local.*
+replacement-host-recovery.local.*
 *.inventory.raw.json
 *.inventory.local.json
 

@@ -1,0 +1,76 @@
+---
+chart:
+  name: argo-cd
+  version: 10.3.0
+  applicationVersion: v3.5.0
+  vendoredArchive: ansible/files/vendor/argocd/10.3.0/argo-cd-10.3.0.tgz
+  vendoredArchiveSha256: d08882d22d0c76e3174e005cc09abe300c70ba556aec76725a4410d172b9c1f3
+  renderValues: ansible/files/components/argocd/CHART-RENDER-EVIDENCE-VALUES.yaml
+  renderer: helm-v3.19.0
+  renderedIdentityCount: 35
+  runtimeUsesHelm: false
+promotedCrds:
+  - source: templates/crds/crd-application.yaml
+    target: crds/applications.argoproj.io.yaml
+    name: applications.argoproj.io
+  - source: templates/crds/crd-applicationset.yaml
+    target: crds/applicationsets.argoproj.io.yaml
+    name: applicationsets.argoproj.io
+  - source: templates/crds/crd-appproject.yaml
+    target: crds/appprojects.argoproj.io.yaml
+    name: appprojects.argoproj.io
+chartRenderedIdentitiesPromoted:
+  - apiextensions.k8s.io/v1|CustomResourceDefinition||applications.argoproj.io
+  - apiextensions.k8s.io/v1|CustomResourceDefinition||applicationsets.argoproj.io
+  - apiextensions.k8s.io/v1|CustomResourceDefinition||appprojects.argoproj.io
+  - apps/v1|Deployment|argocd|argocd-redis
+  - apps/v1|Deployment|argocd|argocd-repo-server
+  - apps/v1|Deployment|argocd|argocd-server
+  - apps/v1|StatefulSet|argocd|argocd-application-controller
+  - rbac.authorization.k8s.io/v1|Role|argocd|argocd-application-controller
+  - rbac.authorization.k8s.io/v1|Role|argocd|argocd-server
+  - rbac.authorization.k8s.io/v1|RoleBinding|argocd|argocd-application-controller
+  - rbac.authorization.k8s.io/v1|RoleBinding|argocd|argocd-server
+  - v1|ConfigMap|argocd|argocd-cm
+  - v1|ConfigMap|argocd|argocd-cmd-params-cm
+  - v1|ConfigMap|argocd|argocd-gpg-keys-cm
+  - v1|ConfigMap|argocd|argocd-rbac-cm
+  - v1|ConfigMap|argocd|argocd-redis-health-configmap
+  - v1|ConfigMap|argocd|argocd-ssh-known-hosts-cm
+  - v1|ConfigMap|argocd|argocd-tls-certs-cm
+  - v1|Service|argocd|argocd-redis
+  - v1|Service|argocd|argocd-repo-server
+  - v1|Service|argocd|argocd-server
+  - v1|ServiceAccount|argocd|argocd-application-controller
+  - v1|ServiceAccount|argocd|argocd-repo-server
+  - v1|ServiceAccount|argocd|argocd-server
+customHardenedIdentities:
+  - argoproj.io/v1alpha1|AppProject|argocd|default
+  - networking.k8s.io/v1|NetworkPolicy|argocd|argocd-controller-egress
+  - networking.k8s.io/v1|NetworkPolicy|argocd|argocd-default-deny
+  - networking.k8s.io/v1|NetworkPolicy|argocd|argocd-redis-ingress
+  - networking.k8s.io/v1|NetworkPolicy|argocd|argocd-repo-server-egress
+  - networking.k8s.io/v1|NetworkPolicy|argocd|argocd-repo-server-ingress
+  - networking.k8s.io/v1|NetworkPolicy|argocd|argocd-server-egress
+  - v1|ServiceAccount|argocd|argocd-redis
+intentionallyOmittedRenderedIdentities:
+  - apps/v1|Deployment|argocd|argocd-applicationset-controller
+  - rbac.authorization.k8s.io/v1|ClusterRole||argocd-application-controller
+  - rbac.authorization.k8s.io/v1|ClusterRole||argocd-server
+  - rbac.authorization.k8s.io/v1|ClusterRoleBinding||argocd-application-controller
+  - rbac.authorization.k8s.io/v1|ClusterRoleBinding||argocd-server
+  - rbac.authorization.k8s.io/v1|Role|argocd|argocd-applicationset-controller
+  - rbac.authorization.k8s.io/v1|Role|argocd|argocd-repo-server
+  - rbac.authorization.k8s.io/v1|RoleBinding|argocd|argocd-applicationset-controller
+  - rbac.authorization.k8s.io/v1|RoleBinding|argocd|argocd-repo-server
+  - v1|Service|argocd|argocd-applicationset-controller
+  - v1|ServiceAccount|argocd|argocd-applicationset-controller
+reviewedTransformations:
+  - remove every ApplicationSet runtime object while retaining its CRD for API compatibility
+  - precreate a deny-all default AppProject so the server never needs project-create authority
+  - remove Dex, notifications, commit server, hooks, metrics Services, chart NetworkPolicies, and cluster RBAC
+  - replace Helm ownership with exact Ansible bootstrap ownership
+  - replace chart RBAC with exact idle namespaced Roles and tokenless repo-server and Redis identities
+  - replace chart policies with a complete default-deny and reviewed component-flow closure
+  - consume three precreated Infisical-owned Secret contracts without rendering any Secret
+  - remove image tags while retaining the selected exact linux-amd64 child digests

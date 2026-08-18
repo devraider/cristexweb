@@ -1,0 +1,29 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: infisical-argocd-alternate-target-boundary
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-argocd-secrets
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - secrets.infisical.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - infisicalsecrets
+          - infisicalpushsecrets
+          - infisicaldynamicsecrets
+        scope: Namespaced
+  validations:
+    - expression: request.namespace != 'argocd'
+      message: Alternate target-producing Infisical CR kinds are forbidden in argocd.
+      reason: Forbidden

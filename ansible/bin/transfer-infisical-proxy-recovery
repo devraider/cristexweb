@@ -1,0 +1,109 @@
+#!/bin/sh
+set -eu
+usage='usage: ansible/bin/transfer-infisical-proxy-recovery check|apply|cleanup-check|cleanup-apply'
+if [ "$#" -ne 1 ]; then printf '%s\n%s\n' "$usage" 'refusing passthrough arguments or task selection' >&2; exit 64; fi
+mode=$1
+case "$mode" in check|apply|cleanup-check|cleanup-apply) ;; *) printf '%s\n%s\n' "$usage" 'refusing passthrough arguments or task selection' >&2; exit 64 ;; esac
+script_path=$0
+[ ! -L "$script_path" ] || { printf '%s\n' 'refusing a symlinked proxy transfer entrypoint' >&2; exit 66; }
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
+controller_home="$(CDPATH= cd -- "$repository_root/../.." && pwd -P)"
+controller_user="$(/usr/bin/id -un)"
+[ "$repository_root" = "$controller_home/Projects/cristexweb" ] || { printf '%s\n' 'refusing a repository outside the pinned controller path' >&2; exit 78; }
+controller="$repository_root/.venv/bin/ansible-playbook"
+[ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || { printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2; exit 69; }
+for tool in /opt/homebrew/bin/age /opt/homebrew/bin/openssl; do [ -f "$tool" ] && [ -x "$tool" ] || { printf '%s\n' "refusing absent pinned controller verifier: $tool" >&2; exit 69; }; done
+[ "$(/opt/homebrew/bin/age --version)" = 'v1.3.1' ] || { printf '%s\n' 'refusing age version drift' >&2; exit 69; }
+case "$(/opt/homebrew/bin/openssl version)" in 'OpenSSL 3.5.0 '*) ;; *) printf '%s\n' 'refusing OpenSSL version drift' >&2; exit 69 ;; esac
+umask 077
+temporary_directory="$(/usr/bin/mktemp -d /tmp/cristexweb-infisical-proxy-transfer.XXXXXX)"
+cleanup() { unset proxy_password_from_bundle proxy_hash_from_bundle proxy_salt calculated_proxy_hash; [ -z "${marker_pending:-}" ] || /bin/rm -f -- "$marker_pending"; /bin/rm -rf -- "$temporary_directory"; }
+trap cleanup EXIT HUP INT TERM
+attestation_file="$temporary_directory/attestation"
+attestation_token="$(/opt/homebrew/bin/openssl rand -hex 32)"
+printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+recovery_directory="$controller_home/Library/Application Support/CristexWeb/recovery/infisical-proxy"
+identity_file="$controller_home/Library/Application Support/CristexWeb/age/infisical-proxy-recovery-key.txt"
+name='infisical-proxy-secret-zero-20260810T095421Z.tar.gz.age'
+digest='3562c730814440dc836c3f38d34efc41f0ca6f180635135ba92314990b121d28'
+remote='drive:cristexweb-recovery/infisical-proxy/20260810T095421Z/'
+[ -d "$recovery_directory" ] && [ ! -L "$recovery_directory" ] && \
+  [ "$(/usr/bin/stat -f '%OLp' "$recovery_directory")" = 700 ] && \
+  [ "$(/usr/bin/stat -f '%Su' "$recovery_directory")" = "$controller_user" ] || {
+  printf '%s\n' 'refusing an unsafe controller recovery directory' >&2
+  exit 77
+}
+for leaf in pending "$name" "$name.sha256"; do
+  path="$recovery_directory/$leaf"
+  [ -f "$path" ] && [ ! -L "$path" ] && \
+    [ "$(/usr/bin/stat -f '%OLp' "$path")" = 600 ] && \
+    [ "$(/usr/bin/stat -f '%Su' "$path")" = "$controller_user" ] || {
+    printf '%s\n' 'refusing an unsafe pending recovery leaf' >&2
+    exit 77
+  }
+done
+[ "$(/bin/cat "$recovery_directory/pending")" = "$name" ] || { printf '%s\n' 'refusing a changed pending marker' >&2; exit 77; }
+[ "$(/bin/cat "$recovery_directory/$name.sha256")" = "$digest" ] || { printf '%s\n' 'refusing a changed pending checksum' >&2; exit 77; }
+[ "$(/usr/bin/shasum -a 256 "$recovery_directory/$name" | /usr/bin/awk '{print $1}')" = "$digest" ] || { printf '%s\n' 'refusing changed pending ciphertext' >&2; exit 77; }
+state=transfer
+cleanup_approved=false
+case "$mode" in cleanup-*) state=cleanup; cleanup_approved=true ;; apply) cleanup_approved=true ;; esac
+extra_vars="{\"rclone_proxy_transfer_approved\":true,\"rclone_proxy_transfer_state\":\"$state\",\"rclone_proxy_transfer_cleanup_approved\":$cleanup_approved}"
+cd -- "$repository_root/ansible"
+set -- "$controller" -i .ansible/inventory.local.yml playbooks/transfer_infisical_proxy_recovery.yml --diff --limit crtxweb --extra-vars "$extra_vars"
+case "$mode" in check|cleanup-check) set -- "$@" --check ;; esac
+if [ -n "${SSH_AUTH_SOCK:-}" ]; then set -- "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" "$@"; fi
+/usr/bin/env -i HOME="$controller_home" USER="$controller_user" LOGNAME="$controller_user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_RCLONE_PROXY_TRANSFER_ENTRYPOINT=v1 CRISTEXWEB_RCLONE_PROXY_TRANSFER_TOKEN="$attestation_token" CRISTEXWEB_RCLONE_PROXY_TRANSFER_ATTESTATION_FILE="$attestation_file" CRISTEXWEB_RCLONE_PROXY_TRANSFER_READBACK="$temporary_directory" "$@"
+[ "$mode" = apply ] || exit 0
+/usr/bin/cmp -s "$recovery_directory/$name" "$temporary_directory/$name"
+/usr/bin/cmp -s "$recovery_directory/$name.sha256" "$temporary_directory/$name.sha256"
+[ "$(/usr/bin/shasum -a 256 "$temporary_directory/$name" | /usr/bin/awk '{print $1}')" = "$digest" ]
+[ "$(/bin/cat "$temporary_directory/$name.sha256")" = "$digest" ]
+[ -f "$identity_file" ] && [ ! -L "$identity_file" ] || { printf '%s\n' 'refusing missing or symlinked controller age identity' >&2; exit 77; }
+[ "$(/usr/bin/stat -f '%OLp' "$identity_file")" = 600 ] && [ "$(/usr/bin/stat -f '%Su' "$identity_file")" = "$controller_user" ] || { printf '%s\n' 'refusing unsafe controller age identity' >&2; exit 77; }
+archive="$temporary_directory/recovered.tar.gz"
+bundle="$temporary_directory/bundle"
+/opt/homebrew/bin/age -d -i "$identity_file" -o "$archive" "$temporary_directory/$name"
+mkdir "$bundle"
+/usr/bin/tar -tvzf "$archive" | /usr/bin/awk '$1 !~ /^[-d]/ { bad=1 } END { exit bad }'
+/usr/bin/tar -tzf "$archive" | /usr/bin/sed 's#^\./##' | /usr/bin/grep -v '^$' | /usr/bin/sort >"$temporary_directory/members.actual"
+cat >"$temporary_directory/members.expected" <<'EOF'
+ca.crt
+ca.key
+ca.srl
+metadata.txt
+proxy-url
+tls.crt
+tls.key
+users
+EOF
+/usr/bin/cmp -s "$temporary_directory/members.expected" "$temporary_directory/members.actual"
+/usr/bin/tar -xzf "$archive" -C "$bundle"
+/opt/homebrew/bin/openssl verify -CAfile "$bundle/ca.crt" "$bundle/tls.crt" >/dev/null
+/opt/homebrew/bin/openssl x509 -in "$bundle/tls.crt" -noout -checkhost infisical-egress-proxy.shared-services.svc >/dev/null
+/opt/homebrew/bin/openssl x509 -in "$bundle/tls.crt" -pubkey -noout | /usr/bin/shasum -a 256 >"$temporary_directory/cert-pubkey.sha256"
+/opt/homebrew/bin/openssl pkey -in "$bundle/tls.key" -pubout | /usr/bin/shasum -a 256 >"$temporary_directory/key-pubkey.sha256"
+/usr/bin/cmp -s "$temporary_directory/cert-pubkey.sha256" "$temporary_directory/key-pubkey.sha256"
+/usr/bin/grep -Eq '^https://infisical-operator:[0-9a-f]{64}@infisical-egress-proxy\.shared-services\.svc:3129$' "$bundle/proxy-url"
+proxy_password_from_bundle="$(/usr/bin/sed -E 's#^https://infisical-operator:([0-9a-f]{64})@.*$#\1#' "$bundle/proxy-url")"
+proxy_hash_from_bundle="$(/usr/bin/cut -d: -f2- "$bundle/users")"
+proxy_salt="$(printf '%s' "$proxy_hash_from_bundle" | /usr/bin/cut -d'$' -f3)"
+calculated_proxy_hash="$(printf '%s' "$proxy_password_from_bundle" | /opt/homebrew/bin/openssl passwd -6 -salt "$proxy_salt" -stdin)"
+[ "$proxy_hash_from_bundle" = "$calculated_proxy_hash" ]
+unset proxy_password_from_bundle proxy_hash_from_bundle proxy_salt calculated_proxy_hash
+marker="$recovery_directory/drive-verified"
+marker_pending="$(/usr/bin/mktemp "$recovery_directory/.drive-verified.XXXXXX")"
+printf 'filename=%s\nsha256=%s\nremote=%s\n' "$name" "$digest" "$remote" >"$marker_pending"
+if [ -e "$marker" ]; then
+  [ -f "$marker" ] && [ ! -L "$marker" ] && \
+    [ "$(/usr/bin/stat -f '%OLp' "$marker")" = 600 ] && \
+    [ "$(/usr/bin/stat -f '%Su' "$marker")" = "$controller_user" ] && \
+    /usr/bin/cmp -s "$marker_pending" "$marker" || {
+      printf '%s\n' 'refusing an unsafe or changed drive-verified marker' >&2
+      exit 77
+    }
+else
+  /bin/mv -f -- "$marker_pending" "$marker"
+fi
+printf '%s\n' 'Encrypted Drive readback and exact proxy recovery relationships verified; drive-verified marker created.'

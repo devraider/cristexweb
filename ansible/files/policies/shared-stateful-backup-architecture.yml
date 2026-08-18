@@ -1,0 +1,104 @@
+---
+policy_schema: cristex-shared-stateful-backup-v1
+policy_status: postgresql-keycloak-scheduler-active
+service_credential_value_owner: infisical-cloud
+operator_access:
+  scope: private-authenticated-only
+  catalog: metadata-only
+  archive_layout: service/consumer-or-purpose/timestamp
+  list_retrieve_verify_workflow_required: true
+  redacted_status_required: true
+  public_endpoint_allowed: false
+  anonymous_share_allowed: false
+  live_data_mount_allowed: false
+archive_contract:
+  copy_semantics: timestamped-immutable-copy
+  transfer_semantics: copy-not-sync
+  compression_required: true
+  encryption_required: true
+  independent_key_custody_required: true
+  checksum_manifest_required: true
+  integrity_verification_required: true
+  isolated_restore_required: true
+  separate_consumer_paths_required: true
+  destructive_mirror_allowed: false
+destination:
+  direction: google-drive
+  selection_status: approved-google-drive-host-transfer
+  tool_direction: pinned-host-rclone-copy
+  rclone_version: 1.71.1
+  linux_amd64_archive_sha256: 417e3da236f3a12d292da4e7287d67b1df558b8c2b280d092e563958ed724be7
+  linux_amd64_binary_sha256: 5409cb410e49903af3517654ccc65c89d89f9dc12d7a97b0e13e09a9be6dc74a
+  host_install_status: rclone-1.71.1-and-age-1.2.1-installed
+  remote_identity: drive
+  root_folder_identity: cristexweb-recovery
+  oauth_credential_owner: host-operator-secret-zero
+  oauth_credential_source: interactive-host-authorization
+  oauth_credential_recovery: google-account-reauthorization-and-independent-account-recovery
+  infisical_as_sole_oauth_source_allowed: false
+  credential_in_git_allowed: false
+  rclone_sync_allowed: false
+local_staging:
+  path: /var/lib/cristexweb-backup
+  capacity: shared-host-root-filesystem
+  retention: 14d
+  live_data_path_allowed: false
+schedule_and_retention:
+  schedule: daily
+  local_retention: 14d
+  off_node_retention: 14d
+  rpo: 24h
+  rto: 4h
+services:
+  postgresql:
+    backup_method_direction: application-consistent-logical-dumps
+    separate_consumer_archives_required: true
+    roles_and_ownership_recreation_required: true
+    isolated_restore_required: true
+  mongodb:
+    backup_method_direction: application-consistent-logical-dumps
+    selected_runtime: shared-mongodb
+    selected_version: 8.0.12
+    selected_consistency: replica-set-oplog
+    selected_remote_path: drive:cristexweb-recovery/mongodb/shared-mongodb
+    selected_schedule: daily-03:45-host-time-plus-bounded-jitter
+    timer_status: enabled-active-idempotent
+    separate_consumer_archives_required: true
+    users_and_roles_recreation_required: true
+    user_recreation_owner: mongodb-community-operator-and-infisical
+    topology_compatibility_required: true
+    isolated_restore_required: true
+  rabbitmq:
+    definitions_scope: definitions-and-policies
+    definitions_export_contains_sensitive_material: true
+    queued_message_disposition: non-authoritative-reconcilable-direction
+    application_reconciliation_proof_required: true
+    definitions_only_claims_message_recovery: false
+    isolated_definitions_restore_required: true
+future_consumer_admission:
+  mode: reviewed-exact-policy-change
+  wildcard_or_dynamic_paths_allowed: false
+  required_evidence:
+    - exact-service-and-consumer-or-purpose
+    - dedicated-archive-path
+    - retention-and-capacity-review
+    - integrity-check
+    - isolated-restore-plan
+    - rpo-rto-disposition
+    - policy-test-and-runbook-update
+promotion_gates:
+  backup_tool_host_install_completed: true
+  destination_identity_accepted: true
+  credential_recovery_proved: false
+  encryption_key_recovery_proved: true
+  staging_capacity_and_path_accepted: true
+  schedules_and_retention_accepted: true
+  integrity_verification_proved: true
+  isolated_postgresql_restore_proved: true
+  isolated_mongodb_restore_proved: true
+  isolated_rabbitmq_definitions_restore_proved: false
+  rabbitmq_message_reconciliation_proved: false
+  rpo_rto_accepted: false
+  operator_retrieval_workflow_proved: true
+  runtime_approved: true
+executable_source_allowed: true

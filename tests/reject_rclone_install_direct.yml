@@ -1,0 +1,8 @@
+---
+- name: Reject direct rclone installer role invocation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  roles:
+    - role: rclone_install

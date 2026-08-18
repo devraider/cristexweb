@@ -1,0 +1,106 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-redis
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-redis
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v3.5.0-sha256-521d6b62ecd0434c9cc6e9242a74f0e1137bb8fc0026b2c48
+    cristex.io/component: argocd
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-redis
+        app.kubernetes.io/instance: argocd
+        app.kubernetes.io/component: redis
+        app.kubernetes.io/managed-by: ansible
+        app.kubernetes.io/part-of: argocd
+        app.kubernetes.io/version: v3.5.0-sha256-521d6b62ecd0434c9cc6e9242a74f0e1137bb8fc0026b2c48
+        cristex.io/component: argocd
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      serviceAccountName: argocd-redis
+      automountServiceAccountToken: false
+      containers:
+      - name: redis
+        image: docker.io/library/redis@sha256:c64af41b8fc06a2d9b8fde812dd781aa157bed6fcf8ae1656ad4e79f3f9fc9b1
+        imagePullPolicy: IfNotPresent
+        args:
+        - --save
+        - ''
+        - --appendonly
+        - 'no'
+        - --requirepass $(REDIS_PASSWORD)
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: argocd-redis
+              key: auth
+        ports:
+        - name: redis
+          containerPort: 6379
+          protocol: TCP
+        livenessProbe:
+          exec:
+            command: [sh, -c, /health/redis_liveness.sh]
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command: [sh, -c, /health/redis_readiness.sh]
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          limits:
+            cpu: 200m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /health
+          name: health
+      nodeSelector:
+        kubernetes.io/os: linux
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-redis
+              topologyKey: kubernetes.io/hostname
+      volumes:
+      - name: health
+        configMap:
+          name: argocd-redis-health-configmap
+          defaultMode: 493
+      dnsPolicy: ClusterFirst

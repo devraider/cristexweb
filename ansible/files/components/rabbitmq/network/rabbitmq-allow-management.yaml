@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: shared-rabbitmq-allow-management
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: shared-rabbitmq
+    app.kubernetes.io/part-of: shared-rabbitmq
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: rabbitmq
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: shared-rabbitmq
+      app.kubernetes.io/part-of: shared-rabbitmq
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          cristex.io/rabbitmq-management-client: 'true'
+    ports:
+    - protocol: TCP
+      port: 15671

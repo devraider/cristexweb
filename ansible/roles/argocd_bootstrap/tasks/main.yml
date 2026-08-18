@@ -1,0 +1,448 @@
+---
+- name: Reject externally supplied Argo CD bootstrap internal variables
+  ansible.builtin.assert:
+    that: item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied Argo CD bootstrap internal variable {{ item }}."
+  loop:
+    - argocd_bootstrap_internal_attestation_state
+    - argocd_bootstrap_internal_manifest_states
+    - argocd_bootstrap_internal_manifests
+    - argocd_bootstrap_internal_identity_keys
+    - argocd_bootstrap_internal_crds
+    - argocd_bootstrap_internal_runtime_objects
+    - argocd_bootstrap_internal_service_facts_before
+    - argocd_bootstrap_internal_kubeconfig_state
+    - argocd_bootstrap_internal_namespace
+    - argocd_bootstrap_internal_secrets
+    - argocd_bootstrap_internal_initial_admin
+    - argocd_bootstrap_internal_appproject_crd
+    - argocd_bootstrap_internal_prestate
+    - argocd_bootstrap_internal_preflight_binding
+    - argocd_bootstrap_internal_crd_apply
+    - argocd_bootstrap_internal_runtime_apply
+    - argocd_bootstrap_internal_poststate
+    - argocd_bootstrap_internal_workloads
+    - argocd_bootstrap_internal_service_facts_after
+  changed_when: false
+
+- name: Require the Argo CD bootstrap approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - argocd_bootstrap_approved | bool
+      - argocd_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - argocd_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - argocd_bootstrap_repository_root == (playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname)
+      - argocd_bootstrap_manifest_paths | length == 32
+      - argocd_bootstrap_manifest_paths | unique | length == 32
+      - argocd_bootstrap_expected_hashes | length == 32
+      - argocd_bootstrap_expected_hashes | map(attribute='path') | list == argocd_bootstrap_manifest_paths
+      - argocd_bootstrap_expected_hashes | map(attribute='path') | list | unique | length == 32
+      - argocd_bootstrap_object_count == 32
+      - argocd_bootstrap_crd_count == 3
+      - >-
+        argocd_bootstrap_secret_contract ==
+        {'argocd-secret': {'type': 'Opaque',
+                           'keys': ['admin.password', 'admin.passwordMtime',
+                                    'server.secretkey']},
+         'argocd-redis': {'type': 'Opaque', 'keys': ['auth']},
+         'argocd-server-tls': {'type': 'kubernetes.io/tls',
+                               'keys': ['ca.crt', 'tls.crt', 'tls.key']}}
+    fail_msg: Argo CD bootstrap requires the exact wrapper, present-only approval, diff, one-host limit, Secret contract, and 32-object closure.
+  changed_when: false
+
+- name: Inspect the ephemeral Argo CD bootstrap attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_BOOTSTRAP_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: argocd_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run Argo CD bootstrap attestation
+  ansible.builtin.assert:
+    that:
+      - argocd_bootstrap_internal_attestation_state.stat.exists | default(false)
+      - argocd_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (argocd_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - argocd_bootstrap_internal_attestation_state.stat.pw_name == argocd_bootstrap_controller_user
+      - argocd_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_ARGOCD_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing a missing, reusable, foreign-owned, symlinked, or invalid Argo CD attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect every exact Argo CD manifest leaf
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ argocd_bootstrap_manifest_paths }}"
+  register: argocd_bootstrap_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+
+- name: Require canonical hash-bound Argo CD manifest leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == argocd_bootstrap_controller_user
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - >-
+        item.stat.checksum ==
+        (argocd_bootstrap_expected_hashes |
+         selectattr('path', 'equalto', item.item) |
+         map(attribute='sha256') | first)
+      - item.item.startswith(argocd_bootstrap_repository_root ~ '/ansible/files/components/argocd/')
+    fail_msg: Refusing missing, unsafe, mode-drifted, or hash-drifted Argo CD source.
+  loop: "{{ argocd_bootstrap_internal_manifest_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  delegate_to: localhost
+  changed_when: false
+
+- name: Load the exact Argo CD object closure
+  ansible.builtin.set_fact:
+    argocd_bootstrap_internal_manifests: >-
+      {{ (argocd_bootstrap_internal_manifests | default([])) +
+         [(lookup('ansible.builtin.file', item) | from_yaml)] }}
+  loop: "{{ argocd_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact Argo CD object identities
+  ansible.builtin.set_fact:
+    argocd_bootstrap_internal_identity_keys: >-
+      {{ (argocd_bootstrap_internal_identity_keys | default([])) +
+         [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+          (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
+  loop: "{{ argocd_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact Argo CD object partitions
+  ansible.builtin.set_fact:
+    argocd_bootstrap_internal_crds: "{{ argocd_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'CustomResourceDefinition') | list }}"
+    argocd_bootstrap_internal_runtime_objects: "{{ argocd_bootstrap_internal_manifests | rejectattr('kind', 'equalto', 'CustomResourceDefinition') | list }}"
+  changed_when: false
+  no_log: true
+
+- name: Require the exact value-free private Argo CD inventory
+  ansible.builtin.assert:
+    that:
+      - argocd_bootstrap_internal_manifests | length == 32
+      - argocd_bootstrap_internal_identity_keys | length == 32
+      - argocd_bootstrap_internal_identity_keys | unique | length == 32
+      - argocd_bootstrap_internal_crds | length == 3
+      - argocd_bootstrap_internal_runtime_objects | length == 29
+      - argocd_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - argocd_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ClusterRole') | list | length == 0
+      - argocd_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ClusterRoleBinding') | list | length == 0
+      - argocd_bootstrap_internal_manifests | selectattr('metadata.name', 'search', 'applicationset-controller') | list | length == 0
+    fail_msg: Refusing Argo CD source outside the exact unique 32-object value-free closure.
+  changed_when: false
+
+- name: Capture service facts before Argo CD bootstrap
+  ansible.builtin.service_facts:
+  register: argocd_bootstrap_internal_service_facts_before
+  check_mode: false
+
+- name: Require k3s and Tailscale before Argo CD bootstrap
+  ansible.builtin.assert:
+    that:
+      - (argocd_bootstrap_internal_service_facts_before.ansible_facts.services | default({})).get('k3s.service', {}).get('state', '') == 'running'
+      - (argocd_bootstrap_internal_service_facts_before.ansible_facts.services | default({})).get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: k3s and tailscaled must already be running.
+  changed_when: false
+
+- name: Inspect the protected k3s kubeconfig
+  ansible.builtin.stat:
+    path: "{{ argocd_bootstrap_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: argocd_bootstrap_internal_kubeconfig_state
+  no_log: true
+
+- name: Require group-scoped k3s administrator access without sudo
+  ansible.builtin.assert:
+    that:
+      - argocd_bootstrap_internal_kubeconfig_state.stat.exists | default(false)
+      - argocd_bootstrap_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (argocd_bootstrap_internal_kubeconfig_state.stat.islnk | default(false))
+      - argocd_bootstrap_internal_kubeconfig_state.stat.pw_name == 'root'
+      - argocd_bootstrap_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+      - argocd_bootstrap_internal_kubeconfig_state.stat.mode == '0640'
+    fail_msg: Refusing Argo CD bootstrap without root:k3s-admin mode-0640 kubeconfig.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact Argo CD Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: argocd
+    kubeconfig: "{{ argocd_bootstrap_kubeconfig }}"
+  register: argocd_bootstrap_internal_namespace
+  changed_when: false
+
+- name: Require the established exact Argo CD Namespace
+  ansible.builtin.assert:
+    that:
+      - argocd_bootstrap_internal_namespace.resources | length == 1
+      - argocd_bootstrap_internal_namespace.resources[0].status.phase == 'Active'
+      - argocd_bootstrap_internal_namespace.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'cristex-platform'
+      - argocd_bootstrap_internal_namespace.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible'
+      - argocd_bootstrap_internal_namespace.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
+    fail_msg: Refusing Argo CD bootstrap into a missing or drifted Namespace.
+  changed_when: false
+
+- name: Query exact precreated Argo CD Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: argocd
+    name: "{{ item.key }}"
+    kubeconfig: "{{ argocd_bootstrap_kubeconfig }}"
+  loop: "{{ argocd_bootstrap_secret_contract | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: argocd_bootstrap_internal_secrets
+  changed_when: false
+  no_log: true
+
+- name: Require exact Infisical-owned Argo CD Secret contracts
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.key
+      - item.resources[0].metadata.namespace == 'argocd'
+      - item.resources[0].type == item.item.value.type
+      - (item.resources[0].data | default({})).keys() | list | sort == item.item.value['keys'] | sort
+      - (item.resources[0].binaryData | default({})).keys() | list | length == 0
+      - not (item.resources[0].immutable | default(false) | bool)
+      - >-
+        (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+        ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
+        'cristex.io/value-owner']
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'argocd'
+      - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+      - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - >-
+        item.item.key != 'argocd-secret' or
+        ((item.resources[0].data['admin.password'] | b64decode) is
+         match('^\\$2[aby]\\$[0-9]{2}\\$.{53}$') and
+         (item.resources[0].data['admin.passwordMtime'] | b64decode) is
+         match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T') and
+         (item.resources[0].data['server.secretkey'] | b64decode) | length >= 32)
+      - >-
+        item.item.key != 'argocd-redis' or
+        (item.resources[0].data.auth | b64decode) | length >= 32
+      - >-
+        item.item.key != 'argocd-server-tls' or
+        ((item.resources[0].data['ca.crt'] | b64decode).startswith(
+           '-----BEGIN CERTIFICATE-----') and
+         (item.resources[0].data['tls.crt'] | b64decode).startswith(
+           '-----BEGIN CERTIFICATE-----') and
+         'PRIVATE KEY-----' in (item.resources[0].data['tls.key'] | b64decode))
+    fail_msg: Required Infisical-owned Argo CD Secret metadata is absent or drifted.
+  loop: "{{ argocd_bootstrap_internal_secrets.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  changed_when: false
+  no_log: true
+
+- name: Validate cryptographic Argo CD Secret value contracts
+  argocd_secret_contract:
+    secret_results: "{{ argocd_bootstrap_internal_secrets.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Require generated initial administrator Secret absence
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: argocd
+    name: argocd-initial-admin-secret
+    kubeconfig: "{{ argocd_bootstrap_kubeconfig }}"
+  register: argocd_bootstrap_internal_initial_admin
+  changed_when: false
+  no_log: true
+
+- name: Refuse a generated initial administrator Secret
+  ansible.builtin.assert:
+    that: argocd_bootstrap_internal_initial_admin.resources | length == 0
+    fail_msg: Refusing bootstrap while argocd-initial-admin-secret exists.
+  changed_when: false
+
+- name: Query AppProject API prerequisite pre-state
+  kubernetes.core.k8s_info:
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: appprojects.argoproj.io
+    kubeconfig: "{{ argocd_bootstrap_kubeconfig }}"
+  register: argocd_bootstrap_internal_appproject_crd
+  changed_when: false
+  no_log: true
+
+- name: Query exact Argo CD object pre-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace | default(omit) }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ argocd_bootstrap_kubeconfig }}"
+  loop: "{{ argocd_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.namespace | default('cluster') }}/{{ item.metadata.name }}"
+  register: argocd_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+  when: >-
+    item.kind != 'AppProject' or
+    argocd_bootstrap_internal_appproject_crd.resources | length == 1
+
+- name: Refuse foreign existing Argo CD objects
+  ansible.builtin.assert:
+    that:
+      - item.resources | default([]) | length in [0, 1]
+      - >-
+        item.resources | default([]) | length == 0 or
+        ((item.resources[0].metadata.labels | default({})).get('app.kubernetes.io/managed-by', '') == 'ansible' and
+        (item.resources[0].metadata.labels | default({})).get('cristex.io/component', '') == 'argocd')
+    fail_msg: Refusing silent adoption of a foreign Argo CD object.
+  loop: "{{ argocd_bootstrap_internal_prestate.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.namespace | default('cluster') }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind the complete Argo CD mutation preflight
+  ansible.builtin.set_fact:
+    argocd_bootstrap_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_BOOTSTRAP_TOKEN') | hash('sha256') }}"
+      object_count: "{{ argocd_bootstrap_internal_manifests | length }}"
+      identity_set_sha256: >-
+        {{ argocd_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}
+      crd_count: "{{ argocd_bootstrap_internal_crds | length }}"
+      prestate_count: "{{ argocd_bootstrap_internal_prestate.results | length }}"
+      deferred_custom_resource_count: >-
+        {{ 1 if (ansible_check_mode and
+                 argocd_bootstrap_internal_appproject_crd.resources | length == 0)
+           else 0 }}
+      secret_count: "{{ argocd_bootstrap_internal_secrets.results | length }}"
+      namespace_contract: true
+      service_contract: true
+  changed_when: false
+  no_log: true
+
+- name: Reconcile exact Argo CD CRD prerequisites
+  argocd_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ argocd_bootstrap_kubeconfig }}"
+    wait: true
+    wait_condition:
+      type: Established
+      status: 'True'
+    wait_timeout: 60
+  loop: "{{ argocd_bootstrap_internal_crds }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: argocd_bootstrap_internal_crd_apply
+  no_log: true
+
+- name: Reconcile exact private Argo CD runtime objects
+  argocd_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ argocd_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ argocd_bootstrap_internal_runtime_objects }}"
+  loop_control:
+    label: "{{ item.kind }}/argocd/{{ item.metadata.name }}"
+  register: argocd_bootstrap_internal_runtime_apply
+  no_log: true
+  when: >-
+    item.kind != 'AppProject' or not ansible_check_mode or
+    argocd_bootstrap_internal_appproject_crd.resources | length == 1
+
+- name: Query exact Argo CD post-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace | default(omit) }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ argocd_bootstrap_kubeconfig }}"
+  loop: "{{ argocd_bootstrap_internal_manifests }}"
+  register: argocd_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact Argo CD post-state ownership
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources[0].metadata.labels.get('cristex.io/component') == 'argocd'
+    fail_msg: Argo CD post-state is absent or ownership-drifted.
+  loop: "{{ argocd_bootstrap_internal_poststate.results | default([]) }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Query Argo CD workload readiness
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: "{{ item.kind }}"
+    namespace: argocd
+    name: "{{ item.name }}"
+    kubeconfig: "{{ argocd_bootstrap_kubeconfig }}"
+  loop:
+    - {kind: StatefulSet, name: argocd-application-controller}
+    - {kind: Deployment, name: argocd-repo-server}
+    - {kind: Deployment, name: argocd-server}
+    - {kind: Deployment, name: argocd-redis}
+  register: argocd_bootstrap_internal_workloads
+  until: >-
+    argocd_bootstrap_internal_workloads.resources | length == 1 and
+    (argocd_bootstrap_internal_workloads.resources[0].status.readyReplicas | default(0) | int) == 1
+  retries: 30
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Capture service facts after Argo CD bootstrap
+  ansible.builtin.service_facts:
+  register: argocd_bootstrap_internal_service_facts_after
+  check_mode: false
+
+- name: Require k3s and Tailscale after Argo CD bootstrap
+  ansible.builtin.assert:
+    that:
+      - (argocd_bootstrap_internal_service_facts_after.ansible_facts.services | default({})).get('k3s.service', {}).get('state', '') == 'running'
+      - (argocd_bootstrap_internal_service_facts_after.ansible_facts.services | default({})).get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: Argo CD bootstrap must preserve k3s and tailscaled health.
+  changed_when: false

@@ -1,0 +1,47 @@
+---
+policy_schema: cristex-argocd-ui-tls-lifecycle-v1
+status: source-only-runtime-blocked
+hostname: argo.cristex-soft.com
+certificate:
+  authority: browser-trusted-acme
+  challenge: dns-01
+  dns_provider: cloudflare
+  exact_challenge_name: _acme-challenge.argo.cristex-soft.com
+  exact_san_set:
+    - argo.cristex-soft.com
+  minimum_remaining_seconds: 86400
+  value_owner: infisical-cloud
+  private_key_never_in_git_argv_logs_or_opentofu_state: true
+cloudflare:
+  account_id: 8b0f511214c7a4a52ddfb62ca92c5e80
+  zone_id: 3cbee16e56d7656440f93e685807e779
+  mutation_scope:
+    - argo.cristex-soft.com
+    - _acme-challenge.argo.cristex-soft.com
+  proxied: false
+  tunnel: forbidden
+infisical:
+  project_id: 619656da-14f3-4872-857b-be103cdc5326
+  environment: prod
+  path: /argocd-ui
+  keys:
+    - ARGOCD_UI_TLS_CRT
+    - ARGOCD_UI_TLS_KEY
+  access: existing-runtime-identity-read-only-path-grant-required
+kubernetes:
+  target_namespace: argocd
+  target_secret: argocd-ui-tls
+  type: kubernetes.io/tls
+  keys:
+    - tls.crt
+    - tls.key
+  creation_policy: Orphan
+  writer: infisical-operator
+  direct_kubectl_write: forbidden
+lifecycle:
+  issue_and_renewal: guarded-controller-only
+  temporary_plaintext_residue: forbidden
+  token_residue: external-custody-only
+  provider_apply: separately-approved
+  cluster_apply: separately-approved
+  rollback: revoke_certificate_then_remove_exact_dns_challenge_and_revert_source

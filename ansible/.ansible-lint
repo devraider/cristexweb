@@ -1,0 +1,21 @@
+---
+profile: production
+exclude_paths:
+  - .ansible/
+  - files/components/infisical-operator/
+  - files/components/argocd/
+  - files/components/cloudnative-pg/operator/
+  - files/components/mongodb-operator/operator/
+  - files/components/keycloak/
+  - files/components/rabbitmq/
+  - files/components/cloudflared/
+  - files/components/infisical-cloudflared-secrets/
+  - files/components/keycloak-route/
+  - files/components/infisical-cristexhub-dev-runtime/
+  - files/components/oidc-connect-proxy/
+  - roles/argocd_route_bootstrap/
+  - roles/coredns_external_forwarding/
+  - roles/cristexhub_dev_registration/
+  - roles/cristexhub_dev_sync_transition/
+  - roles/infisical_cristexhub_dev_runtime_bootstrap/
+  - roles/oidc_connect_proxy_bootstrap/

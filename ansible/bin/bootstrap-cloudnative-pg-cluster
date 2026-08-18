@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+usage='usage: ansible/bin/bootstrap-cloudnative-pg-cluster check|apply'
+if [ "$#" -ne 1 ] || { [ "$1" != check ] && [ "$1" != apply ]; }; then printf '%s\n' "$usage" >&2; exit 64; fi
+script_path=$0
+[ ! -L "$script_path" ] || exit 66
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
+case "$repository_root" in /Users/paul/Projects/cristexweb|/home/paul/projects/cristexweb) ;; *) exit 78 ;; esac
+controller="$repository_root/.venv/bin/ansible-playbook"
+inventory="$repository_root/ansible/.ansible/inventory.local.yml"
+[ -x "$controller" ] && [ ! -L "$controller" ] && [ -f "$inventory" ] && [ ! -L "$inventory" ] || exit 69
+cd "$repository_root/ansible"
+if [ "$1" = check ]; then exec "$controller" -i "$inventory" playbooks/bootstrap_cloudnative_pg_cluster.yml --check --diff; fi
+exec "$controller" -i "$inventory" playbooks/bootstrap_cloudnative_pg_cluster.yml --diff

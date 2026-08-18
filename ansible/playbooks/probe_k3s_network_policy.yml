@@ -1,0 +1,14 @@
+---
+- name: Plan, run, or exactly clean the bounded k3s NetworkPolicy probe
+  hosts: k3s_servers
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+  vars:
+    k3s_network_probe_action: plan
+
+  roles:
+    - role: network_policy_probe
+      vars:
+        network_policy_probe_action: "{{ k3s_network_probe_action }}"

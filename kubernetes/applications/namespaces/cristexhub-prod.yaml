@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cristexhub-prod
+  labels:
+    app.kubernetes.io/part-of: cristexhub
+    cristex.io/environment: prod
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd

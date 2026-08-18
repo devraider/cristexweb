@@ -1,0 +1,337 @@
+---
+policy_schema: cristex-shared-databases-v1
+policy_status: source-only-runtime-blocked
+namespace: shared-services
+credential_value_owner: infisical-cloud
+engines:
+  postgresql:
+    instance_count: 1
+    namespace: shared-services
+    model: one-general-engine
+    source:
+      selection: selected-offline-only
+      reference: "ansible/files/policies/hosted-identity-authorization.yml#images.postgresql"
+      trust_accepted: false
+    consumers:
+      cristexhub-dev:
+        database: dedicated-logical-database
+        logical_database: cristexhub_dev
+        principal: dedicated-owner-role
+        principal_name: cristexhub_dev_owner
+        credential_secret: shared-postgresql-cristexhub-dev
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+        bootstrap_state: empty-reservation
+        activation: inactive
+      cristexhub-prod:
+        database: dedicated-logical-database
+        logical_database: cristexhub_prod
+        principal: dedicated-owner-role
+        principal_name: cristexhub_prod_owner
+        credential_secret: shared-postgresql-cristexhub-prod
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+        bootstrap_state: empty-reservation
+        activation: inactive
+      reactive-resume-dev:
+        database: dedicated-logical-database
+        logical_database: reactive_resume_dev
+        principal: dedicated-owner-role
+        principal_name: reactive_resume_dev_owner
+        credential_secret: shared-postgresql-reactive-resume-dev
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+        bootstrap_state: empty-reservation
+        activation: inactive
+      reactive-resume-prod:
+        database: dedicated-logical-database
+        logical_database: reactive_resume_prod
+        principal: dedicated-owner-role
+        principal_name: reactive_resume_prod_owner
+        credential_secret: shared-postgresql-reactive-resume-prod
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+        bootstrap_state: empty-reservation
+        activation: inactive
+      keycloak:
+        database: dedicated-logical-database
+        logical_database: keycloak
+        principal: dedicated-owner-role
+        principal_name: keycloak_owner
+        credential_secret: shared-postgresql-keycloak
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+        bootstrap_state: empty-reservation
+        activation: inactive
+    no_consumer_specific_engine_or_pvc: true
+    logical_provisioning:
+      enabled_source_only: true
+      credential_secrets_precreated: true
+      credential_secret_type: Opaque
+      credential_secret_keys:
+        - username
+        - password
+      credential_value_generation: forbidden
+      implicit_rotation: forbidden
+    authorization:
+      cross_database_access_default: deny
+      public_connect: revoke
+      public_schema_create: revoke
+      workload_create_database: deny
+      workload_create_role: deny
+      required_negative_tests:
+        - dev-role-to-prod-database
+        - prod-role-to-dev-database
+        - application-roles-to-keycloak-database
+        - keycloak-role-to-application-databases
+        - workload-role-create-database
+        - workload-role-create-role
+  mongodb:
+    instance_count: 1
+    namespace: shared-services
+    model: one-general-engine
+    source:
+      selection: selected-offline-only
+      repository: docker.io/library/mongo
+      version: "8.0.28"
+      linux_amd64_digest: sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4
+      pull_reference: docker.io/library/mongo@sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4
+      trust_accepted: false
+    topology: standalone-non-authoritative
+    high_availability: false
+    replica_set: false
+    transaction_acceptance: false
+    authoritative_data_acceptance: false
+    consumers:
+      cristexhub-dev:
+        database: dedicated-logical-database
+        logical_database: cristexhub_dev
+        principal: dedicated-database-user
+        principal_name: cristexhub_dev_user
+        credential_secret: shared-mongodb-cristexhub-dev
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+        bootstrap_state: empty-reservation
+        activation: inactive
+      cristexhub-prod:
+        database: dedicated-logical-database
+        logical_database: cristexhub_prod
+        principal: dedicated-database-user
+        principal_name: cristexhub_prod_user
+        credential_secret: shared-mongodb-cristexhub-prod
+        credential_value_owner: infisical-cloud
+        migration_scope: dedicated
+        backup_scope: dedicated-logical-database
+        bootstrap_state: empty-reservation
+        activation: inactive
+    no_consumer_specific_engine_or_pvc: true
+    logical_provisioning:
+      enabled_source_only: true
+      credential_secrets_precreated: true
+      credential_secret_type: Opaque
+      credential_secret_keys:
+        - username
+        - password
+      credential_value_generation: forbidden
+      implicit_rotation: forbidden
+      authoritative_data: false
+    authorization:
+      cross_database_access_default: deny
+      workload_user_administration: deny
+      workload_role_administration: deny
+      writes_outside_authorized_database: deny
+      forbidden_builtin_roles:
+        - readAnyDatabase
+        - readWriteAnyDatabase
+        - dbAdminAnyDatabase
+        - userAdminAnyDatabase
+        - root
+      required_negative_tests:
+        - dev-user-to-prod-database
+        - prod-user-to-dev-database
+        - workload-user-administration
+        - workload-role-administration
+future_consumer_admission:
+  mode: reviewed-exact-policy-change
+  wildcard_or_dynamic_consumers_allowed: false
+  required_evidence:
+    - exact-engine-and-consumer-identifier
+    - dedicated-database-and-principal
+    - dedicated-infisical-credential
+    - dedicated-migration-and-backup-scopes
+    - capacity-review
+    - negative-cross-database-tests
+    - policy-test-and-runbook-update
+exposure:
+  future_scope: cluster-internal-only
+  services:
+    postgresql:
+      identity: shared-postgresql
+      type: ClusterIP
+      port: 5432
+    mongodb:
+      identity: shared-mongodb
+      type: ClusterIP
+      port: 27017
+  forbidden:
+    - Ingress
+    - NodePort
+    - LoadBalancer
+    - CloudflareTunnel
+    - public-route
+tls:
+  required: true
+  certificate_value_owner: infisical-cloud
+  exact_identities_selected: true
+  certificate_identities:
+    postgresql:
+      - localhost
+      - shared-postgresql.shared-services.svc
+      - shared-postgresql.shared-services.svc.cluster.local
+    mongodb:
+      - localhost
+      - shared-mongodb.shared-services.svc
+      - shared-mongodb.shared-services.svc.cluster.local
+      - shared-mongodb-0.shared-mongodb-svc.shared-services.svc.cluster.local
+  postgresql_secret_keys:
+    - ca.crt
+    - tls.crt
+    - tls.key
+  mongodb_secret_keys:
+    - ca.crt
+    - tls.pem
+  mongodb_certificate_argv: --tlsCertificateKeyFile=/etc/mongodb/tls/tls.pem
+storage:
+  storage_class: local-path
+  placement: nvme
+  pvc_topology: one-pvc-per-engine
+  capacities:
+    postgresql: 40Gi
+    mongodb: 80Gi
+  access_mode: ReadWriteOnce
+  data_paths:
+    mongodb: /data/db
+  retention_and_reclaim:
+    mongodb:
+      when_deleted: Retain
+      when_scaled: Retain
+      pvc_delete_path: forbidden
+resources:
+  per_engine:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 3Gi
+  probes:
+    mongodb:
+      startup: mongosh-authenticated-tls-ping
+      readiness: mongosh-authenticated-tls-ping
+      liveness: mongosh-authenticated-tls-ping
+  connection_limits: unselected
+infisical_bootstrap:
+  lane: ansible/files/policies/infisical-secret-zero-lane.yml
+  project_slug: cristexweb-infrastructure
+  environment_slug: prod
+  runtime_credential_secrets:
+    postgresql: shared-services/shared-postgresql-infisical-universal-auth
+    mongodb: shared-services/shared-mongodb-infisical-universal-auth
+  paths:
+    postgresql: /shared-services/postgresql
+    mongodb: /shared-services/mongodb
+  postgresql_keys:
+    - POSTGRESQL_ADMIN_USERNAME
+    - POSTGRESQL_ADMIN_PASSWORD
+    - POSTGRESQL_TLS_CA_CRT
+    - POSTGRESQL_TLS_CRT
+    - POSTGRESQL_TLS_KEY
+  mongodb_keys:
+    - MONGODB_ADMIN_USERNAME
+    - MONGODB_ADMIN_PASSWORD
+    - MONGODB_TLS_CA_CRT
+    - MONGODB_TLS_PEM
+  identities_out_of_band: true
+  seed_and_upload: not-run-blocked
+  rotation: separately-reviewed-only
+provisioning:
+  owner: ansible-bootstrap-then-argocd-handoff
+  administrator_credential_value_owner: infisical-cloud
+  administrator_credential_available_to_workloads: false
+  logical_scope_owner: ansible
+  logical_scope_status: source-only-runtime-blocked
+  require_ready_engine: true
+  require_exact_infisical_consumer_secrets: true
+  infisical_source:
+    project_slug: cristexweb-infrastructure
+    environment_slug: prod
+    paths:
+      postgresql: /shared-services/postgresql
+      mongodb: /shared-services/mongodb
+  generate_consumer_credentials: false
+  implicit_password_rotation: false
+  database_delete_path: forbidden
+  role_or_user_delete_path: forbidden
+  pvc_delete_path: forbidden
+  helper_resources:
+    lifecycle: temporary-uid-bound
+    namespace: shared-services
+    cleanup: always-with-uid-precondition
+    pod_service_account_token: forbidden
+    pvc: forbidden
+    secret_values_in_argv: forbidden
+  postgresql:
+    helper_image: docker.io/library/postgres@sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b
+    admin_secret: shared-postgresql-admin
+    tls_secret: shared-postgresql-tls
+    consumer_secrets:
+      - shared-postgresql-cristexhub-dev
+      - shared-postgresql-cristexhub-prod
+      - shared-postgresql-reactive-resume-dev
+      - shared-postgresql-reactive-resume-prod
+      - shared-postgresql-keycloak
+  mongodb:
+    helper_image: docker.io/library/mongo@sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4
+    admin_secret: shared-mongodb-auth
+    tls_secret: shared-mongodb-tls
+    consumer_secrets:
+      - shared-mongodb-cristexhub-dev
+      - shared-mongodb-cristexhub-prod
+backup_and_restore:
+  policy_path: ansible/files/policies/shared-stateful-backup-architecture.yml
+  tooling: unselected
+  schedule: daily
+  retention: 14d
+  destination_direction: google-drive
+  destination_identity: unselected
+  encryption_key_custody: independent-from-backup-credential
+  rpo: 24h
+  rto: 4h
+  application_consistent_dumps_required: true
+  encrypted_off_node_copy_required: true
+  integrity_verification_required: true
+  isolated_restore_required: true
+promotion_gates:
+  mongodb_immutable_source_selected: true
+  image_trust_and_recovery_accepted: false
+  storage_design_accepted: true
+  tls_design_accepted: false
+  resources_and_probes_accepted: true
+  network_policy_accepted: true
+  infisical_bootstrap_recovery_proved: false
+  provisioning_workflow_proved: false
+  backup_and_restore_proved: false
+  rpo_rto_restore_proved: false
+  one_writer_handoff_proved: false
+  runtime_approved: false
+  logical_provisioning_source_validated: true
+  logical_provisioning_runtime_approved: false
+  production_logical_scopes_active: false
+  mongodb_authoritative_data_accepted: false
+executable_source_allowed: true

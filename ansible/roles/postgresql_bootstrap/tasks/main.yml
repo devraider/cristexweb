@@ -1,0 +1,726 @@
+---
+- name: Reject externally supplied PostgreSQL bootstrap internal variables
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied PostgreSQL bootstrap
+      internal variable {{ item }}.
+  loop:
+    - postgresql_bootstrap_internal_attestation_state
+    - postgresql_bootstrap_internal_manifest_states
+    - postgresql_bootstrap_internal_manifests
+    - postgresql_bootstrap_internal_identity_keys
+    - postgresql_bootstrap_internal_service_facts_before
+    - postgresql_bootstrap_internal_kubeconfig_state
+    - postgresql_bootstrap_internal_namespace
+    - postgresql_bootstrap_internal_storage_class
+    - postgresql_bootstrap_internal_secrets
+    - postgresql_bootstrap_internal_pvc_prestate
+    - postgresql_bootstrap_internal_pv_prestate
+    - postgresql_bootstrap_internal_prestate
+    - postgresql_bootstrap_internal_preflight_binding
+    - postgresql_bootstrap_internal_apply
+    - postgresql_bootstrap_internal_poststate
+    - postgresql_bootstrap_internal_statefulset
+    - postgresql_bootstrap_internal_pod
+    - postgresql_bootstrap_internal_pvc
+    - postgresql_bootstrap_internal_pv
+    - postgresql_bootstrap_internal_service
+    - postgresql_bootstrap_internal_service_facts_after
+  changed_when: false
+
+- name: Require the PostgreSQL bootstrap approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_POSTGRESQL_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_POSTGRESQL_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_POSTGRESQL_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - postgresql_bootstrap_approved | bool
+      - postgresql_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - postgresql_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - postgresql_bootstrap_repository_root == (playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname)
+      - postgresql_bootstrap_manifest_paths | length == 6
+      - postgresql_bootstrap_manifest_paths | unique | length == 6
+      - postgresql_bootstrap_expected_hashes | length == 6
+      - postgresql_bootstrap_object_count == 6
+      - postgresql_bootstrap_namespace == 'shared-services'
+      - postgresql_bootstrap_service_name == 'shared-postgresql'
+      - postgresql_bootstrap_statefulset_name == 'shared-postgresql'
+      - postgresql_bootstrap_pvc_name == 'postgresql-data-shared-postgresql-0'
+      - postgresql_bootstrap_admin_secret_name == 'shared-postgresql-admin'
+      - postgresql_bootstrap_tls_secret_name == 'shared-postgresql-tls'
+      - >-
+        postgresql_bootstrap_admin_secret_contract ==
+        {'type': 'Opaque', 'keys': ['password', 'username']}
+      - >-
+        postgresql_bootstrap_tls_secret_contract ==
+        {'type': 'kubernetes.io/tls', 'keys': ['ca.crt', 'tls.crt', 'tls.key']}
+    fail_msg: >-
+      PostgreSQL bootstrap requires the exact wrapper, present-only approval,
+      --diff, one-host limit, protected kubeconfig, six-object closure, and
+      value-free Infisical Secret contracts.
+  changed_when: false
+
+- name: Inspect the ephemeral PostgreSQL bootstrap attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_POSTGRESQL_BOOTSTRAP_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: postgresql_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run PostgreSQL bootstrap attestation
+  ansible.builtin.assert:
+    that:
+      - postgresql_bootstrap_internal_attestation_state.stat.exists | default(false)
+      - postgresql_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (postgresql_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - postgresql_bootstrap_internal_attestation_state.stat.pw_name == postgresql_bootstrap_controller_user
+      - postgresql_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_POSTGRESQL_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_POSTGRESQL_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing a missing, reusable, foreign-owned, symlinked, or invalid PostgreSQL attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect every exact PostgreSQL manifest leaf
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ postgresql_bootstrap_manifest_paths }}"
+  register: postgresql_bootstrap_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+
+- name: Require canonical hash-bound PostgreSQL manifest leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == postgresql_bootstrap_controller_user
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - >-
+        item.stat.checksum == postgresql_bootstrap_expected_hashes[
+          item.item | replace(
+            postgresql_bootstrap_repository_root ~ '/ansible/files/components/postgresql/',
+            ''
+          )
+        ]
+      - item.item.startswith(postgresql_bootstrap_repository_root ~ '/ansible/files/components/postgresql/')
+    fail_msg: Refusing missing, unsafe, mode-drifted, or hash-drifted PostgreSQL source.
+  loop: "{{ postgresql_bootstrap_internal_manifest_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  delegate_to: localhost
+  changed_when: false
+
+- name: Load the exact PostgreSQL object closure
+  ansible.builtin.set_fact:
+    postgresql_bootstrap_internal_manifests: >-
+      {{ (postgresql_bootstrap_internal_manifests | default([])) +
+         [(lookup('ansible.builtin.file', item) | from_yaml)] }}
+  loop: "{{ postgresql_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact PostgreSQL object identities
+  ansible.builtin.set_fact:
+    postgresql_bootstrap_internal_identity_keys: >-
+      {{ (postgresql_bootstrap_internal_identity_keys | default([])) +
+         [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+          (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
+  loop: "{{ postgresql_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Require the exact value-free private PostgreSQL inventory
+  ansible.builtin.assert:
+    that:
+      - postgresql_bootstrap_internal_manifests | length == 6
+      - postgresql_bootstrap_internal_identity_keys | length == 6
+      - postgresql_bootstrap_internal_identity_keys | unique | length == 6
+      - postgresql_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - >-
+        postgresql_bootstrap_internal_identity_keys ==
+        ['v1|ConfigMap|shared-services|shared-postgresql-pg-hba',
+         'networking.k8s.io/v1|NetworkPolicy|shared-services|shared-postgresql-default-deny',
+         'networking.k8s.io/v1|NetworkPolicy|shared-services|shared-postgresql-ingress',
+         'v1|ServiceAccount|shared-services|shared-postgresql',
+         'v1|Service|shared-services|shared-postgresql',
+         'apps/v1|StatefulSet|shared-services|shared-postgresql']
+    fail_msg: Refusing PostgreSQL source outside the exact unique six-object value-free closure.
+  changed_when: false
+
+- name: Capture service facts before PostgreSQL bootstrap
+  ansible.builtin.service_facts:
+  register: postgresql_bootstrap_internal_service_facts_before
+  check_mode: false
+
+- name: Require k3s and Tailscale before PostgreSQL bootstrap
+  ansible.builtin.assert:
+    that:
+      - postgresql_bootstrap_internal_service_facts_before.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - postgresql_bootstrap_internal_service_facts_before.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: k3s and tailscaled must already be running.
+  changed_when: false
+
+- name: Inspect the protected k3s kubeconfig
+  ansible.builtin.stat:
+    path: "{{ postgresql_bootstrap_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: postgresql_bootstrap_internal_kubeconfig_state
+  no_log: true
+
+- name: Require group-scoped k3s administrator access without sudo
+  ansible.builtin.assert:
+    that:
+      - postgresql_bootstrap_internal_kubeconfig_state.stat.exists | default(false)
+      - postgresql_bootstrap_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (postgresql_bootstrap_internal_kubeconfig_state.stat.islnk | default(false))
+      - postgresql_bootstrap_internal_kubeconfig_state.stat.pw_name == 'root'
+      - postgresql_bootstrap_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+      - postgresql_bootstrap_internal_kubeconfig_state.stat.mode == '0640'
+    fail_msg: Refusing PostgreSQL bootstrap without root:k3s-admin mode-0640 kubeconfig.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact shared-services Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: shared-services
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  register: postgresql_bootstrap_internal_namespace
+  changed_when: false
+
+- name: Require the established exact shared-services Namespace
+  ansible.builtin.assert:
+    that:
+      - postgresql_bootstrap_internal_namespace.resources | length == 1
+      - postgresql_bootstrap_internal_namespace.resources[0].status.phase == 'Active'
+      - postgresql_bootstrap_internal_namespace.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'cristex-platform'
+      - postgresql_bootstrap_internal_namespace.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible'
+      - postgresql_bootstrap_internal_namespace.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
+    fail_msg: Refusing PostgreSQL bootstrap into a missing or drifted Namespace.
+  changed_when: false
+
+- name: Query the exact local-path StorageClass
+  kubernetes.core.k8s_info:
+    api_version: storage.k8s.io/v1
+    kind: StorageClass
+    name: local-path
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  register: postgresql_bootstrap_internal_storage_class
+  changed_when: false
+
+- name: Require the exact local-path StorageClass before PostgreSQL bootstrap
+  ansible.builtin.assert:
+    that:
+      - postgresql_bootstrap_internal_storage_class.resources | length == 1
+      - postgresql_bootstrap_internal_storage_class.resources[0].metadata.name == 'local-path'
+      - postgresql_bootstrap_internal_storage_class.resources[0].provisioner == 'rancher.io/local-path'
+    fail_msg: Refusing PostgreSQL bootstrap without the exact local-path provisioner.
+  changed_when: false
+
+- name: Query exact PostgreSQL Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: shared-services
+    name: "{{ item.key }}"
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  loop:
+    - key: "{{ postgresql_bootstrap_admin_secret_name }}"
+      value: "{{ postgresql_bootstrap_admin_secret_contract }}"
+    - key: "{{ postgresql_bootstrap_tls_secret_name }}"
+      value: "{{ postgresql_bootstrap_tls_secret_contract }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: postgresql_bootstrap_internal_secrets
+  changed_when: false
+  no_log: true
+
+- name: Require exact Infisical-owned PostgreSQL Secret contracts
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.namespace == 'shared-services'
+      - item.resources[0].type == item.item.value.type
+      - ((item.resources[0].data | default({})) | dict2items | map(attribute='key') | list | sort) == (item.item.value['keys'] | sort)
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'shared-databases'
+      - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+    fail_msg: Required Infisical-owned PostgreSQL Secret metadata is absent or drifted.
+  loop: "{{ postgresql_bootstrap_internal_secrets.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  changed_when: false
+  no_log: true
+
+- name: Validate exact PostgreSQL Secret values without disclosure
+  stateful_database_secret_contract:
+    secret_results: "{{ postgresql_bootstrap_internal_secrets.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Query the exact generated PostgreSQL PVC pre-state
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: PersistentVolumeClaim
+    namespace: shared-services
+    name: "{{ postgresql_bootstrap_pvc_name }}"
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  register: postgresql_bootstrap_internal_pvc_prestate
+  changed_when: false
+  no_log: true
+
+- name: Refuse a foreign or drifted PostgreSQL PVC
+  ansible.builtin.assert:
+    that:
+      - postgresql_bootstrap_internal_pvc_prestate.resources | length in [0, 1]
+      - >-
+        postgresql_bootstrap_internal_pvc_prestate.resources | length == 0 or
+        (postgresql_bootstrap_internal_pvc_prestate.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible' and
+         postgresql_bootstrap_internal_pvc_prestate.resources[0].metadata.labels.get('cristex.io/component') == 'postgresql' and
+         postgresql_bootstrap_internal_pvc_prestate.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible' and
+         postgresql_bootstrap_internal_pvc_prestate.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd' and
+         postgresql_bootstrap_internal_pvc_prestate.resources[0].spec.storageClassName == 'local-path' and
+         postgresql_bootstrap_internal_pvc_prestate.resources[0].spec.volumeMode == 'Filesystem' and
+         postgresql_bootstrap_internal_pvc_prestate.resources[0].spec.accessModes | sort == ['ReadWriteOnce'] and
+         postgresql_bootstrap_internal_pvc_prestate.resources[0].spec.selector is not defined and
+         postgresql_bootstrap_internal_pvc_prestate.resources[0].spec.dataSource is not defined and
+         postgresql_bootstrap_internal_pvc_prestate.resources[0].spec.dataSourceRef is not defined and
+         postgresql_bootstrap_internal_pvc_prestate.resources[0].spec.resources.requests.storage == '40Gi')
+    fail_msg: Refusing silent reuse of a foreign or drifted PostgreSQL PVC.
+  changed_when: false
+  no_log: true
+
+- name: Query exact PostgreSQL object pre-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  loop: "{{ postgresql_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: postgresql_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Require an existing PostgreSQL PVC to remain paired with the guarded StatefulSet
+  ansible.builtin.assert:
+    that:
+      - >-
+        postgresql_bootstrap_internal_pvc_prestate.resources | length == 0 or
+        ((postgresql_bootstrap_internal_prestate.results |
+          selectattr('item.kind', 'equalto', 'StatefulSet') | first).resources | length == 1)
+    fail_msg: Refusing PostgreSQL PVC reuse without the existing guarded StatefulSet.
+  changed_when: false
+  no_log: true
+
+- name: Query the existing bound PostgreSQL PV identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: PersistentVolume
+    name: "{{ postgresql_bootstrap_internal_pvc_prestate.resources[0].spec.volumeName }}"
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  register: postgresql_bootstrap_internal_pv_prestate
+  changed_when: false
+  no_log: true
+  when:
+    - postgresql_bootstrap_internal_pvc_prestate.resources | length == 1
+    - postgresql_bootstrap_internal_pvc_prestate.resources[0].spec.volumeName | default('') | length > 0
+
+- name: Require the existing PostgreSQL PV to bind only the exact PVC identity
+  ansible.builtin.assert:
+    that:
+      - postgresql_bootstrap_internal_pv_prestate.resources | length == 1
+      - postgresql_bootstrap_internal_pv_prestate.resources[0].spec.claimRef.namespace == 'shared-services'
+      - postgresql_bootstrap_internal_pv_prestate.resources[0].spec.claimRef.name == postgresql_bootstrap_pvc_name
+      - postgresql_bootstrap_internal_pv_prestate.resources[0].spec.claimRef.uid == postgresql_bootstrap_internal_pvc_prestate.resources[0].metadata.uid
+      - postgresql_bootstrap_internal_pv_prestate.resources[0].metadata.annotations.get('pv.kubernetes.io/provisioned-by') == 'rancher.io/local-path'
+    fail_msg: Refusing PostgreSQL reuse through a foreign or rebound PersistentVolume.
+  changed_when: false
+  no_log: true
+  when:
+    - postgresql_bootstrap_internal_pvc_prestate.resources | length == 1
+    - postgresql_bootstrap_internal_pvc_prestate.resources[0].spec.volumeName | default('') | length > 0
+
+- name: Refuse foreign existing PostgreSQL objects
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - >-
+        item.resources | length == 0 or
+        ((item.resources[0].metadata.labels | default({})).get('app.kubernetes.io/managed-by', '') == 'ansible' and
+         (item.resources[0].metadata.labels | default({})).get('cristex.io/component', '') == 'postgresql' and
+         (item.item.kind != 'ConfigMap' or
+          (item.resources[0].data | dict2items | map(attribute='key') | list | sort) == ['pg_hba.conf']) and
+         (item.item.kind != 'ServiceAccount' or
+          (not (item.resources[0].automountServiceAccountToken | default(false)) and
+           item.resources[0].secrets | default([]) | length == 0 and
+           item.resources[0].imagePullSecrets | default([]) | length == 0)) and
+         (item.item.kind != 'Service' or
+          (item.resources[0].spec.type == 'ClusterIP' and
+           item.resources[0].spec.externalIPs | default([]) | length == 0 and
+           item.resources[0].spec.ports | length == 1 and
+           item.resources[0].spec.ports[0].port == 5432 and
+           item.resources[0].spec.ports[0].nodePort is not defined)) and
+         (item.item.kind != 'NetworkPolicy' or
+          (item.resources[0].spec.podSelector == item.item.spec.podSelector and
+           item.resources[0].spec.policyTypes | sort == item.item.spec.policyTypes | sort and
+           item.resources[0].spec.ingress | default([]) == item.item.spec.ingress | default([]) and
+           item.resources[0].spec.egress | default([]) == item.item.spec.egress | default([]))) and
+         (item.item.kind != 'StatefulSet' or
+          (item.resources[0].spec.serviceName == 'shared-postgresql' and
+           item.resources[0].spec.replicas == 1 and
+           item.resources[0].spec.template.spec.serviceAccountName == 'shared-postgresql' and
+           not (item.resources[0].spec.template.spec.hostNetwork | default(false)) and
+           not (item.resources[0].spec.template.spec.hostPID | default(false)) and
+           not (item.resources[0].spec.template.spec.hostIPC | default(false)) and
+           item.resources[0].spec.template.spec.initContainers | length == 1 and
+           item.resources[0].spec.template.spec.volumes | length == item.item.spec.template.spec.volumes | length and
+           item.resources[0].spec.template.spec.volumes | selectattr('hostPath', 'defined') | list | length == 0 and
+           item.resources[0].spec.template.spec.containers | length == 1 and
+           item.resources[0].spec.template.spec.containers[0].image ==
+             'docker.io/library/postgres@sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b')))
+    fail_msg: Refusing silent adoption of a foreign PostgreSQL object.
+  loop: "{{ postgresql_bootstrap_internal_prestate.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Refuse unmodeled existing PostgreSQL StatefulSet workload drift
+  ansible.builtin.assert:
+    that:
+      - item.resources[0].spec.template.spec.nodeSelector == item.item.spec.template.spec.nodeSelector
+      - item.resources[0].spec.template.spec.containers[0].name == item.item.spec.template.spec.containers[0].name
+      - item.resources[0].spec.template.spec.containers[0].args == item.item.spec.template.spec.containers[0].args
+      - item.resources[0].spec.template.spec.containers[0].env == item.item.spec.template.spec.containers[0].env
+      - item.resources[0].spec.template.spec.containers[0].ports == item.item.spec.template.spec.containers[0].ports
+      - item.resources[0].spec.template.spec.containers[0].resources == item.item.spec.template.spec.containers[0].resources
+      - item.resources[0].spec.template.spec.containers[0].securityContext == item.item.spec.template.spec.containers[0].securityContext
+      - item.resources[0].spec.template.spec.containers[0].volumeMounts == item.item.spec.template.spec.containers[0].volumeMounts
+      - item.resources[0].spec.template.spec.initContainers[0].command == item.item.spec.template.spec.initContainers[0].command
+      - item.resources[0].spec.template.spec.initContainers[0].args == item.item.spec.template.spec.initContainers[0].args
+      - item.resources[0].spec.template.spec.initContainers[0].securityContext == item.item.spec.template.spec.initContainers[0].securityContext
+      - item.resources[0].spec.template.spec.initContainers[0].volumeMounts == item.item.spec.template.spec.initContainers[0].volumeMounts
+      - item.resources[0].spec.volumeClaimTemplates[0].metadata.labels == item.item.spec.volumeClaimTemplates[0].metadata.labels
+      - item.resources[0].spec.volumeClaimTemplates[0].spec == item.item.spec.volumeClaimTemplates[0].spec
+    fail_msg: Refusing existing PostgreSQL StatefulSet workload or claim-template drift.
+  loop: "{{ postgresql_bootstrap_internal_prestate.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when:
+    - item.item.kind == 'StatefulSet'
+    - item.resources | length == 1
+
+- name: Bind the protected PostgreSQL preflight to this run
+  ansible.builtin.set_fact:
+    postgresql_bootstrap_internal_preflight_binding:
+      attestation_sha256: >-
+        {{ lookup('ansible.builtin.env', 'CRISTEXWEB_POSTGRESQL_BOOTSTRAP_TOKEN') |
+           ansible.builtin.hash('sha256') }}
+      object_count: "{{ postgresql_bootstrap_internal_manifests | length }}"
+      identity_set_sha256: >-
+        {{ postgresql_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}
+      prestate_count: "{{ postgresql_bootstrap_internal_prestate.results | length }}"
+      secret_count: "{{ postgresql_bootstrap_internal_secrets.results | length }}"
+      pvc_prestate_count: "{{ postgresql_bootstrap_internal_pvc_prestate.resources | length }}"
+      namespace_contract: true
+      storage_contract: true
+      service_contract: true
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Reconcile only the approved PostgreSQL objects
+  postgresql_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    wait: false
+    wait_timeout: 60
+  loop: "{{ postgresql_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: postgresql_bootstrap_internal_apply
+  when:
+    - postgresql_bootstrap_internal_preflight_binding.object_count | int == 6
+    - postgresql_bootstrap_internal_preflight_binding.identity_set_sha256 == '29c7c24d94405550370d3528c12df31e6beeea06dda23edfba417d3e15a8baf4'
+    - postgresql_bootstrap_internal_preflight_binding.prestate_count | int == 6
+    - postgresql_bootstrap_internal_preflight_binding.secret_count | int == 2
+    - postgresql_bootstrap_internal_preflight_binding.pvc_prestate_count | int in [0, 1]
+    - postgresql_bootstrap_internal_preflight_binding.namespace_contract | bool
+    - postgresql_bootstrap_internal_preflight_binding.storage_contract | bool
+    - postgresql_bootstrap_internal_preflight_binding.service_contract | bool
+    - postgresql_bootstrap_internal_preflight_binding.no_delete_path | bool
+    - postgresql_bootstrap_approved | bool
+    - postgresql_bootstrap_state == 'present'
+    - ansible_diff_mode
+  no_log: true
+
+- name: Query PostgreSQL object post-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  loop: "{{ postgresql_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: postgresql_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact PostgreSQL post-state ownership
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources[0].metadata.labels.get('cristex.io/component') == 'postgresql'
+      - >-
+        item.item.kind != 'ConfigMap' or
+        item.resources[0].data == item.item.data
+      - >-
+        item.item.kind != 'ServiceAccount' or
+        (not (item.resources[0].automountServiceAccountToken | default(false)) and
+         item.resources[0].secrets | default([]) | length == 0 and
+         item.resources[0].imagePullSecrets | default([]) | length == 0)
+      - >-
+        item.item.kind != 'Service' or
+        (item.resources[0].spec.type == 'ClusterIP' and
+         item.resources[0].spec.externalIPs | default([]) | length == 0 and
+         item.resources[0].spec.ports | length == 1 and
+         item.resources[0].spec.ports[0].port == 5432 and
+         item.resources[0].spec.ports[0].targetPort == 'postgresql' and
+         item.resources[0].spec.ports[0].protocol == 'TCP' and
+         item.resources[0].spec.sessionAffinity == 'None' and
+         item.resources[0].spec.ports[0].nodePort is not defined and
+         item.resources[0].spec.selector == item.item.spec.selector)
+      - >-
+        item.item.kind != 'NetworkPolicy' or
+        (item.resources[0].spec.podSelector == item.item.spec.podSelector and
+         item.resources[0].spec.policyTypes | sort == item.item.spec.policyTypes | sort and
+         item.resources[0].spec.ingress | default([]) == item.item.spec.ingress | default([]) and
+         item.resources[0].spec.egress | default([]) == item.item.spec.egress | default([]))
+      - >-
+        item.item.kind != 'StatefulSet' or
+        (item.resources[0].spec.serviceName == 'shared-postgresql' and
+         item.resources[0].spec.replicas == 1 and
+         item.resources[0].spec.template.spec.serviceAccountName == 'shared-postgresql' and
+         not (item.resources[0].spec.template.spec.hostNetwork | default(false)) and
+         not (item.resources[0].spec.template.spec.hostPID | default(false)) and
+         not (item.resources[0].spec.template.spec.hostIPC | default(false)) and
+         item.resources[0].spec.template.spec.initContainers | length == 1 and
+         item.resources[0].spec.template.spec.volumes | length == item.item.spec.template.spec.volumes | length and
+         item.resources[0].spec.template.spec.volumes | selectattr('hostPath', 'defined') | list | length == 0 and
+         item.resources[0].spec.template.spec.containers | length == 1 and
+         item.resources[0].spec.template.spec.containers[0].image ==
+           'docker.io/library/postgres@sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b')
+    fail_msg: PostgreSQL post-state is absent or ownership-drifted.
+  loop: "{{ postgresql_bootstrap_internal_poststate.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact PostgreSQL StatefulSet workload post-state
+  ansible.builtin.assert:
+    that:
+      - item.resources[0].spec.template.spec.nodeSelector == item.item.spec.template.spec.nodeSelector
+      - item.resources[0].spec.template.spec.containers[0].args == item.item.spec.template.spec.containers[0].args
+      - item.resources[0].spec.template.spec.containers[0].env == item.item.spec.template.spec.containers[0].env
+      - item.resources[0].spec.template.spec.containers[0].ports == item.item.spec.template.spec.containers[0].ports
+      - item.resources[0].spec.template.spec.containers[0].resources == item.item.spec.template.spec.containers[0].resources
+      - item.resources[0].spec.template.spec.containers[0].securityContext == item.item.spec.template.spec.containers[0].securityContext
+      - item.resources[0].spec.template.spec.containers[0].volumeMounts == item.item.spec.template.spec.containers[0].volumeMounts
+      - item.resources[0].spec.template.spec.initContainers[0].command == item.item.spec.template.spec.initContainers[0].command
+      - item.resources[0].spec.template.spec.initContainers[0].args == item.item.spec.template.spec.initContainers[0].args
+      - item.resources[0].spec.template.spec.initContainers[0].securityContext == item.item.spec.template.spec.initContainers[0].securityContext
+      - item.resources[0].spec.template.spec.initContainers[0].volumeMounts == item.item.spec.template.spec.initContainers[0].volumeMounts
+      - item.resources[0].spec.volumeClaimTemplates[0].metadata.labels == item.item.spec.volumeClaimTemplates[0].metadata.labels
+      - item.resources[0].spec.volumeClaimTemplates[0].spec == item.item.spec.volumeClaimTemplates[0].spec
+    fail_msg: PostgreSQL StatefulSet workload or claim-template post-state drifted.
+  loop: "{{ postgresql_bootstrap_internal_poststate.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when:
+    - not ansible_check_mode
+    - item.item.kind == 'StatefulSet'
+
+- name: Wait for the PostgreSQL StatefulSet to report one ready replica
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: StatefulSet
+    namespace: shared-services
+    name: "{{ postgresql_bootstrap_statefulset_name }}"
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  register: postgresql_bootstrap_internal_statefulset
+  until:
+    - postgresql_bootstrap_internal_statefulset.resources | length == 1
+    - postgresql_bootstrap_internal_statefulset.resources[0].status.readyReplicas | default(0) | int == 1
+    - postgresql_bootstrap_internal_statefulset.resources[0].status.currentReplicas | default(0) | int == 1
+    - postgresql_bootstrap_internal_statefulset.resources[0].status.updatedReplicas | default(0) | int == 1
+    - >-
+      postgresql_bootstrap_internal_statefulset.resources[0].metadata.generation | int ==
+      postgresql_bootstrap_internal_statefulset.resources[0].status.observedGeneration | int
+    - >-
+      postgresql_bootstrap_internal_statefulset.resources[0].status.currentRevision ==
+      postgresql_bootstrap_internal_statefulset.resources[0].status.updateRevision
+  retries: 60
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Wait for the PostgreSQL Pod Ready condition
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: shared-services
+    label_selectors:
+      - app.kubernetes.io/name=shared-postgresql
+      - app.kubernetes.io/part-of=cristex-platform
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  register: postgresql_bootstrap_internal_pod
+  until:
+    - postgresql_bootstrap_internal_pod.resources | length == 1
+    - postgresql_bootstrap_internal_pod.resources[0].status.phase == 'Running'
+    - >-
+      (postgresql_bootstrap_internal_pod.resources[0].status.conditions | default([]) |
+       selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length) == 1
+  retries: 60
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Wait for the PostgreSQL PVC to be Bound
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: PersistentVolumeClaim
+    namespace: shared-services
+    name: "{{ postgresql_bootstrap_pvc_name }}"
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  register: postgresql_bootstrap_internal_pvc
+  until:
+    - postgresql_bootstrap_internal_pvc.resources | length == 1
+    - postgresql_bootstrap_internal_pvc.resources[0].status.phase == 'Bound'
+    - postgresql_bootstrap_internal_pvc.resources[0].spec.storageClassName == 'local-path'
+    - postgresql_bootstrap_internal_pvc.resources[0].spec.volumeMode == 'Filesystem'
+    - postgresql_bootstrap_internal_pvc.resources[0].spec.accessModes | sort == ['ReadWriteOnce']
+    - postgresql_bootstrap_internal_pvc.resources[0].spec.volumeName | length > 0
+    - postgresql_bootstrap_internal_pvc.resources[0].spec.selector is not defined
+    - postgresql_bootstrap_internal_pvc.resources[0].spec.dataSource is not defined
+    - postgresql_bootstrap_internal_pvc.resources[0].spec.dataSourceRef is not defined
+    - postgresql_bootstrap_internal_pvc.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+    - postgresql_bootstrap_internal_pvc.resources[0].metadata.labels.get('cristex.io/component') == 'postgresql'
+    - postgresql_bootstrap_internal_pvc.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible'
+    - postgresql_bootstrap_internal_pvc.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
+    - postgresql_bootstrap_internal_pvc.resources[0].spec.resources.requests.storage == '40Gi'
+  retries: 60
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Query the bound PostgreSQL PV after bootstrap
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: PersistentVolume
+    name: "{{ postgresql_bootstrap_internal_pvc.resources[0].spec.volumeName }}"
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  register: postgresql_bootstrap_internal_pv
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Verify the bound PostgreSQL PV claim identity and provisioner
+  ansible.builtin.assert:
+    that:
+      - postgresql_bootstrap_internal_pv.resources | length == 1
+      - postgresql_bootstrap_internal_pv.resources[0].spec.claimRef.namespace == 'shared-services'
+      - postgresql_bootstrap_internal_pv.resources[0].spec.claimRef.name == postgresql_bootstrap_pvc_name
+      - postgresql_bootstrap_internal_pv.resources[0].spec.claimRef.uid == postgresql_bootstrap_internal_pvc.resources[0].metadata.uid
+      - postgresql_bootstrap_internal_pv.resources[0].metadata.annotations.get('pv.kubernetes.io/provisioned-by') == 'rancher.io/local-path'
+    fail_msg: PostgreSQL PV does not bind the exact guarded PVC identity.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Query the exact private PostgreSQL Service
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Service
+    namespace: shared-services
+    name: "{{ postgresql_bootstrap_service_name }}"
+    kubeconfig: "{{ postgresql_bootstrap_kubeconfig }}"
+  register: postgresql_bootstrap_internal_service
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify the PostgreSQL Service remains private ClusterIP-only
+  ansible.builtin.assert:
+    that:
+      - postgresql_bootstrap_internal_service.resources | length == 1
+      - postgresql_bootstrap_internal_service.resources[0].spec.type == 'ClusterIP'
+      - postgresql_bootstrap_internal_service.resources[0].spec.clusterIP not in ['', 'None']
+      - postgresql_bootstrap_internal_service.resources[0].spec.ports | length == 1
+      - postgresql_bootstrap_internal_service.resources[0].spec.ports[0].port == 5432
+      - postgresql_bootstrap_internal_service.resources[0].spec.ports[0].targetPort == 'postgresql'
+      - postgresql_bootstrap_internal_service.resources[0].spec.ports[0].protocol == 'TCP'
+      - postgresql_bootstrap_internal_service.resources[0].spec.sessionAffinity == 'None'
+      - >-
+        postgresql_bootstrap_internal_service.resources[0].spec.selector ==
+        {'app.kubernetes.io/name': 'shared-postgresql',
+         'app.kubernetes.io/part-of': 'cristex-platform'}
+      - postgresql_bootstrap_internal_service.resources[0].spec.externalIPs | default([]) | length == 0
+      - postgresql_bootstrap_internal_service.resources[0].spec.externalName is not defined
+      - postgresql_bootstrap_internal_service.resources[0].spec.loadBalancerIP is not defined
+      - postgresql_bootstrap_internal_service.resources[0].spec.loadBalancerClass is not defined
+      - postgresql_bootstrap_internal_service.resources[0].spec.ports[0].nodePort is not defined
+    fail_msg: PostgreSQL Service did not converge as an exact private ClusterIP.
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Capture service facts after PostgreSQL bootstrap
+  ansible.builtin.service_facts:
+  register: postgresql_bootstrap_internal_service_facts_after
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Require k3s and Tailscale after PostgreSQL bootstrap
+  ansible.builtin.assert:
+    that:
+      - postgresql_bootstrap_internal_service_facts_after.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - postgresql_bootstrap_internal_service_facts_after.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: k3s and tailscaled must remain running after PostgreSQL bootstrap.
+  changed_when: false
+  when: not ansible_check_mode

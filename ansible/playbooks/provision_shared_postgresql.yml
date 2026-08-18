@@ -1,0 +1,8 @@
+---
+- name: Guarded shared PostgreSQL logical provisioning
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  roles:
+    - role: shared_postgresql_provisioning

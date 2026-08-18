@@ -1,0 +1,34 @@
+schema: cristex-infisical-crd-source-mapping-v1
+chart_sha256: 7f8846c4f6b1cdca2cea23cf00a29d12a38f42eb8da8e125dc196a1e5683aea8
+cluster_generator_promoted: false
+mappings:
+- crd: infisicalauths.secrets.infisical.com
+  source_member: secrets-operator/templates/infisicalauth-crd.yaml
+  source_template_sha256: 310f83043ef923d99e14c8a3973af2a0e4250372ba896be361f05ca86e73f7ab
+  promoted_file: ansible/files/components/infisical-operator/crds/infisicalauths.yaml
+  promoted_sha256: 993ed3a8c0417d15d18f11d3e4b7ec4d84b7ee08b301aea6a4b4359a9660e9fd
+- crd: infisicalconnections.secrets.infisical.com
+  source_member: secrets-operator/templates/infisicalconnection-crd.yaml
+  source_template_sha256: 692808229ca4eca1ce5fd9cd009d9ca789dfe462dfe92304aac5f1b91e5c53af
+  promoted_file: ansible/files/components/infisical-operator/crds/infisicalconnections.yaml
+  promoted_sha256: 2b4e37a0ee7b4b99cf721d2ad817d3a5b29edcf32c143ac930a335db4e9bc6cb
+- crd: infisicaldynamicsecrets.secrets.infisical.com
+  source_member: secrets-operator/templates/infisicaldynamicsecret-crd.yaml
+  source_template_sha256: 3253bcf9df233706b0aba098f3b584a49303e63d20d8f76e708fefa1188fb80d
+  promoted_file: ansible/files/components/infisical-operator/crds/infisicaldynamicsecrets.yaml
+  promoted_sha256: 321dd095151c9a4216ddb2d5805c84ed32c1ed8ff9939f7fc8f89f24c3baf967
+- crd: infisicalpushsecrets.secrets.infisical.com
+  source_member: secrets-operator/templates/infisicalpushsecret-crd.yaml
+  source_template_sha256: 8e127f1dd5558731ce73279c670b1e2cd5aa6737a1411e96a3e086aec5b25b53
+  promoted_file: ansible/files/components/infisical-operator/crds/infisicalpushsecrets.yaml
+  promoted_sha256: 79a5b8e8c5b49d8c5e55da3f5cef4c20f1a1fc5dae8db904f6e37e86a26164bb
+- crd: infisicalsecrets.secrets.infisical.com
+  source_member: secrets-operator/templates/infisicalsecret-crd.yaml
+  source_template_sha256: 801bdeaf8f5aa58cf846ce303b987116137cd5c82667c2b9996d388632c1815e
+  promoted_file: ansible/files/components/infisical-operator/crds/infisicalsecrets.yaml
+  promoted_sha256: 876c726cab8574fe156a80630554e769ae9fef4449531f91041b032d98593290
+- crd: infisicalstaticsecrets.secrets.infisical.com
+  source_member: secrets-operator/templates/infisicalstaticsecret-crd.yaml
+  source_template_sha256: bb60397c4b0a2cd5e5f3dc346fa465ca8bf07ada33b86935a76566f8bb950707
+  promoted_file: ansible/files/components/infisical-operator/crds/infisicalstaticsecrets.yaml
+  promoted_sha256: 96ed82d99c7d8471e81b7cfba4a912badc98516e1f1859390a7ca94e18ab03be

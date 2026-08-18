@@ -1,0 +1,290 @@
+---
+- name: Verify approved single-node k3s reboot recovery
+  hosts: k3s_servers
+  gather_facts: false
+  become: true
+  vars:
+    k3s_reboot_recovery_approved: false
+    k3s_recovery_access_confirmed: false
+    k3s_admin_group: k3s-admin
+    k3s_kubeconfig_path: /etc/rancher/k3s/k3s.yaml
+
+  tasks:
+    - name: Require the reboot recovery approval contract
+      ansible.builtin.assert:
+        that:
+          - k3s_reboot_recovery_approved | bool
+          - k3s_recovery_access_confirmed | bool
+          - ansible_limit is defined
+          - ansible_limit | length > 0
+          - ansible_play_hosts_all | length == 1
+          - ansible_diff_mode
+          - k3s_admin_user is defined
+          - k3s_admin_user | length > 0
+          - k3s_admin_group == 'k3s-admin'
+          - k3s_kubeconfig_path == '/etc/rancher/k3s/k3s.yaml'
+        fail_msg: >-
+          Reboot recovery requires explicit approval, confirmed console or LAN
+          fallback access, --diff, an explicit one-host limit, and the selected
+          k3s administrator account.
+      changed_when: false
+
+    - name: Read local account metadata without exposing it
+      ansible.builtin.getent:
+        database: passwd
+      changed_when: false
+      no_log: true
+
+    - name: Read local group metadata without exposing it
+      ansible.builtin.getent:
+        database: group
+      changed_when: false
+      no_log: true
+
+    - name: Derive the selected recovery account and group
+      ansible.builtin.set_fact:
+        k3s_recovery_passwd: "{{ ansible_facts.getent_passwd.get(k3s_admin_user, []) }}"
+        k3s_recovery_group: "{{ ansible_facts.getent_group.get(k3s_admin_group, []) }}"
+      changed_when: false
+      no_log: true
+
+    - name: Require the approved non-root exclusive administrator account
+      ansible.builtin.assert:
+        that:
+          - k3s_recovery_passwd | length >= 6
+          - (k3s_recovery_passwd[1] | int) != 0
+          - k3s_recovery_group | length >= 3
+          - (k3s_recovery_group[1] | int) != 0
+          - k3s_admin_user in k3s_recovery_group[2].split(',')
+          - >-
+            (k3s_recovery_group[2].split(',') | reject('equalto', '') |
+             difference([k3s_admin_user]) | length) == 0
+        fail_msg: "The approved k3s administrator identity contract is not satisfied."
+      changed_when: false
+
+    - name: Reject numeric aliases of the dedicated administrator group
+      ansible.builtin.assert:
+        that:
+          - >-
+            item.key == k3s_admin_group or
+            (item.value[1] | string) != (k3s_recovery_group[1] | string)
+        fail_msg: "Another group shares the k3s-admin numeric GID."
+      loop: "{{ ansible_facts.getent_group | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      changed_when: false
+      no_log: true
+
+    - name: Reject unexpected primary administrator group members
+      ansible.builtin.assert:
+        that:
+          - >-
+            (item.value[2] | string) != (k3s_recovery_group[1] | string) or
+            item.key == k3s_admin_user
+        fail_msg: "The k3s-admin numeric GID is primary for an unexpected account."
+      loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      changed_when: false
+      no_log: true
+
+    - name: Gather pre-reboot service state
+      ansible.builtin.service_facts:
+      changed_when: false
+
+    - name: Require k3s and Tailscale before reboot
+      ansible.builtin.assert:
+        that:
+          - "'k3s.service' in ansible_facts.services"
+          - "ansible_facts.services['k3s.service'].state == 'running'"
+          - "'tailscaled.service' in ansible_facts.services"
+          - "ansible_facts.services['tailscaled.service'].state == 'running'"
+        fail_msg: "k3s and tailscaled must both be running before reboot."
+      changed_when: false
+
+    - name: Inspect the persistent rollback baseline
+      ansible.builtin.stat:
+        path: /etc/rancher/k3s/config.yaml.pre-admin-access
+        follow: false
+        get_checksum: false
+        get_mime: false
+      register: k3s_recovery_baseline
+      no_log: true
+
+    - name: Require the protected rollback baseline
+      ansible.builtin.assert:
+        that:
+          - k3s_recovery_baseline.stat.exists | default(false)
+          - k3s_recovery_baseline.stat.isreg | default(false)
+          - not (k3s_recovery_baseline.stat.islnk | default(false))
+          - k3s_recovery_baseline.stat.pw_name == 'root'
+          - k3s_recovery_baseline.stat.gr_name == 'root'
+          - k3s_recovery_baseline.stat.mode == '0600'
+        fail_msg: "The protected pre-admin-access rollback baseline is unavailable."
+      changed_when: false
+
+    - name: Inspect pre-reboot kubeconfig metadata
+      ansible.builtin.stat:
+        path: "{{ k3s_kubeconfig_path }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+      register: k3s_recovery_kubeconfig_before
+      no_log: true
+
+    - name: Require protected pre-reboot kubeconfig metadata
+      ansible.builtin.assert:
+        that:
+          - k3s_recovery_kubeconfig_before.stat.exists | default(false)
+          - k3s_recovery_kubeconfig_before.stat.isreg | default(false)
+          - not (k3s_recovery_kubeconfig_before.stat.islnk | default(false))
+          - k3s_recovery_kubeconfig_before.stat.pw_name == 'root'
+          - k3s_recovery_kubeconfig_before.stat.gr_name == k3s_admin_group
+          - k3s_recovery_kubeconfig_before.stat.mode == '0640'
+        fail_msg: "The pre-reboot kubeconfig access contract is not satisfied."
+      changed_when: false
+
+    - name: Verify pre-reboot kubeconfig readability as the approved user
+      ansible.builtin.stat:
+        path: "{{ k3s_kubeconfig_path }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+      become: true
+      become_user: "{{ k3s_admin_user }}"
+      register: k3s_recovery_user_access_before
+      changed_when: false
+      no_log: true
+
+    - name: Require pre-reboot effective kubeconfig access
+      ansible.builtin.assert:
+        that:
+          - k3s_recovery_user_access_before.stat.readable | default(false)
+        fail_msg: "The approved user cannot read the kubeconfig before reboot."
+      changed_when: false
+
+    - name: Query the node before reboot without exposing addresses
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ k3s_kubeconfig_path }}"
+        api_version: v1
+        kind: Node
+      register: k3s_recovery_nodes_before
+      changed_when: false
+      no_log: true
+
+    - name: Require one Ready node before reboot
+      ansible.builtin.assert:
+        that:
+          - k3s_recovery_nodes_before.resources | length == 1
+          - >-
+            (k3s_recovery_nodes_before.resources[0].status.conditions |
+             selectattr('type', 'equalto', 'Ready') |
+             selectattr('status', 'equalto', 'True') | list | length) == 1
+        fail_msg: "The single k3s node is not Ready before reboot."
+      changed_when: false
+
+    - name: Read the pre-reboot boot identifier without logging it
+      ansible.builtin.slurp:
+        src: /proc/sys/kernel/random/boot_id
+      register: k3s_recovery_boot_id_before
+      changed_when: false
+      no_log: true
+
+    - name: Perform the approved single reboot and wait for SSH recovery
+      ansible.builtin.reboot:
+        connect_timeout: 10
+        reboot_timeout: 600
+        post_reboot_delay: 15
+        msg: "Approved Ansible reboot for k3s recovery verification"
+      register: k3s_recovery_reboot
+
+    - name: Read the post-reboot boot identifier without logging it
+      ansible.builtin.slurp:
+        src: /proc/sys/kernel/random/boot_id
+      register: k3s_recovery_boot_id_after
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Require a completed reboot and a new boot identifier
+      ansible.builtin.assert:
+        that:
+          - k3s_recovery_reboot.rebooted | default(false)
+          - >-
+            (k3s_recovery_boot_id_before.content | b64decode | trim) !=
+            (k3s_recovery_boot_id_after.content | b64decode | trim)
+        fail_msg: "The host did not return with a new boot identifier."
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Gather post-reboot service state
+      ansible.builtin.service_facts:
+      register: k3s_recovery_services_after
+      until:
+        - "'k3s.service' in ansible_facts.services"
+        - "ansible_facts.services['k3s.service'].state == 'running'"
+        - "'tailscaled.service' in ansible_facts.services"
+        - "ansible_facts.services['tailscaled.service'].state == 'running'"
+      retries: 30
+      delay: 5
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Query the node until it is Ready after reboot
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ k3s_kubeconfig_path }}"
+        api_version: v1
+        kind: Node
+      register: k3s_recovery_nodes_after
+      until:
+        - k3s_recovery_nodes_after.resources | length == 1
+        - >-
+          (k3s_recovery_nodes_after.resources[0].status.conditions |
+           selectattr('type', 'equalto', 'Ready') |
+           selectattr('status', 'equalto', 'True') | list | length) == 1
+      retries: 30
+      delay: 10
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Inspect post-reboot kubeconfig metadata
+      ansible.builtin.stat:
+        path: "{{ k3s_kubeconfig_path }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+      register: k3s_recovery_kubeconfig_after
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Verify post-reboot kubeconfig readability as the approved user
+      ansible.builtin.stat:
+        path: "{{ k3s_kubeconfig_path }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+      become: true
+      become_user: "{{ k3s_admin_user }}"
+      register: k3s_recovery_user_access_after
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Require the complete post-reboot recovery contract
+      ansible.builtin.assert:
+        that:
+          - k3s_recovery_kubeconfig_after.stat.exists | default(false)
+          - k3s_recovery_kubeconfig_after.stat.isreg | default(false)
+          - not (k3s_recovery_kubeconfig_after.stat.islnk | default(false))
+          - k3s_recovery_kubeconfig_after.stat.pw_name == 'root'
+          - k3s_recovery_kubeconfig_after.stat.gr_name == k3s_admin_group
+          - k3s_recovery_kubeconfig_after.stat.mode == '0640'
+          - k3s_recovery_user_access_after.stat.readable | default(false)
+          - k3s_recovery_nodes_after.resources | length == 1
+        fail_msg: >-
+          SSH returned, but the k3s node or approved kubeconfig access did not
+          satisfy the post-reboot recovery contract.
+      changed_when: false
+      when: not ansible_check_mode

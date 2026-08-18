@@ -1,0 +1,160 @@
+---
+policy_schema: cristex-cloudflare-edge-v1
+policy_status: source-only-runtime-blocked
+resource_owner: opentofu
+connector_owner: ansible
+namespaced_owner_after_handoff: argo-cd
+secret_value_owner: infisical-cloud
+traffic_path:
+  public_entrypoint: cloudflare
+  connector_namespace: platform-edge
+  connector_workload: cloudflared
+  ingress_controller_namespace: kube-system
+  ingress_controller: traefik
+  private_origin_namespace: shared-services
+  private_origin_service: keycloak
+  private_origin_port: 8080
+  flow: Cloudflare -> cloudflared/platform-edge -> Traefik/kube-system -> Keycloak/shared-services
+  origin_network_scope: cluster-internal-only
+  direct_origin_wan_exposure: forbidden
+  connector_to_origin_transport: private-cluster-network
+hostname:
+  keycloak_browser_authentication: auth.cristex-soft.com
+  issuer: https://auth.cristex-soft.com/realms/cristexhub
+  selection_status: source-selected-public-route-blocked
+  dns_owner: cloudflare-opentofu
+  certificate_owner: cloudflare-origin-or-traefik-reviewed-separately
+  wildcard: false
+  unapproved_hostnames_allowed: false
+cloudflared:
+  placement_namespace: platform-edge
+  deployment_model: remotely-managed-token-tunnel
+  image_or_binary: exact-architecture-digest-required
+  replicas: 1
+  availability: single-node-accepted-only-pending-explicit-approval
+  token_source: infisical-cloud
+  token_path: prod:/platform-edge/cloudflared
+  token_key: CLOUDFLARE_TUNNEL_TOKEN
+  token_file_mount: read-only-private-file
+  token_in_git: false
+  token_in_opentofu_state: false
+  token_in_argv: false
+  token_in_environment_examples: false
+  token_in_logs_or_evidence: false
+  rotation: explicit-recovery-and-revocation
+  metrics: fixed-private-only-port
+  readiness: connection-aware-ready-endpoint
+  health_endpoint_not_sufficient: true
+  public_service_or_ingress: forbidden
+  quick_tunnels: forbidden
+  management_surface: private-and-restricted
+  egress:
+    dns: required
+    tcp_7844: allowed-to-cloudflare-edge-only
+    udp_7844: allowed-to-cloudflare-edge-only
+    other_internet_egress: denied-by-default
+traefik:
+  namespace: kube-system
+  sole_ingress_controller: true
+  origin_service: keycloak
+  management_and_dashboard_public: false
+  direct_nodeport_or_loadbalancer: forbidden
+route:
+  mode: exact-reviewed-hostname-route
+  target: http://traefik.kube-system.svc.cluster.local:80
+  route_scope: browser-authentication-only
+  allowed_paths:
+    - /realms/cristexhub/*
+  forbidden_paths:
+    - /admin/*
+    - /realms/master/*
+    - /metrics
+    - /health
+    - /health/ready
+  public_route_approval_required: true
+  cloudflare_dns_mutation_approval_required: true
+  tunnel_mutation_approval_required: true
+  kubernetes_route_mutation_approval_required: true
+  keycloak_route_authentication_required: true
+  direct_origin_negative_test_required: true
+  admin_management_negative_test_required: true
+  dev_negative_test_required: true
+  argocd_negative_test_required: true
+  data_services_negative_test_required: true
+network_policy:
+  default: deny
+  allowed_connector_to_traefik: exact-route-only
+  allowed_traefik_to_keycloak: exact-service-and-port-only
+  allowed_cloudflare_edge_to_connector: documented-tunnel-egress-only
+  denied:
+    - public-keycloak-admin
+    - public-keycloak-management
+    - public-keycloak-metrics
+    - public-keycloak-health
+    - public-argocd
+    - public-dev
+    - public-databases
+    - public-rabbitmq
+    - direct-origin-wan
+    - connector-metadata-endpoints
+    - connector-quick-tunnel
+validation:
+  positive:
+    - public-authentication-host-reaches-only-approved-keycloak-browser-path
+    - issuer-and-discovery-match-reviewed-hostname
+    - cloudflare-to-connector-to-traefik-to-keycloak-flow
+    - direct-origin-remains-private
+  negative:
+    - keycloak-admin-and-management-are-unreachable-publicly
+    - keycloak-master-is-unreachable-publicly
+    - keycloak-health-and-metrics-are-unreachable-publicly
+    - argocd-is-unreachable-publicly
+    - dev-is-unreachable-publicly
+    - postgres-mongodb-rabbitmq-are-unreachable-publicly
+    - direct-origin-addresses-are-unreachable
+    - unapproved-hostnames-are-unreachable
+  evidence_must_not_contain:
+    - tunnel-token
+    - api-token
+    - oauth-credential
+    - private-key
+approvals:
+  phases:
+    source_design: complete-only-as-offline-contract
+    cloudflare_account_and_zone_read: separate
+    opentofu_provider_state_recovery: separate
+    tunnel_creation_and_token_materialization: separate
+    private_connector_reconciliation: separate
+    traefik_route_reconciliation: separate
+    dns_hostname_publication: separate
+    public_validation: separate
+    production_cutover: separate
+  no_phase_implies_another: true
+  runtime_status: not-run-blocked
+rollback:
+  preferred: git-revert-and-disable-exact-route
+  cloudflare: disable-or-remove-only-approved-tunnel-route-and-dns-record
+  kubernetes: remove-only-exact-route-after-private-origin-health-check
+  token: revoke-and-rotate-through-infisical
+  direct_origin: preserve-private-only-fallback
+  destructive_destroy: forbidden-as-routine-rollback
+  evidence_required:
+    - route-disabled
+    - public-hostname-negative
+    - private-keycloak-still-healthy
+    - admin-management-still-private
+    - no-token-residue
+promotion_gates:
+  zone_and_account_identity_verified: false
+  image_provenance_and_hardening_verified: false
+  tunnel_state_backup_and_restore_verified: false
+  infisical_token_recovery_verified: false
+  argocd_handoff_verified: false
+  exact_network_policy_verified: false
+  positive_route_test_verified: false
+  negative_route_tests_verified: false
+  rollback_verified: false
+  public_route_approved: false
+  runtime_approved: false
+executable_source_allowed: true
+runtime_source_status: selected-source-runtime-blocked

@@ -2,25 +2,163 @@
 
 ## Status
 
-This target design now has one bounded implementation: Ansible-first, read-only
-discovery under `ansible/`. It is not a host baseline, hosted runtime, or IaC
-reconciler. Python is limited to offline contract tests. No hosted orchestration,
-DNS, tunnels, GitOps, secrets, databases, backups, or recovery are implemented.
-CristexHub local Compose assets remain an external application-repository concern.
+This target design has the existing bounded Ansible workflows plus an
+executed non-destructive storage-discovery increment and temporary CNI/NetworkPolicy
+functional probe. Extended storage discovery confirmed the live curated device and
+PV/PVC indicators, while the approved probe passed against the Kubernetes API using an
+independently verified linux/amd64 digest and temporary Argo CD ownership exception.
+The implementation used generated names, exact UID cleanup, dual-label fixed-kind
+recovery discovery, selectorless Service plus explicit EndpointSlice, non-cascading
+deletion, and no Namespace create/delete; post-run verification found zero residue.
+Read-only discovery, the Kubernetes-module dependency
+bootstrap, and group-scoped k3s administrator access have been executed under
+`ansible/`; effective-user readability, fresh-session cluster listing, and
+idempotence passed. The executed user-scoped
+kubectl client-defaults playbook also passed warning-free fresh-session queries and
+idempotence. The approved one-reboot recovery playbook passed with SSH/Tailscale
+return, running services, a new boot ID, a Ready node, and preserved access. They
+are not a general host
+baseline, hosted runtime, or IaC reconciler. A separate guarded source-only
+k3s datastore/encryption preflight now exists under `ansible/`; its sole
+check-only wrapper emits a deterministic sanitized mode-`0600` controller artifact
+with strict, fail-closed version/datastore/config/encryption/service/Node stages.
+A separately approved live read-only run passed at `ok=45 changed=1`; the only
+change was its ignored sanitized controller artifact, and it performed no backup,
+restore, encryption, host, cluster, or Secret mutation.
+Python is limited to offline contract tests plus twenty-eight exact-scope Ansible
+action plugins that enforce reviewed mutation and cryptographic boundaries; it is
+not a general operational implementation. Source-only guarded closures now exist for Argo,
+Infisical, PostgreSQL, standalone MongoDB, Secret materialization, and empty logical
+reservations, but no hosted orchestration, DNS, tunnel, deployed GitOps runtime,
+credential-bearing Secret write, live database, backup/restore, or operational
+replacement-host recovery is complete. The first replacement increment is a secret-free,
+decision-first runbook and artifact register only; it does not resolve or automate
+the unknown k3s datastore/version/token, storage, RPO/RTO, or off-node recovery
+prerequisites. CristexHub local Compose assets remain an external
+application-repository concern.
 
 ## Known facts
 
 A read-only host inspection observed a Debian 13 single-node k3s server with about
-16 GiB RAM, an NVMe system disk, a separate unmounted 1 TB NTFS disk, and Tailscale
-installed. k3s is active. The non-root operator cannot currently read the root-only
-kubeconfig, so datastore, node, CNI, Traefik, StorageClass, and workload state must
-be reverified through an approved read-only discovery step.
+16 GiB RAM, an NVMe system disk, a separate unmounted 1 TB rotational disk with one
+partition and filesystem still unverified, and Tailscale installed. k3s is active.
+Approved extended elevated discovery has reverified the datastore, node, Traefik,
+local-path StorageClass (`Delete`, `WaitForFirstConsumer`, no expansion), zero
+current PV/PVC objects, and curated kube-system workload indicators through the
+protected group-scoped kubeconfig. That historical live report did not capture a
+Kubernetes version and used `shared-data` rather than the current `shared-services`
+PVC scope. The separately approved schema-v3 rerun passed at
+`ok=17 changed=1 unreachable=0 failed=0 skipped=1`; the change was only the ignored
+controller-local report write. The source-only k3s datastore/encryption preflight
+is a distinct check-only workflow; its fixed commands, strict parsers, sanitized
+schema-v2 artifact, and synthetic disclosure fixture are offline-validated. Its
+approved live run retained honest unknown datastore/encryption evidence pending the
+private parser enhancement. Human review confirmed kubelet `v1.36.2+k3s1`, all 15
+bounded queries available, and the exact `shared-services` PVC query with count zero.
+Argo CD `3.5` officially lists Kubernetes minor `1.36` in its tested matrix and chart
+`10.3.0` admits the target through its semver gate. This is target-minor screening,
+not k3s-specific runtime or rendered API/CRD compatibility proof. Reboot recovery,
+independent fallback access, CNI behavior, and NetworkPolicy enforcement are
+verified for the current
+single-node cluster; replacement-host recovery still requires separate verification.
 
-The external CristexHub application repository publishes backend, frontend, and
-code-runner images to GHCR. This repository now implements read-only Ansible
-discovery only; it still has no Kubernetes, Helm, Kustomize, OpenTofu, GitHub
-Actions, or mutating host-baseline implementation. Debian plus Ansible is the
-selected host-configuration owner.
+The external CristexHub application repository now has SHA-pinned, read-only source
+CI for backend, frontend, and code-runner; its previous untrusted GHCR publisher is
+disabled until immutable build inputs and digest/SBOM/provenance evidence pass. This
+repository also has one SHA-pinned read-only CI workflow as source, but neither
+workflow has been pushed or run. This repository implements seven executed bounded
+Ansible workflows, including the temporary functional probe. It now has an
+offline-validated gated OpenTofu installer and zero-resource Cloudflare-only source
+scaffold. The first live run stopped after two bounded directory tasks because the
+host had no route to GitHub. The reviewed controller-cache and Ansible-transfer
+recovery subsequently passed check, live installation, and a `changed=0` rerun; the
+pinned CLI and selector now exist without host egress. Committed Kubernetes desired
+state now contains exactly five Namespace manifests: `argocd`, `platform-edge`,
+`shared-services`, `cristexhub-dev`, and source-only `cristexhub-prod`. The closed historical bootstrap owns only `argocd` and
+`platform-edge`; the distinct present-only `shared-services` bootstrap passed check
+and separately approved first apply/idempotence; the final run converged at
+`changed=0`. A dedicated [CristexHub DEV Namespace bootstrap](runbooks/cristexhub-dev-namespace-bootstrap.md)
+is exact present-only source with four approved labels. Its separately approved check
+passed at `ok=20 changed=1 unreachable=0 failed=0 skipped=2` without mutation. Its
+first apply passed at `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created and
+verified only the exact Namespace, and preserved service health. Idempotence passed
+at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the DEV checkpoint is complete.
+The committed `cristexhub-prod` manifest and its dedicated guarded present-only
+source are source-only; no PROD Namespace was created by this increment, and its
+check/apply remain blocked pending DEV validation, recovery, soak, and separate
+approval. The superseded `platform-secrets`/`platform-identity` source never ran,
+and its removal is not a live rename or deletion. The separately approved historical
+first apply created exactly those two Active Namespaces with the reviewed labels. The
+separately approved idempotence checkpoint first stopped before Kubernetes
+reconciliation on failed local sudo authentication at `changed=0`; its retry passed
+at `ok=21 changed=0 failed=0` with exact post-state and service-health verification.
+No workload or other persistent kind exists from this increment. The source-only
+[Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
+records chart `10.3.0`, application `v3.5.0`, captured signature/hash-binding,
+immutable linux/amd64 images, and curated online/static readiness evidence. The
+separate release record selects that pair only for offline source authoring; it
+remains **NOT DEPLOYABLE**. The exact 44-document
+render was reproduced at Kubernetes capability `1.36.2`, stable upstream API
+registration screened successfully, and controller-side image closure was reachable.
+Exact k3s admission/runtime and node pullability remain unproven. Wildcard/broad
+RBAC, ingress-only/unrestricted-egress policy, image trust, Secret recovery, private
+Git secret-zero, Namespace adoption, trust/soak acceptance, and runtime approvals
+remain blockers. Only hash-bound non-executable public chart inputs are vendored; no
+values or Kubernetes object source exists. The
+[source-only hardened design](runbooks/argocd-hardened-design.md) accepts a private
+ClusterIP and loopback-only port-forward direction, retained quiescent ApplicationSet,
+supplemental ingress/egress default-deny with an explicit broad ports-only
+`443`/`6443` weakness, phased least-privilege RBAC/AppProjects, one-repository
+read-only GitHub App credentials, value-free Infisical custody, and two independent
+Namespace-adoption Applications. It accepts the selected offline baseline but adds
+no deployable controller source. Ansible is selected as the future bounded bootstrap installer and lifecycle
+owner of privileged CRDs/cluster RBAC. The foundation Namespace check/first apply
+passed and the separately approved idempotence run converged at `changed=0`; exact
+controller bootstrap source and credentials,
+resource/GVR/discovery inventory, Infisical Universal Auth recovery, live adoption
+apply mode, and activation of selected Keycloak/Argo OIDC policy remain open
+architecture decisions. The source-only
+[Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md) selects
+one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD.
+Keycloak `26.7.1`, PostgreSQL `17.10`, realm `cristexhub`, and issuer
+`https://auth.cristex-soft.com/realms/cristexhub` are selected only for offline source
+authoring. No workload, Secret, route, or executable controller source is selected,
+and runtime is **NOT RUN/BLOCKED**. The value-free
+[Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
+includes private DEV in the MVP, reserves a separate future PROD instance, and binds
+each to a dedicated PostgreSQL and OIDC consumer scope. Its upstream image,
+callbacks, resources, Secrets, recovery, and runtime remain unselected or blocked.
+The separate source-only
+[cloudflared candidate provenance record](runbooks/cloudflared-candidate-provenance.md)
+records official release `2026.7.3`, its unsigned tag/commit, immutable linux/amd64
+image evidence, token-file precedence, connection-aware readiness, and required edge
+transport. It is **CANDIDATE — NOT DEPLOYABLE — NOT SELECTED**, runtime is **NOT
+RUN**, and publisher trust, image assurance/availability, container hardening,
+Infisical token recovery, OpenTofu state/resource gates, Argo handoff, exact
+DNS/Traefik/edge policy, route approval, soak, and runtime approvals remain blocked.
+It adds no OpenTofu resource, Kubernetes object, secret, route, or deployment source.
+The source-only
+[Infisical Operator candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
+distinguishes latest source release `v0.11.8`, whose matching public chart archive
+and image tag were not observed during the bounded capture, from the version-aligned
+`v0.11.7` set. The completed `shared-services` Namespace and the
+[implementation profile](runbooks/infisical-operator-implementation-profile.md) bind
+the official controller commit. The guarded
+[idle bootstrap](runbooks/infisical-operator-bootstrap.md) promotes a 40-object,
+value-free closure with six namespaced CRDs, native same-Namespace admission, exact
+three-Namespace RBAC/cache, metrics off, no ClusterGenerator privilege, one
+authenticated TLS proxy, and proxy-only Operator egress. The full source archive is
+quarantined evidence only and is not an operational input. Runtime remains **NOT
+RUN/BLOCKED** until exact recovered proxy Secrets, check/apply/idempotence, live
+admission, image, RBAC, and traffic proof pass. No runtime Infisical CR, Universal
+Auth value, application Secret, PROD scope, or self-hosted server exists; separate
+value-free source seams remain runtime-blocked.
+No state file, provider initialization, plan, apply, Helm installation, Kustomize
+workload, image publication, or general host baseline exists yet. The committed CI
+source has no package-write, Secret, provider, host, cluster, or deployment path;
+source-only run `31311995461` passed exact commit
+`e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`. Debian plus Ansible is
+the selected host-configuration owner.
 
 ## Goals
 
@@ -37,7 +175,7 @@ selected host-configuration owner.
 - high availability or zero downtime;
 - a second ingress controller, service mesh, Longhorn, or autoscaling platform;
 - public databases, brokers, Argo CD, k3s API, SSH, or dashboards;
-- self-hosted secrets, registry, or CI runner during the first implementation;
+- self-hosted Infisical, registry, or CI runner during the first implementation;
 - automatic PROD promotion or destructive automatic rollback;
 - moving privileged code-runner onto the shared node without separate isolation.
 
@@ -46,15 +184,39 @@ selected host-configuration owner.
 | Layer | Owner | State source |
 |---|---|---|
 | Debian host and k3s baseline | Ansible | playbooks and inventory under `ansible/` |
-| Cloudflare and GitHub resources | OpenTofu | configuration under `opentofu/` plus protected remote state |
-| Kubernetes objects | Argo CD | manifests and Helm values under `kubernetes/` |
+| Bounded foundation bootstrap, privileged CRDs/cluster RBAC, and Keycloak realm/client/group reconciliation | Ansible | future component-specific source closures and separate approvals |
+| Cloudflare and GitHub resources | OpenTofu | configuration under `opentofu/`; protected host-local single-writer state plus mandatory encrypted off-node recovery |
+| Namespaced Kubernetes desired state after evidenced handoff | Argo CD | manifests and Helm values under `kubernetes/` |
 | Secret values and rotation | Infisical Cloud initially | separate DEV, PROD, and infrastructure scopes |
-| CI and image publication | GitHub Actions | workflows and immutable GHCR digests |
+| CI and image publication | GitHub Actions | read-only source CI now; future immutable GHCR digests only after separate trust/publication approval |
 | Approvals and recovery | Human operator | reviewed evidence and runbooks |
 
 One resource has one owner. OpenTofu must not reconcile Kubernetes resources also
 owned by Argo CD. GitHub Actions validates and publishes; it does not deploy.
-Operational procedures belong under `runbooks/` when implementation is approved.
+The bounded `network_policy_probe` Ansible role implements an ephemeral QA
+exception but does not authorize its own execution. API-generated names and labels
+establish ownership atomically; a private ledger records exact UIDs; cleanup verifies
+labels and UID preconditions, uses `Orphan` propagation, and proves zero residue
+without deleting a Namespace. Runtime still requires separate human approval of the ownership
+exception plus create and delete actions. A separate one-time bootstrap exception
+may create or reconcile only the committed `argocd` and `platform-edge` Namespaces,
+with no delete path and foreign-existing refusal. The manifests identify Ansible as
+bootstrap writer and Argo CD only as future desired owner. Argo ownership remains
+pending until Argo CD is installed, the Namespaces are adopted or registered through
+an Application, and successful sync evidence exists; the label alone is not a
+handoff. The completed exception remains closed and authorizes no future component or
+Namespace.
+
+Ansible is selected as the future bounded bootstrap installer for exact foundational
+Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted
+Keycloak, and privileged cluster-scoped prerequisites. Each component still needs a
+dedicated exact source closure plus separate check, apply, and idempotence approvals;
+this design authorizes none. Ansible remains lifecycle owner of privileged CRDs,
+ClusterRoles, ClusterRoleBindings, and Keycloak realm/client/group reconciliation.
+A namespaced specification may hand off to Argo only after Ansible stops reconciling
+the exact object set and registration/adoption, successful sync, and managed-field
+evidence pass. Dual reconciliation is forbidden. Operational procedures belong under
+`runbooks/` when implementation is approved.
 
 ## Traffic model
 
@@ -69,26 +231,30 @@ Internet -> Cloudflare -> cloudflared -> bundled Traefik -> PROD frontend gatewa
 Bundled k3s Traefik remains the sole ingress controller. The frontend nginx image
 in the external CristexHub application repository remains the application gateway
 for `auth_request`, API proxying, and WebSockets; it is not the cluster ingress
-controller. Application source, local Compose, Keycloak theme, and Browserless
-gateway assets remain in that application repository and are not owned here.
+controller. Application source, local Compose, development Keycloak realm/theme, and Browserless
+gateway assets remain in that application repository and are not copied here. One
+future self-hosted production Keycloak is the shared identity architecture target,
+but its release and deployable source remain unselected.
 
 The first private DEV hostname may use a tailnet name. A custom private
 `dev-hub.cristex-soft.com` name requires a later private-DNS and certificate
 decision. The intended public PROD host is `hub.cristex-soft.com`.
 
 Cloudflare Tunnel must never route DEV, SSH, k3s API, Argo CD, databases, Redis,
-RabbitMQ management, Browserless, code-runner, or identity administration.
-Cloudflare and Tailscale do not replace application OIDC/JWT enforcement.
+RabbitMQ management, Browserless, code-runner, Keycloak administration, or its
+management listener. A future Keycloak browser-authentication route is a separate
+public-route decision and does not authorize any administration path. Cloudflare and
+Tailscale do not replace application OIDC/JWT enforcement.
 
 ## Namespace model
 
 | Namespace | Purpose |
 |---|---|
 | `argocd` | Argo CD controllers and private UI/API |
-| Infisical operator namespace | Secret synchronization controller; exact name follows the selected chart |
-| `shared-data` | Shared PostgreSQL and MongoDB engines only |
-| `cristexhub-dev` | DEV applications and environment-local dependencies |
-| `cristexhub-prod` | PROD applications and environment-local dependencies |
+| `platform-edge` | Cloudflare Tunnel connector only; no Keycloak, Infisical Operator, database, or route exists; every route remains separately approved |
+| `shared-services` | Exact present-only Namespace exists after passed check/first apply/idempotence; future placement for the Infisical Cloud Operator, separate Keycloak, one PostgreSQL, one MongoDB, and one shared RabbitMQ engine remains undeployed |
+| `cristexhub-dev` | Exact Namespace exists idempotently after passed check/first apply/idempotence; all four labels, `Active`, and service health were verified; future DEV applications and environment-local dependencies remain undeployed |
+| `cristexhub-prod` | Exact four-label Namespace manifest and guarded present-only source exist source-only; no live Namespace was created; check/apply remain blocked until DEV validation, recovery, and soak |
 | Optional backup/monitoring namespaces | Added only when their first workload is approved |
 
 Namespace names organize ownership but are not a hard security boundary. Service
@@ -98,26 +264,64 @@ connectivity tests provide the enforceable controls.
 ## Shared data design
 
 A single PostgreSQL engine and a single MongoDB engine save memory. This is an
-explicitly accepted shared failure and contention domain.
+explicitly accepted shared failure and contention domain. The value-free
+[`shared-database-architecture.yml`](ansible/files/policies/shared-database-architecture.yml)
+is the canonical source-only topology and authorization contract. Hash-bound,
+present-only PostgreSQL and standalone MongoDB workload closures now exist, but all
+promotion and runtime gates remain closed. The separate source-only
+[Infisical database Secret materialization seam](runbooks/infisical-database-secret-materialization.md)
+freezes one shared Connection, separate PostgreSQL/MongoDB Universal Auth identities,
+two exact path-scoped StaticSecrets, four target Secret contracts aligned with the
+stateful-database validator, six namespace-scoped fail-closed VAP/bindings, additive
+writer RBAC without workload write/delete, and byte/canonical/identity hashes. It
+contains no credential values or Secret manifest; check/apply, sync, rotation,
+recovery, and runtime remain **NOT RUN/BLOCKED**.
 
-PostgreSQL requires separate databases and owner roles, including at minimum
-`cristexhub_dev` and `cristexhub_prod`. MongoDB requires separate databases and
-users with privileges limited to their own database. DEV and PROD never share an
-application credential, encryption key, migration target, or backup prefix.
+PostgreSQL requires separate logical databases and owner roles for CristexHub DEV,
+CristexHub PROD, Reactive Resume DEV, Reactive Resume PROD, and Keycloak. Keycloak
+remains a separate deployment from the one general PostgreSQL instance and receives
+its own database, owner role, credential, and backup scope; no consumer receives
+another PostgreSQL workload or PVC. CristexHub and Reactive Resume DEV/PROD receive
+separate PostgreSQL credentials, migrations, and backups. MongoDB requires
+CristexHub DEV/PROD databases and users with privileges limited to their own
+database.
+DEV and PROD never share an application credential, encryption key, migration target,
+or backup prefix. MongoDB `8.0.28` is offline-pinned as a standalone,
+non-authoritative initial source; replica-set, transaction, HA, and authoritative-data
+acceptance remain blocked.
 
-The application role must not create roles or databases. A bounded, idempotent,
-Argo-managed provisioning job or a later approved operator creates principals from
-Infisical references. Its administrator credential is not available to application
+Application and Keycloak roles must not create roles or databases. The Keycloak role
+cannot access application databases, and application roles cannot access the
+Keycloak database; those denials require negative grant tests. MongoDB workload users must have no broad any-database or
+user/role-administration roles and must fail bidirectional cross-database tests.
+The selected ownership direction is idempotent Ansible bootstrap followed by exact
+object-by-object Argo handoff. The source-only
+[logical provisioning lane](runbooks/shared-database-provisioning.md) freezes
+`cristexhub_dev`/`cristexhub_dev_owner`, `cristexhub_prod`/`cristexhub_prod_owner`,
+`reactive_resume_dev`/`reactive_resume_dev_owner`,
+`reactive_resume_prod`/`reactive_resume_prod_owner`, and `keycloak`/`keycloak_owner`
+on PostgreSQL, plus the two exact CristexHub MongoDB users. It requires precreated
+Infisical consumer Secrets, emits no credential values, uses UID-bound temporary
+helpers, and has no database/user/PVC delete path. The lane is source-only and
+unproved; PROD remains inactive, MongoDB non-authoritative, and runtime,
+authorization, backup/restore, and handoff gates remain blocked. Its administrator
+credential must remain Infisical-owned and unavailable to application or Keycloak
 pods.
 
 Redis remains per environment because Redis database numbers are not sufficient
-security isolation. A shared RabbitMQ is permitted only with distinct users,
-virtual hosts, limits, and negative access tests. A later capacity decision may
-separate it.
+security isolation. One shared RabbitMQ engine belongs in `shared-services`.
+CristexHub DEV/PROD receive distinct users, virtual hosts, permissions, limits, and
+recovery scopes with negative cross-vhost tests. Future consumers require reviewed
+exact policy/test changes; wildcard or dynamic admission is forbidden. A later
+capacity decision may separate the engine.
 
-NetworkPolicy must allow each application namespace to reach only its own approved
-database endpoints and deny cross-environment application traffic. Database engines
-remain ClusterIP-only.
+NetworkPolicy must allow each application namespace and the Keycloak workload to
+reach only the shared database Services and other exact approved endpoints, while
+denying cross-environment application traffic. NetworkPolicy cannot isolate logical
+databases on a shared endpoint, so PostgreSQL/MongoDB authorization and negative
+tests are mandatory. Database engines remain ClusterIP-only. The general PostgreSQL engine/PVC
+is a shared failure domain even though Keycloak has a separate database, role,
+credential, backup scope, connection policy, and recovery acceptance.
 
 ## Secrets
 
@@ -126,7 +330,9 @@ out of scope. Git stores only secret references. DEV, PROD, and infrastructure u
 separate scopes and machine identities with least privilege. The bootstrap method
 is a decision gate because Argo private-repository access, Infisical
 authentication, GHCR pulls, and Cloudflare connector credentials form a secret-zero
-sequence.
+sequence. Only the Infisical Cloud Kubernetes Operator is bootstrapped; a self-hosted
+Infisical server is not selected. The future Keycloak OIDC client secret and database
+credentials are Infisical-owned values with independent bootstrap recovery.
 
 Secret values must not pass through OpenTofu state, saved plans, Argo parameters,
 committed manifests, examples, or CI logs. Recovery material, including application
@@ -149,15 +355,27 @@ PROD sync and promotion remain manual and reviewed.
 ## Storage and backup
 
 Live database PVCs are expected on the NVMe through the discovered local
-StorageClass. The separate 1 TB disk is not usable until its contents, ownership,
-filesystem choice, mount path, and destructive formatting approval are confirmed.
+StorageClass. Approved extended read-only discovery has captured curated
+device/partition and direct mount indicators, exact StorageClass behavior, and
+bounded PV/PVC placement metadata from the live host and cluster. The separate 1 TB disk
+is not usable until its contents, ownership, filesystem choice, mount path, and
+destructive formatting approval are confirmed. Storage discovery makes no mount,
+repair, write, format, or ownership change; Ansible remains the host/mount owner.
+Argo CD becomes the namespaced desired-state reconciler for one exact object set only
+after Ansible stops reconciling it and installation, registration/adoption,
+successful sync, and managed-field evidence pass. Ansible retains lifecycle ownership
+of privileged CRDs and cluster RBAC.
 
-Backups require database-consistent PostgreSQL and MongoDB dumps, separate DEV/PROD
-paths, compression, encryption, integrity checks, local retention, and an encrypted
-off-host copy. The intended off-host target is Google Drive through containerized
-`rclone copy`, not destructive `sync`. k3s datastore and recovery token, OpenTofu
-state, Infisical recovery credentials, and runbooks require separate recovery
-coverage.
+Backups require database-consistent PostgreSQL and MongoDB dumps, protected RabbitMQ
+definitions, separate consumer/purpose paths, compression, encryption, integrity
+checks, local retention, and an encrypted off-host copy. The selected transfer-tool
+direction is pinned host rclone `1.71.1` with immutable copy/readback semantics, never
+destructive `sync`; database backup source and runtime remain blocked.
+Operator access uses a private authenticated metadata-only catalog plus a simple
+list/retrieve/verify workflow; no public or anonymous link is allowed. RabbitMQ
+definitions recovery does not prove queued-message recovery, so application
+reconciliation remains mandatory. k3s datastore and recovery token, OpenTofu state,
+Infisical recovery credentials, and runbooks require separate recovery coverage.
 
 A successful backup job is not acceptance. An isolated restore and application
 verification must meet the declared RPO/RTO before PROD.
@@ -178,8 +396,9 @@ verification must meet the declared RPO/RTO before PROD.
   host, cluster, or elevated access still requires its own explicit approval.
 - Work: use Ansible built-ins for bounded host facts and
   `kubernetes.core.k8s_info` for exact Kubernetes kinds. Project only curated OS,
-  capacity, service, filesystem, datastore-presence, and object-name/count fields
-  into one controller-local report.
+  capacity, service, filesystem, datastore-presence, object-name/count fields, and
+  the existing Node name/cluster scope plus exact kubelet version string into one
+  controller-local report.
 - Safety: the play requires check/diff mode, an explicit one-host limit, default
   non-elevation, and two explicit flags before narrowly scoped become tasks. It
   never uses shell/command automation or queries Secret, ConfigMap, Events, or a
@@ -188,14 +407,28 @@ verification must meet the declared RPO/RTO before PROD.
   and NetworkPolicy enforcement require later approved functional probes and are
   not proven by discovery.
 - Current evidence: the locked local environment, syntax, lint, and non-elevated
-  one-host report pass. An approved elevated attempt confirmed the datastore, but
-  all nine Kubernetes queries were unavailable because required remote Python
-  modules are absent. A separately approved bounded playbook may install only
-  `python3-kubernetes`; it is implemented but has not run.
+  one-host report pass. A temporary generated-name functional probe is implemented
+  and validated offline. Exact-UID cleanup, an interruption ledger, no Namespace
+  create/delete, and baseline/deny/selective/rollback standalone Pods close the earlier design
+  blockers. The approved live run used an independently verified official BusyBox
+  linux/amd64 manifest, passed baseline/deny/selective/rollback evidence, deleted
+  exact objects, and passed a separate zero-residue cleanup check. The approved bootstrap directly requested only
+  `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including
+  dependencies, and post-install imports pass. The
+  elevated report confirms the datastore and nine then-current available exact
+  Kubernetes queries. The later schema-v3 elevated rerun confirms kubelet
+  `v1.36.2+k3s1`, all 15 bounded queries available, and the current
+  `shared-services` PVC query with count zero. The first attempt at that rerun omitted
+  the ignored local inventory and stopped unreachable before discovery; the corrected
+  explicit inventory command succeeded. Reboot recovery and the bounded
+  CNI/NetworkPolicy probe passed; replacement-host recovery remains unproven.
 - Gate: human-reviewed local report and decision register update.
-- Stop: a task needs mutation, secret output, or elevated access beyond approval.
-- Rollback: none; no target state changes are permitted. The only write is the
-  explicitly requested controller-local report.
+- Stop: a task needs mutation, secret output, or elevated access beyond the two
+  approved dependency packages and discovery scope.
+- Rollback: the only approved target-state change is the recorded apt transaction.
+  Any package removal requires a separately reviewed apt plan; do not remove
+  transitive packages blindly. The discovery play's only write is the explicitly
+  requested controller-local report.
 
 ### Stage 2 — host safety baseline
 
@@ -207,38 +440,177 @@ verification must meet the declared RPO/RTO before PROD.
 
 ### Stage 3 — external-resource preparation
 
-- Entry: protected OpenTofu state backend, least-privilege credentials, reviewed plan.
+- Entry: protected host-local single-writer state, proven encrypted off-node recovery, least-privilege credentials, reviewed plan.
 - Work: Cloudflare/GitHub resources only; no public route yet.
 - Gate: plan contains only approved resources and state recovery is tested.
 - Stop: secret value in state/plan or destructive replacement.
 - Rollback: reviewed reverse plan; never blind destroy.
 
+### Pre-Stage-4 — bounded platform Namespace bootstrap exception
+
+- Entry: freeze and validate the exact reviewed source, then obtain a separate human
+  approval for `ansible/bin/bootstrap-platform-namespaces check`.
+- Check evidence: the separately approved wrapper check passed at
+  `ok=19 changed=1 unreachable=0 failed=0 skipped=2`; all protected preflight
+  assertions passed and the single changed loop task predicted exactly `argocd` and
+  `platform-edge`. Check mode created nothing and skipped live post-state verification
+  by design.
+- First-apply evidence: the separately approved wrapper apply passed at
+  `ok=21 changed=1 unreachable=0 failed=0 skipped=0`; the single changed loop task
+  changed exactly the committed `argocd` and `platform-edge` Namespace manifests
+  with `state:
+  present`. Protected post-state assertions verified both exact identities, the
+  reviewed labels, `Active` phase, and service health. No deletion or other persistent
+  Kubernetes kind is authorized; none was changed.
+- Idempotence evidence: during the separately approved second wrapper checkpoint, an
+  initial invocation stopped before service preflight and Kubernetes reconciliation
+  because local sudo authentication failed. It reported
+  `ok=10 changed=0 unreachable=0 failed=1 skipped=0`, made no mutation, and proved no
+  idempotence. The retry passed at
+  `ok=21 changed=0 unreachable=0 failed=0 skipped=0`; both exact reconciliation items
+  were `ok`, protected identity/label/`Active` assertions passed, and service health
+  remained verified before and after.
+- Gate result: the exact check, first apply, and idempotence checkpoints are complete;
+  the exception is closed and authorizes no further Namespace bootstrap execution.
+- Stop: foreign ownership, an unexpected object or change, source drift, failed
+  verification, or nonzero change would have stopped the checkpoint.
+- Ownership: Ansible remains the bootstrap writer. Argo CD is only the future desired
+  owner until installation, adoption or Application registration, and successful
+  sync evidence; a label alone is not a handoff.
+- Boundary: this exception does not waive the Stage 4 entry gates and does not
+  authorize Argo CD, Infisical, cloudflared, or any other persistent Kubernetes
+  object.
+
+### Pre-Stage-4B — bounded foundation Namespace source
+
+- Source: one exact manifest and a distinct guarded Ansible bootstrap are implemented
+  for only `shared-services`; the superseded two-Namespace source never ran and was
+  removed without contacting the cluster; see the
+  [foundation Namespace bootstrap runbook](runbooks/foundation-namespace-bootstrap.md).
+- Separation: the historical wrapper, role, manifests, and evidence remain unchanged
+  and closed. The new wrapper has its own playbook, role, environment namespace, and
+  ephemeral single-run attestation.
+- Runtime: wrapper check, separately approved first apply, and separately approved
+  idempotence passed; the final run converged at `changed=0`. No component was deployed.
+- Boundary: state is present-only; no delete path, Secret, ServiceAccount, workload,
+  Service, policy, PVC, chart, values, route, or other persistent kind exists in this
+  increment. Check mode predicts but makes no live post-state claim.
+- Ownership: Ansible is bootstrap writer and the Argo label is future intent only;
+  handoff requires later registration/adoption, successful sync, managed-field
+  evidence, and cessation of Ansible reconciliation.
+
 ### Stage 4 — minimal GitOps and secrets bootstrap
 
-- Entry: pinned versions and approved secret-zero procedure.
-- Work: bounded Argo CD bootstrap, private repository access, Infisical operator,
-  and one non-sensitive demonstration secret.
-- Gate: Argo is private, reconciles a demo workload, and secret values remain absent
-  from Git/logs.
+- Current source-only evidence: the
+  [Argo CD candidate provenance record](runbooks/argocd-candidate-provenance.md)
+  binds public chart, captured signature/hash-binding, image metadata, and curated
+  online/static readiness evidence. The candidate retains ApplicationSet because
+  chart `10.3.0` has no effective parent disable gate. Its 44-document render is
+  reproducible at Kubernetes capability `1.36.2`, every rendered built-in kind is
+  registered in upstream Kubernetes `v1.36.2`, and the controller reached both exact
+  image closures. This is not version selection, deployable desired state, exact k3s
+  admission/runtime, or node pullability proof; wildcard/broad RBAC,
+  ingress-only/unrestricted-egress policy, image trust, Secret recovery, private Git,
+  and adoption decisions remain blocked.
+- Current source-only hardened design: the
+  [Argo CD hardened design](runbooks/argocd-hardened-design.md) keeps all Services
+  ClusterIP and administration behind Tailscale, authenticated k3s access, and a
+  loopback-only port-forward, with no route. It retains ApplicationSet quiescent;
+  its webhook listener and TCP `7000` ClusterIP Service remain present while exposure
+  and use are denied. It disables future chart policies in favor of one complete
+  supplemental ingress/egress default-deny set, explicitly accepting broad ports-only
+  TCP `443`/`6443` rather than claiming endpoint/FQDN/TLS-identity isolation. It also
+  selects the one-repository read-only GitHub App credential shape, value-free
+  Infisical custody, Redis initializer removal, phased least-privilege direction, and
+  two independent adoption Applications. This is **DESIGN ONLY**: chart `10.3.0` and
+  app `v3.5.0` are selected only for offline source authoring and remain **NOT
+  DEPLOYABLE**; runtime is **NOT RUN/BLOCKED**, and no RBAC, AppProject, policy,
+  Secret, Application, values, or manifest source exists from this design.
+- Updated hardened-design ownership: Ansible is selected as bounded bootstrap
+  installer and lifecycle owner of privileged CRDs/cluster RBAC. Five decisions remain:
+  (1) exact component Ansible source/object/credential closure and approvals, (2)
+  exact resource/GVR/discovery inventory, (3) Infisical authentication and independent
+  recovery, (4) first-sync apply mode after live Namespace field evidence, and (5)
+  stable Keycloak issuer/callback/TLS plus direct OIDC/RBAC acceptance. Completed
+  `shared-services` check/first apply/idempotence is retained as prerequisite evidence. The completed
+  historical Namespace exception remains closed and none of these items is runtime
+  approval.
+- Current source-only identity design: the
+  [Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md) selects
+  one future self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD
+  as the identity architecture target. Keycloak authenticates and emits groups; Argo
+  RBAC authorizes Argo actions; Kubernetes RBAC independently constrains controller
+  ServiceAccounts. Direct Argo OIDC is selected and Dex remains absent. The issuer,
+  `argocd` client ID, `argocd-admin`/`argocd-readonly` groups, and deny-default
+  mapping are fixed by value-free policy. CristexHub DEV and PROD clients likewise
+  have exact per-client environment tenant-role and super-administrator group forms;
+  unmatched, missing/ambiguous, and cross-environment groups are denied. Exact
+  private callback/origin, TLS, materialized value, workload/PVC, route, database
+  recovery, and runtime remain blocked.
+- Current source-only cloudflared evidence: the
+  [candidate provenance record](runbooks/cloudflared-candidate-provenance.md) binds
+  release, unsigned source, architecture-specific image, token-file, health, and
+  edge-transport facts while leaving trust, hardening, secret-zero, external-resource
+  state/recovery, component policy, route selection, and runtime blocked. It is not
+  deployable source or a version selection.
+- Current source-only Infisical evidence: the
+  [candidate provenance record](runbooks/infisical-operator-candidate-provenance.md)
+  records the incomplete observed `v0.11.8` distribution and version-aligned
+  `v0.11.7` evidence. The inert
+  [privileged-prerequisites inventory](runbooks/infisical-operator-privileged-prerequisites-design.md)
+  remains historical evidence. The [implementation profile](runbooks/infisical-operator-implementation-profile.md)
+  quarantines the archive, while the separate guarded
+  [bootstrap closure](runbooks/infisical-operator-bootstrap.md) promotes exactly 40
+  reviewed value-free objects and one non-passthrough Ansible path. Same-Namespace
+  admission source, exact RBAC, proxy image/config, and deployable source gates are
+  selected. Live CRD/CEL admission, proxy Secret recovery, image behavior, traffic,
+  check/apply/idempotence, Universal Auth, and runtime remain blocked/unrun.
+- Entry: pinned component versions, human-reviewed target kubelet-version evidence,
+  verified Kubernetes compatibility, and an approved secret-zero procedure.
+- Work sequence: exact Ansible-owned prerequisites; idle Operator/proxy closure;
+  separate secret-zero and non-sensitive sync/rotation/
+  revocation/recovery proof; Infisical-materialized precreated Argo Secrets; then the
+  separately approved hardened Ansible Argo bootstrap and private one-time local
+  break-glass readiness, only after every Stage 4 entry gate passes. Keycloak follows
+  only after Stage 5 stateful recovery gates.
+- Gate: Argo is private, reconciles a demo workload after explicit handoff, and secret
+  values remain absent from Git/logs.
 - Stop: admin endpoint becomes public or bootstrap credentials cannot be recovered.
-- Rollback: uninstall only newly bootstrapped stateless controllers after evidence
-  capture; preserve data and access.
+- Rollback: never uninstall the release or delete CRDs/Secrets/Namespaces. Preserve
+  APIs and values; stop only exact workloads through a separately reviewed change.
 
 ### Stage 5 — isolation and shared data
 
 - Entry: StorageClass, capacity, backup, and resource-limit decisions approved.
 - Work: namespaces, service accounts, RBAC, NetworkPolicy, PostgreSQL, MongoDB,
-  principals, and environment-local Redis.
-- Gate: positive own-environment access, negative cross-environment access, backup,
-  and isolated restore all pass.
-- Stop: cross-access succeeds, backup cannot restore, or node pressure is unsafe.
-- Rollback: restore verified data/config; never delete PVCs as routine rollback.
+  principals, environment-local Redis, and the stateful Keycloak prerequisites.
+  Keycloak requires a selected immutable `linux/amd64` image, production startup, a
+  dedicated logical database and owner role on the one general PostgreSQL instance,
+  stable issuer/callback/TLS/proxy design, private administration/management, exact
+  policies/probes/resources, and independently recoverable secret-zero. It remains a
+  separate deployment and receives no separate PostgreSQL workload or PVC.
+- Gate: before the first private Keycloak bootstrap, approve the image, shared-engine
+  storage plus dedicated database/role, backup tooling/destination/key custody, restore procedure,
+  provisional RPO/RTO, stable issuer, and private exposure. That separately approved
+  bootstrap is non-authoritative and creates only controlled test identity state.
+  Encrypted application-consistent `pg_dump`, non-destructive off-node copy, integrity
+  check, isolated restore, and measured RPO/RTO must then pass before authoritative
+  identity state is accepted or OIDC is enabled. Direct Argo OIDC additionally
+  requires administrator/read-only positive cases, ungrouped and mutation denial,
+  invalid/expired-token denial, logout, and local break-glass recovery before routine
+  local authentication is disabled.
+- Stop: cross-access succeeds, backup cannot restore, issuer/callback is unstable,
+  administration becomes public, authorization fails closed incorrectly, or node
+  pressure is unsafe.
+- Rollback: restore verified data/config; never delete PVCs, re-import a realm, or
+  downgrade Keycloak as routine rollback.
 
 ### Stage 6 — DEV
 
-- Entry: shared-data gate passes.
-- Work: deploy the minimum CristexHub DEV slice privately and add services only after
-  measuring capacity.
+- Entry: shared-services gate passes.
+- Work: deploy the minimum CristexHub DEV slice privately, measure capacity, then add
+  the MVP's environment-local Reactive Resume and Browserless/gateway under the same
+  private, digest-pinned, resource-bounded acceptance sequence.
 - Gate: authentication, API, workers, migrations, resource headroom, and rollback to
   a prior digest pass during soak.
 - Stop: migration ambiguity, excessive pressure, or any public DEV route.
@@ -278,31 +650,80 @@ Implementation is blocked until each relevant item is resolved:
 
 - Infisical Cloud bootstrap authentication, export/recovery, and machine-identity rotation;
 - Argo CD private-repository bootstrap and recovery;
-- OpenTofu encrypted remote state, locking, and recovery;
-- Cloudflare connector ownership and credential rotation;
+- OpenTofu host-local single-writer state encryption, Google Drive copy, key custody, integrity, and isolated recovery;
+- cloudflared publisher/version trust, image assurance and off-node availability,
+  hardening compatibility, fixed metrics surface, connector ownership, token-file
+  secret-zero/recovery/rotation, and exact DNS/Traefik/edge policy;
 - current k3s datastore, CNI indicators, NetworkPolicy objects and later enforcement
   probes, DNS, Traefik, StorageClass, and firewall;
 - live PVC placement and approved use of the 1 TB disk;
 - backup retention, encryption, Google Drive identity, RPO, and RTO;
 - private GHCR pull authentication and image retention;
-- identity provider placement and hosted OIDC URLs;
+- selected Keycloak release/image/package, shared PostgreSQL storage plus dedicated
+  Keycloak database/role/backup and isolated restore, stable private-first
+  issuer/callback/TLS/proxy design, the `shared-services` Namespace, direct Argo OIDC
+  groups/RBAC, and later separately
+  approved browser-auth route;
 - exact initial CristexHub service slice and code-runner disposition;
 - private DEV naming: tailnet name or custom private DNS.
 
 ## Recovery order
 
-A replacement host is recovered in this order:
+The documentation-only
+[`replacement-host-recovery` runbook](runbooks/replacement-host-recovery.md) first
+requires truthful reboot-versus-replacement classification, independently verified
+old-host fencing/storage exclusivity, and an approved preserve-existing-identity or
+create-new-cluster decision. These split-brain gates precede every item below. The
+current artifact register marks datastore, exact version, token custody, storage,
+RPO/RTO, and off-node prerequisites `UNKNOWN — STOP`; therefore this order is a
+target sequence, not an executable or proven procedure.
+
+After those gates and a separately approved concrete plan, a replacement host is
+recovered in this order:
 
 1. restore documented host access and prerequisites;
 2. install the pinned k3s version/configuration;
 3. restore or reconstruct external state safely;
-4. bootstrap Argo CD private access;
-5. restore Infisical/GHCR/Cloudflare access references;
-6. reconcile namespaces, policies, and stateful services;
-7. restore databases and application encryption keys;
-8. reconcile DEV/PROD workloads by immutable digest;
-9. validate privately;
-10. re-enable the public PROD route only after acceptance.
+4. bootstrap the Infisical Cloud Kubernetes Operator and independently recover its
+   access;
+5. materialize precreated Argo Secrets and bootstrap Argo CD private access through
+   the bounded Ansible path;
+6. restore GHCR/Cloudflare access references;
+7. restore Keycloak PostgreSQL and identity recovery material before activating OIDC;
+8. reconcile namespaces, policies, and stateful services object by object without
+   dual Ansible/Argo ownership;
+9. restore application databases and encryption keys;
+10. reconcile DEV/PROD workloads by immutable digest;
+11. validate privately;
+12. re-enable only separately approved public routes after acceptance.
 
 Git and Argo reconstruct desired state. They do not restore mutable data, secret
 values, or external state by themselves.
+
+## Guarded host transfer boundary
+
+Pinned host rclone `1.71.1` is the selected transfer-tool direction. Installation
+and selector-only rollback are Ansible-owned host operations. Every Google Drive
+transfer runs as the inventory-resolved non-root operator on the Debian
+k3s/database host with explicit config-path metadata validation; Ansible never
+handles token/config content. Host OAuth is an interactive secret-zero exception and
+cannot use Infisical or the same Drive remote as its sole recovery source. The
+controller owns proxy plaintext generation,
+readback decryption/relationship verification, and age private-key custody. Exact
+source exists for the current encrypted pending proxy bundle and a bound
+`drive-verified` gate. Installer check passed twice; two apply attempts stopped
+before host mutation, with the second retaining only the exact ignored controller
+cache. Both discovered guard defects pass offline regressions. A fresh check passed
+at `ok=25 changed=1 failed=0`; the separately approved corrected install passed at
+`ok=34 changed=4 failed=0`, selected verified rclone `1.71.1`, and preserved
+k3s/Tailscale health. The separately approved idempotence apply passed at
+`ok=32 changed=0 failed=0`. Host OAuth then completed through a private callback
+tunnel with token-bearing config only on the host. Transfer check passed at
+`ok=26 changed=0 failed=0`; apply stopped on unsupported `--local-umask` after only
+exact encrypted staging, and approved cleanup removed it at
+`ok=26 changed=1 failed=0`. The reviewed compatibility fixes pass `258/258`, but a fresh check
+initially stopped before facts because the host became transiently Tailscale-offline.
+After return, transfer check/apply passed at `ok=26 changed=0` and
+`ok=39 changed=7`; exact proxy Secret bootstrap passed at `ok=15 changed=1`.
+Infisical Operator check/apply/idempotence then passed. Universal Auth, Argo, and
+database backup/runtime remain **NOT RUN/BLOCKED**.

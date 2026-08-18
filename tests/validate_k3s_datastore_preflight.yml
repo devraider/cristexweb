@@ -1,0 +1,129 @@
+---
+- name: Validate the sanitized k3s datastore preflight fixture
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    k3s_datastore_preflight_internal_report:
+      schema_version: 2
+      evidence_class: read-only-k3s-datastore-encryption-preflight
+      invocation:
+        check_mode: true
+        diff_mode: true
+        one_host_limit: true
+        elevated_requested: true
+        elevated_approved: true
+      k3s:
+        version: v1.36.2+k3s1
+        executable_status: safe
+        config_status: present_safe
+        exec_start_status: available
+        data_dir_source: explicit_arg
+      datastore:
+        type: external
+        sqlite_marker_present: false
+        etcd_marker_present: false
+        external_endpoint_explicit: true
+      encryption:
+        command_status: available
+        status: enabled
+        rotation_stage: finished
+      health:
+        k3s_service: running
+        tailscaled_service: running
+        node_query: available
+        node_count: 2
+        ready_node_count: 2
+        node_stage: ready
+      disclosure_controls:
+        remote_mutation: false
+        backup_or_restore: false
+        encryption_mutation: false
+        secret_values: false
+        key_material: false
+        token_values: false
+        config_content: false
+        kubeconfig_content: false
+        raw_command_output: false
+        node_identifiers: false
+        paths_or_urls: false
+    synthetic_exec_start: >-
+      path=/usr/local/bin/k3s; argv[]=/usr/local/bin/k3s,server,--datastore-endpoint=https://fixture.invalid,
+      --token=fixture-token; private-key=fixture-key
+    synthetic_config_content: fixture-config-secret
+    synthetic_kubeconfig_content: fixture-kubeconfig-secret
+    synthetic_node_identity: fixture-node-name
+    synthetic_stdout: fixture-raw-stdout
+    synthetic_stderr: fixture-raw-stderr
+    synthetic_systemd_environment: K3S_DATASTORE_ENDPOINT=fixture-environment-endpoint
+    synthetic_encryption_active_key: fixture-active-key
+    synthetic_encryption_hash_error: fixture-hash-error
+    synthetic_encryption_inactive_key: fixture-inactive-key
+
+  tasks:
+    - name: Render the report template from synthetic sensitive command fixtures
+      ansible.builtin.set_fact:
+        k3s_datastore_preflight_rendered: >-
+          {{ lookup('ansible.builtin.template',
+                    playbook_dir ~ '/../ansible/roles/k3s_datastore_preflight/templates/report.json.j2')
+             | from_json }}
+      changed_when: false
+      no_log: true
+
+    - name: Require the exact preflight report key closure
+      ansible.builtin.assert:
+        that:
+          - >-
+            k3s_datastore_preflight_rendered.keys() | list | sort ==
+            ['datastore', 'disclosure_controls', 'encryption', 'evidence_class',
+             'health', 'invocation', 'k3s', 'schema_version']
+          - k3s_datastore_preflight_rendered.schema_version == 2
+          - k3s_datastore_preflight_rendered.evidence_class == 'read-only-k3s-datastore-encryption-preflight'
+          - k3s_datastore_preflight_rendered.k3s.version == 'v1.36.2+k3s1'
+          - k3s_datastore_preflight_rendered.datastore.type == 'external'
+          - k3s_datastore_preflight_rendered.encryption.rotation_stage == 'finished'
+          - k3s_datastore_preflight_rendered.health.node_count == 2
+          - k3s_datastore_preflight_rendered.health.ready_node_count == 2
+          - k3s_datastore_preflight_rendered.disclosure_controls.remote_mutation == false
+          - k3s_datastore_preflight_rendered.disclosure_controls.backup_or_restore == false
+          - k3s_datastore_preflight_rendered.disclosure_controls.encryption_mutation == false
+          - k3s_datastore_preflight_rendered.disclosure_controls.secret_values == false
+          - k3s_datastore_preflight_rendered.disclosure_controls.key_material == false
+          - k3s_datastore_preflight_rendered.disclosure_controls.token_values == false
+          - k3s_datastore_preflight_rendered.disclosure_controls.config_content == false
+          - k3s_datastore_preflight_rendered.disclosure_controls.kubeconfig_content == false
+          - k3s_datastore_preflight_rendered.disclosure_controls.raw_command_output == false
+          - k3s_datastore_preflight_rendered.disclosure_controls.node_identifiers == false
+          - k3s_datastore_preflight_rendered.disclosure_controls.paths_or_urls == false
+        fail_msg: Synthetic preflight report did not match the exact sanitized closure.
+      changed_when: false
+
+    - name: Require synthetic sensitive values to stay outside the report
+      ansible.builtin.assert:
+        that:
+          - >-
+            synthetic_exec_start not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_config_content not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_kubeconfig_content not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_node_identity not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_stdout not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_stderr not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_systemd_environment not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            'fixture-token' not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            'fixture-key' not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_encryption_active_key not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_encryption_hash_error not in (k3s_datastore_preflight_rendered | to_json)
+          - >-
+            synthetic_encryption_inactive_key not in (k3s_datastore_preflight_rendered | to_json)
+        fail_msg: Synthetic sensitive command fixtures appeared in the report.
+      changed_when: false

@@ -1,0 +1,938 @@
+---
+- name: Reject externally supplied Infisical Argo CD Secret seam internals
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied Infisical Argo CD
+      Secret seam internal variable {{ item }}.
+  loop:
+    - infisical_argocd_secrets_bootstrap_internal_attestation_state
+    - infisical_argocd_secrets_bootstrap_internal_manifest_states
+    - infisical_argocd_secrets_bootstrap_internal_manifests
+    - infisical_argocd_secrets_bootstrap_internal_identity_keys
+    - infisical_argocd_secrets_bootstrap_internal_admission_policies
+    - infisical_argocd_secrets_bootstrap_internal_admission_bindings
+    - infisical_argocd_secrets_bootstrap_internal_rbac_objects
+    - infisical_argocd_secrets_bootstrap_internal_source_objects
+    - infisical_argocd_secrets_bootstrap_internal_service_facts_before
+    - infisical_argocd_secrets_bootstrap_internal_kubeconfig_state
+    - infisical_argocd_secrets_bootstrap_internal_namespace
+    - infisical_argocd_secrets_bootstrap_internal_operator_deployment
+    - infisical_argocd_secrets_bootstrap_internal_operator_role
+    - infisical_argocd_secrets_bootstrap_internal_generic_admission_policies
+    - infisical_argocd_secrets_bootstrap_internal_generic_admission_bindings
+    - infisical_argocd_secrets_bootstrap_internal_credential
+    - infisical_argocd_secrets_bootstrap_internal_targets
+    - infisical_argocd_secrets_bootstrap_internal_alternate_target_crs
+    - infisical_argocd_secrets_bootstrap_internal_static_secret_inventory
+    - infisical_argocd_secrets_bootstrap_internal_initial_admin
+    - infisical_argocd_secrets_bootstrap_internal_crds
+    - infisical_argocd_secrets_bootstrap_internal_prestate
+    - infisical_argocd_secrets_bootstrap_internal_preflight_binding
+    - infisical_argocd_secrets_bootstrap_internal_admission_apply
+    - infisical_argocd_secrets_bootstrap_internal_admission_policy_state
+    - infisical_argocd_secrets_bootstrap_internal_admission_binding_apply
+    - infisical_argocd_secrets_bootstrap_internal_admission_binding_state
+    - infisical_argocd_secrets_bootstrap_internal_targets_recheck
+    - infisical_argocd_secrets_bootstrap_internal_alternate_target_crs_recheck
+    - infisical_argocd_secrets_bootstrap_internal_static_secret_inventory_recheck
+    - infisical_argocd_secrets_bootstrap_internal_rbac_apply
+    - infisical_argocd_secrets_bootstrap_internal_source_apply
+    - infisical_argocd_secrets_bootstrap_internal_source_state
+    - infisical_argocd_secrets_bootstrap_internal_poststate
+    - infisical_argocd_secrets_bootstrap_internal_targets_after
+    - infisical_argocd_secrets_bootstrap_internal_service_facts_after
+  changed_when: false
+
+- name: Require the Infisical Argo CD Secret seam approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_ARGOCD_SECRETS_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_ARGOCD_SECRETS_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_ARGOCD_SECRETS_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - infisical_argocd_secrets_bootstrap_approved | bool
+      - infisical_argocd_secrets_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - infisical_argocd_secrets_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - infisical_argocd_secrets_bootstrap_repository_root == (playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname)
+      - infisical_argocd_secrets_bootstrap_manifest_paths | length == 13
+      - infisical_argocd_secrets_bootstrap_manifest_paths | unique | length == 13
+      - infisical_argocd_secrets_bootstrap_expected_hashes | length == 13
+      - infisical_argocd_secrets_bootstrap_expected_hashes | map(attribute='path') | list == infisical_argocd_secrets_bootstrap_manifest_paths
+      - infisical_argocd_secrets_bootstrap_expected_hashes | map(attribute='path') | list | unique | length == 13
+      - infisical_argocd_secrets_bootstrap_object_count == 13
+      - infisical_argocd_secrets_bootstrap_admission_count == 8
+      - infisical_argocd_secrets_bootstrap_rbac_count == 2
+      - infisical_argocd_secrets_bootstrap_source_count == 3
+      - infisical_argocd_secrets_bootstrap_crd_names | length == 6
+      - infisical_argocd_secrets_bootstrap_alternate_target_crs | length == 3
+      - infisical_argocd_secrets_bootstrap_credential_contract.name == 'argocd-infisical-universal-auth'
+      - infisical_argocd_secrets_bootstrap_credential_contract.namespace == 'argocd'
+      - infisical_argocd_secrets_bootstrap_credential_contract.type == 'Opaque'
+      - infisical_argocd_secrets_bootstrap_credential_contract['keys'] == ['clientId', 'clientSecret']
+      - >-
+        infisical_argocd_secrets_bootstrap_credential_contract.labels ==
+        {'app.kubernetes.io/managed-by': 'ansible',
+        'app.kubernetes.io/part-of': 'infisical-operator',
+        'cristex.io/component': 'infisical-runtime-auth',
+        'cristex.io/value-owner': 'infisical-cloud'}
+      - >-
+        infisical_argocd_secrets_bootstrap_target_contract ==
+        {'argocd-secret': {'type': 'Opaque', 'keys': ['admin.password',
+        'admin.passwordMtime', 'server.secretkey']}, 'argocd-redis':
+        {'type': 'Opaque', 'keys': ['auth']}, 'argocd-server-tls':
+        {'type': 'kubernetes.io/tls', 'keys': ['ca.crt', 'tls.crt', 'tls.key']},
+        'argocd-repository-cristexhub': {'type': 'Opaque',
+        'keys': ['sshPrivateKey', 'type', 'url']}}
+    fail_msg: >-
+      Infisical Argo CD Secret materialization requires the exact non-passthrough
+      wrapper, present-only approval, --diff, one-host limit, credential/target
+      contracts, and 13-object source closure.
+  changed_when: false
+
+- name: Inspect the ephemeral Infisical Argo CD Secret seam attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_ARGOCD_SECRETS_BOOTSTRAP_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: infisical_argocd_secrets_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run Infisical Argo CD Secret seam attestation
+  ansible.builtin.assert:
+    that:
+      - infisical_argocd_secrets_bootstrap_internal_attestation_state.stat.exists | default(false)
+      - infisical_argocd_secrets_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (infisical_argocd_secrets_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - infisical_argocd_secrets_bootstrap_internal_attestation_state.stat.pw_name == infisical_argocd_secrets_bootstrap_controller_user
+      - infisical_argocd_secrets_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_INFISICAL_ARGOCD_SECRETS_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_ARGOCD_SECRETS_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing a missing, reusable, foreign-owned, symlinked, or invalid Infisical Argo CD Secret seam attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect every exact Infisical Argo CD Secret seam manifest
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ infisical_argocd_secrets_bootstrap_manifest_paths }}"
+  register: infisical_argocd_secrets_bootstrap_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+
+- name: Require canonical hash-bound Infisical Argo CD Secret seam manifests
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == infisical_argocd_secrets_bootstrap_controller_user
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - item.stat.checksum == (infisical_argocd_secrets_bootstrap_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - item.item.startswith(infisical_argocd_secrets_bootstrap_repository_root ~ '/ansible/files/components/infisical-argocd-secrets/')
+    fail_msg: Refusing missing, unsafe, mode-drifted, or hash-drifted Infisical Argo CD Secret seam source.
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_manifest_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  delegate_to: localhost
+  changed_when: false
+
+- name: Load the exact Infisical Argo CD Secret seam object closure
+  ansible.builtin.set_fact:
+    infisical_argocd_secrets_bootstrap_internal_manifests: >-
+      {{ (infisical_argocd_secrets_bootstrap_internal_manifests | default([])) +
+         [(lookup('ansible.builtin.file', item) | from_yaml)] }}
+  loop: "{{ infisical_argocd_secrets_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact Infisical Argo CD Secret seam object partitions
+  ansible.builtin.set_fact:
+    infisical_argocd_secrets_bootstrap_internal_identity_keys: []
+    infisical_argocd_secrets_bootstrap_internal_admission_policies: >-
+      {{ infisical_argocd_secrets_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ValidatingAdmissionPolicy') | list }}
+    infisical_argocd_secrets_bootstrap_internal_admission_bindings: >-
+      {{ infisical_argocd_secrets_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ValidatingAdmissionPolicyBinding') | list }}
+    infisical_argocd_secrets_bootstrap_internal_rbac_objects: >-
+      {{ infisical_argocd_secrets_bootstrap_internal_manifests | selectattr('kind', 'in', ['Role', 'RoleBinding']) | list }}
+    infisical_argocd_secrets_bootstrap_internal_source_objects: >-
+      {{ (infisical_argocd_secrets_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'InfisicalConnection') | list) +
+         (infisical_argocd_secrets_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'InfisicalAuth') | list) +
+         (infisical_argocd_secrets_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'InfisicalStaticSecret') | list) }}
+  changed_when: false
+  no_log: true
+
+- name: Bind every exact Infisical Argo CD Secret seam identity
+  ansible.builtin.set_fact:
+    infisical_argocd_secrets_bootstrap_internal_identity_keys: >-
+      {{ (infisical_argocd_secrets_bootstrap_internal_identity_keys | default([])) +
+         [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+          (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.namespace | default('cluster') }}/{{ item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Require the exact value-free Infisical Argo CD Secret seam closure
+  ansible.builtin.assert:
+    that:
+      - infisical_argocd_secrets_bootstrap_internal_manifests | length == 13
+      - infisical_argocd_secrets_bootstrap_internal_admission_policies | length == 4
+      - infisical_argocd_secrets_bootstrap_internal_admission_bindings | length == 4
+      - infisical_argocd_secrets_bootstrap_internal_rbac_objects | length == 2
+      - infisical_argocd_secrets_bootstrap_internal_source_objects | length == 3
+      - infisical_argocd_secrets_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - infisical_argocd_secrets_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ConfigMap') | list | length == 0
+      - >-
+        infisical_argocd_secrets_bootstrap_internal_manifests |
+        map(attribute='metadata.namespace') | select('defined') | list |
+        unique | difference(['argocd']) | length == 0
+      - >-
+        infisical_argocd_secrets_bootstrap_internal_source_objects |
+        map(attribute='metadata.name') | list ==
+        ['infisical-cloud', 'argocd-infisical-auth', 'argocd-infisical-secrets']
+    fail_msg: Refusing source outside the exact 13-object, value-free, argocd-scoped seam.
+  changed_when: false
+  no_log: true
+
+- name: Capture service facts before Infisical Argo CD Secret seam bootstrap
+  ansible.builtin.service_facts:
+  register: infisical_argocd_secrets_bootstrap_internal_service_facts_before
+
+- name: Require k3s and Tailscale before Infisical Argo CD Secret seam bootstrap
+  ansible.builtin.assert:
+    that:
+      - infisical_argocd_secrets_bootstrap_internal_service_facts_before.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - infisical_argocd_secrets_bootstrap_internal_service_facts_before.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: k3s and tailscaled must already be running.
+  changed_when: false
+
+- name: Inspect the protected k3s kubeconfig
+  ansible.builtin.stat:
+    path: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: infisical_argocd_secrets_bootstrap_internal_kubeconfig_state
+  no_log: true
+
+- name: Require group-scoped k3s administrator access without sudo
+  ansible.builtin.assert:
+    that:
+      - infisical_argocd_secrets_bootstrap_internal_kubeconfig_state.stat.exists | default(false)
+      - infisical_argocd_secrets_bootstrap_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (infisical_argocd_secrets_bootstrap_internal_kubeconfig_state.stat.islnk | default(false))
+      - infisical_argocd_secrets_bootstrap_internal_kubeconfig_state.stat.pw_name == 'root'
+      - infisical_argocd_secrets_bootstrap_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+      - infisical_argocd_secrets_bootstrap_internal_kubeconfig_state.stat.mode == '0640'
+    fail_msg: Refusing Infisical Argo CD Secret seam bootstrap without the established root:k3s-admin mode-0640 kubeconfig.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact Argo CD Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: argocd
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  register: infisical_argocd_secrets_bootstrap_internal_namespace
+  changed_when: false
+  no_log: true
+
+- name: Require the established exact Argo CD Namespace
+  ansible.builtin.assert:
+    that:
+      - infisical_argocd_secrets_bootstrap_internal_namespace.resources | length == 1
+      - infisical_argocd_secrets_bootstrap_internal_namespace.resources[0].status.phase == 'Active'
+      - infisical_argocd_secrets_bootstrap_internal_namespace.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'cristex-platform'
+      - infisical_argocd_secrets_bootstrap_internal_namespace.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible'
+      - infisical_argocd_secrets_bootstrap_internal_namespace.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
+    fail_msg: Refusing Infisical Argo CD Secret seam bootstrap into a missing or drifted Namespace.
+  changed_when: false
+
+- name: Query the established Infisical Operator checkpoint
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: shared-services
+    name: infisical-operator-controller
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  register: infisical_argocd_secrets_bootstrap_internal_operator_deployment
+  changed_when: false
+  no_log: true
+
+- name: Query the established Infisical Operator manager Role in argocd
+  kubernetes.core.k8s_info:
+    api_version: rbac.authorization.k8s.io/v1
+    kind: Role
+    namespace: argocd
+    name: infisical-operator-manager
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  register: infisical_argocd_secrets_bootstrap_internal_operator_role
+  changed_when: false
+  no_log: true
+
+- name: Query the required generic Infisical admission policies
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicy
+    name: "{{ item }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop:
+    - infisical-connection-boundary
+    - infisical-auth-boundary
+    - infisical-static-secret-boundary
+  register: infisical_argocd_secrets_bootstrap_internal_generic_admission_policies
+  changed_when: false
+  no_log: true
+
+- name: Query the required generic Infisical admission bindings
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicyBinding
+    name: "{{ item }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop:
+    - infisical-connection-boundary
+    - infisical-auth-boundary
+    - infisical-static-secret-boundary
+  register: infisical_argocd_secrets_bootstrap_internal_generic_admission_bindings
+  changed_when: false
+  no_log: true
+
+- name: Require the ready and admitted Infisical Operator checkpoint
+  ansible.builtin.assert:
+    that:
+      - infisical_argocd_secrets_bootstrap_internal_operator_deployment.resources | length == 1
+      - >-
+        infisical_argocd_secrets_bootstrap_internal_operator_deployment.resources[0].status.observedGeneration ==
+        infisical_argocd_secrets_bootstrap_internal_operator_deployment.resources[0].metadata.generation
+      - infisical_argocd_secrets_bootstrap_internal_operator_deployment.resources[0].status.availableReplicas | default(0) | int == 1
+      - infisical_argocd_secrets_bootstrap_internal_operator_role.resources | length == 1
+      - infisical_argocd_secrets_bootstrap_internal_operator_role.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - infisical_argocd_secrets_bootstrap_internal_operator_role.resources[0].metadata.labels.get('cristex.io/component') == 'infisical-operator'
+      - infisical_argocd_secrets_bootstrap_internal_generic_admission_policies.results | length == 3
+      - infisical_argocd_secrets_bootstrap_internal_generic_admission_bindings.results | length == 3
+      - infisical_argocd_secrets_bootstrap_internal_generic_admission_policies.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
+      - infisical_argocd_secrets_bootstrap_internal_generic_admission_bindings.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
+      - >-
+        infisical_argocd_secrets_bootstrap_internal_generic_admission_policies.results |
+        map(attribute='resources.0.spec.failurePolicy') | list | unique | list == ['Fail']
+      - >-
+        infisical_argocd_secrets_bootstrap_internal_generic_admission_bindings.results |
+        map(attribute='resources.0.spec.validationActions') | list | unique | list == [['Deny']]
+    fail_msg: Refusing Secret seam bootstrap before the Infisical Operator Deployment, target manager Role, and generic admission checkpoint are ready.
+  changed_when: false
+  no_log: true
+
+- name: Query the human-created Universal Auth credential Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: "{{ infisical_argocd_secrets_bootstrap_credential_contract.namespace }}"
+    name: "{{ infisical_argocd_secrets_bootstrap_credential_contract.name }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  register: infisical_argocd_secrets_bootstrap_internal_credential
+  changed_when: false
+  no_log: true
+
+- name: Require the exact same-Namespace Universal Auth credential metadata
+  ansible.builtin.assert:
+    that:
+      - infisical_argocd_secrets_bootstrap_internal_credential.resources | length == 1
+      - infisical_argocd_secrets_bootstrap_internal_credential.resources[0].metadata.name == infisical_argocd_secrets_bootstrap_credential_contract.name
+      - >-
+        infisical_argocd_secrets_bootstrap_internal_credential.resources[0].metadata.namespace ==
+        infisical_argocd_secrets_bootstrap_credential_contract.namespace
+      - infisical_argocd_secrets_bootstrap_internal_credential.resources[0].type == infisical_argocd_secrets_bootstrap_credential_contract.type
+      - >-
+        (infisical_argocd_secrets_bootstrap_internal_credential.resources[0].data |
+        default({})).keys() | list | sort ==
+        infisical_argocd_secrets_bootstrap_credential_contract['keys'] | sort
+      - (infisical_argocd_secrets_bootstrap_internal_credential.resources[0].binaryData | default({})).keys() | list | length == 0
+      - not (infisical_argocd_secrets_bootstrap_internal_credential.resources[0].immutable | default(false) | bool)
+      - (infisical_argocd_secrets_bootstrap_internal_credential.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - >-
+        (infisical_argocd_secrets_bootstrap_internal_credential.resources[0].metadata.labels |
+        default({})) == infisical_argocd_secrets_bootstrap_credential_contract.labels
+    fail_msg: The exact same-Namespace Universal Auth credential Secret metadata is absent or drifted; values remain human-created and unread.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact Argo CD target Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: argocd
+    name: "{{ item.key }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_target_contract | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: infisical_argocd_secrets_bootstrap_internal_targets
+  changed_when: false
+  no_log: true
+
+- name: Reject foreign or wrong-type Argo CD target Secrets before mutation
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.namespace == 'argocd' and
+         item.resources[0].type == item.item.value.type and
+         (item.resources[0].data | default({})).keys() | list | sort == item.item.value['keys'] | sort and
+         (item.resources[0].binaryData | default({})).keys() | list | length == 0 and
+         not (item.resources[0].immutable | default(false) | bool) and
+         ((item.item.key == 'argocd-repository-cristexhub' and
+           (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+           ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
+           'argocd.argoproj.io/secret-type', 'cristex.io/value-owner'] and
+           item.resources[0].metadata.labels.get('argocd.argoproj.io/secret-type') == 'repository') or
+          (item.item.key != 'argocd-repository-cristexhub' and
+           (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+           ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
+           'cristex.io/value-owner'])) and
+         item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical' and
+         item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'argocd' and
+         item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud' and
+         (item.resources[0].metadata.ownerReferences | default([]) | length) == 0)
+    fail_msg: Refusing a foreign, wrong-type, wrong-key, or non-orphan Argo CD target Secret.
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_targets.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  changed_when: false
+  no_log: true
+
+- name: Require the generated Argo CD administrator Secret to be absent
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: argocd
+    name: argocd-initial-admin-secret
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  register: infisical_argocd_secrets_bootstrap_internal_initial_admin
+  changed_when: false
+  no_log: true
+
+- name: Refuse the generated Argo CD administrator Secret
+  ansible.builtin.assert:
+    that: infisical_argocd_secrets_bootstrap_internal_initial_admin.resources | length == 0
+    fail_msg: Refusing Infisical Argo CD Secret seam bootstrap while argocd-initial-admin-secret exists.
+  changed_when: false
+
+- name: Query the exact Infisical source and alternate CRD prerequisites before VAP
+  kubernetes.core.k8s_info:
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: "{{ item }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_crd_names }}"
+  register: infisical_argocd_secrets_bootstrap_internal_crds
+  changed_when: false
+  no_log: true
+
+- name: Require all six Infisical CRD prerequisites established before VAP
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - >-
+        item.resources[0].status.conditions | default([]) |
+        selectattr('type', 'equalto', 'Established') |
+        selectattr('status', 'equalto', 'True') | list | length == 1
+    fail_msg: Refusing Infisical Argo CD Secret seam bootstrap without all six established Infisical CRDs.
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_crds.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  changed_when: false
+  no_log: true
+
+- name: Query exact Infisical Argo CD Secret seam object pre-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace | default(omit) }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.namespace | default('cluster') }}/{{ item.metadata.name }}"
+  register: infisical_argocd_secrets_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Refuse foreign existing Infisical Argo CD Secret seam objects
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].apiVersion == item.item.apiVersion and
+        item.resources[0].kind == item.item.kind and
+        item.resources[0].metadata.name == item.item.metadata.name and
+        (item.resources[0].metadata.namespace | default('')) ==
+        (item.item.metadata.namespace | default('')) and
+        (item.resources[0].metadata.labels | default({})) ==
+        item.item.metadata.labels and
+        ((item.item.kind in ['InfisicalConnection', 'InfisicalAuth'] and item.resources[0].spec == item.item.spec) or
+        (item.item.kind == 'InfisicalStaticSecret') or
+        (item.item.kind == 'ValidatingAdmissionPolicy' and
+        item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and
+        item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules and
+        (item.resources[0].spec.matchConditions | default([])) ==
+        (item.item.spec.matchConditions | default([])) and
+        (item.resources[0].spec.validations == item.item.spec.validations or
+         (item.item.metadata.name == 'infisical-argocd-secret-write-boundary' and
+          item.resources[0].spec.validations | length == 1 and
+          "object.data['type'] != null" in item.resources[0].spec.validations[0].expression and
+          "object.data['url'] != null" in item.resources[0].spec.validations[0].expression) or
+         (item.item.metadata.name == 'infisical-argocd-static-secret-boundary' and
+          item.resources[0].spec.validations | length == 1 and
+          "object.spec.targets.size() == 4" in item.resources[0].spec.validations[0].expression and
+          "t.metadata.labels['argocd.argoproj.io/secret-type'] == 'repository'" in item.resources[0].spec.validations[0].expression and
+          "t.template.data['type'] == 'git'" not in item.resources[0].spec.validations[0].expression))) or
+        (item.item.kind == 'ValidatingAdmissionPolicyBinding' and
+        item.resources[0].spec.policyName == item.item.spec.policyName and
+        item.resources[0].spec.validationActions == item.item.spec.validationActions and
+        (item.resources[0].spec.matchResources | default({})) ==
+        (item.item.spec.matchResources | default({}))) or
+        (item.item.kind == 'Role' and item.resources[0].rules == item.item.rules) or
+        (item.item.kind == 'RoleBinding' and
+        item.resources[0].roleRef == item.item.roleRef and
+        item.resources[0].subjects == item.item.subjects)))
+    fail_msg: Refusing silent adoption or reconciliation of a foreign or noncanonical Infisical Argo CD Secret seam object.
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_prestate.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Query existing alternate target-producing Infisical CRs in argocd
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: argocd
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_alternate_target_crs }}"
+  loop_control:
+    label: "{{ item.kind }}"
+  register: infisical_argocd_secrets_bootstrap_internal_alternate_target_crs
+  changed_when: false
+  no_log: true
+
+- name: Refuse existing alternate target-producing Infisical CRs
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 0
+    fail_msg: >-
+      Refusing the Infisical Argo CD Secret seam while an alternate target-producing
+      Infisical CR already exists in argocd.
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_alternate_target_crs.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}"
+  changed_when: false
+  no_log: true
+
+- name: Query every existing InfisicalStaticSecret in argocd
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1beta1
+    kind: InfisicalStaticSecret
+    namespace: argocd
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  register: infisical_argocd_secrets_bootstrap_internal_static_secret_inventory
+  changed_when: false
+  no_log: true
+
+- name: Refuse any noncanonical or drifted existing InfisicalStaticSecret
+  ansible.builtin.assert:
+    that:
+      - infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources | length in [0, 1]
+      - >-
+        infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources | length == 0 or
+        (infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].metadata.name == 'argocd-infisical-secrets' and
+         infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec ==
+           (infisical_argocd_secrets_bootstrap_internal_source_objects |
+            selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec)
+    fail_msg: >-
+      Refusing a noncanonical or drifted InfisicalStaticSecret that could write an
+      Argo CD Secret target before admission policy reconciliation.
+  changed_when: false
+  no_log: true
+
+- name: Bind the protected Infisical Argo CD Secret seam preflight
+  ansible.builtin.set_fact:
+    infisical_argocd_secrets_bootstrap_internal_preflight_binding:
+      attestation_sha256: >-
+        {{ lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_ARGOCD_SECRETS_BOOTSTRAP_TOKEN') | ansible.builtin.hash('sha256') }}
+      object_count: "{{ infisical_argocd_secrets_bootstrap_internal_manifests | length }}"
+      identity_set_sha256: >-
+        {{ infisical_argocd_secrets_bootstrap_internal_identity_keys |
+           sort | join('\n') | hash('sha256') }}
+      prestate_count: "{{ infisical_argocd_secrets_bootstrap_internal_prestate.results | length }}"
+      admission_count: >-
+        {{ infisical_argocd_secrets_bootstrap_internal_admission_policies | length +
+           infisical_argocd_secrets_bootstrap_internal_admission_bindings | length }}
+      rbac_count: "{{ infisical_argocd_secrets_bootstrap_internal_rbac_objects | length }}"
+      source_count: "{{ infisical_argocd_secrets_bootstrap_internal_source_objects | length }}"
+      alternate_target_count: "{{ infisical_argocd_secrets_bootstrap_internal_alternate_target_crs.results | length }}"
+      static_secret_inventory_count: "{{ infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources | length }}"
+      credential_contract: true
+      target_contract: true
+      namespace_contract: true
+      crd_count: "{{ infisical_argocd_secrets_bootstrap_internal_crds.results | length }}"
+  changed_when: false
+  no_log: true
+
+- name: Reconcile exact Infisical Argo CD Secret seam admission policies first
+  infisical_argocd_secrets_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_admission_policies }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: infisical_argocd_secrets_bootstrap_internal_admission_apply
+  no_log: true
+
+- name: Wait for exact Infisical Argo CD VAPs to be established and type-checked
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicy
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_admission_policies }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: infisical_argocd_secrets_bootstrap_internal_admission_policy_state
+  until:
+    - >-
+      infisical_argocd_secrets_bootstrap_internal_admission_policy_state.resources | length == 1 and
+      ((infisical_argocd_secrets_bootstrap_internal_admission_policy_state.resources[0].status.conditions | default([]) | length == 0) or
+       (infisical_argocd_secrets_bootstrap_internal_admission_policy_state.resources[0].status.conditions | default([]) |
+        selectattr('type', 'equalto', 'TypeChecking') |
+        selectattr('status', 'equalto', 'True') |
+        selectattr('observedGeneration', 'equalto', infisical_argocd_secrets_bootstrap_internal_admission_policy_state.resources[0].metadata.generation) |
+        list | length == 1))
+  retries: 30
+  delay: 2
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Reconcile exact Infisical Argo CD Secret seam admission bindings
+  infisical_argocd_secrets_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_admission_bindings }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: infisical_argocd_secrets_bootstrap_internal_admission_binding_apply
+  no_log: true
+
+- name: Wait for exact Infisical Argo CD VAP bindings to become effective
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicyBinding
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_admission_bindings }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: infisical_argocd_secrets_bootstrap_internal_admission_binding_state
+  until:
+    - >-
+      infisical_argocd_secrets_bootstrap_internal_admission_binding_state.resources | length == 1 and
+      infisical_argocd_secrets_bootstrap_internal_admission_binding_state.resources[0].spec.policyName == item.spec.policyName and
+      infisical_argocd_secrets_bootstrap_internal_admission_binding_state.resources[0].spec.validationActions == ['Deny'] and
+      infisical_argocd_secrets_bootstrap_internal_admission_binding_state.resources[0].metadata.generation is defined
+  retries: 30
+  delay: 2
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Recheck exact Argo CD targets after admission and before RBAC
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: argocd
+    name: "{{ item.key }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_target_contract | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: infisical_argocd_secrets_bootstrap_internal_targets_recheck
+  changed_when: false
+  no_log: true
+
+- name: Refuse Argo CD target races before granting writer RBAC
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == infisical_argocd_secrets_bootstrap_internal_targets.results[target_index].resources | length
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.uid ==
+        infisical_argocd_secrets_bootstrap_internal_targets.results[target_index].resources[0].metadata.uid and
+        item.resources[0].metadata.resourceVersion ==
+        infisical_argocd_secrets_bootstrap_internal_targets.results[target_index].resources[0].metadata.resourceVersion)
+    fail_msg: Refusing a concurrent Argo CD target Secret create or update between preflight and writer RBAC.
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_targets_recheck.results }}"
+  loop_control:
+    index_var: target_index
+    label: "{{ item.item.key }}"
+  changed_when: false
+  no_log: true
+
+- name: Recheck alternate target-producing Infisical CRs after admission
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: argocd
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_alternate_target_crs }}"
+  loop_control:
+    label: "{{ item.kind }}"
+  register: infisical_argocd_secrets_bootstrap_internal_alternate_target_crs_recheck
+  changed_when: false
+  no_log: true
+
+- name: Refuse alternate target races after admission
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 0
+    fail_msg: Refusing an alternate target-producing Infisical CR created during preflight.
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_alternate_target_crs_recheck.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}"
+  changed_when: false
+  no_log: true
+
+- name: Recheck the InfisicalStaticSecret inventory after admission
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1beta1
+    kind: InfisicalStaticSecret
+    namespace: argocd
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  register: infisical_argocd_secrets_bootstrap_internal_static_secret_inventory_recheck
+  changed_when: false
+  no_log: true
+
+- name: Refuse InfisicalStaticSecret identity races after admission
+  ansible.builtin.assert:
+    that:
+      - >-
+        infisical_argocd_secrets_bootstrap_internal_static_secret_inventory_recheck.resources |
+        map(attribute='metadata.uid') | list | sort ==
+        infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources |
+        map(attribute='metadata.uid') | list | sort
+      - >-
+        infisical_argocd_secrets_bootstrap_internal_static_secret_inventory_recheck.resources |
+        map(attribute='metadata.name') | list | sort ==
+        infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources |
+        map(attribute='metadata.name') | list | sort
+    fail_msg: Refusing an InfisicalStaticSecret create or replacement during preflight.
+  changed_when: false
+  no_log: true
+
+- name: Reconcile exact Infisical Argo CD Secret seam RBAC after admission
+  infisical_argocd_secrets_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_rbac_objects }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  register: infisical_argocd_secrets_bootstrap_internal_rbac_apply
+  no_log: true
+
+- name: Reconcile Infisical Connection then Auth then StaticSecret source closure
+  infisical_argocd_secrets_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_source_objects }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  register: infisical_argocd_secrets_bootstrap_internal_source_apply
+  no_log: true
+
+- name: Wait for the Infisical Connection, Auth, and StaticSecret to become ready
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_source_objects }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: infisical_argocd_secrets_bootstrap_internal_source_state
+  until:
+    - >-
+      infisical_argocd_secrets_bootstrap_internal_source_state.resources | length == 1 and
+      (
+        (item.kind in ['InfisicalConnection', 'InfisicalAuth'] and
+         (infisical_argocd_secrets_bootstrap_internal_source_state.resources[0].status.conditions |
+          default([]) | selectattr('type', 'equalto', 'secrets.infisical.com/IsReady') |
+          selectattr('status', 'equalto', 'True') |
+          selectattr('observedGeneration', 'equalto', infisical_argocd_secrets_bootstrap_internal_source_state.resources[0].metadata.generation) |
+          list | length == 1)) or
+        (item.kind == 'InfisicalStaticSecret' and
+         (infisical_argocd_secrets_bootstrap_internal_source_state.resources[0].status.conditions |
+          default([]) | selectattr('type', 'equalto', 'secrets.infisical.com/LastReconcileStatus') |
+          selectattr('status', 'equalto', 'True') |
+          selectattr('observedGeneration', 'equalto', infisical_argocd_secrets_bootstrap_internal_source_state.resources[0].metadata.generation) |
+          list | length == 1) and
+         (infisical_argocd_secrets_bootstrap_internal_source_state.resources[0].status.conditions |
+          default([]) | selectattr('type', 'equalto', 'secrets.infisical.com/LastSuccessfulReconcileAt') |
+          selectattr('status', 'equalto', 'True') |
+          selectattr('observedGeneration', 'equalto', infisical_argocd_secrets_bootstrap_internal_source_state.resources[0].metadata.generation) |
+          list | length == 1))
+      )
+  retries: 30
+  delay: 5
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Query exact Infisical Argo CD Secret seam object post-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace | default(omit) }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: infisical_argocd_secrets_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact Infisical Argo CD Secret seam post-state ownership
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].apiVersion == item.item.apiVersion
+      - item.resources[0].kind == item.item.kind
+      - item.resources[0].metadata.name == item.item.metadata.name
+      - (item.resources[0].metadata.namespace | default('')) == (item.item.metadata.namespace | default(''))
+      - (item.resources[0].metadata.labels | default({})) == item.item.metadata.labels
+      - >-
+        (item.item.kind in ['InfisicalConnection', 'InfisicalAuth',
+        'InfisicalStaticSecret'] and item.resources[0].spec == item.item.spec) or
+        (item.item.kind == 'ValidatingAdmissionPolicy' and
+        item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and
+        item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules and
+        (item.resources[0].spec.matchConditions | default([])) ==
+        (item.item.spec.matchConditions | default([])) and
+        item.resources[0].spec.validations == item.item.spec.validations) or
+        (item.item.kind == 'ValidatingAdmissionPolicyBinding' and
+        item.resources[0].spec.policyName == item.item.spec.policyName and
+        item.resources[0].spec.validationActions == item.item.spec.validationActions and
+        (item.resources[0].spec.matchResources | default({})) ==
+        (item.item.spec.matchResources | default({}))) or
+        (item.item.kind == 'Role' and item.resources[0].rules == item.item.rules) or
+        (item.item.kind == 'RoleBinding' and
+        item.resources[0].roleRef == item.item.roleRef and
+        item.resources[0].subjects == item.item.subjects)
+    fail_msg: Infisical Argo CD Secret seam post-state is absent, drifted, or noncanonical.
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_poststate.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Query exact Argo CD target Secret post-state
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: argocd
+    name: "{{ item.key }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_target_contract | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: infisical_argocd_secrets_bootstrap_internal_targets_after
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exactly four Infisical-owned Argo CD target Secret contracts
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.key
+      - item.resources[0].metadata.namespace == 'argocd'
+      - item.resources[0].type == item.item.value.type
+      - (item.resources[0].data | default({})).keys() | list | sort == item.item.value['keys'] | sort
+      - (item.resources[0].binaryData | default({})).keys() | list | length == 0
+      - not (item.resources[0].immutable | default(false) | bool)
+      - >-
+        ((item.item.key == 'argocd-repository-cristexhub' and
+          (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+          ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
+          'argocd.argoproj.io/secret-type', 'cristex.io/value-owner'] and
+          item.resources[0].metadata.labels.get('argocd.argoproj.io/secret-type') == 'repository') or
+         (item.item.key != 'argocd-repository-cristexhub' and
+          (item.resources[0].metadata.labels | default({})).keys() | list | sort ==
+          ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of',
+          'cristex.io/value-owner']))
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'infisical'
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'argocd'
+      - item.resources[0].metadata.labels.get('cristex.io/value-owner') == 'infisical-cloud'
+      - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
+    fail_msg: The exact four Infisical-owned Argo CD target Secret contracts were not materialized.
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_targets_after.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Validate cryptographic Argo CD Secret values after Infisical materialization
+  argocd_secret_contract:
+    secret_results: >-
+      {{ infisical_argocd_secrets_bootstrap_internal_targets_after.results |
+         rejectattr('item.key', 'equalto', 'argocd-repository-cristexhub') | list }}
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Capture service facts after Infisical Argo CD Secret seam bootstrap
+  ansible.builtin.service_facts:
+  register: infisical_argocd_secrets_bootstrap_internal_service_facts_after
+
+- name: Require k3s and Tailscale after Infisical Argo CD Secret seam bootstrap
+  ansible.builtin.assert:
+    that:
+      - infisical_argocd_secrets_bootstrap_internal_service_facts_after.ansible_facts.services.get('k3s.service', {}).get('state', '') == 'running'
+      - infisical_argocd_secrets_bootstrap_internal_service_facts_after.ansible_facts.services.get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: Infisical Argo CD Secret seam bootstrap must preserve k3s and tailscaled health.
+  changed_when: false

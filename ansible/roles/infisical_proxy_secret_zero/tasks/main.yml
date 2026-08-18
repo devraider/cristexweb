@@ -1,0 +1,207 @@
+---
+- name: Reject externally supplied proxy secret-zero internal variables
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied proxy secret-zero
+      internal variable {{ item }}.
+  loop:
+    - infisical_proxy_secret_zero_internal_attestation
+    - infisical_proxy_secret_zero_internal_kubeconfig
+    - infisical_proxy_secret_zero_internal_service_facts_before
+    - infisical_proxy_secret_zero_internal_prestate
+    - infisical_proxy_secret_zero_internal_poststate
+    - infisical_proxy_secret_zero_internal_service_facts_after
+  changed_when: false
+  no_log: true
+
+- name: Require the proxy secret-zero approval contract
+  ansible.builtin.assert:
+    that:
+      - >-
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_INFISICAL_PROXY_SECRET_ZERO_ENTRYPOINT') == 'v1'
+      - >-
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_INFISICAL_PROXY_SECRET_ZERO_TOKEN') is
+        match('^[0-9a-f]{64}$')
+      - infisical_proxy_secret_zero_approved | bool
+      - not ansible_check_mode
+      - not ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - infisical_proxy_secret_zero_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - infisical_proxy_secret_zero_definitions | length == 3
+      - >-
+        infisical_proxy_secret_zero_definitions |
+        map(attribute='metadata.name') | list | sort ==
+        ['infisical-egress-proxy-auth', 'infisical-egress-proxy-client',
+         'infisical-egress-proxy-tls']
+      - >-
+        infisical_proxy_secret_zero_definitions |
+        map(attribute='metadata.name') | list | unique | length == 3
+    fail_msg: >-
+      Proxy secret-zero bootstrap requires its exact entrypoint, one host,
+      explicit apply approval, and diff/check disabled.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the one-run proxy secret-zero attestation
+  ansible.builtin.stat:
+    path: >-
+      {{ lookup('ansible.builtin.env',
+                'CRISTEXWEB_INFISICAL_PROXY_SECRET_ZERO_ATTESTATION_FILE') }}
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: infisical_proxy_secret_zero_internal_attestation
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require the private proxy secret-zero attestation
+  ansible.builtin.assert:
+    that:
+      - infisical_proxy_secret_zero_internal_attestation.stat.exists | default(false)
+      - infisical_proxy_secret_zero_internal_attestation.stat.isreg | default(false)
+      - not (infisical_proxy_secret_zero_internal_attestation.stat.islnk | default(false))
+      - infisical_proxy_secret_zero_internal_attestation.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file',
+               lookup('ansible.builtin.env',
+                      'CRISTEXWEB_INFISICAL_PROXY_SECRET_ZERO_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env',
+               'CRISTEXWEB_INFISICAL_PROXY_SECRET_ZERO_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing an invalid proxy secret-zero attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Capture service facts before proxy secret-zero bootstrap
+  ansible.builtin.service_facts:
+  register: infisical_proxy_secret_zero_internal_service_facts_before
+
+- name: Require k3s and Tailscale before proxy secret-zero bootstrap
+  ansible.builtin.assert:
+    that:
+      - >-
+        infisical_proxy_secret_zero_internal_service_facts_before.ansible_facts.services.get(
+          'k3s.service', {}).get('state', '') == 'running'
+      - >-
+        infisical_proxy_secret_zero_internal_service_facts_before.ansible_facts.services.get(
+          'tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: k3s and Tailscale must be running.
+  changed_when: false
+
+- name: Inspect the protected k3s kubeconfig
+  ansible.builtin.stat:
+    path: "{{ infisical_proxy_secret_zero_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: infisical_proxy_secret_zero_internal_kubeconfig
+  no_log: true
+
+- name: Require group-scoped kubeconfig access
+  ansible.builtin.assert:
+    that:
+      - infisical_proxy_secret_zero_internal_kubeconfig.stat.exists | default(false)
+      - infisical_proxy_secret_zero_internal_kubeconfig.stat.isreg | default(false)
+      - not (infisical_proxy_secret_zero_internal_kubeconfig.stat.islnk | default(false))
+      - infisical_proxy_secret_zero_internal_kubeconfig.stat.pw_name == 'root'
+      - infisical_proxy_secret_zero_internal_kubeconfig.stat.gr_name == 'k3s-admin'
+      - infisical_proxy_secret_zero_internal_kubeconfig.stat.mode == '0640'
+    fail_msg: Refusing proxy secret-zero bootstrap without protected kubeconfig access.
+  changed_when: false
+  no_log: true
+
+- name: Query exact proxy Secret pre-state
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: shared-services
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ infisical_proxy_secret_zero_kubeconfig }}"
+  loop: "{{ infisical_proxy_secret_zero_definitions }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: infisical_proxy_secret_zero_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Refuse foreign proxy Secrets before first bootstrap or resume
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - >-
+        item.resources | length == 0 or
+        ((item.resources[0].metadata.labels | default({})) == item.item.metadata.labels and
+         item.resources[0].type == item.item.type and
+         item.resources[0].data.keys() | list | sort ==
+         item.item.data.keys() | list | sort and
+         item.resources[0].data == item.item.data)
+    fail_msg: Refusing to overwrite or adopt a foreign proxy Secret.
+  loop: "{{ infisical_proxy_secret_zero_internal_prestate.results }}"
+  loop_control:
+    label: "{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Create or resume only the three recovered proxy Secrets
+  infisical_proxy_secret_zero_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+  loop: "{{ infisical_proxy_secret_zero_definitions }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  no_log: true
+
+- name: Query exact proxy Secret metadata after bootstrap
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: shared-services
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ infisical_proxy_secret_zero_kubeconfig }}"
+  loop: "{{ infisical_proxy_secret_zero_definitions }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: infisical_proxy_secret_zero_internal_poststate
+  changed_when: false
+  no_log: true
+
+- name: Require exact proxy Secret metadata and key sets
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.metadata.name
+      - item.resources[0].type == item.item.type
+      - item.resources[0].data.keys() | list | sort == item.item.data.keys() | list | sort
+      - item.resources[0].data == item.item.data
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/value-owner', '') == 'secret-zero'
+    fail_msg: The exact proxy Secret contract was not preserved.
+  loop: "{{ infisical_proxy_secret_zero_internal_poststate.results }}"
+  loop_control:
+    label: "{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Capture service facts after proxy secret-zero bootstrap
+  ansible.builtin.service_facts:
+  register: infisical_proxy_secret_zero_internal_service_facts_after
+
+- name: Require k3s and Tailscale after proxy secret-zero bootstrap
+  ansible.builtin.assert:
+    that:
+      - >-
+        infisical_proxy_secret_zero_internal_service_facts_after.ansible_facts.services.get(
+          'k3s.service', {}).get('state', '') == 'running'
+      - >-
+        infisical_proxy_secret_zero_internal_service_facts_after.ansible_facts.services.get(
+          'tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: Proxy secret-zero bootstrap must not stop k3s or Tailscale.
+  changed_when: false

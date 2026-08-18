@@ -1,0 +1,365 @@
+from __future__ import annotations
+
+import re
+import unittest
+from pathlib import Path
+
+import yaml
+
+
+ROOT = Path(__file__).resolve().parents[1]
+ANSIBLE = ROOT / "ansible"
+KUBERNETES = ROOT / "kubernetes"
+POLICY = ANSIBLE / "files/policies/shared-database-architecture.yml"
+RUNBOOK = ROOT / "runbooks/shared-database-architecture.md"
+
+
+class SharedDatabaseArchitectureContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.policy_text = POLICY.read_text()
+        cls.policy = yaml.safe_load(cls.policy_text)
+        cls.runbook_text = RUNBOOK.read_text()
+
+    def test_exact_shared_engine_and_consumer_closure(self) -> None:
+        self.assertEqual(
+            "cristex-shared-databases-v1", self.policy["policy_schema"]
+        )
+        self.assertEqual(
+            "source-only-runtime-blocked", self.policy["policy_status"]
+        )
+        self.assertEqual("shared-services", self.policy["namespace"])
+        self.assertEqual({"postgresql", "mongodb"}, set(self.policy["engines"]))
+
+        postgresql = self.policy["engines"]["postgresql"]
+        self.assertEqual(1, postgresql["instance_count"])
+        self.assertEqual("shared-services", postgresql["namespace"])
+        self.assertEqual(
+            {
+                "cristexhub-dev",
+                "cristexhub-prod",
+                "reactive-resume-dev",
+                "reactive-resume-prod",
+                "keycloak",
+            },
+            set(postgresql["consumers"]),
+        )
+        self.assertTrue(postgresql["no_consumer_specific_engine_or_pvc"])
+
+        mongodb = self.policy["engines"]["mongodb"]
+        self.assertEqual(1, mongodb["instance_count"])
+        self.assertEqual("shared-services", mongodb["namespace"])
+        self.assertEqual(
+            {"cristexhub-dev", "cristexhub-prod"}, set(mongodb["consumers"])
+        )
+        self.assertNotIn("keycloak", mongodb["consumers"])
+        self.assertTrue(mongodb["no_consumer_specific_engine_or_pvc"])
+
+    def test_every_consumer_has_dedicated_value_free_scopes(self) -> None:
+        for engine_name, engine in self.policy["engines"].items():
+            for consumer in engine["consumers"].values():
+                self.assertEqual("dedicated-logical-database", consumer["database"])
+                expected_principal = (
+                    "dedicated-owner-role"
+                    if engine_name == "postgresql"
+                    else "dedicated-database-user"
+                )
+                self.assertEqual(expected_principal, consumer["principal"])
+                self.assertEqual("infisical-cloud", consumer["credential_value_owner"])
+                self.assertEqual("dedicated-logical-database", consumer["backup_scope"])
+                self.assertEqual("dedicated", consumer["migration_scope"])
+
+        self.assertEqual(
+            "dedicated-owner-role",
+            self.policy["engines"]["postgresql"]["consumers"]["keycloak"][
+                "principal"
+            ],
+        )
+
+    def test_future_consumers_and_backup_link_require_reviewed_exact_changes(self) -> None:
+        admission = self.policy["future_consumer_admission"]
+        self.assertEqual("reviewed-exact-policy-change", admission["mode"])
+        self.assertFalse(admission["wildcard_or_dynamic_consumers_allowed"])
+        self.assertEqual(
+            {
+                "exact-engine-and-consumer-identifier",
+                "dedicated-database-and-principal",
+                "dedicated-infisical-credential",
+                "dedicated-migration-and-backup-scopes",
+                "capacity-review",
+                "negative-cross-database-tests",
+                "policy-test-and-runbook-update",
+            },
+            set(admission["required_evidence"]),
+        )
+        self.assertEqual(
+            "ansible/files/policies/shared-stateful-backup-architecture.yml",
+            self.policy["backup_and_restore"]["policy_path"],
+        )
+
+    def test_postgresql_authorization_is_deny_first(self) -> None:
+        authorization = self.policy["engines"]["postgresql"]["authorization"]
+        self.assertEqual("deny", authorization["cross_database_access_default"])
+        self.assertEqual("revoke", authorization["public_connect"])
+        self.assertEqual("revoke", authorization["public_schema_create"])
+        self.assertEqual("deny", authorization["workload_create_database"])
+        self.assertEqual("deny", authorization["workload_create_role"])
+        self.assertEqual(
+            {
+                "dev-role-to-prod-database",
+                "prod-role-to-dev-database",
+                "application-roles-to-keycloak-database",
+                "keycloak-role-to-application-databases",
+                "workload-role-create-database",
+                "workload-role-create-role",
+            },
+            set(authorization["required_negative_tests"]),
+        )
+
+    def test_mongodb_authorization_rejects_broad_roles(self) -> None:
+        authorization = self.policy["engines"]["mongodb"]["authorization"]
+        self.assertEqual("deny", authorization["cross_database_access_default"])
+        self.assertEqual("deny", authorization["workload_user_administration"])
+        self.assertEqual("deny", authorization["workload_role_administration"])
+        self.assertEqual("deny", authorization["writes_outside_authorized_database"])
+        self.assertEqual(
+            {
+                "readAnyDatabase",
+                "readWriteAnyDatabase",
+                "dbAdminAnyDatabase",
+                "userAdminAnyDatabase",
+                "root",
+            },
+            set(authorization["forbidden_builtin_roles"]),
+        )
+        self.assertEqual(
+            {
+                "dev-user-to-prod-database",
+                "prod-user-to-dev-database",
+                "workload-user-administration",
+                "workload-role-administration",
+            },
+            set(authorization["required_negative_tests"]),
+        )
+
+    def test_source_storage_recovery_and_runtime_gates_remain_blocked(self) -> None:
+        postgresql_source = self.policy["engines"]["postgresql"]["source"]
+        self.assertEqual("selected-offline-only", postgresql_source["selection"])
+        self.assertEqual(
+            "ansible/files/policies/hosted-identity-authorization.yml#images.postgresql",
+            postgresql_source["reference"],
+        )
+        self.assertFalse(postgresql_source["trust_accepted"])
+
+        mongodb_source = self.policy["engines"]["mongodb"]["source"]
+        self.assertEqual("selected-offline-only", mongodb_source["selection"])
+        self.assertEqual("docker.io/library/mongo", mongodb_source["repository"])
+        self.assertEqual("8.0.28", mongodb_source["version"])
+        self.assertEqual(
+            "sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4",
+            mongodb_source["linux_amd64_digest"],
+        )
+        self.assertEqual(
+            "standalone-non-authoritative",
+            self.policy["engines"]["mongodb"]["topology"],
+        )
+        self.assertFalse(self.policy["engines"]["mongodb"]["high_availability"])
+        self.assertFalse(self.policy["engines"]["mongodb"]["replica_set"])
+        self.assertFalse(self.policy["engines"]["mongodb"]["transaction_acceptance"])
+        self.assertFalse(self.policy["engines"]["mongodb"]["authoritative_data_acceptance"])
+        self.assertFalse(mongodb_source["trust_accepted"])
+
+        self.assertEqual("local-path", self.policy["storage"]["storage_class"])
+        self.assertEqual("one-pvc-per-engine", self.policy["storage"]["pvc_topology"])
+        self.assertEqual(
+            {"postgresql": "40Gi", "mongodb": "80Gi"},
+            self.policy["storage"]["capacities"],
+        )
+        self.assertEqual("ReadWriteOnce", self.policy["storage"]["access_mode"])
+        self.assertEqual(
+            {
+                "requests": {"cpu": "500m", "memory": "1Gi"},
+                "limits": {"cpu": "2", "memory": "3Gi"},
+            },
+            self.policy["resources"]["per_engine"],
+        )
+        self.assertEqual(
+            "ansible-bootstrap-then-argocd-handoff",
+            self.policy["provisioning"]["owner"],
+        )
+        self.assertEqual("unselected", self.policy["backup_and_restore"]["tooling"])
+        self.assertEqual("24h", self.policy["backup_and_restore"]["rpo"])
+        self.assertEqual("4h", self.policy["backup_and_restore"]["rto"])
+        gates = self.policy["promotion_gates"]
+        self.assertTrue(gates["mongodb_immutable_source_selected"])
+        self.assertTrue(gates["storage_design_accepted"])
+        self.assertTrue(gates["resources_and_probes_accepted"])
+        self.assertTrue(gates["network_policy_accepted"])
+        self.assertFalse(gates["image_trust_and_recovery_accepted"])
+        self.assertFalse(gates["tls_design_accepted"])
+        self.assertFalse(gates["infisical_bootstrap_recovery_proved"])
+        self.assertFalse(gates["provisioning_workflow_proved"])
+        self.assertFalse(gates["backup_and_restore_proved"])
+        self.assertFalse(gates["rpo_rto_restore_proved"])
+        self.assertFalse(gates["one_writer_handoff_proved"])
+        self.assertFalse(gates["runtime_approved"])
+        self.assertTrue(self.policy["executable_source_allowed"])
+
+    def test_private_only_exposure_and_admin_separation_are_exact(self) -> None:
+        exposure = self.policy["exposure"]
+        self.assertEqual("cluster-internal-only", exposure["future_scope"])
+        self.assertEqual(
+            {
+                "postgresql": {
+                    "identity": "shared-postgresql",
+                    "type": "ClusterIP",
+                    "port": 5432,
+                },
+                "mongodb": {
+                    "identity": "shared-mongodb",
+                    "type": "ClusterIP",
+                    "port": 27017,
+                },
+            },
+            exposure["services"],
+        )
+        self.assertTrue(self.policy["tls"]["required"])
+        self.assertEqual(
+            "infisical-cloud", self.policy["tls"]["certificate_value_owner"]
+        )
+        self.assertTrue(self.policy["tls"]["exact_identities_selected"])
+        self.assertEqual(
+            {
+                "localhost",
+                "shared-postgresql.shared-services.svc",
+                "shared-postgresql.shared-services.svc.cluster.local",
+            },
+            set(self.policy["tls"]["certificate_identities"]["postgresql"]),
+        )
+        self.assertEqual(
+            {
+                "localhost",
+                "shared-mongodb.shared-services.svc",
+                "shared-mongodb.shared-services.svc.cluster.local",
+                "shared-mongodb-0.shared-mongodb-svc.shared-services.svc.cluster.local",
+            },
+            set(self.policy["tls"]["certificate_identities"]["mongodb"]),
+        )
+        self.assertEqual(
+            {"Ingress", "NodePort", "LoadBalancer", "CloudflareTunnel", "public-route"},
+            set(exposure["forbidden"]),
+        )
+        self.assertFalse(
+            self.policy["provisioning"]["administrator_credential_available_to_workloads"]
+        )
+        self.assertEqual(
+            "infisical-cloud",
+            self.policy["provisioning"]["administrator_credential_value_owner"],
+        )
+
+    def test_runbook_preserves_policy_only_and_shared_failure_boundaries(self) -> None:
+        normalized = " ".join(self.runbook_text.split())
+        for required in (
+            "SOURCE-ONLY DATABASE CLOSURES READY — RUNTIME BLOCKED",
+            "one PostgreSQL engine and one standalone MongoDB engine",
+            (
+                "CristexHub DEV, CristexHub PROD, Reactive Resume DEV, "
+                "Reactive Resume PROD, and Keycloak"
+            ),
+            "CristexHub DEV/PROD receive distinct scopes on both shared engines",
+            "shared failure and contention domains",
+            "NetworkPolicy cannot enforce logical-database isolation",
+            "source-only MongoDB topology is intentionally standalone",
+            "It adds no Secret value, Kubernetes Secret manifest, Helm value, Argo Application",
+            "No host, registry, Kubernetes API, provider, Infisical, Helm, or runtime operation",
+        ):
+            self.assertIn(required, normalized)
+
+    def test_exact_database_source_without_kubernetes_tree_widening(self) -> None:
+        self.assertEqual(
+            {
+                "platform/namespaces/argocd.yaml",
+                "platform/namespaces/platform-edge.yaml",
+                "platform/namespaces/shared-services.yaml",
+                "applications/namespaces/cristexhub-dev.yaml",
+                "applications/namespaces/cristexhub-prod.yaml",
+            },
+            {
+                str(path.relative_to(KUBERNETES))
+                for path in KUBERNETES.rglob("*")
+                if path.is_file()
+            },
+        )
+        operational = [
+            path
+            for root in (ANSIBLE / "bin", ANSIBLE / "playbooks", ANSIBLE / "roles")
+            for path in root.rglob("*")
+            if path.is_file()
+        ]
+        postgresql_source = {
+            str(path.relative_to(ROOT))
+            for path in operational
+            if "postgresql" in str(path).lower()
+        }
+        self.assertEqual(
+            {
+                "ansible/bin/bootstrap-postgresql",
+                "ansible/bin/configure-postgresql-keycloak-backup",
+                "ansible/bin/provision-shared-postgresql",
+                "ansible/playbooks/bootstrap_postgresql.yml",
+                "ansible/playbooks/configure_postgresql_keycloak_backup.yml",
+                "ansible/playbooks/provision_shared_postgresql.yml",
+                "ansible/roles/postgresql_bootstrap/defaults/main.yml",
+                "ansible/roles/postgresql_bootstrap/tasks/main.yml",
+                "ansible/roles/shared_postgresql_provisioning/defaults/main.yml",
+                "ansible/roles/shared_postgresql_provisioning/tasks/main.yml",
+            },
+            postgresql_source,
+        )
+        mongodb_source = {
+            str(path.relative_to(ROOT))
+            for path in operational
+            if "mongodb" in str(path).lower()
+        }
+        self.assertEqual(
+            {
+                "ansible/bin/bootstrap-mongodb",
+                "ansible/bin/configure-mongodb-shared-backup",
+                "ansible/bin/provision-shared-mongodb",
+                "ansible/playbooks/bootstrap_mongodb.yml",
+                "ansible/playbooks/configure_mongodb_shared_backup.yml",
+                "ansible/playbooks/provision_shared_mongodb.yml",
+                "ansible/roles/mongodb_bootstrap/defaults/main.yml",
+                "ansible/roles/mongodb_bootstrap/tasks/main.yml",
+                "ansible/roles/shared_mongodb_provisioning/defaults/main.yml",
+                "ansible/roles/shared_mongodb_provisioning/tasks/main.yml",
+            },
+            mongodb_source,
+        )
+
+    def test_policy_is_value_free(self) -> None:
+        combined = f"{self.policy_text}\n{self.runbook_text}"
+        for pattern in (
+            r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+            r"\bghp_[A-Za-z0-9]+\b",
+            r"\bgithub_pat_[A-Za-z0-9_]+\b",
+            r"\b(?:10|127)\.(?:\d{1,3}\.){2}\d{1,3}\b",
+            r"\b192\.168\.(?:\d{1,3}\.)\d{1,3}\b",
+            r"\b172\.(?:1[6-9]|2\d|3[01])\.(?:\d{1,3}\.)\d{1,3}\b",
+            r"/Users/[^/\s]+/",
+        ):
+            self.assertNotRegex(combined, pattern)
+        self.assertNotRegex(
+            combined,
+            r"(?im)^\s*(?:password|token|client_secret|api_key|credentials?)\s*:\s*\S+",
+        )
+        self.assertEqual(
+            3,
+            self.policy_text.count(
+                "sha256:b112b1c1e552ab2b5bf5935b5662e1d19347d68effa8f2595687a42abfac5df4"
+            ),
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

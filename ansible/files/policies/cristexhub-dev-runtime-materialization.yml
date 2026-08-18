@@ -1,0 +1,91 @@
+---
+policy_schema: cristexhub-dev-runtime-materialization-v1
+policy_status: source-selected-runtime-blocked
+project:
+  slug: cristexweb-infrastructure
+  id: 619656da-14f3-4872-857b-be103cdc5326
+  environment: prod
+  target_path: /cristexhub/dev/runtime
+  target_namespace: cristexhub-dev
+  target_name: cristexhub-dev-runtime
+  target_type: Opaque
+  creation_policy: Orphan
+
+# The composition writer reads these exact existing Infisical values using a
+# protected, read-only runtime identity. It never reads Kubernetes Secret data.
+sources:
+  mongodb:
+    path: /shared-services/mongodb
+    keys:
+      - MONGODB_CRISTEXHUB_DEV_USERNAME
+      - MONGODB_CRISTEXHUB_DEV_PASSWORD
+      - MONGODB_TLS_CA_CRT
+    host: shared-mongodb.shared-services.svc
+    port: 27017
+    database: cristexhub_dev
+    auth_source: admin
+    tls_ca_file: /etc/cristexhub/tls/ca-bundle.pem
+    replica_set: shared-mongodb
+  rabbitmq:
+    path: /shared-services/rabbitmq
+    keys:
+      - RABBITMQ_CRISTEXHUB_DEV_USERNAME
+      - RABBITMQ_CRISTEXHUB_DEV_PASSWORD
+      - RABBITMQ_TLS_CA_CRT
+    host: shared-rabbitmq.shared-services.svc
+    port: 5671
+    virtual_host: /cristexhub-dev
+    tls_ca_file: /etc/cristexhub/tls/ca-bundle.pem
+  keycloak:
+    path: /shared-services/keycloak
+    keys:
+      - CRISTEXHUB_DEV_OIDC_CLIENT_SECRET
+  generated:
+    keys:
+      - REDIS_PASSWORD
+      - FERNET_KEY
+      - OAUTH2_PROXY_COOKIE_SECRET
+    redis_url: redis://cristexhub-redis.cristexhub-dev.svc:6379/0
+
+# Values are assembled only in protected mode-0600 files. PRIVATE_CA_BUNDLE
+# contains exactly the MongoDB CA followed by the RabbitMQ CA, each once; no
+# private key or leaf certificate is allowed. The workload must project this
+# key as /etc/cristexhub/tls/ca-bundle.pem before TLS clients start.
+target_keys:
+  - MONGODB_URL
+  - RABBITMQ_URL
+  - REDIS_URL
+  - REDIS_PASSWORD
+  - FERNET_KEY
+  - OIDC_CLIENT_SECRET
+  - OAUTH2_PROXY_COOKIE_SECRET
+  - PRIVATE_CA_BUNDLE
+
+url_contract:
+  mongodb_scheme: mongodb
+  mongodb_tls: required
+  mongodb_auth_source: admin
+  rabbitmq_scheme: amqps
+  rabbitmq_tls: required
+  rabbitmq_vhost: /cristexhub-dev
+  redis_scheme: redis
+  credentials_url_encoded: true
+
+authorization:
+  source_identity: cristexhub-dev-runtime
+  source_identity_mode: read-only
+  universal_auth_secret:
+    namespace: cristexhub-dev
+    name: cristexhub-dev-infisical-universal-auth
+    keys: [clientId, clientSecret]
+  no_rotation: true
+  no_kubernetes_secret_write: true
+  no_plaintext_output: true
+
+workflow:
+  mode: apply
+  atomic_remote_upload: true
+  expected_remote_revision: required
+  metadata_key_closure: exact
+  cleanup_on_exit: true
+  live_execution: separately-approved

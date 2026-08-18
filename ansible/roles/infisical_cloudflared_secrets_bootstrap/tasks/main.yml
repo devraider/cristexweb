@@ -1,0 +1,118 @@
+---
+- name: Require the guarded cloudflared seam approval contract
+  ansible.builtin.assert:
+    that:
+      - infisical_cloudflared_secrets_bootstrap_approved | bool
+      - infisical_cloudflared_secrets_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - infisical_cloudflared_secrets_bootstrap_manifest_paths | length == 13
+      - infisical_cloudflared_secrets_bootstrap_expected_hashes | length == 13
+      - >-
+        infisical_cloudflared_secrets_bootstrap_credential_contract ==
+        {'name': 'cloudflared-infisical-universal-auth', 'namespace': 'platform-edge',
+        'type': 'Opaque', 'keys': ['clientId', 'clientSecret'], 'labels':
+        {'app.kubernetes.io/managed-by': 'ansible', 'app.kubernetes.io/part-of':
+        'infisical-operator', 'cristex.io/component': 'infisical-runtime-auth',
+        'cristex.io/value-owner': 'infisical-cloud'}}
+      - >-
+        infisical_cloudflared_secrets_bootstrap_target_contract ==
+        {'cloudflared-token': {'type': 'Opaque', 'keys': ['token']}}
+    fail_msg: Refusing unapproved or non-check-only Cloudflare token materialization.
+  changed_when: false
+
+- name: Require ephemeral wrapper attestation
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_CLOUDFLARED_SECRETS_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_CLOUDFLARED_SECRETS_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_CLOUDFLARED_SECRETS_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+    fail_msg: Refusing direct or unattested invocation.
+  changed_when: false
+  no_log: true
+
+- name: Query the precreated cloudflared Universal Auth Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: platform-edge
+    name: cloudflared-infisical-universal-auth
+    kubeconfig: '{{ infisical_cloudflared_secrets_bootstrap_kubeconfig }}'
+  register: infisical_cloudflared_secrets_bootstrap_internal_credential
+  changed_when: false
+  no_log: true
+
+- name: Require exact cloudflared Universal Auth Secret metadata
+  ansible.builtin.assert:
+    that:
+      - infisical_cloudflared_secrets_bootstrap_internal_credential.resources | length == 1
+      - infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].metadata.name == 'cloudflared-infisical-universal-auth'
+      - infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].metadata.namespace == 'platform-edge'
+      - infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].type == 'Opaque'
+      - (infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].data | default({})).keys() | list | sort == ['clientId', 'clientSecret']
+      - (infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].binaryData | default({})).keys() | list | length == 0
+      - (infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - (infisical_cloudflared_secrets_bootstrap_internal_credential.resources[0].metadata.labels | default({})) == infisical_cloudflared_secrets_bootstrap_credential_contract.labels
+    fail_msg: The exact precreated cloudflared Universal Auth Secret metadata is absent or drifted; values remain unread.
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact cloudflared seam manifests
+  ansible.builtin.stat:
+    path: '{{ item }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: '{{ infisical_cloudflared_secrets_bootstrap_manifest_paths }}'
+  register: infisical_cloudflared_secrets_bootstrap_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require exact value-free manifest hashes
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists and item.stat.isreg and not item.stat.islnk
+      - item.stat.mode == '0644'
+      - item.stat.checksum == (infisical_cloudflared_secrets_bootstrap_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - item.item.startswith(infisical_cloudflared_secrets_bootstrap_repository_root ~ '/ansible/files/components/infisical-cloudflared-secrets/')
+    fail_msg: Refusing missing, drifted, or unsafe cloudflared seam source.
+  loop: '{{ infisical_cloudflared_secrets_bootstrap_internal_manifest_states.results }}'
+  loop_control:
+    label: '{{ item.item }}'
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Load exact cloudflared seam objects
+  ansible.builtin.set_fact:
+    infisical_cloudflared_secrets_bootstrap_internal_manifests: >-
+      {{ (infisical_cloudflared_secrets_bootstrap_internal_manifests | default([])) + [(lookup('ansible.builtin.file', item) | from_yaml)] }}
+  loop: '{{ infisical_cloudflared_secrets_bootstrap_manifest_paths }}'
+  changed_when: false
+  no_log: true
+
+- name: Require exact 13-object cloudflared seam closure
+  ansible.builtin.assert:
+    that:
+      - infisical_cloudflared_secrets_bootstrap_internal_manifests | length == 13
+      - infisical_cloudflared_secrets_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - infisical_cloudflared_secrets_bootstrap_internal_manifests | map(attribute='metadata.namespace') | select('defined') | list | unique | difference(['platform-edge']) | length == 0
+      - infisical_cloudflared_secrets_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'InfisicalStaticSecret') | map(attribute='metadata.name') | list == ['cloudflared-infisical-secrets']
+    fail_msg: Refusing an expanded or value-bearing cloudflared seam.
+  changed_when: false
+  no_log: true
+
+- name: Reconcile only the exact cloudflared seam objects
+  infisical_cloudflared_secrets_guarded_k8s:
+    state: present
+    definition: '{{ item }}'
+    kubeconfig: '{{ infisical_cloudflared_secrets_bootstrap_kubeconfig }}'
+    wait: false
+    wait_timeout: 60
+  loop: '{{ infisical_cloudflared_secrets_bootstrap_internal_manifests }}'
+  loop_control:
+    label: '{{ item.kind }}/{{ item.metadata.name }}'
+  no_log: true

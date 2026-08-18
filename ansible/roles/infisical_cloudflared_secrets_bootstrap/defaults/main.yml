@@ -1,0 +1,84 @@
+---
+# yamllint disable rule:line-length rule:indentation
+infisical_cloudflared_secrets_bootstrap_approved: false
+infisical_cloudflared_secrets_bootstrap_state: present
+infisical_cloudflared_secrets_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+infisical_cloudflared_secrets_bootstrap_repository_root: '{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}'
+infisical_cloudflared_secrets_bootstrap_controller_user: '{{ lookup(''ansible.builtin.env'', ''USER'') }}'
+infisical_cloudflared_secrets_bootstrap_namespace: platform-edge
+infisical_cloudflared_secrets_bootstrap_manifest_paths:
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-secret-write-boundary.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-secret-write-boundary-binding.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-source-boundary.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-source-boundary-binding.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-static-secret-boundary.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-static-secret-boundary-binding.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-alternate-target-boundary.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-alternate-target-boundary-binding.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/rbac/cloudflared-secret-writer-role.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/rbac/cloudflared-secret-writer-rolebinding.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/source/infisical-cloud-connection.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/source/cloudflared-infisical-auth.yaml'
+  - '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/source/cloudflared-infisical-secrets.yaml'
+infisical_cloudflared_secrets_bootstrap_object_count: 13
+infisical_cloudflared_secrets_bootstrap_admission_count: 8
+infisical_cloudflared_secrets_bootstrap_rbac_count: 2
+infisical_cloudflared_secrets_bootstrap_source_count: 3
+infisical_cloudflared_secrets_bootstrap_project_id: 619656da-14f3-4872-857b-be103cdc5326
+infisical_cloudflared_secrets_bootstrap_environment_slug: prod
+infisical_cloudflared_secrets_bootstrap_credential_contract:
+  name: cloudflared-infisical-universal-auth
+  namespace: platform-edge
+  type: Opaque
+  keys: [clientId, clientSecret]
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: infisical-operator
+    cristex.io/component: infisical-runtime-auth
+    cristex.io/value-owner: infisical-cloud
+infisical_cloudflared_secrets_bootstrap_target_contract:
+  cloudflared-token:
+    type: Opaque
+    keys: [token]
+infisical_cloudflared_secrets_bootstrap_crd_names:
+  - infisicalconnections.secrets.infisical.com
+  - infisicalauths.secrets.infisical.com
+  - infisicalstaticsecrets.secrets.infisical.com
+  - infisicalsecrets.secrets.infisical.com
+  - infisicalpushsecrets.secrets.infisical.com
+  - infisicaldynamicsecrets.secrets.infisical.com
+infisical_cloudflared_secrets_bootstrap_alternate_target_crs:
+  - api_version: secrets.infisical.com/v1alpha1
+    kind: InfisicalSecret
+  - api_version: secrets.infisical.com/v1alpha1
+    kind: InfisicalPushSecret
+  - api_version: secrets.infisical.com/v1alpha1
+    kind: InfisicalDynamicSecret
+
+infisical_cloudflared_secrets_bootstrap_expected_hashes:
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-alternate-target-boundary-binding.yaml'
+    sha256: 2cacda031dbad242b2331658d8faa47a45a0b38ed4e307165bec8835538d972e
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-alternate-target-boundary.yaml'
+    sha256: 0f572b0ae31337f989a5b4fa80327b81852e6e3d52898a4d938cb8f593d170da
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-secret-write-boundary-binding.yaml'
+    sha256: c9665e2df9107c108cde44b89548176272bd0516ef7b78df27c3b637799906f0
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-secret-write-boundary.yaml'
+    sha256: 6e3c625a304319f9210cf3f7704287796da50d56547da0c2dd1401d89e5003b0
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-source-boundary-binding.yaml'
+    sha256: 12f85bce3c981d5c73069a6291e26923ab8503cababf3568d754f65ec04e2d2f
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-source-boundary.yaml'
+    sha256: b6ce478199e498957bf4191f79b8675ae162e77718edb953d679d2dbaa7dfc39
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-static-secret-boundary-binding.yaml'
+    sha256: 72ac5f484d714adb3e04ab77f0a5d5d6f8af1b38f040350e4e140c313928e9ce
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/admission/infisical-cloudflared-static-secret-boundary.yaml'
+    sha256: c0ecf6544be467cce5fe4c672010d80f5dd4b093ea68acc05bc9b09247cd926e
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/rbac/cloudflared-secret-writer-role.yaml'
+    sha256: 09a22acae5581021c925861c523c91cb7b2e780483fbb7f235ab9806af8a2615
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/rbac/cloudflared-secret-writer-rolebinding.yaml'
+    sha256: 7e68460c116872f2c184f7e0c111886c7dd50181b3bd835ad62f64ace2767f7a
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/source/cloudflared-infisical-auth.yaml'
+    sha256: 2b393e23ff0dd7321e03eae3e8c71d9b19bd430a4b3806ff7489b6b669ce5e36
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/source/cloudflared-infisical-secrets.yaml'
+    sha256: 48ba7a3d725da4470d39be7861c2a1148f0d95833c7949dd03edffa252863541
+  - path: '{{ infisical_cloudflared_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-cloudflared-secrets/source/infisical-cloud-connection.yaml'
+    sha256: 50e12196bc330c8e1c85b884b5c57b24f3f7023988707bdc9c77072329f79571

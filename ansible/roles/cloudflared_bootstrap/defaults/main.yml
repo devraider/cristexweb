@@ -1,0 +1,28 @@
+---
+# Exact five-object source-only cloudflared closure. Secret values are never source-owned.
+cloudflared_bootstrap_approved: false
+cloudflared_bootstrap_state: present
+cloudflared_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+cloudflared_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+cloudflared_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+cloudflared_bootstrap_manifest_paths:
+  - "{{ cloudflared_bootstrap_repository_root }}/ansible/files/components/cloudflared/network/cloudflared-default-deny.yaml"
+  - "{{ cloudflared_bootstrap_repository_root }}/ansible/files/components/cloudflared/network/cloudflared-allow-egress.yaml"
+  - "{{ cloudflared_bootstrap_repository_root }}/ansible/files/components/cloudflared/network/cloudflared-allow-traefik-origin.yaml"
+  - "{{ cloudflared_bootstrap_repository_root }}/ansible/files/components/cloudflared/rbac/serviceaccount-cloudflared.yaml"
+  - "{{ cloudflared_bootstrap_repository_root }}/ansible/files/components/cloudflared/runtime/deployment-cloudflared.yaml"
+cloudflared_bootstrap_object_count: 5
+cloudflared_bootstrap_expected_hashes:
+  network/cloudflared-allow-egress.yaml: 08c9c667cfbf9c168f28315f04227fa3d4d083241228aecbbb2e022d1741ac23
+  network/cloudflared-allow-traefik-origin.yaml: dafab8341d59590a825f128d5eaee16c3e48bffb69b88e6deb45c8bc51a19035
+  network/cloudflared-default-deny.yaml: 93df153fd30d7ec7584efb16d400e60df4f00b5ccd66114717ca62a41cb5e345
+  rbac/serviceaccount-cloudflared.yaml: 83fce17e99d8d09689acd95b5a1f0821f837fb3efe90f727017e92d16694b10d
+  runtime/deployment-cloudflared.yaml: 78bac8a23ef8007e76fe16f23adc6ee985eb8d80de04561ec0c0b2132dfbd63c
+
+cloudflared_bootstrap_identity_set_sha256: edc38bcf9d7f0313076c47a3c70c8f2ca878dfed2a2dcf0ea190eca06e8a29db
+cloudflared_bootstrap_namespace: platform-edge
+cloudflared_bootstrap_deployment_name: cloudflared
+cloudflared_bootstrap_secret_contract:
+  cloudflared-token:
+    type: Opaque
+    keys: [token]

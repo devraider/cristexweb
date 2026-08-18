@@ -1,0 +1,32 @@
+cristexhub_dev_sync_transition_approved: false
+cristexhub_dev_sync_transition_state: present
+cristexhub_dev_sync_transition_kubeconfig: /etc/rancher/k3s/k3s.yaml
+cristexhub_dev_sync_transition_repository_root: '{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}'
+cristexhub_dev_sync_transition_controller_user: '{{ lookup(''ansible.builtin.env'', ''USER'') }}'
+cristexhub_dev_sync_transition_manifest_paths:
+  - '{{ cristexhub_dev_sync_transition_repository_root }}/ansible/files/components/cristexhub-dev-sync-transition/config/appproject-cristexhub-dev-automated.yaml'
+  - '{{ cristexhub_dev_sync_transition_repository_root }}/ansible/files/components/cristexhub-dev-sync-transition/config/application-cristexhub-dev-automated.yaml'
+cristexhub_dev_sync_transition_object_count: 2
+cristexhub_dev_sync_transition_namespace: cristexhub-dev
+cristexhub_dev_sync_transition_runtime_secret: cristexhub-dev-runtime
+cristexhub_dev_sync_transition_runtime_secret_keys:
+  - CODE_RUNNER_AUTH_TOKEN
+  - FERNET_KEY
+  - MONGODB_URL
+  - OAUTH2_PROXY_COOKIE_SECRET
+  - OIDC_CLIENT_SECRET
+  - PRIVATE_CA_BUNDLE
+  - RABBITMQ_URL
+  - REDIS_PASSWORD
+  - REDIS_URL
+cristexhub_dev_sync_transition_oidc_proxy_namespace: shared-services
+cristexhub_dev_sync_transition_oidc_proxy_deployment: oidc-connect-proxy
+cristexhub_dev_sync_transition_dependency_services:
+  - {namespace: shared-services, name: shared-mongodb-svc}
+  - {namespace: shared-services, name: shared-rabbitmq}
+cristexhub_dev_sync_transition_repository: ssh://git@ssh.github.com:443/devraider/cristexhub.git
+cristexhub_dev_sync_transition_revision: 2bba6aaacb0886705abc0a57f9caafac0cb67e90
+cristexhub_dev_sync_transition_path: infra/kubernetes/cristexhub-dev
+cristexhub_dev_sync_transition_expected_hashes:
+  appproject-cristexhub-dev-automated.yaml: 00ab28336aa2076bf173d101addf8952556f7c97e0a7e6d61a20c4ffb506ceca
+  application-cristexhub-dev-automated.yaml: 64215ec31a5e58d0290fb45a8556c946ca9dfc1cd034e7f8278e7ae2f0e6d495

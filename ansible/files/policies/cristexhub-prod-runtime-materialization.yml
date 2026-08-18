@@ -1,0 +1,119 @@
+---
+policy_schema: cristexhub-prod-runtime-materialization-v1
+policy_status: source-selected-runtime-blocked
+
+# `prod` is an Infisical Cloud environment identifier only. It does not create
+# or activate the Kubernetes cristexhub-prod Namespace or any PROD workload.
+project:
+  slug: cristexweb-infrastructure
+  id: 619656da-14f3-4872-857b-be103cdc5326
+  environment: prod
+  source_path: /cristexhub/prod/runtime
+  target_path: /cristexhub/prod/runtime
+  recursive: false
+  tag_slugs: []
+  target_namespace: cristexhub-prod
+  target_name: cristexhub-prod-runtime
+  target_type: Opaque
+  creation_policy: Orphan
+
+# This is the exact value closure consumed by the guarded StaticSecret source.
+# Values are intentionally absent from this repository and are not read by
+# offline validation.
+target_keys:
+  - MONGODB_URL
+  - RABBITMQ_URL
+  - REDIS_URL
+  - REDIS_PASSWORD
+  - FERNET_KEY
+  - OIDC_CLIENT_SECRET
+  - OAUTH2_PROXY_COOKIE_SECRET
+  - PRIVATE_CA_BUNDLE
+  - CODE_RUNNER_AUTH_TOKEN
+
+# This value-free source contract is shared with the hosted Keycloak PROD
+# client policy. The target template below must remain a direct, same-key
+# projection of this Infisical key; no alternate PROD client-secret source is
+# permitted. No existing PROD OIDC source requires a separate mapping, so this
+# runtime path/key pair is canonical.
+oidc_client_secret_source:
+  owner: infisical-cloud
+  project_id: 619656da-14f3-4872-857b-be103cdc5326
+  environment_slug: prod
+  path: /cristexhub/prod/runtime
+  key: OIDC_CLIENT_SECRET
+  target_key: OIDC_CLIENT_SECRET
+  values: absent
+
+sources:
+  infisical:
+    path: /cristexhub/prod/runtime
+    environment_slug: prod
+    recursive: false
+    tag_slugs: []
+    values: absent
+
+targets:
+  - name: cristexhub-prod-runtime
+    type: Opaque
+    creation_policy: Orphan
+    keys:
+      - MONGODB_URL
+      - RABBITMQ_URL
+      - REDIS_URL
+      - REDIS_PASSWORD
+      - FERNET_KEY
+      - OIDC_CLIENT_SECRET
+      - OAUTH2_PROXY_COOKIE_SECRET
+      - PRIVATE_CA_BUNDLE
+      - CODE_RUNNER_AUTH_TOKEN
+  - name: cristexhub-prod-ghcr-pull
+    type: kubernetes.io/dockerconfigjson
+    creation_policy: Orphan
+    keys:
+      - .dockerconfigjson
+
+authorization:
+  source_identity: cristexhub-prod-infisical-auth
+  source_identity_mode: universal-auth
+  universal_auth_secret:
+    namespace: cristexhub-prod
+    name: cristexhub-prod-infisical-universal-auth
+    keys:
+      - clientId
+      - clientSecret
+  operator_service_account:
+    namespace: shared-services
+    name: infisical-operator-controller
+  no_rotation: true
+  no_plaintext_output: true
+  no_secret_values_in_source: true
+  no_namespace_creation: true
+
+rbac:
+  writer_role:
+    namespace: cristexhub-prod
+    name: infisical-cristexhub-prod-runtime-secret-writer
+    update_resource_names:
+      - cristexhub-prod-runtime
+      - cristexhub-prod-ghcr-pull
+    create_only_with_exact_admission_contract: true
+    forbidden_verbs:
+      - delete
+      - patch
+      - impersonate
+
+workflow:
+  entrypoint: ansible/bin/bootstrap-infisical-cristexhub-prod-runtime
+  accepted_modes:
+    - check
+    - apply
+  requires_diff: true
+  one_host_limit: crtxweb
+  state: present
+  runtime_execution: NOT_RUN/BLOCKED
+  block_reasons:
+    - cristexhub-prod Namespace is absent and must be separately approved.
+    - cristexhub-prod-infisical-universal-auth values are absent.
+    - Infisical source values are not read or uploaded by this source-only change.
+    - Operator watch/RBAC and application runtime acceptance require separate gates.

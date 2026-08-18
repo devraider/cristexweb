@@ -1,0 +1,169 @@
+#!/bin/sh
+set -eu
+
+usage='usage: ansible/bin/seed-infisical-universal-auth apply'
+if [ "$#" -ne 1 ] || [ "$1" != apply ]; then
+  printf '%s\n' "$usage" >&2
+  printf '%s\n' 'refusing check mode, diff mode, passthrough arguments, or task selection' >&2
+  exit 64
+fi
+
+script_path=$0
+if [ -L "$script_path" ]; then
+  printf '%s\n' 'refusing a symlinked Universal Auth seed entrypoint' >&2
+  exit 66
+fi
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
+controller_home="$(CDPATH= cd -- "$repository_root/../.." && pwd -P)"
+controller_user="$(/usr/bin/id -un)"
+if [ "$repository_root" != "$controller_home/Projects/cristexweb" ]; then
+  printf '%s\n' 'refusing a repository outside the pinned controller path' >&2
+  exit 78
+fi
+controller="$repository_root/.venv/bin/ansible-playbook"
+if [ ! -f "$controller" ] || [ ! -x "$controller" ] || [ -L "$controller" ]; then
+  printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2
+  exit 69
+fi
+jq_tool=/usr/bin/jq
+openssl_tool=/opt/homebrew/bin/openssl
+for tool in "$jq_tool" "$openssl_tool" /usr/bin/security; do
+  if [ ! -f "$tool" ] || [ ! -x "$tool" ]; then
+    printf '%s\n' "refusing an absent or non-executable protected-input tool: $tool" >&2
+    exit 69
+  fi
+done
+
+umask 077
+temporary_directory="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/cristexweb-infisical-universal-auth.XXXXXX")"
+cleanup() {
+  unset CRISTEXWEB_INFISICAL_UNIVERSAL_AUTH_SEED_TOKEN
+  /bin/rm -rf -- "$temporary_directory"
+}
+trap cleanup EXIT HUP INT TERM
+attestation_file="$temporary_directory/attestation"
+attestation_token="$("$openssl_tool" rand -hex 32 2>"$temporary_directory/openssl-error")"
+printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+chmod 600 "$attestation_file"
+
+protected_root="$controller_home/Library/Application Support/CristexWeb/infisical/universal-auth"
+if [ ! -d "$protected_root" ] || [ -L "$protected_root" ] ||
+  [ "$(/usr/bin/stat -f '%OLp' "$protected_root")" != 700 ] ||
+  [ "$(/usr/bin/stat -f '%Su' "$protected_root")" != "$controller_user" ]; then
+  printf '%s\n' 'refusing an unsafe Universal Auth protected-input directory' >&2
+  exit 77
+fi
+
+read_protected_input() {
+  component=$1
+  service="cristexweb-infisical-universal-auth-$component-runtime"
+  destination="$temporary_directory/$component.json"
+  source="$protected_root/$component-runtime.json"
+  if [ -e "$source" ] || [ -L "$source" ]; then
+    if [ -L "$source" ] || [ ! -f "$source" ] ||
+      [ "$(/usr/bin/stat -f '%OLp' "$source")" != 600 ] ||
+      [ "$(/usr/bin/stat -f '%Su' "$source")" != "$controller_user" ]; then
+      printf '%s\n' 'refusing unsafe Universal Auth protected input' >&2
+      exit 77
+    fi
+    /bin/cp -p -- "$source" "$destination"
+  else
+    /usr/bin/security find-generic-password -a cristexweb -s "$service" -w \
+      >"$destination" 2>"$temporary_directory/keychain-$component.error" || {
+      printf '%s\n' 'refusing a missing Universal Auth protected input' >&2
+      exit 77
+    }
+  fi
+  chmod 600 "$destination"
+  "$jq_tool" -e \
+    'type == "object" and (keys | sort) == ["clientId", "clientSecret"] and
+     (.clientId | type == "string" and length > 0 and test("^[^[:cntrl:]]+$")) and
+     (.clientSecret | type == "string" and length > 0 and test("^[^[:cntrl:]]+$"))' \
+    "$destination" >/dev/null 2>"$temporary_directory/$component.json.error" || {
+    printf '%s\n' 'refusing malformed Universal Auth protected input' >&2
+    exit 77
+  }
+}
+
+read_protected_input argocd
+read_protected_input postgresql
+read_protected_input mongodb
+
+vars_file="$temporary_directory/seed-vars.json"
+"$jq_tool" -n \
+  --slurpfile argocd "$temporary_directory/argocd.json" \
+  --slurpfile postgresql "$temporary_directory/postgresql.json" \
+  --slurpfile mongodb "$temporary_directory/mongodb.json" \
+  'def encoded: @base64;
+   {
+     infisical_universal_auth_seed_approved: true,
+     infisical_universal_auth_seed_definitions: [
+       {
+         apiVersion: "v1", kind: "Secret",
+         metadata: {
+           name: "argocd-infisical-universal-auth", namespace: "argocd",
+           labels: {
+             "app.kubernetes.io/managed-by": "ansible",
+             "app.kubernetes.io/part-of": "infisical-operator",
+             "cristex.io/component": "infisical-runtime-auth",
+             "cristex.io/value-owner": "infisical-cloud"
+           }
+         }, type: "Opaque",
+         data: {
+           clientId: ($argocd[0].clientId | encoded),
+           clientSecret: ($argocd[0].clientSecret | encoded)
+         }
+       },
+       {
+         apiVersion: "v1", kind: "Secret",
+         metadata: {
+           name: "shared-postgresql-infisical-universal-auth", namespace: "shared-services",
+           labels: {
+             "app.kubernetes.io/managed-by": "ansible",
+             "app.kubernetes.io/part-of": "infisical-operator",
+             "cristex.io/component": "infisical-runtime-auth",
+             "cristex.io/value-owner": "infisical-cloud"
+           }
+         }, type: "Opaque",
+         data: {
+           clientId: ($postgresql[0].clientId | encoded),
+           clientSecret: ($postgresql[0].clientSecret | encoded)
+         }
+       },
+       {
+         apiVersion: "v1", kind: "Secret",
+         metadata: {
+           name: "shared-mongodb-infisical-universal-auth", namespace: "shared-services",
+           labels: {
+             "app.kubernetes.io/managed-by": "ansible",
+             "app.kubernetes.io/part-of": "infisical-operator",
+             "cristex.io/component": "infisical-runtime-auth",
+             "cristex.io/value-owner": "infisical-cloud"
+           }
+         }, type: "Opaque",
+         data: {
+           clientId: ($mongodb[0].clientId | encoded),
+           clientSecret: ($mongodb[0].clientSecret | encoded)
+         }
+       }
+     ]
+   }' >"$vars_file" 2>"$temporary_directory/jq-error"
+chmod 600 "$vars_file"
+
+cd -- "$repository_root/ansible"
+set -- "$controller" -i .ansible/inventory.local.yml playbooks/seed_infisical_universal_auth.yml \
+  --limit crtxweb --extra-vars "@$vars_file"
+if [ -n "${SSH_AUTH_SOCK:-}" ]; then
+  set -- "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" "$@"
+fi
+/usr/bin/env -i \
+  "HOME=$controller_home" "USER=$controller_user" "LOGNAME=$controller_user" \
+  'PATH=/usr/bin:/bin:/usr/sbin:/sbin' 'LC_ALL=C.UTF-8' \
+  'ANSIBLE_DISPLAY_ARGS_TO_STDOUT=false' 'ANSIBLE_NOCOLOR=true' \
+  "ANSIBLE_CONFIG=$PWD/ansible.cfg" \
+  'CRISTEXWEB_INFISICAL_UNIVERSAL_AUTH_SEED_ENTRYPOINT=v1' \
+  "CRISTEXWEB_INFISICAL_UNIVERSAL_AUTH_SEED_TOKEN=$attestation_token" \
+  "CRISTEXWEB_INFISICAL_UNIVERSAL_AUTH_SEED_ATTESTATION_FILE=$attestation_file" \
+  "$@" >/dev/null
+printf '%s\n' 'Universal Auth credential seed completed without value disclosure.'
