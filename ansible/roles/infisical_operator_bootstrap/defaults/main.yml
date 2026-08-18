@@ -49,6 +49,58 @@ infisical_operator_bootstrap_manifest_paths:
   - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/manager-rolebinding-cristexhub-prod.yaml"
   - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/manager-rolebinding-shared-services.yaml"
   - "{{ infisical_operator_bootstrap_repository_root }}/ansible/files/components/infisical-operator/rbac/proxy-serviceaccount.yaml"
+infisical_operator_bootstrap_watched_namespaces:
+  - shared-services
+  - argocd
+  - cristexhub-dev
+  - cristexhub-prod
+  - platform-edge
+infisical_operator_bootstrap_watched_namespace_count: 5
+infisical_operator_bootstrap_expected_identity_keys:
+  - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalauths.secrets.infisical.com"
+  - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalconnections.secrets.infisical.com"
+  - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicaldynamicsecrets.secrets.infisical.com"
+  - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalpushsecrets.secrets.infisical.com"
+  - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalsecrets.secrets.infisical.com"
+  - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalstaticsecrets.secrets.infisical.com"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-auth-boundary"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-auth-boundary"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-connection-boundary"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-connection-boundary"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-dynamic-secret-boundary"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-dynamic-secret-boundary"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-push-secret-boundary"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-push-secret-boundary"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-secret-boundary"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-secret-boundary"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-static-secret-boundary"
+  - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-static-secret-boundary"
+  - "apps/v1|Deployment|shared-services|infisical-operator-controller"
+  - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-allow-api"
+  - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-allow-dns"
+  - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-allow-proxy"
+  - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-default-deny"
+  - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-allow-dns"
+  - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-allow-external-https"
+  - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-allow-operator"
+  - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-default-deny"
+  - "v1|ConfigMap|shared-services|infisical-egress-proxy"
+  - "apps/v1|Deployment|shared-services|infisical-egress-proxy"
+  - "v1|Service|shared-services|infisical-egress-proxy"
+  - "v1|ServiceAccount|shared-services|infisical-operator-controller"
+  - "rbac.authorization.k8s.io/v1|Role|shared-services|infisical-operator-leader-election"
+  - "rbac.authorization.k8s.io/v1|RoleBinding|shared-services|infisical-operator-leader-election"
+  - "rbac.authorization.k8s.io/v1|Role|argocd|infisical-operator-manager"
+  - "rbac.authorization.k8s.io/v1|Role|cristexhub-dev|infisical-operator-manager"
+  - "rbac.authorization.k8s.io/v1|Role|cristexhub-prod|infisical-operator-manager"
+  - "rbac.authorization.k8s.io/v1|Role|shared-services|infisical-operator-manager"
+  - "rbac.authorization.k8s.io/v1|Role|platform-edge|infisical-operator-manager"
+  - "rbac.authorization.k8s.io/v1|RoleBinding|platform-edge|infisical-operator-manager"
+  - "rbac.authorization.k8s.io/v1|RoleBinding|argocd|infisical-operator-manager"
+  - "rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-dev|infisical-operator-manager"
+  - "rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|infisical-operator-manager"
+  - "rbac.authorization.k8s.io/v1|RoleBinding|shared-services|infisical-operator-manager"
+  - "v1|ServiceAccount|shared-services|infisical-egress-proxy"
 infisical_operator_bootstrap_crd_count: 6
 infisical_operator_bootstrap_object_count: 44
 infisical_operator_bootstrap_expected_hashes:
@@ -57,11 +109,11 @@ infisical_operator_bootstrap_expected_hashes:
   admission/infisical-connection-boundary-binding.yaml: 4004a695f53c78f9a00655db1c986ee5d9d09fa178b3e3a9edd49ed2021bed02
   admission/infisical-connection-boundary.yaml: 04f5cb96484948cb2dd8becd1db67c8d383000a3b58a0f0b9566c60218ff7b25
   admission/infisical-dynamic-secret-boundary-binding.yaml: 5787dc757f2b2132906f8912a3fbe5817fce8b6fa6b9ac4be51e43ca49721551
-  admission/infisical-dynamic-secret-boundary.yaml: 79f9d5d6bf60f2e6f646ebd4e011f1c144cfd3eb95802fa279ee22e4b43bcb5e
+  admission/infisical-dynamic-secret-boundary.yaml: cd61839468e1f0a744c804efb82f04bb6455d5ce6c025cd5ab8a27642f5afdb4
   admission/infisical-push-secret-boundary-binding.yaml: 390613e7db36d43308b44f680847757d41700f0dbcf55a66abc5a18630fb11af
-  admission/infisical-push-secret-boundary.yaml: 8253cbcede3117179a200eb506a20105e9d011185c5997a149ba9b37865ab6ca
+  admission/infisical-push-secret-boundary.yaml: fe8696d83e0e273185e7b13167d8782d412a6c7f1b38ffbe6358a30905997340
   admission/infisical-secret-boundary-binding.yaml: 7e3067f15cc12772cbc377f84a68a4bdd5e7d605f60bda304c7bd6e6b424587c
-  admission/infisical-secret-boundary.yaml: 713e048a9c20a11be33d11e72302afbaf024f52b80336f0e68cca529abbad60c
+  admission/infisical-secret-boundary.yaml: 1e910514b9529e2567c48872b197dcc69bb22ac45586d793a85a13fa6520f477
   admission/infisical-static-secret-boundary-binding.yaml: 50ba30d873c85183ce2949bd6638715442bb4128cb299a67f7ec06ecf831ea1d
   admission/infisical-static-secret-boundary.yaml: 4d60cf1a84ab6588d09f8877d61ef6fb36e5fe0fb6c539b94dde44624bb356c9
   controller/deployment.yaml: 0bdb921b4fa36fd362a170b0c819881fa1b1089cbf4bb69c30283a3020d49d1d

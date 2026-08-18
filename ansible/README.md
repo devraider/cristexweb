@@ -493,8 +493,9 @@ Keycloak, and privileged CRD/cluster-RBAC prerequisites. Exact executable Namesp
 source exists for completed Namespaces. The
 [Infisical implementation profile](../runbooks/infisical-operator-implementation-profile.md)
 remains canonical policy, and a dedicated guarded [Infisical bootstrap](../runbooks/infisical-operator-bootstrap.md) now promotes the
-exact 44-object idle closure: six namespaced CRDs, fail-closed same-Namespace
-admission for five reviewed namespaces, least-privilege namespaced RBAC, one metrics-off controller, authenticated
+exact 44-object source-only idle closure: six namespaced CRDs, fail-closed
+same-Namespace admission, PROD allowlists only for generic Auth/Connection/StaticSecret,
+least-privilege namespaced RBAC, one metrics-off controller, authenticated
 TLS Squid, and eight NetworkPolicies. The archive remains quarantined evidence and is
 never consumed at runtime. No Secret value or runtime Infisical CR exists. Runtime is
 unrun and the wrapper fails before mutation until exact separately recovered proxy
@@ -515,8 +516,8 @@ no-delete/no-workload-write RBAC, byte/canonical/identity
 hashes, and negative fixtures. Its credential values, check/apply, sync, rotation,
 recovery, and runtime remain NOT RUN/BLOCKED. A separate source-only [CristexHub
 PROD runtime Infisical seam](../runbooks/infisical-cristexhub-prod-runtime-materialization.md)
-freezes the exact `/cristexhub/prod/runtime` source for the committed, but live-absent,
-`cristexhub-prod` Namespace, independent `cristexhub-prod-infisical-auth` and
+freezes the exact `/cristexhub/prod/runtime` source for the committed and now
+Active/idempotent `cristexhub-prod` Namespace, independent `cristexhub-prod-infisical-auth` and
 Universal Auth names, nine runtime keys plus `cristexhub-prod-ghcr-pull`, exact
 PROD-scoped VAP/bindings, additive least-privilege RBAC, hash-bound manifests, and
 its guarded `bin/bootstrap-infisical-cristexhub-prod-runtime check|apply` source.
@@ -557,9 +558,10 @@ fixed Infisical source identifiers exist; it never carries values. The separate
 remains blocked until both human-created same-Namespace Universal Auth Secrets and
 fixed project/environment/path identifiers exist; it never carries values. The
 separate `bin/bootstrap-infisical-cristexhub-prod-runtime check|apply` wrapper is
-also source-ready but remains blocked until the approved PROD Namespace and
-human-created `cristexhub-prod-infisical-universal-auth` metadata exist; it never
-reads or carries values. Exact present-only source and the distinct
+also source-ready but remains blocked until the human-created
+`cristexhub-prod-infisical-universal-auth` metadata exists; it never reads or carries
+values. The Namespace is already Active/idempotent, while all later PROD resources
+remain blocked. Exact present-only source and the distinct
 `bin/bootstrap-foundation-namespaces` entrypoint
 exist for `shared-services`; check, separately approved first apply, and separately
 approved idempotence all passed, with the final run converging at `changed=0`. The
@@ -586,8 +588,8 @@ argument drift before delegating to the pinned Kubernetes module. The separate
 [CristexHub PROD Namespace bootstrap](../runbooks/cristexhub-prod-namespace-bootstrap.md)
 contains only the exact four-label present-only source and independently rejects
 canonical-task-source, wrapper-attestation, approved/state, preflight, and action
-argument bypasses. `cristexhub-prod` remains live-absent; its wrapper check/apply and
-API path are NOT RUN/BLOCKED. The DEV separately approved check passed at
+argument bypasses. The separately approved `cristexhub-prod` Namespace is Active and
+idempotent; its later wrapper/API resources remain NOT RUN/BLOCKED. The DEV separately approved check passed at
 `ok=20 changed=1 unreachable=0 failed=0 skipped=2`, with one exact predicted
 Namespace change and no mutation. The first apply passed at
 `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created/verified only that

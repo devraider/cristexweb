@@ -21,26 +21,30 @@ closure. ClusterGenerator, component-authored Secrets, ClusterRoles,
 ClusterRoleBindings, metrics Services, ServiceMonitors, Ingress, routes, PVCs, PROD
 values, PROD workloads, and PROD Infisical custom resources are absent.
 
-## Baseline runtime status
+## Historical runtime checkpoint
 
-**CHECK/APPLY/IDEMPOTENCE PASSED for the preceding closure.** After exact proxy Secret recovery, two checks
-stopped before mutation on literal hash-map keys (`ok=5 changed=0`) and string-valued
-approval (`ok=20 changed=0`). Reviewed fixes use exact relative hash keys and JSON
-boolean approval. Final check passed `ok=24 changed=2 failed=0`; first apply passed
-`ok=29 changed=2 failed=0`; idempotence passed `ok=29 changed=0 failed=0`. All six
-CRDs became Established, all exact post-state labels passed, both Deployments
-became Available, and k3s/Tailscale remained healthy. Broader live admission,
-negative RBAC, and proxy-traffic acceptance remain pending. No Infisical CR, Universal Auth credential, database Secret, database, PVC, or
-public route was created by this checkpoint. That historical runtime evidence does
-not apply the source-only PROD watch expansion below.
+**CHECK/APPLY/IDEMPOTENCE PASSED for exactly the preceding 40-object closure.** After
+exact proxy Secret recovery, two checks stopped before mutation on literal hash-map
+keys (`ok=5 changed=0`) and string-valued approval (`ok=20 changed=0`). Reviewed
+fixes used exact relative hash keys and JSON boolean approval. The historical
+40-object check/apply/idempotence evidence recorded `ok=24 changed=2`,
+`ok=29 changed=2`, and `ok=29 changed=0`; all six CRDs became Established, exact
+post-state labels passed, both Deployments became Available, and k3s/Tailscale
+remained healthy. The later 42-object source increment was not separately
+runtime-applied. The proposed 44-object PROD expansion below is source-only and
+unrun; its broader admission, negative RBAC, and proxy-traffic acceptance remain
+blocked. No Infisical CR, Universal Auth credential, database Secret, database, PVC,
+or public route was created by the historical 40-object checkpoint.
 
 ## Source-only PROD watch expansion
 
 **SOURCE-ONLY PASS — RUNTIME NOT RUN/BLOCKED.** The 44-object source now includes
 `cristexhub-prod` in the controller watch list, an exact namespaced manager
-Role/RoleBinding semantically cloned from DEV, and all six generic admission
-allowlists. This increment contacted no Kubernetes API, provider, or Infisical API;
-it created no Namespace, Secret, Infisical custom resource, value, workload, PVC,
+Role/RoleBinding semantically cloned from DEV, and PROD admission allowlists only
+for generic Auth, Connection, and StaticSecret objects. Secret, PushSecret, and
+DynamicSecret remain PROD-excluded. This increment contacted no Kubernetes API,
+provider, or Infisical API; it created no Namespace, Secret, Infisical custom
+resource, value, workload, PVC,
 route, or PROD runtime. Applying the expanded closure remains separately gated.
 
 ## Required proxy secret-zero inputs
@@ -86,7 +90,9 @@ value has been bootstrapped.
 
 The Operator runs in `shared-services`, watches exactly `shared-services`, `argocd`,
 `cristexhub-dev`, `cristexhub-prod`, and `platform-edge`; this is a source-only watch
-expansion and does not activate PROD values or workloads. Metrics bind to `0`; no
+expansion and does not activate PROD values or workloads. The separately approved
+`cristexhub-prod` Namespace is now Active and idempotent, while this 44-object
+operator source remains unrun and all later PROD resources remain blocked. Metrics bind to `0`; no
 metrics Service or authorization exists. The single ServiceAccount receives only
 five namespaced manager Roles and one leader-election Role. TokenReview,
 SubjectAccessReview, service-account token creation, aggregate user roles, manager
@@ -155,8 +161,11 @@ forbidden. The action plugin rechecks task selection and the canonical hash of e
 object at the mutation boundary.
 
 Check performs preflight and predicts exact changes but requires the real proxy Secret
-metadata; it never creates a placeholder. First apply installs CRDs, waits for
-Established, then applies only the remaining 38 objects and waits for both Deployments
+metadata; it never creates a placeholder. Before any CRD or runtime-object mutation,
+the role queries exactly the five watched Namespaces and requires each to be `Active`
+with an exact `metadata.name` and `kubernetes.io/metadata.name` label. It also binds
+the ordered 44-object identity list into the action preflight. First apply installs
+CRDs, waits for Established, then applies only the remaining 38 objects and waits for both Deployments
 to become Available. Idempotence is a separate invocation and must finish with
 `changed=0`.
 

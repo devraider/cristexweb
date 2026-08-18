@@ -4,6 +4,9 @@
   connection: local
   gather_facts: false
   become: false
+  vars:
+    infisical_operator_bootstrap_internal_identity_keys:
+      - forged
 
   tasks:
     - name: Exercise the production Infisical role with forged internals

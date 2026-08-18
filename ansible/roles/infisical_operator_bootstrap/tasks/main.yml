@@ -10,11 +10,13 @@
     - infisical_operator_bootstrap_internal_attestation_state
     - infisical_operator_bootstrap_internal_manifest_states
     - infisical_operator_bootstrap_internal_manifests
+    - infisical_operator_bootstrap_internal_identity_keys
     - infisical_operator_bootstrap_internal_crds
     - infisical_operator_bootstrap_internal_runtime_objects
     - infisical_operator_bootstrap_internal_service_facts_before
     - infisical_operator_bootstrap_internal_kubeconfig_state
     - infisical_operator_bootstrap_internal_api_service
+    - infisical_operator_bootstrap_internal_namespace_states
     - infisical_operator_bootstrap_internal_proxy_secrets
     - infisical_operator_bootstrap_internal_prestate
     - infisical_operator_bootstrap_internal_preflight_binding
@@ -43,6 +45,8 @@
       - infisical_operator_bootstrap_manifest_paths | length == infisical_operator_bootstrap_object_count
       - infisical_operator_bootstrap_object_count == 44
       - infisical_operator_bootstrap_crd_count == 6
+      - infisical_operator_bootstrap_watched_namespaces == ['shared-services', 'argocd', 'cristexhub-dev', 'cristexhub-prod', 'platform-edge']
+      - infisical_operator_bootstrap_watched_namespace_count == 5
     fail_msg: >-
       Infisical bootstrap requires the exact wrapper, present-only approval,
       --diff, one-host limit, protected kubeconfig, and 44-object closure.
@@ -124,6 +128,18 @@
   changed_when: false
   no_log: true
 
+- name: Bind exact ordered Infisical object identities
+  ansible.builtin.set_fact:
+    infisical_operator_bootstrap_internal_identity_keys: >-
+      {{ (infisical_operator_bootstrap_internal_identity_keys | default([])) +
+         [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+          (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
+  loop: "{{ infisical_operator_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.namespace | default('cluster') }}/{{ item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
 - name: Bind exact CRD and runtime object partitions
   ansible.builtin.set_fact:
     infisical_operator_bootstrap_internal_crds: >-
@@ -139,6 +155,9 @@
   ansible.builtin.assert:
     that:
       - infisical_operator_bootstrap_internal_manifests | length == 44
+      - infisical_operator_bootstrap_internal_identity_keys | length == 44
+      - infisical_operator_bootstrap_internal_identity_keys | unique | length == 44
+      - infisical_operator_bootstrap_internal_identity_keys == infisical_operator_bootstrap_expected_identity_keys
       - infisical_operator_bootstrap_internal_crds | length == 6
       - infisical_operator_bootstrap_internal_runtime_objects | length == 38
       - infisical_operator_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
@@ -200,6 +219,63 @@
       - infisical_operator_bootstrap_internal_api_service.resources[0].spec.clusterIP == '10.43.0.1'
       - 443 in (infisical_operator_bootstrap_internal_api_service.resources[0].spec.ports | map(attribute='port') | list)
     fail_msg: Refusing API egress policy against a drifted Kubernetes Service address.
+  changed_when: false
+  no_log: true
+
+- name: Query exactly the five watched Infisical Namespaces
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ item }}"
+    kubeconfig: "{{ infisical_operator_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_operator_bootstrap_watched_namespaces }}"
+  loop_control:
+    label: "{{ item }}"
+  register: infisical_operator_bootstrap_internal_namespace_states
+  changed_when: false
+  no_log: true
+
+- name: Require every watched Infisical Namespace to be Active and exact
+  ansible.builtin.assert:
+    that:
+      - infisical_operator_bootstrap_internal_namespace_states.results | length == 5
+      - infisical_operator_bootstrap_internal_namespace_states.results | map(attribute='item') | list == infisical_operator_bootstrap_watched_namespaces
+      - item.resources | length == 1
+      - item.resources[0].status.phase == 'Active'
+      - item.resources[0].metadata.name == item.item
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'kubernetes.io/metadata.name', '') == item.item
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/bootstrap-writer', '') == 'ansible'
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'cristex.io/desired-owner', '') == 'argocd'
+      - >-
+        (item.resources[0].metadata.labels | default({})).get(
+          'app.kubernetes.io/part-of', '') ==
+        ('cristexhub' if item.item in ['cristexhub-dev', 'cristexhub-prod']
+         else 'cristex-platform')
+      - >-
+        (item.item == 'cristexhub-dev' and
+         (item.resources[0].metadata.labels | default({})).get(
+           'cristex.io/environment', '') == 'dev') or
+        (item.item == 'cristexhub-prod' and
+         (item.resources[0].metadata.labels | default({})).get(
+           'cristex.io/environment', '') == 'prod') or
+        (item.item not in ['cristexhub-dev', 'cristexhub-prod'] and
+         'cristex.io/environment' not in
+         (item.resources[0].metadata.labels | default({})))
+      - >-
+        (item.resources[0].metadata.labels | default({})) | length ==
+        (5 if item.item in ['cristexhub-dev', 'cristexhub-prod'] else 4)
+    fail_msg: >-
+      Refusing operator mutation until all five watched Namespaces exist Active
+      with the exact reviewed identity and ownership labels.
+  loop: "{{ infisical_operator_bootstrap_internal_namespace_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
   changed_when: false
   no_log: true
 
@@ -279,6 +355,9 @@
       crd_count: "{{ infisical_operator_bootstrap_internal_crds | length }}"
       prestate_count: "{{ infisical_operator_bootstrap_internal_prestate.results | length }}"
       proxy_secret_count: "{{ infisical_operator_bootstrap_internal_proxy_secrets.results | length }}"
+      namespace_count: "{{ infisical_operator_bootstrap_internal_namespace_states.results | length }}"
+      namespace_contract: true
+      identity_keys: "{{ infisical_operator_bootstrap_internal_identity_keys }}"
       api_service_contract: true
       service_contract: true
   changed_when: false
@@ -300,6 +379,9 @@
     - infisical_operator_bootstrap_internal_preflight_binding.crd_count | int == 6
     - infisical_operator_bootstrap_internal_preflight_binding.prestate_count | int == 44
     - infisical_operator_bootstrap_internal_preflight_binding.proxy_secret_count | int == 3
+    - infisical_operator_bootstrap_internal_preflight_binding.namespace_count | int == 5
+    - infisical_operator_bootstrap_internal_preflight_binding.namespace_contract | bool
+    - infisical_operator_bootstrap_internal_preflight_binding.identity_keys == infisical_operator_bootstrap_expected_identity_keys
     - infisical_operator_bootstrap_internal_preflight_binding.api_service_contract | bool
     - infisical_operator_bootstrap_internal_preflight_binding.service_contract | bool
     - infisical_operator_bootstrap_approved | bool
@@ -340,6 +422,9 @@
     - infisical_operator_bootstrap_internal_preflight_binding.crd_count | int == 6
     - infisical_operator_bootstrap_internal_preflight_binding.prestate_count | int == 44
     - infisical_operator_bootstrap_internal_preflight_binding.proxy_secret_count | int == 3
+    - infisical_operator_bootstrap_internal_preflight_binding.namespace_count | int == 5
+    - infisical_operator_bootstrap_internal_preflight_binding.namespace_contract | bool
+    - infisical_operator_bootstrap_internal_preflight_binding.identity_keys == infisical_operator_bootstrap_expected_identity_keys
     - infisical_operator_bootstrap_approved | bool
     - infisical_operator_bootstrap_state == 'present'
     - ansible_diff_mode

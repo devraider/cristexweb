@@ -18,6 +18,53 @@ infisical_operator_bootstrap_internal_preflight_binding:
   crd_count: 6
   prestate_count: 44
   proxy_secret_count: 3
+  namespace_count: 5
+  namespace_contract: true
+  identity_keys:
+    - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalauths.secrets.infisical.com"
+    - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalconnections.secrets.infisical.com"
+    - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicaldynamicsecrets.secrets.infisical.com"
+    - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalpushsecrets.secrets.infisical.com"
+    - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalsecrets.secrets.infisical.com"
+    - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalstaticsecrets.secrets.infisical.com"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-auth-boundary"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-auth-boundary"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-connection-boundary"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-connection-boundary"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-dynamic-secret-boundary"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-dynamic-secret-boundary"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-push-secret-boundary"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-push-secret-boundary"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-secret-boundary"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-secret-boundary"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-static-secret-boundary"
+    - "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-static-secret-boundary"
+    - "apps/v1|Deployment|shared-services|infisical-operator-controller"
+    - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-allow-api"
+    - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-allow-dns"
+    - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-allow-proxy"
+    - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-default-deny"
+    - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-allow-dns"
+    - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-allow-external-https"
+    - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-allow-operator"
+    - "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-default-deny"
+    - "v1|ConfigMap|shared-services|infisical-egress-proxy"
+    - "apps/v1|Deployment|shared-services|infisical-egress-proxy"
+    - "v1|Service|shared-services|infisical-egress-proxy"
+    - "v1|ServiceAccount|shared-services|infisical-operator-controller"
+    - "rbac.authorization.k8s.io/v1|Role|shared-services|infisical-operator-leader-election"
+    - "rbac.authorization.k8s.io/v1|RoleBinding|shared-services|infisical-operator-leader-election"
+    - "rbac.authorization.k8s.io/v1|Role|argocd|infisical-operator-manager"
+    - "rbac.authorization.k8s.io/v1|Role|cristexhub-dev|infisical-operator-manager"
+    - "rbac.authorization.k8s.io/v1|Role|cristexhub-prod|infisical-operator-manager"
+    - "rbac.authorization.k8s.io/v1|Role|shared-services|infisical-operator-manager"
+    - "rbac.authorization.k8s.io/v1|Role|platform-edge|infisical-operator-manager"
+    - "rbac.authorization.k8s.io/v1|RoleBinding|platform-edge|infisical-operator-manager"
+    - "rbac.authorization.k8s.io/v1|RoleBinding|argocd|infisical-operator-manager"
+    - "rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-dev|infisical-operator-manager"
+    - "rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|infisical-operator-manager"
+    - "rbac.authorization.k8s.io/v1|RoleBinding|shared-services|infisical-operator-manager"
+    - "v1|ServiceAccount|shared-services|infisical-egress-proxy"
   api_service_contract: true
   service_contract: true
 infisical_operator_bootstrap_internal_crds:

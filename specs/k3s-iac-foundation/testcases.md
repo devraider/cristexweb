@@ -68,7 +68,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator provenance and selection boundary | Historical evidence distinguishes unselected `v0.11.8` distribution observations from the aligned `v0.11.7` set selected only as the offline baseline; trust, compatibility, scoped RBAC, Universal Auth recovery, traffic, and runtime remain blocked | PASS — focused contracts enforce exact evidence associations, qualified trust wording, immutable child direction, and no deployable controller source or Secret |
 | KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—without adding valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source | PASS — inventory remains inert; completed foundation Namespaces and the separately selected watch profile are now truthful gates while all deployable/runtime gates remain false |
 | KIF-INF-03 | KIF-005, KIF-013–KIF-016, KIF-021, KIF-023, KIF-030 | Infisical source audit and implementation profile | Hash-bind official `v0.11.7` controller commit as quarantined evidence and prove controller/auth/ClusterGenerator behavior; select exact five-Namespace source-only watch/separate-identity intent, metrics-off, no cluster manager/generator/review-token permission, authenticated Squid direction, age/Drive secret-zero direction, and non-sensitive ConfigMap proof while same-Namespace enforcement remains blocked | PASS SOURCE-ONLY — 6 focused/64 affected/165 full contracts, source hashes, compile, Markdown, and diff checks pass; no embedded artifact is promoted as Kubernetes/Ansible/proxy/credential/runtime source |
-| KIF-INF-04 | KIF-005, KIF-013–KIF-016, KIF-021, KIF-023, KIF-030 | Guarded Infisical idle deployable closure | Promote exactly six hash-mapped namespaced CRDs, six fail-closed same-Namespace admission policies/bindings with Universal-Auth-only enforcement including legacy service-account/service-token rejection, exact five-Namespace read-only target RBAC, metrics-off digest-pinned Operator, authenticated TLS Squid, proxy-only egress, and a 44-object guarded check/apply path; commit no Secret value, Infisical CR, PROD workload, or self-hosted server | SOURCE-ONLY EXPANSION PASS — focused Operator/bootstrap/profile/PROD contracts, source hashes, compile, shell/syntax, and diff checks pass for the exact 44-object closure and five watched Namespaces; no Kubernetes/provider/Infisical contact or runtime apply occurred. The preceding 42-object runtime checkpoint remains historical; broader live admission/RBAC/traffic and expanded-runtime idempotence remain NOT RUN/BLOCKED |
+| KIF-INF-04 | KIF-005, KIF-013–KIF-016, KIF-021, KIF-023, KIF-030 | Guarded Infisical idle deployable closure | Promote exactly six hash-mapped namespaced CRDs, six fail-closed same-Namespace admission policies/bindings with Universal-Auth-only enforcement including legacy service-account/service-token rejection, exact five-Namespace read-only target RBAC, metrics-off digest-pinned Operator, authenticated TLS Squid, proxy-only egress, and a 44-object guarded check/apply path; commit no Secret value, Infisical CR, PROD workload, or self-hosted server | SOURCE-ONLY EXPANSION PASS — focused Operator/bootstrap/profile/PROD contracts, source hashes, compile, shell/syntax, and diff checks pass for the exact 44-object closure and five watched Namespaces; PROD is admitted only in generic Auth/Connection/StaticSecret allowlists, while Secret/PushSecret/DynamicSecret remain excluded. No Kubernetes/provider/Infisical contact or runtime apply occurred. The historical runtime checkpoint was exactly 40 objects; the later 42-object source was not separately runtime-applied, and the proposed 44-object expansion plus broader live admission/RBAC/traffic and idempotence remain NOT RUN/BLOCKED |
 | KIF-INF-05 | KIF-005, KIF-013–KIF-015, KIF-023, KIF-027, KIF-030 | Infisical proxy secret-zero recovery and write | Generate exact TLS/Basic/client material only in a private temp directory; age-encrypt it, verify it off-node through the guarded host transfer, then write exactly three no-log Secrets through a guarded action | STOPPED BEFORE KUBERNETES — historical hardened retry proved cleanup, encrypted-pending resume, Keychain copy, and zero Kubernetes Secrets, then stopped on Drive `invalid_grant`. Source now removes controller rclone and requires exact `drive-verified`; installer apply/idempotence and host OAuth passed; transfer check passed, but apply stopped on unsupported `--local-umask` before a successful upload and exact cleanup removed staging; transfer retry passed `ok=39 changed=7`; proxy Secret bootstrap passed `ok=15 changed=1`; exactly three proxy Secrets now exist and implicit rotation is refused |
 | KIF-INF-06 | KIF-005, KIF-010, KIF-013–KIF-016, KIF-021, KIF-023, KIF-030 | Infisical Argo CD Secret materialization seam | One same-Namespace Universal Auth credential reference, fixed project/environment/path identifiers, explicit safe source options (`recursive: false`, empty `tagSlugs`, no `projectId`, fixed sync options), exact Connection/Auth/StaticSecret source closure, explicit orphaned templates for exactly three Argo CD Secrets, additive exact-name Secret/workload-list RBAC, fail-closed admission, and a guarded check/apply wrapper; no credential Secret or values are committed | PASS SOURCE-ONLY / RUNTIME NOT RUN-BLOCKED — 10 focused contracts, source/manifest hashes, v0.11.7 CRD fields, exact Connection/Auth/LastReconcileStatus readiness, six Established-CRD prerequisites, alternate-target preflight, VAP type-check/effective waits, immutable-target refusal, syntax, lint, action-only, forged-internal, and task-selection boundaries pass; credential/source creation, check/apply, sync, target values, and live admission remain blocked |
 | KIF-INF-07 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Infisical database Secret materialization seam | Exactly 15 value-free objects freeze one `shared-services/infisical-cloud` Connection, separate PostgreSQL/MongoDB Auth and Universal Auth credential names, paths `/shared-services/postgresql` and `/shared-services/mongodb`, two StaticSecrets, eleven targets aligned with engine and seven per-consumer contracts, eight scoped fail-closed VAP/bindings, and additive exact-name writer RBAC without workload write/delete; corrected Argo/database VAP match conditions block foreign target writers, unreviewed Operator names, and cross-policy interference | PASS SOURCE-ONLY / RUNTIME NOT RUN-BLOCKED — 9 focused contracts, byte/canonical/identity hash checks, VAP cross-policy negatives, source-key/path/type/label/orphan checks, syntax, production lint, compile, shell, action-only, forged-internal, and task-selection fixtures pass; credential creation, sync, target values, check/apply, rotation, recovery, and live admission remain blocked |
@@ -84,7 +84,9 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 
 ## Infisical Operator PROD watch expansion source-only validation — 2026-08-18
 
-Offline-only validation for the 42-to-44 object source increment:
+Offline-only validation for the proposed 44-object source increment (after the historical
+40-object runtime checkpoint; the intermediate 42-object source was not separately
+runtime-applied):
 
 ```bash
 ANSIBLE_COLLECTIONS_PATH=/home/paul/.ansible/collections \
@@ -92,23 +94,39 @@ ANSIBLE_COLLECTIONS_PATH=/home/paul/.ansible/collections \
   tests.test_infisical_operator_bootstrap_contract \
   tests.test_infisical_operator_implementation_profile_contract \
   tests.test_infisical_cristexhub_prod_runtime_contract
-.venv/bin/python -m py_compile \\
-  ansible/plugins/action/infisical_operator_guarded_k8s.py \\
-  tests/test_infisical_operator_bootstrap_contract.py \\
-  tests/test_infisical_operator_implementation_profile_contract.py \\
+.venv/bin/python -m py_compile \
+  ansible/plugins/action/infisical_operator_guarded_k8s.py \
+  tests/test_infisical_operator_bootstrap_contract.py \
+  tests/test_infisical_operator_implementation_profile_contract.py \
   tests/test_infisical_cristexhub_prod_runtime_contract.py
 for script in ansible/bin/*; do sh -n "$script"; done
 for script in tests/*.sh; do bash -n "$script"; done
+.venv/bin/python -m unittest discover -s tests -q
+cd ansible
+for playbook in playbooks/*.yml; do
+  ../.venv/bin/ansible-playbook -i .ansible/inventory.local.yml "$playbook" --syntax-check
+done
+../.venv/bin/ansible-lint --offline --profile production .
+cd ..
+if .venv/bin/ansible-playbook -i localhost, tests/reject_infisical_operator_action_only.yml --limit localhost; then
+  echo 'FAIL: action-only Infisical fixture unexpectedly succeeded' >&2
+  exit 1
+fi
+.venv/bin/ansible-playbook -i localhost, tests/reject_infisical_operator_internal_injection.yml --limit localhost
+tests/reject_infisical_operator_task_start.sh
 git diff --check
 git diff --cached --quiet
 ```
 
-Result: **PASS SOURCE-ONLY** — the focused Operator/implementation-profile/PROD
-contracts passed; exact 44-object inventory, six CRDs, six policies/bindings, five
-manager Roles/Bindings, no Secret/ClusterRole/ClusterRoleBinding, exact hashes, and
-five-namespace watch/admission source passed. Compilation, shell checks, and diff
-checks passed. No Kubernetes, provider, or Infisical API was contacted; no runtime
-apply, Namespace creation, value, Secret, workload, or route operation ran.
+Result: **PASS SOURCE-ONLY** — 31 focused Operator/implementation-profile/PROD
+contracts passed; the full offline matrix discovered 385 tests. Exact 44-object
+inventory, six CRDs, six policies/bindings, five manager Roles/Bindings, no
+Secret/ClusterRole/ClusterRoleBinding, exact raw/canonical hashes, ordered identity
+closure, five-namespace Active preflight, and PROD generic-only admission source
+passed. Compilation, shell checks, playbook syntax, production lint, negative
+fixtures, and diff checks are required in this matrix. No Kubernetes, provider, or
+Infisical API was contacted; no runtime apply, Namespace creation, value, Secret,
+workload, or route operation ran.
 
 ## CristexHub PROD Namespace source-only validation
 
@@ -481,14 +499,16 @@ idempotence: crtxweb: ok=29 changed=0 unreachable=0 failed=0 skipped=0
 ```
 
 Check mode predicted the CRD and runtime partitions without mutation. First apply
-created/reconciled the preceding exact idle closure; all six CRDs became Established,
-all exact post-state labels passed, both Deployments became Available, and
-k3s/Tailscale remained healthy. Idempotence converged at `changed=0`. No Infisical CR,
-Universal Auth credential, Argo/database target Secret, database, PVC, or public
-route was created. Broader admission/RBAC/traffic negatives and recovery acceptance
-remain pending. Final source validation passed `16/16` focused Operator contracts,
-`258/258` full contracts, all `23/23` playbook syntax checks, production lint over
-162 files, compile, shell syntax, diff, and no-staged checks.
+created/reconciled exactly the historical 40-object idle closure; all six CRDs became
+Established, all exact post-state labels passed, both Deployments became Available,
+and k3s/Tailscale remained healthy. Idempotence converged at `changed=0`. No Infisical
+CR, Universal Auth credential, Argo/database target Secret, database, PVC, or public
+route was created. The later 42-object source was not separately runtime-applied; the
+proposed 44-object expansion remains source-only/unrun. Broader admission/RBAC/traffic
+negatives and recovery acceptance remain pending. Final source validation passed
+`16/16` focused Operator contracts, `258/258` full contracts, all `23/23` playbook
+syntax checks, production lint over 162 files, compile, shell syntax, diff, and
+no-staged checks.
 
 ## Schema-v3 elevated discovery and target-minor review — 2026-08-07
 
@@ -3300,7 +3320,7 @@ All 10 playbooks: syntax PASS
 Action plugin compile: PASS
 Production-profile lint: 0 failures, 0 warnings in 54 files processed
 Markdown links/hygiene: PASS, 28 repository-owned files
-Kubernetes source: PASS, exactly five persistent Namespace manifests including source-only `cristexhub-prod`; the live PROD Namespace remains absent
+Kubernetes source: PASS, exactly five persistent Namespace manifests including `cristexhub-prod`; historical pre-checkpoint source evidence recorded the live PROD Namespace absent, while the current Namespace checkpoint is Active/idempotent
 Diff hygiene/no staged files: PASS
 ```
 
@@ -4354,8 +4374,8 @@ and public-route validation were **NOT RUN**.
 The value-free production seam adapts the DEV contract without sharing names or
 Universal Auth identity. It binds Infisical project
 `cristexweb-infrastructure` / `619656da-14f3-4872-857b-be103cdc5326`, the Cloud
-identifier slug `prod`, exact source `/cristexhub/prod/runtime`, absent target
-Namespace `cristexhub-prod`, independent
+identifier slug `prod`, exact source `/cristexhub/prod/runtime`, existing Active
+and idempotent target Namespace `cristexhub-prod`, independent
 `cristexhub-prod-infisical-auth` and
 `cristexhub-prod-infisical-universal-auth` names, the nine-key
 `cristexhub-prod-runtime` target, and separate
@@ -4378,8 +4398,9 @@ Actual result: focused production seam contracts passed (`8` tests); source
 hashes, shell syntax, Python compilation, and diff checks passed. No
 Infisical API, Kubernetes API, Ansible operational wrapper, Namespace creation,
 Universal Auth value, Secret sync, workload, route, or PROD promotion was run.
-Check/apply, identity materialization, values, and runtime remain
-**NOT RUN/BLOCKED** because the Namespace and identity values are absent.
+The Namespace is already Active/idempotent from its separate checkpoint; check/apply,
+identity materialization, values, and runtime remain **NOT RUN/BLOCKED** because the
+identity values and all later PROD resources are absent.
 
 ## Source-only CristexHub PROD Argo registration — NOT RUN/BLOCKED
 
@@ -4404,6 +4425,7 @@ cd ansible && ../.venv/bin/ansible-playbook playbooks/bootstrap_cristexhub_prod_
 ```
 
 Actual result: `11` focused contracts plus compile, shell, and playbook syntax
-checks passed. The live `cristexhub-prod` Namespace remains absent. No wrapper
-check/apply, Kubernetes API, Argo registration/sync, Secret, image publication,
-workload, database, broker, DNS, provider, or Cloudflare action ran.
+checks passed. The `cristexhub-prod` Namespace is already Active/idempotent from its
+separate checkpoint. No wrapper check/apply, Kubernetes API, Argo registration/sync,
+Secret, image publication, workload, database, broker, DNS, provider, or Cloudflare
+action ran.

@@ -14,6 +14,9 @@
       crd_count: 6
       prestate_count: 44
       proxy_secret_count: 3
+      namespace_count: 5
+      namespace_contract: true
+      identity_keys: []
       api_service_contract: true
       service_contract: true
   tasks:

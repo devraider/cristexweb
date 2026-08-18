@@ -33,8 +33,9 @@ The protected directory still contains no state file, and no provider operation 
 external resource has been executed. The root `opentofu/` source contains the reviewed
 Cloudflare Tunnel/DNS resource definitions, but remains uninitialized and unapplied. Committed Kubernetes source now contains exactly five Namespace
 manifests: `argocd`, `platform-edge`, `shared-services`, live `cristexhub-dev`, and
-source-only `cristexhub-prod`; the PROD manifest and guarded present-only wrapper
-exist only as source, while the live PROD Namespace remains absent. The MongoDB
+source-only `cristexhub-prod`; the separately approved PROD Namespace checkpoint
+is now `Active` and idempotent, while all later PROD resources remain blocked. The
+MongoDB
 operator control plane runs in the separately created live `mongodb-system` Namespace and watches the MongoDB runtime retained in `shared-services`. The historical
 `argocd`/`platform-edge` wrapper check, first apply, and idempotence retry completed
 under separate approvals and that exception remains closed. Exact present-only
@@ -51,9 +52,10 @@ is present-only and fail-closed. Its separately approved check passed at
 without mutation. The first apply passed at
 `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created/verified the exact
 Namespace and preserved k3s/Tailscale health. Idempotence passed at
-`ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the Namespace checkpoint is
-complete and `cristexhub-prod` remains absent; its exact Namespace source exists
-but no PROD Namespace check/apply has run. A separate source-only, fail-closed
+`ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the DEV Namespace checkpoint is
+complete. The separately approved PROD Namespace checkpoint is now `Active` and
+idempotent; the earlier pre-checkpoint source-only absence evidence is historical.
+A separate source-only, fail-closed
 [CristexHub PROD runtime Infisical seam](runbooks/infisical-cristexhub-prod-runtime-materialization.md)
 now freezes the exact `/cristexhub/prod/runtime` source, independent PROD Auth and
 Universal Auth names, nine-key `cristexhub-prod-runtime` plus separate
@@ -71,10 +73,10 @@ activation.
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
 it does not claim a live rename or deletion. Runtime checkpoint history remains recorded in `AGENTS.md` and the component
 runbooks; this source-only increment performs no runtime action. The
-The live `cristexhub-prod` Namespace, Secrets, registration objects, workload,
-and route remain absent. The source-selection paragraphs below preserve historical pre-runtime
-checkpoints and must not be read as current live-absence evidence; `AGENTS.md` is
-authoritative for completed runtime checkpoints. The Argo CD candidate and release
+The live `cristexhub-prod` Namespace is Active; its Secrets, registration objects,
+workload, and route remain absent. The source-selection paragraphs below preserve
+historical pre-runtime absence checkpoints and must not be read as current Namespace
+absence evidence; `AGENTS.md` is authoritative for completed runtime checkpoints. The Argo CD candidate and release
 records bind chart
 `10.3.0`, app `v3.5.0`, provenance, and exact linux/amd64 image children. The
 [guarded Argo CD bootstrap](runbooks/argocd-hardened-design.md) now promotes an exact
@@ -141,10 +143,10 @@ reading values. An unused debug-exposed age identity was revoked/regenerated bef
 upload/Kubernetes. The hardened retry proved cleanup, encrypted-pending resume and a
 Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the same expired
 controller OAuth. That transfer path is superseded: guarded host transfer/readback and exact
-`drive-verified` now pass; exactly three proxy bootstrap Secrets exist. The prior
-42-object Infisical Operator/proxy closure passed check/apply/idempotence and is
-Available; the source-only expansion now binds a 44-object, five-namespace closure
-without runtime apply.
+`drive-verified` now pass; exactly three proxy bootstrap Secrets exist. The historical
+runtime checkpoint applied exactly 40 Infisical Operator/proxy objects and its
+idempotence converged. The later 42-object source was not separately runtime-applied;
+the proposed 44-object, five-namespace PROD expansion is source-only and unrun.
 No Infisical CR, Universal Auth value, application/database Secret, Kubernetes or
 application PROD scope, or self-hosted Infisical server exists at runtime. The fixed
 Infisical Cloud environment slug `prod` is only a licensing-constrained source
@@ -420,8 +422,9 @@ logical-provisioning, and cloudflared closures under `ansible/`; their runtime r
 blocked unless explicitly recorded otherwise. The reviewed Cloudflare Tunnel/DNS
 `opentofu/` source remains unapplied, exactly five persistent Namespace manifests
 under `kubernetes/` including source-only `cristexhub-prod`, the current runbook
-set, and offline `tests/` also exist. The `cristexhub-prod` live
-Namespace remains absent and its check/apply/API path is blocked. An exact
+set, and offline `tests/` also exist. The `cristexhub-prod` Namespace is now Active
+and idempotent; its later check/apply/API resources remain blocked. The earlier
+source-only absence statement is historical pre-checkpoint evidence. An exact
 manifest and a distinct guarded wrapper now exist
 for `shared-services`; its interactive check retry predicted exactly that one
 Namespace, the separately approved first apply created and verified it, and the
@@ -501,9 +504,11 @@ stopped on unsupported `--local-umask`; approved cleanup removed staging at
 fresh check initially stopped before facts because the host became transiently
 Tailscale-offline. After return, check passed `ok=26 changed=0`; transfer/readback
 passed `ok=39 changed=7`; proxy Secret bootstrap passed `ok=15 changed=1`. The
-Infisical Operator then passed check `ok=24 changed=2`, apply `ok=29 changed=2`, and
-idempotence `ok=29 changed=0`. Universal Auth, database Secrets, and database runtime
-remain **NOT RUN/BLOCKED**.
+historical Infisical Operator checkpoint applied exactly 40 objects and passed
+check/apply/idempotence (`ok=24 changed=2`, `ok=29 changed=2`, and
+`ok=29 changed=0`). The later 42-object source was not separately runtime-applied;
+the proposed 44-object PROD expansion is source-only/unrun. Universal Auth, database
+Secrets, and database runtime remain **NOT RUN/BLOCKED**.
 
 The source-only Cloudflare edge policy now fixes the phased future flow
 `Cloudflare → cloudflared/platform-edge → Traefik/kube-system → Keycloak/shared-services`.

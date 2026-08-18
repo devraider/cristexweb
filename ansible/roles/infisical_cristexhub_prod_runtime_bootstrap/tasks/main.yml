@@ -238,6 +238,7 @@
     kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
   register: cristexhub_prod_runtime_credential
   changed_when: false
+  no_log: true
 
 - name: Stop until runtime Universal Auth is separately materialized
   ansible.builtin.assert:
@@ -253,6 +254,7 @@
       - (cristexhub_prod_runtime_credential.resources[0].metadata.labels | default({})) == cristexhub_prod_runtime_bootstrap_credential_contract.labels
     fail_msg: "BLOCKED: precreate exact cristexhub-prod-infisical-universal-auth metadata (clientId/clientSecret) before runtime seam apply. No mutation was attempted."
   changed_when: false
+  no_log: true
 
 - name: Query exact runtime seam object pre-state
   kubernetes.core.k8s_info:

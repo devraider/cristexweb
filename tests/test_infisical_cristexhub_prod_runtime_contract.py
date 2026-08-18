@@ -326,7 +326,8 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             "No Infisical, Kubernetes, or Ansible operational wrapper was invoked",
         ):
             self.assertIn(required, text)
-        self.assertIn("remains absent", text)
+        self.assertIn("Namespace is Active and idempotent", text)
+        self.assertIn("later PROD resources remain NOT RUN / BLOCKED", text)
 
     def test_operator_prod_watch_source_is_value_free_and_runtime_blocked(self) -> None:
         component = ROOT / "ansible/files/components/infisical-operator"
@@ -337,10 +338,19 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         )
         self.assertTrue((component / "rbac/manager-role-cristexhub-prod.yaml").exists())
         self.assertTrue((component / "rbac/manager-rolebinding-cristexhub-prod.yaml").exists())
+        generic_prod_allowlist = {
+            "infisical-auth-boundary.yaml",
+            "infisical-connection-boundary.yaml",
+            "infisical-static-secret-boundary.yaml",
+        }
         for policy in (component / "admission").glob("*.yaml"):
             if policy.name.endswith("-binding.yaml"):
                 continue
-            self.assertIn("cristexhub-prod", policy.read_text(), policy)
+            text = policy.read_text()
+            if policy.name in generic_prod_allowlist:
+                self.assertIn("cristexhub-prod", text, policy)
+            else:
+                self.assertNotIn("cristexhub-prod", text, policy)
         source = "\n".join(path.read_text() for path in component.rglob("*.yaml"))
         self.assertNotIn("kind: Secret", source)
         for path in component.rglob("*.yaml"):
@@ -353,6 +363,18 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         self.assertIn("separate reviewed", runbook)
         self.assertIn("source/check/apply/idempotence approval", runbook)
         tasks = TASKS.read_text()
+        parsed_tasks = yaml.safe_load(tasks)
+        credential_task = next(
+            task for task in parsed_tasks
+            if task.get("name") == "Refuse absent runtime Universal Auth prerequisite before any mutation"
+        )
+        self.assertTrue(credential_task.get("no_log"))
+        self.assertIn("kubernetes.core.k8s_info", credential_task)
+        credential_assertion = next(
+            task for task in parsed_tasks
+            if task.get("name") == "Stop until runtime Universal Auth is separately materialized"
+        )
+        self.assertTrue(credential_assertion.get("no_log"))
         checkpoint = tasks.index("Stop until the Infisical Operator PROD checkpoint")
         credential = tasks.index("Refuse absent runtime Universal Auth prerequisite")
         prestate = tasks.index("Query exact runtime seam object pre-state")

@@ -19,11 +19,11 @@ _EXPECTED_OBJECT_HASHES = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-connection-boundary'): '56280a16a89f4b512b3f92a91d2fa7f4402399bdff69cfb0c340839f08ce85c5',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-connection-boundary'): '80a47ce392fd8c574968873e4acf44c0645acb8eb48632863e1e6a00b281e3f0',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-dynamic-secret-boundary'): '2537e670376a526f41f43347a2ae5037052929a8ba981ee4f91aef57820a0994',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-dynamic-secret-boundary'): '4440a27993826f070164332c86d2e0da685eaa8591da95bb591d74ddae363475',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-dynamic-secret-boundary'): '8f6f65cfda5305036e5dcd5399104c6cbae79e1f55ca0d8c12febf01cf499a81',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-push-secret-boundary'): 'abb1279c9b9bd85b8ba01ee2bd7e86fb49901c708762e20d05a946860463e90f',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-push-secret-boundary'): 'fb11a20536194f5efe9e11c9e9e08164ce0833ede885c0c82d1826f24fc08862',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-push-secret-boundary'): 'ee2b3b536eadedd89433cdbe00585a214bedd0720e8d81942b3a996e3182a328',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-secret-boundary'): '57f31bf17d21b487d9e1b671dc7b1362aaa87f026ba89f000c6ff81f74a9ccae',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-secret-boundary'): '17ea350f30994d48864838d070b162aee62ce094ac0b4c6140b3e52979434ae3',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-secret-boundary'): '6adf6fb2459c26df41b00c7aba6450c27e489fa686d738bfb29ebd4eefd548f3',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-static-secret-boundary'): '832215eddbb15d770c1796439a2b44cfb9089950a68c91629f2d780b08d82ad6',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-static-secret-boundary'): 'dd4366fa82451a77f1a35ed840c0e4849421b642a3c843b82f3ba84c027e1318',
     ('apps/v1', 'Deployment', 'shared-services', 'infisical-operator-controller'): '1c9ca4a23ef5b5a6fb5862a1efcf581b8ce4e4405947ae0e234e570e9587a987',
@@ -59,6 +59,52 @@ _EXPECTED_OBJECT_HASHES = {
     ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'shared-services', 'infisical-operator-manager'): '9d6333a5979cdf887d1f13e1663c60b007d5b141d7da0ad74512d60eca61a26c',
     ('v1', 'ServiceAccount', 'shared-services', 'infisical-egress-proxy'): 'f55214941e54d1215e8c9c8b9e383bc48248b753f707c3dd9436464fb4629ed4',
 }
+_EXPECTED_OBJECT_IDENTITIES = (
+    "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalauths.secrets.infisical.com",
+    "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalconnections.secrets.infisical.com",
+    "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicaldynamicsecrets.secrets.infisical.com",
+    "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalpushsecrets.secrets.infisical.com",
+    "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalsecrets.secrets.infisical.com",
+    "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalstaticsecrets.secrets.infisical.com",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-auth-boundary",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-auth-boundary",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-connection-boundary",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-connection-boundary",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-dynamic-secret-boundary",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-dynamic-secret-boundary",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-push-secret-boundary",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-push-secret-boundary",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-secret-boundary",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-secret-boundary",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicyBinding||infisical-static-secret-boundary",
+    "admissionregistration.k8s.io/v1|ValidatingAdmissionPolicy||infisical-static-secret-boundary",
+    "apps/v1|Deployment|shared-services|infisical-operator-controller",
+    "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-allow-api",
+    "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-allow-dns",
+    "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-allow-proxy",
+    "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-operator-default-deny",
+    "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-allow-dns",
+    "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-allow-external-https",
+    "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-allow-operator",
+    "networking.k8s.io/v1|NetworkPolicy|shared-services|infisical-proxy-default-deny",
+    "v1|ConfigMap|shared-services|infisical-egress-proxy",
+    "apps/v1|Deployment|shared-services|infisical-egress-proxy",
+    "v1|Service|shared-services|infisical-egress-proxy",
+    "v1|ServiceAccount|shared-services|infisical-operator-controller",
+    "rbac.authorization.k8s.io/v1|Role|shared-services|infisical-operator-leader-election",
+    "rbac.authorization.k8s.io/v1|RoleBinding|shared-services|infisical-operator-leader-election",
+    "rbac.authorization.k8s.io/v1|Role|argocd|infisical-operator-manager",
+    "rbac.authorization.k8s.io/v1|Role|cristexhub-dev|infisical-operator-manager",
+    "rbac.authorization.k8s.io/v1|Role|cristexhub-prod|infisical-operator-manager",
+    "rbac.authorization.k8s.io/v1|Role|shared-services|infisical-operator-manager",
+    "rbac.authorization.k8s.io/v1|Role|platform-edge|infisical-operator-manager",
+    "rbac.authorization.k8s.io/v1|RoleBinding|platform-edge|infisical-operator-manager",
+    "rbac.authorization.k8s.io/v1|RoleBinding|argocd|infisical-operator-manager",
+    "rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-dev|infisical-operator-manager",
+    "rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|infisical-operator-manager",
+    "rbac.authorization.k8s.io/v1|RoleBinding|shared-services|infisical-operator-manager",
+    "v1|ServiceAccount|shared-services|infisical-egress-proxy",
+)
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 _EXPECTED_TASK_SOURCES = {
     "/Users/paul/Projects/cristexweb/ansible/roles/infisical_operator_bootstrap/tasks/main.yml",
@@ -113,6 +159,9 @@ class ActionModule(KubernetesActionModule):
             and int(binding.get("crd_count", -1)) == 6
             and int(binding.get("prestate_count", -1)) == 44
             and int(binding.get("proxy_secret_count", -1)) == 3
+            and int(binding.get("namespace_count", -1)) == 5
+            and binding.get("namespace_contract") is True
+            and binding.get("identity_keys") == list(_EXPECTED_OBJECT_IDENTITIES)
             and binding.get("api_service_contract") is True
             and binding.get("service_contract") is True
         )

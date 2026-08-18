@@ -135,8 +135,8 @@ note: |
   existed while `shared-services`, `cristexhub-dev`, and `cristexhub-prod` remained
   absent. The later separately approved foundation apply created `shared-services`;
   at that checkpoint `cristexhub-dev` and `cristexhub-prod` were still absent. The
-  later DEV Namespace checkpoint documented below created `cristexhub-dev`, while
-  `cristexhub-prod` remains absent. The first attempt omitted
+  later DEV Namespace checkpoint documented below created `cristexhub-dev`; at that
+  historical pre-checkpoint snapshot `cristexhub-prod` remained absent. The first attempt omitted
   `-i .ansible/inventory.local.yml`, stopped at ok=3/changed=0/unreachable=1 before
   discovery, and made no host or report change; every operational command now
   explicitly loads the ignored local inventory. The
@@ -182,9 +182,10 @@ note: |
   and `Active`, and preserved k3s/Tailscale health. Idempotence passed at
   `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; exact post-state/service health
   remained valid and the Namespace checkpoint is complete. Separate exact present-only
-  `cristexhub-prod` Namespace source and its guarded wrapper now exist, but the live
-  Namespace remains absent and its check/apply/API path is NOT RUN/BLOCKED. No
-  policy/workload/Secret/PVC/route exists. The superseded
+  `cristexhub-prod` Namespace source and its guarded wrapper now exist, and the
+  separately approved live Namespace checkpoint is Active/idempotent. Earlier
+  source-only absence wording is historical pre-checkpoint evidence. No
+  policy/workload/Secret/PVC/route exists; the superseded
   `platform-secrets`/`platform-identity` source never ran, and this offline correction
   performs no live rename or deletion. Component source/credentials,
   resource/GVR/discovery inventory, Infisical Universal Auth recovery, live
@@ -267,8 +268,12 @@ note: |
   TLS Squid, eight NetworkPolicies, and a 44-object action guard. The idle closure
   remains free of Secrets and Infisical CRs. The source-only PROD watch expansion
   adds only the exact `cristexhub-prod` manager Role/RoleBinding, controller watch
-  entry, and six namespace allowlist entries; no Namespace, value, Secret, Infisical
-  CR, workload, provider, Kubernetes, or Infisical operation was run. A separate
+  entry, and generic Auth/Connection/StaticSecret namespace allowlists; Secret,
+  PushSecret, and DynamicSecret remain PROD-excluded. No value, Secret, Infisical CR,
+  workload, provider, Kubernetes, or Infisical operation was run for this expansion.
+  The historical runtime checkpoint applied exactly 40 objects and converged at
+  idempotence; the later 42-object source was not separately runtime-applied, and
+  this proposed 44-object expansion remains source-only/unrun. A separate
   source-only
   [Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md)
   freezes one same-Namespace Universal Auth reference, one
@@ -338,8 +343,9 @@ note: |
   Drive copy and restore, plan, apply, and every external resource remain NOT
   RUN/BLOCKED.
   Global committed Kubernetes source now defines exactly five Namespace manifests:
-  `argocd`, `platform-edge`, `shared-services`, live `cristexhub-dev`, and source-only
-  `cristexhub-prod`; the live PROD Namespace remains absent. The separately approved
+  `argocd`, `platform-edge`, `shared-services`, live `cristexhub-dev`, and
+  `cristexhub-prod`; the PROD Namespace is now Active/idempotent after its separate
+  checkpoint. The separately approved
   MongoDB operator migration created the live `mongodb-system` Namespace; its control plane now runs there and watches the existing
   `shared-services` database runtime.
   The closed historical bounded Ansible bootstrap defines and loads only `argocd`

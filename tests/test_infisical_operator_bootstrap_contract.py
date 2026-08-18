@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import os
@@ -79,6 +80,38 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
         self.assertNotIn("ClusterRole", kinds)
         self.assertNotIn("ClusterRoleBinding", kinds)
         self.assertFalse(any("clustergenerator" in identity[3] for identity in self.by_identity))
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        relative_paths = [
+            path.split("/ansible/files/components/infisical-operator/", 1)[1]
+            for path in defaults["infisical_operator_bootstrap_manifest_paths"]
+        ]
+        expected = []
+        for relative in relative_paths:
+            obj = yaml.safe_load((COMPONENT / relative).read_text())
+            expected.append("|".join((
+                obj["apiVersion"],
+                obj["kind"],
+                obj["metadata"].get("namespace", ""),
+                obj["metadata"]["name"],
+            )))
+        self.assertEqual(44, len(expected))
+        self.assertEqual(44, len(set(expected)))
+        self.assertEqual(expected, defaults["infisical_operator_bootstrap_expected_identity_keys"])
+        duplicate = expected[:-1] + [expected[0]]
+        self.assertNotEqual(44, len(set(duplicate)))
+        self.assertNotEqual(expected, expected[:-1])
+        literal = self.plugin.split("_EXPECTED_OBJECT_IDENTITIES = ", 1)[1].split(
+            "\n_EXPECTED_ARGUMENT_KEYS", 1
+        )[0]
+        self.assertEqual(expected, list(ast.literal_eval(literal)))
+        for required in (
+            "infisical_operator_bootstrap_internal_identity_keys",
+            "identity_keys",
+            "namespace_count",
+            "namespace_contract",
+            "binding.get(\"identity_keys\") == list(_EXPECTED_OBJECT_IDENTITIES)",
+        ):
+            self.assertIn(required, TASKS.read_text() + self.plugin)
 
     def test_six_crds_are_exactly_hash_mapped_to_the_chart(self) -> None:
         expected = {
@@ -149,14 +182,23 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
             self.assertEqual(1, len(rule["resources"]))
             resources.add(rule["resources"][0])
             namespace_validation = policy["spec"]["validations"][0]
-            self.assertEqual(
-                "request.namespace in ['shared-services', 'argocd', 'cristexhub-dev', 'cristexhub-prod', 'platform-edge']",
-                namespace_validation["expression"],
+            generic_prod_allowlist = {
+                "infisical-auth-boundary",
+                "infisical-connection-boundary",
+                "infisical-static-secret-boundary",
+            }
+            expected_expression = (
+                "request.namespace in ['shared-services', 'argocd', 'cristexhub-dev', 'cristexhub-prod', 'platform-edge']"
+                if policy["metadata"]["name"] in generic_prod_allowlist
+                else "request.namespace in ['shared-services', 'argocd', 'cristexhub-dev', 'platform-edge']"
             )
-            self.assertEqual(
-                "Only the five reviewed namespaces may contain Infisical custom resources.",
-                namespace_validation["message"],
+            expected_message = (
+                "Only the five reviewed namespaces may contain Infisical custom resources."
+                if policy["metadata"]["name"] in generic_prod_allowlist
+                else "Only the four reviewed namespaces may contain Infisical custom resources."
             )
+            self.assertEqual(expected_expression, namespace_validation["expression"])
+            self.assertEqual(expected_message, namespace_validation["message"])
             combined += json.dumps(policy["spec"]["validations"])
         self.assertEqual(
             {
@@ -178,6 +220,13 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
             "generators.size() == 0",
         ):
             self.assertIn(required, combined)
+        for policy_name in (
+            "infisical-secret-boundary",
+            "infisical-push-secret-boundary",
+            "infisical-dynamic-secret-boundary",
+        ):
+            policy = next(item for item in policies if item["metadata"]["name"] == policy_name)
+            self.assertNotIn("cristexhub-prod", policy["spec"]["validations"][0]["expression"])
         secret_policy = next(
             policy
             for policy in policies
@@ -340,6 +389,12 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
         first = self.tasks[0]
         self.assertEqual("Reject externally supplied Infisical bootstrap internal variables", first["name"])
         self.assertIn("INTERNAL_VARIABLE_GUARD", first["ansible.builtin.assert"]["fail_msg"])
+        for guarded_internal in (
+            "infisical_operator_bootstrap_internal_identity_keys",
+            "infisical_operator_bootstrap_internal_namespace_states",
+        ):
+            self.assertIn(guarded_internal, first["loop"])
+        self.assertIn("infisical_operator_bootstrap_internal_identity_keys", (ROOT / "tests/reject_infisical_operator_internal_injection.yml").read_text())
         self.assertIn("TASK_SELECTION_GUARD", self.plugin)
         self.assertIn("MUTATION_ARGUMENT_GUARD", self.plugin)
         self.assertIn("ENTRYPOINT_GUARD", self.plugin)
@@ -489,6 +544,29 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
             },
             defaults["infisical_operator_bootstrap_proxy_secret_contract"],
         )
+        query_index = next(i for i, task in enumerate(self.tasks) if task["name"] == "Query exactly the five watched Infisical Namespaces")
+        assertion = self.task("Require every watched Infisical Namespace to be Active and exact")
+        crd_apply_index = next(i for i, task in enumerate(self.tasks) if task["name"] == "Reconcile only the six approved Infisical CRDs")
+        runtime_apply_index = next(i for i, task in enumerate(self.tasks) if task["name"] == "Reconcile only the approved Infisical runtime objects")
+        self.assertLess(query_index, crd_apply_index)
+        self.assertLess(query_index, runtime_apply_index)
+        self.assertTrue(self.task("Query exactly the five watched Infisical Namespaces").get("no_log"))
+        namespace_assertions = "\n".join(
+            str(value) for value in assertion["ansible.builtin.assert"]["that"]
+        )
+        for required in (
+            "status.phase == 'Active'",
+            "metadata.name == item.item",
+            "kubernetes.io/metadata.name",
+            "cristex.io/bootstrap-writer",
+            "cristex.io/desired-owner",
+            "app.kubernetes.io/part-of",
+            "cristex.io/environment",
+            "| length ==",
+        ):
+            self.assertIn(required, namespace_assertions)
+        self.assertIn("namespace_count", self.plugin)
+        self.assertIn("namespace_contract", self.plugin)
 
     def test_kubernetes_namespace_source_closure_is_unchanged(self) -> None:
         kubernetes = ROOT / "kubernetes"

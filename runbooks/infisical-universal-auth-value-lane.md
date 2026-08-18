@@ -43,7 +43,7 @@ Runtime credentials are never reused for upload, and one component's credentials
 are never used for another component. The fixed value destination is:
 
 - project slug `cristexweb-infrastructure`;
-- environment slug `prod` (Infisical Cloud only; Kubernetes `cristexhub-prod` remains inactive);
+- environment slug `prod` (Infisical Cloud only; the Kubernetes `cristexhub-prod` Namespace is Active, but later PROD resources/workloads remain inactive);
 - Argo CD path `/argocd`;
 - PostgreSQL path `/shared-services/postgresql`; and
 - MongoDB path `/shared-services/mongodb`.

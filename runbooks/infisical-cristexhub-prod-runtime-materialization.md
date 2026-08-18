@@ -6,8 +6,10 @@ This runbook records the value-free production runtime Secret seam only. The
 canonical offline policy is
 [`ansible/files/policies/cristexhub-prod-runtime-materialization.yml`](../ansible/files/policies/cristexhub-prod-runtime-materialization.yml).
 No Infisical Cloud value was read or uploaded, no Kubernetes API was contacted, and
-no Ansible operational wrapper was invoked for this change. `cristexhub-prod`
-remains absent; its Namespace and workload promotion require separate approvals. No Infisical, Kubernetes, or Ansible operational wrapper was invoked.
+no Ansible operational wrapper was invoked for this change. No Infisical, Kubernetes, or Ansible operational wrapper was invoked. The Namespace is Active and idempotent
+from its separate checkpoint; this source-only seam does not create or reconcile it.
+Its later PROD resources remain NOT RUN / BLOCKED; workload promotion requires
+separate approvals and remains **NOT RUN / BLOCKED**.
 
 ## Fixed contract
 
@@ -62,10 +64,10 @@ Both modes stop before any seam object mutation until the exact
 `cristexhub-prod-infisical-universal-auth` Secret already exists with the reviewed
 metadata and key names. Its values are never read by offline tests or committed
 source. The guarded Infisical Operator source closure now watches `cristexhub-prod` and
-contains its exact namespaced manager Role/Binding plus the five-namespace generic
-admission allowlists. This source-only expansion is not a runtime apply: the
-operator's 44-object source closure, the application workload, Infisical sync,
-target values, private validation, Argo handoff, and PROD promotion remain separate
+contains its exact namespaced manager Role/Binding plus the generic Auth,
+Connection, and StaticSecret five-namespace admission allowlists. Secret,
+PushSecret, and DynamicSecret remain PROD-excluded. This source-only expansion is not a runtime apply: the operator's 44-object source closure, the application
+workload, Infisical sync, target values, private validation, Argo handoff, and PROD promotion remain separate
 gates. Any runtime check/apply/idempotence remains behind a separate reviewed
 source/check/apply/idempotence approval.
 

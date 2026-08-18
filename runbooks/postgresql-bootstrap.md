@@ -31,7 +31,8 @@ strong key, server-auth EKU, and the exact SANs `localhost`,
 committed, logged, returned, or passed in argv. The separate source-only
 [Infisical Universal Auth/value lane](infisical-universal-auth-value-lane.md) reserves
 `/shared-services/postgresql` in project `cristexweb-infrastructure` and Infisical environment
-`prod` (Infisical Cloud only; Kubernetes `cristexhub-prod` remains inactive) with exact administrator/TLS keys, and seeds only
+`prod` (Infisical Cloud only; the Kubernetes `cristexhub-prod` Namespace is Active,
+while later PROD resources remain inactive) with exact administrator/TLS keys, and seeds only
 `shared-services/shared-postgresql-infisical-universal-auth`. It does not create this
 PostgreSQL target Secret, provision a database, or authorize this runtime closure;
 its identities, values, upload, recovery, and rotation remain **NOT RUN/BLOCKED**.

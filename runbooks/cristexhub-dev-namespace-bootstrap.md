@@ -5,8 +5,9 @@
 **CHECKPOINT COMPLETE — IDEMPOTENT.** This increment defines only the exact
 `cristexhub-dev` Namespace and a dedicated guarded Ansible bootstrap. It does not
 reuse or reopen the completed platform or `shared-services` Namespace wrappers.
-`cristexhub-prod` remains absent and is blocked until DEV validation, recovery, and
-soak evidence satisfy the promotion gate.
+At the historical DEV Namespace source checkpoint, `cristexhub-prod` remains absent
+at that pre-checkpoint snapshot and was blocked pending DEV validation, recovery, and soak evidence. The separate PROD
+Namespace checkpoint is now Active/idempotent; all later PROD resources remain blocked.
 
 No Secret, workload, Service, PVC, policy, route, or PROD object is part of this
 source. ResourceQuota, LimitRange, ServiceAccount, RBAC, NetworkPolicy, Infisical,

@@ -293,16 +293,17 @@ entry gate.
 - [x] Add the separate source-only
   [Infisical database Secret materialization seam](../../runbooks/infisical-database-secret-materialization.md): exactly 15 value-free objects for one shared Connection, separate PostgreSQL/MongoDB Auth and Universal Auth identities, two StaticSecrets, eight namespace-scoped fail-closed VAP/bindings, and additive Secret-writer RBAC. Freeze eleven engine/per-consumer target Secret contracts, byte/canonical/identity hashes, and action-only/internal/task-selection negatives. Runtime, credential values, check/apply, sync, rotation, and recovery remain **NOT RUN/BLOCKED** (`KIF-INF-07`).
 - [x] Expand the source-only closure for `cristexhub-prod`: add the exact DEV-semantic
-  manager Role/RoleBinding, extend the controller watch list and all six generic
-  admission allowlists, refresh every byte/canonical hash and count guard, and update
-  focused offline evidence. No runtime apply, Namespace creation, value, Secret,
-  workload, provider, Kubernetes, or Infisical operation was performed (`KIF-INF-04`).
+  manager Role/RoleBinding, extend the controller watch list, admit PROD only in the
+  generic Auth/Connection/StaticSecret allowlists while keeping Secret/PushSecret/
+  DynamicSecret PROD-excluded, refresh every byte/canonical hash and count guard, and
+  update focused offline evidence. No runtime apply, value, Secret, workload, provider,
+  Kubernetes, or Infisical operation was performed for this expansion (`KIF-INF-04`).
 - [ ] Complete broader live admission/RBAC/traffic negatives before Universal Auth.
-  Guarded Drive transfer/readback, controller verification, exact three proxy Secrets,
-  and Infisical Operator check/first apply/idempotence now pass. Final Operator results
-  are `ok=24 changed=2`, `ok=29 changed=2`, and `ok=29 changed=0`; both Deployments
-  became Available for the preceding closure; expanded 44-object runtime post-state
-  and idempotence remain blocked (`KIF-005`,
+  Guarded Drive transfer/readback, controller verification, and exact three proxy
+  Secrets pass. Historical Operator results for exactly 40 objects are
+  `ok=24 changed=2`, `ok=29 changed=2`, and `ok=29 changed=0`; the later 42-object
+  source was not separately runtime-applied, and the proposed 44-object runtime
+  post-state/idempotence remain blocked (`KIF-005`,
   `KIF-013`–`KIF-016`, `KIF-021`, `KIF-023`, `KIF-027`, `KIF-030`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare/Keycloak
   secret-zero sequence (`KIF-014`, `KIF-015`).
@@ -385,8 +386,11 @@ logs, or bootstrap cannot be recovered.
   guarded wrapper/action, literal manifest hash, canonical task-source/attestation/
   preflight gates, and offline action-only/injection negatives; do not run it
   (`KIF-002`, `KIF-005`, `KIF-006`, `KIF-010`, `KIF-016`, `KIF-030`).
-- [ ] Keep `cristexhub-prod` absent until DEV validation, recovery, and soak satisfy
-  KIF-025 and a separate PROD Namespace approval is granted.
+- [x] Complete the separately approved present-only `cristexhub-prod` Namespace
+  checkpoint; check/first apply/idempotence passed and the Namespace is Active and
+  idempotent. Earlier source-only absence evidence remains historical.
+- [ ] Keep all later `cristexhub-prod` resources absent until DEV validation, recovery,
+  soak, identity recovery, and separate PROD resource approvals satisfy KIF-025.
 - [x] Add the source-only, fail-closed CristexHub PROD runtime Infisical seam with
   independent Auth/Universal Auth names, exact `/cristexhub/prod/runtime` source,
   nine-key runtime plus GHCR-pull target, PROD-scoped VAP/bindings, least-privilege

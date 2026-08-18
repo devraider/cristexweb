@@ -84,9 +84,10 @@ first apply passed at `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, create
 verified only the exact Namespace, and preserved service health. Idempotence passed
 at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the DEV checkpoint is complete.
 The committed `cristexhub-prod` manifest and its dedicated guarded present-only
-source are source-only; no PROD Namespace was created by this increment, and its
-check/apply remain blocked pending DEV validation, recovery, soak, and separate
-approval. The superseded `platform-secrets`/`platform-identity` source never ran,
+source have a separately approved check/first-apply/idempotence checkpoint; the
+Namespace is now `Active` and idempotent. The earlier source-only absence statement
+is historical pre-checkpoint evidence. Later PROD resources and their check/apply
+remain blocked pending DEV validation, recovery, soak, and separate approval. The superseded `platform-secrets`/`platform-identity` source never ran,
 and its removal is not a live rename or deletion. The separately approved historical
 first apply created exactly those two Active Namespaces with the reviewed labels. The
 separately approved idempotence checkpoint first stopped before Kubernetes
@@ -146,9 +147,10 @@ and image tag were not observed during the bounded capture, from the version-ali
 the official controller commit. The guarded
 [idle bootstrap](runbooks/infisical-operator-bootstrap.md) promotes a 44-object,
 value-free closure with six namespaced CRDs, native same-Namespace admission, exact
-five-Namespace RBAC/cache including source-only `cristexhub-prod`, metrics off, no
-ClusterGenerator privilege, one authenticated TLS proxy, and proxy-only Operator
-egress. The full source archive is
+five-Namespace RBAC/cache including `cristexhub-prod`, PROD admission only for generic
+Auth/Connection/StaticSecret objects, Secret/PushSecret/DynamicSecret PROD-excluded,
+metrics off, no ClusterGenerator privilege, one authenticated TLS proxy, and
+proxy-only Operator egress. The full source archive is
 quarantined evidence only and is not an operational input. Runtime remains **NOT
 RUN/BLOCKED** until exact recovered proxy Secrets, check/apply/idempotence, live
 admission, image, RBAC, and traffic proof pass. No runtime Infisical CR, Universal
@@ -255,7 +257,7 @@ Tailscale do not replace application OIDC/JWT enforcement.
 | `platform-edge` | Cloudflare Tunnel connector only; no Keycloak, Infisical Operator, database, or route exists; every route remains separately approved |
 | `shared-services` | Exact present-only Namespace exists after passed check/first apply/idempotence; future placement for the Infisical Cloud Operator, separate Keycloak, one PostgreSQL, one MongoDB, and one shared RabbitMQ engine remains undeployed |
 | `cristexhub-dev` | Exact Namespace exists idempotently after passed check/first apply/idempotence; all four labels, `Active`, and service health were verified; future DEV applications and environment-local dependencies remain undeployed |
-| `cristexhub-prod` | Exact four-label Namespace manifest and guarded present-only source exist source-only; no live Namespace was created; check/apply remain blocked until DEV validation, recovery, and soak |
+| `cristexhub-prod` | Exact four-label Namespace exists `Active` and idempotently after its separately approved present-only checkpoint; later PROD resources and runtime remain blocked |
 | Optional backup/monitoring namespaces | Added only when their first workload is approved |
 
 Namespace names organize ownership but are not a hard security boundary. Service
@@ -727,5 +729,7 @@ exact encrypted staging, and approved cleanup removed it at
 initially stopped before facts because the host became transiently Tailscale-offline.
 After return, transfer check/apply passed at `ok=26 changed=0` and
 `ok=39 changed=7`; exact proxy Secret bootstrap passed at `ok=15 changed=1`.
-Infisical Operator check/apply/idempotence then passed. Universal Auth, Argo, and
-database backup/runtime remain **NOT RUN/BLOCKED**.
+The historical Infisical Operator checkpoint applied exactly 40 objects and its
+check/apply/idempotence passed; the later 42-object source was not separately
+runtime-applied, and the proposed 44-object PROD expansion is source-only/unrun.
+Universal Auth, Argo, and database backup/runtime remain **NOT RUN/BLOCKED**.
