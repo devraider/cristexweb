@@ -41,11 +41,11 @@
       - infisical_operator_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
       - infisical_operator_bootstrap_repository_root == (playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname)
       - infisical_operator_bootstrap_manifest_paths | length == infisical_operator_bootstrap_object_count
-      - infisical_operator_bootstrap_object_count == 44
+      - infisical_operator_bootstrap_object_count == 42
       - infisical_operator_bootstrap_crd_count == 6
     fail_msg: >-
       Infisical bootstrap requires the exact wrapper, present-only approval,
-      --diff, one-host limit, protected kubeconfig, and 44-object closure.
+      --diff, one-host limit, protected kubeconfig, and 42-object closure.
   changed_when: false
 
 - name: Inspect the ephemeral Infisical bootstrap attestation
@@ -138,14 +138,14 @@
 - name: Require the exact value-free Infisical object inventory
   ansible.builtin.assert:
     that:
-      - infisical_operator_bootstrap_internal_manifests | length == 44
+      - infisical_operator_bootstrap_internal_manifests | length == 42
       - infisical_operator_bootstrap_internal_crds | length == 6
-      - infisical_operator_bootstrap_internal_runtime_objects | length == 38
+      - infisical_operator_bootstrap_internal_runtime_objects | length == 36
       - infisical_operator_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
       - infisical_operator_bootstrap_internal_manifests | selectattr('metadata.name', 'search', 'clustergenerator') | list | length == 0
       - infisical_operator_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ClusterRole') | list | length == 0
       - infisical_operator_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ClusterRoleBinding') | list | length == 0
-    fail_msg: Refusing Infisical source outside the exact 44-object value-free closure.
+    fail_msg: Refusing Infisical source outside the exact 42-object value-free closure.
   changed_when: false
 
 - name: Capture service facts before Infisical bootstrap
@@ -296,9 +296,9 @@
     label: "{{ item.metadata.name }}"
   register: infisical_operator_bootstrap_internal_crd_apply
   when:
-    - infisical_operator_bootstrap_internal_preflight_binding.object_count | int == 44
+    - infisical_operator_bootstrap_internal_preflight_binding.object_count | int == 42
     - infisical_operator_bootstrap_internal_preflight_binding.crd_count | int == 6
-    - infisical_operator_bootstrap_internal_preflight_binding.prestate_count | int == 44
+    - infisical_operator_bootstrap_internal_preflight_binding.prestate_count | int == 42
     - infisical_operator_bootstrap_internal_preflight_binding.proxy_secret_count | int == 3
     - infisical_operator_bootstrap_internal_preflight_binding.api_service_contract | bool
     - infisical_operator_bootstrap_internal_preflight_binding.service_contract | bool
@@ -336,9 +336,9 @@
     label: "{{ item.kind }}/{{ item.metadata.namespace | default('cluster') }}/{{ item.metadata.name }}"
   register: infisical_operator_bootstrap_internal_runtime_apply
   when:
-    - infisical_operator_bootstrap_internal_preflight_binding.object_count | int == 44
+    - infisical_operator_bootstrap_internal_preflight_binding.object_count | int == 42
     - infisical_operator_bootstrap_internal_preflight_binding.crd_count | int == 6
-    - infisical_operator_bootstrap_internal_preflight_binding.prestate_count | int == 44
+    - infisical_operator_bootstrap_internal_preflight_binding.prestate_count | int == 42
     - infisical_operator_bootstrap_internal_preflight_binding.proxy_secret_count | int == 3
     - infisical_operator_bootstrap_approved | bool
     - infisical_operator_bootstrap_state == 'present'

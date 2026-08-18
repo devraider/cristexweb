@@ -31,12 +31,11 @@ live recovery installed the verified CLI at `ok=39 changed=6 failed=0`, and the
 second run converged at `ok=30 changed=0 failed=0` without requiring host egress.
 The protected directory still contains no state file, and no provider operation or
 external resource has been executed. The root `opentofu/` source contains the reviewed
-Cloudflare Tunnel/DNS resource definitions, but remains uninitialized and unapplied. Committed Kubernetes source now contains exactly five persistent Namespace
-manifests: `argocd`, `platform-edge`, `shared-services`, `mongodb-system`, and
-source-only `cristexhub-dev`; the separate committed `cristexhub-prod` Namespace
-manifest and guarded present-only wrapper are source-only, while the live Namespace
-remains absent. The MongoDB operator control plane runs in
-`mongodb-system` and watches the MongoDB runtime retained in `shared-services`. The historical
+Cloudflare Tunnel/DNS resource definitions, but remains uninitialized and unapplied. Committed Kubernetes source now contains exactly five Namespace
+manifests: `argocd`, `platform-edge`, `shared-services`, live `cristexhub-dev`, and
+source-only `cristexhub-prod`; the PROD manifest and guarded present-only wrapper
+exist only as source, while the live PROD Namespace remains absent. The MongoDB
+operator control plane runs in the separately created live `mongodb-system` Namespace and watches the MongoDB runtime retained in `shared-services`. The historical
 `argocd`/`platform-edge` wrapper check, first apply, and idempotence retry completed
 under separate approvals and that exception remains closed. Exact present-only
 source and a new dedicated guarded wrapper now exist for `shared-services`. After a

@@ -44,7 +44,7 @@ spec:
         - --metrics-bind-address=0
         - --leader-elect
         - --health-probe-bind-address=:8081
-        - --namespaces=shared-services,argocd,cristexhub-dev,cristexhub-prod,platform-edge
+        - --namespaces=shared-services,argocd,cristexhub-dev,platform-edge
         env:
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: cluster.local

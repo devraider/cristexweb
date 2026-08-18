@@ -28,7 +28,7 @@ DEFAULTS = ROOT / "ansible/roles/infisical_operator_bootstrap/defaults/main.yml"
 PLUGIN = ROOT / "ansible/plugins/action/infisical_operator_guarded_k8s.py"
 ACTION_ONLY_FIXTURE = ROOT / "tests/reject_infisical_operator_action_only.yml"
 PROXY_ACTION_ONLY_FIXTURE = ROOT / "tests/reject_infisical_proxy_secret_action_only.yml"
-WATCHED = {"shared-services", "argocd", "cristexhub-dev", "cristexhub-prod", "platform-edge"}
+WATCHED = {"shared-services", "argocd", "cristexhub-dev", "platform-edge"}
 
 
 class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
@@ -53,8 +53,8 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
         return next(item for item in self.tasks if item.get("name") == name)
 
     def test_exact_value_free_object_closure(self) -> None:
-        self.assertEqual(44, len(self.paths))
-        self.assertEqual(44, len(self.by_identity))
+        self.assertEqual(42, len(self.paths))
+        self.assertEqual(42, len(self.by_identity))
         kinds: dict[str, int] = {}
         for obj in self.objects:
             kinds[obj["kind"]] = kinds.get(obj["kind"], 0) + 1
@@ -66,8 +66,8 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
                 "ValidatingAdmissionPolicy": 6,
                 "ValidatingAdmissionPolicyBinding": 6,
                 "ServiceAccount": 2,
-                "Role": 6,
-                "RoleBinding": 6,
+                "Role": 5,
+                "RoleBinding": 5,
                 "ConfigMap": 1,
                 "Service": 1,
                 "Deployment": 2,
@@ -225,7 +225,7 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
                 "--metrics-bind-address=0",
                 "--leader-elect",
                 "--health-probe-bind-address=:8081",
-                "--namespaces=shared-services,argocd,cristexhub-dev,cristexhub-prod,platform-edge",
+                "--namespaces=shared-services,argocd,cristexhub-dev,platform-edge",
             ],
             container["args"],
         )
@@ -324,7 +324,7 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
         self.assertIn("MUTATION_ARGUMENT_GUARD", self.plugin)
         self.assertIn("ENTRYPOINT_GUARD", self.plugin)
         self.assertIn('definition.get("kind") == "Secret"', self.plugin)
-        self.assertEqual(44, len(re.findall(r"^    \(.+\): '[0-9a-f]{64}',?$", self.plugin, re.MULTILINE)))
+        self.assertEqual(42, len(re.findall(r"^    \(.+\): '[0-9a-f]{64}',?$", self.plugin, re.MULTILINE)))
         for args in (("other",), ("check", "--start-at-task")):
             result = subprocess.run([str(WRAPPER), *args], cwd=ROOT, text=True, capture_output=True)
             self.assertNotEqual(0, result.returncode)
@@ -492,6 +492,7 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
             "stringData:",
             "data:\n  proxy-url:",
             "kind: Secret",
+            "cristexhub-prod",
         ):
             self.assertNotIn(forbidden, text)
 

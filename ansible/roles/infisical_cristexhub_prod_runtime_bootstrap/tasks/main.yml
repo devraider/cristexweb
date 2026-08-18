@@ -10,6 +10,9 @@
     - cristexhub_prod_runtime_namespace
     - cristexhub_prod_runtime_credential
     - cristexhub_prod_runtime_manifest_states
+    - cristexhub_prod_runtime_operator_prerequisites
+    - cristexhub_prod_runtime_generic_admission_policies
+    - cristexhub_prod_runtime_generic_admission_bindings
     - cristexhub_prod_runtime_bootstrap_attestation
     - cristexhub_prod_runtime_apply
   changed_when: false
@@ -91,6 +94,92 @@
       - cristexhub_prod_runtime_namespace.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
     fail_msg: Refusing to create or reconcile a missing or drifted application namespace.
   changed_when: false
+
+- name: Query separately approved Infisical Operator PROD prerequisites
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.namespace }}"
+    name: "{{ item.name }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop:
+    - api_version: apps/v1
+      kind: Deployment
+      namespace: shared-services
+      name: infisical-operator-controller
+      register_name: deployment
+    - api_version: rbac.authorization.k8s.io/v1
+      kind: Role
+      namespace: cristexhub-prod
+      name: infisical-operator-manager
+      register_name: role
+    - api_version: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      namespace: cristexhub-prod
+      name: infisical-operator-manager
+      register_name: rolebinding
+  register: cristexhub_prod_runtime_operator_prerequisites
+  changed_when: false
+  no_log: true
+
+- name: Query generic Infisical admission prerequisites
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicy
+    name: "{{ item }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop:
+    - infisical-connection-boundary
+    - infisical-auth-boundary
+    - infisical-static-secret-boundary
+  register: cristexhub_prod_runtime_generic_admission_policies
+  changed_when: false
+  no_log: true
+
+- name: Query generic Infisical admission binding prerequisites
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicyBinding
+    name: "{{ item }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop:
+    - infisical-connection-boundary
+    - infisical-auth-boundary
+    - infisical-static-secret-boundary
+  register: cristexhub_prod_runtime_generic_admission_bindings
+  changed_when: false
+  no_log: true
+
+- name: Stop until the Infisical Operator PROD checkpoint is separately approved
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_runtime_operator_prerequisites.results | length == 3
+      - cristexhub_prod_runtime_operator_prerequisites.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
+      - >-
+        cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].status.observedGeneration ==
+        cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].metadata.generation
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].status.availableReplicas | default(0) | int == 1
+      - >-
+        '--namespaces=shared-services,argocd,cristexhub-dev,cristexhub-prod,platform-edge' in
+        cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].args
+      - cristexhub_prod_runtime_operator_prerequisites.results[1].resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - cristexhub_prod_runtime_operator_prerequisites.results[1].resources[0].metadata.labels.get('cristex.io/component') == 'infisical-operator'
+      - cristexhub_prod_runtime_operator_prerequisites.results[2].resources[0].roleRef.name == 'infisical-operator-manager'
+      - cristexhub_prod_runtime_generic_admission_policies.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
+      - cristexhub_prod_runtime_generic_admission_bindings.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
+      - >-
+        cristexhub_prod_runtime_generic_admission_policies.results |
+        map(attribute='resources.0.spec.failurePolicy') | list | unique | list == ['Fail']
+      - >-
+        cristexhub_prod_runtime_generic_admission_bindings.results |
+        map(attribute='resources.0.spec.validationActions') | list | unique | list == [['Deny']]
+      - >-
+        cristexhub_prod_runtime_generic_admission_policies.results |
+        map(attribute='resources.0.spec.validations') | map('to_json') |
+        select('search', 'cristexhub-prod') | list | length == 3
+    fail_msg: "BLOCKED: the existing Infisical Operator closure does not yet have separately approved cristexhub-prod watch/RBAC/admission. No runtime seam mutation was attempted."
+  changed_when: false
+  no_log: true
 
 - name: Inspect canonical runtime seam manifests
   ansible.builtin.stat:

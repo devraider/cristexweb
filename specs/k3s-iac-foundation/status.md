@@ -328,12 +328,10 @@ note: |
   remains empty; provider initialization/lockfile, state creation/encryption, Google
   Drive copy and restore, plan, apply, and every external resource remain NOT
   RUN/BLOCKED.
-  Global committed Kubernetes source now defines exactly five persistent Namespace
-  manifests: `argocd`, `platform-edge`, `shared-services`, `mongodb-system`, and
-  source-only `cristexhub-dev`; separate committed source-only `cristexhub-prod`
-  Namespace material exists, but its live Namespace remains absent. The separately
-  approved MongoDB operator migration created
-  `mongodb-system`; its control plane now runs there and watches the existing
+  Global committed Kubernetes source now defines exactly five Namespace manifests:
+  `argocd`, `platform-edge`, `shared-services`, live `cristexhub-dev`, and source-only
+  `cristexhub-prod`; the live PROD Namespace remains absent. The separately approved
+  MongoDB operator migration created the live `mongodb-system` Namespace; its control plane now runs there and watches the existing
   `shared-services` database runtime.
   The closed historical bounded Ansible bootstrap defines and loads only `argocd`
   and `platform-edge`, requires state present and

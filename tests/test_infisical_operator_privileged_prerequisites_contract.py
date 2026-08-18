@@ -304,7 +304,7 @@ class InfisicalPrivilegedPrerequisitesDesignContractTests(unittest.TestCase):
         )
         component_root = ROOT / "ansible/files/components/infisical-operator"
         self.assertTrue(component_root.is_dir())
-        self.assertEqual(44, len(list(component_root.rglob("*.yaml"))))
+        self.assertEqual(42, len(list(component_root.rglob("*.yaml"))))
 
     def test_runbook_and_references_preserve_design_only_boundary(self) -> None:
         normalized = " ".join(self.runbook.split())

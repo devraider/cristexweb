@@ -61,8 +61,11 @@ There is no deletion or rotation path.
 Both modes stop before any seam object mutation until the exact
 `cristexhub-prod-infisical-universal-auth` Secret already exists with the reviewed
 metadata and key names. Its values are never read by offline tests or committed
-source. The operator's production namespace watch/RBAC prerequisite, application
-workload, Infisical sync, target values, private validation, Argo handoff, and
+source. The existing guarded Infisical Operator closure deliberately does not watch
+`cristexhub-prod` and has no PROD manager Role/Binding; widening that already-live
+closure requires a separate reviewed source/check/apply/idempotence approval. This
+operator production namespace watch/RBAC prerequisite, the application workload,
+Infisical sync, target values, private validation, Argo handoff, and
 PROD promotion remain separate gates.
 
 ## Offline evidence

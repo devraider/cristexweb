@@ -271,6 +271,10 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             "BLOCKED:",
             "No mutation was attempted",
             "metadata.ownerReferences",
+            "Infisical Operator PROD checkpoint is separately approved",
+            "watch/RBAC/admission",
+            "infisical-static-secret-boundary",
+            "--namespaces=shared-services,argocd,cristexhub-dev,cristexhub-prod,platform-edge",
             "expected_hashes | length == 13",
         ):
             self.assertIn(required, tasks)
@@ -323,6 +327,26 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
         self.assertIn("remains absent", text)
+
+    def test_existing_operator_closure_deliberately_excludes_prod(self) -> None:
+        component = ROOT / "ansible/files/components/infisical-operator"
+        deployment = (component / "controller/deployment.yaml").read_text()
+        self.assertNotIn("cristexhub-prod", deployment)
+        self.assertFalse((component / "rbac/manager-role-cristexhub-prod.yaml").exists())
+        self.assertFalse((component / "rbac/manager-rolebinding-cristexhub-prod.yaml").exists())
+        for policy in (component / "admission").glob("*.yaml"):
+            self.assertNotIn("cristexhub-prod", policy.read_text(), policy)
+        runbook = (ROOT / "runbooks/infisical-cristexhub-prod-runtime-materialization.md").read_text()
+        self.assertIn("does not watch\n`cristexhub-prod`", runbook)
+        self.assertIn("separate reviewed source/check/apply/idempotence approval", runbook)
+        tasks = TASKS.read_text()
+        checkpoint = tasks.index("Stop until the Infisical Operator PROD checkpoint")
+        credential = tasks.index("Refuse absent runtime Universal Auth prerequisite")
+        prestate = tasks.index("Query exact runtime seam object pre-state")
+        mutation = tasks.index("Reconcile exact runtime seam object closure")
+        self.assertLess(checkpoint, credential)
+        self.assertLess(checkpoint, prestate)
+        self.assertLess(checkpoint, mutation)
 
 
 if __name__ == "__main__":
