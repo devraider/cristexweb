@@ -15,9 +15,9 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 
 _EXPECTED_OBJECT_HASHES = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-auth-boundary'): 'a0d80a5bad4c3c52fdf95dfae20b912db7e3488f4a1be90f409f00895938b6d5',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-auth-boundary'): '013d6f0ae0ed38cb2798c330df78b47433a0a3dce1825358cdb7ed3fc9e95f17',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-auth-boundary'): '4b3259c79f08a96154a47254fa02b6bcfafae2904c9c263637914be64c07f6d5',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-connection-boundary'): '56280a16a89f4b512b3f92a91d2fa7f4402399bdff69cfb0c340839f08ce85c5',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-connection-boundary'): '80a47ce392fd8c574968873e4acf44c0645acb8eb48632863e1e6a00b281e3f0',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-connection-boundary'): '664ad0d3d245dcd6497485455edf2912da4fa4d2aa6b7243146361fc5020e48e',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-dynamic-secret-boundary'): '2537e670376a526f41f43347a2ae5037052929a8ba981ee4f91aef57820a0994',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-dynamic-secret-boundary'): '8f6f65cfda5305036e5dcd5399104c6cbae79e1f55ca0d8c12febf01cf499a81',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-push-secret-boundary'): 'abb1279c9b9bd85b8ba01ee2bd7e86fb49901c708762e20d05a946860463e90f',
@@ -25,7 +25,7 @@ _EXPECTED_OBJECT_HASHES = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-secret-boundary'): '57f31bf17d21b487d9e1b671dc7b1362aaa87f026ba89f000c6ff81f74a9ccae',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-secret-boundary'): '6adf6fb2459c26df41b00c7aba6450c27e489fa686d738bfb29ebd4eefd548f3',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-static-secret-boundary'): '832215eddbb15d770c1796439a2b44cfb9089950a68c91629f2d780b08d82ad6',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-static-secret-boundary'): 'dd4366fa82451a77f1a35ed840c0e4849421b642a3c843b82f3ba84c027e1318',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-static-secret-boundary'): 'ab9edcd92db178c3d34a754f510a11eabb92940a36d12cb2dde40e7f7a5c3b70',
     ('apps/v1', 'Deployment', 'shared-services', 'infisical-operator-controller'): '1c9ca4a23ef5b5a6fb5862a1efcf581b8ce4e4405947ae0e234e570e9587a987',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalauths.secrets.infisical.com'): '7f42a95da11f97758214bb8d6d1a177a848d02d42e9c6154fb8f84724c234326',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalconnections.secrets.infisical.com'): '41e6e2c61260de61229d997f67426c26fcddcb4e584cef45485646111ca69181',
@@ -117,6 +117,10 @@ def _canonical_hash(value: dict[str, Any]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _exact_count(value: Any, expected: int) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value == expected
+
+
 class ActionModule(KubernetesActionModule):
     """Permit only the exact present-only Infisical idle closure."""
 
@@ -155,12 +159,14 @@ class ActionModule(KubernetesActionModule):
         valid_binding = (
             isinstance(binding, dict)
             and binding.get("attestation_sha256") == expected_attestation_sha256
-            and int(binding.get("object_count", -1)) == 44
-            and int(binding.get("crd_count", -1)) == 6
-            and int(binding.get("prestate_count", -1)) == 44
-            and int(binding.get("proxy_secret_count", -1)) == 3
-            and int(binding.get("namespace_count", -1)) == 5
+            and _exact_count(binding.get("object_count"), 44)
+            and _exact_count(binding.get("crd_count"), 6)
+            and _exact_count(binding.get("prestate_count"), 44)
+            and _exact_count(binding.get("proxy_secret_count"), 3)
+            and _exact_count(binding.get("namespace_count"), 5)
             and binding.get("namespace_contract") is True
+            and _exact_count(binding.get("prod_denied_kind_count"), 3)
+            and binding.get("prod_denied_kinds_absent") is True
             and binding.get("identity_keys") == list(_EXPECTED_OBJECT_IDENTITIES)
             and binding.get("api_service_contract") is True
             and binding.get("service_contract") is True

@@ -109,6 +109,8 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
             "identity_keys",
             "namespace_count",
             "namespace_contract",
+            "prod_denied_kind_count",
+            "prod_denied_kinds_absent",
             "binding.get(\"identity_keys\") == list(_EXPECTED_OBJECT_IDENTITIES)",
         ):
             self.assertIn(required, TASKS.read_text() + self.plugin)
@@ -199,6 +201,17 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
             )
             self.assertEqual(expected_expression, namespace_validation["expression"])
             self.assertEqual(expected_message, namespace_validation["message"])
+            if policy["metadata"]["name"] in generic_prod_allowlist:
+                expected_prod_identity = {
+                    "infisical-auth-boundary": "cristexhub-prod-infisical-auth",
+                    "infisical-connection-boundary": "infisical-cloud",
+                    "infisical-static-secret-boundary": "cristexhub-prod-runtime",
+                }[policy["metadata"]["name"]]
+                self.assertTrue(any(
+                    "request.namespace != 'cristexhub-prod'" in validation["expression"]
+                    and expected_prod_identity in validation["expression"]
+                    for validation in policy["spec"]["validations"]
+                ))
             combined += json.dumps(policy["spec"]["validations"])
         self.assertEqual(
             {
@@ -392,6 +405,8 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
         for guarded_internal in (
             "infisical_operator_bootstrap_internal_identity_keys",
             "infisical_operator_bootstrap_internal_namespace_states",
+            "infisical_operator_bootstrap_internal_prod_denied_crds",
+            "infisical_operator_bootstrap_internal_prod_denied_objects",
         ):
             self.assertIn(guarded_internal, first["loop"])
         self.assertIn("infisical_operator_bootstrap_internal_identity_keys", (ROOT / "tests/reject_infisical_operator_internal_injection.yml").read_text())
@@ -535,6 +550,19 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
         secret_assert = self.task("Require precreated exact proxy bootstrap Secret keys")
         self.assertTrue(secret_assert.get("no_log"))
         self.assertIn("Values must be created", secret_assert["ansible.builtin.assert"]["fail_msg"])
+        proxy_assertions = "\n".join(
+            str(value) for value in secret_assert["ansible.builtin.assert"]["that"]
+        )
+        for required in (
+            "binaryData",
+            "immutable",
+            "ownerReferences",
+            "app.kubernetes.io/managed-by",
+            "cristex.io/value-owner",
+            "metadata.uid",
+            "metadata.resourceVersion",
+        ):
+            self.assertIn(required, proxy_assertions)
         defaults = yaml.safe_load(DEFAULTS.read_text())
         self.assertEqual(
             {
@@ -565,8 +593,30 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
             "| length ==",
         ):
             self.assertIn(required, namespace_assertions)
+        denied_crd_query = self.task(
+            "Query CRD availability for denied PROD Infisical resource kinds"
+        )
+        self.assertEqual(
+            ["InfisicalSecret", "InfisicalPushSecret", "InfisicalDynamicSecret"],
+            [item["kind"] for item in denied_crd_query["loop"]],
+        )
+        self.assertTrue(denied_crd_query.get("no_log"))
+        denied_query = self.task("Query denied Infisical resource kinds in the PROD Namespace")
+        self.assertIn("internal_prod_denied_crds.results", denied_query["loop"])
+        self.assertEqual("item.resources | length == 1", denied_query["when"])
+        self.assertTrue(denied_query.get("no_log"))
+        denied_assert = self.task("Require denied Infisical PROD resource kinds to be absent")
+        self.assertTrue(denied_assert.get("no_log"))
+        self.assertLess(
+            next(i for i, task in enumerate(self.tasks) if task["name"] == denied_query["name"]),
+            crd_apply_index,
+        )
         self.assertIn("namespace_count", self.plugin)
         self.assertIn("namespace_contract", self.plugin)
+        self.assertIn("prod_denied_kind_count", self.plugin)
+        self.assertIn("prod_denied_kinds_absent", self.plugin)
+        self.assertIn("_exact_count", self.plugin)
+        self.assertNotIn("int(binding.get", self.plugin)
 
     def test_kubernetes_namespace_source_closure_is_unchanged(self) -> None:
         kubernetes = ROOT / "kubernetes"

@@ -113,7 +113,7 @@ workflow:
   state: present
   runtime_execution: NOT_RUN/BLOCKED
   block_reasons:
-    - cristexhub-prod Namespace is absent and must be separately approved.
+    - cristexhub-prod Namespace is Active/idempotent, but this does not approve any later PROD resource.
     - cristexhub-prod-infisical-universal-auth values are absent.
     - Infisical source values are not read or uploaded by this source-only change.
     - Operator watch/RBAC and application runtime acceptance require separate gates.

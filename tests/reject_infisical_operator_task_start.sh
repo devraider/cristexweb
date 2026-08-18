@@ -20,6 +20,8 @@ infisical_operator_bootstrap_internal_preflight_binding:
   proxy_secret_count: 3
   namespace_count: 5
   namespace_contract: true
+  prod_denied_kind_count: 3
+  prod_denied_kinds_absent: true
   identity_keys:
     - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalauths.secrets.infisical.com"
     - "apiextensions.k8s.io/v1|CustomResourceDefinition||infisicalconnections.secrets.infisical.com"

@@ -25,6 +25,9 @@ spec:
     - expression: request.namespace in ['shared-services', 'argocd', 'cristexhub-dev', 'cristexhub-prod', 'platform-edge']
       message: Only the five reviewed namespaces may contain Infisical custom resources.
       reason: Forbidden
+    - expression: request.namespace != 'cristexhub-prod' || object.metadata.name == 'infisical-cloud'
+      message: PROD permits only the exact reviewed InfisicalConnection identity.
+      reason: Forbidden
     - expression: "!has(object.spec.address) || object.spec.address == '' || object.spec.address == 'https://app.infisical.com'"
       message: Only Infisical Cloud API is allowed.
       reason: Forbidden

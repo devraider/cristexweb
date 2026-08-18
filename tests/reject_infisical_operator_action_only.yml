@@ -16,6 +16,8 @@
       proxy_secret_count: 3
       namespace_count: 5
       namespace_contract: true
+      prod_denied_kind_count: 3
+      prod_denied_kinds_absent: true
       identity_keys: []
       api_service_contract: true
       service_contract: true

@@ -85,7 +85,10 @@ class InfisicalSecretZeroLaneContractTests(unittest.TestCase):
         self.assertEqual("prod", self.policy["infisical_environment_slug"])
         self.assertTrue(self.policy["scope_separation"]["infisical_environment_is_prod"])
         self.assertEqual("not-authorized", self.policy["scope_separation"]["kubernetes_cristexhub_prod_activation"])
-        self.assertEqual("absent", self.policy["scope_separation"]["kubernetes_prod_namespace_or_path"])
+        self.assertEqual(
+            "namespace-active-runtime-path-unmaterialized",
+            self.policy["scope_separation"]["kubernetes_prod_namespace_or_path"],
+        )
         self.assertEqual(
             {
                 "argocd": "/argocd",

@@ -106,8 +106,10 @@ engine-specific Auth/credential identities, two path-scoped StaticSecrets, eleve
 engine/consumer target contracts, eight scoped operator-or-target VAP/bindings with operator-only
 validation, additive writer RBAC, and offline negative/hash contracts; its values,
 check/apply, sync, rotation, recovery, and runtime remain blocked. This source does
-not close a manual case. Argo CD, cloudflared, Infisical runtime, databases,
-application workloads, and routes are not installed, so this source increment closes no manual case. No deployment, replacement
+not close a manual case. Previously approved Argo CD, cloudflared, the historical 40-object Infisical
+runtime, shared databases, and CristexHub DEV checkpoints are live. This source-only
+44-object Operator expansion performs no runtime operation and closes no additional
+manual case. No deployment, replacement
 recovery proof, or complete manual runtime validation
 occurred. The separate source-only k3s datastore/encryption preflight completed one
 approved live read-only run at `ok=45 changed=1`; the sole change was its ignored
@@ -118,9 +120,10 @@ because the managed-profile rollback path has not been executed and verified, ev
 though warning-free fresh-session behavior passed. These results do not satisfy the
 remaining manual cases. The offline `shared-services` source correction adds no live
 Namespace, workload, database, credential, or route and therefore closes no manual
-case. The separate exact present-only `cristexhub-prod` Namespace manifest, guarded
-wrapper, and action source now exist, but the live PROD Namespace remains absent;
-its check/apply/API path and all runtime gates are NOT RUN/BLOCKED. Future placement
+case. The separate exact present-only `cristexhub-prod` Namespace checkpoint is complete:
+the live Namespace is Active and its idempotence apply converged. All later PROD
+Secret, registration, workload, stateful-scope, and route gates remain
+NOT RUN/BLOCKED. Future placement
 is cloudflared-only `platform-edge`, with the Infisical
 Operator, separate Keycloak deployment, one general PostgreSQL engine, and one
 shared MongoDB engine in `shared-services`. The value-free database policy closes no

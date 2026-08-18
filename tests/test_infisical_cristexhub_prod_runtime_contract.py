@@ -206,6 +206,13 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         source_expression = json.dumps(source["spec"]["validations"])
         for required in (AUTH_NAME, UNIVERSAL_AUTH_NAME, "clientId", "clientSecret"):
             self.assertIn(required, source_expression)
+        secret_write = next(
+            policy for policy in policies
+            if "secret-write-boundary" in policy["metadata"]["name"]
+        )
+        secret_write_expression = json.dumps(secret_write["spec"]["validations"])
+        self.assertIn("secrets.infisical.com/version", secret_write_expression)
+        self.assertIn("annotations.size() == 1", secret_write_expression)
         alternate = next(policy for policy in policies if "alternate-target" in policy["metadata"]["name"])
         self.assertEqual("Namespaced", alternate["spec"]["matchConstraints"]["resourceRules"][0]["scope"])
         self.assertEqual(NAMESPACE, alternate["spec"]["matchConditions"][0]["expression"].split("== ", 1)[1].strip("'"))

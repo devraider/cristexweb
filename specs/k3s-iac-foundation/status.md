@@ -29,8 +29,8 @@ note: |
   fail-closed CristexHub PROD runtime Infisical seam now binds exact
   `/cristexhub/prod/runtime`, independent PROD Auth/Universal Auth names, the
   nine-key runtime plus `cristexhub-prod-ghcr-pull`, scoped VAP/bindings, additive
-  RBAC, hashes, and guarded source; its absent Namespace/identity values keep
-  check/apply, sync, values, and runtime NOT RUN/BLOCKED. A separate five-object
+  RBAC, hashes, and guarded source; its Namespace checkpoint is complete, but absent
+  identity values keep check/apply, sync, values, and runtime NOT RUN/BLOCKED. A separate five-object
   PROD Argo registration source pins protected-main revision
   `751885a42798d282e168131db147f13694a0a621`, uses namespace-scoped no-delete RBAC,
   and remains manual behind an always-active deny window; registration check/apply

@@ -25,6 +25,9 @@ spec:
     - expression: request.namespace in ['shared-services', 'argocd', 'cristexhub-dev', 'cristexhub-prod', 'platform-edge']
       message: Only the five reviewed namespaces may contain Infisical custom resources.
       reason: Forbidden
+    - expression: request.namespace != 'cristexhub-prod' || object.metadata.name == 'cristexhub-prod-infisical-auth'
+      message: PROD permits only the exact reviewed InfisicalAuth identity.
+      reason: Forbidden
     - expression: object.spec.method == 'universal' && has(object.spec.universal)
       message: Only Universal Auth is allowed.
       reason: Forbidden

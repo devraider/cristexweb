@@ -61,8 +61,9 @@ now freezes the exact `/cristexhub/prod/runtime` source, independent PROD Auth a
 Universal Auth names, nine-key `cristexhub-prod-runtime` plus separate
 `cristexhub-prod-ghcr-pull` targets, exact PROD-scoped admission, additive
 least-privilege writer RBAC, manifest/action hashes, and guarded check/apply source.
-The PROD Namespace and Universal Auth values are absent, so its check/apply, sync,
-Secret values, workload, and promotion remain **NOT RUN/BLOCKED**; the fixed
+The PROD Namespace checkpoint is complete, but Universal Auth values are absent, so
+runtime-seam check/apply, sync, Secret values, workload, and promotion remain
+**NOT RUN/BLOCKED**; the fixed
 Infisical `prod` slug remains only a Cloud identifier. A separate guarded
 [CristexHub PROD Argo registration](runbooks/cristexhub-prod-argocd-registration.md)
 source now pins the protected-main application revision
@@ -72,8 +73,8 @@ remain **NOT RUN/BLOCKED** and do not imply Namespace, Secret, workload, or rout
 activation.
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
 it does not claim a live rename or deletion. Runtime checkpoint history remains recorded in `AGENTS.md` and the component
-runbooks; this source-only increment performs no runtime action. The
-The live `cristexhub-prod` Namespace is Active; its Secrets, registration objects,
+runbooks; this source-only increment performs no runtime action. The live
+`cristexhub-prod` Namespace is Active; its Secrets, registration objects,
 workload, and route remain absent. The source-selection paragraphs below preserve
 historical pre-runtime absence checkpoints and must not be read as current Namespace
 absence evidence; `AGENTS.md` is authoritative for completed runtime checkpoints. The Argo CD candidate and release
@@ -132,12 +133,14 @@ version-aligned `v0.11.7` set. The separate
 binds the seven raw CRD templates and known RBAC/scoping defects to the vendored
 archive. The [implementation profile](runbooks/infisical-operator-implementation-profile.md)
 binds the official controller commit and selected security profile. The guarded
-[idle bootstrap closure](runbooks/infisical-operator-bootstrap.md) now promotes exactly
-40 value-free objects: six namespaced CRDs, six fail-closed admission policies and
-bindings, exact namespaced RBAC, one metrics-off digest-pinned controller, one
-authenticated TLS Squid proxy, and eight policies. The quarantined archive is never a
-runtime input. The three recovered proxy Secrets and check/apply/idempotence now
-pass. Broader admission/RBAC/traffic acceptance remains pending. The first local age/Drive writer attempt stopped before Kubernetes on expired
+[idle bootstrap closure](runbooks/infisical-operator-bootstrap.md) now promotes an
+exact 44-object source closure: six namespaced CRDs, six fail-closed admission
+policies and bindings, exact five-Namespace RBAC, one metrics-off digest-pinned
+controller, one authenticated TLS Squid proxy, and eight NetworkPolicies. The
+quarantined archive is never a runtime input. The three recovered proxy Secrets and
+the historical 40-object check/apply/idempotence passed; the later 42-object and
+current 44-object expansions were not runtime-applied. Broader admission/RBAC/traffic
+acceptance remains pending. The first local age/Drive writer attempt stopped before Kubernetes on expired
 Drive OAuth; its plaintext residue and unused encrypted artifact were removed without
 reading values. An unused debug-exposed age identity was revoked/regenerated before
 upload/Kubernetes. The hardened retry proved cleanup, encrypted-pending resume and a

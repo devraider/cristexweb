@@ -17,6 +17,8 @@
     - infisical_operator_bootstrap_internal_kubeconfig_state
     - infisical_operator_bootstrap_internal_api_service
     - infisical_operator_bootstrap_internal_namespace_states
+    - infisical_operator_bootstrap_internal_prod_denied_crds
+    - infisical_operator_bootstrap_internal_prod_denied_objects
     - infisical_operator_bootstrap_internal_proxy_secrets
     - infisical_operator_bootstrap_internal_prestate
     - infisical_operator_bootstrap_internal_preflight_binding
@@ -279,6 +281,51 @@
   changed_when: false
   no_log: true
 
+- name: Query CRD availability for denied PROD Infisical resource kinds
+  kubernetes.core.k8s_info:
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: "{{ item.crd }}"
+    kubeconfig: "{{ infisical_operator_bootstrap_kubeconfig }}"
+  loop:
+    - kind: InfisicalSecret
+      crd: infisicalsecrets.secrets.infisical.com
+    - kind: InfisicalPushSecret
+      crd: infisicalpushsecrets.secrets.infisical.com
+    - kind: InfisicalDynamicSecret
+      crd: infisicaldynamicsecrets.secrets.infisical.com
+  register: infisical_operator_bootstrap_internal_prod_denied_crds
+  changed_when: false
+  no_log: true
+
+- name: Query denied Infisical resource kinds in the PROD Namespace
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1alpha1
+    kind: "{{ item.item.kind }}"
+    namespace: cristexhub-prod
+    kubeconfig: "{{ infisical_operator_bootstrap_kubeconfig }}"
+  loop: "{{ infisical_operator_bootstrap_internal_prod_denied_crds.results }}"
+  when: item.resources | length == 1
+  register: infisical_operator_bootstrap_internal_prod_denied_objects
+  changed_when: false
+  no_log: true
+
+- name: Require denied Infisical PROD resource kinds to be absent
+  ansible.builtin.assert:
+    that:
+      - infisical_operator_bootstrap_internal_prod_denied_crds.results | length == 3
+      - item.item.resources | length in [0, 1]
+      - (item.skipped | default(false)) or (item.resources | default([]) | length == 0)
+    fail_msg: >-
+      Refusing operator mutation while any PROD InfisicalSecret,
+      InfisicalPushSecret, or InfisicalDynamicSecret exists; PROD admission
+      intentionally denies those resource kinds.
+  loop: "{{ infisical_operator_bootstrap_internal_prod_denied_objects.results }}"
+  loop_control:
+    label: "{{ item.item.item.kind }}"
+  changed_when: false
+  no_log: true
+
 - name: Query exact proxy bootstrap Secret metadata
   kubernetes.core.k8s_info:
     api_version: v1
@@ -300,14 +347,31 @@
       - item.resources[0].metadata.namespace == 'shared-services'
       - (item.resources[0].data | default({})).keys() | list | sort == item.item.value | sort
       - >-
+        (item.resources[0].data | default({})) | dict2items |
+        map(attribute='value') | map('length') | min > 0
+      - (item.resources[0].binaryData | default({})) | length == 0
+      - not (item.resources[0].immutable | default(false) | bool)
+      - (item.resources[0].metadata.ownerReferences | default([])) | length == 0
+      - >-
+        (item.resources[0].metadata.labels | default({})) ==
+        {
+          'app.kubernetes.io/part-of': 'cristex-platform',
+          'app.kubernetes.io/managed-by': 'ansible',
+          'cristex.io/component': 'infisical-operator',
+          'cristex.io/value-owner': 'secret-zero'
+        }
+      - item.resources[0].metadata.uid | default('') | length > 0
+      - item.resources[0].metadata.resourceVersion | default('') | length > 0
+      - >-
         item.item.key != 'infisical-egress-proxy-tls' or
         item.resources[0].type == 'kubernetes.io/tls'
       - >-
         item.item.key == 'infisical-egress-proxy-tls' or
         item.resources[0].type == 'Opaque'
     fail_msg: >-
-      Proxy bootstrap Secret metadata is absent or drifted. Values must be created
-      by the separate interactive secret-zero procedure before check/apply.
+      Proxy bootstrap Secret metadata is absent, foreign, mutable, or drifted.
+      Values must be created by the separate interactive secret-zero procedure
+      before check/apply.
   loop: "{{ infisical_operator_bootstrap_internal_proxy_secrets.results }}"
   loop_control:
     label: "{{ item.item.key }}"
@@ -357,6 +421,8 @@
       proxy_secret_count: "{{ infisical_operator_bootstrap_internal_proxy_secrets.results | length }}"
       namespace_count: "{{ infisical_operator_bootstrap_internal_namespace_states.results | length }}"
       namespace_contract: true
+      prod_denied_kind_count: "{{ infisical_operator_bootstrap_internal_prod_denied_objects.results | length }}"
+      prod_denied_kinds_absent: true
       identity_keys: "{{ infisical_operator_bootstrap_internal_identity_keys }}"
       api_service_contract: true
       service_contract: true
