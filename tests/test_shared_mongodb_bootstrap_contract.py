@@ -275,6 +275,10 @@ class SharedMongoDbBootstrapContractTests(unittest.TestCase):
         self.assertIn("Verify the MongoDB Service remains private ClusterIP-only", tasks)
         self.assertIn("no_delete_path: true", tasks)
         self.assertNotIn("state: absent", tasks)
+        self.assertLess(
+            plugin.index("if start_at_task"),
+            plugin.index("if task_source not in _EXPECTED_TASK_SOURCES"),
+        )
         for required in (
             "_EXPECTED_OBJECT_HASHES",
             "_EXPECTED_TASK_SOURCE",

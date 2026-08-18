@@ -49,6 +49,10 @@ CRISTEXWEB_MONGODB_BOOTSTRAP_ATTESTATION_FILE="$attestation_file" \
 readonly status=$?
 set -e
 [[ $status -ne 0 ]]
-grep -Fq 'TASK_SELECTION_GUARD' "$output_file"
+grep -Eq '(TASK_SELECTION_GUARD|ENTRYPOINT_GUARD)' "$output_file" || {
+  /bin/cat "$output_file" >&2
+  exit 1
+}
 ! grep -Fq 'INTERNAL_VARIABLE_GUARD' "$output_file"
+! grep -Fq 'Failed to connect' "$output_file"
 printf '%s\n' 'PASS: MongoDB combined task-start and injected-binding bypass is rejected'

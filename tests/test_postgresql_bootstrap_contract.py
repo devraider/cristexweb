@@ -229,6 +229,10 @@ class PostgreSQLBootstrapContractTests(unittest.TestCase):
         ):
             self.assertIn(required, plugin)
         self.assertNotIn("state: absent", tasks)
+        self.assertLess(
+            plugin.index("if start_at_task"),
+            plugin.index("if task_source not in _EXPECTED_TASK_SOURCES"),
+        )
 
     def test_negative_fixtures_fail_before_kubernetes(self) -> None:
         selection = subprocess.run(

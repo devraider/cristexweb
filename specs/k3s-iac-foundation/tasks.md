@@ -386,6 +386,12 @@ logs, or bootstrap cannot be recovered.
   RBAC, hashes, guarded wrapper/role/plugin, policy, runbook, and offline contracts;
   Namespace, identity values, sync, and runtime remain NOT RUN/BLOCKED (`KIF-005`,
   `KIF-013`–`KIF-016`, `KIF-021`, `KIF-025`, `KIF-030`).
+- [x] Add the exact five-object source-only CristexHub PROD Argo registration pinned
+  to protected-main revision `751885a42798d282e168131db147f13694a0a621`, with
+  namespace-only no-delete RBAC, present-only guard, foreign-object refusal,
+  `CreateNamespace=false`, `Prune=false`, manual sync, and an always-active deny
+  window; do not run check/apply or any sync transition (`KIF-005`, `KIF-006`,
+  `KIF-010`, `KIF-016`, `KIF-021`, `KIF-025`, `KIF-030`).
 - [ ] Obtain explicit approval before creating stateful services (`KIF-002`).
 - [x] Add a canonical value-free shared-database policy and runbook for exactly one
   PostgreSQL and one MongoDB engine in `shared-services`, dedicated consumer scopes,

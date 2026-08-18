@@ -1,0 +1,333 @@
+- name: Reject externally supplied registration internals
+  ansible.builtin.assert:
+    that: item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied registration internal {{ item }}."
+  loop:
+    - cristexhub_prod_registration_internal_manifests
+    - cristexhub_prod_registration_internal_states
+    - cristexhub_prod_registration_internal_attestation_state
+    - cristexhub_prod_registration_internal_prestate
+    - cristexhub_prod_registration_internal_argocd_namespace
+    - cristexhub_prod_registration_internal_kubeconfig_state
+    - cristexhub_prod_registration_internal_preflight_binding
+  changed_when: false
+- name: Require the exact non-passthrough registration contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ATTESTATION_FILE') | length > 0
+      - cristexhub_prod_registration_approved | bool
+      - cristexhub_prod_registration_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - cristexhub_prod_registration_manifest_paths | length == 5
+      - cristexhub_prod_registration_expected_hashes | length == 5
+      - cristexhub_prod_registration_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - cristexhub_prod_registration_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+      - cristexhub_prod_registration_revision == '751885a42798d282e168131db147f13694a0a621'
+      - cristexhub_prod_registration_path == 'infra/kubernetes/cristexhub-prod'
+    fail_msg: Refusing unapproved or non-canonical CristexHub PROD registration.
+  changed_when: false
+- name: Inspect exact k3s administrator kubeconfig boundary
+  ansible.builtin.stat:
+    path: '{{ cristexhub_prod_registration_kubeconfig }}'
+    follow: false
+  register: cristexhub_prod_registration_internal_kubeconfig_state
+  changed_when: false
+  no_log: true
+
+- name: Require protected regular k3s administrator kubeconfig
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_registration_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (cristexhub_prod_registration_internal_kubeconfig_state.stat.islnk | default(false))
+      - cristexhub_prod_registration_internal_kubeconfig_state.stat.mode == '0640'
+      - cristexhub_prod_registration_internal_kubeconfig_state.stat.pw_name == 'root'
+      - cristexhub_prod_registration_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+    fail_msg: Refusing an absent, symlinked, or permission-drifted k3s administrator kubeconfig.
+  changed_when: false
+  no_log: true
+
+- name: Inspect canonical registration manifests
+  ansible.builtin.stat:
+    path: '{{ item }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: '{{ cristexhub_prod_registration_manifest_paths }}'
+  register: cristexhub_prod_registration_internal_states
+  delegate_to: localhost
+  changed_when: false
+- name: Require hash-bound registration manifests
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - item.stat.mode == '0644'
+      - item.stat.checksum == (cristexhub_prod_registration_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - item.item.startswith(cristexhub_prod_registration_repository_root ~ '/ansible/files/components/cristexhub-prod-registration/')
+    fail_msg: Refusing hash-drifted registration source.
+  loop: '{{ cristexhub_prod_registration_internal_states.results }}'
+  delegate_to: localhost
+  changed_when: false
+- name: Load exact registration objects
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_manifests: >-
+      {{ (cristexhub_prod_registration_internal_manifests | default([])) +
+      [lookup('ansible.builtin.file', item) | from_yaml] }}
+  loop: '{{ cristexhub_prod_registration_manifest_paths }}'
+  changed_when: false
+  no_log: true
+- name: Query exact CristexHub PROD Namespace prerequisite
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: cristexhub-prod
+    kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
+  register: cristexhub_prod_registration_internal_namespace
+  changed_when: false
+- name: Query exact Argo control Namespace prerequisite
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: argocd
+    kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
+  register: cristexhub_prod_registration_internal_argocd_namespace
+  changed_when: false
+
+- name: Query Infisical-owned Argo repository credential metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: argocd
+    name: argocd-repository-cristexhub
+    kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
+  register: cristexhub_prod_registration_internal_repository_secret
+  changed_when: false
+  no_log: true
+- name: Require exact Namespace and repository credential prerequisites
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_registration_internal_namespace.resources | length == 1
+      - cristexhub_prod_registration_internal_namespace.resources[0].status.phase == 'Active'
+      - cristexhub_prod_registration_internal_argocd_namespace.resources | length == 1
+      - cristexhub_prod_registration_internal_argocd_namespace.resources[0].status.phase == 'Active'
+      - cristexhub_prod_registration_internal_argocd_namespace.resources[0].metadata.labels.get('kubernetes.io/metadata.name') == 'argocd'
+      - >-
+        cristexhub_prod_registration_internal_namespace.resources[0].metadata.labels ==
+        {'app.kubernetes.io/part-of': 'cristexhub',
+        'cristex.io/environment': 'prod',
+        'cristex.io/bootstrap-writer': 'ansible',
+        'cristex.io/desired-owner': 'argocd',
+        'kubernetes.io/metadata.name': 'cristexhub-prod'}
+      - cristexhub_prod_registration_internal_repository_secret.resources | length == 1
+      - cristexhub_prod_registration_internal_repository_secret.resources[0].type == 'Opaque'
+      - (cristexhub_prod_registration_internal_repository_secret.resources[0].data | default({})).keys() | list | sort == ['sshPrivateKey', 'type', 'url']
+      - cristexhub_prod_registration_internal_repository_secret.resources[0].data.type | b64decode == 'git'
+      - cristexhub_prod_registration_internal_repository_secret.resources[0].data.url | b64decode == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+      - (cristexhub_prod_registration_internal_repository_secret.resources[0].binaryData | default({})) | length == 0
+      - not (cristexhub_prod_registration_internal_repository_secret.resources[0].immutable | default(false) | bool)
+      - (cristexhub_prod_registration_internal_repository_secret.resources[0].metadata.ownerReferences | default([])) | length == 0
+      - >-
+        (cristexhub_prod_registration_internal_repository_secret.resources[0].metadata.annotations |
+        default({})).keys() | list == ['secrets.infisical.com/version']
+      - cristexhub_prod_registration_internal_repository_secret.resources[0].metadata.annotations['secrets.infisical.com/version'] | length > 0
+      - >-
+        cristexhub_prod_registration_internal_repository_secret.resources[0].metadata.labels ==
+        {'app.kubernetes.io/managed-by': 'infisical',
+        'app.kubernetes.io/part-of': 'argocd',
+        'argocd.argoproj.io/secret-type': 'repository',
+        'cristex.io/value-owner': 'infisical-cloud'}
+    fail_msg: Refusing registration without the exact Namespace and Infisical-owned repository credential.
+  changed_when: false
+  no_log: true
+- name: Query exact PROD registration pre-state
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.metadata.namespace | default(omit) }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
+  loop: '{{ cristexhub_prod_registration_internal_manifests }}'
+  register: cristexhub_prod_registration_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Reject foreign PROD registration objects before mutation
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.labels | default({})).get('app.kubernetes.io/managed-by') == 'ansible'
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.labels | default({})).get('cristex.io/component') == 'cristexhub-prod-registration'
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.finalizers | default([]) | length) == 0
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.annotations | default({})) ==
+        (item.item.metadata.annotations | default({}))
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.labels | default({})) == item.item.metadata.labels
+      - >-
+        item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject'] or
+        item.resources[0].spec == item.item.spec
+      - >-
+        item.resources | length == 0 or item.item.kind != 'Role' or
+        item.resources[0].rules == item.item.rules
+      - >-
+        item.resources | length == 0 or item.item.kind != 'RoleBinding' or
+        (item.resources[0].roleRef == item.item.roleRef and item.resources[0].subjects == item.item.subjects)
+      - >-
+        item.resources | length == 0 or item.item.kind != 'Secret' or
+        (item.resources[0].type == 'Opaque' and
+        (item.resources[0].data | default({})).keys() | list | sort == ['clusterResources', 'config', 'name', 'namespaces', 'server'] and
+        item.resources[0].data.name | b64decode == 'cristexhub-prod-local' and
+        item.resources[0].data.server | b64decode == 'https://kubernetes.default.svc' and
+        item.resources[0].data.namespaces | b64decode == 'cristexhub-prod' and
+        item.resources[0].data.clusterResources | b64decode == 'false' and
+        item.resources[0].data.config | b64decode == '{}' and
+        (item.resources[0].binaryData | default({}) | length) == 0 and
+        not (item.resources[0].immutable | default(false) | bool))
+    fail_msg: Refusing to overwrite a foreign, drifted, or multiply-resolved PROD registration object.
+  loop: '{{ cristexhub_prod_registration_internal_prestate.results }}'
+  changed_when: false
+  no_log: true
+
+- name: Bind complete PROD registration preflight to the guarded mutation
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TOKEN') | hash('sha256') }}"
+      manifest_names: "{{ cristexhub_prod_registration_internal_manifests | map(attribute='metadata.name') | list | sort }}"
+      prestate_names: "{{ cristexhub_prod_registration_internal_prestate.results | map(attribute='item.metadata.name') | list | sort }}"
+      object_count: "{{ cristexhub_prod_registration_internal_manifests | length }}"
+      namespace_contract: "{{ cristexhub_prod_registration_internal_namespace.resources | length == 1 }}"
+      repository_contract: "{{ cristexhub_prod_registration_internal_repository_secret.resources | length == 1 }}"
+      revision: '{{ cristexhub_prod_registration_revision }}'
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Reconcile registration source without synchronization
+  cristexhub_prod_registration_guarded_k8s:
+    state: present
+    definition: '{{ item }}'
+    kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
+    wait: false
+    wait_timeout: 60
+  loop: '{{ cristexhub_prod_registration_internal_manifests }}'
+  no_log: true
+- name: Query exact live registration post-state
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.metadata.namespace | default(omit) }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
+  loop: '{{ cristexhub_prod_registration_internal_manifests }}'
+  register: cristexhub_prod_registration_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+- name: Require exact PROD registration post-state metadata
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].apiVersion == item.item.apiVersion
+      - item.resources[0].kind == item.item.kind
+      - item.resources[0].metadata.name == item.item.metadata.name
+      - item.resources[0].metadata.namespace == item.item.metadata.namespace
+      - item.resources[0].metadata.labels == item.item.metadata.labels
+      - (item.resources[0].metadata.annotations | default({})) == (item.item.metadata.annotations | default({}))
+      - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - (item.resources[0].metadata.finalizers | default([]) | length) == 0
+      - item.item.kind != 'Secret' or item.resources[0].type == 'Opaque'
+    fail_msg: Refusing drifted PROD registration identity, metadata, ownership, finalizer, or Secret type.
+  loop: '{{ cristexhub_prod_registration_internal_poststate.results }}'
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require manual-sync registration post-state
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_registration_internal_poststate.results | length == 5
+      - cristexhub_prod_registration_internal_poststate.results | map(attribute='resources') | map('length') | list == [1, 1, 1, 1, 1]
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Application') | first).resources[0].spec ==
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Application') | first).item.spec
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Application') | first).resources[0].spec.syncPolicy.automated is not defined
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'AppProject') | first).resources[0].spec ==
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'AppProject') | first).item.spec
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'AppProject') | first).resources[0].spec.syncWindows ==
+        [{'kind': 'deny', 'schedule': '* * * * *', 'duration': '24h',
+        'applications': ['cristexhub-prod'], 'manualSync': false}]
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Role') | first).resources[0].rules ==
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Role') | first).item.rules
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'RoleBinding') | first).resources[0].roleRef ==
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'RoleBinding') | first).item.roleRef
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'RoleBinding') | first).resources[0].subjects ==
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'RoleBinding') | first).item.subjects
+      - >-
+        ((cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data |
+        default({})).keys() | list | sort ==
+        ['clusterResources', 'config', 'name', 'namespaces', 'server']
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.name |
+        b64decode == 'cristexhub-prod-local'
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.server |
+        b64decode == 'https://kubernetes.default.svc'
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.namespaces |
+        b64decode == 'cristexhub-prod'
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.clusterResources |
+        b64decode == 'false'
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.config |
+        b64decode == '{}'
+      - >-
+        ((cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].binaryData |
+        default({}) | length) == 0
+      - >-
+        not ((cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].immutable |
+        default(false) | bool)
+    fail_msg: Refusing registration whose live five-object closure drifted or can synchronize before promotion gates pass.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode

@@ -45,6 +45,12 @@ class ActionModule(KubernetesActionModule):
         step = bool(context.CLIARGS.get('step'))
         tags = list(context.CLIARGS.get('tags') or [])
         skip_tags = list(context.CLIARGS.get('skip_tags') or [])
+        if start_at_task or step or tags not in ([], ['all']) or skip_tags:
+            return {
+                'changed': False,
+                'failed': True,
+                'msg': 'TASK_SELECTION_GUARD: refusing MongoDB mutation under task selection',
+            }
         task_source = str(self._task.get_path()).rsplit(':', 1)[0]
         if task_source not in _EXPECTED_TASK_SOURCES:
             return {
@@ -149,12 +155,6 @@ class ActionModule(KubernetesActionModule):
                     'MUTATION_ARGUMENT_GUARD: refusing an unknown, changed, '
                     'Secret, or generated-storage MongoDB object'
                 ),
-            }
-        if start_at_task or step or tags not in ([], ['all']) or skip_tags:
-            return {
-                'changed': False,
-                'failed': True,
-                'msg': 'TASK_SELECTION_GUARD: refusing MongoDB mutation under task selection',
             }
         original_action = self._task.action
         self._task.action = 'kubernetes.core.k8s'
