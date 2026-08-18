@@ -14,9 +14,9 @@ cat >"$injected_variables" <<YAML
 infisical_operator_bootstrap_approved: true
 infisical_operator_bootstrap_internal_preflight_binding:
   attestation_sha256: $attestation_sha256
-  object_count: 40
+  object_count: 44
   crd_count: 6
-  prestate_count: 40
+  prestate_count: 44
   proxy_secret_count: 3
   api_service_contract: true
   service_contract: true
