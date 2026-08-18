@@ -18,12 +18,15 @@ fi
 
 script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)"
 repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
-controller_home="$(CDPATH= cd -- "$repository_root/../.." && pwd -P)"
 controller_user="$(/usr/bin/id -un)"
-if [ "$repository_root" != "$controller_home/Projects/cristexweb" ]; then
-  printf '%s\n' 'refusing a Namespace bootstrap repository outside the pinned controller path' >&2
-  exit 78
-fi
+case "$repository_root" in
+  /Users/paul/Projects/cristexweb) controller_home=/Users/paul ;;
+  /home/paul/projects/cristexweb) controller_home=/home/paul ;;
+  *)
+    printf '%s\n' 'refusing a Namespace bootstrap repository outside the pinned controller path' >&2
+    exit 78
+    ;;
+esac
 controller="$repository_root/.venv/bin/ansible-playbook"
 if [ ! -f "$controller" ] || [ ! -x "$controller" ] || [ -L "$controller" ]; then
   printf '%s\n' 'refusing an absent, non-executable, or symlinked pinned Ansible controller' >&2
