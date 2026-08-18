@@ -299,9 +299,10 @@
          (item.resources[0].metadata.labels | default({})).get(
           'cristex.io/desired-owner', '') ==
           item.item.metadata.labels['cristex.io/desired-owner'] and
-         (item.resources[0].metadata.labels | default({})) | length == 4 and
+         (item.resources[0].metadata.labels | default({})) | length == 5 and
          (item.resources[0].metadata.labels | default({})) ==
-          item.item.metadata.labels)
+          (item.item.metadata.labels |
+           combine({'kubernetes.io/metadata.name': item.item.metadata.name})))
     fail_msg: >-
       An existing cristexhub-prod Namespace lacks the exact reviewed application,
       environment, bootstrap, and future-owner labels; refusing silent adoption.
@@ -439,8 +440,11 @@
         (item.resources[0].metadata.labels | default({})).get(
           'cristex.io/desired-owner', '') ==
           item.item.metadata.labels['cristex.io/desired-owner']
-      - (item.resources[0].metadata.labels | default({})) | length == 4
-      - (item.resources[0].metadata.labels | default({})) == item.item.metadata.labels
+      - (item.resources[0].metadata.labels | default({})) | length == 5
+      - >-
+        (item.resources[0].metadata.labels | default({})) ==
+        (item.item.metadata.labels |
+         combine({'kubernetes.io/metadata.name': item.item.metadata.name}))
       - item.resources[0].status.phase == 'Active'
     fail_msg: >-
       The exact CristexHub PROD Namespace did not become Active with reviewed bootstrap

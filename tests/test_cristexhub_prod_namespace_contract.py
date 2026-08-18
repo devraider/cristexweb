@@ -180,6 +180,8 @@ metadata:
             "tailscaled.service",
             "refusing silent adoption",
             "(item.resources[0].metadata.labels | default({})) ==",
+            "(item.resources[0].metadata.labels | default({})) | length == 5",
+            "'kubernetes.io/metadata.name': item.item.metadata.name",
             "no_delete_path: true",
         ):
             self.assertIn(required, self.defaults + self.tasks)
