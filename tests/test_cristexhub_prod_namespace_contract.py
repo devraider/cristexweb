@@ -247,7 +247,7 @@ metadata:
             "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_TOKEN=$attestation_token",
             "CRISTEXWEB_CRISTEXHUB_PROD_NAMESPACE_BOOTSTRAP_ATTESTATION_FILE=$attestation_file",
             "/usr/bin/openssl rand -hex 32",
-            "cristexhub_prod_namespace_bootstrap_approved=true",
+            "{\"cristexhub_prod_namespace_bootstrap_approved\":true}",
             "--diff",
             "--limit crtxweb",
             "--ask-become-pass",
