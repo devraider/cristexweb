@@ -174,7 +174,7 @@ from the version-aligned `v0.11.7` set. The inert
 [privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
 remains historical evidence. The [implementation profile](../../runbooks/infisical-operator-implementation-profile.md)
 binds the official source, and the guarded
-[idle bootstrap](../../runbooks/infisical-operator-bootstrap.md) promotes exactly 40
+[idle bootstrap](../../runbooks/infisical-operator-bootstrap.md) promotes exactly 44
 value-free objects: six namespaced CRDs, six native admission policies/bindings,
 exact namespaced RBAC, one metrics-off controller, authenticated TLS Squid, and eight
 NetworkPolicies. The archive remains quarantined and is not a runtime input. Runtime

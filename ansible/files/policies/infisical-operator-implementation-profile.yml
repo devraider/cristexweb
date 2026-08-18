@@ -16,7 +16,7 @@ source:
   chart_version: v0.11.7
   chart_archive_sha256: 7f8846c4f6b1cdca2cea23cf00a29d12a38f42eb8da8e125dc196a1e5683aea8
   promoted_manifest_root: ansible/files/components/infisical-operator
-  promoted_object_count: 40
+  promoted_object_count: 44
   promoted_crd_count: 6
 runtime_profile:
   controller_namespace: shared-services
@@ -24,7 +24,9 @@ runtime_profile:
     - shared-services
     - argocd
     - cristexhub-dev
-  prod_watched: false
+    - cristexhub-prod
+    - platform-edge
+  prod_watched: true
   replicas: 1
   metrics_bind_address: "0"
   metrics_service_allowed: false
@@ -68,6 +70,8 @@ rbac_profile:
     - shared-services
     - argocd
     - cristexhub-dev
+    - cristexhub-prod
+    - platform-edge
   startup_namespaced_cr_watch_resources:
     - infisicalsecrets
     - infisicalpushsecrets
@@ -97,6 +101,16 @@ secret_scope_profile:
   - namespace: cristexhub-dev
     logical_identity: application-cristexhub-dev
     logical_scope: cristexhub-dev-only
+    credentials_shared: false
+    wildcard_access_allowed: false
+  - namespace: cristexhub-prod
+    logical_identity: application-cristexhub-prod
+    logical_scope: cristexhub-prod-only
+    credentials_shared: false
+    wildcard_access_allowed: false
+  - namespace: platform-edge
+    logical_identity: platform-edge
+    logical_scope: platform-edge-only
     credentials_shared: false
     wildcard_access_allowed: false
 reference_boundary:
@@ -172,6 +186,7 @@ prohibited_by_this_increment:
   - infisical-custom-resource-before-secret-zero-proof
   - cluster-generator-crd-reference-or-permission
   - metrics-service-or-authorization
-  - prod-namespace-scope-or-credential
+  - prod-credential-value-or-workload-runtime
+  - prod-namespace-or-route-activation
   - cluster-api-or-infisical-runtime-operation-without-guarded-entrypoint
   - self-hosted-infisical-server

@@ -129,7 +129,7 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
         runtime = self.policy["runtime_profile"]
         self.assertEqual("shared-services", runtime["controller_namespace"])
         self.assertEqual(
-            ["shared-services", "argocd", "cristexhub-dev"],
+            ["shared-services", "argocd", "cristexhub-dev", "cristexhub-prod", "platform-edge"],
             runtime["watched_namespaces"],
         )
         self.assertEqual("0", runtime["metrics_bind_address"])
@@ -139,7 +139,7 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
             "sha256:5f1767f440407d8f10fb8bd7e051e26ecf18f16731a64273c20fe206947510ae",
             runtime["image"],
         )
-        self.assertFalse(runtime["prod_watched"])
+        self.assertTrue(runtime["prod_watched"])
         self.assertFalse(runtime["cluster_generator_controller_registered"])
         self.assertFalse(runtime["cluster_generator_eager_watch_registered"])
         self.assertTrue(runtime["cluster_generator_access_on_demand_only"])
@@ -148,6 +148,10 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
 
         rbac = self.policy["rbac_profile"]
         self.assertFalse(rbac["manager_cluster_role_allowed"])
+        self.assertEqual(
+            ["shared-services", "argocd", "cristexhub-dev", "cristexhub-prod", "platform-edge"],
+            rbac["namespaced_roles_required"],
+        )
         self.assertFalse(rbac["cluster_generator_permissions_allowed"])
         self.assertFalse(rbac["token_review_allowed"])
         self.assertFalse(rbac["service_account_token_creation_allowed"])
@@ -165,10 +169,10 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
 
         scopes = self.policy["secret_scope_profile"]
         self.assertEqual(
-            ["shared-services", "argocd", "cristexhub-dev"],
+            ["shared-services", "argocd", "cristexhub-dev", "cristexhub-prod", "platform-edge"],
             [scope["namespace"] for scope in scopes],
         )
-        self.assertEqual(3, len({scope["logical_identity"] for scope in scopes}))
+        self.assertEqual(5, len({scope["logical_identity"] for scope in scopes}))
         self.assertTrue(all(scope["credentials_shared"] is False for scope in scopes))
         self.assertTrue(all(scope["wildcard_access_allowed"] is False for scope in scopes))
 
@@ -295,12 +299,12 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
         )
         component_root = ROOT / "ansible/files/components/infisical-operator"
         self.assertTrue(component_root.is_dir())
-        self.assertEqual(42, len(list(component_root.rglob("*.yaml"))))
+        self.assertEqual(44, len(list(component_root.rglob("*.yaml"))))
 
         normalized = " ".join(self.runbook.split())
         for required in (
             "GUARDED IDLE SOURCE READY — RUNTIME NOT RUN/BLOCKED",
-            "shared-services`, `argocd`, and `cristexhub-dev",
+            "shared-services`, `argocd`, `cristexhub-dev`, `cristexhub-prod`, and `platform-edge`",
             "separate identity and credential scope",
             "ClusterGenerator has no reconciler or eager watch",
             "cache-backed lazy informer",
@@ -309,7 +313,7 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
             "separate authenticated Squid proxy",
             "age-encrypted off-node copy",
             "non-sensitive ConfigMap",
-            "40 hash-bound objects",
+            "44 hash-bound objects",
         ):
             self.assertIn(required, normalized)
         for relative in (

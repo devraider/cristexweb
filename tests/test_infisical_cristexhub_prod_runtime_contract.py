@@ -328,17 +328,30 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             self.assertIn(required, text)
         self.assertIn("remains absent", text)
 
-    def test_existing_operator_closure_deliberately_excludes_prod(self) -> None:
+    def test_operator_prod_watch_source_is_value_free_and_runtime_blocked(self) -> None:
         component = ROOT / "ansible/files/components/infisical-operator"
         deployment = (component / "controller/deployment.yaml").read_text()
-        self.assertNotIn("cristexhub-prod", deployment)
-        self.assertFalse((component / "rbac/manager-role-cristexhub-prod.yaml").exists())
-        self.assertFalse((component / "rbac/manager-rolebinding-cristexhub-prod.yaml").exists())
+        self.assertIn(
+            "--namespaces=shared-services,argocd,cristexhub-dev,cristexhub-prod,platform-edge",
+            deployment,
+        )
+        self.assertTrue((component / "rbac/manager-role-cristexhub-prod.yaml").exists())
+        self.assertTrue((component / "rbac/manager-rolebinding-cristexhub-prod.yaml").exists())
         for policy in (component / "admission").glob("*.yaml"):
-            self.assertNotIn("cristexhub-prod", policy.read_text(), policy)
+            if policy.name.endswith("-binding.yaml"):
+                continue
+            self.assertIn("cristexhub-prod", policy.read_text(), policy)
+        source = "\n".join(path.read_text() for path in component.rglob("*.yaml"))
+        self.assertNotIn("kind: Secret", source)
+        for path in component.rglob("*.yaml"):
+            obj = yaml.safe_load(path.read_text())
+            if obj.get("metadata", {}).get("namespace") == "cristexhub-prod":
+                self.assertIn(obj["kind"], {"Role", "RoleBinding"}, path)
         runbook = (ROOT / "runbooks/infisical-cristexhub-prod-runtime-materialization.md").read_text()
-        self.assertIn("does not watch\n`cristexhub-prod`", runbook)
-        self.assertIn("separate reviewed source/check/apply/idempotence approval", runbook)
+        self.assertIn("now watches `cristexhub-prod`", runbook)
+        self.assertIn("This source-only expansion is not a runtime apply", runbook)
+        self.assertIn("separate reviewed", runbook)
+        self.assertIn("source/check/apply/idempotence approval", runbook)
         tasks = TASKS.read_text()
         checkpoint = tasks.index("Stop until the Infisical Operator PROD checkpoint")
         credential = tasks.index("Refuse absent runtime Universal Auth prerequisite")

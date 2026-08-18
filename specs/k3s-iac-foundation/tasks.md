@@ -269,7 +269,8 @@ entry gate.
   (`KIF-005`, `KIF-013`–`KIF-015`, `KIF-021`, `KIF-023`, `KIF-030`).
 - [x] Bind the official `v0.11.7` controller commit and record the confirmed
   [implementation profile](../../runbooks/infisical-operator-implementation-profile.md):
-  exact `shared-services`/`argocd`/`cristexhub-dev` watch scopes with separate
+  exact `shared-services`/`argocd`/`cristexhub-dev`/`cristexhub-prod`/`platform-edge`
+  source-only watch scopes with separate
   identity intent, all-six namespaced-controller startup behavior, no ClusterGenerator
   or review/token permissions, metrics off, authenticated Squid egress direction,
   age/Drive secret-zero recovery direction, and a non-sensitive ConfigMap proof.
@@ -277,10 +278,10 @@ entry gate.
   Ansible source. Keep same-Namespace reference enforcement and runtime blocked.
 - [x] Promote the exact guarded
   [Infisical idle closure](../../runbooks/infisical-operator-bootstrap.md): six
-  namespaced CRDs with hash mapping, native same-Namespace admission, three manager
+  namespaced CRDs with hash mapping, native same-Namespace admission, five manager
   Roles, metrics-off digest-pinned controller, authenticated TLS Squid, proxy-only
-  NetworkPolicy, 40-object action guard, and dedicated check/apply wrapper. Commit no
-  Secret value, Infisical CR, PROD scope, or self-hosted server (`KIF-005`,
+  NetworkPolicy, 44-object action guard, and dedicated check/apply wrapper. Commit no
+  Secret value, Infisical CR, PROD value/workload, or self-hosted server (`KIF-005`,
   `KIF-013`–`KIF-016`, `KIF-021`, `KIF-023`, `KIF-030`).
 - [x] Add the separate source-only
   [Infisical Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md): one same-Namespace
@@ -291,11 +292,17 @@ entry gate.
   values, sync, and live checks remain **NOT RUN/BLOCKED** (`KIF-INF-06`).
 - [x] Add the separate source-only
   [Infisical database Secret materialization seam](../../runbooks/infisical-database-secret-materialization.md): exactly 15 value-free objects for one shared Connection, separate PostgreSQL/MongoDB Auth and Universal Auth identities, two StaticSecrets, eight namespace-scoped fail-closed VAP/bindings, and additive Secret-writer RBAC. Freeze eleven engine/per-consumer target Secret contracts, byte/canonical/identity hashes, and action-only/internal/task-selection negatives. Runtime, credential values, check/apply, sync, rotation, and recovery remain **NOT RUN/BLOCKED** (`KIF-INF-07`).
+- [x] Expand the source-only closure for `cristexhub-prod`: add the exact DEV-semantic
+  manager Role/RoleBinding, extend the controller watch list and all six generic
+  admission allowlists, refresh every byte/canonical hash and count guard, and update
+  focused offline evidence. No runtime apply, Namespace creation, value, Secret,
+  workload, provider, Kubernetes, or Infisical operation was performed (`KIF-INF-04`).
 - [ ] Complete broader live admission/RBAC/traffic negatives before Universal Auth.
   Guarded Drive transfer/readback, controller verification, exact three proxy Secrets,
   and Infisical Operator check/first apply/idempotence now pass. Final Operator results
   are `ok=24 changed=2`, `ok=29 changed=2`, and `ok=29 changed=0`; both Deployments
-  became Available and exact 40-object post-state passed (`KIF-005`,
+  became Available for the preceding closure; expanded 44-object runtime post-state
+  and idempotence remain blocked (`KIF-005`,
   `KIF-013`–`KIF-016`, `KIF-021`, `KIF-023`, `KIF-027`, `KIF-030`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare/Keycloak
   secret-zero sequence (`KIF-014`, `KIF-015`).

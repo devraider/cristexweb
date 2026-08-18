@@ -7,7 +7,7 @@ Kubernetes Operator `v0.11.7`. It has not contacted a host, Kubernetes API,
 Infisical account, registry, or Secret store. It adds no committed or runtime Secret value, credential, Argo Application,
 workload, route, PVC, database, or runtime approval. The protected source-only
 value lane generates/uploads the database administrator/TLS and seven logical-
-consumer values, but that lane and the Operator's 40-object idle closure remain
+consumer values, but that lane and the Operator's 44-object source closure remain
 runtime-unrun and **NOT RUN/BLOCKED**.
 
 The seam has exactly 15 Ansible-owned value-free objects:

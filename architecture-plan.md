@@ -144,10 +144,11 @@ and image tag were not observed during the bounded capture, from the version-ali
 `v0.11.7` set. The completed `shared-services` Namespace and the
 [implementation profile](runbooks/infisical-operator-implementation-profile.md) bind
 the official controller commit. The guarded
-[idle bootstrap](runbooks/infisical-operator-bootstrap.md) promotes a 40-object,
+[idle bootstrap](runbooks/infisical-operator-bootstrap.md) promotes a 44-object,
 value-free closure with six namespaced CRDs, native same-Namespace admission, exact
-three-Namespace RBAC/cache, metrics off, no ClusterGenerator privilege, one
-authenticated TLS proxy, and proxy-only Operator egress. The full source archive is
+five-Namespace RBAC/cache including source-only `cristexhub-prod`, metrics off, no
+ClusterGenerator privilege, one authenticated TLS proxy, and proxy-only Operator
+egress. The full source archive is
 quarantined evidence only and is not an operational input. Runtime remains **NOT
 RUN/BLOCKED** until exact recovered proxy Secrets, check/apply/idempotence, live
 admission, image, RBAC, and traffic proof pass. No runtime Infisical CR, Universal
@@ -560,8 +561,9 @@ verification must meet the declared RPO/RTO before PROD.
   [privileged-prerequisites inventory](runbooks/infisical-operator-privileged-prerequisites-design.md)
   remains historical evidence. The [implementation profile](runbooks/infisical-operator-implementation-profile.md)
   quarantines the archive, while the separate guarded
-  [bootstrap closure](runbooks/infisical-operator-bootstrap.md) promotes exactly 40
-  reviewed value-free objects and one non-passthrough Ansible path. Same-Namespace
+  [bootstrap closure](runbooks/infisical-operator-bootstrap.md) promotes exactly 44
+  reviewed value-free objects and one non-passthrough Ansible path; its PROD watch/RBAC
+  expansion remains source-only and is not applied. Same-Namespace
   admission source, exact RBAC, proxy image/config, and deployable source gates are
   selected. Live CRD/CEL admission, proxy Secret recovery, image behavior, traffic,
   check/apply/idempotence, Universal Auth, and runtime remain blocked/unrun.

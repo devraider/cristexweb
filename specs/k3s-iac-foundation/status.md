@@ -256,15 +256,20 @@ note: |
   [privileged-prerequisites inventory](../../runbooks/infisical-operator-privileged-prerequisites-design.md)
   remain historical evidence. The
   [implementation profile](../../runbooks/infisical-operator-implementation-profile.md)
-  binds the official controller source and selected three-Namespace, Universal Auth,
-  metrics-off, no-ClusterGenerator, proxy, recovery, and ConfigMap-proof profile.
+  binds the official controller source and selected five-Namespace source-only watch,
+  Universal Auth, metrics-off, no-ClusterGenerator, proxy, recovery, and ConfigMap-proof
+  profile.
   The quarantined source archive remains forbidden as an operational input.
   The separate guarded
   [bootstrap closure](../../runbooks/infisical-operator-bootstrap.md) now contains six
   hash-mapped namespaced CRDs, six fail-closed admission policies and bindings,
-  exact three-Namespace RBAC, one metrics-off digest-pinned controller, authenticated
-  TLS Squid, eight NetworkPolicies, and a 40-object action guard. The idle closure
-  remains free of Secrets and Infisical CRs. A separate source-only
+  exact five-Namespace RBAC, one metrics-off digest-pinned controller, authenticated
+  TLS Squid, eight NetworkPolicies, and a 44-object action guard. The idle closure
+  remains free of Secrets and Infisical CRs. The source-only PROD watch expansion
+  adds only the exact `cristexhub-prod` manager Role/RoleBinding, controller watch
+  entry, and six namespace allowlist entries; no Namespace, value, Secret, Infisical
+  CR, workload, provider, Kubernetes, or Infisical operation was run. A separate
+  source-only
   [Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md)
   freezes one same-Namespace Universal Auth reference, one
   Connection/Auth/StaticSecret closure, exactly three orphaned targets, additive

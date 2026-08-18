@@ -4,35 +4,44 @@
 
 This runbook installs only the Infisical Kubernetes Operator client and its separate
 authenticated egress proxy. Infisical Cloud remains the server and value owner. No
-self-hosted Infisical server, database, PVC, public Service, route, PROD scope, or
-credential value exists in committed source.
+self-hosted Infisical server, database, PVC, public Service, route, PROD value,
+workload, or runtime scope exists in committed source.
 
-The guarded source contains exactly 40 objects:
+The guarded source contains exactly 44 objects:
 
 - six complete namespaced CRDs promoted from chart `0.11.7` with SHA-256 mapping;
 - six fail-closed ValidatingAdmissionPolicies and six bindings;
-- two ServiceAccounts, four Roles, and four RoleBindings;
+- two ServiceAccounts, six Roles (one leader-election and five manager Roles), and six RoleBindings;
 - one Squid ConfigMap, one ClusterIP Service, and one proxy Deployment;
 - one Operator Deployment; and
 - eight NetworkPolicies.
 
 `MANIFESTS.sha256` and the action-plugin canonical object map bind the complete
 closure. ClusterGenerator, component-authored Secrets, ClusterRoles,
-ClusterRoleBindings, metrics Services, ServiceMonitors, Ingress, routes, PVCs, and
-PROD objects are absent.
+ClusterRoleBindings, metrics Services, ServiceMonitors, Ingress, routes, PVCs, PROD
+values, PROD workloads, and PROD Infisical custom resources are absent.
 
-## Runtime status
+## Baseline runtime status
 
-**CHECK/APPLY/IDEMPOTENCE PASSED.** After exact proxy Secret recovery, two checks
+**CHECK/APPLY/IDEMPOTENCE PASSED for the preceding closure.** After exact proxy Secret recovery, two checks
 stopped before mutation on literal hash-map keys (`ok=5 changed=0`) and string-valued
-approval (`ok=20 changed=0`). Reviewed fixes use 40 exact relative hash keys and JSON
+approval (`ok=20 changed=0`). Reviewed fixes use exact relative hash keys and JSON
 boolean approval. Final check passed `ok=24 changed=2 failed=0`; first apply passed
 `ok=29 changed=2 failed=0`; idempotence passed `ok=29 changed=0 failed=0`. All six
-CRDs became Established, all 40 exact post-state labels passed, both Deployments
+CRDs became Established, all exact post-state labels passed, both Deployments
 became Available, and k3s/Tailscale remained healthy. Broader live admission,
-negative RBAC, and proxy-traffic acceptance remain pending. No Infisical CR,
-Universal Auth credential, database Secret, database, PVC, or public route was
-created by this checkpoint.
+negative RBAC, and proxy-traffic acceptance remain pending. No Infisical CR, Universal Auth credential, database Secret, database, PVC, or
+public route was created by this checkpoint. That historical runtime evidence does
+not apply the source-only PROD watch expansion below.
+
+## Source-only PROD watch expansion
+
+**SOURCE-ONLY PASS — RUNTIME NOT RUN/BLOCKED.** The 44-object source now includes
+`cristexhub-prod` in the controller watch list, an exact namespaced manager
+Role/RoleBinding semantically cloned from DEV, and all six generic admission
+allowlists. This increment contacted no Kubernetes API, provider, or Infisical API;
+it created no Namespace, Secret, Infisical custom resource, value, workload, PVC,
+route, or PROD runtime. Applying the expanded closure remains separately gated.
 
 ## Required proxy secret-zero inputs
 
@@ -76,13 +85,14 @@ value has been bootstrapped.
 ## Source and admission behavior
 
 The Operator runs in `shared-services`, watches exactly `shared-services`, `argocd`,
-and `cristexhub-dev`, and excludes PROD. Metrics bind to `0`; no metrics Service or
-authorization exists. The single ServiceAccount receives only three namespaced
-manager Roles and one leader-election Role. TokenReview, SubjectAccessReview,
-service-account token creation, aggregate user roles, manager cluster access,
-ClusterGenerator, workload reload, Secret mutation, and ConfigMap mutation are absent
-from this idle closure. The separate non-sensitive proof must add only its required
-`cristexhub-dev` target permissions after its exact source is reviewed.
+`cristexhub-dev`, `cristexhub-prod`, and `platform-edge`; this is a source-only watch
+expansion and does not activate PROD values or workloads. Metrics bind to `0`; no
+metrics Service or authorization exists. The single ServiceAccount receives only
+five namespaced manager Roles and one leader-election Role. TokenReview,
+SubjectAccessReview, service-account token creation, aggregate user roles, manager
+cluster access, ClusterGenerator, workload reload, Secret mutation, and ConfigMap
+mutation are absent from this idle closure. The separate DEV/PROD runtime proofs
+must add only their reviewed target permissions after exact source review.
 
 The six admission policies use `failurePolicy: Fail` and `Deny` on CREATE/UPDATE.
 They require Universal Auth, exact or default `https://app.infisical.com/api`, and
@@ -146,7 +156,7 @@ object at the mutation boundary.
 
 Check performs preflight and predicts exact changes but requires the real proxy Secret
 metadata; it never creates a placeholder. First apply installs CRDs, waits for
-Established, then applies only the remaining 34 objects and waits for both Deployments
+Established, then applies only the remaining 38 objects and waits for both Deployments
 to become Available. Idempotence is a separate invocation and must finish with
 `changed=0`.
 
@@ -165,7 +175,7 @@ Secrets and its independent runtime gates are approved.
    paths, ownership, and unchanged k3s/Tailscale; host OAuth and encrypted transfer
    prove immutable Drive upload/readback and exact controller decrypt without moving
    the age identity or plaintext to the host.
-2. Check predicts only the 40 Operator source objects and mutates nothing.
+2. Check predicts only the 44 Operator source objects and mutates nothing.
 3. Six CRDs are Established with exact served/storage versions; ClusterGenerator is
    absent.
 4. Six policies and bindings are admitted without warnings; same-Namespace positive
@@ -178,7 +188,7 @@ Secrets and its independent runtime gates are approved.
 7. Operator DNS/API/proxy flows succeed. Direct public 443, proxy use by unrelated
    pods, unauthenticated/wrong-auth proxy use, wrong host/port, IP literal, and private
    destinations fail.
-8. k3s and Tailscale remain running; all four Namespace UIDs/labels/phases remain
+8. k3s and Tailscale remain running; all five watched Namespace UIDs/labels/phases remain
    unchanged.
 9. A second apply returns `changed=0` and the exact inventory/writers remain stable.
 10. Only afterward may the separate Universal Auth/value lane recover/write the

@@ -493,8 +493,8 @@ Keycloak, and privileged CRD/cluster-RBAC prerequisites. Exact executable Namesp
 source exists for completed Namespaces. The
 [Infisical implementation profile](../runbooks/infisical-operator-implementation-profile.md)
 remains canonical policy, and a dedicated guarded [Infisical bootstrap](../runbooks/infisical-operator-bootstrap.md) now promotes the
-exact 40-object idle closure: six namespaced CRDs, fail-closed same-Namespace
-admission, least-privilege namespaced RBAC, one metrics-off controller, authenticated
+exact 44-object idle closure: six namespaced CRDs, fail-closed same-Namespace
+admission for five reviewed namespaces, least-privilege namespaced RBAC, one metrics-off controller, authenticated
 TLS Squid, and eight NetworkPolicies. The archive remains quarantined evidence and is
 never consumed at runtime. No Secret value or runtime Infisical CR exists. Runtime is
 unrun and the wrapper fails before mutation until exact separately recovered proxy

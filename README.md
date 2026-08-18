@@ -141,8 +141,10 @@ reading values. An unused debug-exposed age identity was revoked/regenerated bef
 upload/Kubernetes. The hardened retry proved cleanup, encrypted-pending resume and a
 Keychain copy, confirmed zero Kubernetes Secrets, then stopped on the same expired
 controller OAuth. That transfer path is superseded: guarded host transfer/readback and exact
-`drive-verified` now pass; exactly three proxy bootstrap Secrets exist. The 40-object
-idle Infisical Operator/proxy closure passed check/apply/idempotence and is Available.
+`drive-verified` now pass; exactly three proxy bootstrap Secrets exist. The prior
+42-object Infisical Operator/proxy closure passed check/apply/idempotence and is
+Available; the source-only expansion now binds a 44-object, five-namespace closure
+without runtime apply.
 No Infisical CR, Universal Auth value, application/database Secret, Kubernetes or
 application PROD scope, or self-hosted Infisical server exists at runtime. The fixed
 Infisical Cloud environment slug `prod` is only a licensing-constrained source
@@ -232,7 +234,7 @@ gateway remain in the separate CristexHub application repository.
 19. [`runbooks/infisical-operator-release-selection.md`](runbooks/infisical-operator-release-selection.md) — `v0.11.7` source-baseline and Universal Auth boundary.
 20. [`runbooks/infisical-operator-privileged-prerequisites-design.md`](runbooks/infisical-operator-privileged-prerequisites-design.md) — inert seven-CRD/RBAC observation and promotion-gate inventory; not deployable source.
 21. [`runbooks/infisical-operator-implementation-profile.md`](runbooks/infisical-operator-implementation-profile.md) — commit-bound controller audit and selected watch/identity/egress/secret-zero profile.
-22. [`runbooks/infisical-operator-bootstrap.md`](runbooks/infisical-operator-bootstrap.md) — guarded 40-object idle closure, proxy Secret prerequisites, validation, and rollback.
+22. [`runbooks/infisical-operator-bootstrap.md`](runbooks/infisical-operator-bootstrap.md) — guarded 44-object, five-namespace idle closure, proxy Secret prerequisites, validation, and rollback.
 23. [`runbooks/infisical-argocd-secret-materialization.md`](runbooks/infisical-argocd-secret-materialization.md) — exact value-free Infisical-to-Argo Secret seam and blocked runtime gates.
 24. [`runbooks/infisical-database-secret-materialization.md`](runbooks/infisical-database-secret-materialization.md) — exact value-free Infisical database Secret seam, scoped admission, and blocked runtime gates.
 25. [`runbooks/infisical-universal-auth-value-lane.md`](runbooks/infisical-universal-auth-value-lane.md) — protected value generation/upload contracts and Secret-at-rest recovery gate.

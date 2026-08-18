@@ -5,11 +5,12 @@
 **GUARDED IDLE SOURCE READY — RUNTIME NOT RUN/BLOCKED.**
 
 The repository now promotes an exact value-free Infisical Kubernetes Operator
-`v0.11.7` idle closure. It contains 40 hash-bound objects under
+`v0.11.7` idle closure. It contains 44 hash-bound objects under
 `ansible/files/components/infisical-operator`, a dedicated present-only guarded
 Ansible entrypoint, six native same-Namespace admission policies, and an authenticated
 TLS Squid proxy. It does not deploy Infisical Cloud itself. No credential value,
-Infisical custom resource, PROD scope, route, or external resource is added. Runtime
+Infisical custom resource, PROD workload, route, or external resource is added. The
+source-only `cristexhub-prod` watch/RBAC expansion is not a runtime apply; runtime
 still requires the separately created proxy bootstrap Secrets and guarded check,
 first apply, and idempotence evidence.
 
@@ -54,18 +55,22 @@ permission error stops the bootstrap instead of authorizing wildcard widening.
 ## Namespace and secret-scope model
 
 The controller will run in `shared-services` and its exact initial namespace cache is
-`shared-services`, `argocd`, and `cristexhub-dev`. `cristexhub-prod` remains absent and
-unwatched. An empty, wildcard, cluster-wide, or silently expanded cache is forbidden.
+`shared-services`, `argocd`, `cristexhub-dev`, `cristexhub-prod`, and `platform-edge`.
+The PROD cache/RBAC/admission entries are source-only and do not create a Namespace,
+credential, workload, route, or runtime. An empty, wildcard, cluster-wide, or
+silently expanded cache is forbidden.
 
 Every watched Namespace has a separate identity and credential scope:
 
 - platform shared services use only the `shared-services` logical scope;
-- Argo CD uses only the `argocd` logical scope; and
-- the DEV application uses only the `cristexhub-dev` logical scope.
+- Argo CD uses only the `argocd` logical scope;
+- the DEV application uses only the `cristexhub-dev` logical scope;
+- the PROD application reserves only the `cristexhub-prod` logical scope; and
+- edge infrastructure uses only the `platform-edge` logical scope.
 
 The selected intent is that credentials are never shared between these scopes. The
 stock APIs permit explicit Namespace fields, while one controller ServiceAccount can
-read all three watched Namespaces; namespaced Roles alone therefore cannot prevent a
+read all five watched Namespaces; namespaced Roles alone therefore cannot prevent a
 CR author from referencing another watched Namespace's auth, connection, credential,
 source, or target. Six `admissionregistration.k8s.io/v1` ValidatingAdmissionPolicies and bindings now
 enforce Universal Auth, exact Infisical Cloud API use, same-Namespace auth,
@@ -74,8 +79,8 @@ references with `failurePolicy: Fail` and `Deny`. Restricted CR authorship remai
 mandatory. Kubernetes 1.36 admission and negative cross-Namespace runtime tests are
 still required before logical identity names become proven isolation. Future components inside `shared-services` still require
 separate reviewed sub-scopes and permissions; the Namespace-level identity is not
-wildcard admission for databases, Keycloak, RabbitMQ, or any later consumer. PROD requires a new exact identity, source change, isolation
-proof, and technical review before it can be watched.
+wildcard admission for databases, Keycloak, RabbitMQ, or any later consumer. PROD
+values, workloads, and promotion remain separately gated.
 
 ## Controller and CRD direction
 
@@ -152,7 +157,7 @@ Dual reconciliation and Git-authored generated Secrets are forbidden.
 The required order is now: install and attest pinned host rclone; complete interactive
 non-root host OAuth; transfer/read back and controller-verify the existing encrypted
 pending proxy bundle; create and recover the three proxy bootstrap Secrets; run the
-dedicated guarded check; review its exact 40-object prediction; run first apply
+dedicated guarded check; review its exact 44-object prediction; run first apply
 and idempotence; prove admission, negative RBAC, proxy-only egress, and idle health;
 establish separate Infisical Universal Auth recovery; then perform one non-sensitive
 ConfigMap sync. Failure never widens RBAC, egress, watch scope, or credential sharing.

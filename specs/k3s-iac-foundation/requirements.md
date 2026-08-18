@@ -170,7 +170,7 @@ exact watch/separate-identity intent, metrics, ClusterGenerator, authenticated-p
 secret-zero, and ConfigMap-proof choices to KIF-005 and KIF-013 through KIF-016.
 Foundation Namespace, source-audit, technical-profile, native same-Namespace
 admission source, proxy image/config, and guarded deployable-source gates are now
-evidenced by the exact 40-object
+evidenced by the exact 44-object, five-namespace source-only
 [bootstrap closure](../../runbooks/infisical-operator-bootstrap.md). Live CRD/CEL
 admission, proxy Secret recovery, image behavior, RBAC/traffic negatives,
 check/apply/idempotence, Universal Auth, and runtime remain closed. A separate

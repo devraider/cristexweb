@@ -560,13 +560,13 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             )
             self.assertNotEqual(0, result.returncode)
 
-    def test_source_contains_no_secret_values_and_idle_closure_remains_40_objects(self) -> None:
+    def test_source_contains_no_secret_values_and_idle_closure_remains_44_objects(self) -> None:
         text = "\n".join(path.read_text() for path in COMPONENT.rglob("*") if path.is_file())
         for forbidden in ("BEGIN PRIVATE KEY", "clientSecret:", "stringData:", "data:\n  auth:"):
             self.assertNotIn(forbidden, text)
         self.assertFalse(any(obj["kind"] == "Secret" for obj in self.objects))
         idle = ROOT / "ansible/files/components/infisical-operator"
-        self.assertEqual(42, len(list(idle.rglob("*.yaml"))))
+        self.assertEqual(44, len(list(idle.rglob("*.yaml"))))
         self.assertIn("runtime remains **NOT RUN/BLOCKED**", (ROOT / "runbooks/infisical-argocd-secret-materialization.md").read_text())
 
 
