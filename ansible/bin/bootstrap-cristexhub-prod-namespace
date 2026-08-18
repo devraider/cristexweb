@@ -49,8 +49,7 @@ set -- \
   playbooks/bootstrap_cristexhub_prod_namespace.yml \
   --diff \
   --limit crtxweb \
-  --extra-vars '{"cristexhub_prod_namespace_bootstrap_approved":true}' \
-  --ask-become-pass
+  --extra-vars '{"cristexhub_prod_namespace_bootstrap_approved":true}'
 if [ "$mode" = check ]; then
   set -- "$@" --check
 fi

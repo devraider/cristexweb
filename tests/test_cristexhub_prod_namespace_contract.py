@@ -114,7 +114,7 @@ metadata:
 - name: Bootstrap the approved CristexHub PROD Namespace
   hosts: k3s_servers
   gather_facts: false
-  become: true
+  become: false
   any_errors_fatal: true
   serial: 1
 
@@ -252,11 +252,12 @@ metadata:
             "{\"cristexhub_prod_namespace_bootstrap_approved\":true}",
             "--diff",
             "--limit crtxweb",
-            "--ask-become-pass",
             'set -- "$@" --check',
             "trap cleanup EXIT HUP INT TERM",
         ):
             self.assertIn(required, self.entrypoint)
+        self.assertNotIn("--ask-become-pass", self.entrypoint)
+        self.assertNotIn("--become", self.entrypoint)
         self.assertNotIn("uv run", self.entrypoint)
         execution_lines = "\n".join(
             line

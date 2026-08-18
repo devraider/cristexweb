@@ -55,9 +55,11 @@ ancestors, and matching SHA-256 before any mutation-capable task.
 `ansible/bin/bootstrap-cristexhub-prod-namespace` is the sole entrypoint. It
 accepts exactly one argument, `check` or `apply`; it does not pass through task
 selection, tags, extra arguments, or alternate playbooks. It uses the ignored
-inventory, the exact `crtxweb` limit, `--diff`, `--ask-become-pass`, and the pinned
-repository `.venv` Ansible controller under an `env -i` allowlist. It generates a
-private random mode-`0600` single-run attestation and removes it on exit.
+inventory, the exact `crtxweb` limit, `--diff`, and the pinned repository `.venv`
+Ansible controller under an `env -i` allowlist. It deliberately does not request
+sudo: the operator's existing `k3s-admin` group reads the protected kubeconfig, and
+service discovery is read-only and unprivileged. It generates a private random
+mode-`0600` single-run attestation and removes it on exit.
 
 The role fails closed unless the wrapper attestation is present, regular,
 non-symlinked, controller-owned, mode `0600`, and contains the matching token
