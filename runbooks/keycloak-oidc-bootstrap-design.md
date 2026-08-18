@@ -69,18 +69,30 @@ The exact value-free policy source is
 `ansible/files/policies/hosted-identity-authorization.yml`. It is neither a realm
 import nor a Kubernetes object. Client IDs are `cristexhub-dev`, `cristexhub-prod`,
 `reactive-resume-dev`, `reactive-resume-prod`, `argocd`,
-`cristexhub-admin-svc-dev`, and `cristexhub-admin-svc-prod`. Every browser client is
-inactive until an exact callback/origin is selected; no hostname or route is
-invented.
+`cristexhub-admin-svc-dev`, and `cristexhub-admin-svc-prod`.
 
-Dynamic organization role groups use the exact templates
-`cristexhub-dev-<organization-alias>-<role>` and
-`cristexhub-prod-<organization-alias>-<role>` for roles `admin`, `hr`, `viewer`, and
-`interviewer`. Environment super-administrator groups are
-`cristexhub-dev-super-admin` and `cristexhub-prod-super-admin`. Missing or ambiguous
-role groups deny access. The application owns dynamic Organizations, memberships,
-and organization role groups; Ansible owns static realm settings, client/mappers,
-and the static Argo groups.
+The CristexHub browser contracts are now selected without selecting runtime. DEV
+remains bound to `https://dev-hub.cristex-soft.com` and PROD is bound only to
+`https://hub.cristex-soft.com`. The `cristexhub-prod` client is confidential, uses
+PKCE `S256`, and permits exactly this callback:
+`https://hub.cristex-soft.com/oauth2/callback`. Its only web origin is
+`https://hub.cristex-soft.com` and its only post-logout redirect is
+`https://hub.cristex-soft.com/`. The client secret is an Infisical-owned value at
+`prod:/shared-services/keycloak`, represented only by the key name
+`CRISTEXHUB_PROD_OIDC_CLIENT_SECRET`; no value is present here. Reactive Resume and
+Argo CD browser clients remain inactive until their own exact private callbacks and
+origins are selected; no hostname or route is invented.
+
+The PROD client is environment-bound to the exact role-group template
+`cristexhub-prod-<organization-alias>-<role>` and super-administrator group
+`cristexhub-prod-super-admin`; DEV uses the corresponding `cristexhub-dev-*`
+groups. The claims contract emits roles from `groups` and organizations from
+`organization`, requires `sub`, `email`, `email_verified`, and
+`preferred_username`, and does not use full group paths. Missing, unverified,
+ambiguous, or cross-environment group claims fail closed; the policy's canonical
+missing/ambiguous decision is `deny`. The application owns dynamic Organizations,
+memberships, and organization role groups; Ansible owns static realm settings,
+client/mappers, and the static Argo groups.
 
 Namespace trust is explicit: `platform-edge` is reserved for cloudflared only;
 `shared-services` contains the Infisical Cloud Operator, a separate Keycloak
@@ -89,7 +101,11 @@ receives only its
 materialized OIDC client value; and `cristexhub-dev` and `cristexhub-prod` receive
 only their own environment identities. Keycloak receives a dedicated logical
 database, dedicated owner role, and dedicated credential values inside that shared
-PostgreSQL engine. DEV and PROD credentials must never cross.
+PostgreSQL engine. DEV and PROD credentials must never cross. Selecting the PROD
+browser contract does not create or activate `cristexhub-prod`, publish a route, or
+change the private DEV boundary. The two administrative service clients remain
+`browser_flow_allowed: false`; Keycloak administration, management, health, and
+metrics remain private.
 
 ## External application-asset boundary
 
@@ -155,9 +171,11 @@ The selected production issuer,
 the first accepted login. Every callback, certificate, DNS, proxy-header trust, and
 Traefik configuration must use it. A
 session-local or development issuer cannot later be substituted without token and
-client breakage. The Argo callback must match the future private administration URL
-exactly, while CristexHub and Reactive Resume receive separate exact clients and
-callbacks.
+client breakage. The CristexHub PROD callback is the exact
+`https://hub.cristex-soft.com/oauth2/callback` contract above, while DEV uses its
+separate exact callback. The Argo callback must match the future private
+administration URL exactly, and Reactive Resume receives a separate exact client
+and callback when that contract is selected.
 
 Keycloak administration and its management health/metrics surface remain private.
 The management listener receives no public Service, Ingress, Tunnel route, or public
@@ -258,8 +276,9 @@ acceptance.
 - Keycloak and PostgreSQL image trust, SBOM/vulnerability disposition, and off-node
   OCI recovery for the selected children;
 - storage placement, resource budget, backup identity, retention, and RPO/RTO;
-- exact client callbacks/origins, TLS source, proxy trust, and later browser-auth
-  route for the selected stable issuer;
+- Reactive Resume and Argo client callbacks/origins, TLS source, proxy trust, and
+  the later browser-auth route for the selected stable issuer (the CristexHub DEV
+  and PROD callback/origin contracts are source-selected above);
 - completed foundation Namespace check/first-apply/idempotence evidence;
 - Infisical Operator scoped RBAC, Universal Auth recovery, and exact target scope;
 - exact realm/client reconciliation implementation and runtime negative tests for

@@ -57,6 +57,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-ARGO-02 | KIF-005, KIF-008, KIF-010, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Argo CD online/static readiness refresh | A secret-free record curates deterministic render, upstream API registration, RBAC/network, image trust/availability/vulnerability, private-Git, and Namespace-adoption evidence while all live admission/runtime gates remain blocked | PASS — focused provenance contracts preserve the 44-document render and security blockers; no values, rendered YAML, Kubernetes object, credential, or deployable controller source was added |
 | KIF-ARGO-03 | KIF-002, KIF-003, KIF-005, KIF-008, KIF-010, KIF-013–KIF-015, KIF-021, KIF-030 | Historical Argo CD source-only hardened-design checkpoint | At that checkpoint, a secret-free design fixed private access, retained quiescent ApplicationSet, supplemental default-deny, phased least privilege, private Git/secret custody, adoption, stop/rollback, and ownership without deployable source | PASS HISTORICAL/SUPERSEDED — the checkpoint was valid when recorded; current guarded cases KIF-ARGO-04 through KIF-ARGO-10 implement an exact private core with ApplicationSet runtime absent while runtime remains blocked |
 | KIF-IDP-01 | KIF-002, KIF-003, KIF-005, KIF-010, KIF-012–KIF-017, KIF-021, KIF-023, KIF-026–KIF-030 | Source-only Ansible bootstrap and Keycloak OIDC architecture | Ansible is the selected bounded bootstrap installer and privileged lifecycle owner with no dual reconciliation; direct Argo OIDC separates Keycloak authentication/groups, Argo RBAC, and Kubernetes RBAC while preserving private administration, Infisical-owned values, a dedicated Keycloak logical database/role on the general shared PostgreSQL engine, stable issuer, exact approvals, and handoff gates | PASS — Keycloak `26.7.1`, PostgreSQL `17.10`, realm, issuer, clients, group templates, default theme, separate deployment, and shared-engine isolation policy are selected only for offline authoring; no executable component source, credential, route, or runtime was added |
+| KIF-IDP-02 | KIF-005, KIF-010–KIF-015, KIF-021, KIF-025, KIF-030 | CristexHub PROD browser identity source contract | The value-free policy selects confidential client `cristexhub-prod` with PKCE S256, the stable `cristexhub` issuer, exact callback/origin/post-logout URLs for `hub.cristex-soft.com`, environment-bound PROD groups, and fail-closed claims while preserving DEV and administrative privacy | PASS SOURCE-ONLY — 18 focused policy/design tests pass; the PROD client secret remains an Infisical-owned key name only, Reactive Resume/Argo callbacks remain unselected, no route or runtime activation is authorized, and no Keycloak/API/provider operation ran |
 | KIF-DB-01 | KIF-005, KIF-013, KIF-016–KIF-019, KIF-021, KIF-026–KIF-030 | Shared database source-only architecture | One PostgreSQL and one MongoDB engine are placed in `shared-services`; exact consumers remain isolated and the approved source profile fixes NVMe `local-path`, 40/80 GiB PVCs, bounded resources, private standard Services/TLS, Ansible→Argo ownership direction, and daily/14-day/24h/4h backup targets | PASS SOURCE-ONLY — exact consumer/profile contracts pass; PostgreSQL keeps its selected-but-untrusted baseline, MongoDB now has a selected offline `8.0.28` digest and intentionally standalone non-authoritative source closure, all runtime/trust/recovery/authorization/replica-set/transaction/HA/authoritative-data gates remain open, and no live database operation was added |
 | KIF-MQ-01 | KIF-005, KIF-013, KIF-016, KIF-019–KIF-021, KIF-026–KIF-030 | Shared RabbitMQ source-only architecture | Exactly one future RabbitMQ engine belongs in `shared-services`; DEV/PROD have dedicated vhost/user/Infisical credential/permission/limit/recovery scopes, deny-first cross-vhost/admin/public-management rules, and future consumers require reviewed exact changes | PASS SOURCE-ONLY — canonical value-free policy/runbook and fail-closed contracts pass; image/topology/storage/ports/resources/TLS/NetworkPolicy/restore/runtime remain unselected and no executable source was added |
 | KIF-BKP-01 | KIF-005, KIF-013, KIF-017–KIF-020, KIF-026–KIF-030 | Shared stateful backup access architecture | PostgreSQL, MongoDB, and RabbitMQ use encrypted timestamped separate-purpose archives, private authenticated metadata/list/retrieve/verify access, non-destructive off-node copy, integrity and isolated restore; RabbitMQ definitions remain distinct from queued-message recovery | PASS SOURCE-ONLY — daily archives, 14-day local/off-node retention, RPO 24h, and RTO 4h are fixed; pinned host rclone `1.71.1` replaces the container direction and its install/idempotence pass, but identities, staging, credentials, dumps, jobs, schedules, deletion, restore, and runtime remain blocked |
@@ -77,7 +78,42 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-SRC-01 | KIF-005, KIF-010, KIF-013–KIF-015, KIF-023, KIF-030 | Deterministic hosted source-baseline closure | Exact release records, value-free identity/authorization policy, chart/provenance/public-key bytes, SHA256SUMS, safe chart roots, exact four-Namespace manifest closure, and exact allowlisted component source are enforced offline | PASS — source-selection plus affected provenance/design/layout contracts pass; exact hashes verified; no live/runtime operation or staged file |
 | KIF-NS-04 | KIF-002, KIF-003, KIF-005, KIF-013–KIF-017, KIF-021, KIF-026–KIF-030 | Shared-services placement correction | Replace never-run `platform-secrets`/`platform-identity` source with one exact present-only `shared-services` Namespace; reserve `platform-edge` for cloudflared; place Infisical Operator, separate Keycloak, and one general PostgreSQL instance in commons intent; give Keycloak only a dedicated logical database/role/credential on that engine | PASS — 78 focused and 115 full offline tests, 9 syntax checks, production lint, fail-closed fixtures, archive hashes, links, closure, hygiene, and historical-source preservation passed; no discovery, check, apply, deletion, workload, Secret, database, route, or runtime operation |
 | KIF-NS-05 | KIF-002, KIF-005, KIF-016, KIF-030 | Shared-services Namespace runtime | A successful wrapper check predicts only the absent exact `shared-services` Namespace; separately approved first apply creates/verifies it; separately approved idempotence converges at changed=0 | PASS — check retry passed at `ok=20 changed=1 failed=0`; first apply passed at `ok=22 changed=1 failed=0`; separately approved idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact identity/three labels/`Active` and k3s/Tailscale health preserved. No component was deployed |
-| KIF-NS-06 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub DEV Namespace source and runtime | Dedicated guarded source reconciles only `cristexhub-dev` with four approved labels and present-only semantics; check predicts only that Namespace without mutation; first apply creates/verifies it; idempotence converges; PROD and all other kinds remain absent | PASS — check passed at `ok=20 changed=1 failed=0 skipped=2`; first apply passed at `ok=22 changed=1 failed=0 skipped=0`; idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact labels/`Active` and service health preserved |
+| KIF-NS-06 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub DEV Namespace source and runtime | Dedicated guarded source reconciles only `cristexhub-dev` with four approved labels and present-only semantics; check predicts only that Namespace without mutation; first apply creates/verifies it; idempotence converges; PROD runtime and all other kinds remain absent | PASS — check passed at `ok=20 changed=1 failed=0 skipped=2`; first apply passed at `ok=22 changed=1 failed=0 skipped=0`; idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact labels/`Active` and service health preserved |
+| KIF-NS-07 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub PROD Namespace source-only bootstrap closure | Dedicated non-passthrough source defines only `cristexhub-prod` with exact four PROD labels, SHA-256 manifest binding, private attestation/preflight binding, foreign-existing refusal, present-only semantics, and no deletion path; wrapper check/apply require separate approvals and remain blocked | PASS SOURCE-ONLY / CHECK-APPLY NOT RUN-BLOCKED — focused offline contract validates the manifest, hash ledger, wrapper, playbook, role, action guard, negative fixtures, runbook, and blocked evidence; no wrapper, kubectl, Ansible operational play, provider command, Secret read, Kubernetes API, or runtime operation was executed |
+
+## CristexHub PROD Namespace source-only validation
+
+Offline-only commands:
+
+```bash
+python3 -m unittest -v tests.test_cristexhub_prod_namespace_contract
+python3 - <<'PY'
+from pathlib import Path
+import yaml
+for path in (
+    Path('kubernetes/applications/namespaces/cristexhub-prod.yaml'),
+    Path('ansible/playbooks/bootstrap_cristexhub_prod_namespace.yml'),
+    Path('ansible/roles/cristexhub_prod_namespace_bootstrap/defaults/main.yml'),
+    Path('ansible/roles/cristexhub_prod_namespace_bootstrap/tasks/main.yml'),
+):
+    yaml.safe_load(path.read_text())
+PY
+python3 -m py_compile \
+  ansible/plugins/action/cristexhub_prod_namespace_guarded_k8s.py \
+  tests/test_cristexhub_prod_namespace_contract.py
+sh -n ansible/bin/bootstrap-cristexhub-prod-namespace \
+  tests/validate_cristexhub_prod_namespace_clean_controller.sh
+bash -n tests/reject_cristexhub_prod_namespace_task_start.sh
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result: **PASS** — 7 focused offline contract tests, YAML parsing, Python
+compile, shell syntax, diff hygiene, and no-staged-files checks. No wrapper,
+kubectl, Ansible operational play, provider command, Secret read, Kubernetes API,
+host mutation, push, or deploy was run. Wrapper check/apply and all runtime,
+PROD validation, and idempotence evidence remain **NOT RUN/BLOCKED** pending
+separate approvals.
 | KIF-MONGO-01 | KIF-002, KIF-005, KIF-018, KIF-021, KIF-023, KIF-030 | Guarded standalone MongoDB source closure | Exact hash-bound manifests define one standalone non-authoritative `shared-mongodb` StatefulSet with the pinned MongoDB digest, one replica, private ClusterIP, tokenless ServiceAccount, retained `80Gi` local-path RWO PVC template, exact resources/probes, no delete path, no Secret values, no public exposure, and default-deny/exact consumer ingress | PASS SOURCE-ONLY — focused source/architecture contracts, syntax, production lint, compile, and diff checks passed; no Secret, host, Kubernetes API, provider, Infisical, or runtime operation was accessed |
 | KIF-MONGO-02 | KIF-002, KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | MongoDB official-entrypoint temporary-init TLS nuance | Final args include `--auth --tlsMode=requireTLS`, `--tlsCertificateKeyFile=/etc/mongodb/tls/tls.pem`, and `--tlsCAFile=/etc/mongodb/tls/ca.crt`; each probe authenticates through environment references without password argv and fails when a plaintext ping succeeds, so temporary loopback `allowTLS` cannot become Ready | PASS SOURCE-ONLY — focused contract checks final args, TLS Secret refs, explicit plaintext-negative probe logic, `allowTLS` documentation, and no plaintext value |
 | KIF-MONGO-03 | KIF-018, KIF-019, KIF-021, KIF-023, KIF-026–KIF-030 | Future MongoDB plaintext/auth/authority negatives | A separately approved private runtime QA must reject plaintext MongoDB connections, invalid CA/hostname, bad credentials, cross-database access, workload user/role administration, and any attempt to claim replica-set transactions or authoritative data from this standalone pod | NOT RUN/BLOCKED — no Secret materialization, Kubernetes apply, client, backup/restore, negative runtime test, replica-set/transaction/HA decision, or authoritative-data acceptance exists |
@@ -4245,3 +4281,62 @@ passed at `ok=22 changed=1 failed=0 skipped=2`; apply passed at
 Ready on the promoted immutable digests with zero new Pod restarts. All 35 migrations,
 including `030` through `035`, are recorded. Public root returned `200` and OIDC
 start returned `302`.
+
+## CristexHub PROD browser identity source-only increment
+
+The value-free hosted identity policy now selects `cristexhub-prod` as a
+confidential PKCE `S256` client for realm `cristexhub`, issuer
+`https://auth.cristex-soft.com/realms/cristexhub`, and only the exact
+`https://hub.cristex-soft.com/oauth2/callback` callback,
+`https://hub.cristex-soft.com` web origin, and
+`https://hub.cristex-soft.com/` post-logout redirect. Its groups are bound to
+`cristexhub-prod-<organization-alias>-<role>` and
+`cristexhub-prod-super-admin`; required identity claims and missing/ambiguous-group
+denial remain fail-closed. The DEV contract and both administrative service
+clients remain private. Reactive Resume and Argo callbacks remain unselected.
+This source increment adds no Keycloak runtime reconciliation, route, Secret value,
+provider operation, or cluster contact.
+
+Offline validation commands:
+
+```text
+python3 -m unittest -v tests.test_hosted_auth_source_selection_contract tests.test_keycloak_oidc_bootstrap_design_contract
+git diff --check
+git diff --cached --quiet
+```
+
+Result: **PASS** — 18 focused policy/design tests, diff check, and no-staged-files
+check passed. Keycloak/API/provider access, Secret access, runtime reconciliation,
+and public-route validation were **NOT RUN**.
+
+## Source-only CristexHub PROD runtime Infisical seam — NOT RUN/BLOCKED
+
+The value-free production seam adapts the DEV contract without sharing names or
+Universal Auth identity. It binds Infisical project
+`cristexweb-infrastructure` / `619656da-14f3-4872-857b-be103cdc5326`, the Cloud
+identifier slug `prod`, exact source `/cristexhub/prod/runtime`, absent target
+Namespace `cristexhub-prod`, independent
+`cristexhub-prod-infisical-auth` and
+`cristexhub-prod-infisical-universal-auth` names, the nine-key
+`cristexhub-prod-runtime` target, and separate
+`cristexhub-prod-ghcr-pull` dockerconfig target. Four namespace-scoped
+fail-closed VAP/binding pairs, additive exact-name writer RBAC, canonical
+manifest/default/action hashes, a guarded non-passthrough wrapper/playbook/role,
+and an offline value-free policy/runbook are committed. No Secret object or
+value is committed.
+
+Offline validation:
+
+```bash
+.venv/bin/python -m unittest -v tests.test_infisical_cristexhub_prod_runtime_contract
+.venv/bin/python -m compileall -q ansible/plugins/action tests
+sh -n ansible/bin/bootstrap-infisical-cristexhub-prod-runtime
+git diff --check
+```
+
+Actual result: focused production seam contracts passed (`7` tests); source
+hashes, shell syntax, Python compilation, and diff checks passed. No
+Infisical API, Kubernetes API, Ansible operational wrapper, Namespace creation,
+Universal Auth value, Secret sync, workload, route, or PROD promotion was run.
+Check/apply, identity materialization, values, and runtime remain
+**NOT RUN/BLOCKED** because the Namespace and identity values are absent.

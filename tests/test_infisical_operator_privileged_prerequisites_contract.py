@@ -258,6 +258,7 @@ class InfisicalPrivilegedPrerequisitesDesignContractTests(unittest.TestCase):
                 "platform/namespaces/platform-edge.yaml",
                 "platform/namespaces/shared-services.yaml",
                 "applications/namespaces/cristexhub-dev.yaml",
+                "applications/namespaces/cristexhub-prod.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))
@@ -293,6 +294,8 @@ class InfisicalPrivilegedPrerequisitesDesignContractTests(unittest.TestCase):
                 "materialize-infisical-cristexhub-dev-runtime",
                 "bootstrap-infisical-cristexhub-dev-runtime",
                 "bootstrap_infisical_cristexhub_dev_runtime.yml",
+                "bootstrap-infisical-cristexhub-prod-runtime",
+                "bootstrap_infisical_cristexhub_prod_runtime.yml",
                 "bootstrap-infisical-cloudflared-secrets",
                 "bootstrap_infisical_cloudflared_secrets.yml",
                 "main.yml",

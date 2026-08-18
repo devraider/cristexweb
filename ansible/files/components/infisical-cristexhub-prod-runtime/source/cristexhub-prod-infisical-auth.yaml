@@ -1,0 +1,23 @@
+apiVersion: secrets.infisical.com/v1beta1
+kind: InfisicalAuth
+metadata:
+  name: cristexhub-prod-infisical-auth
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-cristexhub-prod-runtime
+  namespace: cristexhub-prod
+spec:
+  infisicalConnectionRef:
+    name: infisical-cloud
+    namespace: cristexhub-prod
+  method: universal
+  universal:
+    clientIdRef:
+      name: cristexhub-prod-infisical-universal-auth
+      namespace: cristexhub-prod
+      key: clientId
+    clientSecretRef:
+      name: cristexhub-prod-infisical-universal-auth
+      namespace: cristexhub-prod
+      key: clientSecret

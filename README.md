@@ -51,7 +51,15 @@ without mutation. The first apply passed at
 `ok=22 changed=1 unreachable=0 failed=0 skipped=0`, created/verified the exact
 Namespace and preserved k3s/Tailscale health. Idempotence passed at
 `ok=22 changed=0 unreachable=0 failed=0 skipped=0`; the Namespace checkpoint is
-complete and `cristexhub-prod` remains absent.
+complete and `cristexhub-prod` remains absent. A separate source-only, fail-closed
+[CristexHub PROD runtime Infisical seam](runbooks/infisical-cristexhub-prod-runtime-materialization.md)
+now freezes the exact `/cristexhub/prod/runtime` source, independent PROD Auth and
+Universal Auth names, nine-key `cristexhub-prod-runtime` plus separate
+`cristexhub-prod-ghcr-pull` targets, exact PROD-scoped admission, additive
+least-privilege writer RBAC, manifest/action hashes, and guarded check/apply source.
+The PROD Namespace and Universal Auth values are absent, so its check/apply, sync,
+Secret values, workload, and promotion remain **NOT RUN/BLOCKED**; the fixed
+Infisical `prod` slug remains only a Cloud identifier.
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
 it does not claim a live rename or deletion. No Argo CD, cloudflared, Infisical
 Operator, Keycloak, PostgreSQL, MongoDB, Secret, workload, Service, policy, PVC, or
@@ -136,16 +144,22 @@ sync, target values, and runtime remain **NOT RUN/BLOCKED**. A separate source-o
 freezes one shared Connection, separate PostgreSQL/MongoDB Universal Auth references,
 two StaticSecrets, four stateful-database target contracts, scoped fail-closed VAPs,
 and additive writer RBAC. Its credential Secrets, check/apply, sync, values, and
-runtime remain **NOT RUN/BLOCKED**. A separate source-only
+runtime remain **NOT RUN/BLOCKED**. The separate source-only
+[CristexHub PROD runtime seam](runbooks/infisical-cristexhub-prod-runtime-materialization.md)
+freezes the exact `/cristexhub/prod/runtime` source, independent PROD identity,
+nine-key runtime plus `cristexhub-prod-ghcr-pull` target, exact Namespace-scoped
+VAPs, least-privilege RBAC, hashes, and guarded check/apply source. Its Namespace,
+Universal Auth values, sync, targets, workload, and promotion remain **NOT RUN/BLOCKED**.
+A separate source-only
 [Universal Auth/value lane](runbooks/infisical-universal-auth-value-lane.md) accepts
 protected file inputs only and keeps values out of Git, argv, environment, logs, and
 evidence. Separate guarded [logical database provisioning](runbooks/shared-database-provisioning.md)
 consumes precreated per-consumer Secrets through temporary UID-bound helper Pods;
 all empty reservations and PROD activation remain **NOT RUN/BLOCKED**. No general
 host baseline or deployment exists.
-Python is otherwise test-only; twenty-one exact-scope Ansible action plugins are
-the reviewed focused exception—seven enforce existing Namespace/Infisical/database
-Secret mutation boundaries, two guard host rclone install/transfer, two perform no-log
+Python is otherwise test-only; twenty-three exact-scope Ansible action plugins are
+the reviewed focused exception—nine enforce existing Namespace/Infisical/database
+and CristexHub DEV/PROD Secret mutation boundaries, two guard host rclone install/transfer, two perform no-log
 cryptographic validation of exact Argo and stateful-database Secret contracts, five
 guard the standalone MongoDB, PostgreSQL, Keycloak, RabbitMQ, and OIDC CONNECT proxy object closures, three guard cloudflared/route closures, and two guard fixed
 temporary logical-provisioning execution/Kubernetes objects. No
@@ -208,7 +222,8 @@ gateway remain in the separate CristexHub application repository.
 24. [`runbooks/infisical-database-secret-materialization.md`](runbooks/infisical-database-secret-materialization.md) — exact value-free Infisical database Secret seam, scoped admission, and blocked runtime gates.
 25. [`runbooks/infisical-universal-auth-value-lane.md`](runbooks/infisical-universal-auth-value-lane.md) — protected value generation/upload contracts and Secret-at-rest recovery gate.
 26. [`runbooks/shared-database-provisioning.md`](runbooks/shared-database-provisioning.md) — guarded empty-reservation provisioning and helper isolation boundary.
-27. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
+27. [`runbooks/infisical-cristexhub-prod-runtime-materialization.md`](runbooks/infisical-cristexhub-prod-runtime-materialization.md) — exact source-only CristexHub PROD runtime Secret seam and blocked gates.
+28. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
 
@@ -368,6 +383,7 @@ runbooks/                # recovery, provenance, guarded source, materialization
   infisical-operator-bootstrap.md
   infisical-argocd-secret-materialization.md
   infisical-database-secret-materialization.md
+  infisical-cristexhub-prod-runtime-materialization.md
   infisical-universal-auth-value-lane.md
   k3s-datastore-preflight.md
   postgresql-bootstrap.md

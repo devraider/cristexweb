@@ -478,6 +478,7 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
                 "platform/namespaces/platform-edge.yaml",
                 "platform/namespaces/shared-services.yaml",
                 "applications/namespaces/cristexhub-dev.yaml",
+                "applications/namespaces/cristexhub-prod.yaml",
             },
             {str(path.relative_to(kubernetes)) for path in kubernetes.rglob("*") if path.is_file()},
         )

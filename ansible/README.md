@@ -513,7 +513,15 @@ identities, two path-scoped StaticSecrets, eleven engine/per-consumer target con
 eight scoped VAP/binding objects, operator-only validation, additive
 no-delete/no-workload-write RBAC, byte/canonical/identity
 hashes, and negative fixtures. Its credential values, check/apply, sync, rotation,
-recovery, and runtime remain NOT RUN/BLOCKED. The value-free
+recovery, and runtime remain NOT RUN/BLOCKED. A separate source-only [CristexHub
+PROD runtime Infisical seam](../runbooks/infisical-cristexhub-prod-runtime-materialization.md)
+freezes the exact `/cristexhub/prod/runtime` source in the absent
+`cristexhub-prod` Namespace, independent `cristexhub-prod-infisical-auth` and
+Universal Auth names, nine runtime keys plus `cristexhub-prod-ghcr-pull`, exact
+PROD-scoped VAP/bindings, additive least-privilege RBAC, hash-bound manifests, and
+its guarded `bin/bootstrap-infisical-cristexhub-prod-runtime check|apply` source.
+The Namespace, Universal Auth values, Infisical sync, target Secret values, and
+PROD runtime remain NOT RUN/BLOCKED. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 PostgreSQL and one standalone MongoDB engine in `shared-services`; guarded,
 hash-bound, present-only source now exists for both database pods while every live
@@ -545,8 +553,12 @@ remains blocked until the human-created same-Namespace Universal Auth Secret and
 fixed Infisical source identifiers exist; it never carries values. The separate
 `bin/bootstrap-infisical-database-secrets check|apply` wrapper is source-ready but
 remains blocked until both human-created same-Namespace Universal Auth Secrets and
-fixed project/environment/path identifiers exist; it never carries values. Exact
-present-only source and the distinct `bin/bootstrap-foundation-namespaces` entrypoint
+fixed project/environment/path identifiers exist; it never carries values. The
+separate `bin/bootstrap-infisical-cristexhub-prod-runtime check|apply` wrapper is
+also source-ready but remains blocked until the approved PROD Namespace and
+human-created `cristexhub-prod-infisical-universal-auth` metadata exist; it never
+reads or carries values. Exact present-only source and the distinct
+`bin/bootstrap-foundation-namespaces` entrypoint
 exist for `shared-services`; check, separately approved first apply, and separately
 approved idempotence all passed, with the final run converging at `changed=0`. The
 superseded `platform-secrets`/`platform-identity` source was never run and its removal

@@ -64,9 +64,11 @@ still proves no live runtime case; later adoption Applications are separate futu
 source. The companion
 [source-only Keycloak OIDC bootstrap design](../../runbooks/keycloak-oidc-bootstrap-design.md)
 and release record select Keycloak `26.7.1`, PostgreSQL `17.10`, the stable issuer,
-direct OIDC, and value-free RBAC policy only for offline authoring. They do not add
-executable source or prove Ansible bootstrap, database recovery, callbacks, runtime
-RBAC, or private exposure. MQA-02 private administration and identity authorization,
+direct OIDC, and value-free RBAC policy only for offline authoring. The exact
+CristexHub DEV/PROD browser callbacks and origins are source-selected, but these
+records do not add executable source or prove Ansible bootstrap, database recovery,
+runtime callbacks, runtime RBAC, or private exposure. MQA-02 private administration
+and identity authorization,
 MQA-03 Infisical rotation, and MQA-12 rollback safety remain **PENDING**; these
 designs close no manual QA case.
 The separate source-only

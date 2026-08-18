@@ -11,9 +11,9 @@ note: |
   administrator-access, recovery, stateful-service, backup, Infisical, Cloudflare,
   Keycloak, and private Argo checkpoints. The latest approved checkpoint adds a
   read-only private CristexHub repository credential, manual-sync DEV registration,
-  bounded Argo cache RBAC, and exact-field CoreDNS external-forwarding recovery. Python is limited to offline tests plus twenty-one exact-scope
-  Ansible action plugins (seven exact mutation guards, two focused host-rclone
-  boundary guards, two no-log Secret cryptographic validators, two standalone
+  bounded Argo cache RBAC, and exact-field CoreDNS external-forwarding recovery. Python is limited to offline tests plus twenty-three exact-scope
+  Ansible action plugins (nine exact Namespace/Infisical/CristexHub DEV/PROD
+  mutation guards, two focused host-rclone boundary guards, two no-log Secret cryptographic validators, two standalone
   MongoDB/PostgreSQL object-closure guards, and two fixed logical-provisioning
   execution/Kubernetes guards);
   no general operational Python
@@ -23,7 +23,12 @@ note: |
   fixed-username, direct-CA TLS/SAN/key-pair, exact remote-key-closure, and zero
   plaintext-temp-residue checks passed without value output. No Kubernetes Secret,
   Infisical CR, workload, PVC, database, route, or PROD activation was created;
-  Universal Auth and materialization remain blocked. A separate source-only, check-only
+  Universal Auth and materialization remain blocked. A separate source-only,
+  fail-closed CristexHub PROD runtime Infisical seam now binds exact
+  `/cristexhub/prod/runtime`, independent PROD Auth/Universal Auth names, the
+  nine-key runtime plus `cristexhub-prod-ghcr-pull`, scoped VAP/bindings, additive
+  RBAC, hashes, and guarded source; its absent Namespace/identity values keep
+  check/apply, sync, values, and runtime NOT RUN/BLOCKED. A separate source-only, check-only
   `k3s_datastore_preflight` role/playbook/wrapper is now offline-validated with
   fixed read-only argv under `no_log`, a bounded private mode-`0600` config slurp,
   strict duplicate/type/mapping/YAML and encryption-JSON parsers, exact
@@ -189,8 +194,10 @@ note: |
   isolated restore, negative cross-database tests, and object-by-object handoff
   remain required. The release record selects Keycloak `26.7.1`, PostgreSQL
   `17.10`, realm `cristexhub`, stable issuer, and default theme only for offline
-  source authoring; exact callbacks, trust/recovery, executable source, routes,
-  credentials, and runtime remain **NOT RUN/BLOCKED**. The separate value-free
+  source authoring; the exact CristexHub DEV and PROD browser callbacks/origins are
+  source-selected, while Reactive Resume/Argo callbacks/origins, trust/recovery,
+  executable source, routes, credentials, and runtime remain **NOT RUN/BLOCKED**.
+  The separate value-free
   [shared database architecture](../../runbooks/shared-database-architecture.md)
   freezes exactly one PostgreSQL and one MongoDB engine in `shared-services`.
   CristexHub DEV/PROD have isolated scopes on both engines; Reactive Resume DEV/PROD

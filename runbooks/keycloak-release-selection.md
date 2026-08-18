@@ -52,10 +52,15 @@ direction, and references the separate canonical database topology policy. It is
 review and later Ansible reconciliation; it is not a Keycloak realm import,
 Kubernetes object, executable playbook, credential, or runtime approval.
 
-All browser clients remain blocked until their exact origins, callbacks, and
-post-logout origins are selected. No public Keycloak route is authorized. The future
-browser-authentication route remains separate from private administration and the
-management listener.
+The CristexHub DEV and PROD browser contracts are source-selected. PROD uses client
+`cristexhub-prod`, confidential authorization with PKCE `S256`, the exact callback
+`https://hub.cristex-soft.com/oauth2/callback`, web origin
+`https://hub.cristex-soft.com`, and post-logout redirect
+`https://hub.cristex-soft.com/`. It is bound to the `cristexhub-prod-*` groups and
+fail-closed claim policy. Reactive Resume and Argo CD browser clients remain blocked
+until their exact private origins and callbacks are selected. No public Keycloak
+route is authorized; the browser-authentication route remains separate from private
+administration and the management listener.
 
 ## Stop conditions
 

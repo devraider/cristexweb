@@ -144,7 +144,35 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual(["https://dev-hub.cristex-soft.com/"], dev["post_logout_redirect_uris"])
         self.assertEqual("infisical-cloud", dev["client_secret_owner"])
         self.assertEqual("CRISTEXHUB_DEV_OIDC_CLIENT_SECRET", dev["client_secret_key"])
-        self.assertTrue(all(not entry["callback_selected"] for key, entry in browser.items() if key != "cristexhub-dev"))
+
+        prod = browser["cristexhub-prod"]
+        self.assertEqual("cristexhub-prod", prod["namespace"])
+        self.assertTrue(prod["callback_selected"])
+        self.assertEqual("keycloak-configured-application-runtime-blocked", prod["activation"])
+        self.assertEqual("confidential", prod["client_type"])
+        self.assertEqual("S256", prod["pkce_method"])
+        self.assertEqual(["https://hub.cristex-soft.com/oauth2/callback"], prod["redirect_uris"])
+        self.assertEqual(["https://hub.cristex-soft.com"], prod["web_origins"])
+        self.assertEqual(["https://hub.cristex-soft.com/"], prod["post_logout_redirect_uris"])
+        self.assertEqual("infisical-cloud", prod["client_secret_owner"])
+        self.assertEqual("prod:/shared-services/keycloak", prod["client_secret_path"])
+        self.assertEqual("CRISTEXHUB_PROD_OIDC_CLIENT_SECRET", prod["client_secret_key"])
+
+        self.assertTrue(
+            all(
+                not entry["callback_selected"]
+                for key, entry in browser.items()
+                if key not in {"cristexhub-dev", "cristexhub-prod"}
+            )
+        )
+        claims = self.policy["claims"]
+        self.assertEqual("groups", claims["roles"])
+        self.assertEqual("organization", claims["organizations"])
+        self.assertEqual(
+            ["sub", "email", "email_verified", "preferred_username"],
+            claims["required_identity"],
+        )
+        self.assertFalse(claims["groups_use_full_path"])
         service_ids = [entry["id"] for entry in self.policy["clients"]["service"]]
         self.assertEqual(
             ["cristexhub-admin-svc-dev", "cristexhub-admin-svc-prod"], service_ids
@@ -157,6 +185,8 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual(
             "cristexhub-prod-<organization-alias>-<role>", roles["prod_group_template"]
         )
+        self.assertEqual("cristexhub-dev-super-admin", roles["dev_super_admin_group"])
+        self.assertEqual("cristexhub-prod-super-admin", roles["prod_super_admin_group"])
         self.assertEqual("deny", roles["missing_or_ambiguous_group"])
 
     def test_argocd_and_namespace_authorization_is_deny_first(self) -> None:
@@ -222,6 +252,9 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         )
         self.assertIn("prod-credentials", self.policy["namespaces"]["cristexhub-dev"]["denies"])
         self.assertIn("dev-credentials", self.policy["namespaces"]["cristexhub-prod"]["denies"])
+        self.assertTrue(
+            all(not entry["browser_flow_allowed"] for entry in self.policy["clients"]["service"])
+        )
 
         database = self.policy["database_architecture"]
         self.assertEqual(
@@ -296,6 +329,7 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "platform/namespaces/platform-edge.yaml",
                 "platform/namespaces/shared-services.yaml",
                 "applications/namespaces/cristexhub-dev.yaml",
+                "applications/namespaces/cristexhub-prod.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))
@@ -395,6 +429,8 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "materialize-infisical-cristexhub-dev-runtime",
                 "bootstrap-infisical-cristexhub-dev-runtime",
                 "bootstrap_infisical_cristexhub_dev_runtime.yml",
+                "bootstrap-infisical-cristexhub-prod-runtime",
+                "bootstrap_infisical_cristexhub_prod_runtime.yml",
                 "bootstrap-infisical-cloudflared-secrets",
                 "bootstrap_infisical_cloudflared_secrets.yml",
                 "main.yml",

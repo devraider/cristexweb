@@ -51,6 +51,24 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         ):
             self.assertIn(required, self.text)
 
+    def test_cristexhub_prod_browser_contract_is_exact_and_value_free(self) -> None:
+        for required in (
+            "The CristexHub browser contracts are now selected without selecting runtime",
+            "The `cristexhub-prod` client is confidential, uses\nPKCE `S256`",
+            "https://hub.cristex-soft.com/oauth2/callback",
+            "https://hub.cristex-soft.com",
+            "https://hub.cristex-soft.com/",
+            "CRISTEXHUB_PROD_OIDC_CLIENT_SECRET",
+            "cristexhub-prod-<organization-alias>-<role>",
+            "cristexhub-prod-super-admin",
+            "Missing, unverified,\nambiguous, or cross-environment group claims fail closed",
+            "The two administrative service clients remain\n`browser_flow_allowed: false`",
+            "No public Keycloak route is\nauthorized now",
+        ):
+            self.assertIn(required, self.text)
+        self.assertNotIn("client_secret:", self.text)
+        self.assertNotIn("client secret:", self.text.lower())
+
     def test_external_development_assets_are_not_deployable_source(self) -> None:
         for required in (
             "existing CristexHub Compose Keycloak, realm export, theme, local issuer, local\nredirects, development users, development passwords, and bootstrap defaults remain\nexternal development-only inputs",
@@ -118,6 +136,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
                 "platform/namespaces/platform-edge.yaml",
                 "platform/namespaces/shared-services.yaml",
                 "applications/namespaces/cristexhub-dev.yaml",
+                "applications/namespaces/cristexhub-prod.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))
@@ -196,6 +215,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "policies/infisical-operator-implementation-profile.yml",
             "policies/infisical-secret-zero-lane.yml",
             "policies/cristexhub-dev-runtime-materialization.yml",
+            "policies/cristexhub-prod-runtime-materialization.yml",
             "policies/argocd-ui-tls-lifecycle.yml",
             "vendor/argocd/10.3.0/SHA256SUMS",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz",
@@ -214,6 +234,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "cristexhub-dev-registration",
             "cristexhub-dev-sync-transition",
             "infisical-cristexhub-dev-runtime",
+            "infisical-cristexhub-prod-runtime",
             "oidc-connect-proxy",
             "infisical-argocd-secrets",
             "infisical-database-secrets",

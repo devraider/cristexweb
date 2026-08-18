@@ -252,6 +252,7 @@ class ArgoCdCandidateProvenanceContractTests(unittest.TestCase):
             "platform/namespaces/platform-edge.yaml",
             "platform/namespaces/shared-services.yaml",
             "applications/namespaces/cristexhub-dev.yaml",
+            "applications/namespaces/cristexhub-prod.yaml",
         }
         actual_kubernetes = {
             str(path.relative_to(KUBERNETES))

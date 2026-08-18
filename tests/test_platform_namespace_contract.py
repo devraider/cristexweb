@@ -86,6 +86,17 @@ metadata:
     cristex.io/bootstrap-writer: ansible
     cristex.io/desired-owner: argocd
 """,
+            "applications/namespaces/cristexhub-prod.yaml": """---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cristexhub-prod
+  labels:
+    app.kubernetes.io/part-of: cristexhub
+    cristex.io/environment: prod
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+""",
         }
         actual_files = {
             str(path.relative_to(KUBERNETES)): path.read_text()
@@ -151,6 +162,7 @@ metadata:
                 ENTRYPOINT,
                 ANSIBLE / "bin/bootstrap-foundation-namespaces",
                 ANSIBLE / "bin/bootstrap-cristexhub-dev-namespace",
+                ANSIBLE / "bin/bootstrap-cristexhub-prod-namespace",
                 ANSIBLE / "bin/bootstrap-infisical-operator",
                 ANSIBLE / "bin/bootstrap-infisical-proxy-secrets",
                 ANSIBLE / "bin/bootstrap-infisical-argocd-secrets",
@@ -184,6 +196,7 @@ metadata:
                 ANSIBLE / "bin/bootstrap-cristexhub-dev-registration",
                 ANSIBLE / "bin/bootstrap-cristexhub-dev-sync-transition",
                 ANSIBLE / "bin/bootstrap-infisical-cristexhub-dev-runtime",
+                ANSIBLE / "bin/bootstrap-infisical-cristexhub-prod-runtime",
                 ANSIBLE / "bin/bootstrap-oidc-connect-proxy",
                 ANSIBLE / "bin/configure-coredns-external-forwarding",
                 ANSIBLE / "bin/validate-argocd-ui-tls-material",

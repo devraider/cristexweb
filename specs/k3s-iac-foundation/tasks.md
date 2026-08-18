@@ -376,6 +376,12 @@ logs, or bootstrap cannot be recovered.
   policy values before adding those object kinds (`KIF-016`, `KIF-019`, `KIF-021`).
 - [ ] Keep `cristexhub-prod` absent until DEV validation, recovery, and soak satisfy
   KIF-025 and a separate PROD Namespace approval is granted.
+- [x] Add the source-only, fail-closed CristexHub PROD runtime Infisical seam with
+  independent Auth/Universal Auth names, exact `/cristexhub/prod/runtime` source,
+  nine-key runtime plus GHCR-pull target, PROD-scoped VAP/bindings, least-privilege
+  RBAC, hashes, guarded wrapper/role/plugin, policy, runbook, and offline contracts;
+  Namespace, identity values, sync, and runtime remain NOT RUN/BLOCKED (`KIF-005`,
+  `KIF-013`–`KIF-016`, `KIF-021`, `KIF-025`, `KIF-030`).
 - [ ] Obtain explicit approval before creating stateful services (`KIF-002`).
 - [x] Add a canonical value-free shared-database policy and runbook for exactly one
   PostgreSQL and one MongoDB engine in `shared-services`, dedicated consumer scopes,
@@ -416,8 +422,9 @@ logs, or bootstrap cannot be recovered.
   `KIF-015`, `KIF-023`, `KIF-030`).
 - [ ] Accept Keycloak/PostgreSQL image trust and recovery; accept MongoDB image
   trust/recovery and the standalone-to-replica-set/authoritative-data decision;
-  select exact callbacks/origins, TLS identity/proxy policy, private administration,
-  and Infisical-owned runtime material before any runtime (`KIF-010`, `KIF-013`–
+  select the remaining Reactive Resume/Argo callbacks/origins, TLS identity/proxy
+  policy, private administration, and Infisical-owned runtime material before any
+  runtime (`KIF-010`, `KIF-013`–
   `KIF-015`, `KIF-021`, `KIF-023`). The source-only PostgreSQL and standalone
   MongoDB object closures are intentionally implemented before these runtime gates
   and do not waive them.

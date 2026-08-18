@@ -240,6 +240,7 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
                 "platform/namespaces/platform-edge.yaml",
                 "platform/namespaces/shared-services.yaml",
                 "applications/namespaces/cristexhub-dev.yaml",
+                "applications/namespaces/cristexhub-prod.yaml",
             },
             {
                 str(path.relative_to(KUBERNETES))
@@ -282,6 +283,9 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
                 "bootstrap-infisical-cristexhub-dev-runtime",
                 "bootstrap_infisical_cristexhub_dev_runtime.yml",
                 "infisical_cristexhub_dev_runtime_guarded_k8s.py",
+                "bootstrap-infisical-cristexhub-prod-runtime",
+                "bootstrap_infisical_cristexhub_prod_runtime.yml",
+                "infisical_cristexhub_prod_runtime_guarded_k8s.py",
                 "infisical_universal_auth_seed_guarded_k8s.py",
                 "bootstrap-infisical-cloudflared-secrets",
                 "bootstrap_infisical_cloudflared_secrets.yml",

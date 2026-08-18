@@ -56,8 +56,8 @@ metadata:
 """,
             self.manifest,
         )
-        self.assertFalse(
-            (KUBERNETES / "applications/namespaces/cristexhub-prod.yaml").exists()
+        self.assertTrue(
+            (KUBERNETES / "applications/namespaces/cristexhub-prod.yaml").is_file()
         )
         for forbidden in (
             "kind: Secret",
