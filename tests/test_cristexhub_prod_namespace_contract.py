@@ -365,14 +365,14 @@ metadata:
         self.assertIn("INTERNAL_VARIABLE_GUARD", injection_output)
         self.assertNotIn("Failed to connect", injection_output)
 
-    def test_runbook_and_testcase_keep_all_runtime_blocked(self) -> None:
+    def test_runbook_and_testcase_record_completed_namespace_only(self) -> None:
         normalized = " ".join(self.runbook.split())
         for required in (
-            "SOURCE-ONLY — NOT RUN / BLOCKED",
+            "NAMESPACE BOOTSTRAP COMPLETE; ALL LATER PROD PHASES BLOCKED",
             "cristexhub-prod",
             "cristex.io/environment: prod",
-            "check and apply remain NOT RUN/BLOCKED",
-            "separate human approval",
+            "ok=22 changed=0 unreachable=0 failed=0 skipped=0",
+            "kubernetes.io/metadata.name",
             "refuses foreign existing",
             "no deletion path",
             "No Secret, workload, Service, PVC, policy, route, or PROD workload",
@@ -380,12 +380,11 @@ metadata:
             self.assertIn(required, normalized)
         self.assertIn("KIF-NS-07", self.testcases)
         testcase = self.testcases.split("| KIF-NS-07", 1)[1].split("\n", 1)[0]
-        self.assertIn("PASS SOURCE-ONLY / CHECK-APPLY NOT RUN-BLOCKED", testcase)
+        self.assertIn("PASS RUNTIME", testcase)
         self.assertIn("cristexhub-prod", testcase)
         self.assertIn("exact four PROD labels", testcase)
-        self.assertIn("offline", testcase.lower())
-        self.assertNotIn("first apply passed", testcase)
-        self.assertNotIn("idempotence passed", testcase)
+        self.assertIn("idempotence passed", testcase)
+        self.assertIn("changed=0", testcase)
 
 
 if __name__ == "__main__":

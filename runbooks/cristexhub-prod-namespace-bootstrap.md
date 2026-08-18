@@ -2,14 +2,16 @@
 
 ## Status and boundary
 
-**SOURCE-ONLY — NOT RUN / BLOCKED.** This increment adds a guarded, present-only
-source closure for exactly the `cristexhub-prod` Namespace. The wrapper `check`
-and `apply` modes have not been run and remain blocked pending separate human
-approval for each stage. No Kubernetes API, kubectl, Ansible operational play,
-provider, Secret read, workload, or PROD deployment was performed for this
-source increment.
+**NAMESPACE BOOTSTRAP COMPLETE; ALL LATER PROD PHASES BLOCKED.** The guarded,
+present-only closure created exactly the `cristexhub-prod` Namespace after a
+separately approved check and apply, and its separately approved idempotence apply
+converged at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`. The Namespace is
+`Active` with the four reviewed labels plus Kubernetes' mandatory
+`kubernetes.io/metadata.name` label. No Secret, workload, route, database, broker,
+Infisical object, Argo registration, or Argo sync was created by this checkpoint.
 
-This source does not authorize PROD activation. It does not define or create a
+This completed Namespace checkpoint does not authorize later PROD activation. It
+does not define or create a
 Secret, ServiceAccount, ResourceQuota, LimitRange, NetworkPolicy, workload,
 Service, PVC, database, broker, route, ingress, Infisical object, or Argo CD
 object. No Secret, workload, Service, PVC, policy, route, or PROD workload is
@@ -84,16 +86,22 @@ would require a separate destructive design and approval.
 
 ## Approval sequence and evidence
 
-No wrapper check or apply has been executed for this source closure. The wrapper
-check and apply remain NOT RUN/BLOCKED pending separate human approval for each
-stage:
+The approved check predicted the single absent Namespace at
+`ok=20 changed=1 unreachable=0 failed=0 skipped=2`. The first approved apply
+created that Namespace (`changed=1`) but its post-verification stopped because the
+closure had not accounted for Kubernetes' mandatory Namespace-name label. Read-only
+inspection confirmed the Namespace was `Active` with exactly the intended labels
+plus that mandatory label. The corrected exact-label closure and unprivileged
+`k3s-admin` kubeconfig path then passed a fresh check at
+`ok=20 changed=0 unreachable=0 failed=0 skipped=2`. The separately approved
+idempotence apply passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`,
+including exact post-state and k3s/Tailscale health.
 
-1. Review the offline contract, exact source hash, task-selection negatives, and
-   `git diff --check`; separately approve only the wrapper `check`.
-2. Inspect the check result and predicted single Namespace scope; separately
-   approve only the wrapper `apply` if the result is accepted.
-3. Treat any later idempotence or PROD validation as a new approval sequence; no
-   such evidence is claimed here.
+Earlier attempts stopped safely before Kubernetes mutation on the historical
+case-sensitive Linux controller-path mismatch, local mode drift, unavailable
+non-interactive sudo, and rejected sudo authentication. Those stops created no
+additional object. Local controller paths were normalized to `0755`, the manifest
+to `0644`, and the final wrapper uses existing unprivileged `k3s-admin` access.
 
 The focused offline contract verifies the exact manifest, literal hash binding,
 wrapper allowlist and non-passthrough boundary, canonical task-source/action-only
