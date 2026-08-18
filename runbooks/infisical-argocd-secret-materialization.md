@@ -4,9 +4,9 @@
 
 This is a source-only, separately guarded seam for the already-selected Infisical
 Operator `v0.11.7`. It adds no secret values, credentials, Kubernetes Secret
-manifest, Argo workload, route, or runtime approval. The existing 44-object source
-Operator closure remains unchanged and remains **NOT RUN/BLOCKED**. This seam is
-also **NOT RUN/BLOCKED**.
+manifest, Argo workload, route, or runtime approval. The existing 44-object Operator
+closure is applied/idempotent and remains unchanged by this seam. This Argo Secret
+materialization seam remains **NOT RUN/BLOCKED**.
 
 The seam has exactly 13 Ansible-owned objects:
 

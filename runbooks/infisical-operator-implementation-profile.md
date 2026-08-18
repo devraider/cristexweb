@@ -2,7 +2,7 @@
 
 ## Status and boundary
 
-**GUARDED IDLE SOURCE READY — RUNTIME NOT RUN/BLOCKED.**
+**44-OBJECT IDLE CLOSURE APPLIED/IDEMPOTENT — CREDENTIAL-BEARING PROD PHASES BLOCKED.**
 
 The repository now promotes an exact value-free Infisical Kubernetes Operator
 `v0.11.7` idle closure. It contains 44 hash-bound objects under
@@ -10,9 +10,10 @@ The repository now promotes an exact value-free Infisical Kubernetes Operator
 Ansible entrypoint, six native same-Namespace admission policies, and an authenticated
 TLS Squid proxy. It does not deploy Infisical Cloud itself. No credential value,
 Infisical custom resource, PROD workload, route, or external resource is added. The
-source-only `cristexhub-prod` watch/RBAC expansion is not a runtime apply; runtime
-still requires the separately created proxy bootstrap Secrets and guarded check,
-first apply, and idempotence evidence.
+`cristexhub-prod` watch/RBAC expansion passed guarded check/apply/post-check/
+idempotence at `ok=30 changed=1`, `ok=35 changed=1`, `ok=30 changed=0`, and
+`ok=35 changed=0`. It created no credential value, Infisical custom resource,
+application Secret/workload, PVC, database, or route.
 
 The machine-readable contract is
 [`infisical-operator-implementation-profile.yml`](../ansible/files/policies/infisical-operator-implementation-profile.yml).
@@ -56,8 +57,8 @@ permission error stops the bootstrap instead of authorizing wildcard widening.
 
 The controller will run in `shared-services` and its exact initial namespace cache is
 `shared-services`, `argocd`, `cristexhub-dev`, `cristexhub-prod`, and `platform-edge`.
-The PROD cache/RBAC/admission entries are source-only and do not create a Namespace,
-credential, workload, route, or runtime. An empty, wildcard, cluster-wide, or
+The PROD cache/RBAC/admission entries are applied/idempotent but do not create a
+credential, Infisical custom resource, application workload, PVC, database, or route. An empty, wildcard, cluster-wide, or
 silently expanded cache is forbidden.
 
 Every watched Namespace has a separate identity and credential scope:
@@ -156,23 +157,20 @@ Dual reconciliation and Git-authored generated Secrets are forbidden.
 
 The required order is now: install and attest pinned host rclone; complete interactive
 non-root host OAuth; transfer/read back and controller-verify the existing encrypted
-pending proxy bundle; create and recover the three proxy bootstrap Secrets; run the
-dedicated guarded check; review its exact 44-object prediction; run first apply
-and idempotence; prove admission, negative RBAC, proxy-only egress, and idle health;
-establish separate Infisical Universal Auth recovery; then perform one non-sensitive
-ConfigMap sync. Failure never widens RBAC, egress, watch scope, or credential sharing.
+pending proxy bundle; create and recover the three proxy bootstrap Secrets; complete
+the exact 44-object check/apply/idempotence; prove broader admission, negative RBAC,
+proxy-only egress, and idle health; establish separate Infisical Universal Auth
+recovery; then perform one non-sensitive ConfigMap sync. Failure never widens RBAC, egress, watch scope, or credential sharing.
 
 ## Remaining blockers
 
-Runtime remains blocked until the proxy bootstrap values have independent recovery,
-the guarded check predicts only the exact closure, Kubernetes accepts every CRD/CEL
-expression, both workloads pull and become Available, proxy-only traffic is proved,
-and first apply/idempotence finish without an unexpected object or writer. Image
+Credential-bearing runtime remains blocked until broader Kubernetes CRD/CEL
+admission negatives, RBAC isolation, and proxy-only traffic are proved without an
+unexpected object or writer. Image
 signer/SBOM/vulnerability and off-node OCI recovery remain explicit private-MVP risk
 acceptance items; secret-zero recovery, rotation/revocation, and single-node soak
 remain mandatory before application values or PROD.
 
-Before first apply, rollback is Git revert. After apply, rollback preserves CRDs and
-bootstrap Secrets and stops only the exact controller/proxy workloads through a
+After the completed apply, rollback preserves CRDs and bootstrap Secrets and stops only the exact controller/proxy workloads through a
 separately reviewed present-state change; it never deletes Namespaces, CRDs, Secrets,
 or PVCs.

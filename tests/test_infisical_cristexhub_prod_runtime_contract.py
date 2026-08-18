@@ -366,9 +366,10 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
                 self.assertIn(obj["kind"], {"Role", "RoleBinding"}, path)
         runbook = (ROOT / "runbooks/infisical-cristexhub-prod-runtime-materialization.md").read_text()
         self.assertIn("now watches `cristexhub-prod`", runbook)
-        self.assertIn("This source-only expansion is not a runtime apply", runbook)
-        self.assertIn("separate reviewed", runbook)
-        self.assertIn("source/check/apply/idempotence approval", runbook)
+        self.assertIn("watch/RBAC expansion is applied/idempotent", runbook)
+        self.assertIn("created no Infisical custom", runbook)
+        self.assertIn("seam check/apply/", runbook)
+        self.assertIn("separate reviewed approval", runbook)
         tasks = TASKS.read_text()
         parsed_tasks = yaml.safe_load(tasks)
         credential_task = next(

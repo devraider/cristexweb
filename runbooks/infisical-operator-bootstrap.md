@@ -30,22 +30,27 @@ fixes used exact relative hash keys and JSON boolean approval. The historical
 40-object check/apply/idempotence evidence recorded `ok=24 changed=2`,
 `ok=29 changed=2`, and `ok=29 changed=0`; all six CRDs became Established, exact
 post-state labels passed, both Deployments became Available, and k3s/Tailscale
-remained healthy. The later 42-object source increment was not separately
-runtime-applied. The proposed 44-object PROD expansion below is source-only and
-unrun; its broader admission, negative RBAC, and proxy-traffic acceptance remain
-blocked. No Infisical CR, Universal Auth credential, database Secret, database, PVC,
-or public route was created by the historical 40-object checkpoint.
+remained healthy. The later 42-object source increment was not separately runtime-applied. A later
+separately approved 44-object check predicted exactly three admission-policy
+updates, the controller watch update, and the PROD manager Role/RoleBinding at
+`ok=30 changed=1 failed=0 skipped=5`. Its first apply passed at
+`ok=35 changed=1 failed=0 skipped=0`; a fresh check converged at
+`ok=30 changed=0 failed=0 skipped=5`; the separately confirmed idempotence apply
+passed at `ok=35 changed=0 failed=0 skipped=0`. Both Deployments were Available and
+k3s/Tailscale remained healthy. No Infisical CR, Universal Auth credential,
+application Secret, database, PVC, workload, or route was created by that expansion.
 
-## Source-only PROD watch expansion
+## Completed PROD watch expansion
 
-**SOURCE-ONLY PASS — RUNTIME NOT RUN/BLOCKED.** The 44-object source now includes
+**44-OBJECT CHECK/APPLY/IDEMPOTENCE PASSED.** The current closure includes
 `cristexhub-prod` in the controller watch list, an exact namespaced manager
 Role/RoleBinding semantically cloned from DEV, and PROD admission allowlists only
-for generic Auth, Connection, and StaticSecret objects. Secret, PushSecret, and
-DynamicSecret remain PROD-excluded. This increment contacted no Kubernetes API,
-provider, or Infisical API; it created no Namespace, Secret, Infisical custom
-resource, value, workload, PVC,
-route, or PROD runtime. Applying the expanded closure remains separately gated.
+for the exact reviewed Auth, Connection, and StaticSecret identities. Secret,
+PushSecret, and
+DynamicSecret remain PROD-excluded. The completed apply created no Namespace,
+Secret, Infisical custom resource, value, application workload, PVC, or route.
+Broader live admission/RBAC negatives and every credential-bearing PROD phase remain
+separately gated.
 
 ## Required proxy secret-zero inputs
 
@@ -89,10 +94,10 @@ value has been bootstrapped.
 ## Source and admission behavior
 
 The Operator runs in `shared-services`, watches exactly `shared-services`, `argocd`,
-`cristexhub-dev`, `cristexhub-prod`, and `platform-edge`; this is a source-only watch
-expansion and does not activate PROD values or workloads. The separately approved
-`cristexhub-prod` Namespace is now Active and idempotent, while this 44-object
-operator source remains unrun and all later PROD resources remain blocked. Metrics bind to `0`; no
+`cristexhub-dev`, `cristexhub-prod`, and `platform-edge`. The separately approved
+44-object expansion and `cristexhub-prod` Namespace are now applied/idempotent. This
+watch/RBAC checkpoint does not activate PROD values or workloads; every later PROD
+resource remains blocked. Metrics bind to `0`; no
 metrics Service or authorization exists. The single ServiceAccount receives only
 five namespaced manager Roles and one leader-election Role. TokenReview,
 SubjectAccessReview, service-account token creation, aggregate user roles, manager

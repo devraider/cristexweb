@@ -138,9 +138,10 @@ exact 44-object source closure: six namespaced CRDs, six fail-closed admission
 policies and bindings, exact five-Namespace RBAC, one metrics-off digest-pinned
 controller, one authenticated TLS Squid proxy, and eight NetworkPolicies. The
 quarantined archive is never a runtime input. The three recovered proxy Secrets and
-the historical 40-object check/apply/idempotence passed; the later 42-object and
-current 44-object expansions were not runtime-applied. Broader admission/RBAC/traffic
-acceptance remains pending. The first local age/Drive writer attempt stopped before Kubernetes on expired
+the historical 40-object checkpoint passed; the later 42-object source was not
+separately applied. The current 44-object expansion passed check/apply/post-check/
+idempotence at `ok=30 changed=1`, `ok=35 changed=1`, `ok=30 changed=0`, and
+`ok=35 changed=0`. Broader admission/RBAC/traffic acceptance remains pending. The first local age/Drive writer attempt stopped before Kubernetes on expired
 Drive OAuth; its plaintext residue and unused encrypted artifact were removed without
 reading values. An unused debug-exposed age identity was revoked/regenerated before
 upload/Kubernetes. The hardened retry proved cleanup, encrypted-pending resume and a
@@ -149,9 +150,10 @@ controller OAuth. That transfer path is superseded: guarded host transfer/readba
 `drive-verified` now pass; exactly three proxy bootstrap Secrets exist. The historical
 runtime checkpoint applied exactly 40 Infisical Operator/proxy objects and its
 idempotence converged. The later 42-object source was not separately runtime-applied;
-the proposed 44-object, five-namespace PROD expansion is source-only and unrun.
-No Infisical CR, Universal Auth value, application/database Secret, Kubernetes or
-application PROD scope, or self-hosted Infisical server exists at runtime. The fixed
+the 44-object, five-Namespace PROD expansion is now applied/idempotent. It created no
+Infisical CR, Universal Auth value, application/database Secret, application workload,
+or route. No other application PROD scope or self-hosted Infisical server exists at
+runtime. The fixed
 Infisical Cloud environment slug `prod` is only a licensing-constrained source
 identifier and does not activate any of those PROD scopes. A separate source-only
 [Infisical Argo CD Secret materialization seam](runbooks/infisical-argocd-secret-materialization.md)
@@ -509,9 +511,11 @@ Tailscale-offline. After return, check passed `ok=26 changed=0`; transfer/readba
 passed `ok=39 changed=7`; proxy Secret bootstrap passed `ok=15 changed=1`. The
 historical Infisical Operator checkpoint applied exactly 40 objects and passed
 check/apply/idempotence (`ok=24 changed=2`, `ok=29 changed=2`, and
-`ok=29 changed=0`). The later 42-object source was not separately runtime-applied;
-the proposed 44-object PROD expansion is source-only/unrun. Universal Auth, database
-Secrets, and database runtime remain **NOT RUN/BLOCKED**.
+`ok=29 changed=0`). The later 42-object source was not separately runtime-applied.
+The 44-object expansion then passed check/apply/post-check/idempotence at
+`ok=30 changed=1`, `ok=35 changed=1`, `ok=30 changed=0`, and `ok=35 changed=0`.
+Universal Auth, application/database Secrets, and later PROD runtime remain
+**NOT RUN/BLOCKED**.
 
 The source-only Cloudflare edge policy now fixes the phased future flow
 `Cloudflare → cloudflared/platform-edge → Traefik/kube-system → Keycloak/shared-services`.

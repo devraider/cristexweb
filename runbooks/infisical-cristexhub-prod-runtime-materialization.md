@@ -66,10 +66,12 @@ metadata and key names. Its values are never read by offline tests or committed
 source. The guarded Infisical Operator source closure now watches `cristexhub-prod` and
 contains its exact namespaced manager Role/Binding plus the generic Auth,
 Connection, and StaticSecret five-namespace admission allowlists. Secret,
-PushSecret, and DynamicSecret remain PROD-excluded. This source-only expansion is not a runtime apply: the operator's 44-object source closure, the application
-workload, Infisical sync, target values, private validation, Argo handoff, and PROD promotion remain separate
-gates. Any runtime check/apply/idempotence remains behind a separate reviewed
-source/check/apply/idempotence approval.
+PushSecret, and DynamicSecret remain PROD-excluded. The Operator's 44-object
+watch/RBAC expansion is applied/idempotent, but it created no Infisical custom
+resource, credential, application Secret/workload, PVC, database, or route. This
+runtime materialization seam, Infisical sync, target values, private validation,
+Argo handoff, and PROD promotion remain separate gates. Any seam check/apply/
+idempotence remains behind a separate reviewed approval.
 
 ## Offline evidence
 

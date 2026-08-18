@@ -2,10 +2,12 @@
 
 ## Status
 
-Infisical Cloud Kubernetes Operator `v0.11.7` is **SELECTED FOR OFFLINE SOURCE
-AUTHORING ONLY** because the captured chart, source, and image version align. It is
-not deployable or approved for installation. Operator runtime remains **NOT
-RUN/BLOCKED**.
+At this historical selection checkpoint, Infisical Cloud Kubernetes Operator
+`v0.11.7` was **SELECTED FOR OFFLINE SOURCE AUTHORING ONLY** because the captured
+chart, source, and image version align. A separately promoted 44-object closure has since passed guarded
+check/apply/post-check/idempotence. Chart installation remains forbidden; broader
+admission/RBAC/traffic acceptance and credential-bearing PROD phases remain
+**NOT RUN/BLOCKED**.
 
 The `v0.11.8` public distribution gap remains a time-qualified observation and is not
 selected. The candidate provenance record remains authoritative for trust,
@@ -61,8 +63,8 @@ cluster-scoped review permissions that cannot work there. Future source must dis
 chart CRD installation, explicitly inventory Ansible-owned CRDs/cluster permissions,
 use non-empty scopes, and suppress or replace unused aggregate/metrics permissions.
 
-Exact CRD/API compatibility, k3s admission, deterministic digest render, signer
-verification, least-privilege RBAC, NetworkPolicy, Infisical API traffic, Universal
-Auth bootstrap/rotation/revocation/recovery, one non-sensitive sync, generated Secret
-lifecycle, check/apply/idempotence approvals, and runtime evidence remain **NOT
-RUN/BLOCKED**.
+Exact remaining CRD/API upgrade compatibility, broader k3s admission/RBAC/
+NetworkPolicy negatives, signer verification, Infisical API traffic, Universal Auth
+bootstrap/rotation/revocation/recovery, one non-sensitive sync, and generated Secret
+lifecycle remain **NOT RUN/BLOCKED**. The separately promoted 44-object closure's
+check/apply/idempotence is recorded in its bootstrap runbook.

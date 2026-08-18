@@ -147,14 +147,16 @@ and image tag were not observed during the bounded capture, from the version-ali
 the official controller commit. The guarded
 [idle bootstrap](runbooks/infisical-operator-bootstrap.md) promotes a 44-object,
 value-free closure with six namespaced CRDs, native same-Namespace admission, exact
-five-Namespace RBAC/cache including `cristexhub-prod`, PROD admission only for generic
-Auth/Connection/StaticSecret objects, Secret/PushSecret/DynamicSecret PROD-excluded,
+five-Namespace RBAC/cache including `cristexhub-prod`, PROD admission only for the
+exact reviewed Auth/Connection/StaticSecret identities, Secret/PushSecret/
+DynamicSecret PROD-excluded,
 metrics off, no ClusterGenerator privilege, one authenticated TLS proxy, and
 proxy-only Operator egress. The full source archive is
-quarantined evidence only and is not an operational input. Runtime remains **NOT
-RUN/BLOCKED** until exact recovered proxy Secrets, check/apply/idempotence, live
-admission, image, RBAC, and traffic proof pass. No runtime Infisical CR, Universal
-Auth value, application Secret, PROD scope, or self-hosted server exists; separate
+quarantined evidence only and is not an operational input. The 44-object closure is
+applied/idempotent and both Deployments are Available; broader admission, image,
+RBAC, and traffic proof remain **NOT RUN/BLOCKED**. No runtime Infisical CR,
+Universal Auth value, application Secret, application PROD workload, or self-hosted
+server exists; separate
 value-free source seams remain runtime-blocked.
 No state file, provider initialization, plan, apply, Helm installation, Kustomize
 workload, image publication, or general host baseline exists yet. The committed CI
@@ -564,11 +566,12 @@ verification must meet the declared RPO/RTO before PROD.
   remains historical evidence. The [implementation profile](runbooks/infisical-operator-implementation-profile.md)
   quarantines the archive, while the separate guarded
   [bootstrap closure](runbooks/infisical-operator-bootstrap.md) promotes exactly 44
-  reviewed value-free objects and one non-passthrough Ansible path; its PROD watch/RBAC
-  expansion remains source-only and is not applied. Same-Namespace
+  reviewed value-free objects and one non-passthrough Ansible path. Its PROD
+  watch/RBAC expansion passed check/apply/post-check/idempotence at `ok=30 changed=1`,
+  `ok=35 changed=1`, `ok=30 changed=0`, and `ok=35 changed=0`. Same-Namespace
   admission source, exact RBAC, proxy image/config, and deployable source gates are
-  selected. Live CRD/CEL admission, proxy Secret recovery, image behavior, traffic,
-  check/apply/idempotence, Universal Auth, and runtime remain blocked/unrun.
+  selected. Broader live admission/RBAC negatives, proxy traffic acceptance,
+  Universal Auth, and every credential-bearing PROD phase remain blocked/unrun.
 - Entry: pinned component versions, human-reviewed target kubelet-version evidence,
   verified Kubernetes compatibility, and an approved secret-zero procedure.
 - Work sequence: exact Ansible-owned prerequisites; idle Operator/proxy closure;
@@ -731,5 +734,7 @@ After return, transfer check/apply passed at `ok=26 changed=0` and
 `ok=39 changed=7`; exact proxy Secret bootstrap passed at `ok=15 changed=1`.
 The historical Infisical Operator checkpoint applied exactly 40 objects and its
 check/apply/idempotence passed; the later 42-object source was not separately
-runtime-applied, and the proposed 44-object PROD expansion is source-only/unrun.
-Universal Auth, Argo, and database backup/runtime remain **NOT RUN/BLOCKED**.
+runtime-applied. The 44-object PROD expansion passed check/apply/post-check/
+idempotence at `ok=30 changed=1`, `ok=35 changed=1`, `ok=30 changed=0`, and
+`ok=35 changed=0`. Universal Auth and every later credential-bearing PROD phase
+remain **NOT RUN/BLOCKED**.

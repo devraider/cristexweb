@@ -170,10 +170,11 @@ exact watch/separate-identity intent, metrics, ClusterGenerator, authenticated-p
 secret-zero, and ConfigMap-proof choices to KIF-005 and KIF-013 through KIF-016.
 Foundation Namespace, source-audit, technical-profile, native same-Namespace
 admission source, proxy image/config, and guarded deployable-source gates are now
-evidenced by the exact 44-object, five-namespace source-only
-[bootstrap closure](../../runbooks/infisical-operator-bootstrap.md). Live CRD/CEL
-admission, proxy Secret recovery, image behavior, RBAC/traffic negatives,
-check/apply/idempotence, Universal Auth, and runtime remain closed. A separate
+evidenced by the exact 44-object, five-Namespace
+[bootstrap closure](../../runbooks/infisical-operator-bootstrap.md). Its guarded
+check/apply/post-check/idempotence passed; broader live admission, image behavior,
+RBAC/traffic negatives, Universal Auth, and credential-bearing PROD runtime remain
+closed. A separate
 source-only [Infisical Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md)
 now freezes one same-Namespace Universal Auth reference, fixed non-secret source
 identifiers, exact orphaned targets, additive exact-name RBAC, and fail-closed

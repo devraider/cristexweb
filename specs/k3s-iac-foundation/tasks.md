@@ -292,18 +292,20 @@ entry gate.
   values, sync, and live checks remain **NOT RUN/BLOCKED** (`KIF-INF-06`).
 - [x] Add the separate source-only
   [Infisical database Secret materialization seam](../../runbooks/infisical-database-secret-materialization.md): exactly 15 value-free objects for one shared Connection, separate PostgreSQL/MongoDB Auth and Universal Auth identities, two StaticSecrets, eight namespace-scoped fail-closed VAP/bindings, and additive Secret-writer RBAC. Freeze eleven engine/per-consumer target Secret contracts, byte/canonical/identity hashes, and action-only/internal/task-selection negatives. Runtime, credential values, check/apply, sync, rotation, and recovery remain **NOT RUN/BLOCKED** (`KIF-INF-07`).
-- [x] Expand the source-only closure for `cristexhub-prod`: add the exact DEV-semantic
-  manager Role/RoleBinding, extend the controller watch list, admit PROD only in the
-  generic Auth/Connection/StaticSecret allowlists while keeping Secret/PushSecret/
-  DynamicSecret PROD-excluded, refresh every byte/canonical hash and count guard, and
-  update focused offline evidence. No runtime apply, value, Secret, workload, provider,
-  Kubernetes, or Infisical operation was performed for this expansion (`KIF-INF-04`).
+- [x] Expand and apply the guarded closure for `cristexhub-prod`: add the exact
+  manager Role/RoleBinding, extend the controller watch list, admit PROD only for the
+  exact reviewed Auth/Connection/StaticSecret identities while keeping Secret/
+  PushSecret/DynamicSecret PROD-excluded, and refresh every hash/count guard. Check,
+  apply, post-check, and idempotence passed at `ok=30 changed=1`, `ok=35 changed=1`,
+  `ok=30 changed=0`, and `ok=35 changed=0`; no value, Secret, Infisical CR,
+  application workload, provider resource, PVC, database, or route was created
+  (`KIF-INF-04`).
 - [ ] Complete broader live admission/RBAC/traffic negatives before Universal Auth.
   Guarded Drive transfer/readback, controller verification, and exact three proxy
-  Secrets pass. Historical Operator results for exactly 40 objects are
+  Secrets pass. Historical Operator results for exactly 40 objects were
   `ok=24 changed=2`, `ok=29 changed=2`, and `ok=29 changed=0`; the later 42-object
-  source was not separately runtime-applied, and the proposed 44-object runtime
-  post-state/idempotence remain blocked (`KIF-005`,
+  source was not separately runtime-applied, while the 44-object expansion is now
+  applied/idempotent. Credential-bearing phases remain blocked (`KIF-005`,
   `KIF-013`–`KIF-016`, `KIF-021`, `KIF-023`, `KIF-027`, `KIF-030`).
 - [ ] Approve and document the private Git/Infisical/GHCR/Cloudflare/Keycloak
   secret-zero sequence (`KIF-014`, `KIF-015`).

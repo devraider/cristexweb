@@ -493,13 +493,14 @@ Keycloak, and privileged CRD/cluster-RBAC prerequisites. Exact executable Namesp
 source exists for completed Namespaces. The
 [Infisical implementation profile](../runbooks/infisical-operator-implementation-profile.md)
 remains canonical policy, and a dedicated guarded [Infisical bootstrap](../runbooks/infisical-operator-bootstrap.md) now promotes the
-exact 44-object source-only idle closure: six namespaced CRDs, fail-closed
-same-Namespace admission, PROD allowlists only for generic Auth/Connection/StaticSecret,
-least-privilege namespaced RBAC, one metrics-off controller, authenticated
-TLS Squid, and eight NetworkPolicies. The archive remains quarantined evidence and is
-never consumed at runtime. No Secret value or runtime Infisical CR exists. Runtime is
-unrun and the wrapper fails before mutation until exact separately recovered proxy
-Secret metadata exists. A separate guarded Argo CD source closure now exists but
+exact 44-object idle closure: six namespaced CRDs, fail-closed same-Namespace
+admission, PROD allowlists only for the exact reviewed Auth/Connection/StaticSecret
+identities, least-privilege namespaced RBAC, one metrics-off controller,
+authenticated TLS Squid, and eight NetworkPolicies. The archive remains quarantined
+evidence and is never consumed at runtime. The 44-object check/apply/post-check/
+idempotence passed at `ok=30 changed=1`, `ok=35 changed=1`, `ok=30 changed=0`, and
+`ok=35 changed=0`; no Secret value or runtime Infisical CR was created. The wrapper
+continues to require exact separately recovered proxy Secret metadata. A separate guarded Argo CD source closure now exists but
 also remains runtime-unrun; Keycloak, PostgreSQL, MongoDB, and application runtime
 remain absent. A separate source-only [Infisical Argo CD Secret materialization
 seam](../runbooks/infisical-argocd-secret-materialization.md) freezes one

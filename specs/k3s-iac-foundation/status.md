@@ -266,14 +266,16 @@ note: |
   hash-mapped namespaced CRDs, six fail-closed admission policies and bindings,
   exact five-Namespace RBAC, one metrics-off digest-pinned controller, authenticated
   TLS Squid, eight NetworkPolicies, and a 44-object action guard. The idle closure
-  remains free of Secrets and Infisical CRs. The source-only PROD watch expansion
-  adds only the exact `cristexhub-prod` manager Role/RoleBinding, controller watch
-  entry, and generic Auth/Connection/StaticSecret namespace allowlists; Secret,
-  PushSecret, and DynamicSecret remain PROD-excluded. No value, Secret, Infisical CR,
-  workload, provider, Kubernetes, or Infisical operation was run for this expansion.
-  The historical runtime checkpoint applied exactly 40 objects and converged at
-  idempotence; the later 42-object source was not separately runtime-applied, and
-  this proposed 44-object expansion remains source-only/unrun. A separate
+  remains free of Secrets and Infisical CRs. The applied/idempotent PROD watch
+  expansion adds only the exact `cristexhub-prod` manager Role/RoleBinding, controller watch
+  entry, and exact Auth/Connection/StaticSecret identity allowlists; Secret,
+  PushSecret, and DynamicSecret remain PROD-excluded. The historical runtime
+  checkpoint applied exactly 40 objects and converged at idempotence; the later
+  42-object source was not separately runtime-applied. The 44-object expansion passed
+  check/apply/post-check/idempotence at `ok=30 changed=1`, `ok=35 changed=1`,
+  `ok=30 changed=0`, and `ok=35 changed=0`; both Deployments and k3s/Tailscale
+  remained healthy. It created no value, Secret, Infisical CR, application workload,
+  provider resource, PVC, database, or route. A separate
   source-only
   [Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md)
   freezes one same-Namespace Universal Auth reference, one

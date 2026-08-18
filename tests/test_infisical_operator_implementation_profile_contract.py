@@ -303,7 +303,7 @@ class InfisicalOperatorImplementationProfileContractTests(unittest.TestCase):
 
         normalized = " ".join(self.runbook.split())
         for required in (
-            "GUARDED IDLE SOURCE READY — RUNTIME NOT RUN/BLOCKED",
+            "44-OBJECT IDLE CLOSURE APPLIED/IDEMPOTENT — CREDENTIAL-BEARING PROD PHASES BLOCKED",
             "shared-services`, `argocd`, `cristexhub-dev`, `cristexhub-prod`, and `platform-edge`",
             "separate identity and credential scope",
             "ClusterGenerator has no reconciler or eager watch",

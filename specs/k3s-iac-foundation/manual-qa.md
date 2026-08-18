@@ -86,7 +86,8 @@ remains the raw-chart defect record, while the
 remains canonical policy. The guarded [Infisical idle bootstrap](../../runbooks/infisical-operator-bootstrap.md) now provides
 exact deployable source for six CRDs, native same-Namespace admission, scoped RBAC,
 the metrics-off Operator, authenticated TLS proxy, and NetworkPolicy. It contains no
-committed Secret value or Infisical CR and Operator runtime is still **NOT
+committed Secret value or Infisical CR. The 44-object closure is applied/idempotent;
+broader admission/RBAC/traffic and credential-bearing PROD phases remain **NOT
 RUN/BLOCKED**. A separate source-only [Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md)
 freezes one same-Namespace Universal Auth reference, fixed source identifiers,
 exact orphaned Argo targets, additive exact-name RBAC, and fail-closed admission;
@@ -106,12 +107,11 @@ engine-specific Auth/credential identities, two path-scoped StaticSecrets, eleve
 engine/consumer target contracts, eight scoped operator-or-target VAP/bindings with operator-only
 validation, additive writer RBAC, and offline negative/hash contracts; its values,
 check/apply, sync, rotation, recovery, and runtime remain blocked. This source does
-not close a manual case. Previously approved Argo CD, cloudflared, the historical 40-object Infisical
-runtime, shared databases, and CristexHub DEV checkpoints are live. This source-only
-44-object Operator expansion performs no runtime operation and closes no additional
-manual case. No deployment, replacement
-recovery proof, or complete manual runtime validation
-occurred. The separate source-only k3s datastore/encryption preflight completed one
+not close a manual case. Previously approved Argo CD, cloudflared, shared databases, and CristexHub DEV
+checkpoints are live. The 44-object Operator expansion now also passes check/apply/
+post-check/idempotence, but broader admission/RBAC/traffic and every
+credential-bearing PROD phase remain pending, so it closes no full manual case. No
+replacement recovery proof or complete manual runtime validation occurred. The separate source-only k3s datastore/encryption preflight completed one
 approved live read-only run at `ok=45 changed=1`; the sole change was its ignored
 mode-`0600` sanitized artifact, whose datastore/encryption stages remained unknown.
 It performed no host, backup, restore, encryption, cluster, or Secret mutation and

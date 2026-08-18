@@ -184,24 +184,24 @@ class InfisicalOperatorBootstrapContractTests(unittest.TestCase):
             self.assertEqual(1, len(rule["resources"]))
             resources.add(rule["resources"][0])
             namespace_validation = policy["spec"]["validations"][0]
-            generic_prod_allowlist = {
+            exact_prod_identity_policies = {
                 "infisical-auth-boundary",
                 "infisical-connection-boundary",
                 "infisical-static-secret-boundary",
             }
             expected_expression = (
                 "request.namespace in ['shared-services', 'argocd', 'cristexhub-dev', 'cristexhub-prod', 'platform-edge']"
-                if policy["metadata"]["name"] in generic_prod_allowlist
+                if policy["metadata"]["name"] in exact_prod_identity_policies
                 else "request.namespace in ['shared-services', 'argocd', 'cristexhub-dev', 'platform-edge']"
             )
             expected_message = (
                 "Only the five reviewed namespaces may contain Infisical custom resources."
-                if policy["metadata"]["name"] in generic_prod_allowlist
+                if policy["metadata"]["name"] in exact_prod_identity_policies
                 else "Only the four reviewed namespaces may contain Infisical custom resources."
             )
             self.assertEqual(expected_expression, namespace_validation["expression"])
             self.assertEqual(expected_message, namespace_validation["message"])
-            if policy["metadata"]["name"] in generic_prod_allowlist:
+            if policy["metadata"]["name"] in exact_prod_identity_policies:
                 expected_prod_identity = {
                     "infisical-auth-boundary": "cristexhub-prod-infisical-auth",
                     "infisical-connection-boundary": "infisical-cloud",

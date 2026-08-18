@@ -176,10 +176,12 @@ binds the official source, and the guarded
 [idle bootstrap](../../runbooks/infisical-operator-bootstrap.md) promotes exactly 44
 value-free objects: six namespaced CRDs, six native admission policies/bindings,
 exact namespaced RBAC, one metrics-off controller, authenticated TLS Squid, and eight
-NetworkPolicies. The archive remains quarantined and is not a runtime input. Runtime
-is **NOT RUN/BLOCKED** until the separately recovered proxy Secrets and guarded
-check/apply/idempotence, live admission/RBAC/traffic, and idle health pass. The idle
-closure contains no Infisical CR, but a separate source-only
+NetworkPolicies. The archive remains quarantined and is not a runtime input. The
+44-object closure passed guarded check/apply/post-check/idempotence at
+`ok=30 changed=1`, `ok=35 changed=1`, `ok=30 changed=0`, and `ok=35 changed=0`.
+Broader live admission/RBAC/traffic and every credential-bearing PROD phase remain
+**NOT RUN/BLOCKED**. The idle closure contains no Infisical CR, but a separate
+source-only
 [Argo CD Secret materialization seam](../../runbooks/infisical-argocd-secret-materialization.md)
 freezes one same-Namespace Universal Auth reference, one Connection/Auth/StaticSecret
 closure, exactly three orphaned targets, additive exact-name Secret/workload-list
