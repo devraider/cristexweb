@@ -14,6 +14,30 @@
     - cristexhub_prod_runtime_generic_admission_policies
     - cristexhub_prod_runtime_generic_admission_bindings
     - cristexhub_prod_runtime_bootstrap_attestation
+    - cristexhub_prod_runtime_cr_inventory
+    - cristexhub_prod_runtime_target_secret_inventory
+    - cristexhub_prod_runtime_cr_inventory_recheck
+    - cristexhub_prod_runtime_target_secret_inventory_recheck
+    - cristexhub_prod_runtime_expected_operator_deployment
+    - cristexhub_prod_runtime_expected_operator_role
+    - cristexhub_prod_runtime_expected_operator_rolebinding
+    - cristexhub_prod_runtime_expected_generic_policies
+    - cristexhub_prod_runtime_expected_generic_bindings
+    - cristexhub_prod_runtime_admission_policies
+    - cristexhub_prod_runtime_admission_bindings
+    - cristexhub_prod_runtime_rbac_objects
+    - cristexhub_prod_runtime_source_objects
+    - cristexhub_prod_runtime_identity_keys
+    - cristexhub_prod_runtime_prestate
+    - cristexhub_prod_runtime_poststate
+    - cristexhub_prod_runtime_admission_apply
+    - cristexhub_prod_runtime_admission_policy_state
+    - cristexhub_prod_runtime_admission_binding_apply
+    - cristexhub_prod_runtime_admission_binding_state
+    - cristexhub_prod_runtime_rbac_apply
+    - cristexhub_prod_runtime_source_apply
+    - cristexhub_prod_runtime_source_state
+    - cristexhub_prod_runtime_target_secret_poststate
     - cristexhub_prod_runtime_apply
   changed_when: false
 
@@ -51,6 +75,19 @@
       - cristexhub_prod_runtime_bootstrap_credential_contract.namespace == 'cristexhub-prod'
       - cristexhub_prod_runtime_bootstrap_credential_contract.type == 'Opaque'
       - cristexhub_prod_runtime_bootstrap_credential_contract['keys'] == ['clientId', 'clientSecret']
+      - >-
+        cristexhub_prod_runtime_bootstrap_expected_cr_kinds ==
+        [
+          {'kind': 'InfisicalSecret', 'api_version': 'secrets.infisical.com/v1alpha1'},
+          {'kind': 'InfisicalPushSecret', 'api_version': 'secrets.infisical.com/v1alpha1'},
+          {'kind': 'InfisicalDynamicSecret', 'api_version': 'secrets.infisical.com/v1alpha1'},
+          {'kind': 'InfisicalConnection', 'api_version': 'secrets.infisical.com/v1beta1'},
+          {'kind': 'InfisicalAuth', 'api_version': 'secrets.infisical.com/v1beta1'},
+          {'kind': 'InfisicalStaticSecret', 'api_version': 'secrets.infisical.com/v1beta1'}
+        ]
+      - >-
+        cristexhub_prod_runtime_bootstrap_expected_target_secret_names ==
+        ['cristexhub-prod-infisical-universal-auth', 'cristexhub-prod-runtime', 'cristexhub-prod-ghcr-pull']
     fail_msg: Refusing an unapproved, selected, non-diff, or altered runtime seam invocation.
   changed_when: false
 
@@ -150,6 +187,115 @@
   changed_when: false
   no_log: true
 
+- name: Load exact Operator and generic admission source contracts
+  ansible.builtin.set_fact:
+    cristexhub_prod_runtime_expected_operator_deployment: >-
+      {{ lookup('ansible.builtin.file', cristexhub_prod_runtime_bootstrap_repository_root ~
+         '/ansible/files/components/infisical-operator/controller/deployment.yaml') | from_yaml }}
+    cristexhub_prod_runtime_expected_operator_role: >-
+      {{ lookup('ansible.builtin.file', cristexhub_prod_runtime_bootstrap_repository_root ~
+         '/ansible/files/components/infisical-operator/rbac/manager-role-cristexhub-prod.yaml') | from_yaml }}
+    cristexhub_prod_runtime_expected_operator_rolebinding: >-
+      {{ lookup('ansible.builtin.file', cristexhub_prod_runtime_bootstrap_repository_root ~
+         '/ansible/files/components/infisical-operator/rbac/manager-rolebinding-cristexhub-prod.yaml') | from_yaml }}
+    cristexhub_prod_runtime_expected_generic_policies:
+      - "{{ lookup('ansible.builtin.file', cristexhub_prod_runtime_bootstrap_repository_root ~ '/ansible/files/components/infisical-operator/admission/infisical-auth-boundary.yaml') | from_yaml }}"
+      - "{{ lookup('ansible.builtin.file', cristexhub_prod_runtime_bootstrap_repository_root ~ '/ansible/files/components/infisical-operator/admission/infisical-connection-boundary.yaml') | from_yaml }}"
+      - "{{ lookup('ansible.builtin.file', cristexhub_prod_runtime_bootstrap_repository_root ~ '/ansible/files/components/infisical-operator/admission/infisical-static-secret-boundary.yaml') | from_yaml }}"
+    cristexhub_prod_runtime_expected_generic_bindings:
+      - "{{ lookup('ansible.builtin.file', cristexhub_prod_runtime_bootstrap_repository_root ~ '/ansible/files/components/infisical-operator/admission/infisical-auth-boundary-binding.yaml') | from_yaml }}"
+      - "{{ lookup('ansible.builtin.file', cristexhub_prod_runtime_bootstrap_repository_root ~ '/ansible/files/components/infisical-operator/admission/infisical-connection-boundary-binding.yaml') | from_yaml }}"
+      - "{{ lookup('ansible.builtin.file', cristexhub_prod_runtime_bootstrap_repository_root ~ '/ansible/files/components/infisical-operator/admission/infisical-static-secret-boundary-binding.yaml') | from_yaml }}"
+  changed_when: false
+  no_log: true
+
+- name: Query every Infisical custom-resource kind in PROD
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: cristexhub-prod
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_prod_runtime_bootstrap_expected_cr_kinds }}"
+  register: cristexhub_prod_runtime_cr_inventory
+  changed_when: false
+  no_log: true
+
+- name: Query every Secret in the PROD Namespace before mutation
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: cristexhub-prod
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  register: cristexhub_prod_runtime_target_secret_inventory
+  changed_when: false
+  no_log: true
+
+- name: Reject noncanonical existing PROD Infisical resources and Secrets
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_runtime_cr_inventory.results | length == 6
+      - >-
+        item.item.kind in ['InfisicalSecret', 'InfisicalPushSecret', 'InfisicalDynamicSecret']
+        and item.resources | length == 0 or
+        item.item.kind == 'InfisicalConnection' and
+        (item.resources | map(attribute='metadata.name') | list | difference(['infisical-cloud']) | length == 0) or
+        item.item.kind == 'InfisicalAuth' and
+        (item.resources | map(attribute='metadata.name') | list | difference(['cristexhub-prod-infisical-auth']) | length == 0) or
+        item.item.kind == 'InfisicalStaticSecret' and
+        (item.resources | map(attribute='metadata.name') | list | difference(['cristexhub-prod-runtime']) | length == 0)
+      - item.resources | length <= 1
+    fail_msg: Refusing an unexpected or duplicate PROD Infisical custom resource.
+  loop: "{{ cristexhub_prod_runtime_cr_inventory.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}"
+  changed_when: false
+  no_log: true
+
+- name: Reject noncanonical existing PROD target Secret names
+  ansible.builtin.assert:
+    that:
+      - item.resources | map(attribute='metadata.name') | list | difference(cristexhub_prod_runtime_bootstrap_expected_target_secret_names) | length == 0
+      - item.resources | map(attribute='metadata.name') | list | unique | length == item.resources | length
+    fail_msg: Refusing an unexpected or duplicate PROD Secret before runtime seam mutation.
+  loop:
+    - "{{ cristexhub_prod_runtime_target_secret_inventory }}"
+  loop_control:
+    label: cristexhub-prod
+  changed_when: false
+  no_log: true
+
+- name: Reject drifted existing PROD target Secret contracts
+  ansible.builtin.assert:
+    that:
+      - >-
+        cristexhub_prod_runtime_target_secret_inventory.resources |
+        selectattr('metadata.name', 'equalto', item.value.name) | list | length in [0, 1]
+      - >-
+        cristexhub_prod_runtime_target_secret_inventory.resources |
+        selectattr('metadata.name', 'equalto', item.value.name) | list | length == 0 or
+        ((cristexhub_prod_runtime_target_secret_inventory.resources |
+          selectattr('metadata.name', 'equalto', item.value.name) | first).type == item.value.type and
+         ((cristexhub_prod_runtime_target_secret_inventory.resources |
+           selectattr('metadata.name', 'equalto', item.value.name) | first).data | default({})).keys() | list | sort == item.value.keys | sort and
+         ((cristexhub_prod_runtime_target_secret_inventory.resources |
+           selectattr('metadata.name', 'equalto', item.value.name) | first).binaryData | default({}) | length == 0 and
+         not ((cristexhub_prod_runtime_target_secret_inventory.resources |
+           selectattr('metadata.name', 'equalto', item.value.name) | first).immutable | default(false) | bool) and
+         ((cristexhub_prod_runtime_target_secret_inventory.resources |
+           selectattr('metadata.name', 'equalto', item.value.name) | first).metadata.ownerReferences | default([]) | length == 0 and
+         ((cristexhub_prod_runtime_target_secret_inventory.resources |
+           selectattr('metadata.name', 'equalto', item.value.name) | first).metadata.labels | default({})) == cristexhub_prod_runtime_bootstrap_labels and
+         ((cristexhub_prod_runtime_target_secret_inventory.resources |
+           selectattr('metadata.name', 'equalto', item.value.name) | first).metadata.annotations | default({})).keys() | list == ['secrets.infisical.com/version'] and
+         ((cristexhub_prod_runtime_target_secret_inventory.resources |
+           selectattr('metadata.name', 'equalto', item.value.name) | first).metadata.annotations['secrets.infisical.com/version'] | length > 0)
+    fail_msg: Refusing an existing drifted PROD runtime target Secret.
+  loop: "{{ cristexhub_prod_runtime_bootstrap_target_contract | dict2items }}"
+  loop_control:
+    label: "{{ item.value.name }}"
+  changed_when: false
+  no_log: true
+
 - name: Stop until the Infisical Operator PROD checkpoint is separately approved
   ansible.builtin.assert:
     that:
@@ -158,14 +304,41 @@
       - >-
         cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].status.observedGeneration ==
         cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].metadata.generation
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].status.replicas | default(0) | int == 1
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].status.updatedReplicas | default(0) | int == 1
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].status.readyReplicas | default(0) | int == 1
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].status.availableReplicas | default(0) | int == 1
       - >-
-        '--namespaces=shared-services,argocd,cristexhub-dev,cristexhub-prod,platform-edge' in
-        cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].args
-      - cristexhub_prod_runtime_operator_prerequisites.results[1].resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
-      - cristexhub_prod_runtime_operator_prerequisites.results[1].resources[0].metadata.labels.get('cristex.io/component') == 'infisical-operator'
-      - cristexhub_prod_runtime_operator_prerequisites.results[2].resources[0].roleRef.name == 'infisical-operator-manager'
+        cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].status.conditions |
+        selectattr('type', 'equalto', 'Available') | selectattr('status', 'equalto', 'True') |
+        list | length == 1
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.replicas == 1
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.strategy == cristexhub_prod_runtime_expected_operator_deployment.spec.strategy
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.selector == cristexhub_prod_runtime_expected_operator_deployment.spec.selector
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.metadata.labels == cristexhub_prod_runtime_expected_operator_deployment.spec.template.metadata.labels
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.metadata.annotations == cristexhub_prod_runtime_expected_operator_deployment.spec.template.metadata.annotations
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.serviceAccountName == 'infisical-operator-controller'
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.automountServiceAccountToken | bool
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers | length == 1
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].name == 'manager'
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].image == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].image
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].args == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].args
+      - >-
+        cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].args ==
+        ['--metrics-bind-address=0', '--leader-elect', '--health-probe-bind-address=:8081',
+         '--namespaces=shared-services,argocd,cristexhub-dev,cristexhub-prod,platform-edge']
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].env == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].env
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe.httpGet.path == '/readyz'
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe.httpGet.port == 'health'
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].metadata.labels == cristexhub_prod_runtime_expected_operator_deployment.metadata.labels
+      - cristexhub_prod_runtime_operator_prerequisites.results[1].resources[0].rules == cristexhub_prod_runtime_expected_operator_role.rules
+      - cristexhub_prod_runtime_operator_prerequisites.results[1].resources[0].metadata.labels == cristexhub_prod_runtime_expected_operator_role.metadata.labels
+      - cristexhub_prod_runtime_operator_prerequisites.results[2].resources[0].roleRef == cristexhub_prod_runtime_expected_operator_rolebinding.roleRef
+      - cristexhub_prod_runtime_operator_prerequisites.results[2].resources[0].subjects == cristexhub_prod_runtime_expected_operator_rolebinding.subjects
+      - cristexhub_prod_runtime_operator_prerequisites.results[2].resources[0].metadata.labels == cristexhub_prod_runtime_expected_operator_rolebinding.metadata.labels
       - cristexhub_prod_runtime_generic_admission_policies.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
+      - cristexhub_prod_runtime_generic_admission_policies.results | map(attribute='resources.0.spec') | list == cristexhub_prod_runtime_expected_generic_policies | map(attribute='spec') | list
+      - cristexhub_prod_runtime_generic_admission_bindings.results | map(attribute='resources.0.spec') | list == cristexhub_prod_runtime_expected_generic_bindings | map(attribute='spec') | list
       - cristexhub_prod_runtime_generic_admission_bindings.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
       - >-
         cristexhub_prod_runtime_generic_admission_policies.results |
@@ -178,6 +351,24 @@
         map(attribute='resources.0.spec.validations') | map('to_json') |
         select('search', 'cristexhub-prod') | list | length == 3
     fail_msg: "BLOCKED: the existing Infisical Operator closure does not yet have separately approved cristexhub-prod watch/RBAC/admission. No runtime seam mutation was attempted."
+  changed_when: false
+  no_log: true
+
+- name: Require generic PROD admission policies to be type-checked at observed generation
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - >-
+        item.resources[0].status.conditions | default([]) | length == 0 or
+        (item.resources[0].status.conditions | default([]) |
+         selectattr('type', 'equalto', 'TypeChecking') |
+         selectattr('status', 'equalto', 'True') |
+         selectattr('observedGeneration', 'equalto', item.resources[0].metadata.generation) |
+         list | length == 1)
+    fail_msg: Refusing runtime seam mutation until every generic PROD admission policy is type-checked at its observed generation.
+  loop: "{{ cristexhub_prod_runtime_generic_admission_policies.results }}"
+  loop_control:
+    label: "{{ item.item }}"
   changed_when: false
   no_log: true
 
@@ -212,10 +403,25 @@
   changed_when: false
   no_log: true
 
+- name: Derive the ordered runtime seam identity closure
+  ansible.builtin.set_fact:
+    cristexhub_prod_runtime_identity_keys: >-
+      {{ (cristexhub_prod_runtime_identity_keys | default([])) +
+         [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+          (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
+  loop: "{{ cristexhub_prod_runtime_manifests }}"
+  changed_when: false
+  no_log: true
+
 - name: Require exact 13-object value-free closure
   ansible.builtin.assert:
     that:
       - cristexhub_prod_runtime_manifests | length == 13
+      - cristexhub_prod_runtime_identity_keys | length == 13
+      - cristexhub_prod_runtime_identity_keys | unique | length == 13
+      - >-
+        cristexhub_prod_runtime_identity_keys | sort | join('\n') | hash('sha256') ==
+        'd46dde754f05f248bbc19ff28a65ec44ccb1f84c53221c1f7d4e3bb355d6ff20'
       - cristexhub_prod_runtime_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
       - cristexhub_prod_runtime_manifests | selectattr('metadata.namespace', 'defined') | map(attribute='metadata.namespace') | unique | difference(['cristexhub-prod']) | length == 0
       - cristexhub_prod_runtime_manifests | selectattr('kind', 'equalto', 'ValidatingAdmissionPolicy') | list | length == 4
@@ -248,10 +454,16 @@
       - cristexhub_prod_runtime_credential.resources[0].metadata.namespace == cristexhub_prod_runtime_bootstrap_credential_contract.namespace
       - cristexhub_prod_runtime_credential.resources[0].type == cristexhub_prod_runtime_bootstrap_credential_contract.type
       - (cristexhub_prod_runtime_credential.resources[0].data | default({})).keys() | list | sort == cristexhub_prod_runtime_bootstrap_credential_contract['keys'] | sort
+      - >-
+        (cristexhub_prod_runtime_credential.resources[0].data | default({})) |
+        dict2items | map(attribute='value') | map('length') | min > 0
       - (cristexhub_prod_runtime_credential.resources[0].binaryData | default({})).keys() | list | length == 0
       - not (cristexhub_prod_runtime_credential.resources[0].immutable | default(false) | bool)
       - (cristexhub_prod_runtime_credential.resources[0].metadata.ownerReferences | default([]) | length) == 0
       - (cristexhub_prod_runtime_credential.resources[0].metadata.labels | default({})) == cristexhub_prod_runtime_bootstrap_credential_contract.labels
+      - (cristexhub_prod_runtime_credential.resources[0].metadata.annotations | default({})) | length == 0
+      - cristexhub_prod_runtime_credential.resources[0].metadata.uid | default('') | length > 0
+      - cristexhub_prod_runtime_credential.resources[0].metadata.resourceVersion | default('') | length > 0
     fail_msg: "BLOCKED: precreate exact cristexhub-prod-infisical-universal-auth metadata (clientId/clientSecret) before runtime seam apply. No mutation was attempted."
   changed_when: false
   no_log: true
@@ -274,11 +486,43 @@
   ansible.builtin.assert:
     that:
       - item.resources | length in [0, 1]
-      - item.resources | length == 0 or ((item.resources[0].apiVersion == item.item.apiVersion) and (item.resources[0].kind == item.item.kind) and item.resources[0].metadata.name == item.item.metadata.name and (item.resources[0].metadata.namespace | default('')) == (item.item.metadata.namespace | default('')) and (item.resources[0].metadata.labels | default({})) == (item.item.metadata.labels | default({})) and ((item.item.kind in ['InfisicalConnection', 'InfisicalAuth', 'InfisicalStaticSecret']) and item.resources[0].get('spec') == item.item.get('spec') or (item.item.kind == 'Role' and item.resources[0].get('rules') == item.item.get('rules')) or (item.item.kind == 'RoleBinding' and item.resources[0].get('roleRef') == item.item.get('roleRef') and item.resources[0].get('subjects') == item.item.get('subjects')) or (item.item.kind == 'ValidatingAdmissionPolicy' and item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules and (item.resources[0].spec.matchConditions | default([])) == (item.item.spec.matchConditions | default([])) and item.resources[0].spec.validations == item.item.spec.validations) or (item.item.kind == 'ValidatingAdmissionPolicyBinding' and item.resources[0].spec.policyName == item.item.spec.policyName and item.resources[0].spec.validationActions == item.item.spec.validationActions)) )
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].apiVersion == item.item.apiVersion and
+         item.resources[0].kind == item.item.kind and
+         item.resources[0].metadata.name == item.item.metadata.name and
+         (item.resources[0].metadata.namespace | default('')) == (item.item.metadata.namespace | default('')) and
+         (item.resources[0].metadata.labels | default({})) == (item.item.metadata.labels | default({})) and
+         (item.resources[0].metadata.annotations | default({})) == (item.item.metadata.annotations | default({})) and
+         (item.resources[0].metadata.ownerReferences | default([]) | length) == 0 and
+         (item.resources[0].metadata.finalizers | default([]) | length) == 0 and
+         ((item.item.kind in ['InfisicalConnection', 'InfisicalAuth', 'InfisicalStaticSecret'] and
+           item.resources[0].spec == item.item.spec) or
+          (item.item.kind == 'Role' and item.resources[0].rules == item.item.rules) or
+          (item.item.kind == 'RoleBinding' and item.resources[0].roleRef == item.item.roleRef and
+           item.resources[0].subjects == item.item.subjects) or
+          (item.item.kind == 'ValidatingAdmissionPolicy' and
+           item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and
+           item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules and
+           (item.resources[0].spec.matchConditions | default([])) == (item.item.spec.matchConditions | default([])) and
+           item.resources[0].spec.validations == item.item.spec.validations) or
+          (item.item.kind == 'ValidatingAdmissionPolicyBinding' and
+           item.resources[0].spec.policyName == item.item.spec.policyName and
+           item.resources[0].spec.validationActions == item.item.spec.validationActions and
+           (item.resources[0].spec.matchResources | default({})) == (item.item.spec.matchResources | default({})))))
     fail_msg: Refusing silent adoption of a foreign or drifted runtime seam object.
   loop: "{{ cristexhub_prod_runtime_prestate.results }}"
   loop_control:
     label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Partition the exact runtime seam into staged mutation sets
+  ansible.builtin.set_fact:
+    cristexhub_prod_runtime_admission_policies: "{{ cristexhub_prod_runtime_manifests | selectattr('kind', 'equalto', 'ValidatingAdmissionPolicy') | list }}"
+    cristexhub_prod_runtime_admission_bindings: "{{ cristexhub_prod_runtime_manifests | selectattr('kind', 'equalto', 'ValidatingAdmissionPolicyBinding') | list }}"
+    cristexhub_prod_runtime_rbac_objects: "{{ cristexhub_prod_runtime_manifests | selectattr('kind', 'in', ['Role', 'RoleBinding']) | list }}"
+    cristexhub_prod_runtime_source_objects: "{{ cristexhub_prod_runtime_manifests | selectattr('kind', 'in', ['InfisicalConnection', 'InfisicalAuth', 'InfisicalStaticSecret']) | list }}"
   changed_when: false
   no_log: true
 
@@ -288,22 +532,238 @@
       attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_RUNTIME_TOKEN') | hash('sha256') }}"
       object_count: 13
       prestate_count: "{{ cristexhub_prod_runtime_prestate.results | length }}"
+      operator_prerequisite_count: 3
+      generic_policy_count: 3
+      generic_binding_count: 3
+      cr_inventory_count: "{{ cristexhub_prod_runtime_cr_inventory.results | length }}"
+      target_secret_inventory_count: "{{ cristexhub_prod_runtime_target_secret_inventory.resources | length }}"
       identity_set_sha256: d46dde754f05f248bbc19ff28a65ec44ccb1f84c53221c1f7d4e3bb355d6ff20
+      identity_keys_sha256: >-
+        {{ cristexhub_prod_runtime_identity_keys | sort | join('\n') | hash('sha256') }}
   changed_when: false
   no_log: true
 
-- name: Reconcile exact runtime seam object closure
+- name: Reconcile exact runtime seam admission policies first
   infisical_cristexhub_prod_runtime_guarded_k8s:
     state: present
     definition: "{{ item }}"
     kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
     wait: false
     wait_timeout: 60
-  loop: "{{ cristexhub_prod_runtime_manifests }}"
+  loop: "{{ cristexhub_prod_runtime_admission_policies }}"
   loop_control:
-    label: "{{ item.kind }}/{{ item.metadata.namespace | default('cluster') }}/{{ item.metadata.name }}"
-  register: cristexhub_prod_runtime_apply
+    label: "{{ item.metadata.name }}"
+  register: cristexhub_prod_runtime_admission_apply
   no_log: true
+
+- name: Wait for exact runtime VAP type-checking and observed generation
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicy
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_prod_runtime_admission_policies }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: cristexhub_prod_runtime_admission_policy_state
+  until:
+    - cristexhub_prod_runtime_admission_policy_state.resources | length == 1
+    - >-
+      cristexhub_prod_runtime_admission_policy_state.resources[0].spec == item.spec
+    - >-
+      cristexhub_prod_runtime_admission_policy_state.resources[0].status.conditions | default([]) | length == 0 or
+      (cristexhub_prod_runtime_admission_policy_state.resources[0].status.conditions | default([]) |
+       selectattr('type', 'equalto', 'TypeChecking') |
+       selectattr('status', 'equalto', 'True') |
+       selectattr('observedGeneration', 'equalto', cristexhub_prod_runtime_admission_policy_state.resources[0].metadata.generation) |
+       list | length == 1)
+  retries: 30
+  delay: 2
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Reconcile exact runtime seam admission bindings second
+  infisical_cristexhub_prod_runtime_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ cristexhub_prod_runtime_admission_bindings }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: cristexhub_prod_runtime_admission_binding_apply
+  no_log: true
+
+- name: Wait for exact runtime VAP bindings to become effective
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicyBinding
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_prod_runtime_admission_bindings }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: cristexhub_prod_runtime_admission_binding_state
+  until:
+    - cristexhub_prod_runtime_admission_binding_state.resources | length == 1
+    - cristexhub_prod_runtime_admission_binding_state.resources[0].spec == item.spec
+    - cristexhub_prod_runtime_admission_binding_state.resources[0].metadata.generation is defined
+  retries: 30
+  delay: 2
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Recheck all six Infisical CR inventories before granting PROD RBAC
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: cristexhub-prod
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_prod_runtime_bootstrap_expected_cr_kinds }}"
+  register: cristexhub_prod_runtime_cr_inventory_recheck
+  changed_when: false
+  no_log: true
+
+- name: Recheck all PROD Secrets before granting PROD RBAC
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: cristexhub-prod
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  register: cristexhub_prod_runtime_target_secret_inventory_recheck
+  changed_when: false
+  no_log: true
+
+- name: Refuse Infisical CR or Secret UID/resourceVersion races
+  ansible.builtin.assert:
+    that:
+      - item.resources | map(attribute='metadata.name') | list == cristexhub_prod_runtime_cr_inventory.results[index].resources | map(attribute='metadata.name') | list
+      - item.resources | map(attribute='metadata.uid') | list == cristexhub_prod_runtime_cr_inventory.results[index].resources | map(attribute='metadata.uid') | list
+      - item.resources | map(attribute='metadata.resourceVersion') | list == cristexhub_prod_runtime_cr_inventory.results[index].resources | map(attribute='metadata.resourceVersion') | list
+    fail_msg: Refusing a concurrent Infisical CR create, replace, or update during runtime seam admission staging.
+  loop: "{{ cristexhub_prod_runtime_cr_inventory_recheck.results }}"
+  loop_control:
+    index_var: index
+    label: "{{ item.item.kind }}"
+  changed_when: false
+  no_log: true
+
+- name: Refuse PROD Secret UID/resourceVersion races
+  ansible.builtin.assert:
+    that:
+      - item.resources | map(attribute='metadata.name') | list == cristexhub_prod_runtime_target_secret_inventory.resources | map(attribute='metadata.name') | list
+      - item.resources | map(attribute='metadata.uid') | list == cristexhub_prod_runtime_target_secret_inventory.resources | map(attribute='metadata.uid') | list
+      - item.resources | map(attribute='metadata.resourceVersion') | list == cristexhub_prod_runtime_target_secret_inventory.resources | map(attribute='metadata.resourceVersion') | list
+    fail_msg: Refusing a concurrent PROD Secret create, replace, or update during runtime seam admission staging.
+  loop:
+    - "{{ cristexhub_prod_runtime_target_secret_inventory_recheck }}"
+  loop_control:
+    label: cristexhub-prod
+  changed_when: false
+  no_log: true
+
+- name: Reconcile exact runtime seam RBAC after admission and race checks
+  infisical_cristexhub_prod_runtime_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ cristexhub_prod_runtime_rbac_objects }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: cristexhub_prod_runtime_rbac_apply
+  no_log: true
+
+- name: Reconcile Connection then Auth then StaticSecret source closure last
+  infisical_cristexhub_prod_runtime_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ cristexhub_prod_runtime_source_objects }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: cristexhub_prod_runtime_source_apply
+  no_log: true
+
+- name: Wait for PROD Connection Auth and StaticSecret reconciliation readiness
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_prod_runtime_source_objects }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: cristexhub_prod_runtime_source_state
+  until:
+    - >-
+      cristexhub_prod_runtime_source_state.resources | length == 1 and
+      ((item.kind in ['InfisicalConnection', 'InfisicalAuth'] and
+        (cristexhub_prod_runtime_source_state.resources[0].status.conditions |
+         default([]) | selectattr('type', 'equalto', 'secrets.infisical.com/IsReady') |
+         selectattr('status', 'equalto', 'True') |
+         selectattr('observedGeneration', 'equalto', cristexhub_prod_runtime_source_state.resources[0].metadata.generation) |
+         list | length == 1)) or
+       (item.kind == 'InfisicalStaticSecret' and
+        (cristexhub_prod_runtime_source_state.resources[0].status.conditions |
+         default([]) | selectattr('type', 'equalto', 'secrets.infisical.com/LastReconcileStatus') |
+         selectattr('status', 'equalto', 'True') |
+         selectattr('observedGeneration', 'equalto', cristexhub_prod_runtime_source_state.resources[0].metadata.generation) |
+         list | length == 1) and
+        (cristexhub_prod_runtime_source_state.resources[0].status.conditions |
+         default([]) | selectattr('type', 'equalto', 'secrets.infisical.com/LastSuccessfulReconcileAt') |
+         selectattr('status', 'equalto', 'True') |
+         selectattr('observedGeneration', 'equalto', cristexhub_prod_runtime_source_state.resources[0].metadata.generation) |
+         list | length == 1)))
+  retries: 30
+  delay: 5
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Query generated PROD runtime target Secret post-state
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: cristexhub-prod
+    name: "{{ item.value.name }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_prod_runtime_bootstrap_target_contract | dict2items }}"
+  loop_control:
+    label: "{{ item.value.name }}"
+  register: cristexhub_prod_runtime_target_secret_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact generated PROD runtime target Secret post-state
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.value.name
+      - item.resources[0].metadata.namespace == item.item.value.namespace
+      - item.resources[0].type == item.item.value.type
+      - (item.resources[0].data | default({})).keys() | list | sort == item.item.value.keys | sort
+      - (item.resources[0].binaryData | default({})) | length == 0
+      - not (item.resources[0].immutable | default(false) | bool)
+      - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - (item.resources[0].metadata.labels | default({})) == cristexhub_prod_runtime_bootstrap_labels
+      - (item.resources[0].metadata.annotations | default({})).keys() | list == ['secrets.infisical.com/version']
+      - item.resources[0].metadata.annotations['secrets.infisical.com/version'] | length > 0
+    fail_msg: Generated PROD target Secret is absent, drifted, or noncanonical.
+  loop: "{{ cristexhub_prod_runtime_target_secret_poststate.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.value.name }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
 
 - name: Query exact runtime seam object post-state
   kubernetes.core.k8s_info:
@@ -320,20 +780,36 @@
   no_log: true
   when: not ansible_check_mode
 
-- name: Require exact runtime seam post-state
+- name: Require exact runtime seam post-state deep canonical equality
   ansible.builtin.assert:
     that:
       - item.resources | length == 1
+      - item.resources[0].apiVersion == item.item.apiVersion
+      - item.resources[0].kind == item.item.kind
       - item.resources[0].metadata.name == item.item.metadata.name
       - (item.resources[0].metadata.namespace | default('')) == (item.item.metadata.namespace | default(''))
-      - item.resources[0].metadata.labels == item.item.metadata.labels
+      - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - (item.resources[0].metadata.finalizers | default([]) | length) == 0
       - >-
-        (item.item.kind in ['InfisicalConnection', 'InfisicalAuth', 'InfisicalStaticSecret'] and item.resources[0].get('spec') == item.item.get('spec')) or
-        (item.item.kind == 'Role' and item.resources[0].get('rules') == item.item.get('rules')) or
-        (item.item.kind == 'RoleBinding' and item.resources[0].get('roleRef') == item.item.get('roleRef') and item.resources[0].get('subjects') == item.item.get('subjects')) or
-        (item.item.kind == 'ValidatingAdmissionPolicy' and item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules and (item.resources[0].spec.matchConditions | default([])) == (item.item.spec.matchConditions | default([])) and item.resources[0].spec.validations == item.item.spec.validations) or
-        (item.item.kind == 'ValidatingAdmissionPolicyBinding' and item.resources[0].spec.policyName == item.item.spec.policyName and item.resources[0].spec.validationActions == item.item.spec.validationActions)
-    fail_msg: Runtime seam post-state is absent, drifted, or noncanonical.
+        (item.resources[0].metadata | dict2items |
+        rejectattr('key', 'in', ['uid', 'resourceVersion', 'generation', 'creationTimestamp', 'managedFields', 'ownerReferences']) |
+        list | items2dict) == item.item.metadata
+      - >-
+        (item.item.kind in ['InfisicalConnection', 'InfisicalAuth', 'InfisicalStaticSecret'] and
+         item.resources[0].spec == item.item.spec) or
+        (item.item.kind == 'Role' and item.resources[0].rules == item.item.rules) or
+        (item.item.kind == 'RoleBinding' and item.resources[0].roleRef == item.item.roleRef and
+         item.resources[0].subjects == item.item.subjects) or
+        (item.item.kind == 'ValidatingAdmissionPolicy' and
+         item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and
+         item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules and
+         (item.resources[0].spec.matchConditions | default([])) == (item.item.spec.matchConditions | default([])) and
+         item.resources[0].spec.validations == item.item.spec.validations) or
+        (item.item.kind == 'ValidatingAdmissionPolicyBinding' and
+         item.resources[0].spec.policyName == item.item.spec.policyName and
+         item.resources[0].spec.validationActions == item.item.spec.validationActions and
+         (item.resources[0].spec.matchResources | default({})) == (item.item.spec.matchResources | default({})))
+    fail_msg: Runtime seam post-state is absent, drifted, or noncanonical after deep canonical comparison.
   loop: "{{ cristexhub_prod_runtime_poststate.results | default([]) }}"
   loop_control:
     label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"

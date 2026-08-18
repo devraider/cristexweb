@@ -15,7 +15,7 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 
 _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-alternate-target-boundary'): 'f9814d97dc32dd6cbeebdbbe00f5529fa88424bb992995da6adb707513042d77',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-secret-write-boundary'): '876ea9bd9c5ee7a4b64d89f533db69c736086f9037eb3ec5620b06928373f81b',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-secret-write-boundary'): '374b847362f31af4795929b639a5b7d27d6209c1a48b5d04416cf6b5bc47a51a',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-source-boundary'): 'cab66e9830b8ff882f6f78f43e6a5108319daee11c1b6f01deb364e6a902b5fd',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-static-secret-boundary'): '0556d4acb1f0a03cbfb5da179559f194c64fc57ab66535f7711708dd182df6c5',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-prod-runtime-alternate-target-boundary'): '2e0439d1622eb50e93a9cf3ae0280eef9aa9db7eef3cd62ddd3c788d621e4308',
@@ -49,11 +49,10 @@ def _canonical_hash(value: dict[str, Any]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _integer(value: Any, default: int = -1) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
+def _strict_integer(value: Any, expected: int | None = None) -> bool:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return False
+    return expected is None or value == expected
 
 
 # Canonical identity digest: SHA-256 of sorted API/kind/namespace/name lines.
@@ -103,9 +102,16 @@ class ActionModule(KubernetesActionModule):
             isinstance(binding, dict)
             and binding.get("attestation_sha256")
             == hashlib.sha256(token.encode()).hexdigest()
-            and _integer(binding.get("object_count")) == 13
-            and _integer(binding.get("prestate_count")) == 13
+            and _strict_integer(binding.get("object_count"), 13)
+            and _strict_integer(binding.get("prestate_count"), 13)
+            and _strict_integer(binding.get("operator_prerequisite_count"), 3)
+            and _strict_integer(binding.get("generic_policy_count"), 3)
+            and _strict_integer(binding.get("generic_binding_count"), 3)
+            and _strict_integer(binding.get("cr_inventory_count"), 6)
+            and _strict_integer(binding.get("target_secret_inventory_count"))
+            and 1 <= binding.get("target_secret_inventory_count", -1) <= 3
             and binding.get("identity_set_sha256") == _EXPECTED_IDENTITY_SET_SHA256
+            and binding.get("identity_keys_sha256") == _EXPECTED_IDENTITY_SET_SHA256
         )
         valid_attestation = (
             os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_RUNTIME_ENTRYPOINT")

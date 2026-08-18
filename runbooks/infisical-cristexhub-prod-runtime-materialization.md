@@ -54,11 +54,17 @@ ansible/bin/bootstrap-infisical-cristexhub-prod-runtime check|apply
 It launches the pinned repository controller in an allowlisted environment with
 `--diff`, one selected host, a private one-time mode-0600 attestation, and no
 passthrough/task-selection controls. The role validates canonical mode-0644
-manifest leaves, the 13-object value-free closure, exact hashes, the existing
-`Active` Namespace labels, and exact pre-state before its present-only mutation
-path. The action plugin accepts only those 13 canonical non-Secret definitions,
-its resolved role task source, and the bound attestation/preflight identity set.
-There is no deletion or rotation path.
+manifest leaves, the unique 13-object value-free identity closure, exact hashes, the
+existing `Active` Namespace labels, exact Operator Deployment/PROD manager RBAC,
+generic admission specs, all six Infisical CR inventories, every PROD Secret name,
+and exact pre-state before its present-only mutation path. It applies the four VAPs
+first, waits for type-checking, applies their bindings, rechecks CR/Secret UID and
+resourceVersion snapshots, then grants writer RBAC and creates Connection, Auth, and
+StaticSecret in that order. Every Secret query/assertion is `no_log`; generated
+targets require exact labels, types, key closure, and the sole non-empty
+`secrets.infisical.com/version` annotation. The action plugin accepts only those 13
+canonical non-Secret definitions, strict integer counts, and the derived identity
+hash from its canonical role task source. There is no deletion or rotation path.
 
 Both modes stop before any seam object mutation until the exact
 `cristexhub-prod-infisical-universal-auth` Secret already exists with the reviewed

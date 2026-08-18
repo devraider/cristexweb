@@ -386,10 +386,48 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         checkpoint = tasks.index("Stop until the Infisical Operator PROD checkpoint")
         credential = tasks.index("Refuse absent runtime Universal Auth prerequisite")
         prestate = tasks.index("Query exact runtime seam object pre-state")
-        mutation = tasks.index("Reconcile exact runtime seam object closure")
+        admission = tasks.index("Reconcile exact runtime seam admission policies first")
+        bindings = tasks.index("Reconcile exact runtime seam admission bindings second")
+        race = tasks.index("Refuse Infisical CR or Secret UID/resourceVersion races")
+        rbac = tasks.index("Reconcile exact runtime seam RBAC after admission and race checks")
+        source_apply = tasks.index("Reconcile Connection then Auth then StaticSecret source closure last")
+        source_ready = tasks.index("Wait for PROD Connection Auth and StaticSecret reconciliation readiness")
+        target_poststate = tasks.index("Require exact generated PROD runtime target Secret post-state")
         self.assertLess(checkpoint, credential)
         self.assertLess(checkpoint, prestate)
-        self.assertLess(checkpoint, mutation)
+        self.assertLess(prestate, admission)
+        self.assertLess(admission, bindings)
+        self.assertLess(bindings, race)
+        self.assertLess(race, rbac)
+        self.assertLess(rbac, source_apply)
+        self.assertLess(source_apply, source_ready)
+        self.assertLess(source_ready, target_poststate)
+
+        for task_name in (
+            "Query every Secret in the PROD Namespace before mutation",
+            "Reject drifted existing PROD target Secret contracts",
+            "Recheck all PROD Secrets before granting PROD RBAC",
+            "Require exact generated PROD runtime target Secret post-state",
+        ):
+            task = next(item for item in parsed_tasks if item.get("name") == task_name)
+            self.assertTrue(task.get("no_log"), task_name)
+
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        self.assertEqual(
+            [
+                {"kind": "InfisicalSecret", "api_version": "secrets.infisical.com/v1alpha1"},
+                {"kind": "InfisicalPushSecret", "api_version": "secrets.infisical.com/v1alpha1"},
+                {"kind": "InfisicalDynamicSecret", "api_version": "secrets.infisical.com/v1alpha1"},
+                {"kind": "InfisicalConnection", "api_version": "secrets.infisical.com/v1beta1"},
+                {"kind": "InfisicalAuth", "api_version": "secrets.infisical.com/v1beta1"},
+                {"kind": "InfisicalStaticSecret", "api_version": "secrets.infisical.com/v1beta1"},
+            ],
+            defaults["cristexhub_prod_runtime_bootstrap_expected_cr_kinds"],
+        )
+        plugin = PLUGIN.read_text()
+        self.assertIn("_strict_integer", plugin)
+        self.assertNotIn("def _integer", plugin)
+        self.assertIn('binding.get("identity_keys_sha256")', plugin)
 
 
 if __name__ == "__main__":
