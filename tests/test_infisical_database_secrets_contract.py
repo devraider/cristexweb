@@ -318,7 +318,7 @@ class InfisicalDatabaseSecretSeamContractTests(unittest.TestCase):
         conditions = secret["spec"]["matchConditions"]
         self.assertEqual(2, len(conditions))
         self.assertIn("request.namespace == 'shared-services'", conditions[0]["expression"])
-        self.assertIn("request.userInfo.username ==", conditions[1]["expression"])
+        self.assertNotIn("request.userInfo.username", conditions[1]["expression"])
         self.assertIn("object.metadata.name in", conditions[1]["expression"])
         expression = secret["spec"]["validations"][0]["expression"]
         self.assertIn("request.userInfo.username ==", expression)

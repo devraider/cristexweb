@@ -17,7 +17,7 @@ _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-alternate-target-boundary'): 'c9a3c52a98e06ec04a38cd132e58eae3b37953dadfc248ae5fa02ef1ac886e69',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-alternate-target-boundary'): '16eaade61d5a3cef75d9f79f9785bc41be9eb63d1f69bc528e74af12bb53fcee',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-secret-write-boundary'): 'aee4580bba72d6271cbbd4d4f856338fa85ce2df1b0d3f7cbb9e7a752c02dd8d',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-secret-write-boundary'): '2e4dffc87b8a829ca532c6a46844bdb931ddc3f2a5562181ddc41a400cfc054a',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-secret-write-boundary'): 'a96d8c51fb09fdd25ad1eefcf77c4c70c6945d6a54183ef8bb8843055625ffc8',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-source-boundary'): '09ff778eebb18a6e8cd3cac7f8cdcb811c0578a0af56b3387a381b1d2ddfdbf6',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-database-source-boundary'): '858a123d08565695ae07be7f7036be869557175812e7096addf068213c3a2a01',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-database-static-secret-boundary'): '5068c028a8136394dc598506bb8a82ba2bc8bb748e3371d1610d7e986ded7c49',

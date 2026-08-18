@@ -386,7 +386,14 @@ else
     {
       printf '%s\n' 'basicConstraints=critical,CA:FALSE'
       printf '%s\n' 'keyUsage=critical,digitalSignature,keyEncipherment'
-      printf '%s\n' 'extendedKeyUsage=serverAuth'
+      if [ "$component" = mongodb ]; then
+        # MongoDB uses the same certificate for listeners and intra-replica-set
+        # membership. The leaf therefore requires both EKUs; serverAuth-only
+        # leaves can serve clients but fail internal index-build commit voting.
+        printf '%s\n' 'extendedKeyUsage=serverAuth,clientAuth'
+      else
+        printf '%s\n' 'extendedKeyUsage=serverAuth'
+      fi
       printf 'subjectAltName=DNS:%s,DNS:%s' "$san_1" "$san_2"
       [ -z "$san_3" ] || printf ',DNS:%s' "$san_3"
       printf '\n'

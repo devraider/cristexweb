@@ -127,7 +127,7 @@ infisical_database_secrets_bootstrap_alternate_target_crs:
     kind: InfisicalDynamicSecret
 infisical_database_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-secret-write-boundary.yaml'
-    sha256: 45a66622a90d9da8cd36ccb751e62142b32afeae9f4c3571cc38f899e9589c54
+    sha256: 80896e2a3651acef585b6956793dd69f0bc3e9a10a3faaa3fc732ae812daef33
   - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-secret-write-boundary-binding.yaml'
     sha256: 0556b5835602aab0b59200c7cffbb0e488cf7ecc12480f5d02c93b1e5b142699
   - path: '{{ infisical_database_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-database-secrets/admission/infisical-database-alternate-target-boundary.yaml'

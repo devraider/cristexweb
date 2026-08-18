@@ -314,6 +314,14 @@ class InfisicalSecretZeroLaneContractTests(unittest.TestCase):
         ):
             self.assertIn(secret_name, self.upload_source)
 
+    def test_mongodb_leaf_supports_server_and_replica_member_authentication(self) -> None:
+        mongodb = next(
+            item for item in self.policy["value_paths"] if item["component"] == "shared-mongodb"
+        )
+        self.assertEqual("serverAuth,clientAuth", mongodb["tls"]["leaf_extended_key_usage"])
+        self.assertIn('[ "$component" = mongodb ]', self.upload_source)
+        self.assertIn("extendedKeyUsage=serverAuth,clientAuth", self.upload_source)
+
     def test_source_route_contract_is_exact_and_nontransactional_state_is_blocked(self) -> None:
         # This source-level contract checks the fixed paths and key sets. No endpoint is
         # started and no network request is made by this test.

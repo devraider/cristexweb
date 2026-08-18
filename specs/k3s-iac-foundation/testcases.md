@@ -4219,3 +4219,29 @@ Final recovery held a 30-second clear observation window after aborting the last
 queued exact build; all 69 records remained and no `event_key` value or plaintext
 credential residue was introduced. Public root returned `200`, OIDC start returned
 `302`, and all five DEV Deployments were Ready.
+
+### MONGODB-TLS-CLIENTAUTH-ROTATION-20260818
+
+A same-day oplog-consistent encrypted backup had completed successfully before the
+approved stateful repair. The MongoDB leaf was confirmed `serverAuth`-only while
+MongoDB uses it for both listeners and replica-set member authentication. Source
+now requires `serverAuth,clientAuth`; exact four SANs, CA/leaf verification, and
+key correspondence passed without value output.
+
+Infisical rotation used a bounded dual-trust sequence: application trust first,
+then the exact `MONGODB_TLS_CA_CRT`/`MONGODB_TLS_PEM` pair, then removal of the old
+CA. Cross-component Secret updates initially exposed overlapping shared-services
+VAP match conditions; the database, Keycloak, and RabbitMQ write policies were
+scoped to their exact target names and applied before retry. Infisical reconciliation
+returned True for both MongoDB and DEV runtime sources. MongoDB 8.0.12 returned to
+`Running`; the mounted leaf reports both SSL server and client purposes, and no
+post-rotation `unsupported certificate purpose` event was observed.
+
+The previously blocked `background_action_event_dedupe` sparse unique index then
+committed with quorum in 150 ms, preserving all records. Guarded DEV revision check
+passed at `ok=22 changed=1 failed=0 skipped=2`; apply passed at
+`ok=24 changed=1 failed=0 skipped=0`. Argo reached `Synced / Healthy` at
+`2bba6aaacb0886705abc0a57f9caafac0cb67e90`; backend, Celery, and frontend are
+Ready on the promoted immutable digests with zero new Pod restarts. All 35 migrations,
+including `030` through `035`, are recorded. Public root returned `200` and OIDC
+start returned `302`.
