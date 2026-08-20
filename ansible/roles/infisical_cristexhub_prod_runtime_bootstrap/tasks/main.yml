@@ -24,6 +24,8 @@
     - cristexhub_prod_runtime_operator_prerequisites_recheck
     - cristexhub_prod_runtime_credential_before_auth
     - cristexhub_prod_runtime_credential_before_static_secret
+    - cristexhub_prod_runtime_source_auth_preapply_recheck
+    - cristexhub_prod_runtime_source_static_secret_preapply_recheck
     - cristexhub_prod_runtime_admission_policy_recheck
     - cristexhub_prod_runtime_admission_binding_recheck
     - cristexhub_prod_runtime_expected_operator_deployment
@@ -987,6 +989,29 @@
   no_log: true
   when: not ansible_check_mode
 
+- name: Recheck canonical PROD Infisical Auth immediately before apply
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1beta1
+    kind: InfisicalAuth
+    namespace: cristexhub-prod
+    name: cristexhub-prod-infisical-auth
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  register: cristexhub_prod_runtime_source_auth_preapply_recheck
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Refuse PROD Infisical Auth UID or spec race immediately before apply
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_runtime_source_auth_preapply_recheck.resources | length == cristexhub_prod_runtime_prestate.results[11].resources | length
+      - cristexhub_prod_runtime_source_auth_preapply_recheck.resources | map(attribute='metadata.uid') | list == cristexhub_prod_runtime_prestate.results[11].resources | map(attribute='metadata.uid') | list
+      - cristexhub_prod_runtime_source_auth_preapply_recheck.resources | length == 0 or cristexhub_prod_runtime_source_auth_preapply_recheck.resources[0].spec == cristexhub_prod_runtime_source_objects[1].spec
+    fail_msg: Refusing an Infisical Auth delete, recreate, or spec race immediately before apply.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
 - name: Reconcile canonical PROD Infisical Auth second
   infisical_cristexhub_prod_runtime_guarded_k8s:
     state: present
@@ -1016,6 +1041,29 @@
       - cristexhub_prod_runtime_credential_before_static_secret.resources[0].metadata.uid == cristexhub_prod_runtime_credential.resources[0].metadata.uid
       - cristexhub_prod_runtime_credential_before_static_secret.resources[0].metadata.resourceVersion == cristexhub_prod_runtime_credential.resources[0].metadata.resourceVersion
     fail_msg: Refusing credential rotation immediately before PROD StaticSecret reconciliation.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Recheck canonical PROD StaticSecret immediately before apply
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1beta1
+    kind: InfisicalStaticSecret
+    namespace: cristexhub-prod
+    name: cristexhub-prod-runtime
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  register: cristexhub_prod_runtime_source_static_secret_preapply_recheck
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Refuse PROD StaticSecret UID or spec race immediately before apply
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_runtime_source_static_secret_preapply_recheck.resources | length == cristexhub_prod_runtime_prestate.results[12].resources | length
+      - cristexhub_prod_runtime_source_static_secret_preapply_recheck.resources | map(attribute='metadata.uid') | list == cristexhub_prod_runtime_prestate.results[12].resources | map(attribute='metadata.uid') | list
+      - cristexhub_prod_runtime_source_static_secret_preapply_recheck.resources | length == 0 or cristexhub_prod_runtime_source_static_secret_preapply_recheck.resources[0].spec == cristexhub_prod_runtime_source_objects[2].spec
+    fail_msg: Refusing a StaticSecret delete, recreate, or spec race immediately before apply.
   changed_when: false
   no_log: true
   when: not ansible_check_mode
