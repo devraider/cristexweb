@@ -353,27 +353,25 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             {"name": PULL_NAME, "namespace": NAMESPACE, "type": "kubernetes.io/dockerconfigjson", "keys": [".dockerconfigjson"]},
             defaults["cristexhub_prod_runtime_bootstrap_target_contract"]["ghcr_pull"],
         )
-        self.assertEqual("NOT_RUN/BLOCKED", policy["workflow"]["runtime_execution"])
+        self.assertEqual("APPLIED/IDEMPOTENT", policy["workflow"]["runtime_execution"])
         self.assertTrue(policy["authorization"]["no_plaintext_output"])
 
-    def test_runtime_namespace_and_identity_are_explicit_blockers(self) -> None:
+    def test_runtime_runbook_records_materialization_and_remaining_rotation_gate(self) -> None:
         runbook = ROOT / "runbooks/infisical-cristexhub-prod-runtime-materialization.md"
         text = runbook.read_text()
         for required in (
-            "NOT RUN / BLOCKED",
+            "APPLIED / MATERIALIZED / IDEMPOTENT",
             "cristexhub-prod",
             "cristexhub-prod-infisical-universal-auth",
             "/cristexhub/prod/runtime",
             "cristexhub-prod-ghcr-pull",
-            "ok=15 changed=0 unreachable=0 failed=1",
-            "no Kubernetes",
-            "was mutated",
+            "ok=62 changed=0 failed=0 skipped=3",
+            "Synced/Healthy",
+            "still require separately verified rotation",
         ):
             self.assertIn(required, text)
-        self.assertIn("Namespace is Active and idempotent", text)
-        self.assertIn("later PROD resources remain NOT RUN / BLOCKED", text)
 
-    def test_operator_prod_watch_source_is_value_free_and_runtime_blocked(self) -> None:
+    def test_operator_prod_watch_source_remains_value_free_after_runtime_activation(self) -> None:
         component = ROOT / "ansible/files/components/infisical-operator"
         deployment = (component / "controller/deployment.yaml").read_text()
         self.assertIn(
@@ -404,9 +402,9 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         runbook = (ROOT / "runbooks/infisical-cristexhub-prod-runtime-materialization.md").read_text()
         self.assertIn("now watches `cristexhub-prod`", runbook)
         self.assertIn("watch/RBAC expansion is applied/idempotent", runbook)
-        self.assertIn("created no Infisical custom", runbook)
-        self.assertIn("seam check/apply/", runbook)
-        self.assertIn("separate reviewed approval", runbook)
+        self.assertIn("seam created the exact Connection, Auth", runbook)
+        self.assertIn("created no Namespace, PVC, database engine", runbook)
+        self.assertIn("separately approved runtime", runbook)
         tasks = TASKS.read_text()
         parsed_tasks = yaml.safe_load(tasks)
         credential_task = next(

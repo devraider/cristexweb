@@ -297,16 +297,15 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertEqual(0, task_start.returncode, task_start.stdout + task_start.stderr)
         self.assertIn("rejected before Kubernetes", task_start.stdout)
 
-    def test_runbook_states_source_only_blocked_boundary(self) -> None:
+    def test_runbook_records_private_activation_and_public_route_gate(self) -> None:
         runbook = RUNBOOK.read_text()
         for needle in (
             REVISION,
-            "NOT RUN / BLOCKED",
+            "APPLIED / IDEMPOTENT / SYNCED / HEALTHY",
             "does not create the Namespace",
-            "does not synchronize",
-            "separate explicit approval",
+            "prune=false",
             "Cloudflare",
-            "image promotion",
+            "provider apply still requires a protected",
         ):
             self.assertIn(needle, runbook)
 

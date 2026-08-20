@@ -1,13 +1,12 @@
-# CristexHub PROD Argo registration — source only
+# CristexHub PROD Argo registration and private activation
 
-Status: **NOT RUN / BLOCKED**.
+Status: **APPLIED / IDEMPOTENT / SYNCED / HEALTHY / PUBLIC ROUTE PENDING**.
 
-This closure defines registration only. It does not create the Namespace, create
-or read application Secret values, publish images, create workloads, change a
-database or broker, or add a Cloudflare route. It does not synchronize the
-Application.
-Registration check/apply/idempotence and every later activation phase require a
-separate explicit approval.
+This five-object closure now registers and continuously reconciles the private
+PROD workload at the pinned revision. It does not create the Namespace, own
+application Secret values, publish images, change databases, or add the
+Cloudflare route. Registration apply passed, the active-state retry converged at
+`changed=0`, and Argo reports `Synced/Healthy`.
 
 ## Exact source
 
@@ -48,7 +47,7 @@ The role checks:
 - raw manifest hashes and exact object count;
 - absence of foreign objects, extra data, annotations, finalizers, or drifted
   fields at the five target identities;
-- the permanent deny sync window and manual Application policy.
+- the exact in-cluster server destination and automated non-pruning Application policy.
 
 The action plugin accepts only the canonical role task, exact present-only
 objects, exact hashes, complete preflight binding, and wrapper attestation. It
@@ -63,17 +62,14 @@ and Ingresses in `cristexhub-prod`. It permits no Namespace, Secret, PVC, RBAC,
 or cluster-scoped application object. Controller RBAC is namespaced and has no
 `delete` verb.
 
-Registration itself cannot deploy: the Application has no automated policy,
-`CreateNamespace=false`, `Prune=false`, `ServerSideApply=false`,
-`Replace=false`, and `FailOnSharedResource=true`. An always-active deny window
-also blocks manual synchronization (`manualSync=false`).
+The active Application uses `selfHeal=true`, `prune=false`, `allowEmpty=false`,
+`CreateNamespace=false`, `ServerSideApply=false`, `Replace=false`, and
+`FailOnSharedResource=true`. The AppProject accepts only the exact in-cluster
+server and `cristexhub-prod` Namespace.
 
-## Gates after registration source
+## Remaining gate after private activation
 
-No registration run is approved by this file. Before any separately approved
-registration apply, the Namespace and repository prerequisites must exist and a
-fresh check must predict only the exact five objects. Before any later sync
-transition, all of these remain independently required:
+The private registration and synchronization gates below have completed:
 
 - exact-main image promotion with immutable backend, frontend, and Keycloak
   evidence; current source publication governance remains a separate gate;
@@ -83,12 +79,11 @@ transition, all of these remain independently required:
 - isolated PostgreSQL, MongoDB, RabbitMQ, and Redis PROD scopes plus recovery
   and negative cross-access evidence;
 - exact Keycloak `cristexhub-prod` client reconciliation and private OIDC tests;
-- private workload validation and a distinct guarded Argo sync transition;
-- Cloudflare `hub.cristex-soft.com` route authoring/apply last.
+- private workload validation and Argo sync transition.
 
-The future transition must retain `Prune=false`, `allowEmpty=false`, and
-`CreateNamespace=false`. This registration source does not include that
-transition and does not imply its approval.
+Cloudflare `hub.cristex-soft.com` remains the only unapplied activation phase.
+Route source is committed, but provider apply still requires a protected
+Cloudflare API token and exact plan review.
 
 ## Offline validation
 

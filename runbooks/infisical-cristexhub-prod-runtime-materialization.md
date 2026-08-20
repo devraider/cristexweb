@@ -1,23 +1,29 @@
 # CristexHub PROD runtime Infisical seam
 
-Status: **source-only hardened / check stopped safely / apply NOT RUN / BLOCKED**.
+Status: **APPLIED / MATERIALIZED / IDEMPOTENT**.
 
 This runbook records the value-free production runtime Secret seam only. The
 canonical offline policy is
 [`ansible/files/policies/cristexhub-prod-runtime-materialization.yml`](../ansible/files/policies/cristexhub-prod-runtime-materialization.yml).
-No Infisical Cloud value was read or uploaded. A read-only guarded wrapper check was
+Values were materialized through protected no-output controller operations; no value
+was committed or printed. A read-only guarded wrapper check was
 run after hardening and stopped at `ok=15 changed=0 unreachable=0 failed=1` because
 the live Operator pod template included the bounded rollout receipt and an extra
 `SSL_CERT_DIR` trust-store entry. The receipt is now explicitly bounded and the
 exact `SSL_CERT_DIR=/etc/ssl/certs:/etc/infisical-proxy-ca` value is canonical
 Operator source. A fresh Operator check passed at
 `ok=30 changed=0 failed=0 skipped=5`; the runtime check then advanced to the intended absent Universal Auth
-gate and stopped at `ok=23 changed=0 failed=1` without mutation. The stop occurred before runtime manifest reconciliation; no Kubernetes
-object, Secret, Infisical CR, credential, RBAC grant, workload, or route was mutated.
-The Namespace is Active and idempotent from its separate checkpoint; this source-only
-seam does not create or reconcile it.
-Its later PROD resources remain NOT RUN / BLOCKED; workload promotion requires
-separate approvals and remains **NOT RUN / BLOCKED**.
+gate and stopped at `ok=23 changed=0 failed=1` without mutation. After separately
+approved identity reuse, predecessor revocation, successor credential creation,
+and exact Infisical path/value materialization, the seam created its 13 objects
+and both target Secrets. The final guarded retry passed at
+`ok=62 changed=0 failed=0 skipped=3`. The Namespace remains separately owned;
+private workloads are now `Synced/Healthy`, while the Cloudflare route remains
+unapplied. During read-only review, one local retained tool transcript accidentally
+captured base64 Secret data. The transcript artifacts were removed; the PROD
+Universal Auth predecessor and application/OIDC keys were rotated and verified.
+The MongoDB/RabbitMQ credentials embedded in the URLs and the reused GHCR pull
+credential still require separately verified rotation before public cutover.
 
 ## Fixed contract
 
@@ -42,7 +48,7 @@ separate approvals and remains **NOT RUN / BLOCKED**.
 - Image-pull target: `cristexhub-prod-ghcr-pull`, an independent orphaned
   `kubernetes.io/dockerconfigjson` Secret with only `.dockerconfigjson`.
 
-The committed source contains no Secret object and no secret value. The four
+The committed manifest source contains no Secret object and no secret value. The four
 fail-closed ValidatingAdmissionPolicy/binding pairs constrain the exact PROD
 Connection/Auth, StaticSecret, target names, metadata, types, and key closure.
 Alternate target-producing Infisical CR kinds are denied in only the exact
@@ -80,12 +86,11 @@ metadata and key names. Its values are never read by offline tests or committed
 source. The guarded Infisical Operator source closure now watches `cristexhub-prod` and
 contains its exact namespaced manager Role/Binding plus the generic Auth,
 Connection, and StaticSecret five-namespace admission allowlists. Secret,
-PushSecret, and DynamicSecret remain PROD-excluded. The Operator's 44-object
-watch/RBAC expansion is applied/idempotent, but it created no Infisical custom
-resource, credential, application Secret/workload, PVC, database, or route. This
-runtime materialization seam, Infisical sync, target values, private validation,
-Argo handoff, and PROD promotion remain separate gates. Any seam check/apply/
-idempotence remains behind a separate reviewed approval.
+PushSecret, and DynamicSecret remain PROD-excluded. The Operator
+watch/RBAC expansion is applied/idempotent; this separately approved runtime
+seam is applied/idempotent. The seam created the exact Connection, Auth,
+StaticSecret, writer RBAC, admission objects, and two generated target Secrets;
+it created no Namespace, PVC, database engine, or Cloudflare route.
 
 ## Offline evidence
 
@@ -103,9 +108,8 @@ git diff --check
 git diff --cached --quiet
 ```
 
-Current status: focused and full offline tests pass. The read-only Kubernetes check
-now passes the Operator prerequisite. The latest runtime check stops safely at the
-absent `cristexhub-prod-infisical-universal-auth` prerequisite before runtime
-reconciliation. Identity materialization, Infisical API access, Secret sync,
-application deployment, public exposure, and PROD acceptance remain
-**NOT RUN / BLOCKED**.
+Current status: offline checks pass; runtime final idempotence passed at
+`ok=62 changed=0 failed=0 skipped=3`; both target Secrets match the exact remote key
+closure; and Argo reports the private workloads `Synced/Healthy`. Public exposure
+remains blocked on the provider apply and the residual credential rotations recorded
+above.

@@ -1,6 +1,6 @@
 ---
 policy_schema: cristexhub-prod-runtime-materialization-v1
-policy_status: source-selected-runtime-blocked
+policy_status: runtime-applied-private-workload-live
 
 # `prod` is an Infisical Cloud environment identifier only. It does not create
 # or activate the Kubernetes cristexhub-prod Namespace or any PROD workload.
@@ -111,9 +111,7 @@ workflow:
   requires_diff: true
   one_host_limit: crtxweb
   state: present
-  runtime_execution: NOT_RUN/BLOCKED
-  block_reasons:
-    - cristexhub-prod Namespace is Active/idempotent, but this does not approve any later PROD resource.
-    - cristexhub-prod-infisical-universal-auth values are absent.
-    - Infisical source values are not read or uploaded by this source-only change.
-    - Operator watch/RBAC and application runtime acceptance require separate gates.
+  runtime_execution: APPLIED/IDEMPOTENT
+  remaining_gates:
+    - MongoDB/RabbitMQ URL credentials and the reused GHCR pull credential require verified rotation after local transcript exposure.
+    - Cloudflare public route source is committed but provider apply remains pending protected authorization.
