@@ -21,6 +21,9 @@
     - cristexhub_prod_runtime_nonadmission_prestate_recheck
     - cristexhub_prod_runtime_source_prestate_recheck
     - cristexhub_prod_runtime_secret_post_rbac_recheck
+    - cristexhub_prod_runtime_operator_prerequisites_recheck
+    - cristexhub_prod_runtime_credential_before_auth
+    - cristexhub_prod_runtime_credential_before_static_secret
     - cristexhub_prod_runtime_admission_policy_recheck
     - cristexhub_prod_runtime_admission_binding_recheck
     - cristexhub_prod_runtime_expected_operator_deployment
@@ -40,7 +43,9 @@
     - cristexhub_prod_runtime_admission_binding_apply
     - cristexhub_prod_runtime_admission_binding_state
     - cristexhub_prod_runtime_rbac_apply
-    - cristexhub_prod_runtime_source_apply
+    - cristexhub_prod_runtime_source_connection_apply
+    - cristexhub_prod_runtime_source_auth_apply
+    - cristexhub_prod_runtime_source_static_secret_apply
     - cristexhub_prod_runtime_source_state
     - cristexhub_prod_runtime_target_secret_poststate
     - cristexhub_prod_runtime_apply
@@ -841,6 +846,48 @@
   no_log: true
   when: not ansible_check_mode
 
+- name: Requery exact Operator PROD prerequisites immediately before writer RBAC
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.namespace }}"
+    name: "{{ item.name }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop:
+    - api_version: apps/v1
+      kind: Deployment
+      namespace: shared-services
+      name: infisical-operator-controller
+    - api_version: rbac.authorization.k8s.io/v1
+      kind: Role
+      namespace: cristexhub-prod
+      name: infisical-operator-manager
+    - api_version: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      namespace: cristexhub-prod
+      name: infisical-operator-manager
+  register: cristexhub_prod_runtime_operator_prerequisites_recheck
+  changed_when: false
+  no_log: true
+
+- name: Refuse Operator Deployment or PROD manager RBAC races before writer RBAC
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.uid == cristexhub_prod_runtime_operator_prerequisites.results[operator_index].resources[0].metadata.uid
+      - >-
+        operator_index == 0 and
+        item.resources[0].metadata.generation == cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].metadata.generation or
+        operator_index in [1, 2] and
+        item.resources[0].metadata.resourceVersion == cristexhub_prod_runtime_operator_prerequisites.results[operator_index].resources[0].metadata.resourceVersion
+    fail_msg: Refusing concurrent Operator Deployment or PROD manager RBAC drift before writer RBAC.
+  loop: "{{ cristexhub_prod_runtime_operator_prerequisites_recheck.results }}"
+  loop_control:
+    index_var: operator_index
+    label: "{{ item.item.kind }}/{{ item.item.name }}"
+  changed_when: false
+  no_log: true
+
 - name: Reconcile exact runtime seam RBAC after admission and race checks
   infisical_cristexhub_prod_runtime_guarded_k8s:
     state: present
@@ -907,17 +954,80 @@
   no_log: true
   when: not ansible_check_mode
 
-- name: Reconcile Connection then Auth then StaticSecret source closure last
+- name: Reconcile canonical PROD Infisical Connection first
   infisical_cristexhub_prod_runtime_guarded_k8s:
     state: present
-    definition: "{{ item }}"
+    definition: "{{ cristexhub_prod_runtime_source_objects[0] }}"
     kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
     wait: false
     wait_timeout: 60
-  loop: "{{ cristexhub_prod_runtime_source_objects }}"
-  loop_control:
-    label: "{{ item.kind }}/{{ item.metadata.name }}"
-  register: cristexhub_prod_runtime_source_apply
+  register: cristexhub_prod_runtime_source_connection_apply
+  no_log: true
+
+- name: Recheck Universal Auth credential immediately before Infisical Auth
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: cristexhub-prod
+    name: cristexhub-prod-infisical-universal-auth
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  register: cristexhub_prod_runtime_credential_before_auth
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Refuse Universal Auth credential race before Infisical Auth
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_runtime_credential_before_auth.resources | length == 1
+      - cristexhub_prod_runtime_credential_before_auth.resources[0].metadata.uid == cristexhub_prod_runtime_credential.resources[0].metadata.uid
+      - cristexhub_prod_runtime_credential_before_auth.resources[0].metadata.resourceVersion == cristexhub_prod_runtime_credential.resources[0].metadata.resourceVersion
+    fail_msg: Refusing credential rotation immediately before PROD Infisical Auth reconciliation.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Reconcile canonical PROD Infisical Auth second
+  infisical_cristexhub_prod_runtime_guarded_k8s:
+    state: present
+    definition: "{{ cristexhub_prod_runtime_source_objects[1] }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  register: cristexhub_prod_runtime_source_auth_apply
+  no_log: true
+
+- name: Recheck Universal Auth credential immediately before StaticSecret
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: cristexhub-prod
+    name: cristexhub-prod-infisical-universal-auth
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  register: cristexhub_prod_runtime_credential_before_static_secret
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Refuse Universal Auth credential race before StaticSecret
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_runtime_credential_before_static_secret.resources | length == 1
+      - cristexhub_prod_runtime_credential_before_static_secret.resources[0].metadata.uid == cristexhub_prod_runtime_credential.resources[0].metadata.uid
+      - cristexhub_prod_runtime_credential_before_static_secret.resources[0].metadata.resourceVersion == cristexhub_prod_runtime_credential.resources[0].metadata.resourceVersion
+    fail_msg: Refusing credential rotation immediately before PROD StaticSecret reconciliation.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Reconcile canonical PROD Infisical StaticSecret last
+  infisical_cristexhub_prod_runtime_guarded_k8s:
+    state: present
+    definition: "{{ cristexhub_prod_runtime_source_objects[2] }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  register: cristexhub_prod_runtime_source_static_secret_apply
   no_log: true
 
 - name: Wait for PROD Connection Auth and StaticSecret reconciliation readiness

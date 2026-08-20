@@ -34,13 +34,13 @@ spec:
       object.metadata.labels['app.kubernetes.io/managed-by'] == 'ansible' &&
       object.metadata.labels['cristex.io/component'] == 'infisical-cristexhub-prod-runtime' &&
       ((object.kind == 'InfisicalConnection' && object.metadata.name == 'infisical-cloud' &&
-      object.spec.address == 'https://app.infisical.com') ||
+      dyn(object).spec.address == 'https://app.infisical.com') ||
       (object.kind == 'InfisicalAuth' && object.metadata.name == 'cristexhub-prod-infisical-auth' &&
-      object.spec.method == 'universal' && object.spec.infisicalConnectionRef.name == 'infisical-cloud' &&
-      object.spec.infisicalConnectionRef.namespace == 'cristexhub-prod' &&
-      object.spec.universal.clientIdRef.name == 'cristexhub-prod-infisical-universal-auth' &&
-      object.spec.universal.clientIdRef.namespace == 'cristexhub-prod' && object.spec.universal.clientIdRef.key == 'clientId' &&
-      object.spec.universal.clientSecretRef.name == 'cristexhub-prod-infisical-universal-auth' &&
-      object.spec.universal.clientSecretRef.namespace == 'cristexhub-prod' && object.spec.universal.clientSecretRef.key == 'clientSecret'))
+      dyn(object).spec.method == 'universal' && dyn(object).spec.infisicalConnectionRef.name == 'infisical-cloud' &&
+      dyn(object).spec.infisicalConnectionRef.namespace == 'cristexhub-prod' &&
+      dyn(object).spec.universal.clientIdRef.name == 'cristexhub-prod-infisical-universal-auth' &&
+      dyn(object).spec.universal.clientIdRef.namespace == 'cristexhub-prod' && dyn(object).spec.universal.clientIdRef.key == 'clientId' &&
+      dyn(object).spec.universal.clientSecretRef.name == 'cristexhub-prod-infisical-universal-auth' &&
+      dyn(object).spec.universal.clientSecretRef.namespace == 'cristexhub-prod' && dyn(object).spec.universal.clientSecretRef.key == 'clientSecret'))
     message: Only the exact guarded runtime Connection and Auth identities may be created or reconciled.
     reason: Forbidden

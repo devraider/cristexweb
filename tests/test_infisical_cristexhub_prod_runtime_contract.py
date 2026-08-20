@@ -216,6 +216,12 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         self.assertIn("secrets.infisical.com/version", secret_write_expression)
         self.assertIn("annotations.size() == 1", secret_write_expression)
         self.assertIn("metadata.finalizers", secret_write_expression)
+        self.assertNotIn("binaryData", secret_write_expression)
+        self.assertNotIn("!= null", secret_write_expression)
+        self.assertIn(".size() > 0", secret_write_expression)
+        self.assertIn("dyn(object).spec", source_expression)
+        static_policy = next(policy for policy in policies if "static-secret-boundary" in policy["metadata"]["name"])
+        self.assertIn("dyn(object.spec.targets[0].template).data", json.dumps(static_policy["spec"]["validations"]))
         alternate = next(policy for policy in policies if "alternate-target" in policy["metadata"]["name"])
         self.assertEqual("Namespaced", alternate["spec"]["matchConstraints"]["resourceRules"][0]["scope"])
         self.assertEqual(NAMESPACE, alternate["spec"]["matchConditions"][0]["expression"].split("== ", 1)[1].strip("'"))
@@ -421,7 +427,9 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         bindings = tasks.index("Reconcile exact runtime seam admission bindings second")
         race = tasks.index("Refuse Infisical CR or Secret UID/resourceVersion races")
         rbac = tasks.index("Reconcile exact runtime seam RBAC after admission and race checks")
-        source_apply = tasks.index("Reconcile Connection then Auth then StaticSecret source closure last")
+        connection_apply = tasks.index("Reconcile canonical PROD Infisical Connection first")
+        auth_apply = tasks.index("Reconcile canonical PROD Infisical Auth second")
+        source_apply = tasks.index("Reconcile canonical PROD Infisical StaticSecret last")
         source_ready = tasks.index("Wait for PROD Connection Auth and StaticSecret reconciliation readiness")
         target_poststate = tasks.index("Require exact generated PROD runtime target Secret post-state")
         self.assertLess(checkpoint, credential)
@@ -438,7 +446,9 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         self.assertLess(admission_recheck, rbac)
         self.assertLess(rbac, credential_recheck)
         self.assertLess(credential_recheck, source_recheck)
-        self.assertLess(source_recheck, source_apply)
+        self.assertLess(source_recheck, connection_apply)
+        self.assertLess(connection_apply, auth_apply)
+        self.assertLess(auth_apply, source_apply)
         self.assertLess(source_apply, source_ready)
         self.assertLess(source_ready, target_poststate)
         for required in (
@@ -449,6 +459,9 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             "Recheck exact runtime RBAC and source objects before granting PROD RBAC",
             "Refuse runtime RBAC or source object UID resourceVersion races",
             "Recheck exact runtime source objects after granting PROD RBAC",
+            "Recheck Universal Auth credential immediately before Infisical Auth",
+            "Recheck Universal Auth credential immediately before StaticSecret",
+            "Requery exact Operator PROD prerequisites immediately before writer RBAC",
             "metadata.finalizers",
             "cristexhub_prod_runtime_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'",
         ):
@@ -512,7 +525,11 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         self.assertGreaterEqual(plugin.count("_strict_integer(binding.get("), 7)
         self.assertIn("_EXPECTED_TASK_SUFFIX", plugin)
         self.assertIn('os.environ.get("CRISTEXWEB_REPOSITORY_ROOT", "")', plugin)
-        self.assertIn('CRISTEXWEB_REPOSITORY_ROOT="$repository_root"', WRAPPER.read_text())
+        wrapper_text = WRAPPER.read_text()
+        self.assertIn('CRISTEXWEB_REPOSITORY_ROOT="$repository_root"', wrapper_text)
+        self.assertIn("status --porcelain --untracked-files=all", wrapper_text)
+        self.assertIn("devraider/cristexweb.git", wrapper_text)
+        self.assertIn("rev-parse --show-toplevel", wrapper_text)
         self.assertNotIn("_EXPECTED_TASK_SOURCES", plugin)
 
 

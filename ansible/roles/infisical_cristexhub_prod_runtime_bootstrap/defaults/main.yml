@@ -26,7 +26,7 @@ cristexhub_prod_runtime_bootstrap_manifest_paths:
 cristexhub_prod_runtime_bootstrap_object_count: 13
 cristexhub_prod_runtime_bootstrap_expected_hashes:
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/admission/infisical-cristexhub-prod-runtime-secret-write-boundary.yaml'
-    sha256: 112c34f97347a136679a0a02c7721d0ee9f2e187581744f1d883f547c8003c1a
+    sha256: 682bf35c04f2c6ce6aa4f177c279ffa2d6371baac24dc5d66ecb16448e0c6f6f
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/admission/infisical-cristexhub-prod-runtime-secret-write-boundary-binding.yaml'
     sha256: 8a04155b6a55e5f708a3a76379503302d227a103fd9363d61e065e5c83cbdd13
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/admission/infisical-cristexhub-prod-runtime-alternate-target-boundary.yaml'
@@ -34,11 +34,11 @@ cristexhub_prod_runtime_bootstrap_expected_hashes:
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/admission/infisical-cristexhub-prod-runtime-alternate-target-boundary-binding.yaml'
     sha256: 05f91838275c16c72c0d985c65222bb382f894d7dafb8191c90ce0f1cd9be936
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/admission/infisical-cristexhub-prod-runtime-static-secret-boundary.yaml'
-    sha256: 504791e9b781ca66a9f605ca1796ec63cd60a548e298241738cf9afb5821934f
+    sha256: 1c01551a4ffd6d00bc06c39adbb3bf949d3e0d3fddc4ad168efa307c35d14d6a
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/admission/infisical-cristexhub-prod-runtime-static-secret-boundary-binding.yaml'
     sha256: 990db17690aa2a39b76ff6325b799a6d2ad0dc3cb8f8c9b8782b68eba65f5192
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/admission/infisical-cristexhub-prod-runtime-source-boundary.yaml'
-    sha256: 6159043d76e0b1303f180ce0295a1f6a4790dac1ec5993fed3829ba0a5c1ea83
+    sha256: 7273706a0805d0293e9276d810f2dc522ef8bea53ad723d7874f8728acbccca2
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/admission/infisical-cristexhub-prod-runtime-source-boundary-binding.yaml'
     sha256: 01a4c262be2246bef3e97e8e30e485edb295e1c7863c2aa74846e4482d99d3a1
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/rbac/infisical-cristexhub-prod-runtime-secret-writer-role.yaml'
