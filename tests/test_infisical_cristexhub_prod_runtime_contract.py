@@ -470,6 +470,9 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             "Requery exact Operator PROD prerequisites immediately before writer RBAC",
             "metadata.finalizers",
             "cristexhub_prod_runtime_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'",
+            "kubectl.kubernetes.io/restartedAt",
+            "cristex.io/identity-access-generation",
+            "cristex.io/proxy-config-sha256",
         ):
             self.assertIn(required, tasks)
 

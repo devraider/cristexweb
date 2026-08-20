@@ -7,8 +7,8 @@ canonical offline policy is
 [`ansible/files/policies/cristexhub-prod-runtime-materialization.yml`](../ansible/files/policies/cristexhub-prod-runtime-materialization.yml).
 No Infisical Cloud value was read or uploaded. A read-only guarded wrapper check was
 run after hardening and stopped at `ok=15 changed=0 unreachable=0 failed=1` because
-the live Operator pod-template annotations do not exactly match the committed
-checkpoint. The stop occurred before runtime manifest reconciliation; no Kubernetes
+the live Operator pod template includes the bounded rollout receipt and an extra
+`SSL_CERT_DIR` environment entry not present in the committed checkpoint. The stop occurred before runtime manifest reconciliation; no Kubernetes
 object, Secret, Infisical CR, credential, RBAC grant, workload, or route was mutated.
 The Namespace is Active and idempotent from its separate checkpoint; this source-only
 seam does not create or reconcile it.
@@ -100,7 +100,7 @@ git diff --cached --quiet
 ```
 
 Current status: focused and full offline tests pass. The read-only Kubernetes check
-stopped safely on exact Operator pod-template annotation drift before runtime
+stopped safely on exact Operator pod-template drift before runtime
 reconciliation. Identity materialization, Infisical API access, Secret sync,
 application deployment, public exposure, and PROD acceptance remain
 **NOT RUN / BLOCKED**.

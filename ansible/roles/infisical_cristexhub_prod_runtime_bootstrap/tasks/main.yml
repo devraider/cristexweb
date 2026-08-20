@@ -366,7 +366,24 @@
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.strategy == cristexhub_prod_runtime_expected_operator_deployment.spec.strategy
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.selector == cristexhub_prod_runtime_expected_operator_deployment.spec.selector
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.metadata.labels == cristexhub_prod_runtime_expected_operator_deployment.spec.template.metadata.labels
-      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.metadata.annotations == cristexhub_prod_runtime_expected_operator_deployment.spec.template.metadata.annotations
+      - >-
+        cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.metadata.annotations.keys() |
+        list | difference(cristexhub_prod_runtime_expected_operator_deployment.spec.template.metadata.annotations.keys() |
+        list + ['kubectl.kubernetes.io/restartedAt']) | length == 0
+      - >-
+        cristexhub_prod_runtime_expected_operator_deployment.spec.template.metadata.annotations |
+        dict2items | rejectattr('value', 'equalto', none) | list | length == 2
+      - >-
+        cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.metadata.annotations['cristex.io/identity-access-generation'] ==
+        cristexhub_prod_runtime_expected_operator_deployment.spec.template.metadata.annotations['cristex.io/identity-access-generation']
+      - >-
+        cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.metadata.annotations['cristex.io/proxy-config-sha256'] ==
+        cristexhub_prod_runtime_expected_operator_deployment.spec.template.metadata.annotations['cristex.io/proxy-config-sha256']
+      - >-
+        'kubectl.kubernetes.io/restartedAt' not in
+        cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.metadata.annotations or
+        cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.metadata.annotations['kubectl.kubernetes.io/restartedAt']
+        is match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})$')
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.serviceAccountName == 'infisical-operator-controller'
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.automountServiceAccountToken | bool
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers | length == 1

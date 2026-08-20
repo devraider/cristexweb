@@ -4425,7 +4425,8 @@ suite passed (`385/385`), all 44 playbook syntax checks passed, production lint
 passed with only 14 known ignored warnings, and source hashes, shell syntax,
 Python compilation, and diff checks passed. The guarded read-only wrapper check
 contacted Kubernetes and stopped safely at `ok=15 changed=0 unreachable=0 failed=1`
-on exact live Operator pod-template annotation drift. The stop was before runtime
+on exact live Operator pod-template drift: the bounded rollout receipt plus an extra
+`SSL_CERT_DIR` environment entry not present in committed source. The stop was before runtime
 reconciliation and made no mutation. No Infisical API write, Namespace creation,
 Universal Auth value, Secret sync, workload, route, or PROD promotion was run.
 Apply, identity materialization, values, and runtime remain **NOT RUN/BLOCKED**.
