@@ -318,7 +318,10 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             check=False,
         )
         self.assertNotEqual(0, action_only.returncode)
-        self.assertIn("ENTRYPOINT_GUARD", action_only.stdout + action_only.stderr)
+        self.assertIn(
+            "outside the canonical guarded role task source",
+            action_only.stdout + action_only.stderr,
+        )
         self.assertNotIn("Failed to connect", action_only.stdout + action_only.stderr)
 
         self.assertNotIn("clientSecret:", self.text)
@@ -356,7 +359,9 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             "cristexhub-prod-infisical-universal-auth",
             "/cristexhub/prod/runtime",
             "cristexhub-prod-ghcr-pull",
-            "No Infisical, Kubernetes, or Ansible operational wrapper was invoked",
+            "ok=15 changed=0 unreachable=0 failed=1",
+            "no Kubernetes",
+            "was mutated",
         ):
             self.assertIn(required, text)
         self.assertIn("Namespace is Active and idempotent", text)
@@ -423,12 +428,21 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         self.assertLess(checkpoint, prestate)
         self.assertLess(prestate, admission)
         self.assertLess(admission, bindings)
+        admission_recheck = tasks.index("Requery exact runtime admission policies immediately before PROD RBAC")
+        nonadmission_recheck = tasks.index("Recheck exact runtime RBAC and source objects before granting PROD RBAC")
+        credential_recheck = tasks.index("Recheck Universal Auth credential after granting PROD RBAC")
+        source_recheck = tasks.index("Recheck exact runtime source objects after granting PROD RBAC")
         self.assertLess(bindings, race)
-        self.assertLess(race, rbac)
-        self.assertLess(rbac, source_apply)
+        self.assertLess(race, nonadmission_recheck)
+        self.assertLess(nonadmission_recheck, admission_recheck)
+        self.assertLess(admission_recheck, rbac)
+        self.assertLess(rbac, credential_recheck)
+        self.assertLess(credential_recheck, source_recheck)
+        self.assertLess(source_recheck, source_apply)
         self.assertLess(source_apply, source_ready)
         self.assertLess(source_ready, target_poststate)
         for required in (
+            "status.observedGeneration == item.resources[0].metadata.generation",
             "status.typeChecking.expressionWarnings",
             "Requery exact runtime admission policies immediately before PROD RBAC",
             "Require exact ready and effective runtime admission closure before PROD RBAC",
@@ -495,6 +509,7 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             self.assertFalse(strict_integer(forged_count, 3), forged_count)
         self.assertFalse(strict_integer(2, 3))
         self.assertIn('binding.get("identity_keys_sha256")', plugin)
+        self.assertGreaterEqual(plugin.count("_strict_integer(binding.get("), 7)
         self.assertIn("_EXPECTED_TASK_SUFFIX", plugin)
         self.assertIn('os.environ.get("CRISTEXWEB_REPOSITORY_ROOT", "")', plugin)
         self.assertIn('CRISTEXWEB_REPOSITORY_ROOT="$repository_root"', WRAPPER.read_text())

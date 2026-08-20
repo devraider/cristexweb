@@ -1,13 +1,17 @@
 # CristexHub PROD runtime Infisical seam
 
-Status: **source-only / NOT RUN / BLOCKED**.
+Status: **source-only hardened / check stopped safely / apply NOT RUN / BLOCKED**.
 
 This runbook records the value-free production runtime Secret seam only. The
 canonical offline policy is
 [`ansible/files/policies/cristexhub-prod-runtime-materialization.yml`](../ansible/files/policies/cristexhub-prod-runtime-materialization.yml).
-No Infisical Cloud value was read or uploaded, no Kubernetes API was contacted, and
-no Ansible operational wrapper was invoked for this change. No Infisical, Kubernetes, or Ansible operational wrapper was invoked. The Namespace is Active and idempotent
-from its separate checkpoint; this source-only seam does not create or reconcile it.
+No Infisical Cloud value was read or uploaded. A read-only guarded wrapper check was
+run after hardening and stopped at `ok=15 changed=0 unreachable=0 failed=1` because
+the live Operator pod-template annotations do not exactly match the committed
+checkpoint. The stop occurred before runtime manifest reconciliation; no Kubernetes
+object, Secret, Infisical CR, credential, RBAC grant, workload, or route was mutated.
+The Namespace is Active and idempotent from its separate checkpoint; this source-only
+seam does not create or reconcile it.
 Its later PROD resources remain NOT RUN / BLOCKED; workload promotion requires
 separate approvals and remains **NOT RUN / BLOCKED**.
 
@@ -95,7 +99,8 @@ git diff --check
 git diff --cached --quiet
 ```
 
-Expected status for this source-only increment: focused tests pass; Namespace
-creation, identity materialization, Infisical API access, Kubernetes access,
-Secret sync, application deployment, public exposure, and PROD acceptance remain
+Current status: focused and full offline tests pass. The read-only Kubernetes check
+stopped safely on exact Operator pod-template annotation drift before runtime
+reconciliation. Identity materialization, Infisical API access, Secret sync,
+application deployment, public exposure, and PROD acceptance remain
 **NOT RUN / BLOCKED**.

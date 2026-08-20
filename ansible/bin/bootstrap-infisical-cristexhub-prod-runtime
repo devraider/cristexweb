@@ -2,7 +2,7 @@
 set -eu
 [ "$#" -eq 1 ] && { [ "$1" = check ] || [ "$1" = apply ]; } || { echo 'usage: ansible/bin/bootstrap-infisical-cristexhub-prod-runtime check|apply' >&2; exit 64; }
 mode=$1; script_path=$0; [ ! -L "$script_path" ] || { echo 'refusing a symlinked PROD runtime entrypoint' >&2; exit 66; }; script_directory=$(CDPATH= cd -- "$(dirname -- "$script_path")" && pwd -P); repository_root=$(CDPATH= cd -- "$script_directory/../.." && pwd -P)
-case "$repository_root" in /Users/paul/Projects/cristexweb|/home/paul/projects/cristexweb) ;; *) echo 'refusing unpinned repository path' >&2; exit 78;; esac
+[ -e "$repository_root/.git" ] && [ ! -L "$repository_root/.git" ] && [ -f "$repository_root/AGENTS.md" ] && [ ! -L "$repository_root/AGENTS.md" ] || { echo 'refusing an unverified repository checkout' >&2; exit 78; }
 controller="$repository_root/.venv/bin/ansible-playbook"; [ -x "$controller" ] || { echo 'refusing missing pinned Ansible controller' >&2; exit 69; }
 controller_user=$(id -un); cd "$repository_root/ansible"; umask 077
 attestation=$(mktemp "${TMPDIR:-/tmp}/cristexweb-cristexhub-prod-runtime.XXXXXX"); token=$(openssl rand -hex 32); printf '%s:entrypoint\n' "$token" > "$attestation"; trap 'rm -f -- "$attestation"' EXIT HUP INT TERM

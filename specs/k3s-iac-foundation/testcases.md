@@ -4395,7 +4395,7 @@ Result: **PASS** — 21 focused policy/design tests, diff check, and no-staged-f
 check passed. Keycloak/API/provider access, Secret access, runtime reconciliation,
 and public-route validation were **NOT RUN**.
 
-## Source-only CristexHub PROD runtime Infisical seam — NOT RUN/BLOCKED
+## CristexHub PROD runtime Infisical seam — hardened check STOPPED/BLOCKED
 
 The value-free production seam adapts the DEV contract without sharing names or
 Universal Auth identity. It binds Infisical project
@@ -4420,13 +4420,15 @@ sh -n ansible/bin/bootstrap-infisical-cristexhub-prod-runtime
 git diff --check
 ```
 
-Actual result: focused production seam contracts passed (`8` tests); source
-hashes, shell syntax, Python compilation, and diff checks passed. No
-Infisical API, Kubernetes API, Ansible operational wrapper, Namespace creation,
+Actual result: focused production seam contracts passed (`9` tests), the full
+suite passed (`385/385`), all 44 playbook syntax checks passed, production lint
+passed with only 14 known ignored warnings, and source hashes, shell syntax,
+Python compilation, and diff checks passed. The guarded read-only wrapper check
+contacted Kubernetes and stopped safely at `ok=15 changed=0 unreachable=0 failed=1`
+on exact live Operator pod-template annotation drift. The stop was before runtime
+reconciliation and made no mutation. No Infisical API write, Namespace creation,
 Universal Auth value, Secret sync, workload, route, or PROD promotion was run.
-The Namespace is already Active/idempotent from its separate checkpoint; check/apply,
-identity materialization, values, and runtime remain **NOT RUN/BLOCKED** because the
-identity values and all later PROD resources are absent.
+Apply, identity materialization, values, and runtime remain **NOT RUN/BLOCKED**.
 
 ## Source-only CristexHub PROD Argo registration — NOT RUN/BLOCKED
 
