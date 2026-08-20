@@ -21,8 +21,8 @@ EXPECTED = {
 ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 EXPECTED_REPOSITORY_ROOT = "/home/paul/projects/cristexweb"
 TASK_SUFFIX = "/ansible/roles/cristexhub_prod_registration/tasks/main.yml"
-EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-prod'): '2446878c1d8a631c138625854078d19c90c401233dc68c5e1e0ba2f75d164cac',
- ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-prod'): '66d7321471ab2144065cebb6e9e1ba3d5b3c929615015bd52eef05804a3b96f9',
+EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-prod'): '4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2',
+ ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-prod'): '29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1',
  ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'c40a189cdf4a3b864fae8bb64f06b0473aae2b47771f1c22ddf4a86f0f669fc4',
  ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'd0f0b78eb5960d368631b4d0ed9dd0371bacf19efa0e1c7ba01599d94bb75a83',
  ('v1', 'Secret', 'argocd', 'argocd-cluster-cristexhub-prod'): '3d8901d60df585bf9b5110e99fee323266acb9d8e41dbf55d174d82a1358d538'}

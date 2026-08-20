@@ -62,7 +62,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             cluster["stringData"],
         )
 
-    def test_application_is_exact_revision_and_cannot_sync(self) -> None:
+    def test_application_is_exact_revision_and_automated_without_prune(self) -> None:
         application = next(manifest for manifest in objects() if manifest["kind"] == "Application")
         self.assertEqual(
             {
@@ -73,11 +73,14 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             application["spec"]["source"],
         )
         self.assertEqual(
-            {"name": "cristexhub-prod-local", "server": "", "namespace": "cristexhub-prod"},
+            {"server": "https://kubernetes.default.svc", "namespace": "cristexhub-prod"},
             application["spec"]["destination"],
         )
         sync_policy = application["spec"]["syncPolicy"]
-        self.assertNotIn("automated", sync_policy)
+        self.assertEqual(
+            {"prune": False, "selfHeal": True, "allowEmpty": False},
+            sync_policy["automated"],
+        )
         self.assertEqual(
             {
                 "CreateNamespace=false",
@@ -90,12 +93,12 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         )
         self.assertEqual([], application["metadata"].get("finalizers", []))
 
-    def test_project_is_namespaced_least_privilege_with_permanent_deny(self) -> None:
+    def test_project_is_namespaced_least_privilege_for_exact_server(self) -> None:
         project = next(manifest for manifest in objects() if manifest["kind"] == "AppProject")
         spec = project["spec"]
         self.assertEqual([], spec["clusterResourceWhitelist"])
         self.assertEqual(
-            [{"name": "cristexhub-prod-local", "namespace": "cristexhub-prod"}],
+            [{"server": "https://kubernetes.default.svc", "namespace": "cristexhub-prod"}],
             spec["destinations"],
         )
         self.assertEqual(
@@ -104,11 +107,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             {(entry["group"], entry["kind"]) for entry in spec["namespaceResourceWhitelist"]},
         )
         self.assertNotIn("Secret", {entry["kind"] for entry in spec["namespaceResourceWhitelist"]})
-        self.assertEqual(
-            [{"kind": "deny", "schedule": "* * * * *", "duration": "24h",
-              "applications": ["cristexhub-prod"], "manualSync": False}],
-            spec["syncWindows"],
-        )
+        self.assertNotIn("syncWindows", spec)
 
     def test_controller_rbac_has_no_delete_or_cluster_scope(self) -> None:
         role = yaml.safe_load(
@@ -163,7 +162,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             "k3s administrator kubeconfig",
             "argocd-repository-cristexhub",
             "internal_preflight_binding",
-            "syncPolicy.automated is not defined",
+            "'prune': false, 'selfHeal': true, 'allowEmpty': false",
         ):
             self.assertIn(needle, tasks)
 

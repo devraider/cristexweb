@@ -256,7 +256,7 @@
   no_log: true
   when: not ansible_check_mode
 
-- name: Require manual-sync registration post-state
+- name: Require automated non-pruning PROD registration post-state
   ansible.builtin.assert:
     that:
       - cristexhub_prod_registration_internal_poststate.results | length == 5
@@ -268,7 +268,8 @@
         selectattr('item.kind', 'equalto', 'Application') | first).item.spec
       - >-
         (cristexhub_prod_registration_internal_poststate.results |
-        selectattr('item.kind', 'equalto', 'Application') | first).resources[0].spec.syncPolicy.automated is not defined
+        selectattr('item.kind', 'equalto', 'Application') | first).resources[0].spec.syncPolicy.automated ==
+        {'prune': false, 'selfHeal': true, 'allowEmpty': false}
       - >-
         (cristexhub_prod_registration_internal_poststate.results |
         selectattr('item.kind', 'equalto', 'AppProject') | first).resources[0].spec ==
@@ -276,9 +277,7 @@
         selectattr('item.kind', 'equalto', 'AppProject') | first).item.spec
       - >-
         (cristexhub_prod_registration_internal_poststate.results |
-        selectattr('item.kind', 'equalto', 'AppProject') | first).resources[0].spec.syncWindows ==
-        [{'kind': 'deny', 'schedule': '* * * * *', 'duration': '24h',
-        'applications': ['cristexhub-prod'], 'manualSync': false}]
+        selectattr('item.kind', 'equalto', 'AppProject') | first).resources[0].spec.syncWindows is not defined
       - >-
         (cristexhub_prod_registration_internal_poststate.results |
         selectattr('item.kind', 'equalto', 'Role') | first).resources[0].rules ==
