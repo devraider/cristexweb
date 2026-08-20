@@ -15,7 +15,7 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 
 _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-alternate-target-boundary'): 'f9814d97dc32dd6cbeebdbbe00f5529fa88424bb992995da6adb707513042d77',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-secret-write-boundary'): '32c1fac79fee84118ca543aa7a43a78f2e2416f54622bdba4a757d446e5e2858',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-secret-write-boundary'): 'd62b6846b294ba5d4f9475f1c3593379b534539c1353a7e206f1fcc6bcb9c2d8',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-source-boundary'): 'e632d4e98818bb29d8057a0a89d80f6c6542366faddb5f17d53117b3e49c37e1',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-static-secret-boundary'): '443070ad0eac95a34ad9637899ab2f888671af85d3e599a3234399a87c922af8',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-prod-runtime-alternate-target-boundary'): '2e0439d1622eb50e93a9cf3ae0280eef9aa9db7eef3cd62ddd3c788d621e4308',
@@ -29,6 +29,7 @@ _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
     ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'cristexhub-prod', 'cristexhub-prod-runtime'): 'd18b1db7a698f2b1953b0861cf78729c66369043e33e0ae091e7e57ab6991e0c',
 }
 _EXPECTED_IDENTITY_SET_SHA256 = "d46dde754f05f248bbc19ff28a65ec44ccb1f84c53221c1f7d4e3bb355d6ff20"
+_EXPECTED_IDENTITY_KEYS_SHA256 = "fe4d04be8cd80c5bc9c36ca25dcb89cf26b6c1269ff835dcfbaa8fddcaadd0ce"
 _EXPECTED_OIDC_CLIENT_SECRET_SOURCE = {
     "projectId": "619656da-14f3-4872-857b-be103cdc5326",
     "environmentSlug": "prod",
@@ -47,9 +48,12 @@ def _canonical_hash(value: dict[str, Any]) -> str:
 
 
 def _strict_integer(value: Any, expected: int | None = None) -> bool:
-    if isinstance(value, bool) or not isinstance(value, int):
+    if isinstance(value, bool):
         return False
-    return expected is None or value == expected
+    if not isinstance(value, int) and type(value).__name__ != "_AnsibleTaggedInt":
+        return False
+    converted = int(value)
+    return expected is None or converted == expected
 
 
 # Canonical identity digest: SHA-256 of sorted API/kind/namespace/name lines.
@@ -111,7 +115,7 @@ class ActionModule(KubernetesActionModule):
             and _strict_integer(binding.get("target_secret_inventory_count"))
             and 1 <= binding.get("target_secret_inventory_count", -1) <= 3
             and binding.get("identity_set_sha256") == _EXPECTED_IDENTITY_SET_SHA256
-            and binding.get("identity_keys_sha256") == _EXPECTED_IDENTITY_SET_SHA256
+            and binding.get("identity_keys_sha256") == _EXPECTED_IDENTITY_KEYS_SHA256
         )
         valid_attestation = (
             os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_RUNTIME_ENTRYPOINT")

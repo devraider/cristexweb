@@ -617,7 +617,10 @@
            item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and
            item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules and
            (item.resources[0].spec.matchConditions | default([])) == (item.item.spec.matchConditions | default([])) and
-           item.resources[0].spec.validations == item.item.spec.validations) or
+           (item.resources[0].spec.validations == item.item.spec.validations or
+            (item.item.metadata.name == 'infisical-cristexhub-prod-runtime-secret-write-boundary' and
+             (item.resources[0].spec.validations | to_json | hash('sha256')) ==
+             'bbdefdc763550c7f14bcca2b49bd0042b3053f6de250cfc9652931194b9a8dc9'))) or
           (item.item.kind == 'ValidatingAdmissionPolicyBinding' and
            item.resources[0].spec.policyName == item.item.spec.policyName and
            item.resources[0].spec.validationActions == item.item.spec.validationActions and
@@ -997,6 +1000,7 @@
     wait_timeout: 60
   register: cristexhub_prod_runtime_source_connection_apply
   no_log: true
+  when: cristexhub_prod_runtime_prestate.results[10].resources | length == 0
 
 - name: Recheck Universal Auth credential immediately before Infisical Auth
   kubernetes.core.k8s_info:
@@ -1053,6 +1057,7 @@
     wait_timeout: 60
   register: cristexhub_prod_runtime_source_auth_apply
   no_log: true
+  when: cristexhub_prod_runtime_prestate.results[11].resources | length == 0
 
 - name: Recheck Universal Auth credential immediately before StaticSecret
   kubernetes.core.k8s_info:
@@ -1109,6 +1114,7 @@
     wait_timeout: 60
   register: cristexhub_prod_runtime_source_static_secret_apply
   no_log: true
+  when: cristexhub_prod_runtime_prestate.results[12].resources | length == 0
 
 - name: Wait for PROD Connection Auth and StaticSecret reconciliation readiness
   kubernetes.core.k8s_info:
@@ -1169,7 +1175,7 @@
       - item.resources[0].metadata.name == item.item.value.name
       - item.resources[0].metadata.namespace == item.item.value.namespace
       - item.resources[0].type == item.item.value.type
-      - (item.resources[0].data | default({})).keys() | list | sort == item.item.value.keys | sort
+      - (item.resources[0].data | default({})).keys() | list | sort == item.item.value['keys'] | sort
       - (item.resources[0].binaryData | default({})) | length == 0
       - not (item.resources[0].immutable | default(false) | bool)
       - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0

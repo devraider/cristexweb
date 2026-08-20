@@ -26,7 +26,7 @@ cristexhub_prod_runtime_bootstrap_manifest_paths:
 cristexhub_prod_runtime_bootstrap_object_count: 13
 cristexhub_prod_runtime_bootstrap_expected_hashes:
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/admission/infisical-cristexhub-prod-runtime-secret-write-boundary.yaml'
-    sha256: 682bf35c04f2c6ce6aa4f177c279ffa2d6371baac24dc5d66ecb16448e0c6f6f
+    sha256: 9eb2a95fffe7aee29b85e3dd54892d560e86dccb66478a7e06abc14173b73ade
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/admission/infisical-cristexhub-prod-runtime-secret-write-boundary-binding.yaml'
     sha256: 8a04155b6a55e5f708a3a76379503302d227a103fd9363d61e065e5c83cbdd13
   - path: '{{ cristexhub_prod_runtime_bootstrap_repository_root }}/ansible/files/components/infisical-cristexhub-prod-runtime/admission/infisical-cristexhub-prod-runtime-alternate-target-boundary.yaml'
