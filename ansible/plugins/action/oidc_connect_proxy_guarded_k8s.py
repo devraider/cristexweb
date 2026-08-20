@@ -14,7 +14,7 @@ _EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'oidc-co
  ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'cristexhub-backend-allow-oidc-proxy'): 'b71a698a978952c068220db0dfa842409baa4394b77672bd04c532ec81b73f05',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'oauth2-proxy-allow-oidc-proxy'): '6a15389649dfa29a25802071c7630b5576f8ff36b55075d00e64b3a0aa8afc15',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-auth-egress'): '6b03dd1081d31d8c128c64231eee309b3570938a3b9f9767a93da9f64ed3641f',
- ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-clients'): '22c4eb3c57e8f335eba677caaf0f5fe39098c3a2d8b3ab5c989e256300a8f7ab',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-clients'): 'b8a40367df5814aa6df64079dee85a407b0f05f36368ad0ae85220b6be742f3c',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-dns'): '1c6e1b62e40ad388f5033ceb00e9f80ab62c4cbe87f7bcc23ff6ecbfe51e704b',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-default-deny'): '21a51a152e008488dbb90fac6c550833f63e74d47153b93abea66f9f348dc25f',
  ('v1', 'ConfigMap', 'shared-services', 'oidc-connect-proxy-config'): '9f2baecbdca48fa66855df9bca961f9946f4a10b6077bf819231d2ac1651e9b4',

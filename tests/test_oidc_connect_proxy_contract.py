@@ -75,7 +75,14 @@ class OidcConnectProxyContractTests(unittest.TestCase):
         self.assertEqual(["Ingress", "Egress"], deny["policyTypes"])
         self.assertNotIn("egress", deny)
         clients = policies["oidc-connect-proxy-allow-clients"]["spec"]["ingress"]
-        self.assertEqual(3, len(clients[0]["from"]))
+        self.assertEqual(6, len(clients[0]["from"]))
+        self.assertEqual(
+            {"cristexhub-dev", "cristexhub-prod"},
+            {
+                peer["namespaceSelector"]["matchLabels"]["kubernetes.io/metadata.name"]
+                for peer in clients[0]["from"]
+            },
+        )
         self.assertEqual(
             {"backend", "celery-worker", "oauth2-proxy"},
             {
