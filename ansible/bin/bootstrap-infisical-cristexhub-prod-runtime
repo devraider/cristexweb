@@ -3,7 +3,7 @@ set -eu
 [ "$#" -eq 1 ] && { [ "$1" = check ] || [ "$1" = apply ]; } || { echo 'usage: ansible/bin/bootstrap-infisical-cristexhub-prod-runtime check|apply' >&2; exit 64; }
 mode=$1; script_path=$0; [ ! -L "$script_path" ] || { echo 'refusing a symlinked PROD runtime entrypoint' >&2; exit 66; }; script_directory=$(CDPATH= cd -- "$(dirname -- "$script_path")" && pwd -P); repository_root=$(CDPATH= cd -- "$script_directory/../.." && pwd -P)
 [ -e "$repository_root/.git" ] && [ ! -L "$repository_root/.git" ] && [ -f "$repository_root/AGENTS.md" ] && [ ! -L "$repository_root/AGENTS.md" ] || { echo 'refusing an unverified repository checkout' >&2; exit 78; }
-safe_git() { /usr/bin/env -i PATH=/usr/bin:/bin HOME=/nonexistent GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null /usr/bin/git "$@"; }
+safe_git() { /usr/bin/env -i PATH=/usr/bin:/bin HOME=/nonexistent GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_OPTIONAL_LOCKS=0 /usr/bin/git -c core.fsmonitor=false -c core.hooksPath=/dev/null -c core.untrackedCache=false "$@"; }
 git_root=$(safe_git -C "$repository_root" rev-parse --show-toplevel); [ "$git_root" = "$repository_root" ] || { echo 'refusing a noncanonical Git worktree root' >&2; exit 78; }
 origin=$(safe_git -C "$repository_root" remote get-url origin); case "$origin" in git@github.com:devraider/cristexweb.git|https://github.com/devraider/cristexweb.git) ;; *) echo 'refusing an untrusted repository origin' >&2; exit 78;; esac
 [ -z "$(safe_git -C "$repository_root" status --porcelain --untracked-files=all)" ] || { echo 'refusing a dirty repository checkout' >&2; exit 78; }

@@ -538,6 +538,9 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         self.assertIn("rev-parse --show-toplevel", wrapper_text)
         self.assertIn("GIT_CONFIG_NOSYSTEM=1", wrapper_text)
         self.assertIn("GIT_CONFIG_GLOBAL=/dev/null", wrapper_text)
+        self.assertIn("GIT_OPTIONAL_LOCKS=0", wrapper_text)
+        self.assertIn("core.fsmonitor=false", wrapper_text)
+        self.assertIn("core.hooksPath=/dev/null", wrapper_text)
         self.assertIn('[ ! -L "$controller" ]', wrapper_text)
         self.assertNotIn("_EXPECTED_TASK_SOURCES", plugin)
 
