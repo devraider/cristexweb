@@ -411,8 +411,20 @@
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].ports == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].ports
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].securityContext == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].securityContext
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].resources == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].resources
-      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].livenessProbe == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].livenessProbe
-      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].readinessProbe
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].livenessProbe.httpGet.path == '/healthz'
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].livenessProbe.httpGet.port == 'health'
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].livenessProbe.initialDelaySeconds == 15
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].livenessProbe.periodSeconds == 20
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].livenessProbe.timeoutSeconds == 1
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].livenessProbe.successThreshold == 1
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].livenessProbe.failureThreshold == 3
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe.httpGet.path == '/readyz'
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe.httpGet.port == 'health'
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe.initialDelaySeconds == 5
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe.periodSeconds == 10
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe.timeoutSeconds == 1
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe.successThreshold == 1
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe.failureThreshold == 3
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].volumeMounts == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].volumeMounts
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].envFrom | default([]) | length == 0
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].lifecycle | default({}, true) | length == 0
@@ -424,9 +436,12 @@
       - cristexhub_prod_runtime_operator_prerequisites.results[2].resources[0].subjects == cristexhub_prod_runtime_expected_operator_rolebinding.subjects
       - cristexhub_prod_runtime_operator_prerequisites.results[2].resources[0].metadata.labels == cristexhub_prod_runtime_expected_operator_rolebinding.metadata.labels
       - cristexhub_prod_runtime_generic_admission_policies.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
-      - cristexhub_prod_runtime_generic_admission_policies.results | map(attribute='resources.0.spec') | list == cristexhub_prod_runtime_expected_generic_policies | map(attribute='spec') | list
-      - cristexhub_prod_runtime_generic_admission_bindings.results | map(attribute='resources.0.spec') | list == cristexhub_prod_runtime_expected_generic_bindings | map(attribute='spec') | list
+      - cristexhub_prod_runtime_generic_admission_policies.results | map(attribute='resources.0.metadata.name') | list == ['infisical-auth-boundary', 'infisical-connection-boundary', 'infisical-static-secret-boundary']
+      - cristexhub_prod_runtime_generic_admission_policies.results | map(attribute='resources.0.spec.matchConstraints.resourceRules') | list == cristexhub_prod_runtime_expected_generic_policies | map(attribute='spec.matchConstraints.resourceRules') | list
+      - cristexhub_prod_runtime_generic_admission_policies.results | map(attribute='resources.0.spec.validations') | list == cristexhub_prod_runtime_expected_generic_policies | map(attribute='spec.validations') | list
       - cristexhub_prod_runtime_generic_admission_bindings.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
+      - cristexhub_prod_runtime_generic_admission_bindings.results | map(attribute='resources.0.metadata.name') | list == ['infisical-auth-boundary', 'infisical-connection-boundary', 'infisical-static-secret-boundary']
+      - cristexhub_prod_runtime_generic_admission_bindings.results | map(attribute='resources.0.spec.policyName') | list == ['infisical-auth-boundary', 'infisical-connection-boundary', 'infisical-static-secret-boundary']
       - >-
         cristexhub_prod_runtime_generic_admission_policies.results |
         map(attribute='resources.0.spec.failurePolicy') | list | unique | list == ['Fail']
@@ -522,11 +537,11 @@
       - cristexhub_prod_runtime_manifests | selectattr('kind', 'equalto', 'InfisicalAuth') | list | length == 1
       - cristexhub_prod_runtime_manifests | selectattr('kind', 'equalto', 'InfisicalStaticSecret') | list | length == 1
       - cristexhub_prod_runtime_identity_keys[8:] ==
-        ['rbac.authorization.k8s.io/v1/Role/cristexhub-prod/infisical-cristexhub-prod-runtime-secret-writer',
-         'rbac.authorization.k8s.io/v1/RoleBinding/cristexhub-prod/infisical-cristexhub-prod-runtime-secret-writer',
-         'secrets.infisical.com/v1beta1/InfisicalConnection/cristexhub-prod/infisical-cloud',
-         'secrets.infisical.com/v1beta1/InfisicalAuth/cristexhub-prod/cristexhub-prod-infisical-auth',
-         'secrets.infisical.com/v1beta1/InfisicalStaticSecret/cristexhub-prod/cristexhub-prod-runtime']
+        ['rbac.authorization.k8s.io/v1|Role|cristexhub-prod|infisical-cristexhub-prod-runtime-secret-writer',
+         'rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|infisical-cristexhub-prod-runtime-secret-writer',
+         'secrets.infisical.com/v1beta1|InfisicalConnection|cristexhub-prod|infisical-cloud',
+         'secrets.infisical.com/v1beta1|InfisicalAuth|cristexhub-prod|cristexhub-prod-infisical-auth',
+         'secrets.infisical.com/v1beta1|InfisicalStaticSecret|cristexhub-prod|cristexhub-prod-runtime']
     fail_msg: Refusing a noncanonical runtime seam object closure.
   changed_when: false
   no_log: true

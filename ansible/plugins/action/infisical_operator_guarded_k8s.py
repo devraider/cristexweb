@@ -26,7 +26,7 @@ _EXPECTED_OBJECT_HASHES = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-secret-boundary'): '6adf6fb2459c26df41b00c7aba6450c27e489fa686d738bfb29ebd4eefd548f3',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-static-secret-boundary'): '832215eddbb15d770c1796439a2b44cfb9089950a68c91629f2d780b08d82ad6',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-static-secret-boundary'): 'ab9edcd92db178c3d34a754f510a11eabb92940a36d12cb2dde40e7f7a5c3b70',
-    ('apps/v1', 'Deployment', 'shared-services', 'infisical-operator-controller'): '1c9ca4a23ef5b5a6fb5862a1efcf581b8ce4e4405947ae0e234e570e9587a987',
+    ('apps/v1', 'Deployment', 'shared-services', 'infisical-operator-controller'): '1957d1b8f337db61664e695827ae71df39025c0675c8ee4efcdc999ffd97b171',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalauths.secrets.infisical.com'): '7f42a95da11f97758214bb8d6d1a177a848d02d42e9c6154fb8f84724c234326',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicalconnections.secrets.infisical.com'): '41e6e2c61260de61229d997f67426c26fcddcb4e584cef45485646111ca69181',
     ('apiextensions.k8s.io/v1', 'CustomResourceDefinition', '', 'infisicaldynamicsecrets.secrets.infisical.com'): 'b95d44aef7023641d00a552e3dbc9b14667de82983d8911a2fd73bcf25ab5f91',

@@ -4425,8 +4425,11 @@ suite passed (`385/385`), all 44 playbook syntax checks passed, production lint
 passed with only 14 known ignored warnings, and source hashes, shell syntax,
 Python compilation, and diff checks passed. The guarded read-only wrapper check
 contacted Kubernetes and stopped safely at `ok=15 changed=0 unreachable=0 failed=1`
-on exact live Operator pod-template drift: the bounded rollout receipt plus an extra
-`SSL_CERT_DIR` environment entry not present in committed source. The stop was before runtime
+on exact live Operator pod-template drift. Source now explicitly bounds the rollout
+receipt and canonically includes `SSL_CERT_DIR=/etc/ssl/certs:/etc/infisical-proxy-ca`.
+A fresh Operator check passed at `ok=30 changed=0 failed=0 skipped=5`; the runtime
+check advanced to the intended absent Universal Auth gate and stopped at
+`ok=23 changed=0 failed=1`. Both checks made no mutation. The original stop was before runtime
 reconciliation and made no mutation. No Infisical API write, Namespace creation,
 Universal Auth value, Secret sync, workload, route, or PROD promotion was run.
 Apply, identity materialization, values, and runtime remain **NOT RUN/BLOCKED**.
