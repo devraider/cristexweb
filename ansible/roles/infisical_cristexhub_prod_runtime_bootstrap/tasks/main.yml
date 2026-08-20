@@ -18,6 +18,10 @@
     - cristexhub_prod_runtime_target_secret_inventory
     - cristexhub_prod_runtime_cr_inventory_recheck
     - cristexhub_prod_runtime_target_secret_inventory_recheck
+    - cristexhub_prod_runtime_nonadmission_prestate_recheck
+    - cristexhub_prod_runtime_source_prestate_recheck
+    - cristexhub_prod_runtime_admission_policy_recheck
+    - cristexhub_prod_runtime_admission_binding_recheck
     - cristexhub_prod_runtime_expected_operator_deployment
     - cristexhub_prod_runtime_expected_operator_role
     - cristexhub_prod_runtime_expected_operator_rolebinding
@@ -52,6 +56,8 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_RUNTIME_ENTRYPOINT') == 'v1'
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_RUNTIME_TOKEN') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_RUNTIME_ATTESTATION_FILE') | length > 0
+      - cristexhub_prod_runtime_bootstrap_repository_root == lookup('ansible.builtin.env', 'CRISTEXWEB_REPOSITORY_ROOT')
+      - cristexhub_prod_runtime_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
       - cristexhub_prod_runtime_bootstrap_manifest_paths | length == 13
       - cristexhub_prod_runtime_bootstrap_manifest_paths | unique | length == 13
       - cristexhub_prod_runtime_bootstrap_expected_hashes | length == 13
@@ -166,8 +172,8 @@
     name: "{{ item }}"
     kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
   loop:
-    - infisical-connection-boundary
     - infisical-auth-boundary
+    - infisical-connection-boundary
     - infisical-static-secret-boundary
   register: cristexhub_prod_runtime_generic_admission_policies
   changed_when: false
@@ -180,8 +186,8 @@
     name: "{{ item }}"
     kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
   loop:
-    - infisical-connection-boundary
     - infisical-auth-boundary
+    - infisical-connection-boundary
     - infisical-static-secret-boundary
   register: cristexhub_prod_runtime_generic_admission_bindings
   changed_when: false
@@ -284,6 +290,8 @@
          ((cristexhub_prod_runtime_target_secret_inventory.resources |
            selectattr('metadata.name', 'equalto', item.value.name) | first).metadata.ownerReferences | default([]) | length == 0 and
          ((cristexhub_prod_runtime_target_secret_inventory.resources |
+           selectattr('metadata.name', 'equalto', item.value.name) | first).metadata.finalizers | default([]) | length == 0 and
+         ((cristexhub_prod_runtime_target_secret_inventory.resources |
            selectattr('metadata.name', 'equalto', item.value.name) | first).metadata.labels | default({})) == cristexhub_prod_runtime_bootstrap_labels and
          ((cristexhub_prod_runtime_target_secret_inventory.resources |
            selectattr('metadata.name', 'equalto', item.value.name) | first).metadata.annotations | default({})).keys() | list == ['secrets.infisical.com/version'] and
@@ -327,9 +335,19 @@
         cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].args ==
         ['--metrics-bind-address=0', '--leader-elect', '--health-probe-bind-address=:8081',
          '--namespaces=shared-services,argocd,cristexhub-dev,cristexhub-prod,platform-edge']
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.revisionHistoryLimit == cristexhub_prod_runtime_expected_operator_deployment.spec.revisionHistoryLimit
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.securityContext == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.securityContext
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.volumes == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.volumes
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.terminationGracePeriodSeconds == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.terminationGracePeriodSeconds
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].command == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].command
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].imagePullPolicy == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].imagePullPolicy
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].env == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].env
-      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe.httpGet.path == '/readyz'
-      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe.httpGet.port == 'health'
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].ports == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].ports
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].securityContext == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].securityContext
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].resources == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].resources
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].livenessProbe == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].livenessProbe
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].readinessProbe == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].readinessProbe
+      - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].spec.template.spec.containers[0].volumeMounts == cristexhub_prod_runtime_expected_operator_deployment.spec.template.spec.containers[0].volumeMounts
       - cristexhub_prod_runtime_operator_prerequisites.results[0].resources[0].metadata.labels == cristexhub_prod_runtime_expected_operator_deployment.metadata.labels
       - cristexhub_prod_runtime_operator_prerequisites.results[1].resources[0].rules == cristexhub_prod_runtime_expected_operator_role.rules
       - cristexhub_prod_runtime_operator_prerequisites.results[1].resources[0].metadata.labels == cristexhub_prod_runtime_expected_operator_role.metadata.labels
@@ -358,6 +376,8 @@
   ansible.builtin.assert:
     that:
       - item.resources | length == 1
+      - item.resources[0].status.typeChecking is defined
+      - item.resources[0].status.typeChecking.expressionWarnings | default([]) | length == 0
       - >-
         item.resources[0].status.conditions | default([]) | length == 0 or
         (item.resources[0].status.conditions | default([]) |
@@ -431,6 +451,12 @@
       - cristexhub_prod_runtime_manifests | selectattr('kind', 'equalto', 'InfisicalConnection') | list | length == 1
       - cristexhub_prod_runtime_manifests | selectattr('kind', 'equalto', 'InfisicalAuth') | list | length == 1
       - cristexhub_prod_runtime_manifests | selectattr('kind', 'equalto', 'InfisicalStaticSecret') | list | length == 1
+      - cristexhub_prod_runtime_identity_keys[8:] ==
+        ['rbac.authorization.k8s.io/v1/Role/cristexhub-prod/infisical-cristexhub-prod-runtime-secret-writer',
+         'rbac.authorization.k8s.io/v1/RoleBinding/cristexhub-prod/infisical-cristexhub-prod-runtime-secret-writer',
+         'secrets.infisical.com/v1beta1/InfisicalConnection/cristexhub-prod/infisical-cloud',
+         'secrets.infisical.com/v1beta1/InfisicalAuth/cristexhub-prod/cristexhub-prod-infisical-auth',
+         'secrets.infisical.com/v1beta1/InfisicalStaticSecret/cristexhub-prod/cristexhub-prod-runtime']
     fail_msg: Refusing a noncanonical runtime seam object closure.
   changed_when: false
   no_log: true
@@ -460,6 +486,7 @@
       - (cristexhub_prod_runtime_credential.resources[0].binaryData | default({})).keys() | list | length == 0
       - not (cristexhub_prod_runtime_credential.resources[0].immutable | default(false) | bool)
       - (cristexhub_prod_runtime_credential.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - (cristexhub_prod_runtime_credential.resources[0].metadata.finalizers | default([]) | length) == 0
       - (cristexhub_prod_runtime_credential.resources[0].metadata.labels | default({})) == cristexhub_prod_runtime_bootstrap_credential_contract.labels
       - (cristexhub_prod_runtime_credential.resources[0].metadata.annotations | default({})) | length == 0
       - cristexhub_prod_runtime_credential.resources[0].metadata.uid | default('') | length > 0
@@ -568,8 +595,12 @@
   register: cristexhub_prod_runtime_admission_policy_state
   until:
     - cristexhub_prod_runtime_admission_policy_state.resources | length == 1
-    - >-
-      cristexhub_prod_runtime_admission_policy_state.resources[0].spec == item.spec
+    - cristexhub_prod_runtime_admission_policy_state.resources[0].spec.failurePolicy == item.spec.failurePolicy
+    - cristexhub_prod_runtime_admission_policy_state.resources[0].spec.matchConstraints.resourceRules == item.spec.matchConstraints.resourceRules
+    - (cristexhub_prod_runtime_admission_policy_state.resources[0].spec.matchConditions | default([])) == (item.spec.matchConditions | default([]))
+    - cristexhub_prod_runtime_admission_policy_state.resources[0].spec.validations == item.spec.validations
+    - cristexhub_prod_runtime_admission_policy_state.resources[0].status.typeChecking is defined
+    - cristexhub_prod_runtime_admission_policy_state.resources[0].status.typeChecking.expressionWarnings | default([]) | length == 0
     - >-
       cristexhub_prod_runtime_admission_policy_state.resources[0].status.conditions | default([]) | length == 0 or
       (cristexhub_prod_runtime_admission_policy_state.resources[0].status.conditions | default([]) |
@@ -608,7 +639,9 @@
   register: cristexhub_prod_runtime_admission_binding_state
   until:
     - cristexhub_prod_runtime_admission_binding_state.resources | length == 1
-    - cristexhub_prod_runtime_admission_binding_state.resources[0].spec == item.spec
+    - cristexhub_prod_runtime_admission_binding_state.resources[0].spec.policyName == item.spec.policyName
+    - cristexhub_prod_runtime_admission_binding_state.resources[0].spec.validationActions == item.spec.validationActions
+    - (cristexhub_prod_runtime_admission_binding_state.resources[0].spec.matchResources | default({})) == (item.spec.matchResources | default({}))
     - cristexhub_prod_runtime_admission_binding_state.resources[0].metadata.generation is defined
   retries: 30
   delay: 2
@@ -665,6 +698,97 @@
   changed_when: false
   no_log: true
 
+- name: Recheck exact runtime RBAC and source objects before granting PROD RBAC
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace | default(omit) }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_prod_runtime_rbac_objects + cristexhub_prod_runtime_source_objects }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: cristexhub_prod_runtime_nonadmission_prestate_recheck
+  changed_when: false
+  no_log: true
+
+- name: Refuse runtime RBAC or source object UID resourceVersion races
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == cristexhub_prod_runtime_prestate.results[nonadmission_index + 8].resources | length
+      - item.resources | map(attribute='metadata.uid') | list == cristexhub_prod_runtime_prestate.results[nonadmission_index + 8].resources | map(attribute='metadata.uid') | list
+      - item.resources | map(attribute='metadata.resourceVersion') | list == cristexhub_prod_runtime_prestate.results[nonadmission_index + 8].resources | map(attribute='metadata.resourceVersion') | list
+    fail_msg: Refusing a concurrent runtime RBAC or source object create, replace, or update.
+  loop: "{{ cristexhub_prod_runtime_nonadmission_prestate_recheck.results }}"
+  loop_control:
+    index_var: nonadmission_index
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Requery exact runtime admission policies immediately before PROD RBAC
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicy
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_prod_runtime_admission_policies }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: cristexhub_prod_runtime_admission_policy_recheck
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Requery exact runtime admission bindings immediately before PROD RBAC
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicyBinding
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_prod_runtime_admission_bindings }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  register: cristexhub_prod_runtime_admission_binding_recheck
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact ready and effective runtime admission closure before PROD RBAC
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_runtime_admission_policy_recheck.results | length == 4
+      - cristexhub_prod_runtime_admission_binding_recheck.results | length == 4
+      - item.resources | length == 1
+      - item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy
+      - item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules
+      - (item.resources[0].spec.matchConditions | default([])) == (item.item.spec.matchConditions | default([]))
+      - item.resources[0].spec.validations == item.item.spec.validations
+      - item.resources[0].status.typeChecking is defined
+      - item.resources[0].status.typeChecking.expressionWarnings | default([]) | length == 0
+    fail_msg: Refusing PROD RBAC while a runtime admission policy is missing, drifted, or has type-check warnings.
+  loop: "{{ cristexhub_prod_runtime_admission_policy_recheck.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact runtime admission binding closure before PROD RBAC
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].spec.policyName == item.item.spec.policyName
+      - item.resources[0].spec.validationActions == item.item.spec.validationActions
+      - (item.resources[0].spec.matchResources | default({})) == (item.item.spec.matchResources | default({}))
+    fail_msg: Refusing PROD RBAC while a runtime admission binding is missing or drifted.
+  loop: "{{ cristexhub_prod_runtime_admission_binding_recheck.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
 - name: Reconcile exact runtime seam RBAC after admission and race checks
   infisical_cristexhub_prod_runtime_guarded_k8s:
     state: present
@@ -677,6 +801,36 @@
     label: "{{ item.kind }}/{{ item.metadata.name }}"
   register: cristexhub_prod_runtime_rbac_apply
   no_log: true
+
+- name: Recheck exact runtime source objects after granting PROD RBAC
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ cristexhub_prod_runtime_bootstrap_kubeconfig }}"
+  loop: "{{ cristexhub_prod_runtime_source_objects }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: cristexhub_prod_runtime_source_prestate_recheck
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Refuse runtime source UID resourceVersion races after PROD RBAC
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == cristexhub_prod_runtime_prestate.results[source_index + 10].resources | length
+      - item.resources | map(attribute='metadata.uid') | list == cristexhub_prod_runtime_prestate.results[source_index + 10].resources | map(attribute='metadata.uid') | list
+      - item.resources | length == 0 or item.resources[0].spec == item.item.spec
+    fail_msg: Refusing a concurrent runtime source object create, replace, or update after PROD RBAC.
+  loop: "{{ cristexhub_prod_runtime_source_prestate_recheck.results | default([]) }}"
+  loop_control:
+    index_var: source_index
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
 
 - name: Reconcile Connection then Auth then StaticSecret source closure last
   infisical_cristexhub_prod_runtime_guarded_k8s:

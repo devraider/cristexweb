@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import os
 import re
 import stat
 import subprocess
@@ -20,6 +21,7 @@ WRAPPER = ROOT / "ansible/bin/bootstrap-infisical-cristexhub-prod-runtime"
 PLAYBOOK = ROOT / "ansible/playbooks/bootstrap_infisical_cristexhub_prod_runtime.yml"
 POLICY = ROOT / "ansible/files/policies/cristexhub-prod-runtime-materialization.yml"
 HOSTED_POLICY = ROOT / "ansible/files/policies/hosted-identity-authorization.yml"
+ACTION_ONLY = ROOT / "tests/reject_infisical_cristexhub_prod_runtime_action_only.yml"
 
 NAMESPACE = "cristexhub-prod"
 COMPONENT_NAME = "infisical-cristexhub-prod-runtime"
@@ -213,6 +215,7 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         secret_write_expression = json.dumps(secret_write["spec"]["validations"])
         self.assertIn("secrets.infisical.com/version", secret_write_expression)
         self.assertIn("annotations.size() == 1", secret_write_expression)
+        self.assertIn("metadata.finalizers", secret_write_expression)
         alternate = next(policy for policy in policies if "alternate-target" in policy["metadata"]["name"])
         self.assertEqual("Namespaced", alternate["spec"]["matchConstraints"]["resourceRules"][0]["scope"])
         self.assertEqual(NAMESPACE, alternate["spec"]["matchConditions"][0]["expression"].split("== ", 1)[1].strip("'"))
@@ -295,6 +298,29 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             "env -i",
         ):
             self.assertIn(required, wrapper)
+        action_only = subprocess.run(
+            [
+                str(ROOT / ".venv/bin/ansible-playbook"),
+                "-i",
+                "localhost,",
+                "-c",
+                "local",
+                str(ACTION_ONLY),
+            ],
+            cwd=ROOT / "ansible",
+            env={
+                **os.environ,
+                "ANSIBLE_CONFIG": str(ROOT / "ansible/ansible.cfg"),
+                "CRISTEXWEB_REPOSITORY_ROOT": str(ROOT),
+            },
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertNotEqual(0, action_only.returncode)
+        self.assertIn("ENTRYPOINT_GUARD", action_only.stdout + action_only.stderr)
+        self.assertNotIn("Failed to connect", action_only.stdout + action_only.stderr)
+
         self.assertNotIn("clientSecret:", self.text)
         self.assertFalse(any(obj["kind"] == "Secret" for obj in self.objects))
         self.assertNotIn("cristexhub-dev", self.text)
@@ -402,6 +428,31 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         self.assertLess(rbac, source_apply)
         self.assertLess(source_apply, source_ready)
         self.assertLess(source_ready, target_poststate)
+        for required in (
+            "status.typeChecking.expressionWarnings",
+            "Requery exact runtime admission policies immediately before PROD RBAC",
+            "Require exact ready and effective runtime admission closure before PROD RBAC",
+            "Recheck exact runtime RBAC and source objects before granting PROD RBAC",
+            "Refuse runtime RBAC or source object UID resourceVersion races",
+            "Recheck exact runtime source objects after granting PROD RBAC",
+            "metadata.finalizers",
+            "cristexhub_prod_runtime_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'",
+        ):
+            self.assertIn(required, tasks)
+
+        generic_policy_query = next(
+            item for item in parsed_tasks
+            if item.get("name") == "Query generic Infisical admission prerequisites"
+        )
+        self.assertEqual(
+            ["infisical-auth-boundary", "infisical-connection-boundary", "infisical-static-secret-boundary"],
+            generic_policy_query["loop"],
+        )
+        partition = next(
+            item for item in parsed_tasks
+            if item.get("name") == "Require exact 13-object value-free closure"
+        )
+        self.assertIn("cristexhub_prod_runtime_identity_keys[8:]", " ".join(partition["ansible.builtin.assert"]["that"]))
 
         for task_name in (
             "Query every Secret in the PROD Namespace before mutation",
@@ -427,7 +478,27 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         plugin = PLUGIN.read_text()
         self.assertIn("_strict_integer", plugin)
         self.assertNotIn("def _integer", plugin)
+        plugin_tree = ast.parse(plugin)
+        strict_integer_node = next(
+            node for node in plugin_tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "_strict_integer"
+        )
+        strict_integer_module = ast.Module(
+            body=[ast.ImportFrom(module="typing", names=[ast.alias(name="Any")], level=0), strict_integer_node],
+            type_ignores=[],
+        )
+        namespace: dict[str, object] = {}
+        exec(compile(ast.fix_missing_locations(strict_integer_module), str(PLUGIN), "exec"), namespace)
+        strict_integer = namespace["_strict_integer"]
+        self.assertTrue(strict_integer(3, 3))
+        for forged_count in (True, False, "3", 3.0, None):
+            self.assertFalse(strict_integer(forged_count, 3), forged_count)
+        self.assertFalse(strict_integer(2, 3))
         self.assertIn('binding.get("identity_keys_sha256")', plugin)
+        self.assertIn("_EXPECTED_TASK_SUFFIX", plugin)
+        self.assertIn('os.environ.get("CRISTEXWEB_REPOSITORY_ROOT", "")', plugin)
+        self.assertIn('CRISTEXWEB_REPOSITORY_ROOT="$repository_root"', WRAPPER.read_text())
+        self.assertNotIn("_EXPECTED_TASK_SOURCES", plugin)
 
 
 if __name__ == "__main__":

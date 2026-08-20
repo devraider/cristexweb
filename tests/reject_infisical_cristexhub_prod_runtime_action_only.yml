@@ -1,0 +1,16 @@
+---
+- name: Reject direct CristexHub PROD runtime seam action-only mutation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Attempt one canonical object outside the guarded role task source
+      infisical_cristexhub_prod_runtime_guarded_k8s:
+        state: present
+        definition: >-
+          {{ lookup('ansible.builtin.file', playbook_dir ~
+             '/../ansible/files/components/infisical-cristexhub-prod-runtime/source/infisical-cloud-connection.yaml') |
+             from_yaml }}
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        wait: false
+        wait_timeout: 60

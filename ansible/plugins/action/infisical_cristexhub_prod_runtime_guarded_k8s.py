@@ -15,7 +15,7 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 
 _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-alternate-target-boundary'): 'f9814d97dc32dd6cbeebdbbe00f5529fa88424bb992995da6adb707513042d77',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-secret-write-boundary'): '374b847362f31af4795929b639a5b7d27d6209c1a48b5d04416cf6b5bc47a51a',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-secret-write-boundary'): '45a45c9091390e470130a15ec52c984f80965cdb08f57ffdc908f73f2e011c8b',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-source-boundary'): 'cab66e9830b8ff882f6f78f43e6a5108319daee11c1b6f01deb364e6a902b5fd',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-static-secret-boundary'): '0556d4acb1f0a03cbfb5da179559f194c64fc57ab66535f7711708dd182df6c5',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-prod-runtime-alternate-target-boundary'): '2e0439d1622eb50e93a9cf3ae0280eef9aa9db7eef3cd62ddd3c788d621e4308',
@@ -38,10 +38,7 @@ _EXPECTED_OIDC_CLIENT_SECRET_SOURCE = {
 }
 _EXPECTED_OIDC_CLIENT_SECRET_TEMPLATE = "{{ .OIDC_CLIENT_SECRET.Value }}"
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
-_EXPECTED_TASK_SOURCES = {
-    "/Users/paul/Projects/cristexweb/ansible/roles/infisical_cristexhub_prod_runtime_bootstrap/tasks/main.yml",
-    "/home/paul/projects/cristexweb/ansible/roles/infisical_cristexhub_prod_runtime_bootstrap/tasks/main.yml",
-}
+_EXPECTED_TASK_SUFFIX = "/ansible/roles/infisical_cristexhub_prod_runtime_bootstrap/tasks/main.yml"
 
 
 def _canonical_hash(value: dict[str, Any]) -> str:
@@ -68,8 +65,11 @@ class ActionModule(KubernetesActionModule):
         step = bool(context.CLIARGS.get("step"))
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
-        task_source = str(self._task.get_path()).rsplit(":", 1)[0]
-        if task_source not in _EXPECTED_TASK_SOURCES:
+        task_source = str(
+            Path(re.sub(r":\d+(?::\d+)?$", "", str(self._task.get_path()))).resolve()
+        )
+        repository_root = os.environ.get("CRISTEXWEB_REPOSITORY_ROOT", "")
+        if task_source != str(Path(repository_root).resolve()) + _EXPECTED_TASK_SUFFIX:
             return {
                 "changed": False,
                 "failed": True,
