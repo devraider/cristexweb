@@ -63,6 +63,11 @@ class ActionModule(KubernetesActionModule):
             state, content = None, ""
         binding = task_vars.get("cristexhub_prod_registration_internal_preflight_binding", {})
         expected_names = sorted(identity[3] for identity in EXPECTED)
+        strict_true = lambda value: (
+            value is True or
+            (type(value).__name__ == "_AnsibleTaggedBool" and bool(value)) or
+            (type(value).__name__ == "_AnsibleTaggedStr" and value == "true")
+        )
         valid_binding = (
             isinstance(binding, dict)
             and set(binding) == {
@@ -79,10 +84,10 @@ class ActionModule(KubernetesActionModule):
             and binding.get("manifest_names") == expected_names
             and binding.get("prestate_names") == expected_names
             and binding.get("object_count") in (5, "5")
-            and binding.get("namespace_contract") is True
-            and binding.get("repository_contract") is True
+            and strict_true(binding.get("namespace_contract"))
+            and strict_true(binding.get("repository_contract"))
             and binding.get("revision") == "751885a42798d282e168131db147f13694a0a621"
-            and binding.get("no_delete_path") is True
+            and strict_true(binding.get("no_delete_path"))
         )
         valid = (
             valid_binding
@@ -91,7 +96,7 @@ class ActionModule(KubernetesActionModule):
             and state is not None and stat.S_ISREG(state.st_mode) and not stat.S_ISLNK(state.st_mode)
             and stat.S_IMODE(state.st_mode) == 0o600 and state.st_uid == os.getuid()
             and content == f"{token}:entrypoint"
-            and task_vars.get("cristexhub_prod_registration_approved") is True
+            and strict_true(task_vars.get("cristexhub_prod_registration_approved"))
             and task_vars.get("cristexhub_prod_registration_state") == "present"
         )
         if not valid:
