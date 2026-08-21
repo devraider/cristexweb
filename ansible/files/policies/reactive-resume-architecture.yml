@@ -228,6 +228,18 @@ database:
     cloudnative_pg_rr_database_objects: forbidden-for-reactive-resume-activation
     implicit_prod_scope_creation: forbidden
     broad_lane_remediation: required-before-dev-apply
+  live_read_only_observation_2026_08_21:
+    status: existing-broad-lane-materialization-unaccepted
+    dev_database_cr: applied
+    dev_database_role_cr: applied-inherit-true
+    prod_database_cr: applied-unapproved-for-rr-promotion
+    prod_database_role_cr: applied-inherit-true-unapproved-for-rr-promotion
+    public_connect_on_all_shared_databases: observed-blocker
+    public_temporary_on_all_shared_databases: observed-blocker
+    own_database_create_only: observed-not-accepted
+    shared_postgresql_selecting_networkpolicies: 0
+    activation_authorized: false
+    deletion_or_recreation_authorized: false
   owner_role_contract:
     status: absent-blocker
     role: reactive_resume_dev_owner
@@ -279,8 +291,18 @@ secrets:
     existing_alternate_target_vap_reuse: forbidden
     broad_runtime_secret_writer_reuse: forbidden
     shared_database_secret_in_shared_services_only: forbidden-insufficient-for-app-namespace
+  live_read_only_observation_2026_08_21:
+    dev_credential_secret: live-infisical-owned
+    prod_credential_secret: live-infisical-owned-unapproved-for-rr-promotion
+    exact_metadata_keys: [username, password]
+    confidentiality_incident: secret-data-queried-by-review-subagent
+    plaintext_or_base64_values_retained_in_repository: false
+    compromised_local_child_artifacts_removed: true
+    credential_rotation_required: true
+    predecessor_revocation_required: true
+    runtime_use_before_rotation: forbidden
   dedicated_dev_only:
-    status: absent-blocker
+    status: live-broad-secret-unaccepted-dedicated-app-lane-absent
     source: absent
     target_namespace: cristexhub-dev
     target_name: reactive-resume-runtime
@@ -560,7 +582,8 @@ source_closure:
       credential_secret: shared-postgresql-reactive-resume-dev
       credential_keys: [username, password]
       credential_values: forbidden
-      materialization: blocked-pending-dedicated-dev-lane
+      materialization: live-from-forbidden-broad-lane-not-accepted
+      credential_secret_state: exposed-rotation-and-predecessor-revocation-required
       cross_database_access: deny
       dedicated_pvc_or_engine: forbidden
     identity_scope:
@@ -608,7 +631,8 @@ source_closure:
       owner_role: reactive_resume_prod_owner
       credential_secret: shared-postgresql-reactive-resume-prod
       credential_values: forbidden
-      materialization: blocked-promotion-only
+      materialization: live-from-forbidden-broad-lane-not-promotion-accepted
+      credential_secret_state: exposed-rotation-and-predecessor-revocation-required
       cross_database_access: deny
     identity_scope:
       realm: cristexhub
@@ -637,5 +661,8 @@ source_closure_review:
   candidate_digest_is_not_selection: true
   broad_infisical_lanes_reusable: false
   broad_postgresql_lanes_reusable: false
-  current_runtime_state: observed-absent-2026-08-21-read-only-inventory
+  workload_runtime_state: observed-absent-2026-08-21-read-only-inventory
+  shared_database_scope_state: dev-and-prod-database-and-role-crs-applied-unaccepted
+  shared_database_secret_state: dev-and-prod-live-exposed-rotation-required
+  shared_postgresql_networkpolicy_state: zero-selecting-policies
   runtime_observation_is_reconciliation: false

@@ -208,7 +208,9 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         for key, value in broad.items():
             self.assertIn("forbidden", value, key)
         dev = secrets["dedicated_dev_only"]
-        self.assertEqual("absent-blocker", dev["status"])
+        self.assertEqual(
+            "live-broad-secret-unaccepted-dedicated-app-lane-absent", dev["status"]
+        )
         self.assertEqual("absent", dev["source"])
         self.assertEqual("cristexhub-dev", dev["target_namespace"])
         self.assertEqual("reactive-resume-runtime", dev["target_name"])
@@ -244,6 +246,12 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("forbidden", vap["broad_secret_create"])
         self.assertEqual("forbidden", vap["broad_secret_get_list_watch"])
         self.assertEqual("forbidden", vap["shared_manager_role_reuse"])
+        live = secrets["live_read_only_observation_2026_08_21"]
+        self.assertEqual("live-infisical-owned", live["dev_credential_secret"])
+        self.assertEqual("secret-data-queried-by-review-subagent", live["confidentiality_incident"])
+        self.assertTrue(live["compromised_local_child_artifacts_removed"])
+        self.assertTrue(live["credential_rotation_required"])
+        self.assertEqual("forbidden", live["runtime_use_before_rotation"])
         prod = secrets["dedicated_prod_template_only"]
         self.assertEqual("reservation-only", prod["status"])
         self.assertEqual("forbidden-before-dev-soak", prod["materialization"])
@@ -281,6 +289,14 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         ):
             self.assertEqual("unselected-blocker", capacity[key], key)
         self.assertEqual("required-before-dev-apply", capacity["contention_review"])
+        live = db["live_read_only_observation_2026_08_21"]
+        self.assertEqual("applied", live["dev_database_cr"])
+        self.assertEqual("applied-inherit-true", live["dev_database_role_cr"])
+        self.assertEqual("applied-unapproved-for-rr-promotion", live["prod_database_cr"])
+        self.assertEqual("observed-blocker", live["public_connect_on_all_shared_databases"])
+        self.assertEqual("observed-blocker", live["public_temporary_on_all_shared_databases"])
+        self.assertEqual(0, live["shared_postgresql_selecting_networkpolicies"])
+        self.assertFalse(live["activation_authorized"])
         owner = db["owner_role_contract"]
         self.assertEqual("absent-blocker", owner["status"])
         self.assertEqual("reactive_resume_dev_owner", owner["role"])
@@ -651,11 +667,29 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         review = self.policy["source_closure_review"]
         self.assertEqual(
             "observed-absent-2026-08-21-read-only-inventory",
-            review["current_runtime_state"],
+            review["workload_runtime_state"],
         )
+        self.assertEqual(
+            "dev-and-prod-database-and-role-crs-applied-unaccepted",
+            review["shared_database_scope_state"],
+        )
+        self.assertEqual(
+            "dev-and-prod-live-exposed-rotation-required",
+            review["shared_database_secret_state"],
+        )
+        self.assertEqual("zero-selecting-policies", review["shared_postgresql_networkpolicy_state"])
         self.assertFalse(review["runtime_observation_is_reconciliation"])
         self.assertTrue(review["no_selected_image_digest_claimed"])
         self.assertTrue(review["candidate_digest_is_not_selection"])
+        dev = self.policy["source_closure"]["dev"]
+        self.assertEqual(
+            "live-from-forbidden-broad-lane-not-accepted",
+            dev["database_scope"]["materialization"],
+        )
+        self.assertEqual(
+            "exposed-rotation-and-predecessor-revocation-required",
+            dev["database_scope"]["credential_secret_state"],
+        )
         prod = self.policy["source_closure"]["prod"]
         self.assertEqual("cristexhub-prod", prod["namespace"])
         self.assertTrue(prod["source_template"])
@@ -663,7 +697,14 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertTrue(prod["no_prod_runtime_from_this_contract"])
         self.assertEqual("absent", prod["object_contract"]["runtime_objects"])
         self.assertEqual("forbidden", prod["object_contract"]["generated_manifests"])
-        self.assertEqual("blocked-promotion-only", prod["database_scope"]["materialization"])
+        self.assertEqual(
+            "live-from-forbidden-broad-lane-not-promotion-accepted",
+            prod["database_scope"]["materialization"],
+        )
+        self.assertEqual(
+            "exposed-rotation-and-predecessor-revocation-required",
+            prod["database_scope"]["credential_secret_state"],
+        )
         self.assertEqual("forbidden-in-this-increment", prod["runtime_secret_contract"]["materialization"])
 
     def test_runbook_records_all_blockers_without_claiming_completion(self) -> None:

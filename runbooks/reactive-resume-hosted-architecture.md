@@ -4,8 +4,12 @@
 
 **SOURCE POLICY ONLY — RUNTIME BLOCKED / DEV CONTRACT INCOMPLETE.** Reactive Resume
 is a planned private DEV MVP in `cristexhub-dev`. A bounded read-only inventory on
-2026-08-21 found no matching Reactive Resume Kubernetes objects; this is point-in-time
-evidence, not reconciliation. This revision adds only a value-free blocker inventory
+2026-08-21 found no matching application workload or Argo objects; this is
+point-in-time evidence, not reconciliation. A later safe metadata inventory found
+that the broad all-consumer lane had already materialized both DEV and unapproved
+PROD CloudNativePG Database/DatabaseRole CRs and Infisical-owned credential Secrets.
+Both CR pairs report applied, both roles retain `INHERIT`, and zero NetworkPolicies
+select the shared PostgreSQL cluster. This revision adds only a value-free blocker inventory
 and a candidate-only image provenance record; the recorded digest is not selected or
 deployable. It adds no deployable manifest, apply-capable wrapper, Secret, Namespace,
 database object, identity mutation, route, or runtime state. PROD remains a
@@ -74,6 +78,11 @@ The DEV contract is incomplete and blocked on all of the following:
   new RR-DEV-only path, machine identity, exact runtime Secret
   key set, target-namespace materialization, exact VAP, and exact writer RBAC must
   be designed and separately checked. Broad lanes must never be mislabeled DEV-only.
+  The existing PostgreSQL DEV and PROD credential Secrets are live from the broad
+  lane, not accepted application-runtime materialization. During review, one local
+  child queried their Secret data into its private session log. The exact child and
+  async artifacts were removed without repeating values, but both credentials now
+  require successor rotation and predecessor revocation before any use.
 - **Dedicated PostgreSQL lane:** the current all-consumer provisioning wrapper and
   CloudNativePG Database/DatabaseRole source overlap in lifecycle ownership and are
   forbidden for RR activation as a combined path. Select exactly one lifecycle
@@ -84,7 +93,11 @@ The DEV contract is incomplete and blocked on all of the following:
   `NOBYPASSRLS`; revoke PUBLIC `CONNECT`, `TEMPORARY`, and schema creation, prove
   empty `pg_auth_members` plus denied `SET ROLE` to every foreign role, grant only
   the exact own database privileges, and run every DEV↔PROD/CristexHub/Keycloak/role-creation
-  negative test. Shared-engine failure and contention are acknowledged; connection,
+  negative test. The live broad-lane DEV and PROD Database/DatabaseRole CRs do not
+  satisfy this contract: both are applied with `INHERIT`, PUBLIC retains `CONNECT`
+  and `TEMPORARY` across the five shared databases, and PROD creation was not RR
+  promotion approval. They must not be used, deleted, or recreated by this policy.
+  Shared-engine failure and contention are acknowledged; connection,
   storage, migration, backup-staging, and restore headroom must be measured before
   apply. Database apply requires engine readiness, backup, exact Secret, check,
   separate approval, apply, and idempotence.
@@ -203,8 +216,9 @@ reconciliation is forbidden.
 Reactive Resume PROD is represented only as a promotion template for
 `cristexhub-prod`, `reactive-resume-prod`, `reactive_resume_prod`, and separate
 credential/backup scopes. This Reactive Resume template has no generated manifests,
-runtime objects, Secret values, selected
-callbacks, database provisioning, or public route. No PROD object may be generated
+runtime objects, Secret values, selected callbacks, accepted database provisioning,
+or public route. Existing broad-lane PROD database/role/credential objects are
+unapproved drift, not fulfillment of this reservation. No PROD object may be generated
 from a reservation, and no PROD activation may happen before private DEV validation
 and an explicit DEV soak.
 
@@ -224,9 +238,12 @@ unaccepted migrations/workloads.
 
 No Deployment, StatefulSet, Service, PVC, Secret, Infisical CR, Database object,
 Ingress, Argo Application, route, image pull, registry write, host, Kubernetes,
-Infisical, database, or provider mutation was performed. Read-only contact was
-limited to GitHub source/release metadata, separate Docker Hub and GHCR OCI
-metadata/attestations without an equivalence claim, and the bounded Kubernetes
-absence inventory recorded above.
+Infisical, database, or provider mutation was performed. Read-only contact included
+GitHub source/release metadata, separate Docker Hub and GHCR OCI metadata/
+attestations without an equivalence claim, workload/Argo absence inventory, and
+CloudNativePG/NetworkPolicy/Secret metadata. One review child improperly requested
+Secret data; no value is repeated here, all exact local child/async artifacts were
+removed, and DEV/PROD PostgreSQL credential rotation plus predecessor revocation is
+now mandatory.
 Rollback is a Git revert; namespace/PVC/database deletion and implicit credential
 rotation are forbidden.

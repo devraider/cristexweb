@@ -256,12 +256,17 @@ note: |
   remain unselected or blocked.
   The value-free
   [Reactive Resume hosted architecture](../../runbooks/reactive-resume-hosted-architecture.md)
-  records an incomplete private-DEV blocker inventory with PROD reservation-only.
-  The successor DEV realm runtime, patched OIDC/local-auth behavior, dedicated
-  Infisical and database ownership lanes, private object storage,
-  ACL/TLS/NetworkPolicy, candidate image provenance mismatch, locked split-role
-  migration, recovery, handoff, and runtime all remain blocked; Agent/Redis are
-  disabled and executable source is forbidden. One SHA-pinned,
+  records an incomplete private-DEV workload blocker inventory with PROD
+  reservation-only. Read-only evidence found the broad lane had already applied DEV
+  and unapproved PROD PostgreSQL Database/DatabaseRole CRs plus Infisical-owned
+  Secrets. Both roles retain `INHERIT`, PUBLIC access remains broad, and zero
+  NetworkPolicies select shared PostgreSQL; these objects are unaccepted drift. A
+  review-log exposure makes both credentials rotation/revocation blockers. The
+  successor DEV realm runtime, patched OIDC/local-auth behavior, dedicated Infisical
+  and database ownership lanes, private object storage, ACL/TLS/NetworkPolicy,
+  candidate image provenance mismatch, locked split-role migration, recovery,
+  handoff, and runtime all remain blocked; Agent/Redis are disabled and executable
+  source is forbidden. One SHA-pinned,
   read-only GitHub-hosted CI workflow now exists and the application publisher is
   disabled. Commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1` was pushed to
   `develop`; GitHub Actions run `31311995461` completed successfully with the sole
@@ -315,8 +320,11 @@ note: |
   and key/type contracts. The corrected Argo and
   database Secret VAPs match only their namespace plus `(operator identity OR exact
   target-name set)` and validate the exact operator/target contract, so foreign writers,
-  unreviewed Operator names, and cross-policy interference are blocked. Values,
-  credential creation, check/apply, sync, rotation, recovery, and runtime remain
+  unreviewed Operator names, and cross-policy interference are blocked. Historical
+  source status said all values/creation/sync were blocked; read-only evidence now
+  proves the two Reactive Resume PostgreSQL target Secrets are live and
+  Infisical-owned. Their apply provenance and admission acceptance are unresolved,
+  their exposed credentials require rotation/revocation, and recovery/runtime remain
   **NOT RUN/BLOCKED**. The first local
   secret-zero run generated private
   recovery material and reached Google Drive OAuth, then stopped before Ansible/
