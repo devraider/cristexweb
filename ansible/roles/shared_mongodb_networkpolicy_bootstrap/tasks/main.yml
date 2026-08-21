@@ -14,7 +14,12 @@
     - shared_mongodb_networkpolicy_bootstrap_internal_prestate
     - shared_mongodb_networkpolicy_bootstrap_internal_namespace
     - shared_mongodb_networkpolicy_bootstrap_internal_mongodb
-    - shared_mongodb_networkpolicy_bootstrap_internal_pods
+    - shared_mongodb_networkpolicy_bootstrap_internal_statefulset
+    - shared_mongodb_networkpolicy_bootstrap_internal_pod
+    - shared_mongodb_networkpolicy_bootstrap_internal_client_pods
+    - shared_mongodb_networkpolicy_bootstrap_internal_coredns_pods
+    - shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies
+    - shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state
     - shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding
   changed_when: false
 
@@ -33,10 +38,37 @@
       - shared_mongodb_networkpolicy_bootstrap_manifest_paths | length == 2
       - shared_mongodb_networkpolicy_bootstrap_expected_hashes | length == 2
       - shared_mongodb_networkpolicy_bootstrap_object_count == 2
+      - shared_mongodb_networkpolicy_bootstrap_target_names | sort == ['shared-mongodb-networkpolicy-allow', 'shared-mongodb-networkpolicy-default-deny']
+      - shared_mongodb_networkpolicy_bootstrap_identity_set_sha256 == '11352b9439d10f2ffdfad385ee31f524885fead8d74d38937101614f742ab575'
       - shared_mongodb_networkpolicy_bootstrap_namespace == 'shared-services'
       - shared_mongodb_networkpolicy_bootstrap_mongodb_cr_name == 'shared-mongodb'
+      - shared_mongodb_networkpolicy_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
     fail_msg: Refusing anything outside the source-only two-policy shared MongoDB closure.
   changed_when: false
+
+- name: Inspect protected k3s kubeconfig metadata
+  ansible.builtin.stat:
+    path: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state
+  changed_when: false
+  no_log: true
+
+- name: Require protected root-owned k3s-admin kubeconfig
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state.stat.exists | default(false)
+      - shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state.stat.islnk | default(false))
+      - shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state.stat.pw_name == 'root'
+      - shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+      - shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state.stat.mode == '0640'
+      - shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state.stat.path == '/etc/rancher/k3s/k3s.yaml'
+    fail_msg: Refusing shared MongoDB NetworkPolicy check without protected root:k3s-admin mode-0640 kubeconfig.
+  changed_when: false
+  no_log: true
 
 - name: Inspect private single-run shared MongoDB NetworkPolicy attestation
   ansible.builtin.stat:
@@ -198,32 +230,177 @@
       - shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources[0].spec.version == '8.0.12'
       - shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources[0].spec.members | int == 1
       - shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources[0].spec.type == 'ReplicaSet'
-    fail_msg: Refusing NetworkPolicy check without the exact operator-managed shared MongoDB resource.
+      - shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources[0].status.phase == 'Running'
+      - shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources[0].status.version == '8.0.12'
+      - shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources[0].status.currentMongoDBMembers | int == 1
+      - shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources[0].status.currentStatefulSetReplicas | int == 1
+    fail_msg: Refusing NetworkPolicy check without the exact healthy operator-managed shared MongoDB resource.
   changed_when: false
   no_log: true
 
-- name: Query live MongoDB pod selector closure
+- name: Query the exact live MongoDB StatefulSet
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: StatefulSet
+    namespace: shared-services
+    name: shared-mongodb
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_statefulset
+  changed_when: false
+  no_log: true
+
+- name: Require exact ready operator-managed MongoDB StatefulSet
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources | length == 1
+      - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].metadata.uid | length > 0
+      - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].spec.replicas | int == 1
+      - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].status.currentReplicas | int == 1
+      - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].status.readyReplicas | int == 1
+      - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].spec.template.metadata.labels['app'] == 'shared-mongodb-svc'
+      - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].spec.template.metadata.labels['app.kubernetes.io/part-of'] == 'shared-databases'
+      - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].spec.template.metadata.labels['cristex.io/component'] == 'mongodb'
+    fail_msg: Refusing NetworkPolicy check without the exact ready shared-mongodb StatefulSet.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact live MongoDB pod
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Pod
     namespace: shared-services
-    label_selectors:
-      - app=shared-mongodb-svc
-      - app.kubernetes.io/part-of=shared-databases
-      - cristex.io/component=mongodb
+    name: shared-mongodb-0
     kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
-  register: shared_mongodb_networkpolicy_bootstrap_internal_pods
+  register: shared_mongodb_networkpolicy_bootstrap_internal_pod
   changed_when: false
   no_log: true
 
-- name: Require at least one live MongoDB pod selected by the policy
+- name: Require exact ready nonterminating MongoDB pod ownership and labels
   ansible.builtin.assert:
     that:
-      - shared_mongodb_networkpolicy_bootstrap_internal_pods.resources | length >= 1
-    fail_msg: Refusing NetworkPolicy check because the live MongoDB selector matches no pod.
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources | length == 1
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.name == 'shared-mongodb-0'
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.labels['app'] == 'shared-mongodb-svc'
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.labels['app.kubernetes.io/part-of'] == 'shared-databases'
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.labels['cristex.io/component'] == 'mongodb'
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].status.phase == 'Running'
+      - (shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.deletionTimestamp | default('')) == ''
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences | length == 1
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].apiVersion == 'apps/v1'
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].kind == 'StatefulSet'
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].name == 'shared-mongodb'
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].uid == shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].metadata.uid
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].controller | bool
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length == 1
+      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].spec.hostNetwork | default(false) | bool == false
+    fail_msg: Refusing NetworkPolicy check without exactly shared-mongodb-0 Running/Ready StatefulSet-owned pod.
   changed_when: false
+  no_log: true
 
-- name: Query exact NetworkPolicy pre-state
+- name: Query exact DEV/PROD backend and Celery client pods
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ item }}"
+    label_selectors:
+      - app.kubernetes.io/part-of=cristexhub
+      - app.kubernetes.io/name in (backend,celery-worker)
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  loop:
+    - cristexhub-dev
+    - cristexhub-prod
+  register: shared_mongodb_networkpolicy_bootstrap_internal_client_pods
+  changed_when: false
+  no_log: true
+
+- name: Require exact DEV/PROD backend and Celery client inventory
+  ansible.builtin.assert:
+    that:
+      - item.item in ['cristexhub-dev', 'cristexhub-prod']
+      - item.resources | length == 2
+      - >-
+        item.resources | map(attribute='metadata.labels') | map('dict2items') | flatten |
+        selectattr('key', 'equalto', 'app.kubernetes.io/name') | map(attribute='value') |
+        list | sort == ['backend', 'celery-worker']
+    fail_msg: Refusing NetworkPolicy check without exact backend/Celery clients in both environments.
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_client_pods.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Require exact DEV/PROD client labels
+  ansible.builtin.assert:
+    that:
+      - item.metadata.labels['app.kubernetes.io/name'] in ['backend', 'celery-worker']
+      - item.metadata.labels['app.kubernetes.io/part-of'] == 'cristexhub'
+    fail_msg: Refusing NetworkPolicy check with a client pod outside the exact selector.
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_client_pods.results | map(attribute='resources') | flatten }}"
+  changed_when: false
+  no_log: true
+
+- name: Require ready nonterminating non-host-network DEV/PROD client pods
+  ansible.builtin.assert:
+    that:
+      - item.status.phase == 'Running'
+      - (item.metadata.deletionTimestamp | default('')) == ''
+      - (item.spec.hostNetwork | default(false) | bool) == false
+      - item.status.conditions | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length == 1
+    fail_msg: Refusing NetworkPolicy check without exact ready backend/Celery client pod state.
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_client_pods.results | map(attribute='resources') | flatten }}"
+  changed_when: false
+  no_log: true
+
+- name: Query live CoreDNS selector closure
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: kube-system
+    label_selectors:
+      - k8s-app=kube-dns
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_coredns_pods
+  changed_when: false
+  no_log: true
+
+- name: Require at least one CoreDNS pod matching the policy selector
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_networkpolicy_bootstrap_internal_coredns_pods.resources | length >= 1
+    fail_msg: Refusing NetworkPolicy check without CoreDNS matching k8s-app=kube-dns.
+  changed_when: false
+  no_log: true
+
+- name: Require exact CoreDNS labels
+  ansible.builtin.assert:
+    that:
+      - item.metadata.labels['k8s-app'] == 'kube-dns'
+    fail_msg: Refusing NetworkPolicy check with a pod outside the CoreDNS selector.
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_coredns_pods.resources }}"
+  changed_when: false
+  no_log: true
+
+- name: Require ready nonterminating non-host-network CoreDNS pods
+  ansible.builtin.assert:
+    that:
+      - item.status.phase == 'Running'
+      - (item.metadata.deletionTimestamp | default('')) == ''
+      - (item.spec.hostNetwork | default(false) | bool) == false
+      - item.status.conditions | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length == 1
+    fail_msg: Refusing NetworkPolicy check without ready CoreDNS pod state.
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_coredns_pods.resources }}"
+  changed_when: false
+  no_log: true
+
+- name: Enumerate every shared-services NetworkPolicy
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    namespace: shared-services
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies
+  changed_when: false
+  no_log: true
+
+- name: Query exact target NetworkPolicy pre-state
   kubernetes.core.k8s_info:
     api_version: "{{ item.apiVersion }}"
     kind: "{{ item.kind }}"
@@ -235,13 +412,13 @@
   changed_when: false
   no_log: true
 
-- name: Refuse foreign existing NetworkPolicies
+- name: Refuse foreign existing target NetworkPolicies
   ansible.builtin.assert:
     that:
       - item.resources | length in [0, 1]
       - item.resources | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
       - item.resources | length == 0 or item.resources[0].metadata.labels.get('cristex.io/component') == 'shared-mongodb-networkpolicy'
-    fail_msg: Refusing a foreign existing shared MongoDB NetworkPolicy.
+    fail_msg: Refusing a foreign existing shared MongoDB NetworkPolicy target.
   loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_prestate.results }}"
   changed_when: false
   no_log: true
@@ -252,9 +429,25 @@
       attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN') | hash('sha256') }}"
       object_count: 2
       identity_set_sha256: "{{ shared_mongodb_networkpolicy_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
-      prestate_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_prestate.results | length }}"
+      prestate_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_prestate.results | map(attribute='resources') | map('length') | sum }}"
       mongodb_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources | length }}"
-      pod_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pods.resources | length }}"
+      statefulset_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources | length }}"
+      statefulset_uid: "{{ shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].metadata.uid }}"
+      pod_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources | length }}"
+      pod_name: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.name }}"
+      pod_phase: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].status.phase }}"
+      pod_ready: "{{ (shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length) == 1 }}"
+      pod_terminating: "{{ (shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.deletionTimestamp | default('')) != '' }}"
+      pod_owner_api_version: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].apiVersion }}"
+      pod_owner_kind: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].kind }}"
+      pod_owner_name: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].name }}"
+      pod_owner_uid: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].uid }}"
+      pod_owner_controller: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].controller | bool }}"
+      networkpolicy_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies.resources | length }}"
+      networkpolicy_names: "{{ shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies.resources | map(attribute='metadata.name') | list | sort }}"
+      client_environment_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_client_pods.results | length }}"
+      coredns_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_coredns_pods.resources | length }}"
+      kubeconfig_contract: true
       namespace_contract: true
       no_delete_path: true
   changed_when: false

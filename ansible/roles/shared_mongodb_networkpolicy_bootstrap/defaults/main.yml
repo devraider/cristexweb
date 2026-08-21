@@ -9,6 +9,9 @@ shared_mongodb_networkpolicy_bootstrap_manifest_paths:
   - "{{ shared_mongodb_networkpolicy_bootstrap_repository_root }}/ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml"
   - "{{ shared_mongodb_networkpolicy_bootstrap_repository_root }}/ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml"
 shared_mongodb_networkpolicy_bootstrap_object_count: 2
+shared_mongodb_networkpolicy_bootstrap_target_names:
+  - shared-mongodb-networkpolicy-allow
+  - shared-mongodb-networkpolicy-default-deny
 shared_mongodb_networkpolicy_bootstrap_expected_hashes:
   - path: "{{ shared_mongodb_networkpolicy_bootstrap_repository_root }}/ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml"
     sha256: e8ffcf4d91ef589185d0da0ea9774210ca770d69acd0fc1abd1c188e8042806b

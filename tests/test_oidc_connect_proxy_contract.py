@@ -138,7 +138,9 @@ class OidcConnectProxyContractTests(unittest.TestCase):
         self.assertIn("MUTATION_ARGUMENT_GUARD", plugin)
         self.assertIn("--diff", wrapper)
         self.assertIn("--check", wrapper)
-        self.assertIn("source-only; runtime not run and blocked", runbook)
+        self.assertIn("APP-LEVEL SMOKE ONLY", runbook)
+        self.assertIn("auth.cristex-soft.com:443` and `api.deepseek.com:443", runbook)
+        self.assertIn("Full private validation must still prove", runbook)
         self.assertNotIn("Authorization: Bearer", runbook)
 
 

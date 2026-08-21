@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import ast
+import copy
 import hashlib
+import importlib.util
 import json
 import subprocess
+import sys
 import unittest
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
+from unittest import mock
 
 import yaml
 
@@ -17,6 +22,7 @@ TASKS = ROOT / 'ansible/roles/shared_mongodb_networkpolicy_bootstrap/tasks/main.
 PLUGIN = ROOT / 'ansible/plugins/action/shared_mongodb_networkpolicy_guarded_k8s.py'
 WRAPPER = ROOT / 'ansible/bin/bootstrap-shared-mongodb-networkpolicy'
 PLAYBOOK = ROOT / 'ansible/playbooks/bootstrap_shared_mongodb_networkpolicy.yml'
+PLUGIN_MODULE = None
 
 
 class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
@@ -25,6 +31,28 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         cls.paths = sorted(NETWORK.glob('*.yaml'))
         cls.objects = [yaml.safe_load(path.read_text()) for path in cls.paths]
         cls.by_name = {obj['metadata']['name']: obj for obj in cls.objects}
+        package_names = [
+            'ansible_collections',
+            'ansible_collections.kubernetes',
+            'ansible_collections.kubernetes.core',
+            'ansible_collections.kubernetes.core.plugins',
+            'ansible_collections.kubernetes.core.plugins.action',
+        ]
+        fake_modules: dict[str, ModuleType] = {}
+        for name in package_names:
+            package = ModuleType(name)
+            package.__path__ = []
+            fake_modules[name] = package
+        k8s_module = ModuleType('ansible_collections.kubernetes.core.plugins.action.k8s')
+        k8s_module.ActionModule = type('KubernetesActionModule', (), {})
+        fake_modules[k8s_module.__name__] = k8s_module
+        spec = importlib.util.spec_from_file_location(
+            'shared_mongodb_networkpolicy_guarded_k8s_contract', PLUGIN
+        )
+        assert spec is not None and spec.loader is not None
+        cls.plugin = importlib.util.module_from_spec(spec)
+        with mock.patch.dict(sys.modules, fake_modules):
+            spec.loader.exec_module(cls.plugin)
 
     def test_exact_two_object_hash_bound_inventory(self) -> None:
         self.assertEqual(
@@ -62,6 +90,30 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
             ).hexdigest()
         self.assertEqual(expected, plugin_hashes)
         self.assertIn('11352b9439d10f2ffdfad385ee31f524885fead8d74d38937101614f742ab575', plugin)
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        self.assertEqual(
+            '/etc/rancher/k3s/k3s.yaml',
+            defaults['shared_mongodb_networkpolicy_bootstrap_kubeconfig'],
+        )
+        self.assertEqual(2, defaults['shared_mongodb_networkpolicy_bootstrap_object_count'])
+        self.assertEqual(
+            sorted(self.by_name),
+            sorted(defaults['shared_mongodb_networkpolicy_bootstrap_target_names']),
+        )
+        configured_hashes = {
+            entry['path'].split('/components/shared-mongodb-networkpolicy/', 1)[1]: entry['sha256']
+            for entry in defaults['shared_mongodb_networkpolicy_bootstrap_expected_hashes']
+        }
+        self.assertEqual(set(ledger), set(configured_hashes))
+        self.assertEqual(ledger, configured_hashes)
+        identity_keys = sorted(
+            '|'.join((obj['apiVersion'], obj['kind'], obj['metadata']['namespace'], obj['metadata']['name']))
+            for obj in self.objects
+        )
+        self.assertEqual(
+            '11352b9439d10f2ffdfad385ee31f524885fead8d74d38937101614f742ab575',
+            hashlib.sha256('\n'.join(identity_keys).encode()).hexdigest(),
+        )
 
     def test_live_operator_selector_and_exact_default_deny(self) -> None:
         selector = {
@@ -115,6 +167,74 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         self.assertEqual({'k8s-app': 'kube-dns'}, dns['to'][0]['podSelector']['matchLabels'])
         self.assertEqual({('TCP', 53), ('UDP', 53)}, {(x['protocol'], x['port']) for x in dns['ports']})
 
+    def test_selector_overlap_negative_cases_are_fail_closed(self) -> None:
+        labels = {
+            **self.plugin._MONGODB_POD_LABELS,
+            'controller-revision-hash': 'example',
+            'statefulset.kubernetes.io/pod-name': 'shared-mongodb-0',
+        }
+        overlap = self.plugin._selector_can_match_labels
+        self.assertTrue(overlap({}, labels))
+        self.assertTrue(overlap({'matchExpressions': [{'key': 'app', 'operator': 'Exists'}]}, labels))
+        self.assertTrue(overlap({'matchExpressions': [{'key': 'future', 'operator': 'NotIn', 'values': ['x']}]}, labels))
+        self.assertTrue(overlap({'matchExpressions': [{'key': 'future', 'operator': 'DoesNotExist'}]}, labels))
+        self.assertFalse(overlap({'matchLabels': {'app': 'other'}}, labels))
+        self.assertFalse(overlap({'matchExpressions': [{'key': 'app', 'operator': 'In', 'values': ['other']}]}, labels))
+        self.assertFalse(overlap({'matchExpressions': [{'key': 'unknown', 'operator': 'Exists'}]}, labels))
+        self.assertFalse(overlap({'matchExpressions': [{'key': 'app', 'operator': 'DoesNotExist'}]}, labels))
+
+    def test_action_guard_rejects_apply_and_task_selection_before_kubernetes(self) -> None:
+        context = self.plugin.context
+        original = context.CLIARGS
+        action = object.__new__(self.plugin.ActionModule)
+        action._task = SimpleNamespace(args={}, get_path=lambda: '/not-canonical:1')
+        try:
+            context.CLIARGS = {
+                'check': False,
+                'start_at_task': None,
+                'step': False,
+                'tags': [],
+                'skip_tags': [],
+            }
+            result = action.run(task_vars={})
+            self.assertTrue(result['failed'])
+            self.assertIn('SOURCE_ONLY_GUARD', result['msg'])
+            context.CLIARGS = {
+                'check': False,
+                'start_at_task': 'forged',
+                'step': False,
+                'tags': [],
+                'skip_tags': [],
+            }
+            result = action.run(task_vars={})
+            self.assertTrue(result['failed'])
+            self.assertIn('TASK_SELECTION_GUARD', result['msg'])
+        finally:
+            context.CLIARGS = original
+
+    def test_action_preflight_rejects_foreign_overlap_and_target_drift(self) -> None:
+        definitions = copy.deepcopy(self.objects)
+        pod = {
+            'metadata': {'name': 'shared-mongodb-0', 'labels': self.plugin._MONGODB_POD_LABELS}
+        }
+        foreign_empty = {
+            'apiVersion': 'networking.k8s.io/v1',
+            'kind': 'NetworkPolicy',
+            'metadata': {'namespace': 'shared-services', 'name': 'foreign-empty'},
+            'spec': {'podSelector': {}},
+        }
+        self.assertIn(
+            'foreign NetworkPolicy selector overlaps',
+            self.plugin._networkpolicy_preflight_error([foreign_empty], definitions, pod),
+        )
+        drifted = copy.deepcopy(definitions)
+        drifted[0]['spec']['policyTypes'] = ['Ingress']
+        drifted[0]['metadata']['name'] = definitions[0]['metadata']['name']
+        self.assertIn(
+            'target NetworkPolicy drift',
+            self.plugin._networkpolicy_preflight_error(drifted, definitions, pod),
+        )
+
     def test_guarded_entrypoint_is_check_only_and_dedicated(self) -> None:
         wrapper = WRAPPER.read_text()
         self.assertIn("usage: ansible/bin/bootstrap-shared-mongodb-networkpolicy check", wrapper)
@@ -128,6 +248,25 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         self.assertIn('source-only', TASKS.read_text())
         self.assertIn("if not context.CLIARGS.get('check')", PLUGIN.read_text())
         self.assertIn('SOURCE_ONLY_GUARD', PLUGIN.read_text())
+        self.assertIn('MUTATION_ARGUMENT_GUARD', PLUGIN.read_text())
+        self.assertIn('TASK_SELECTION_GUARD', PLUGIN.read_text())
+        self.assertIn('Enumerate every shared-services NetworkPolicy', TASKS.read_text())
+        self.assertIn("status.phase == 'Running'", TASKS.read_text())
+        self.assertIn("status.currentMongoDBMembers | int == 1", TASKS.read_text())
+        self.assertIn("name == 'shared-mongodb-0'", TASKS.read_text())
+        self.assertIn('Query the exact live MongoDB StatefulSet', TASKS.read_text())
+        self.assertIn("status.readyReplicas | int == 1", TASKS.read_text())
+        self.assertIn("ownerReferences[0].uid == shared_mongodb_networkpolicy_bootstrap_internal_statefulset", TASKS.read_text())
+        self.assertIn("map(attribute='resources') | map('length') | sum", TASKS.read_text())
+        self.assertIn("_safe_int(binding.get('prestate_count')) in (0, 2)", PLUGIN.read_text())
+        self.assertIn("binding.get('pod_owner_uid') == binding.get('statefulset_uid')", PLUGIN.read_text())
+        self.assertIn('k8s-app=kube-dns', TASKS.read_text())
+        self.assertIn('root:k3s-admin', TASKS.read_text())
+        self.assertIn("spec.hostNetwork | default(false) | bool == false", TASKS.read_text())
+        self.assertIn('shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies', TASKS.read_text())
+        runbook = (ROOT / 'runbooks/shared-mongodb-networkpolicy-bootstrap.md').read_text()
+        self.assertIn('ok=34 changed=1 unreachable=0 failed=0 skipped=0', runbook)
+        self.assertIn('check mode made no Kubernetes change', runbook)
         self.assertIn('shared_mongodb_networkpolicy_bootstrap', PLAYBOOK.read_text())
 
     def test_no_secret_workload_or_operator_exception_source(self) -> None:

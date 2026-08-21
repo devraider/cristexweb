@@ -2,11 +2,14 @@
 
 ## Current OpenTofu boundary — 2026-08-21
 
-The committed OpenTofu source now contains the reviewed PROD Tunnel ingress and
-DNS record definitions, but provider initialization, state, plan, and apply remain
-unrun. No current cloudflared public route or runtime acceptance is claimed; the
-PROD route remains unapplied. This document's candidate evidence is historical and
-must not be read as provider or runtime evidence.
+The protected OpenTofu state contains exactly five imported Cloudflare resource
+addresses and the tracked provider lockfile pins the reviewed selection. The
+committed source defines six addresses; only `cloudflare_dns_record.cristexhub_prod`
+is absent from state. The pending PROD change is one Tunnel-config update plus one
+proxied DNS create; no apply has run for that two-change plan. The cloudflared token
+handoff and existing private Tunnel/Keycloak/DEV route checkpoints are complete, but
+public PROD route acceptance remains unapplied. This document's candidate evidence
+is historical and must not be read as provider or runtime evidence.
 
 ## Historical status and boundary
 
@@ -123,11 +126,12 @@ All items below block cloudflared runtime and public-route activation:
    permissions, off-node recovery, rotation, revocation, and non-disclosing tests.
    No token may enter Git, OpenTofu state/plan, command arguments, environment
    examples, or logs.
-5. **Cloudflare external-resource ownership and state recovery:** OpenTofu must own
-   the Tunnel and related Cloudflare resources. Provider initialization,
-   authentication, resource design, encrypted timestamped state backup, independent
-   key custody, integrity verification, isolated restore, reviewed plan, and apply
-   are all blocked.
+5. **Cloudflare external-resource ownership and state recovery:** OpenTofu owns the
+   imported Tunnel and existing Cloudflare resources. The five-resource protected
+   state, tracked provider lockfile, encrypted timestamped state backup, independent
+   key custody, integrity verification, isolated restore, and backup/readback are
+   complete. The exact two-change PROD plan, DNS-capable provider credential, fresh
+   backup immediately before apply, and reviewed apply remain blocked.
 6. **Argo CD installation and handoff:** install and privately validate Argo CD,
    register the desired-state source, and evidence successful reconciliation before
    Argo owns any cloudflared Kubernetes object. Future-owner labels alone are not a
@@ -142,9 +146,11 @@ All items below block cloudflared runtime and public-route activation:
 9. **Single-node availability:** one replica on one physical node is a shared failure
    domain. The operator must accept the availability and connector interruption risk
    and define bounded health/alerting expectations.
-10. **Runtime approvals:** separately approve secret creation, OpenTofu provider and
-    resource operations, Argo desired state, Kubernetes reconciliation, private
-    validation, and any later public cutover. Runtime remains **NOT RUN**.
+10. **Runtime approvals:** the cloudflared workload and existing private routes are
+    separately applied and validated. The PROD Tunnel-config/DNS mutation, public
+    authentication/routing tests, negative admin/DEV/Argo/data/direct-origin tests,
+    post-apply API/no-op-plan verification, and public cutover remain separately
+    gated.
 
 Until these gates close, the rollback for this increment is only a Git revert of
 this documentation and its offline contract test. There is no runtime rollback

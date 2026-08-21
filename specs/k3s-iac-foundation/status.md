@@ -3,22 +3,27 @@
 state: agent:in-progress
 phase: implementing
 build: 385 offline contracts and all playbook syntax checks pass; private PROD is Synced/Healthy and the public route remains unapplied
-date: 2026-08-20
+date: 2026-08-21
 deploy_required_after_acceptance: yes
 
 current_checkpoint: |
   Private CristexHub PROD at revision `751885a42798d282e168131db147f13694a0a621`
   is Argo `Synced/Healthy`; backend, Celery, frontend, oauth2-proxy, and Redis are
-  each `1/1 Ready`. The OIDC CONNECT proxy policy includes PROD clients and private
-  root/OIDC checks passed. RabbitMQ is live for Celery, but the observed PROD
+  each `1/1 Ready`. OIDC evidence is app-level smoke only: backend `200`,
+  oauth2-proxy `302`, and Celery readiness; full authenticated OIDC/CONNECT tests
+  remain open. The exact source allowlist is `auth.cristex-soft.com:443` and
+  `api.deepseek.com:443`. RabbitMQ is live for Celery, but the observed PROD
   principal/permission expressions require least-privilege reconciliation and the
   exposed RabbitMQ credential requires verified rotation. MongoDB `8.0.12` is live
   under its operator with TLS/SCRAM, but private acceptance is blocked: no matching
   NetworkPolicy selects `shared-mongodb-0`, and legacy selectors do not match the
   live MongoDB or backend/Celery labels. The MongoDB URL credential and reused GHCR
   pull credential require verified rotation; the exposed DeepSeek key needs separate
-  revoke/replace. OpenTofu remains source-only with no provider initialization,
-  state, plan, or apply; the committed PROD Cloudflare route is unapplied.
+  revoke/replace. OpenTofu protected host state contains exactly five imported
+  resource addresses; the committed source defines six, with only the PROD DNS
+  resource absent from state. Its pending two-change Tunnel-config/DNS plan has not
+  been applied; the provider lockfile is tracked and the cloudflared token handoff
+  is complete.
 
 note: |
   The detailed paragraphs below preserve historical source/checkpoint evidence;
@@ -349,18 +354,18 @@ note: |
   version/config, token custody, storage mapping, RPO/RTO, off-node artifacts, and
   isolated restore remain `UNKNOWN — STOP`; no recovery command or automation was
   guessed. Replacement execution and later platform work therefore remain pending.
-  The checksum-pinned OpenTofu 1.12.5 installer, protected host-local directory
-  contract, and exact Cloudflare provider 5.23.0 zero-resource scaffold are
-  implemented. The original check passed at ok=27/changed=6/failed=0. The first live
-  attempt stopped at ok=21/changed=2/failed=1 when remote `get_url` reported
-  `[Errno 113] No route to host`; only exact parent directories and the empty
-  operator-owned state directory were created. The reviewed controller-transfer
-  check then passed at ok=33/changed=6/failed=0, live recovery installed and verified
-  the pinned CLI at ok=39/changed=6/failed=0, and the second run converged at
-  ok=30/changed=0/failed=0. k3s and Tailscale remained running. The state directory
-  remains empty; provider initialization/lockfile, state creation/encryption, Google
-  Drive copy and restore, plan, apply, and every external resource remain NOT
-  RUN/BLOCKED.
+  The checksum-pinned OpenTofu 1.12.5 installer and protected host-local state
+  contract are implemented. The original installer checks and controller-transfer
+  recovery passed at their recorded counts, and the second installer run converged
+  at `ok=30/changed=0/failed=0`; k3s and Tailscale remained running. The earlier empty
+  state-directory/provider-absent wording is historical. Later approved work imported
+  five existing Cloudflare resources into protected state, tracked the provider
+  lockfile, completed encrypted Google Drive backup/readback and independent-key
+  restore rehearsal, and verified existing-route management. The source now adds
+  only the pending PROD Tunnel-config update plus `hub.cristex-soft.com` DNS create;
+  fresh backup/readback, exact two-change plan review, separate provider/DNS/public
+  cutover approvals, and post-apply API/no-op-plan/negative-route validation remain
+  required.
   Global committed Kubernetes source now defines exactly five Namespace manifests:
   `argocd`, `platform-edge`, `shared-services`, live `cristexhub-dev`, and
   `cristexhub-prod`; the PROD Namespace is now Active/idempotent after its separate

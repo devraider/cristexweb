@@ -19,18 +19,27 @@ Private CristexHub PROD activation is live at revision
 `751885a42798d282e168131db147f13694a0a621`: Argo is `Synced/Healthy`, all five
 PROD Deployments are ready, backend root returns `200`, oauth2-proxy returns the
 expected private `302`, and Celery is ready on the PROD RabbitMQ vhost. The OIDC
-CONNECT proxy admits the reviewed PROD clients.
+CONNECT proxy admits the reviewed PROD clients. App-level OIDC smoke (backend `200`,
+oauth2-proxy `302`, Celery readiness) passed, but this is not full authenticated
+OIDC/CONNECT validation. The source allowlist is exact: `auth.cristex-soft.com:443`
+and `api.deepseek.com:443`; arbitrary HTTPS destinations remain denied.
 
 MongoDB `8.0.12` is live as an operator-managed one-member replica set with
 TLS/SCRAM, but private acceptance remains blocked: the live `shared-mongodb-0` has
 no matching NetworkPolicy and the legacy selectors do not match the live MongoDB or
 backend/Celery labels. RabbitMQ is live but its observed PROD principal and broad
-permission expressions need least-privilege reconciliation. MongoDB/RabbitMQ URL
-credentials and the reused GHCR pull credential require verified rotation; the
-exposed DeepSeek key remains a separate revoke/replace residual.
+permission expressions need least-privilege reconciliation. Engine connectivity and
+runtime Secret presence do not prove logical database scope authorization or
+cross-access negatives; those remain separate gates. MongoDB/RabbitMQ URL credentials
+and the reused GHCR pull credential require verified rotation; the exposed DeepSeek
+key remains a separate revoke/replace residual.
 
-OpenTofu remains source-only. The committed Cloudflare PROD Tunnel/DNS definitions
-have not been initialized, planned, or applied; no state or provider resource exists,
+OpenTofu current checkpoint: protected host state contains exactly five imported
+resource addresses (Tunnel, Tunnel configuration, Keycloak DNS, DEV DNS, and private
+Argo DNS). The source defines six resource addresses; only the PROD DNS resource is
+absent from state. The pending PROD route still requires one Tunnel-config update
+and one proxied `hub.cristex-soft.com` DNS create; no apply has run for those two
+changes. The provider lockfile is tracked, the cloudflared token handoff is complete,
 and the public route remains unapplied. The source-only paragraphs below preserve
 historical checkpoint evidence and are not current absence claims.
 
@@ -109,12 +118,15 @@ one-host/check/diff gates, fixed read-only argv under `no_log`, strict fail-clos
 parsers, a deterministic mode-`0600` controller artifact, and synthetic disclosure
 fixtures. A separately approved live read-only run passed at `ok=45 changed=1`,
 writing only the ignored sanitized artifact with unknown datastore/encryption stages;
-it performed no host, backup, restore, encryption, cluster, or Secret mutation. A gated checksum-pinned OpenTofu CLI installer
-and Cloudflare-only zero-resource source scaffold are implemented. The approved
-host check passed; the first live run created only the exact managed parent and
-empty protected state directories before host-side GitHub retrieval failed. The
-reviewed controller-transfer recovery then passed check, live installation, and a
-`changed=0` rerun without host egress. Exact `argocd` and `platform-edge` Namespace
+it performed no host, backup, restore, encryption, cluster, or Secret mutation. A gated checksum-pinned OpenTofu CLI installer and Cloudflare-only source are
+implemented. The installer’s historical host check passed; the first live run
+created only exact managed parent and empty protected state directories before
+host-side GitHub retrieval failed. The reviewed controller-transfer recovery then
+passed check, live installation, and a `changed=0` rerun without host egress. Later
+approved state import, encrypted backup/readback, independent-key restore rehearsal,
+and existing-route management supersede that earlier empty-directory checkpoint.
+The PROD route remains pending its exact two-change plan and separate provider/
+public-cutover approvals. Exact `argocd` and `platform-edge` Namespace
 manifests and a bounded present-only Ansible bootstrap are implemented. Its
 separately approved non-passthrough wrapper check passed at
 `ok=19 changed=1 unreachable=0 failed=0 skipped=2` and predicted changes for exactly
@@ -214,11 +226,13 @@ check/apply, sync, target values, and runtime remain **NOT RUN/BLOCKED**. Kubern
 and application PROD scope plus the self-hosted Infisical server remain absent; the
 fixed Infisical Cloud environment slug `prod` is only a licensing-constrained source
 identifier and does not activate those scopes.
-Provider initialization, state, plan, and apply also remain unrun.
-Beyond the bounded public-source evidence reads, this deliverable performs no host
-mutation, authenticated Cloudflare/GitHub/Infisical/registry operation, database,
-storage, backup, DNS, tunnel, or data operation. CristexHub local runtime assets remain
-external application-repository concerns and are not copied here.
+At the earlier source-only capture, provider initialization, state, plan, and apply
+were unrun; that sentence is historical and is superseded by the protected five-
+resource state/import and backup/restore checkpoint above. The pending PROD route
+still has no provider apply. Beyond the separately recorded protected state and
+existing-route checkpoints, no PROD Tunnel-config/DNS mutation or public cutover has
+run. CristexHub local runtime assets remain external application-repository concerns
+and are not copied here.
 
 A guarded host-transfer boundary pins rclone `1.71.1`: controller cache verification
 and transfer install a root-owned host payload, rollback removes only its selector,

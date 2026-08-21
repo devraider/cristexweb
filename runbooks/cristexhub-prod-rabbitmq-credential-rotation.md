@@ -12,6 +12,15 @@ The exact rotation contract is defined in this runbook and its offline test.
 The existing RabbitMQ bootstrap source remains present-only and immutable; this
 plan must not be implemented by adding a rotation flag to that bootstrap path.
 
+The source-value writer lane is currently **ABSENT / NOT IMPLEMENTED**. The
+repository has no guarded RabbitMQ Infisical writer, no dedicated rotation
+identity, and no proven concurrency/CAS protocol for updating either
+`/shared-services/rabbitmq` or `/cristexhub/prod/runtime`. The existing bootstrap
+and read-only materialization contracts must not be reused as an implicit writer.
+No execution is possible until a separately reviewed writer proves its endpoint,
+authentication scope, expected-revision/conditional-write behavior, preservation
+of unrelated keys, and sanitized receipts.
+
 ## Frozen scope
 
 Only these identities and consumers are in scope:
@@ -45,25 +54,31 @@ is not the separately verified current user, the lane stops for an explicit
 identity decision. The predecessor remains untouched until all successor and
 application acceptance checks pass.
 
-## Exact permission contract
+## Candidate permission contract — not yet proven
 
-Both the successor during overlap and the predecessor while it is retained must
-have only this vhost-scoped permission contract. No wildcard or broader pattern is
-allowed:
+The following is a **candidate least-privilege table**, not a statement of the
+current broker contract and not an authorization to change it. Current source/live
+evidence has a different principal and broad expressions; the predecessor is not
+asserted to satisfy this table. Exact Celery exchange, queue, reply, event, and
+pidbox resource names required by the deployed worker are **UNPROVEN** until a
+fresh live positive/negative probe records them without values. In particular, the
+candidate table must not be applied merely because its strings look narrower:
 
-| field | exact value |
+| field | candidate value |
 |---|---|
 | vhost | `/cristexhub-prod` |
 | configure | `^(default|high_priority|low_priority)$` |
 | write | `^default$` |
 | read | `^(default|high_priority|low_priority)$` |
 
-The lane must verify the effective broker permissions by metadata-only output
-before and after cutover. It must not grant administrator tags, user/vhost/policy
-administration, cross-vhost access, or a permission pattern that merely excludes a
-literal asterisk. The exact contract is required for the successor, and the old
-user is removed only after its permissions are removed and predecessor
-authentication is proven to fail.
+A future lane must first inventory the actual Celery declarations and prove the
+smallest exact permission set with a protected AMQPS probe. It must verify effective
+broker permissions from metadata before and after cutover, and must not grant
+administrator tags, user/vhost/policy administration, cross-vhost access, or a
+pattern that merely excludes a literal asterisk. No wildcard or broader pattern is
+allowed once the live probe establishes the final contract. The candidate table becomes a
+contract only after that live probe passes for both required producer/consumer
+flows; until then, permission acceptance is **NOT RUN / BLOCKED**.
 
 ## Required overlap and cutover sequence
 
@@ -74,61 +89,91 @@ The following is a design sequence, not an execution authorization:
    `Synced/Healthy` state, and the exact source/target metadata. Inspect only
    names, types, labels, annotations, resourceVersions, source key names, vhost,
    user names, permissions, and readiness. Never inspect `.data` or values.
-2. **Recovery gate.** Require a fresh encrypted RabbitMQ definitions/policies
-   backup and immutable readback receipt. Definitions recovery does not recover
-   queued messages. Refuse the rotation when the receipt, source revision, or
-   broker identity is unknown.
+2. **Recovery gate (currently unavailable).** A fresh encrypted RabbitMQ
+   definitions/policies backup, immutable readback receipt, and isolated
+   definitions-restore rehearsal are required, but they are currently
+   **NOT RUN / BLOCKED**. Definitions recovery does not recover queued messages.
+   Refuse the rotation while these receipts, message-recovery disposition, source
+   revision, or broker identity are unknown.
 3. **Protected successor preparation.** Generate the successor password and
    password hash only inside a protected, mode-0600, cleanup-first custody
    boundary. Keep the successor username fixed as
    `cristexhub_prod_rabbitmq`; never place values in argv, environment, logs,
    plans, diffs, or evidence. The pending bundle must be encrypted before any
    remote write and must support safe interruption without plaintext residue.
-4. **Broker overlap.** Through a separately reviewed, exact RabbitMQ rotation
-   lane, create the successor with no administrator tag and apply exactly the
-   permission table above. Retain the predecessor with its exact permission
-   contract. Do not perform this step through the immutable bootstrap
-   StatefulSet or by placing a password in `rabbitmqctl` arguments.
+4. **Broker overlap (restart behavior is unproven).** Through a separately
+   reviewed, exact RabbitMQ rotation lane, create the successor with no
+   administrator tag and apply only the permission contract after the live Celery
+   probe passes. Do not assume the overlap survives a broker/StatefulSet restart:
+   current definitions generation and one-target Secret ownership do not prove
+   that both users, passwords, and permissions persist across restart or
+   reconciliation. A future lane must either prove restart persistence before
+   relying on overlap or refuse all restarts during the overlap window. Do not
+   perform this step through the immutable bootstrap StatefulSet or by placing a
+   password in `rabbitmqctl` arguments.
 5. **Successor acceptance.** Prove protected AMQPS authentication to
-   `/cristexhub-prod`, declaration/use of only the reviewed default exchange and
-   queue set, and denial of DEV-vhost, user-management, vhost-management, and
+   `/cristexhub-prod`, declaration/use of the resource set recorded by the live
+   Celery probe, and denial of DEV-vhost, user-management, vhost-management, and
    policy-management operations. Confirm exactly one Ready broker and no public
    management exposure. A user record or Secret resourceVersion change alone is
-   not acceptance.
-6. **Infisical application cutover.** After successor acceptance, update only
-   the protected RabbitMQ source keys required to represent the successor and
-   then the derived `RABBITMQ_URL` at `/cristexhub/prod/runtime`. The Infisical
-   Operator remains the Kubernetes Secret value owner; never write
-   `cristexhub-prod-runtime` directly. Preserve every unrelated runtime key and
-   verify source revision/concurrency before and after reconciliation without
-   outputting values.
-7. **Consumer cutover.** Reconcile only the protected PROD backend and Celery
-   consumers through their reviewed owner path. Wait for both Deployments to be
-   Ready, verify backend health and Celery broker readiness, and require Argo
-   `Synced/Healthy`. Do not restart DEV, frontend, Redis, oauth2-proxy, or shared
-   unrelated services. Keep the predecessor active during this overlap window.
-8. **Old-user revocation.** After private application acceptance and the reviewed
-   overlap interval, remove the predecessor's vhost permissions, verify its
-   authentication fails, then delete/revoke that predecessor through the explicit
-   broker/Infisical rotation approval. Recheck that the successor alone has the
-   exact permission contract and that cross-vhost and administration negatives
-   still pass. No destructive revocation is automatic.
-9. **Custody completion.** Retain only the encrypted recovery receipt required by
-   the backup policy. Remove plaintext temporary material, rejected bundles, and
-   transient credentials. Record sanitized timestamps, resource identities,
-   permission-contract results, readiness, and revocation outcome only.
+   not acceptance. A successful login followed by a denied operation is an
+   **authorization/permission denial**, not proof that the credential is revoked.
+6. **Infisical application cutover (writer and CAS unavailable).** This step is
+   design-only and cannot run today. A future dedicated writer must update the
+   protected RabbitMQ source and derived `RABBITMQ_URL` through an explicitly
+   selected API with an expected revision/conditional write. It must prove that
+   unrelated keys are preserved and that a timeout or ambiguous response is
+   `UNKNOWN-STOP`; a one-key request or returned revision does not establish
+   atomicity or CAS. The Infisical Operator remains the Kubernetes Secret value
+   owner; never write `cristexhub-prod-runtime` directly.
+7. **Consumer cutover.** Only after the source writer and reconciliation evidence
+   pass may a future lane reconcile the protected PROD backend and Celery consumers
+   through their reviewed owner path. Wait for both Deployments to be Ready, verify
+   backend health and Celery broker readiness, and require Argo `Synced/Healthy`.
+   Do not restart DEV, frontend, Redis, oauth2-proxy, or shared unrelated services.
+   Keep the predecessor active during this overlap window, but do not assume that
+   state survives a broker restart.
+8. **Old-user revocation — separate permission denial from authentication
+   revocation.** After private application acceptance and the reviewed overlap
+   interval, first remove the predecessor's vhost permissions and prove that a
+   still-authenticated predecessor credential receives authorization denial. This
+   does **not** prove authentication revocation. Only through a separate explicit
+   broker approval may the predecessor user/password be deleted or cleared; then a
+   fresh isolated AMQPS login must fail authentication. Recheck that the successor
+   alone has the reviewed permission contract and that cross-vhost and
+   administration negatives still pass. No destructive revocation is automatic.
+9. **Custody completion.** Retain only encrypted recovery material explicitly
+   required by the backup policy. Remove plaintext temporary material, rejected
+   bundles, and transient credentials. Record sanitized timestamps, resource
+   identities, permission-contract results, readiness, and revocation outcome only.
 
-## Failure and rollback boundaries
+## Failure, rollback, and partial-state boundaries
 
-If any source revision, user identity, permission, backup receipt, broker
-readiness, target reconciliation, or application probe is unknown, stop with
-`UNKNOWN-STOP`. During overlap, the predecessor is the explicit recovery path;
-never revoke it before successor acceptance. If application cutover fails, restore
-only the protected predecessor runtime source through a separately approved
-Infisical operation, preserve the successor for diagnosis, and do not delete
-users, mutate PVCs, or use blind broker rollback. After predecessor revocation,
-recovery requires a separately reviewed successor credential operation; this plan
-has no automatic rollback or delete path.
+Cross-system rotation is **NOT ATOMIC**. Broker users/permissions, Infisical source
+keys, generated Kubernetes targets, consumer processes, and Argo reconciliation are
+different state machines. A stop or timeout can leave a partial or mixed state (for
+example, successor broker user created but source unchanged, source changed but
+one consumer unreconciled, or predecessor permissions removed while authentication
+remains possible). Every stage requires a sanitized receipt and an explicit
+resource-version/revision observation; an ambiguous response is `UNKNOWN-STOP`, not
+a blind retry.
+
+If any source revision, writer capability, CAS result, user identity, permission,
+backup receipt, broker readiness, target reconciliation, or application probe is
+unknown, stop with `UNKNOWN-STOP`. The predecessor is not an assumed rollback
+artifact: no predecessor URL/password is read, reconstructed, or presumed to be
+available from a Kubernetes Secret or source reference. A future lane must create
+and verify protected predecessor recovery custody **before** any source cutover, or
+must declare rollback unavailable and stop.
+
+The Infisical source-writer lane and conditional/CAS protocol are currently absent;
+therefore no source rollback or application cutover is executable. If a future
+cutover fails after a proven protected predecessor bundle exists, restore only via
+the separately approved writer using its verified expected revision, preserve the
+successor for diagnosis, and do not delete users, mutate PVCs, or use blind broker
+rollback. After predecessor authentication revocation, recovery requires a
+separately reviewed credential operation; this plan has no automatic rollback or
+delete path.
 
 ## Existing-source boundaries
 
@@ -145,12 +190,22 @@ has no automatic rollback or delete path.
   concurrency binding, and explicit overlap/revocation mode. This runbook adds
   none of those runtime artifacts.
 
-## Acceptance evidence required before public routing
+## Current blockers and acceptance evidence required before public routing
 
-A future execution must provide sanitized evidence for exact successor and
-predecessor identity handling, the permission table, overlap, protected Infisical
-source revision and generated target reconciliation, backend/Celery readiness,
-AMQPS positive and cross-vhost/admin negative tests, old-user authentication
-failure after revocation, no plaintext residue, definitions backup/readback, and
-Argo `Synced/Healthy`. Until that evidence exists, RabbitMQ credential rotation
-and any public PROD route remain **NOT RUN / BLOCKED**.
+RabbitMQ definitions backup/readback and isolated definitions restore are currently
+**NOT RUN / BLOCKED**; policy evidence records
+`isolated_rabbitmq_definitions_restore_proved: false` and
+`rabbitmq_message_reconciliation_proved: false`. No queued-message recovery,
+measured RPO/RTO, or production recovery acceptance is available. These are hard
+preconditions, not merely post-rotation evidence.
+
+A future execution must additionally provide sanitized evidence for exact successor
+and predecessor identity handling, the live Celery resource probe, restart
+persistence (or an explicit no-restart overlap boundary), candidate permission
+contract, protected Infisical source revision and proven CAS/conditional write,
+generated target reconciliation, backend/Celery readiness, AMQPS positive and
+cross-vhost/admin negative tests, distinct authorization-denial and authentication-
+revocation results, protected predecessor recovery custody, no plaintext residue,
+definitions backup/readback and isolated restore, and Argo `Synced/Healthy`. Until
+all evidence exists, RabbitMQ credential rotation and any public PROD route remain
+**NOT RUN / BLOCKED**.

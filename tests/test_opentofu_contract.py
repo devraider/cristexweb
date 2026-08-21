@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -32,7 +33,7 @@ class OpenTofuContractTests(unittest.TestCase):
         self.assertIn(name, self.task_blocks)
         return self.task_blocks[name]
 
-    def test_scaffold_is_cloudflare_only_and_resource_free(self) -> None:
+    def test_source_is_cloudflare_only_with_reviewable_lockfile_and_six_resource_addresses(self) -> None:
         self.assertEqual(
             {
                 "README.md", "backend.tf", "cloudflare.tf", "outputs.tf",
@@ -40,6 +41,25 @@ class OpenTofuContractTests(unittest.TestCase):
             },
             {path.name for path in TOFU.iterdir() if path.is_file()},
         )
+        resource_addresses = {
+            (kind, name)
+            for kind, name in re.findall(
+                r'(?m)^resource "([^"]+)" "([^"]+)"\s*\{',
+                self.hcl,
+            )
+        }
+        self.assertEqual(
+            {
+                ("cloudflare_zero_trust_tunnel_cloudflared", "keycloak"),
+                ("cloudflare_zero_trust_tunnel_cloudflared_config", "keycloak"),
+                ("cloudflare_dns_record", "keycloak"),
+                ("cloudflare_dns_record", "cristexhub_dev"),
+                ("cloudflare_dns_record", "cristexhub_prod"),
+                ("cloudflare_dns_record", "argocd_tailscale"),
+            },
+            resource_addresses,
+        )
+        self.assertEqual(6, len(resource_addresses))
         for required in (
             'required_version = "= 1.12.5"',
             'source  = "cloudflare/cloudflare"',
@@ -439,27 +459,40 @@ class OpenTofuContractTests(unittest.TestCase):
             self.assertNotIn(forbidden_command, command_task)
 
         for required in (
-            "initialized against protected host state",
-            "single-node failure domain",
-            "Encrypted timestamped",
-            "Google Drive",
-            "isolated `tofu state list` restore rehearsal now pass",
-            "PROD route",
+            "exactly five imported",
+            "six resource addresses",
+            "cloudflare_dns_record.cristexhub_prod",
+            "completed token handoff",
+            ".terraform.lock.hcl",
+            "fresh encrypted state backup/readback",
+            "exact reviewed plan",
+            "second no-op plan",
+            "negative admin/management/DEV/Argo/data/direct-origin tests",
         ):
             self.assertIn(required, self.readme)
         for required in (
-            "The approved\nhost check passed",
-            "the first live run created only the exact managed parent and\nempty protected state directories",
-            "reviewed controller-transfer recovery then passed check, live installation, and a\n`changed=0` rerun",
-            "Provider initialization, state, plan, and apply also remain unrun",
+            "protected host state contains exactly five imported",
+            "source defines six resource addresses",
+            "pending PROD route still requires one Tunnel-config update",
+            "provider lockfile is tracked",
+            "At the earlier source-only capture, provider initialization, state, plan, and apply",
         ):
             self.assertIn(required, self.brief)
         for obsolete in (
-            "host check/live run",
-            "controller-transfer retry and idempotence remain unrun",
+            "OpenTofu remains source-only. The committed Cloudflare PROD Tunnel/DNS definitions",
+            "no state or provider resource exists",
+            "the state directory remains empty; provider initialization/lockfile",
         ):
             self.assertNotIn(obsolete, self.brief)
         self.assertTrue((TOFU / ".terraform.lock.hcl").is_file())
+        tracked = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", "opentofu/.terraform.lock.hcl"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, tracked.returncode, tracked.stderr)
         self.assertEqual([], list(TOFU.rglob("*.tfstate")))
         self.assertEqual([], list(TOFU.rglob("*.tfplan")))
 

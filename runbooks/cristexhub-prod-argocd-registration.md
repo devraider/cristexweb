@@ -76,9 +76,10 @@ The private registration and synchronization gates below have completed:
 - separately approved Infisical Operator PROD watch/RBAC/admission expansion;
 - Universal Auth and exact `cristexhub-prod-runtime` plus
   `cristexhub-prod-ghcr-pull` materialization;
-- live PostgreSQL, MongoDB, RabbitMQ, and Redis PROD scopes; MongoDB private
-  ingress isolation is still blocked by its NetworkPolicy gap, while stateful
-  recovery and negative cross-access evidence remain separate gates;
+- runtime engine/connectivity evidence for PostgreSQL, MongoDB, RabbitMQ, and Redis
+  PROD consumers; this does not prove logical database authorization, cross-access
+  negatives, backup/restore, or production scope acceptance. MongoDB private ingress
+  isolation is still blocked by its NetworkPolicy gap;
 - exact Keycloak `cristexhub-prod` client reconciliation and private OIDC tests;
 - private workload validation and Argo sync transition.
 

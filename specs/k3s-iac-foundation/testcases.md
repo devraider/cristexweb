@@ -47,9 +47,9 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-REC-01 | KIF-002, KIF-003, KIF-013, KIF-015, KIF-028, KIF-030 | Replacement-host recovery first offline increment | Secret-free runbook/register truthfully separate same-host reboot from replacement, require old-host fencing and exclusive storage ownership, stop split brain, require exactly one preserve-existing or create-new identity decision, and leave datastore/version/token/storage/RPO/RTO/off-node prerequisites explicitly unknown without guessed commands | PASS — 5 focused offline recovery contracts and the full offline suite passed; documentation contains no executable recovery command or secret-shaped value and no host/provider/API was accessed |
 | KIF-REC-02 | KIF-007, KIF-015, KIF-026–KIF-030 | Replacement-host recovery rehearsal/runtime | An isolated, approved replacement follows an actual version/datastore/storage-specific plan; proves one authoritative cluster/storage writer, desired state, mutable data, encryption behavior, isolation, and measured RPO/RTO before public reactivation | NOT RUN/BLOCKED — identity model and datastore, exact version/config, token custody, storage, RPO/RTO, off-node artifacts, restore procedures, and approvals remain `UNKNOWN — STOP`; reboot success is not replacement proof |
 | KIF-TOFU-01 | KIF-002, KIF-005, KIF-006, KIF-013, KIF-030 | Pinned host installer offline contract | Source structurally requires default-false install and separate rollback approval, diff/one-host gates, Debian 13 x86_64, reviewed checksum-pinned archive/payload digests, an existing non-root operator without UID aliases, strict remote and controller-cache modes, symlink-safe controller preflight, controller-only download plus verified Ansible transfer, absent-only version extraction, an exact managed selector, protected state directory, service preservation, check-mode prediction, and selector-only state-preserving rollback | PASS — focused structural contracts, full offline suite, syntax, and production lint passed; controller transfer fix used no host/provider contact and negative runtime branches remain NOT RUN |
-| KIF-TOFU-02 | KIF-002, KIF-007, KIF-030 | OpenTofu host install runtime | Approved check/diff, reviewed live run, exact version verification, preserved k3s/Tailscale, and a changed=0 rerun pass without provider or state operations | PASS — initial check passed at ok=27/changed=6/failed=0; bounded host-egress failure stopped at ok=21/changed=2/failed=1; reviewed controller-transfer check passed at ok=33/changed=6/failed=0, live recovery passed at ok=39/changed=6/failed=0, and second run converged at ok=30/changed=0/failed=0. The exact CLI and selector exist; the protected directory remains empty and no provider/state operation ran |
-| KIF-TOFU-03 | KIF-004–KIF-006, KIF-013 | Cloudflare-only zero-resource scaffold | Exact OpenTofu/provider pins and local backend path exist with zero resources/data/modules/imports/variables/outputs and no forbidden provider, credential, lockfile, state, or plan | PASS — static contract passed; `tofu fmt/validate` and provider initialization are honestly NOT RUN because no approved controller binary/provider download exists |
-| KIF-TOFU-04 | KIF-013, KIF-028, KIF-030 | Local-state encryption and off-node recovery gate | Timestamped encrypted Google Drive copies, independent key custody, integrity verification, and isolated restore pass before the first apply | NOT RUN/BLOCKED — no state exists; encryption, Drive identity, copy, retention, key recovery, and restore remain `UNKNOWN — STOP` |
+| KIF-TOFU-02 | KIF-002, KIF-007, KIF-030 | Historical OpenTofu host-install runtime | Approved check/diff, reviewed live run, exact version verification, preserved k3s/Tailscale, and a changed=0 rerun pass before provider import | HISTORICAL PASS PRE-IMPORT — initial check passed at ok=27/changed=6/failed=0; bounded host-egress failure stopped at ok=21/changed=2/failed=1; reviewed controller-transfer check passed at ok=33/changed=6/failed=0, live recovery passed at ok=39/changed=6/failed=0, and second run converged at ok=30/changed=0/failed=0. The exact CLI and selector exist; the then-empty protected directory is historical evidence |
+| KIF-TOFU-03 | KIF-004–KIF-006, KIF-013 | Historical Cloudflare-only zero-resource scaffold | Exact OpenTofu/provider pins and local backend path existed with zero resources/data/modules/imports/variables/outputs at the pre-import source checkpoint | HISTORICAL PASS PRE-IMPORT — static contract passed; `tofu fmt/validate` and provider initialization were not run at that checkpoint because no approved controller binary/provider download existed. Current source adds the reviewed PROD route to imported-resource state |
+| KIF-TOFU-04 | KIF-013, KIF-028, KIF-030 | Historical local-state encryption and off-node recovery gate | Timestamped encrypted Google Drive copies, independent key custody, integrity verification, and isolated restore were required before the first provider apply | HISTORICAL NOT RUN/BLOCKED — no state existed at the pre-import checkpoint; later protected state backup/readback and isolated restore passed for imported existing resources; the pending PROD route remains separately gated |
 | KIF-NS-01 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-030 | Bounded platform Namespace bootstrap offline contract | Exact committed `argocd` and `platform-edge` Namespace manifests are the sole object definitions consumed by the closed historical bootstrap, and the architecture/task checklist places them in a documented pre-Stage-4 exception with separate check/apply/idempotence approvals that waives no Stage 4 entry gate; a non-passthrough entrypoint rejects `--start-at-task`, `--step`, and all extra arguments; the wrapper launches the repository `.venv` controller in an allowlisted clean environment and supplies a private random single-run attestation; the mutating task independently requires that attestation, reloads only literal manifest paths, and rejects extra top-level/metadata keys; a first-task internal-variable guard, canonical non-symlink ancestor/leaf validation, approval/diff/exact-limit/kubeconfig/protected-result gates, foreign-existing refusal, present-only reconciliation, exact post-verification, truthful ownership labels, executable closure, and no deletion/other-kind path are enforced | PASS — focused structural, stage-boundary, control-flow, and synthetic ancestor-symlink contracts, controller-only forged-extra-var rejection, full offline suite, syntax, synthetic discovery validation, and production lint passed without inventory or Kubernetes API contact |
 | KIF-NS-02 | KIF-002, KIF-005, KIF-010, KIF-030 | Platform Namespace bootstrap runtime | Reviewed check predicts exactly the two absent Namespaces; approved live run creates them, verifies labels/services, and second run converges changed=0 without installing Argo CD/cloudflared or creating a route | PASS — wrapper check passed without mutation; separately approved first apply passed at ok=21/changed=1/unreachable=0/failed=0/skipped=0 and changed exactly `argocd` plus `platform-edge`. During the separately approved idempotence checkpoint, a local sudo authentication failure stopped the initial invocation before service preflight/reconciliation at ok=10/changed=0/unreachable=0/failed=1/skipped=0; the retry passed at ok=21/changed=0/unreachable=0/failed=0/skipped=0, both exact items were `ok`, post-state identity/labels/Active passed, and service health was preserved |
 | KIF-NS-03 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-030 | Historical foundation Namespace source checkpoint | Exact `platform-secrets` and `platform-identity` source plus a guarded present-only wrapper passed offline validation, but the wrapper never ran and the placement was superseded before runtime | SUPERSEDED SOURCE-ONLY — historical validation remains truthful; no cluster object was created or deleted by this checkpoint |
@@ -63,7 +63,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-BKP-01 | KIF-005, KIF-013, KIF-017–KIF-020, KIF-026–KIF-030 | Shared stateful backup access architecture | PostgreSQL, MongoDB, and RabbitMQ use encrypted timestamped separate-purpose archives, private authenticated metadata/list/retrieve/verify access, non-destructive off-node copy, integrity and isolated restore; RabbitMQ definitions remain distinct from queued-message recovery | PASS SOURCE-ONLY — daily archives, 14-day local/off-node retention, RPO 24h, and RTO 4h are fixed; pinned host rclone `1.71.1` replaces the container direction and its install/idempotence pass, but identities, staging, credentials, dumps, jobs, schedules, deletion, restore, and runtime remain blocked |
 | KIF-GHA-01 | KIF-005, KIF-022–KIF-025, KIF-030 | GitHub-hosted infrastructure source CI | Exactly one workflow uses SHA-pinned actions, a fixed runner, read-only permission, bounded triggers/timeouts/concurrency, frozen controller dependencies, and exact offline tests without Secret/package/registry/provider/host/cluster/deploy access | PASS SOURCE AND HOSTED CI — focused/full contracts passed; run `31311995461` and job `93241094377` completed successfully for exact commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`; branch protection, GHCR publication, digest evidence, and deployment remain NOT RUN/BLOCKED |
 | KIF-RR-01 | KIF-012–KIF-017, KIF-019, KIF-021, KIF-023, KIF-026–KIF-030 | Reactive Resume private-MVP source architecture | Include environment-local Reactive Resume DEV in the private MVP, reserve separate PROD, bind exact OIDC clients and dedicated shared-PostgreSQL scopes, keep Infisical value ownership/private exposure, and block image/callback/object/Secret/recovery/handoff/runtime promotion | PASS SOURCE-ONLY — value-free policy/runbook and exact contracts pass; no local Compose input was promoted and no upstream image, callback, object, Secret, database, route, or runtime was selected or created |
-| KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence, explicitly qualifies the unsigned trust boundary, captures token-file precedence, connection-aware readiness versus independent health, fixed metrics/quick-tunnel management-surface and edge-transport constraints, reserves `platform-edge` for cloudflared within the exact current five-Namespace and zero-resource OpenTofu source sets, and blocks trust/selection/soak, image assurance/availability, hardening, Infisical token recovery, OpenTofu state/resource work, Argo handoff, exact DNS/Traefik/edge policy, route approval, single-node risk, and runtime | PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and effective RFC1918/loopback sentinels; `2026.7.3` remains CANDIDATE — NOT DEPLOYABLE — NOT SELECTED; runtime NOT RUN and no OpenTofu resource, Kubernetes object, secret, route, or deployment source was added |
+| KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Historical source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence while preserving the pre-import OpenTofu state/resource boundary | HISTORICAL PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and RFC1918/loopback sentinels; the candidate remains NOT DEPLOYABLE/NOT SELECTED. Current imported Cloudflare state and pending PROD route are recorded in the live checkpoint |
 | KIF-CF-02 | KIF-005, KIF-010, KIF-011, KIF-012, KIF-013, KIF-015, KIF-021, KIF-030 | Phased Cloudflare-to-Keycloak route contract | A value-free policy fixes Cloudflare -> cloudflared/platform-edge -> Traefik/kube-system -> Keycloak/shared-services, separates account/state, tunnel/token, connector, Traefik, DNS, validation, and production approvals, forbids token disclosure and direct origin exposure, requires positive flow plus negative admin/management/DEV/Argo/data reachability tests, and defines exact-route rollback while runtime remains blocked | PASS SOURCE-ONLY — focused contract validates path, ownership, token boundaries, separate approvals, deny-first public surfaces, negative reachability, rollback, and no runtime source |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator provenance and selection boundary | Historical evidence distinguishes unselected `v0.11.8` distribution observations from the aligned `v0.11.7` set selected only as the offline baseline; trust, compatibility, scoped RBAC, Universal Auth recovery, traffic, and runtime remain blocked | PASS — focused contracts enforce exact evidence associations, qualified trust wording, immutable child direction, and no deployable controller source or Secret |
 | KIF-INF-02 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Inert Infisical privileged-prerequisite inventory | Bind exactly seven raw CRD templates and observed RBAC/scoping seams—including ineffective scoped-Role access to cluster-scoped TokenReview/ClusterGenerator and the singular/plural metrics defects—without adding valid CRD/RBAC, values, render, Ansible entrypoint, Secret, or runtime source | PASS — inventory remains inert; completed foundation Namespaces and the separately selected watch profile are now truthful gates while all deployable/runtime gates remain false |
@@ -93,8 +93,10 @@ They are historical evidence, not current absence claims.
   `selfHeal=true`, `prune=false`, `allowEmpty=false`; Argo is `Synced/Healthy` and
   the five PROD Deployments are each `1/1 Ready`.
 - **OIDC:** The CONNECT proxy policy is applied and includes the PROD backend,
-  Celery, and oauth2-proxy clients. Backend root returned `200`; oauth2-proxy root
-  and start returned `302`. No public route is implied.
+  Celery, and oauth2-proxy clients. App-level smoke returned backend `200`,
+  oauth2-proxy root/start `302`, and Celery readiness; this is not full authenticated
+  OIDC/CONNECT validation. Source confirms the exact allowlist
+  `auth.cristex-soft.com:443` and `api.deepseek.com:443`; no public route is implied.
 - **RabbitMQ:** The shared broker is live and Celery is connected/ready on
   `/cristexhub-prod`. The observed principal is `cristexhub_prod_user` and its
   broad `^[^*]+$` permission expressions require least-privilege reconciliation;
@@ -103,10 +105,14 @@ They are historical evidence, not current absence claims.
   acceptance is blocked. No NetworkPolicy selects `shared-mongodb-0`, and legacy
   selectors do not match the live MongoDB or backend/Celery labels. Do not claim
   private MongoDB acceptance until an exact deny-first policy and positive/negative
-  connectivity tests pass. MongoDB URL and GHCR pull credentials require verified
-  rotation; the exposed DeepSeek key requires separate revoke/replace.
-- **OpenTofu:** Cloudflare PROD Tunnel/DNS source is committed but provider
-  initialization, state, plan, and apply remain unrun; no state or public route exists.
+  connectivity tests pass. Engine connectivity and runtime Secret presence do not
+  prove logical database authorization or cross-access negatives. MongoDB URL and
+  GHCR pull credentials require verified rotation; the exposed DeepSeek key requires
+  separate revoke/replace.
+- **OpenTofu:** Existing protected state manages imported Cloudflare Tunnel,
+  Keycloak/DEV DNS, and private Argo DNS resources; encrypted backup/readback and
+  isolated restore pass. The committed PROD Tunnel/DNS source remains unapplied
+  pending a protected DNS-capable credential and exact plan.
 
 ## Historical Infisical Operator PROD watch source validation — 2026-08-18
 
@@ -1557,12 +1563,15 @@ Full production lint — PASS, 0 failures and 0 warnings; 33 of 36 files process
 git diff --check and no-staged-files — PASS
 ```
 
-`tofu fmt` and `tofu validate` are NOT RUN: no controller OpenTofu binary was
-approved or installed, and provider initialization/download is a later gate. The HCL
-is statically checked and conventionally formatted, but that is not provider-aware
-validation. The original host check, bounded failure, reviewed controller-transfer recovery,
-and idempotence evidence are recorded below. Lockfile generation, state creation and
-encryption, off-node copy/restore, plan, and apply remain NOT RUN/BLOCKED.
+At this historical pre-import checkpoint, `tofu fmt` and `tofu validate` were NOT
+RUN: no controller OpenTofu binary was approved or installed, and provider
+initialization/download was a later gate. The HCL was statically checked and
+conventionally formatted, but that was not provider-aware validation. The original
+host check, bounded failure, reviewed controller-transfer recovery, and idempotence
+evidence are recorded below. At that checkpoint, lockfile generation, state creation
+and encryption, off-node copy/restore, plan, and apply remained NOT RUN/BLOCKED;
+later protected-state backup/readback and isolated restore evidence is recorded in
+the current checkpoint.
 
 ## OpenTofu first host installation attempt — 2026-08-06
 
@@ -2191,7 +2200,7 @@ for statement in [
     "reviewed controller-transfer recovery then passed check, live installation, and a\n`changed=0` rerun",
     "Exact `argocd` and `platform-edge` Namespace\nmanifests and a bounded present-only Ansible bootstrap are implemented. Its\nseparately approved non-passthrough wrapper check passed",
     "The retry passed at\n`ok=21 changed=0 unreachable=0 failed=0 skipped=0`",
-    "Provider initialization, state, plan, and apply also remain unrun",
+    "At the historical pre-import checkpoint, provider initialization, state, plan, and\napply also remained unrun",
 ]:
     assert statement in brief, statement
 assert "host check/live run" not in brief
@@ -4518,3 +4527,13 @@ above without rewriting those historical stops.
   Universal Auth and application/OIDC values were rotated. MongoDB/RabbitMQ URL
   credentials and the reused GHCR pull credential still require verified rotation
   before public cutover.
+
+## Shared MongoDB NetworkPolicy guarded check — PASSED / APPLY BLOCKED
+
+A dedicated two-policy, check-only closure now selects the live operator-managed
+`shared-mongodb-0`, fails closed on additive foreign policy overlap, binds exact
+StatefulSet/pod/client/CoreDNS health, and has no legacy workload or Secret path.
+The hardened guarded check passed at
+`ok=34 changed=1 unreachable=0 failed=0 skipped=0`; it predicted exactly the two
+absent NetworkPolicies and made no Kubernetes mutation. Apply and the required
+positive/negative enforcement probe remain separately approved and NOT RUN/BLOCKED.

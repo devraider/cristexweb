@@ -231,10 +231,11 @@ approved elevated attempt identified missing remote Python dependencies. The
 bounded two-package Ansible bootstrap was reviewed and installed; post-install
 imports and the prior nine exact Kubernetes queries pass. That report confirms the
 k3s datastore and curated cluster indicators; it predates the extended StorageClass,
-PV, and namespace-bounded PVC projection. Hosted application runtime, OpenTofu
-provider initialization/state/plan/apply, Helm chart, image publication, deployment,
-DNS route, tunnel, database, backup, and replacement recovery remain unexecuted. One
-SHA-pinned read-only CI workflow has no package-write, Secret, registry, provider,
+PV, and namespace-bounded PVC projection. Hosted application runtime and the future public PROD route were outside that
+historical report. OpenTofu now has five imported protected state resources and
+completed backup/readback/restore evidence; only the PROD Tunnel-config/DNS plan
+remains unapplied. Helm chart, image publication, deployment, database, and
+replacement recovery remain separately gated. One SHA-pinned read-only CI workflow has no package-write, Secret, registry, provider,
 host, cluster, or deploy path; exact infrastructure run `31311995461` passed commit
 `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`. The private application-run outcome
 remains unobserved. The
@@ -451,10 +452,11 @@ tests/                   # offline contract tests and negative/executable parser
 The repository now includes source-only guarded Argo, Infisical, PostgreSQL,
 standalone MongoDB, Secret-materialization, protected-value, datastore-preflight,
 logical-provisioning, and cloudflared closures under `ansible/`; their runtime remains
-blocked unless explicitly recorded otherwise. The reviewed Cloudflare Tunnel/DNS
-`opentofu/` source remains unapplied, exactly five persistent Namespace manifests
-under `kubernetes/` including source-only `cristexhub-prod`, the current runbook
-set, and offline `tests/` also exist. The `cristexhub-prod` Namespace is now Active
+blocked unless explicitly recorded otherwise. The reviewed OpenTofu source manages
+five imported protected Cloudflare resources; its sixth PROD DNS resource and the
+associated Tunnel-config update remain unapplied. Exactly five persistent Namespace
+manifests under `kubernetes/` including source-only `cristexhub-prod`, the current
+runbook set, and offline `tests/` also exist. The `cristexhub-prod` Namespace is now Active
 and idempotent; its later check/apply/API resources remain blocked. The earlier
 source-only absence statement is historical pre-checkpoint evidence. An exact
 manifest and a distinct guarded wrapper now exist

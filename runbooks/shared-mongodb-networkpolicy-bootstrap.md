@@ -48,11 +48,16 @@ ansible/bin/bootstrap-shared-mongodb-networkpolicy check
 
 The wrapper is check-only and rejects `apply`. It uses the pinned repository
 controller, a clean allowlisted environment, one host, `--diff --check`, and a
-single-use mode-`0600` attestation. The role additionally requires the established
-`shared-services` Namespace, the live `MongoDBCommunity/shared-mongodb` resource
-(version `8.0.12`, one ReplicaSet member), and at least one live pod matching the
-exact selector before validating the two source objects. It refuses foreign
-existing policies and all task-selection controls. The action plugin has an
+single-use mode-`0600` attestation. The role additionally requires the protected
+root:`k3s-admin` mode-`0640` kubeconfig, the established `shared-services` Namespace,
+the live `MongoDBCommunity/shared-mongodb` resource with status `Running`, version
+`8.0.12`, and one current member, exactly `shared-mongodb-0` owned by
+`StatefulSet/shared-mongodb` and Running/Ready/nonterminating, exactly ready
+backend/Celery clients in both DEV and PROD with `hostNetwork=false`, and ready
+CoreDNS selected by `k8s-app=kube-dns`. It enumerates every existing
+`shared-services` NetworkPolicy and fails closed on any non-target selector that can
+match the live Mongo labels, including empty and expression selectors. It refuses
+foreign target drift and all task-selection controls. The action plugin has an
 explicit source-only guard and cannot apply in non-check mode.
 
 The wrapper never touches the legacy five-object standalone MongoDB closure:
@@ -69,7 +74,10 @@ cd ansible && ansible-playbook playbooks/bootstrap_shared_mongodb_networkpolicy.
 git diff --check
 ```
 
-No Kubernetes apply, policy mutation, Secret read, or runtime traffic test is
-implied by this source-only closure. A future apply, if ever authorized, requires
-a separate explicit approval and a reviewed transition from the check-only wrapper
-to a new bounded execution lane; this change does not provide that lane.
+The hardened read-only check passed at
+`ok=34 changed=1 unreachable=0 failed=0 skipped=0`; its sole predicted mutation task
+contained exactly the two absent policies, and check mode made no Kubernetes change.
+No apply, policy mutation, Secret read, or runtime traffic test is implied. A future
+apply, if ever authorized, requires a separate explicit approval and a reviewed transition
+from the check-only wrapper to a new bounded execution lane; this change does not
+provide that lane.

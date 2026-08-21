@@ -1,17 +1,21 @@
 # Guarded OIDC CONNECT proxy
 
-Status: **APPLIED / IDEMPOTENT / PRIVATE PROD VALIDATED**.
+Status: **APPLIED / IDEMPOTENT / APP-LEVEL SMOKE ONLY**.
 
-## Current live checkpoint — 2026-08-20
+## Current live checkpoint — 2026-08-21
 
 The guarded source is applied in `shared-services` and the exact client ingress
 policy includes the CristexHub DEV and PROD backend, Celery, and oauth2-proxy
-workloads. The proxy Service is healthy. Private PROD validation observed backend
+workloads. The proxy Service is healthy. App-level PROD smoke observed backend
 HTTP `200`, oauth2-proxy root/start redirects (`302`), backend startup completion,
-and a ready Celery worker connected to the TLS RabbitMQ broker. The proxy remains
-CONNECT-only to `auth.cristex-soft.com:443`; no public Keycloak administration,
-management, or direct-origin path is added. This evidence does not authorize the
-Cloudflare PROD route.
+and a ready Celery worker connected to the TLS RabbitMQ broker. This is not full
+OIDC/CONNECT validation: authenticated login/callback and positive/negative CONNECT
+tests remain outstanding. The committed Squid source confirms the exact HTTPS
+destination allowlist `auth.cristex-soft.com:443` and `api.deepseek.com:443`; arbitrary
+HTTPS destinations remain denied. A no-token DeepSeek `/models` `401` is transport
+smoke only, not API authorization. The proxy remains CONNECT-only; no public
+Keycloak administration, management, or direct-origin path is added. This evidence
+does not authorize the Cloudflare PROD route.
 
 The source-only status below is retained as historical evidence from the pre-apply
 checkpoint. Its exact status was **source-only; runtime not run and blocked**. It
@@ -67,9 +71,9 @@ ServiceMonitors. The separately approved apply and idempotence evidence above
 reconciles only this proxy closure; it does not authorize any public route.
 
 The source and applied policy must continue to verify exact workload labels and
-separate non-OIDC internal flows. Ongoing validation must prove positive CONNECT
-to the issuer and negative CONNECT to another hostname, port 80, an IP literal,
-private/reserved destinations, and non-CONNECT HTTP, without recording tokens,
-cookies, Authorization headers, or proxy logs. Residual rotation of the exposed
-PROD MongoDB/RabbitMQ URL credentials and GHCR pull credential remains required
-before public cutover.
+separate non-OIDC internal flows. Full private validation must still prove positive
+CONNECT to the issuer and negative CONNECT to another hostname, port 80, an IP
+literal, private/reserved destinations, and non-CONNECT HTTP, plus an authenticated
+OIDC login/callback, without recording tokens, cookies, Authorization headers, or
+proxy logs. Residual rotation of the exposed PROD MongoDB/RabbitMQ URL credentials
+and GHCR pull credential remains required before public cutover.

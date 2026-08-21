@@ -3,15 +3,16 @@
 This is no longer a zero-resource scaffold: it contains only the reviewed
 Cloudflare Tunnel and DNS resource boundaries described below.
 
-This module is initialized against protected host state. The existing remotely
-managed Tunnel, its active Keycloak/DEV ingress configuration, the Keycloak/DEV
-proxied CNAMEs, and the private Argo DNS record are imported and managed. Source now
-adds the exact PROD Tunnel ingress and proxied CNAME, but that two-change plan has
-not completed because the available OAuth credential lacks DNS-record permission.
-The Argo CD record points to the current
-Tailscale IPv4 `100.122.139.32`; access remains restricted by the host/cluster
-Tailscale-only ingress boundary and is not routed through the Cloudflare proxy
-or Tunnel.
+This module is initialized against protected host state. The protected local backend
+at `/var/lib/opentofu/cristexweb/foundation.tfstate` contains exactly five imported
+resource addresses: the Tunnel, its configuration, Keycloak DNS, DEV DNS, and the
+private Argo DNS record. The committed source defines six resource addresses; only
+`cloudflare_dns_record.cristexhub_prod` is absent from the imported state. The PROD
+change is therefore still pending: one Tunnel-config update adding the reviewed
+`hub.cristex-soft.com` ingress and one proxied DNS-record create. No apply has run
+for that pending change. The Argo CD record points to current Tailscale IPv4
+`100.122.139.32`; access remains restricted by the host/cluster Tailscale-only
+ingress boundary and is not routed through the Cloudflare proxy or Tunnel.
 
 ## State and secret boundary
 
@@ -20,14 +21,17 @@ in OpenTofu state. The `cloudflare_zero_trust_tunnel_cloudflared` resource accep
 an optional `tunnel_secret`; this module deliberately does **not** set it. It also
 does not use the `cloudflare_zero_trust_tunnel_cloudflared_token` data source or
 expose a token output. Therefore this source does not retrieve or intentionally
-place a Tunnel token in state. The resulting token must still be obtained through
-the separately approved Cloudflare/Infisical handoff and written only to the
-runtime secret path; it must never be passed through OpenTofu variables, tfvars,
-CLI arguments, environment examples, plans, outputs, or state.
+place a Tunnel token in state. The completed token handoff used the separately
+approved Cloudflare/Infisical path and writes only to the runtime secret path; the
+token must never be passed through OpenTofu variables, tfvars, CLI arguments,
+environment examples, plans, outputs, or state. This source neither retrieves nor
+prints it.
 
 OpenTofu outputs contain only the Tunnel UUID/name, hostname, DNS record name, and
 the explicit marker `MANUAL_INFISICAL_HANDOFF_REQUIRED`. The tunnel UUID is not a
-secret. `prevent_destroy` is set on every resource to avoid accidental public-route,
+secret. The committed `.terraform.lock.hcl` pins the reviewed provider selection;
+state, plans, credentials, and provider cache remain uncommitted and protected.
+`prevent_destroy` is set on every resource to avoid accidental public-route,
 private-DNS, or tunnel deletion.
 
 ## Inputs
@@ -45,9 +49,9 @@ Tailscale address in public DNS is not itself an access control mechanism;
 private ingress enforcement and tailnet membership remain required.
 
 Identifiers must be supplied through an uncommitted variable mechanism after
-provider-backed work is separately approved. No credentials, account IDs, zone
-IDs, tfvars, plans, provider lockfile, `.terraform` directory, or state file are
-committed here.
+provider-backed work is separately approved. No credentials, tfvars, plans,
+`.terraform` directory, or state file are committed here. The provider lockfile is
+intentionally tracked so its exact selection is reviewable.
 
 ## Completed Tunnel handoff and pending PROD route
 
@@ -55,16 +59,22 @@ The imported Tunnel UUID was recorded without secret output. Its token was recov
 through the approved Infisical path `prod:/platform-edge/cloudflared`, key
 `CLOUDFLARE_TUNNEL_TOKEN`, and materialized into the live `platform-edge`
 cloudflared workload through the guarded lane. Token-bearing material remains absent
-from Git, OpenTofu state/plan/output, argv, evidence, and manifests. The PROD route
-adds no token; it still requires a protected DNS-capable provider credential and an
-exact reviewed plan/apply.
+from Git, OpenTofu state/plan/output, argv, evidence, and manifests. The PROD route adds no token. It still requires a protected DNS-capable provider
+credential and separate approvals for Tunnel-config mutation, DNS publication, and
+public cutover. Before any apply, require a fresh encrypted state backup/readback,
+independent-key restore rehearsal, and an exact reviewed plan containing only the
+Tunnel-config update and `cloudflare_dns_record.cristexhub_prod` create, with no
+replacement or destroy actions. This module does not create Kubernetes resources,
+install cloudflared, create the Infisical secret, create a Traefik route, or approve
+public cutover. Those are separate ownership and approval boundaries.
 
-This module does not create Kubernetes resources, install cloudflared, create the
-Infisical secret, create a Traefik route, or approve public cutover. Those are
-separate ownership and approval boundaries. The local backend remains a single-node failure domain and is operated as a protected single-writer boundary. Encrypted timestamped
-off-node copy/readback, independent-key retrieval, integrity verification, and an
-isolated `tofu state list` restore rehearsal now pass. These controls do not authorize
-the pending PROD route.
+The local backend remains a single-node failure domain and protected single-writer
+boundary. Encrypted timestamped off-node copy/readback, independent-key retrieval,
+integrity verification, and isolated `tofu state list` restore rehearsal have passed.
+After a future approved apply, post-validation must include provider/API state
+verification, a second no-op plan, positive `hub.cristex-soft.com` authentication
+and routing tests, negative admin/management/DEV/Argo/data/direct-origin tests, and
+rollback evidence. These controls do not authorize the pending PROD route.
 
 ## Encrypted state recovery boundary
 

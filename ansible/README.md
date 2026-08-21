@@ -8,9 +8,13 @@ Celery, frontend, oauth2-proxy, and Redis are ready. RabbitMQ is live for the PR
 Celery worker, but observed principal/permission drift and credential rotation remain
 open. MongoDB `8.0.12` is live under its operator with TLS/SCRAM, but private
 acceptance is blocked by the absent/mismatched live MongoDB NetworkPolicy. OpenTofu
-remains source-only with no provider initialization, state, plan, or apply; the
-Cloudflare PROD route is committed but unapplied. Historical source-only paragraphs
-below retain their original checkpoint wording and are not current-state claims.
+protected host state contains exactly five imported Cloudflare resource addresses;
+the source defines six, with only the PROD DNS resource absent from state. The
+provider lockfile is tracked and the cloudflared token handoff is complete. The
+pending PROD Tunnel-config/DNS plan remains unapplied and requires fresh backup,
+exact plan review, separate provider/DNS/public-cutover approvals, and post-validation.
+Historical source-only paragraphs below retain their original checkpoint wording and
+are explicitly not current-state claims.
 
 This directory contains bounded read-only discovery plus separately approved,
 non-passthrough host, Namespace, controller, Secret-seam, datastore-preflight, and
@@ -541,10 +545,13 @@ pass; private Argo workloads are `Synced/Healthy`, while the public route and
 residual credential rotations remain blocked. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 PostgreSQL and one MongoDB engine in `shared-services`; PostgreSQL and the
-operator-managed MongoDB runtime are live under separate checkpoints, but MongoDB
-private ingress isolation is not attested because the matching NetworkPolicy is
-absent. CristexHub DEV/PROD have isolated scopes on both engines; Reactive Resume
-DEV/PROD and Keycloak have dedicated PostgreSQL scopes. The separate value-free
+operator-managed MongoDB runtime are live under separate engine checkpoints, but
+MongoDB private ingress isolation is not attested because the matching NetworkPolicy
+is absent. The architecture reserves isolated CristexHub DEV/PROD scopes on both
+engines; live engine connectivity and runtime Secrets do not prove logical database
+authorization or cross-access negatives. Reactive Resume DEV/PROD and Keycloak
+retain dedicated PostgreSQL scope contracts, with runtime acceptance separately
+gated. The separate value-free
 [shared RabbitMQ policy](../runbooks/shared-rabbitmq-architecture.md) fixes one
 engine, exact DEV/PROD vhost/user/limit scopes, and reviewed future-consumer
 admission; its runtime is live for PROD Celery, while least-privilege and recovery
@@ -636,8 +643,12 @@ gates without authorizing cluster contact.
 
 ## Approved pinned OpenTofu CLI installation
 
+The installer and its state-empty/provider-free results below are a **historical
+pre-import checkpoint**. They document the original host installation safely and do
+not describe the current protected OpenTofu state or imported resources.
+
 `install_opentofu.yml` installs only the independently verified OpenTofu `1.12.5`
-linux/amd64 release, selects it through `/usr/local/bin/tofu`, and creates the empty
+linux/amd64 release, selects it through `/usr/local/bin/tofu`, and creates the
 operator-owned mode-`0700` `/var/lib/opentofu/cristexweb` directory outside k3s.
 It requires Debian 13 x86_64, running k3s/Tailscale, an existing non-root operator
 with no numeric UID alias, exact safe parent/artifact modes, `--diff`, a one-host
@@ -646,8 +657,9 @@ the root-owned host archive is absent, the controller downloads it into ignored
 `ansible/.ansible/cache/opentofu/`, verifies the exact digest, and transfers it over
 the existing Ansible connection. The role preflights controller directories and the
 cached archive without following symlinks, refuses foreign ownership or mode/digest
-drift, and makes no controller-cache write in check mode. It never initializes a
-provider, creates or reads a state file, restarts a service, or contacts Kubernetes.
+drift, and makes no controller-cache write in check mode. This installer lane does
+not initialize or mutate provider state; later protected state import and backup/
+restore are a separate approved OpenTofu operation.
 
 Controller-side release review verified the official
 [`tofu_1.12.5_SHA256SUMS`](https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_SHA256SUMS)
@@ -674,8 +686,11 @@ that stop. The reviewed controller-transfer check then passed at
 ignored controller cache, transferred and reverified it, installed the pinned
 payload and selector, and preserved running k3s/Tailscale at
 `ok=39 changed=6 failed=0`. The second run passed at
-`ok=30 changed=0 failed=0`. The project state directory remains empty and no provider
-operation or external resource exists.
+`ok=30 changed=0 failed=0`. At that historical pre-import checkpoint, the project
+state directory remained empty and no provider operation existed. Later approved
+work imported five existing Cloudflare resource addresses; the provider lockfile is
+tracked, encrypted backup/readback and isolated restore rehearsal pass, and only the
+PROD two-change Tunnel-config/DNS plan remains unapplied.
 
 Review check/diff first. The operator account remains an explicit local input:
 
@@ -710,10 +725,13 @@ Live rollback removes only the exact managed `/usr/local/bin/tofu` selector. It
 retains the archive, versioned payload, local state directory, every state/lock
 file, and all external resources. Unknown or modified selectors fail closed.
 
-Provider initialization, lockfile generation, validation, planning, apply, import,
-state commands, destroy, state encryption, Google Drive copy, and recovery are
-separate future gates. No apply is allowed until encrypted timestamped off-node
-state recovery and key custody pass an isolated rehearsal.
+At the historical installer checkpoint, provider initialization, lockfile
+materialization, validation, planning, apply, import, state commands, destroy,
+state encryption, Google Drive copy, and recovery were separate future gates. Those
+historical gates are superseded for the imported existing resources: protected
+state backup/readback, independent key custody, and isolated restore now pass. The
+pending PROD route still requires a fresh exact plan, separate apply approval, and
+private route validation; no public cutover is implied.
 
 ## Guarded host rclone and proxy recovery transfer
 
