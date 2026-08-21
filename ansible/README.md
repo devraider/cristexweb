@@ -559,10 +559,10 @@ remain open. The [shared backup policy](../runbooks/shared-stateful-backup-archi
 requires private authenticated operator retrieval, encrypted timestamped archives,
 non-destructive off-node copy, integrity checks, and isolated restore. RabbitMQ
 message/definitions recovery and residual credential rotations remain blocked. The separate [Reactive Resume policy](../runbooks/reactive-resume-hosted-architecture.md) includes
-an incomplete private-DEV blocker inventory with PROD reservation-only. Successor
-identity, upstream auth/privacy hardening, dedicated Infisical/database lanes,
-object storage, image, migration, recovery, objects, Secrets, and runtime remain
-blocked; no executable source exists. GitHub CI may run only syntax/lint and offline contracts from this
+an incomplete private-DEV blocker inventory with PROD reservation-only. Successor identity, patched OIDC/local-auth/privacy behavior, dedicated
+Infisical/database lanes, private object storage, the mismatched candidate image,
+locked split-role migration, recovery, objects, Secrets, and runtime remain blocked;
+Agent/Redis are disabled and no executable source exists. GitHub CI may run only syntax/lint and offline contracts from this
 source; it supplies no inventory and invokes no operational wrapper. The repository
 contains thirty-two exact-scope action plugins; these focused Python exceptions
 are source guards/validators only, not a general operational collector.

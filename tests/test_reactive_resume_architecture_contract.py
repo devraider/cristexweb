@@ -25,7 +25,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         cls.runbook_text = RUNBOOK.read_text()
 
     def test_scope_is_source_only_and_prod_is_template(self) -> None:
-        self.assertEqual("cristex-reactive-resume-v3", self.policy["policy_schema"])
+        self.assertEqual("cristex-reactive-resume-v4", self.policy["policy_schema"])
         self.assertEqual("source-policy-only-runtime-blocked", self.policy["policy_status"])
         self.assertEqual("included-private-dev", self.policy["mvp_scope"])
         self.assertEqual(
@@ -43,7 +43,8 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertTrue(closure["prod_promotion_template_only"])
         self.assertTrue(closure["no_runtime_objects_added"])
         self.assertTrue(closure["no_secret_values_added"])
-        self.assertTrue(closure["no_image_digest_claimed"])
+        self.assertTrue(closure["no_selected_image_digest_claimed"])
+        self.assertTrue(closure["candidate_digest_is_not_selection"])
 
     def test_image_and_runtime_contact_remain_blocked(self) -> None:
         source = self.policy["image_source"]
@@ -55,14 +56,18 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("unaccepted-blocker", source["sbom_and_vulnerability_review"])
         self.assertEqual("unaccepted-blocker", source["off_node_oci_recovery"])
         self.assertEqual("unaccepted-blocker", source["target_pull_and_admission"])
-        for key in (
-            "upstream_release_contract",
-            "environment_variable_allowlist",
-            "health_and_readiness_endpoint",
-            "migration_command_and_locking",
-            "printer_or_browser_dependency",
-        ):
-            self.assertEqual("unselected-blocker", source[key], key)
+        self.assertFalse(source["candidate_record_is_deployable"])
+        self.assertFalse(source["candidate_record_is_selection"])
+        self.assertEqual(
+            "blocked-tag-image-revision-mismatch", source["upstream_release_contract"]
+        )
+        self.assertEqual(
+            "reviewed-candidate-not-runtime-contract",
+            source["environment_variable_allowlist"],
+        )
+        self.assertEqual("reviewed-candidate-not-accepted", source["health_and_readiness_endpoint"])
+        self.assertEqual("reviewed-blocked", source["migration_command_and_locking"])
+        self.assertEqual("reviewed-none-client-side-pdf", source["printer_or_browser_dependency"])
         self.assertEqual(
             {
                 "host": "forbidden",
@@ -72,8 +77,56 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
                 "database": "forbidden",
                 "provider": "forbidden",
             },
-            self.policy["source_closure"]["runtime_contact"],
+            self.policy["source_closure"]["runtime_mutation"],
         )
+        self.assertEqual(
+            {
+                "github_source_and_release_metadata": "performed",
+                "docker_hub_oci_metadata_and_attestations": "performed",
+                "kubernetes_absence_inventory": "performed",
+            },
+            self.policy["source_closure"]["read_only_research_contact"],
+        )
+
+    def test_candidate_image_provenance_is_exact_and_non_deployable(self) -> None:
+        candidate = self.policy["image_candidate_provenance"]
+        self.assertEqual("candidate-only-not-deployable", candidate["status"])
+        self.assertEqual("docker.io", candidate["registry"])
+        self.assertEqual(
+            "docker.io/amruthpillai/reactive-resume", candidate["registry_repository"]
+        )
+        self.assertTrue(candidate["ghcr_is_not_this_record"])
+        self.assertEqual("v5.2.7", candidate["upstream_tag"])
+        self.assertEqual(
+            "5392728f22580ac107cad25a5ccfcde962133535",
+            candidate["upstream_tag_commit"],
+        )
+        self.assertEqual(
+            "sha256:656a7ce0409ea1b8fcdb4985320d8b687b94da1201d10af13fd1e2c7c74f6083",
+            candidate["index_digest"],
+        )
+        self.assertEqual(
+            "sha256:befa93b3af3e8fe91a4dd02401fc7996c4aa2f19641463e3b2aaa77089caff5a",
+            candidate["linux_amd64_digest"],
+        )
+        self.assertEqual(
+            "sha256:7f2c997d1f48b152e649c2561e0e23e2d5bc7d9e7e7dbf3e6cac7dd1a6f002f7",
+            candidate["config_digest"],
+        )
+        self.assertEqual(
+            "3221afda9ddfb03d6cce87927b0ce47338b4cfa8",
+            candidate["config_revision"],
+        )
+        self.assertFalse(candidate["tag_commit_matches_config_revision"])
+        self.assertEqual("16-commits-150-files", candidate["mismatch_distance"])
+        self.assertEqual("node", candidate["non_root_user"])
+        self.assertEqual("3000/tcp", candidate["exposed_port"])
+        self.assertEqual("/api/health", candidate["health_endpoint"])
+        self.assertEqual("observed", candidate["index_signature"])
+        self.assertEqual("not-observed-blocker", candidate["linux_amd64_child_signature"])
+        self.assertEqual("absent-blocker", candidate["vulnerability_disposition"])
+        self.assertEqual("forbidden", candidate["registry_equivalence_claim"])
+        self.assertEqual("forbidden", candidate["promotion"])
 
     def test_infisical_lane_is_dedicated_dev_only_and_broad_reuse_is_forbidden(self) -> None:
         secrets = self.policy["secrets"]
@@ -86,7 +139,9 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("cristexhub-dev", dev["target_namespace"])
         self.assertEqual("reactive-resume-runtime", dev["target_name"])
         self.assertEqual("unselected-blocker", dev["infisical_path"])
-        self.assertEqual("unselected-until-upstream-config-review", dev["exact_keys"])
+        self.assertEqual(
+            "blocked-pending-source-patch-and-feature-selection", dev["exact_keys"]
+        )
         self.assertEqual("absent-blocker", dev["dedicated_machine_identity"])
         self.assertEqual("absent-blocker", dev["dedicated_writer"])
         self.assertEqual("forbidden-until-dedicated-lane", dev["materialization"])
@@ -240,12 +295,26 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("unaccepted-blocker", identity["discovery_and_jwks_validation"])
         self.assertEqual("unaccepted-blocker", identity["positive_negative_oidc_tests"])
         hardening = identity["upstream_v5_hardening"]
+        self.assertEqual("v5.2.7-source-tag-only", hardening["reviewed_release"])
         self.assertFalse(hardening["callback_verified_for_selected_release"])
-        self.assertFalse(hardening["password_login_disabled"])
-        self.assertFalse(hardening["trustworthy_email_verified_mapping"])
         self.assertEqual(
-            "unaccepted-blocker", hardening["id_token_signature_issuer_nonce_validation"]
+            "reviewed-db-backed-signed-cookie-one-time-ten-minute",
+            hardening["state_csrf_protection"],
         )
+        self.assertEqual("absent-blocker", hardening["pkce"])
+        self.assertEqual("absent-blocker", hardening["oidc_nonce"])
+        self.assertEqual(
+            "absent-blocker",
+            hardening["id_token_signature_jwks_issuer_audience_expiry_validation"],
+        )
+        self.assertFalse(hardening["password_login_disabled"])
+        self.assertFalse(hardening["username_password_direct_endpoint_disabled"])
+        self.assertFalse(hardening["trustworthy_email_verified_mapping"])
+        self.assertEqual("hardcoded-true-blocker", hardening["new_oauth_user_email_verified_behavior"])
+        self.assertFalse(hardening["custom_provider_linking_requires_verified_trusted_email"])
+        self.assertFalse(hardening["stable_provider_account_id_uses_oidc_sub"])
+        self.assertEqual("absent-blocker", hardening["rp_initiated_logout"])
+        self.assertEqual("insufficient", hardening["configuration_only_remediation"])
         self.assertEqual("forbidden", hardening["groups_as_authorization_boundary"])
         self.assertTrue(identity["contract_required_before_client_mutation"])
         self.assertFalse(identity["local_development_inputs_allowed"])
@@ -284,30 +353,46 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             self.assertTrue(storage[key], key)
         self.assertEqual(["pictures", "screenshots", "pdfs"], storage["reviewed_v5_candidate_objects"])
         self.assertEqual("blocker", storage["public_read_acl_or_unauthenticated_upload_serving"])
+        self.assertEqual("public-read-blocker", storage["reviewed_v5_normal_s3_acl"])
+        self.assertEqual("unauthenticated-blocker", storage["reviewed_v5_upload_read_route"])
+        self.assertEqual("public-immutable-blocker", storage["reviewed_v5_upload_cache_control"])
+        self.assertEqual("absent-blocker", storage["reviewed_v5_generic_upload_mime_allowlist"])
+        self.assertEqual("silent-local-storage-blocker", storage["partial_s3_configuration_fallback"])
+        self.assertEqual("fixed-key-put-delete-insufficient", storage["s3_health_behavior"])
         self.assertTrue(storage["private_bucket_policy_and_readback"])
+        self.assertEqual("required", storage["source_patch_for_authenticated_private_reads"])
         self.assertEqual("forbidden", storage["local_ephemeral_storage_only"])
         redis_ai = self.policy["redis_ai"]
         self.assertEqual(
-            "no-server-side-agent-or-redis-contract-selected", redis_ai["status"]
+            "reviewed-v5-agent-disabled-pending-separate-selection", redis_ai["status"]
         )
-        self.assertEqual("absent", redis_ai["reviewed_v5_server_agent_evidence"])
-        self.assertEqual("absent", redis_ai["reviewed_v5_redis_requirement"])
+        self.assertEqual("present", redis_ai["reviewed_v5_server_agent_evidence"])
+        self.assertEqual("conditional-agent-workspace", redis_ai["reviewed_v5_redis_requirement"])
         self.assertEqual(
-            "forbidden-until-pinned-and-reviewed", redis_ai["future_release_ai_or_redis"]
+            "conditional-agent-and-saved-ai-providers",
+            redis_ai["reviewed_v5_encryption_secret_requirement"],
         )
+        self.assertFalse(redis_ai["agent_enabled"])
+        self.assertFalse(redis_ai["redis_selected"])
+        self.assertEqual("absent-in-v5-health-endpoint", redis_ai["redis_health_coverage"])
         self.assertEqual("forbidden", redis_ai["redis_backup_as_authoritative_state"])
 
     def test_application_keys_migrations_and_recovery_are_blocked(self) -> None:
         keys = self.policy["application_keys"]
-        self.assertEqual("blocked-key-inventory-and-recovery-unselected", keys["status"])
+        self.assertEqual("blocked-source-patch-feature-and-recovery-unselected", keys["status"])
         self.assertEqual(
-            "unselected-until-pinned-upstream-release", keys["exact_key_names"]
+            "reviewed-candidate-not-materialization-contract", keys["exact_key_names"]
         )
         self.assertEqual(
             ["AUTH_SECRET", "OAUTH_CLIENT_SECRET"], keys["candidate_required_names"]
         )
-        self.assertEqual([], keys["candidate_conditional_names"])
-        self.assertEqual(["ENCRYPTION_SECRET"], keys["unverified_or_absent_upstream_keys"])
+        self.assertEqual(["ENCRYPTION_SECRET"], keys["candidate_conditional_names"])
+        self.assertEqual(32, keys["encryption_secret_minimum_length"])
+        self.assertEqual(
+            ["saved-ai-provider-credentials", "agent-workspace"],
+            keys["encryption_secret_conditions"],
+        )
+        self.assertEqual([], keys["unverified_or_absent_upstream_keys"])
         for key in ("dev_path", "prod_path"):
             self.assertEqual("unselected-blocker", keys[key])
         for key in (
@@ -326,10 +411,25 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             self.assertTrue(keys[key], key)
         migration = self.policy["migration"]
         self.assertEqual(
-            "blocked-upstream-startup-migration-not-fail-closed", migration["status"]
+            "blocked-upstream-startup-migration-privilege-and-concurrency",
+            migration["status"],
         )
-        self.assertEqual("present-and-unaccepted", migration["upstream_startup_migration_behavior"])
-        self.assertEqual("absent-blocker", migration["migration_failure_propagation"])
+        self.assertEqual(
+            "always-before-listen-same-database-url",
+            migration["upstream_startup_migration_behavior"],
+        )
+        self.assertEqual("rethrow-and-process-exit-one", migration["migration_failure_propagation"])
+        self.assertEqual("all-pending-sql-single-begin-commit", migration["transaction_scope"])
+        self.assertEqual("absent-blocker", migration["distributed_or_advisory_lock"])
+        self.assertEqual("absent-name-only-selection", migration["checksum_comparison"])
+        self.assertEqual("absent-blocker", migration["migration_only_mode"])
+        self.assertEqual("absent-blocker", migration["startup_migration_disable_flag"])
+        self.assertTrue(migration["destructive_or_broad_ddl_observed"])
+        self.assertFalse(migration["runtime_role_without_ddl_compatible_with_upstream"])
+        self.assertEqual(
+            "true-conflicts-with-required-noinherit",
+            migration["current_cnpg_owner_inherit_setting"],
+        )
         self.assertEqual("absent-blocker", migration["dedicated_migration_actor"])
         self.assertTrue(migration["migration_lock"])
         self.assertTrue(migration["pre_migration_backup"])
@@ -410,6 +510,10 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         for required in (
             "SOURCE POLICY ONLY — RUNTIME BLOCKED / DEV CONTRACT INCOMPLETE",
             "executable_source_allowed` remains `false`",
+            "candidate-only, **not selected and not deployable**",
+            "16 commits and 150 files beyond the release tag",
+            "Configuration alone cannot remediate this",
+            "single-run locked migration Job",
             "Dedicated Infisical lane",
             "Dedicated PostgreSQL lane",
             "CNPG/TLS/NetworkPolicy",
@@ -447,7 +551,6 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             combined,
             r"(?im)^\s*(?:password|token|client_secret|api_key|credentials?)\s*:\s*\S+",
         )
-        self.assertNotRegex(combined, re.compile(r"@sha256:[0-9a-f]{64}"))
         self.assertNotIn("/Users/", combined)
         self.assertNotIn("/home/paul/", combined)
 

@@ -2895,12 +2895,14 @@ only the future private object boundary in `cristexhub-dev` and the dedicated sh
 PostgreSQL scope `reactive_resume_dev` / `reactive_resume_dev_owner` while keeping
 executable source forbidden. It explicitly blocks reuse of the broad Infisical
 11-target/VAP/RBAC lanes and all-consumer PostgreSQL/CloudNativePG lanes, and records
-successor-realm runtime and upstream OIDC callback/verification hardening, CNPG
-TLS/NetworkPolicy identity, durable
-object storage, future-release Redis/AI dependency review, application-key custody, migration, backup,
-restore, measured RPO/RTO, and DEV-soak gates. PROD remains a reservation/template
-only. No manifest, workload, wrapper, Secret value, image digest, PVC, route, or
-API/provider source was added.
+successor-realm runtime, required OIDC/local-auth source patch, CNPG
+TLS/NetworkPolicy identity, private durable object storage, disabled v5 Agent/Redis
+scope, application-key custody, locked split-role migration, backup, restore,
+measured RPO/RTO, and DEV-soak gates. A read-only candidate record now binds Docker
+Hub `v5.2.7` metadata while explicitly rejecting promotion because the image revision
+is 16 commits/150 files beyond the annotated release tag. PROD remains a
+reservation/template only. No manifest, workload, wrapper, Secret value, selected
+image, PVC, route, or API/provider source was added.
 
 ```bash
 .venv/bin/python -m unittest -v \
@@ -2924,8 +2926,8 @@ kubectl get applications.argoproj.io -n argocd -o name | \
 Actual result:
 
 ```text
-Reactive Resume focused blocker-contract tests: 14 passed
-Full offline suite: 428/428 passed
+Reactive Resume focused blocker-contract tests: 15 passed
+Full offline suite: 429/429 passed
 All 47 playbook syntax checks passed
 Production-profile lint passed with only 14 configured pre-existing warnings
 Python compile: passed
@@ -2933,12 +2935,13 @@ Diff hygiene passed; bounded read-only Kubernetes inventory found
 reactive_resume_matching_object_count=0; no Reactive Resume or provider mutation occurred
 ```
 
-The DEV runtime remains blocked pending dedicated source lanes, immutable upstream
-image/trust/recovery, successor-realm and hardened OIDC contract, canonical
-PostgreSQL owner/NOINHERIT/ACL
-and negative tests, CNPG-compatible TLS/NetworkPolicy, object-storage backup/restore,
-application-key recovery, migration safety, measured RPO/RTO, private validation,
-and an explicit DEV soak. PROD cannot be generated or activated from its reservation.
+The DEV runtime remains blocked pending dedicated source lanes, a reproducibly bound
+and directly attested image, patched PKCE/token-validation/local-auth/account-linking/
+logout behavior, successor realm, canonical PostgreSQL owner/NOINHERIT/ACL and
+negative tests, CNPG-compatible TLS/NetworkPolicy, authenticated private object
+storage and backup/restore, application-key recovery, a locked migration Job with a
+DDL-free runtime role, measured RPO/RTO, private validation, and an explicit DEV
+soak. PROD cannot be generated or activated from its reservation.
 
 ## GitHub source CI and Reactive Resume private-MVP policy — 2026-08-09
 

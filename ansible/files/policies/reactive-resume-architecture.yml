@@ -1,5 +1,5 @@
 ---
-policy_schema: cristex-reactive-resume-v3
+policy_schema: cristex-reactive-resume-v4
 policy_status: source-policy-only-runtime-blocked
 mvp_scope: included-private-dev
 environments:
@@ -17,15 +17,45 @@ image_source:
   version: null
   linux_amd64_digest: null
   trust_accepted: false
+  candidate_record_is_deployable: false
+  candidate_record_is_selection: false
   sbom_and_vulnerability_review: unaccepted-blocker
   off_node_oci_recovery: unaccepted-blocker
   target_pull_and_admission: unaccepted-blocker
   github_actions_build_owner: upstream-not-rebuilt
-  upstream_release_contract: unselected-blocker
-  environment_variable_allowlist: unselected-blocker
-  health_and_readiness_endpoint: unselected-blocker
-  migration_command_and_locking: unselected-blocker
-  printer_or_browser_dependency: unselected-blocker
+  upstream_release_contract: blocked-tag-image-revision-mismatch
+  environment_variable_allowlist: reviewed-candidate-not-runtime-contract
+  health_and_readiness_endpoint: reviewed-candidate-not-accepted
+  migration_command_and_locking: reviewed-blocked
+  printer_or_browser_dependency: reviewed-none-client-side-pdf
+image_candidate_provenance:
+  status: candidate-only-not-deployable
+  observed_at_utc: '2026-08-21'
+  upstream_repository: https://github.com/amruthpillai/reactive-resume
+  upstream_tag: v5.2.7
+  upstream_tag_type: annotated
+  upstream_tag_commit: 5392728f22580ac107cad25a5ccfcde962133535
+  registry: docker.io
+  registry_repository: docker.io/amruthpillai/reactive-resume
+  ghcr_is_not_this_record: true
+  index_digest: sha256:656a7ce0409ea1b8fcdb4985320d8b687b94da1201d10af13fd1e2c7c74f6083
+  linux_amd64_digest: sha256:befa93b3af3e8fe91a4dd02401fc7996c4aa2f19641463e3b2aaa77089caff5a
+  config_digest: sha256:7f2c997d1f48b152e649c2561e0e23e2d5bc7d9e7e7dbf3e6cac7dd1a6f002f7
+  config_revision: 3221afda9ddfb03d6cce87927b0ce47338b4cfa8
+  tag_commit_matches_config_revision: false
+  mismatch_distance: 16-commits-150-files
+  image_created_utc: '2026-08-20T08:45:26.993Z'
+  non_root_user: node
+  exposed_port: 3000/tcp
+  command: node-apps-server-dist-index-mjs
+  health_endpoint: /api/health
+  index_signature: observed
+  linux_amd64_child_signature: not-observed-blocker
+  spdx_sbom_attestation: observed-not-accepted
+  slsa_provenance_attestation: observed-not-accepted
+  vulnerability_disposition: absent-blocker
+  registry_equivalence_claim: forbidden
+  promotion: forbidden
 identity:
   status: blocked-successor-realm-not-live-and-upstream-oidc-hardening-unaccepted
   realm: cristexhub-dev
@@ -57,13 +87,25 @@ identity:
   discovery_and_jwks_validation: unaccepted-blocker
   positive_negative_oidc_tests: unaccepted-blocker
   upstream_v5_hardening:
+    reviewed_release: v5.2.7-source-tag-only
     callback_candidate: '${APP_URL}/api/auth/oauth2/callback/custom'
     callback_verified_for_selected_release: false
+    state_csrf_protection: reviewed-db-backed-signed-cookie-one-time-ten-minute
+    pkce: absent-blocker
+    oidc_nonce: absent-blocker
+    id_token_signature_jwks_issuer_audience_expiry_validation: absent-blocker
     password_login_disabled: false
+    username_password_direct_endpoint_disabled: false
     trustworthy_email_verified_mapping: false
+    new_oauth_user_email_verified_behavior: hardcoded-true-blocker
+    custom_provider_linking_requires_verified_trusted_email: false
+    stable_provider_account_id_uses_oidc_sub: false
+    rp_initiated_logout: absent-blocker
     id_token_signature_issuer_nonce_validation: unaccepted-blocker
     groups_as_authorization_boundary: forbidden
     account_and_resume_identity_continuity: unselected-blocker
+    configuration_only_remediation: insufficient
+    required_remediation: reviewed-source-patch-or-equivalent-validating-broker
     empty_successor_dev_decision: required
   administrator_surface: private-only
   local_development_inputs_allowed: false
@@ -167,7 +209,7 @@ secrets:
     target_namespace: cristexhub-dev
     target_name: reactive-resume-runtime
     infisical_path: unselected-blocker
-    exact_keys: unselected-until-upstream-config-review
+    exact_keys: blocked-pending-source-patch-and-feature-selection
     dedicated_machine_identity: absent-blocker
     dedicated_writer: absent-blocker
     materialization: forbidden-until-dedicated-lane
@@ -204,6 +246,8 @@ secrets:
 exposure:
   current_scope: private-only
   service_identity: unselected
+  reviewed_candidate_container_port: 3000
+  reviewed_candidate_health_endpoint: /api/health
   ports: unselected
   forbidden:
     - Ingress
@@ -245,24 +289,40 @@ object_storage:
     - screenshots
     - pdfs
   public_read_acl_or_unauthenticated_upload_serving: blocker
+  reviewed_v5_normal_s3_acl: public-read-blocker
+  reviewed_v5_upload_read_route: unauthenticated-blocker
+  reviewed_v5_upload_cache_control: public-immutable-blocker
+  reviewed_v5_generic_upload_mime_allowlist: absent-blocker
+  partial_s3_configuration_fallback: silent-local-storage-blocker
+  s3_health_behavior: fixed-key-put-delete-insufficient
   private_bucket_policy_and_readback: required
+  source_patch_for_authenticated_private_reads: required
   local_ephemeral_storage_only: forbidden
 redis_ai:
-  status: no-server-side-agent-or-redis-contract-selected
-  reviewed_v5_server_agent_evidence: absent
-  reviewed_v5_redis_requirement: absent
+  status: reviewed-v5-agent-disabled-pending-separate-selection
+  reviewed_v5_server_agent_evidence: present
+  reviewed_v5_redis_requirement: conditional-agent-workspace
+  reviewed_v5_encryption_secret_requirement: conditional-agent-and-saved-ai-providers
+  reviewed_v5_private_s3_requirement: conditional-agent-attachments
+  agent_enabled: false
+  redis_selected: false
   future_release_ai_or_redis: forbidden-until-pinned-and-reviewed
+  redis_health_coverage: absent-in-v5-health-endpoint
   browser_local_ai_key_state: non-server-authoritative-candidate
   redis_backup_as_authoritative_state: forbidden
 application_keys:
-  status: blocked-key-inventory-and-recovery-unselected
-  exact_key_names: unselected-until-pinned-upstream-release
+  status: blocked-source-patch-feature-and-recovery-unselected
+  exact_key_names: reviewed-candidate-not-materialization-contract
   candidate_required_names:
     - AUTH_SECRET
     - OAUTH_CLIENT_SECRET
-  candidate_conditional_names: []
-  unverified_or_absent_upstream_keys:
+  candidate_conditional_names:
     - ENCRYPTION_SECRET
+  encryption_secret_minimum_length: 32
+  encryption_secret_conditions:
+    - saved-ai-provider-credentials
+    - agent-workspace
+  unverified_or_absent_upstream_keys: []
   dev_path: unselected-blocker
   prod_path: unselected-blocker
   values_in_source: false
@@ -274,10 +334,22 @@ application_keys:
   rotation_and_revocation_plan: required
   encryption_key_loss_recovery: required-if-agent-or-encrypted-provider-state
 migration:
-  status: blocked-upstream-startup-migration-not-fail-closed
-  upstream_startup_migration_behavior: present-and-unaccepted
-  migration_failure_propagation: absent-blocker
+  status: blocked-upstream-startup-migration-privilege-and-concurrency
+  reviewed_release: v5.2.7-source-tag-only
+  upstream_startup_migration_behavior: always-before-listen-same-database-url
+  migration_failure_propagation: rethrow-and-process-exit-one
+  transaction_scope: all-pending-sql-single-begin-commit
+  distributed_or_advisory_lock: absent-blocker
+  lock_timeout: absent-blocker
+  checksum_comparison: absent-name-only-selection
+  migration_only_mode: absent-blocker
+  startup_migration_disable_flag: absent-blocker
+  separate_migration_database_url: absent-blocker
+  destructive_or_broad_ddl_observed: true
+  runtime_role_without_ddl_compatible_with_upstream: false
+  current_cnpg_owner_inherit_setting: true-conflicts-with-required-noinherit
   dedicated_migration_actor: absent-blocker
+  required_remediation: reviewed-source-patch-plus-single-run-locked-migration-job
   migration_lock: required
   pre_migration_backup: required
   expand_contract_or_forward_compatible: required
@@ -337,16 +409,21 @@ source_closure:
   source_manifest_files: []
   no_runtime_objects_added: true
   no_secret_values_added: true
-  no_image_digest_claimed: true
+  no_selected_image_digest_claimed: true
+  candidate_digest_is_not_selection: true
   executable_workload_source: absent-blocker
   apply_capable_wrapper: absent
-  runtime_contact:
+  runtime_mutation:
     host: forbidden
     registry: forbidden
     kubernetes_api: forbidden
     infisical_api: forbidden
     database: forbidden
     provider: forbidden
+  read_only_research_contact:
+    github_source_and_release_metadata: performed
+    docker_hub_oci_metadata_and_attestations: performed
+    kubernetes_absence_inventory: performed
   ownership:
     bootstrap: ansible-bounded-source-only
     future_reconciler: argocd-after-evidenced-handoff
@@ -454,7 +531,8 @@ source_closure_review:
   prod_promotion_template_only: true
   no_runtime_objects_added: true
   no_secret_values_added: true
-  no_image_digest_claimed: true
+  no_selected_image_digest_claimed: true
+  candidate_digest_is_not_selection: true
   broad_infisical_lanes_reusable: false
   broad_postgresql_lanes_reusable: false
   current_runtime_state: observed-absent-2026-08-21-read-only-inventory

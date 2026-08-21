@@ -5,9 +5,11 @@
 **SOURCE POLICY ONLY — RUNTIME BLOCKED / DEV CONTRACT INCOMPLETE.** Reactive Resume
 is a planned private DEV MVP in `cristexhub-dev`. A bounded read-only inventory on
 2026-08-21 found no matching Reactive Resume Kubernetes objects; this is point-in-time
-evidence, not reconciliation. This revision adds only a value-free blocker inventory and does not add a deployable manifest,
-apply-capable wrapper, Secret, image digest, Namespace, database object, identity
-mutation, route, or runtime state. PROD remains a reservation/template only and
+evidence, not reconciliation. This revision adds only a value-free blocker inventory
+and a candidate-only image provenance record; the recorded digest is not selected or
+deployable. It adds no deployable manifest, apply-capable wrapper, Secret, Namespace,
+database object, identity mutation, route, or runtime state. PROD remains a
+reservation/template only and
 cannot be activated from this policy.
 
 The canonical contract is
@@ -18,15 +20,31 @@ authorized by this document.
 ## Source boundary
 
 Local Compose tags, callbacks, credentials, development realms, and application
-assets are not hosted inputs. The official upstream release, immutable linux/amd64
-image digest, publisher/build trust, SBOM, vulnerability disposition, off-node OCI
-recovery, and target pull/admission evidence remain unselected. GitHub Actions does
-not rebuild the upstream image and no mutable tag is deployable.
+assets are not hosted inputs. Read-only source and Docker Hub review recorded
+upstream tag `v5.2.7` at commit
+`5392728f22580ac107cad25a5ccfcde962133535`, OCI index
+`sha256:656a7ce0409ea1b8fcdb4985320d8b687b94da1201d10af13fd1e2c7c74f6083`,
+linux/amd64 child
+`sha256:befa93b3af3e8fe91a4dd02401fc7996c4aa2f19641463e3b2aaa77089caff5a`,
+and config
+`sha256:7f2c997d1f48b152e649c2561e0e23e2d5bc7d9e7e7dbf3e6cac7dd1a6f002f7`.
+This is specifically `docker.io/amruthpillai/reactive-resume`; it makes no GHCR
+registry-equivalence claim.
+
+The image config instead identifies revision
+`3221afda9ddfb03d6cce87927b0ce47338b4cfa8`, 16 commits and 150 files beyond the
+release tag, and was created after that release. The index signature plus SPDX and
+SLSA attestations were observed, but direct linux/amd64-child signing was not;
+vulnerability disposition, off-node OCI recovery, and target admission remain
+absent. The digest is therefore candidate-only, **not selected and not deployable**.
+GitHub Actions does not rebuild it.
 
 No first-party Kubernetes operator/chart has been accepted. Any future Kubernetes
-translation must be based on one reviewed upstream release and must not silently
-copy Compose assumptions, environment-variable names, health endpoints, migration
-behavior, storage semantics, or printer/browser dependencies.
+translation requires a patched, reproducibly bound source/image and must not
+silently copy Compose assumptions. Reviewed source facts include container port
+`3000`, `GET /api/health` returning `200` or `503` from database/storage checks, no
+Browserless requirement, and client-side PDF rendering; they are evidence, not a
+runtime contract.
 
 ## DEV placement and explicit blockers
 
@@ -76,39 +94,59 @@ The DEV contract is incomplete and blocked on all of the following:
   The retained `cristexhub` realm remains PROD-compatible and read-only during this
   transition. Do not mutate either client from this policy. Before runtime, pin one
   upstream release and verify its candidate custom callback
-  `${APP_URL}/api/auth/oauth2/callback/custom`, web origin, issuer/JWKS/signature/
-  nonce enforcement, PKCE, scopes, audience, logout/account-linking, and local
-  password-login disablement. Upstream profile mapping must not manufacture trusted
-  `email_verified`, and Keycloak groups/organizations must not become an application
-  authorization boundary. Wrong issuer/audience/key, replay, expired-token, and
-  cross-environment tests remain mandatory. PROD gets a separate client only after
-  DEV acceptance.
+  `${APP_URL}/api/auth/oauth2/callback/custom`, web origin, scopes, and audience.
+  The reviewed integration has sound signed-cookie/DB-backed one-time state but no
+  PKCE or OIDC nonce, decodes ID tokens without signature/JWKS/issuer/audience/
+  expiry verification, hardcodes new OAuth users as email-verified, leaves the
+  direct username/password endpoint usable despite the email-auth flag, permits
+  insufficiently trusted account linking, does not consistently bind accounts to
+  OIDC `sub`, and performs only local logout. Configuration alone cannot remediate
+  this. A reviewed source patch or equivalent validating broker must add exact token
+  validation, PKCE S256, nonce/replay handling, trustworthy `email_verified`, full
+  local-auth disablement, stable account continuity, and RP-initiated logout.
+  Keycloak groups/organizations must not become an application authorization
+  boundary. Wrong issuer/audience/key, replay, expired-token, local-login,
+  account-linking, and cross-environment tests remain mandatory. PROD gets a
+  separate client only after DEV acceptance.
 - **Object storage:** PostgreSQL stores resume JSON but is not the whole application
   state. Reviewed v5 candidates also persist pictures and PDFs; screenshots are
   cache-like objects whose recovery semantics still require review. The observed
-  upstream public-read ACL and unauthenticated `/uploads` behavior are activation
-  blockers. Select a private backend with separate DEV/PROD scope, encryption,
+  upstream public-read ACL, unauthenticated and publicly immutable-cacheable
+  `/uploads` behavior, and arbitrary upload MIME acceptance are activation blockers.
+  Partial S3 configuration also silently falls back to local storage, while health
+  proves only a fixed-key put/delete. A source patch plus a private backend with
+  separate DEV/PROD scope, authenticated reads, strict MIME policy, encryption,
   versioning/immutable manifests, URL continuity, checksum/readback, bucket-policy
-  proof, and database/object-consistent encrypted backup and isolated restore. Local
-  ephemeral container storage is forbidden.
-- **Redis and AI:** no server-side Agent or Redis requirement is accepted for the
-  reviewed v5 candidate. Do not deploy Redis or claim server-side AI state. Any
-  future release that adds those dependencies requires a new pinned review; browser
-  local AI-key state is not authoritative server state.
-- **Application keys:** exact key names remain unselected until one upstream release
-  is pinned. Current candidate names include `AUTH_SECRET`, `OAUTH_CLIENT_SECRET`,
-  while `ENCRYPTION_SECRET` was not observed and must not be invented. Candidate
-  names are not an exact contract. Key names, per-environment paths, independent custody,
-  retrieval/decryption rehearsal, rotation/revocation, and key-loss recovery are
-  unselected blockers. Values never enter Git, argv, environment examples, logs, or
-  evidence.
-- **Migrations and recovery:** reviewed v5 startup migrations and their non-failing
-  error handling are unaccepted blockers. Executable source requires upstream
-  hardening or a separately proven fail-closed migration mechanism, lock,
-  pre-migration backup, forward-compatible expand/contract policy, and schema rollback evidence are
-  required. Separate PostgreSQL, object-storage, application-key, and (if enabled)
-  Redis recovery scopes, encrypted off-node copies, integrity/readback, isolated
-  restore, login/upload validation, and measured RPO/RTO are absent blockers. The
+  proof, and database/object-consistent encrypted backup and isolated restore are
+  required. Local ephemeral container storage is forbidden.
+- **Redis and AI:** v5.2.7 contains a server Agent workspace. It conditionally
+  requires `REDIS_URL` and `ENCRYPTION_SECRET`; Agent attachments additionally
+  require private S3, and Redis is absent from `/api/health`. Agent and Redis remain
+  disabled and unselected for the MVP. They may not be deployed until a separate
+  feature, health, Secret, storage, NetworkPolicy, backup, and recovery review is
+  accepted. Browser-local AI-key state is not authoritative server state.
+- **Application keys:** reviewed candidate keys include required `AUTH_SECRET` and
+  custom-provider `OAUTH_CLIENT_SECRET`. `ENCRYPTION_SECRET` is a genuine upstream
+  conditional key with a minimum length of 32 for saved AI-provider credentials and
+  the Agent workspace. This inventory is not a materialization contract because the
+  source patch and enabled feature set are not selected. Exact per-environment paths,
+  independent custody, retrieval/decryption rehearsal, rotation/revocation, and
+  key-loss recovery remain blockers. Values never enter Git, argv, environment
+  examples, logs, or evidence.
+- **Migrations and recovery:** v5.2.7 always runs embedded Drizzle migrations with
+  the runtime `DATABASE_URL` before listening. Failure is fail-closed by rethrow and
+  process exit, and pending SQL runs in one transaction; however, selection is by
+  migration name rather than checksum and there is no advisory/distributed lock,
+  timeout, migration-only mode, startup-disable flag, or separate migration URL.
+  Broad/destructive DDL exists. The existing CNPG role also has `inherit: true`,
+  contradicting the required `NOINHERIT`, and the unpatched runtime cannot use a
+  DDL-free role. Executable source therefore requires a reviewed source patch plus a
+  single-run locked migration Job, distinct migration/runtime privileges,
+  pre-migration backup, forward-compatible expand/contract policy, and schema
+  rollback evidence. Separate PostgreSQL, object-storage, application-key, and (if
+  enabled) Redis recovery scopes, encrypted off-node copies, integrity/readback,
+  isolated restore, login/upload validation, and measured RPO/RTO are absent
+  blockers. The
   current 24-hour RPO/4-hour RTO values are targets, not acceptance evidence.
 
 No blocker above is satisfied by a policy reservation or by the existing broad
@@ -161,7 +199,8 @@ unaccepted migrations/workloads.
 
 No Deployment, StatefulSet, Service, PVC, Secret, Infisical CR, Database object,
 Ingress, Argo Application, route, image pull, registry write, host, Kubernetes,
-Infisical, database, or provider mutation was performed. The only runtime contact
-was the bounded read-only Kubernetes inventory recorded above.
+Infisical, database, or provider mutation was performed. Read-only contact was
+limited to GitHub source/release metadata, Docker Hub OCI metadata/attestations, and
+the bounded Kubernetes absence inventory recorded above.
 Rollback is a Git revert; namespace/PVC/database deletion and implicit credential
 rotation are forbidden.
