@@ -139,8 +139,11 @@ requires private authenticated catalog/retrieval, encrypted timestamped archives
 non-destructive off-node copy, integrity checks, and isolated restore. Both remain
 source-ready for PostgreSQL and standalone MongoDB but runtime-blocked; the RabbitMQ
 and backup implementations remain policy-only. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
-includes private DEV in the MVP with dedicated PostgreSQL and OIDC scopes while its
-image, callbacks, objects, Secrets, and runtime remain unselected or blocked.
+includes only a planned private DEV reservation. Its dedicated DEV-only Infisical/VAP/
+RBAC and PostgreSQL lanes, realm/issuer/callback/claims, immutable image, durable
+object storage, application-key custody, Redis/AI choice, migration, backup/restore,
+RPO/RTO, NetworkPolicy/TLS identity, Secrets, and runtime remain unresolved or
+blocked; PROD is reservation/template-only and public exposure is forbidden.
 PostgreSQL and standalone MongoDB now have hash-bound present-only source closures
 with retained 40/80 GiB PVCs, bounded resources, private standard Services,
 mandatory TLS/authentication, exact cryptographic Secret validation, and guarded

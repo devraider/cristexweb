@@ -2887,6 +2887,52 @@ provider resource, or route was added. No host, SSH, registry, Kubernetes API,
 Infisical, Secret, provider, Helm, database, or runtime operation occurred. This
 source-only policy closes no manual QA case.
 
+## Reactive Resume DEV blocker inventory hardening — 2026-08-21
+
+The canonical Reactive Resume policy now records an explicitly incomplete,
+value-free DEV blocker inventory rather than claiming a runtime closure. It reserves
+only the future private object boundary in `cristexhub-dev` and the dedicated shared
+PostgreSQL scope `reactive_resume_dev` / `reactive_resume_dev_owner` while keeping
+executable source forbidden. It explicitly blocks reuse of the broad Infisical
+11-target/VAP/RBAC lanes and all-consumer PostgreSQL/CloudNativePG lanes, and records
+unresolved OIDC realm/callback/claims, CNPG TLS/NetworkPolicy identity, durable
+object storage, Redis/AI selection, application-key custody, migration, backup,
+restore, measured RPO/RTO, and DEV-soak gates. PROD remains a reservation/template
+only. No manifest, workload, wrapper, Secret value, image digest, PVC, route, or
+API/provider source was added.
+
+```bash
+/home/paul/projects/cristexweb/.venv/bin/python -m unittest -v \
+  tests.test_reactive_resume_architecture_contract
+/home/paul/projects/cristexweb/.venv/bin/python -m unittest discover \
+  -s tests -p 'test_*.py' -q
+cd ansible && for f in playbooks/*.yml; do \
+  ../.venv/bin/ansible-playbook "$f" --syntax-check >/dev/null || exit; done
+../.venv/bin/ansible-lint . ../tests/validate_storage_report.yml
+cd ..
+/home/paul/projects/cristexweb/.venv/bin/python -m compileall -q \
+  tests/test_reactive_resume_architecture_contract.py
+git diff --check
+git diff --cached --quiet
+```
+
+Actual result:
+
+```text
+Reactive Resume focused blocker-contract tests: 13 passed
+Full offline suite: 427/427 passed
+All 47 playbook syntax checks passed
+Production-profile lint passed with only 14 configured pre-existing warnings
+Python compile: passed
+Diff hygiene passed; no runtime/API/provider operation occurred
+```
+
+The DEV runtime remains blocked pending dedicated source lanes, immutable upstream
+image/trust/recovery, exact OIDC contract, canonical PostgreSQL owner/NOINHERIT/ACL
+and negative tests, CNPG-compatible TLS/NetworkPolicy, object-storage backup/restore,
+application-key recovery, migration safety, measured RPO/RTO, private validation,
+and an explicit DEV soak. PROD cannot be generated or activated from its reservation.
+
 ## GitHub source CI and Reactive Resume private-MVP policy — 2026-08-09
 
 This increment adds one infrastructure source-CI workflow and a value-free Reactive

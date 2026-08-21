@@ -1,29 +1,70 @@
 ---
-policy_schema: cristex-reactive-resume-v1
+policy_schema: cristex-reactive-resume-v3
 policy_status: source-policy-only-runtime-blocked
 mvp_scope: included-private-dev
 environments:
   dev:
     namespace: cristexhub-dev
     identity_client: reactive-resume-dev
-    activation: blocked
+    activation: blocked-pending-dedicated-dev-lanes-and-private-acceptance
   prod:
     namespace: cristexhub-prod
     identity_client: reactive-resume-prod
-    activation: blocked
+    activation: promotion-blocked-template-only
 image_source:
   selection: unselected
   repository: null
   version: null
   linux_amd64_digest: null
   trust_accepted: false
+  sbom_and_vulnerability_review: unaccepted-blocker
+  off_node_oci_recovery: unaccepted-blocker
+  target_pull_and_admission: unaccepted-blocker
   github_actions_build_owner: upstream-not-rebuilt
+  upstream_release_contract: unselected-blocker
+  environment_variable_allowlist: unselected-blocker
+  health_and_readiness_endpoint: unselected-blocker
+  migration_command_and_locking: unselected-blocker
+  printer_or_browser_dependency: unselected-blocker
 identity:
-  issuer: https://auth.cristex-soft.com/realms/cristexhub
+  status: blocked-successor-realm-not-live-and-upstream-oidc-hardening-unaccepted
+  realm: cristexhub-dev
+  issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
+  candidate_realms:
+    retained_prod_compatible: cristexhub
+    successor_dev_source: cristexhub-dev
+  candidate_issuers:
+    retained_prod_compatible: https://auth.cristex-soft.com/realms/cristexhub
+    successor_dev_source: https://auth.cristex-soft.com/realms/cristexhub-dev
+  clients:
+    dev:
+      id: reactive-resume-dev
+      namespace: cristexhub-dev
+      status: source-only-successor-client-absent-blocker
+    prod:
+      id: reactive-resume-prod
+      namespace: cristexhub-prod
+      status: reservation-only
   exact_callbacks_selected: false
   exact_web_origins_selected: false
+  exact_post_logout_selected: false
+  pkce_s256_selected: false
+  scopes_selected: false
+  audience_selected: false
+  claims_selected: false
+  group_authorization_selected: false
+  logout_and_account_linking_selected: false
+  discovery_and_jwks_validation: unaccepted-blocker
+  positive_negative_oidc_tests: unaccepted-blocker
   administrator_surface: private-only
   local_development_inputs_allowed: false
+  cross_environment_issuer_or_client_reuse: forbidden
+  contract_required_before_client_mutation: true
+  authorization:
+    exact_client_role_set: unselected-blocker
+    exact_field_projection: unselected-blocker
+    view_clients_role: forbidden-until-reviewed
+    group_view_and_membership_roles: forbidden-until-reviewed
 database:
   policy_path: ansible/files/policies/shared-database-architecture.yml
   engine: postgresql
@@ -31,32 +72,368 @@ database:
     dev: reactive-resume-dev
     prod: reactive-resume-prod
   separate_engine_or_pvc_per_environment: false
+  canonical_lane:
+    status: unresolved-dual-owner-blocker
+    lifecycle_owner_candidate: cloudnative-pg-database-and-role-crs-via-ansible
+    acl_hardening_candidate: bounded-helper-read-and-acl-only
+    final_owner_selection: required-before-source
+    allowed_consumers:
+      - reactive-resume-dev
+    dev_only_selector: exact-consumer-and-secret-binding
+    prod_consumer_in_dev_run: forbidden
+    all_consumer_apply_in_dev_run: forbidden
+    check_apply_idempotence_required: true
+    broad_shared_postgresql_wrapper_reuse: forbidden
+    helper_role_or_database_lifecycle: forbidden
+    simultaneous_cnpg_and_helper_lifecycle: forbidden
+    source_lane_selection: one-canonical-lane-only
+  capacity_and_failure_domain:
+    shared_single_engine_failure_domain: acknowledged
+    connection_headroom: unselected-blocker
+    storage_headroom: unselected-blocker
+    migration_headroom: unselected-blocker
+    backup_staging_headroom: unselected-blocker
+    restore_headroom: unselected-blocker
+    contention_review: required-before-dev-apply
+  current_broad_lanes:
+    shared_postgresql_wrapper_all_consumer_scopes: forbidden-for-reactive-resume-activation
+    cloudnative_pg_rr_database_objects: forbidden-for-reactive-resume-activation
+    implicit_prod_scope_creation: forbidden
+    broad_lane_remediation: required-before-dev-apply
+  owner_role_contract:
+    status: absent-blocker
+    role: reactive_resume_dev_owner
+    database: reactive_resume_dev
+    superuser: false
+    createdb: false
+    createrole: false
+    inherit: false
+    replication: false
+    bypassrls: false
+    login: true
+    public_connect: revoke
+    public_schema_create: revoke
+    role_memberships: []
+    cross_database_access: deny
+    own_database_privileges_only: required
+    acl_projection: exact-allowlisted-owner-and-runtime-privileges
+    negative_tests:
+      - reactive-resume-dev-to-reactive-resume-prod
+      - reactive-resume-prod-to-reactive-resume-dev
+      - reactive-resume-dev-to-cristexhub-dev
+      - reactive-resume-dev-to-cristexhub-prod
+      - reactive-resume-dev-to-keycloak
+      - reactive-resume-dev-create-database
+      - reactive-resume-dev-create-role
+      - reactive-resume-dev-public-schema-create
+  tls_and_network:
+    status: absent-blocker
+    service_identity: unresolved-blocker
+    tls_secret_identity: unresolved-blocker
+    cnpg_server_tls_secret: required-before-selection
+    cnpg_compatible_network_policy: required-before-selection
+    network_policy_source: absent-blocker
+    default_deny: required
+    allowed_destinations: exact-service-and-port-only
+    broad_namespace_or_selector_allow: forbidden
+    direct_database_origin: forbidden
 secrets:
   value_owner: infisical-cloud
   values_allowed_in_source: false
   environment_scopes_separate: true
+  current_broad_lanes:
+    infisical_database_secret_seam_reuse: forbidden-for-reactive-resume-activation
+    infisical_manager_broad_secret_reads: forbidden
+    all_eleven_target_materialization: forbidden
+    alternate_target_vap_reuse: forbidden-until-reviewed-with-live-typecheck-and-truth-table
+    broad_runtime_secret_writer_reuse: forbidden
+    shared_database_secret_in_shared_services_only: forbidden-insufficient-for-app-namespace
+  dedicated_dev_only:
+    status: absent-blocker
+    source: absent
+    target_namespace: cristexhub-dev
+    target_name: reactive-resume-runtime
+    infisical_path: unselected-blocker
+    exact_keys: unselected-until-upstream-config-review
+    dedicated_machine_identity: absent-blocker
+    dedicated_writer: absent-blocker
+    materialization: forbidden-until-dedicated-lane
+    value_generation: forbidden
+    value_output: forbidden
+    target_type: Opaque
+    target_labels: exact-environment-and-owner-required
+    target_foreign_namespace: deny
+    target_foreign_name: deny
+  dedicated_prod_template_only:
+    status: reservation-only
+    source: absent
+    target_namespace: cristexhub-prod
+    materialization: forbidden-before-dev-soak
+  vap_rbac:
+    status: absent-blocker
+    dev_vap_source: absent
+    dev_vap_exact_target_only: required
+    existing_namespace_inequality_validation: preserve-correct-deny-predicate
+    existing_matchcondition-skip-and-typecheck-findings: blocker
+    alternate_target_in_target_namespace: deny
+    foreign_target_name: deny
+    foreign_target_namespace: deny
+    mutating_verbs: [create, update, patch, delete]
+    exact_mutation_boundary: required
+    dev_writer_role_source: absent
+    writer_resource_names: exact-target-only
+    broad_secret_create: forbidden
+    broad_secret_get_list_watch: forbidden
+    shared_manager_role_reuse: forbidden
+    pushsecret_and_dynamicsecret_foreign_targets: deny
 exposure:
   current_scope: private-only
   service_identity: unselected
   ports: unselected
   forbidden:
-    - public-route
+    - Ingress
     - NodePort
     - LoadBalancer
+    - CloudflareTunnel
+    - Tunnel
+    - CloudflareDNS
+    - public-route
     - public-administration
+    - direct-origin
+  traefik_ingress: forbidden-until-separate-public-cutover
+  cloudflare_route: forbidden-until-separate-public-cutover
+  dns_mutation: forbidden
 ownership:
   bootstrap_installer: ansible
   future_namespaced_reconciler: argocd-after-evidenced-handoff
   runtime_value_owner: infisical-cloud
+  dual_reconciliation: forbidden
+object_storage:
+  status: blocked-authoritative-state-unselected
+  required_for_runtime: true
+  authority: durable-application-state
+  backend_selection: unselected-blocker
+  provider: unselected-blocker
+  dev_bucket_or_prefix: unselected-blocker
+  prod_bucket_or_prefix: unselected-blocker
+  environment_scopes_separate: true
+  private_access_only: required
+  encryption_at_rest: required
+  versioning_or_immutable_manifest: required
+  url_continuity: required
+  database_reference_consistency: required
+  encrypted_off_node_backup: required
+  isolated_object_restore: required
+  object_manifest_checksum_readback: required
+  local_ephemeral_storage_only: forbidden
+redis_ai:
+  status: blocked-feature-selection
+  feature_selection: unresolved-blocker
+  ai_agent: disabled-until-explicit-selection-and-review
+  redis: forbidden-until-agent-feature-selected
+  core_application_without_agent: required-test-before-runtime
+  active_streams: non_authoritative_transient_if-enabled
+  redis_backup_as_authoritative_state: forbidden
+  dev_prod_redis_scope_separation: required-if-enabled
+  private_authenticated_tls_redis: required-if-enabled
+application_keys:
+  status: blocked-key-inventory-and-recovery-unselected
+  exact_key_names: unselected-until-pinned-upstream-release
+  candidate_required_names:
+    - AUTH_SECRET
+    - OAUTH_CLIENT_SECRET
+  candidate_conditional_names:
+    - ENCRYPTION_SECRET
+  dev_path: unselected-blocker
+  prod_path: unselected-blocker
+  values_in_source: false
+  values_in_argv: false
+  values_in_environment_examples: false
+  values_in_evidence: false
+  independent_custody: required
+  retrieval_and_decryption_rehearsal: required
+  rotation_and_revocation_plan: required
+  encryption_key_loss_recovery: required-if-agent-or-encrypted-provider-state
+migration:
+  status: blocked-migration-actor-and-rollback-unselected
+  automatic_startup_migrations: forbidden
+  dedicated_migration_actor: absent-blocker
+  migration_lock: required
+  pre_migration_backup: required
+  expand_contract_or_forward_compatible: required
+  rollback_by_database_restore_only: forbidden-as-routine
+  schema_compatibility_evidence: unaccepted-blocker
+backup_restore:
+  status: blocked-no-reactive-resume-scope
+  postgresql_scope: absent-blocker
+  object_storage_scope: absent-blocker
+  redis_scope: non_authoritative-rebuild-if-enabled
+  application_key_scope: absent-blocker
+  database_and_object_consistency: required
+  encrypted_off_node_copy: required
+  integrity_readback: required
+  isolated_restore: required
+  login_and_upload_restore_tests: required
+  measured_rpo_rto: false
+  rpo: 24h-target-not-accepted
+  rto: 4h-target-not-accepted
+  clean_host_restore: required
+  remote_retention: unaccepted-blocker
 promotion_gates:
   immutable_image_selected: false
   image_trust_and_recovery_accepted: false
-  exact_callbacks_and_origins_selected: false
-  database_storage_accepted: false
+  exact_realm_and_callbacks_selected: false
+  exact_oidc_claims_and_negative_tests_accepted: false
+  dedicated_infisical_dev_lane_accepted: false
+  dedicated_database_dev_lane_accepted: false
+  database_owner_noinherit_acl_accepted: false
   database_backup_and_restore_proved: false
-  infisical_bootstrap_recovery_proved: false
+  object_storage_backup_and_restore_proved: false
+  application_key_recovery_proved: false
+  migration_rollback_proved: false
+  redis_ai_scope_selected: false
   resources_and_probes_accepted: false
-  network_policy_accepted: false
+  network_policy_and_tls_identity_accepted: false
+  no_public_ingress_tunnel_cloudflare_proved: false
   one_writer_handoff_proved: false
   private_dev_runtime_approved: false
+  private_dev_validation_accepted: false
+  dev_soak_completed: false
+  prod_activation_approved: false
+  prod_public_route_approved: false
+promotion_order:
+  dev_private_validation_before_prod: required
+  dev_soak_before_prod: required
+  separate_prod_credentials_and_database: required
+  simultaneous_dev_prod_activation: forbidden
+  prod_runtime_objects_from_reservation: forbidden
+  public_route_last: required
 executable_source_allowed: false
+source_closure:
+  status: value-free-policy-only-incomplete-blocked
+  dev_contract_complete: false
+  prod_promotion_template_only: true
+  source_manifest_files: []
+  no_runtime_objects_added: true
+  no_secret_values_added: true
+  no_image_digest_claimed: true
+  executable_workload_source: absent-blocker
+  apply_capable_wrapper: absent
+  runtime_contact:
+    host: forbidden
+    registry: forbidden
+    kubernetes_api: forbidden
+    infisical_api: forbidden
+    database: forbidden
+    provider: forbidden
+  ownership:
+    bootstrap: ansible-bounded-source-only
+    future_reconciler: argocd-after-evidenced-handoff
+    values: infisical-cloud
+    dual_reconciliation: forbidden
+  reversible_rollback:
+    mechanism: git-revert-source-only
+    namespace_delete: forbidden
+    pvc_delete: forbidden
+    database_drop: forbidden
+    credential_rotation: separate-approval-only
+  dev:
+    namespace: cristexhub-dev
+    activation: blocked-pending-dedicated-lanes-and-private-acceptance
+    source_template: false
+    object_contract:
+      source_status: absent-until-separate-approved-closure
+      exact_objects:
+        deployment: absent-until-image-and-config-review
+        service: absent-until-image-and-config-review
+        network_policies: absent-until-selector-and-tls-review
+        ingress: forbidden
+        pvc: absent-until-object-storage-review
+        argo_application: absent-until-object-by-object-handoff
+      no_runtime_source: true
+    database_scope:
+      engine_namespace: shared-services
+      engine: postgresql
+      consumer: reactive-resume-dev
+      logical_database: reactive_resume_dev
+      owner_role: reactive_resume_dev_owner
+      credential_secret: shared-postgresql-reactive-resume-dev
+      credential_keys: [username, password]
+      credential_values: forbidden
+      materialization: blocked-pending-dedicated-dev-lane
+      cross_database_access: deny
+      dedicated_pvc_or_engine: forbidden
+    identity_scope:
+      realm: cristexhub-dev
+      issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
+      realm_runtime_state: absent-blocker
+      client_id: reactive-resume-dev
+      namespace: cristexhub-dev
+      callbacks: unselected-blocker
+      web_origins: unselected-blocker
+      post_logout_redirects: unselected-blocker
+      client_secret_state: infisical-owned-unmaterialized
+      cross_environment_identity: forbidden
+    runtime_secret_contract:
+      target_namespace: cristexhub-dev
+      target_name: reactive-resume-runtime
+      target_type: Opaque
+      exact_keys: unselected-until-image-and-config-review
+      values: forbidden
+      source_path: unselected-blocker
+      materialization: forbidden-in-this-increment
+  prod:
+    namespace: cristexhub-prod
+    activation: promotion-blocked-until-dev-private-acceptance-and-soak
+    source_template: true
+    manifest_source: absent-promotion-template-only
+    no_prod_runtime_from_this_contract: true
+    promotion_reference: exact-accepted-dev-image-and-source-revision-only
+    object_contract:
+      template_of: source_closure.dev.object_contract
+      namespace: cristexhub-prod
+      identity_client: reactive-resume-prod
+      database_consumer: reactive-resume-prod
+      target_secret: reactive-resume-prod-runtime
+      callbacks: unselected-blocker
+      web_origins: unselected-blocker
+      public_route: forbidden-until-separate-cutover-approval
+      runtime_objects: absent
+      generated_manifests: forbidden
+    database_scope:
+      engine_namespace: shared-services
+      engine: postgresql
+      consumer: reactive-resume-prod
+      logical_database: reactive_resume_prod
+      owner_role: reactive_resume_prod_owner
+      credential_secret: shared-postgresql-reactive-resume-prod
+      credential_values: forbidden
+      materialization: blocked-promotion-only
+      cross_database_access: deny
+    identity_scope:
+      realm: cristexhub
+      issuer: https://auth.cristex-soft.com/realms/cristexhub
+      realm_role: retained-prod-compatible
+      client_id: reactive-resume-prod
+      callbacks: unselected-blocker
+      web_origins: unselected-blocker
+      post_logout_redirects: unselected-blocker
+      client_secret_state: infisical-owned-unmaterialized
+      cross_environment_identity: forbidden
+    runtime_secret_contract:
+      target_namespace: cristexhub-prod
+      target_name: reactive-resume-prod-runtime
+      target_type: Opaque
+      exact_keys: unselected-until-promotion-review
+      values: forbidden
+      source_path: unselected-blocker
+      materialization: forbidden-in-this-increment
+source_closure_review:
+  dev_contract_complete: false
+  prod_promotion_template_only: true
+  no_runtime_objects_added: true
+  no_secret_values_added: true
+  no_image_digest_claimed: true
+  broad_infisical_lanes_reusable: false
+  broad_postgresql_lanes_reusable: false
+  current_runtime_state: unknown

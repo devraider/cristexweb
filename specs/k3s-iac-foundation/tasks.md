@@ -411,10 +411,13 @@ logs, or bootstrap cannot be recovered.
   deny-first authorization, private-only exposure, Infisical value ownership, and
   closed promotion gates without adding executable objects (`KIF-005`, `KIF-013`,
   `KIF-016`–`KIF-019`, `KIF-021`, `KIF-026`–`KIF-030`).
-- [x] Add a value-free Reactive Resume hosted policy/runbook that includes private
-  DEV in the MVP, reserves separate DEV/PROD OIDC and PostgreSQL scopes, and keeps
-  image/callback/object/Secret/recovery/runtime gates false (`KIF-012`–`KIF-017`,
-  `KIF-021`, `KIF-023`, `KIF-026`–`KIF-030`).
+- [x] Add the value-free Reactive Resume hosted policy/runbook and checked
+  source-only DEV blocker inventory: reserve the future one-replica private
+  Deployment/ClusterIP/deny-first NetworkPolicy boundary in `cristexhub-dev`,
+  dedicated shared-PostgreSQL `reactive_resume_dev` scope, and explicit blockers
+  for image/OIDC/Infisical/database/storage/recovery; keep executable source
+  forbidden and PROD as a promotion-blocked template only (`KIF-012`–`KIF-017`,
+  `KIF-021`, `KIF-023`, `KIF-026`–`KIF-030`). Runtime closure remains incomplete.
 - [x] Add the source-only guarded logical provisioning lane for one general
   PostgreSQL instance and standalone MongoDB: exact five PostgreSQL and two MongoDB
   empty reservations, precreated Infisical consumer Secret contracts, no-secret-argv
