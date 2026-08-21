@@ -76,8 +76,9 @@ The private registration and synchronization gates below have completed:
 - separately approved Infisical Operator PROD watch/RBAC/admission expansion;
 - Universal Auth and exact `cristexhub-prod-runtime` plus
   `cristexhub-prod-ghcr-pull` materialization;
-- isolated PostgreSQL, MongoDB, RabbitMQ, and Redis PROD scopes plus recovery
-  and negative cross-access evidence;
+- live PostgreSQL, MongoDB, RabbitMQ, and Redis PROD scopes; MongoDB private
+  ingress isolation is still blocked by its NetworkPolicy gap, while stateful
+  recovery and negative cross-access evidence remain separate gates;
 - exact Keycloak `cristexhub-prod` client reconciliation and private OIDC tests;
 - private workload validation and Argo sync transition.
 
@@ -94,6 +95,6 @@ sh -n ansible/bin/bootstrap-cristexhub-prod-registration
 cd ansible && ../.venv/bin/ansible-playbook playbooks/bootstrap_cristexhub_prod_registration.yml --syntax-check
 ```
 
-Expected result: offline checks pass; no provider, host, Kubernetes, Infisical,
-Argo, Keycloak, database, broker, Secret, image, DNS, or Cloudflare mutation is
-performed.
+Expected result: these offline checks pass without mutation. The private runtime
+and Argo evidence above is already applied; no provider or Cloudflare route mutation
+is performed by these offline commands.

@@ -1,0 +1,272 @@
+---
+- name: Reject externally supplied shared MongoDB NetworkPolicy internals
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied shared MongoDB
+      NetworkPolicy variable {{ item }}.
+  loop:
+    - shared_mongodb_networkpolicy_bootstrap_internal_attestation_state
+    - shared_mongodb_networkpolicy_bootstrap_internal_source_states
+    - shared_mongodb_networkpolicy_bootstrap_internal_manifests
+    - shared_mongodb_networkpolicy_bootstrap_internal_identity_keys
+    - shared_mongodb_networkpolicy_bootstrap_internal_prestate
+    - shared_mongodb_networkpolicy_bootstrap_internal_namespace
+    - shared_mongodb_networkpolicy_bootstrap_internal_mongodb
+    - shared_mongodb_networkpolicy_bootstrap_internal_pods
+    - shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding
+  changed_when: false
+
+- name: Require source-only shared MongoDB NetworkPolicy approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE') | length > 0
+      - shared_mongodb_networkpolicy_bootstrap_approved | bool
+      - shared_mongodb_networkpolicy_bootstrap_state == 'present'
+      - ansible_check_mode | bool
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - shared_mongodb_networkpolicy_bootstrap_manifest_paths | length == 2
+      - shared_mongodb_networkpolicy_bootstrap_expected_hashes | length == 2
+      - shared_mongodb_networkpolicy_bootstrap_object_count == 2
+      - shared_mongodb_networkpolicy_bootstrap_namespace == 'shared-services'
+      - shared_mongodb_networkpolicy_bootstrap_mongodb_cr_name == 'shared-mongodb'
+    fail_msg: Refusing anything outside the source-only two-policy shared MongoDB closure.
+  changed_when: false
+
+- name: Inspect private single-run shared MongoDB NetworkPolicy attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: shared_mongodb_networkpolicy_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require private source-only attestation
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_networkpolicy_bootstrap_internal_attestation_state.stat.exists | default(false)
+      - shared_mongodb_networkpolicy_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (shared_mongodb_networkpolicy_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - shared_mongodb_networkpolicy_bootstrap_internal_attestation_state.stat.pw_name == shared_mongodb_networkpolicy_bootstrap_controller_user
+      - shared_mongodb_networkpolicy_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing missing, reusable, foreign-owned, symlinked, or invalid source-only attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact shared MongoDB NetworkPolicy source leaves
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_manifest_paths }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_source_states
+  delegate_to: localhost
+  changed_when: false
+
+- name: Require hash-bound source-only policy leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == shared_mongodb_networkpolicy_bootstrap_controller_user
+      - item.stat.mode == '0644'
+      - (item.item | realpath) == item.item
+      - >-
+        item.stat.checksum == (
+          shared_mongodb_networkpolicy_bootstrap_expected_hashes |
+          selectattr('path', 'equalto', item.item) |
+          map(attribute='sha256') | first
+        )
+      - >-
+        item.item.startswith(
+          shared_mongodb_networkpolicy_bootstrap_repository_root ~
+          '/ansible/files/components/shared-mongodb-networkpolicy/'
+        )
+    fail_msg: Refusing missing, unsafe, or hash-drifted shared MongoDB NetworkPolicy source.
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_source_states.results }}"
+  delegate_to: localhost
+  changed_when: false
+
+- name: Load exact source-only shared MongoDB NetworkPolicy objects
+  ansible.builtin.set_fact:
+    shared_mongodb_networkpolicy_bootstrap_internal_manifests: >-
+      {{ (shared_mongodb_networkpolicy_bootstrap_internal_manifests | default([])) +
+      [lookup('ansible.builtin.file', item) | from_yaml] }}
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact source-only policy identities
+  ansible.builtin.set_fact:
+    shared_mongodb_networkpolicy_bootstrap_internal_identity_keys: >-
+      {{
+        (shared_mongodb_networkpolicy_bootstrap_internal_identity_keys | default([])) +
+        [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+        (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name]
+      }}
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_manifests }}"
+  changed_when: false
+  no_log: true
+
+- name: Require exact two-policy inventory and no generated resources
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_networkpolicy_bootstrap_internal_manifests | length == 2
+      - shared_mongodb_networkpolicy_bootstrap_internal_identity_keys | unique | length == 2
+      - shared_mongodb_networkpolicy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 2
+      - shared_mongodb_networkpolicy_bootstrap_internal_manifests | selectattr('metadata.namespace', 'equalto', 'shared-services') | list | length == 2
+      - shared_mongodb_networkpolicy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - shared_mongodb_networkpolicy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Service') | list | length == 0
+      - shared_mongodb_networkpolicy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'StatefulSet') | list | length == 0
+      - shared_mongodb_networkpolicy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Deployment') | list | length == 0
+      - shared_mongodb_networkpolicy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'MongoDBCommunity') | list | length == 0
+      - >-
+        shared_mongodb_networkpolicy_bootstrap_internal_manifests |
+        map(attribute='metadata.name') | list | sort ==
+        ['shared-mongodb-networkpolicy-allow',
+        'shared-mongodb-networkpolicy-default-deny']
+    fail_msg: Refusing source outside the exact two NetworkPolicy closure.
+  changed_when: false
+
+- name: Capture host service health without mutation
+  ansible.builtin.service_facts:
+  register: shared_mongodb_networkpolicy_bootstrap_internal_services
+  check_mode: false
+  changed_when: false
+
+- name: Require k3s and Tailscale health
+  ansible.builtin.assert:
+    that:
+      - >-
+        (shared_mongodb_networkpolicy_bootstrap_internal_services.ansible_facts.services |
+        default({})).get('k3s.service', {}).get('state', '') == 'running'
+      - >-
+        (shared_mongodb_networkpolicy_bootstrap_internal_services.ansible_facts.services |
+        default({})).get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: Refusing shared MongoDB NetworkPolicy check while host service health is not proven.
+  changed_when: false
+
+- name: Query established shared-services Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: shared-services
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_namespace
+  changed_when: false
+
+- name: Require exact shared-services Namespace prerequisite
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_networkpolicy_bootstrap_internal_namespace.resources | length == 1
+      - shared_mongodb_networkpolicy_bootstrap_internal_namespace.resources[0].status.phase == 'Active'
+      - shared_mongodb_networkpolicy_bootstrap_internal_namespace.resources[0].metadata.labels.get('kubernetes.io/metadata.name') == 'shared-services'
+    fail_msg: Refusing shared MongoDB NetworkPolicy check without the established shared-services Namespace.
+  changed_when: false
+
+- name: Query live operator-managed MongoDB custom resource
+  kubernetes.core.k8s_info:
+    api_version: mongodbcommunity.mongodb.com/v1
+    kind: MongoDBCommunity
+    namespace: shared-services
+    name: shared-mongodb
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_mongodb
+  changed_when: false
+  no_log: true
+
+- name: Require live operator-managed MongoDB contract
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources | length == 1
+      - shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources[0].spec.version == '8.0.12'
+      - shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources[0].spec.members | int == 1
+      - shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources[0].spec.type == 'ReplicaSet'
+    fail_msg: Refusing NetworkPolicy check without the exact operator-managed shared MongoDB resource.
+  changed_when: false
+  no_log: true
+
+- name: Query live MongoDB pod selector closure
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: shared-services
+    label_selectors:
+      - app=shared-mongodb-svc
+      - app.kubernetes.io/part-of=shared-databases
+      - cristex.io/component=mongodb
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_pods
+  changed_when: false
+  no_log: true
+
+- name: Require at least one live MongoDB pod selected by the policy
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_networkpolicy_bootstrap_internal_pods.resources | length >= 1
+    fail_msg: Refusing NetworkPolicy check because the live MongoDB selector matches no pod.
+  changed_when: false
+
+- name: Query exact NetworkPolicy pre-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_manifests }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Refuse foreign existing NetworkPolicies
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('cristex.io/component') == 'shared-mongodb-networkpolicy'
+    fail_msg: Refusing a foreign existing shared MongoDB NetworkPolicy.
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_prestate.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind source-only shared MongoDB NetworkPolicy preflight
+  ansible.builtin.set_fact:
+    shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN') | hash('sha256') }}"
+      object_count: 2
+      identity_set_sha256: "{{ shared_mongodb_networkpolicy_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
+      prestate_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_prestate.results | length }}"
+      mongodb_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources | length }}"
+      pod_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pods.resources | length }}"
+      namespace_contract: true
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Validate only the exact NetworkPolicy definitions in check mode
+  shared_mongodb_networkpolicy_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_manifests }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_check
+  no_log: true

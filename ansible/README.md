@@ -1,5 +1,17 @@
 # Guarded Ansible operations and read-only discovery
 
+## Current live checkpoint — 2026-08-21
+
+The separately guarded PROD runtime seam, Argo registration, and OIDC proxy policy
+are applied/idempotent. Argo reports private PROD `Synced/Healthy`; backend,
+Celery, frontend, oauth2-proxy, and Redis are ready. RabbitMQ is live for the PROD
+Celery worker, but observed principal/permission drift and credential rotation remain
+open. MongoDB `8.0.12` is live under its operator with TLS/SCRAM, but private
+acceptance is blocked by the absent/mismatched live MongoDB NetworkPolicy. OpenTofu
+remains source-only with no provider initialization, state, plan, or apply; the
+Cloudflare PROD route is committed but unapplied. Historical source-only paragraphs
+below retain their original checkpoint wording and are not current-state claims.
+
 This directory contains bounded read-only discovery plus separately approved,
 non-passthrough host, Namespace, controller, Secret-seam, datastore-preflight, and
 database source closures. Most new closures remain source-only and runtime-blocked;
@@ -500,9 +512,11 @@ authenticated TLS Squid, and eight NetworkPolicies. The archive remains quaranti
 evidence and is never consumed at runtime. The 44-object check/apply/post-check/
 idempotence passed at `ok=30 changed=1`, `ok=35 changed=1`, `ok=30 changed=0`, and
 `ok=35 changed=0`; no Secret value or runtime Infisical CR was created. The wrapper
-continues to require exact separately recovered proxy Secret metadata. A separate guarded Argo CD source closure now exists but
-also remains runtime-unrun; Keycloak, PostgreSQL, MongoDB, and application runtime
-remain absent. A separate source-only [Infisical Argo CD Secret materialization
+continues to require exact separately recovered proxy Secret metadata. The separate
+guarded Argo CD source closure is now live privately and idempotent; historical
+source-only wording below records its pre-apply checkpoint. Keycloak, PostgreSQL,
+RabbitMQ, MongoDB, and the CristexHub PROD application runtime have live checkpoints;
+MongoDB private acceptance remains blocked by its NetworkPolicy gap. A separate source-only [Infisical Argo CD Secret materialization
 seam](../runbooks/infisical-argocd-secret-materialization.md) freezes one
 same-Namespace Universal Auth reference, one Connection/Auth/StaticSecret closure,
 exactly three orphaned Argo targets, additive exact-name Secret RBAC, workload
@@ -526,19 +540,18 @@ target synchronization, and final `ok=62 changed=0 failed=0 skipped=3` idempoten
 pass; private Argo workloads are `Synced/Healthy`, while the public route and
 residual credential rotations remain blocked. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
-PostgreSQL and one standalone MongoDB engine in `shared-services`; guarded,
-hash-bound, present-only source now exists for both database pods while every live
-Secret, check/apply/idempotence, provisioning, recovery, and runtime gate remains
-blocked. CristexHub
-DEV/PROD have isolated scopes on both engines; Reactive Resume DEV/PROD and Keycloak
-have dedicated PostgreSQL scopes. The separate value-free
-[shared RabbitMQ policy](../runbooks/shared-rabbitmq-architecture.md) fixes one future
+PostgreSQL and one MongoDB engine in `shared-services`; PostgreSQL and the
+operator-managed MongoDB runtime are live under separate checkpoints, but MongoDB
+private ingress isolation is not attested because the matching NetworkPolicy is
+absent. CristexHub DEV/PROD have isolated scopes on both engines; Reactive Resume
+DEV/PROD and Keycloak have dedicated PostgreSQL scopes. The separate value-free
+[shared RabbitMQ policy](../runbooks/shared-rabbitmq-architecture.md) fixes one
 engine, exact DEV/PROD vhost/user/limit scopes, and reviewed future-consumer
-admission. The [shared backup policy](../runbooks/shared-stateful-backup-architecture.md)
+admission; its runtime is live for PROD Celery, while least-privilege and recovery
+remain open. The [shared backup policy](../runbooks/shared-stateful-backup-architecture.md)
 requires private authenticated operator retrieval, encrypted timestamped archives,
-non-destructive off-node copy, integrity checks, and isolated restore. RabbitMQ and
-backup remain policy-only; the database closures are source-ready but not runtime
-approvals. The separate [Reactive Resume policy](../runbooks/reactive-resume-hosted-architecture.md) includes
+non-destructive off-node copy, integrity checks, and isolated restore. RabbitMQ
+message/definitions recovery and residual credential rotations remain blocked. The separate [Reactive Resume policy](../runbooks/reactive-resume-hosted-architecture.md) includes
 private DEV in MVP intent while keeping its image, callbacks, objects, Secrets, and
 runtime blocked. GitHub CI may run only syntax/lint and offline contracts from this
 source; it supplies no inventory and invokes no operational wrapper. The repository
@@ -559,11 +572,11 @@ fixed Infisical source identifiers exist; it never carries values. The separate
 `bin/bootstrap-infisical-database-secrets check|apply` wrapper is source-ready but
 remains blocked until both human-created same-Namespace Universal Auth Secrets and
 fixed project/environment/path identifiers exist; it never carries values. The
-separate `bin/bootstrap-infisical-cristexhub-prod-runtime check|apply` wrapper is
-also source-ready but remains blocked until the human-created
-`cristexhub-prod-infisical-universal-auth` metadata exists; it never reads or carries
-values. The Namespace is already Active/idempotent, while all later PROD resources
-remain blocked. Exact present-only source and the distinct
+separate `bin/bootstrap-infisical-cristexhub-prod-runtime check|apply` wrapper was source-ready
+at the historical pre-materialization checkpoint and remains value-free; its
+approved apply and final idempotence passed at `ok=62 changed=0 failed=0 skipped=3`.
+The Namespace is Active/idempotent, Argo private workloads are `Synced/Healthy`, and
+public routing plus residual rotations remain blocked. Exact present-only source and the distinct
 `bin/bootstrap-foundation-namespaces` entrypoint
 exist for `shared-services`; check, separately approved first apply, and separately
 approved idempotence all passed, with the final run converging at `changed=0`. The

@@ -13,7 +13,31 @@ Create a small, educational infrastructure-as-code path at repository-root
 `ansible/`, `opentofu/`, `kubernetes/`, and `runbooks/` that can reproduce and
 recover DEV and PROD without presenting a single node as highly available.
 
-## Approved direction
+## Current live checkpoint — 2026-08-21
+
+Private CristexHub PROD activation is live at revision
+`751885a42798d282e168131db147f13694a0a621`: Argo is `Synced/Healthy`, all five
+PROD Deployments are ready, backend root returns `200`, oauth2-proxy returns the
+expected private `302`, and Celery is ready on the PROD RabbitMQ vhost. The OIDC
+CONNECT proxy admits the reviewed PROD clients.
+
+MongoDB `8.0.12` is live as an operator-managed one-member replica set with
+TLS/SCRAM, but private acceptance remains blocked: the live `shared-mongodb-0` has
+no matching NetworkPolicy and the legacy selectors do not match the live MongoDB or
+backend/Celery labels. RabbitMQ is live but its observed PROD principal and broad
+permission expressions need least-privilege reconciliation. MongoDB/RabbitMQ URL
+credentials and the reused GHCR pull credential require verified rotation; the
+exposed DeepSeek key remains a separate revoke/replace residual.
+
+OpenTofu remains source-only. The committed Cloudflare PROD Tunnel/DNS definitions
+have not been initialized, planned, or applied; no state or provider resource exists,
+and the public route remains unapplied. The source-only paragraphs below preserve
+historical checkpoint evidence and are not current absence claims.
+
+## Approved direction and historical checkpoint narrative
+
+The architecture bullets below intentionally retain earlier source-only statuses for
+traceability; use the current checkpoint above for live state.
 
 - Minimal Ansible owns the Debian host/k3s baseline and is selected as the future bounded bootstrap installer for exact foundational Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, one self-hosted Keycloak, privileged CRDs/cluster RBAC, and Keycloak realm/client/group reconciliation. Each component needs separate source and check/apply/idempotence approvals.
 - OpenTofu owns Cloudflare and GitHub resources, not Kubernetes objects.

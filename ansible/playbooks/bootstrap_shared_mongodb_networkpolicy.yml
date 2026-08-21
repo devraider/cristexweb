@@ -1,0 +1,9 @@
+---
+- name: Check the guarded live shared MongoDB NetworkPolicy closure
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: shared_mongodb_networkpolicy_bootstrap

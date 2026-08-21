@@ -333,6 +333,10 @@ class SharedDatabaseArchitectureContractTests(unittest.TestCase):
                 "ansible/roles/mongodb_bootstrap/tasks/main.yml",
                 "ansible/roles/shared_mongodb_provisioning/defaults/main.yml",
                 "ansible/roles/shared_mongodb_provisioning/tasks/main.yml",
+                "ansible/bin/bootstrap-shared-mongodb-networkpolicy",
+                "ansible/playbooks/bootstrap_shared_mongodb_networkpolicy.yml",
+                "ansible/roles/shared_mongodb_networkpolicy_bootstrap/defaults/main.yml",
+                "ansible/roles/shared_mongodb_networkpolicy_bootstrap/tasks/main.yml",
             },
             mongodb_source,
         )

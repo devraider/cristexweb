@@ -199,6 +199,7 @@ metadata:
                 ANSIBLE / "bin/bootstrap-infisical-cristexhub-dev-runtime",
                 ANSIBLE / "bin/bootstrap-infisical-cristexhub-prod-runtime",
                 ANSIBLE / "bin/bootstrap-oidc-connect-proxy",
+                ANSIBLE / "bin/bootstrap-shared-mongodb-networkpolicy",
                 ANSIBLE / "bin/configure-coredns-external-forwarding",
                 ANSIBLE / "bin/validate-argocd-ui-tls-material",
                 ANSIBLE / "bin/configure-opentofu-state-backup",

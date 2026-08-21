@@ -252,6 +252,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "postgresql",
             "cloudnative-pg",
             "keycloak",
+            "shared-mongodb-networkpolicy",
         ):
             expected_public_inputs.update(
                 str(path.relative_to(ROOT / "ansible/files"))

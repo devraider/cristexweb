@@ -1,6 +1,31 @@
 # Cristex infrastructure
 
-## Status
+## Current live checkpoint — 2026-08-21
+
+Private CristexHub PROD activation is live at the pinned revision
+`751885a42798d282e168131db147f13694a0a621`: Argo reports `Synced/Healthy`,
+backend/Celery/frontend/oauth2-proxy/Redis are each `1/1 Ready`, backend root
+returns `200`, oauth2-proxy returns the expected private `302`, and Celery is ready
+on the PROD RabbitMQ vhost. The guarded OIDC CONNECT proxy policy includes PROD
+clients and its private validation passed.
+
+The shared MongoDB engine is live as operator-managed MongoDB `8.0.12` with
+TLS/SCRAM, but **private PROD acceptance is blocked**: no NetworkPolicy currently
+selects the live MongoDB pod and the legacy selectors do not match the live MongoDB
+or backend/Celery labels. RabbitMQ is live, but its observed PROD principal and
+broad permission expressions require least-privilege reconciliation; its exposed
+credential, the MongoDB credential, and the reused GHCR pull credential require
+verified rotation before public cutover. The exposed DeepSeek key also remains a
+separate revoke/replace residual.
+
+OpenTofu now manages the imported Cloudflare Tunnel and existing Keycloak/DEV DNS
+routes from protected host state with encrypted backup/readback and isolated restore
+evidence. The PROD Tunnel-ingress/DNS definitions are committed but unapplied because
+the available OAuth credential lacks DNS-record permission; `hub.cristex-soft.com`
+therefore remains unresolved. Historical source-only checkpoints below are retained
+as evidence and are explicitly not current-state claims.
+
+## Historical source-only/checkpoint evidence
 
 The repository's bounded Ansible implementation contains discovery, the executed
 two-package module bootstrap, an executed group-scoped k3s administrator access
@@ -29,14 +54,14 @@ creating only exact parent directories and the empty protected state directory. 
 reviewed controller-transfer check then passed at `ok=33 changed=6 failed=0`, the
 live recovery installed the verified CLI at `ok=39 changed=6 failed=0`, and the
 second run converged at `ok=30 changed=0 failed=0` without requiring host egress.
-The protected OpenTofu state is now live, encrypted off-node backup/readback and
-isolated restore rehearsal pass, and the existing Cloudflare Tunnel plus Keycloak/DEV
-routes are imported and managed. PROD Tunnel-ingress/DNS source is committed but
-unapplied because the available OAuth credential lacks DNS-record permission.
-Committed Kubernetes source contains exactly five Namespace manifests: `argocd`,
-`platform-edge`, `shared-services`, live `cristexhub-dev`, and live
-`cristexhub-prod`; the PROD Namespace, credential seam, Argo registration, and
-private workloads are active/idempotent, while public PROD routing remains blocked. The
+At that historical installer checkpoint the protected state directory remained
+empty and no provider operation had run. Later separately approved import, backup,
+readback, restore, and existing-route management checkpoints supersede that absence
+evidence. The committed PROD route alone remains unapplied. Committed Kubernetes
+source contains exactly five Namespace manifests: `argocd`, `platform-edge`, `shared-services`, live
+`cristexhub-dev`, and live `cristexhub-prod`; the PROD Namespace, credential seam,
+Argo registration, and private workloads are active/idempotent, while public PROD
+routing remains unapplied. The
 MongoDB
 operator control plane runs in the separately created live `mongodb-system` Namespace and watches the MongoDB runtime retained in `shared-services`. The historical
 `argocd`/`platform-edge` wrapper check, first apply, and idempotence retry completed

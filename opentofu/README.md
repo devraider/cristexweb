@@ -3,11 +3,12 @@
 This is no longer a zero-resource scaffold: it contains only the reviewed
 Cloudflare Tunnel and DNS resource boundaries described below.
 
-This module is source-only and has not been initialized, planned, applied, or
-used against the Cloudflare API. It manages exactly one remotely managed
-Cloudflare Tunnel, its remote public-hostname configuration, the proxied CNAME
-for `auth.cristex-soft.com`, and one DNS-only A record for the private Argo CD
-endpoint at `argo.cristex-soft.com`. The Argo CD record points to the current
+This module is initialized against protected host state. The existing remotely
+managed Tunnel, its active Keycloak/DEV ingress configuration, the Keycloak/DEV
+proxied CNAMEs, and the private Argo DNS record are imported and managed. Source now
+adds the exact PROD Tunnel ingress and proxied CNAME, but that two-change plan has
+not completed because the available OAuth credential lacks DNS-record permission.
+The Argo CD record points to the current
 Tailscale IPv4 `100.122.139.32`; access remains restricted by the host/cluster
 Tailscale-only ingress boundary and is not routed through the Cloudflare proxy
 or Tunnel.
@@ -26,8 +27,8 @@ CLI arguments, environment examples, plans, outputs, or state.
 
 OpenTofu outputs contain only the Tunnel UUID/name, hostname, DNS record name, and
 the explicit marker `MANUAL_INFISICAL_HANDOFF_REQUIRED`. The tunnel UUID is not a
-secret. `prevent_destroy` is set on all three resources to avoid accidental
-public-route or tunnel deletion.
+secret. `prevent_destroy` is set on every resource to avoid accidental public-route,
+private-DNS, or tunnel deletion.
 
 ## Inputs
 
@@ -48,33 +49,32 @@ provider-backed work is separately approved. No credentials, account IDs, zone
 IDs, tfvars, plans, provider lockfile, `.terraform` directory, or state file are
 committed here.
 
-## Required handoff (not executed)
+## Completed Tunnel handoff and pending PROD route
 
-After a reviewed OpenTofu apply creates the Tunnel, record its output UUID without
-secret values. Separately create/recover the remotely managed Tunnel token from
-Cloudflare, transfer it through the approved Infisical path
-`prod:/platform-edge/cloudflared` under `CLOUDFLARE_TUNNEL_TOKEN`, and materialize
-it into the future `platform-edge` cloudflared workload using a guarded Ansible /
-Infisical lane. Verify token-bearing material never appears in Git, OpenTofu
-state/plan/output, argv, environment evidence, Kubernetes manifests, or logs.
+The imported Tunnel UUID was recorded without secret output. Its token was recovered
+through the approved Infisical path `prod:/platform-edge/cloudflared`, key
+`CLOUDFLARE_TUNNEL_TOKEN`, and materialized into the live `platform-edge`
+cloudflared workload through the guarded lane. Token-bearing material remains absent
+from Git, OpenTofu state/plan/output, argv, evidence, and manifests. The PROD route
+adds no token; it still requires a protected DNS-capable provider credential and an
+exact reviewed plan/apply.
 
 This module does not create Kubernetes resources, install cloudflared, create the
 Infisical secret, create a Traefik route, or approve public cutover. Those are
-separate ownership and approval boundaries. The current local backend remains a
-single-node failure domain; encrypted timestamped off-node copies to Google Drive,
-independent key recovery, integrity verification, and isolated restore are
-prerequisites before any provider-backed plan or apply. Until that evidence exists,
-state recovery is `UNKNOWN — STOP` and no apply is permitted.
+separate ownership and approval boundaries. The local backend remains a single-node failure domain and is operated as a protected single-writer boundary. Encrypted timestamped
+off-node copy/readback, independent-key retrieval, integrity verification, and an
+isolated `tofu state list` restore rehearsal now pass. These controls do not authorize
+the pending PROD route.
 
 ## Encrypted state recovery boundary
 
 The Ansible-owned host workflow `configure-opentofu-state-backup` is the only
 approved source for encrypted local state copies. It protects
 `/var/lib/opentofu/cristexweb/foundation.tfstate`, encrypts with the public age
-recipient, uploads immutable timestamped leaves under
+recipient, uploads immutable timestamped leaves to Google Drive under
 `drive:cristexweb-recovery/opentofu/foundation/`, and reads them back byte-for-byte.
 The private identity is retrieved only during the isolated restore rehearsal from
 Infisical `prod:/shared-services/backup-recovery`; it is never retained on the
-host, in OpenTofu state, or in Git. The timer remains disabled until an approved
-backup, decrypt, `tofu state list` validation, cleanup, and non-mutation rehearsal
-passes. No backup or restore command is run by source authoring.
+host, in OpenTofu state, or in Git. Approved backup, decrypt, `tofu state list` validation, cleanup, and non-mutation
+restore rehearsal have passed. Source authoring itself still runs no backup or
+restore command.

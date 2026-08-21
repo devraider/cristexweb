@@ -1,18 +1,42 @@
 # Shared database architecture
 
-## Status
+## Current live checkpoint — 2026-08-21
 
-**SOURCE-ONLY DATABASE CLOSURES READY — RUNTIME BLOCKED.** This source-only design
-selects one PostgreSQL engine and one standalone MongoDB engine in the future
-`shared-services` Namespace. It does not claim that either engine, its Secret
-material, databases, users, PVC, or backup exists at runtime. MongoDB is explicitly
-non-authoritative and is not an HA, replica-set, transaction, or production-data
-acceptance.
+Status: **MONGODB ENGINE LIVE / PRIVATE ACCEPTANCE BLOCKED**.
+
+The live `shared-mongodb` engine is an operator-managed MongoDB `8.0.12` one-member
+replica set in `shared-services`, with mandatory TLS/SCRAM authentication and
+retained data/log PVCs. This is runtime evidence only; it does not close logical
+cross-database authorization, backup/restore, authoritative-data, or production
+acceptance gates.
+
+**Acceptance blocker — MongoDB NetworkPolicy isolation is not attested.** No
+`shared-mongodb-*` NetworkPolicy currently selects the live MongoDB pod. The legacy
+source policies select labels such as `app.kubernetes.io/name`,
+`app.kubernetes.io/instance`, and `cristex.io/database-client`, but those labels do
+not match the live `shared-mongodb-0` or the CristexHub backend/Celery consumer pods.
+Consequently, private MongoDB ingress isolation is unproven. Do not describe MongoDB
+as privately accepted until an exact deny-first policy is reconciled and positive /
+negative connectivity tests pass.
+
+The source-only status below is retained as historical evidence from before the
+operator-managed runtime and version change. It must not be read as current absence,
+and the historical standalone `8.0.28` source selection must not be conflated with
+the live `8.0.12` operator runtime.
+
+## Historical source-only status
+
+**SOURCE-ONLY DATABASE CLOSURES READY — RUNTIME BLOCKED.** At that earlier checkpoint
+this source-only design selected one PostgreSQL engine and one standalone MongoDB
+engine in the future `shared-services` Namespace. It did not claim that either
+engine, its Secret material, databases, users, PVC, or backup existed at runtime.
+MongoDB was explicitly non-authoritative and was not an HA, replica-set,
+transaction, or production-data acceptance.
 
 The canonical value-free contract is
 [`shared-database-architecture.yml`](../ansible/files/policies/shared-database-architecture.yml).
-PostgreSQL `17.10` and MongoDB `8.0.28` are bound offline to exact linux/amd64 image
-digests. Publisher trust, pullability, compatibility, recovery, and runtime remain
+PostgreSQL `17.10` and MongoDB `8.0.28` were bound offline to exact linux/amd64 image
+digests. Publisher trust, pullability, compatibility, recovery, and runtime were
 blocked.
 
 ## Placement and failure model
@@ -163,15 +187,16 @@ also prove invalid-CA/hostname and missing/wrong-auth rejection. No runtime chec
 Secret materialization, client authorization, backup, restore, transaction,
 replica-set, HA, or authoritative-data acceptance is claimed.
 
-## Exposure boundary
+## Exposure boundary (source contract; live MongoDB blocker)
 
 The source `shared-postgresql:5432` and `shared-mongodb:27017` Services are ClusterIP-only.
 Ingress, NodePort, LoadBalancer, Cloudflare Tunnel, and any public route are
-forbidden. TLS is mandatory and certificate values remain Infisical-owned. MongoDB's
-NetworkPolicy defaults to deny ingress and egress, then allows only labeled DEV/PROD
-CristexHub database clients on TCP `27017`; logical-database authorization remains a
-separate required negative test. No database or administrative endpoint may become
-public.
+forbidden. TLS is mandatory and certificate values remain Infisical-owned. The source
+MongoDB NetworkPolicy is intended to default-deny ingress/egress and allow only
+labeled DEV/PROD CristexHub database clients on TCP `27017`; the live label mismatch
+and absent matching policy mean this contract is **not currently attested**.
+Logical-database authorization remains a separate required negative test. No database
+or administrative endpoint may become public.
 
 ## Storage and recovery blockers
 

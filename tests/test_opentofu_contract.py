@@ -396,7 +396,7 @@ class OpenTofuContractTests(unittest.TestCase):
         self.assertIn('condition     = var.traefik_origin_service == "http://traefik.kube-system.svc.cluster.local:80"', variables)
         self.assertNotIn("can(regex(\"^https?://", variables)
 
-    def test_version_command_is_non_root_and_provider_operations_remain_blocked(self) -> None:
+    def test_version_command_is_non_root_and_current_state_boundary_is_documented(self) -> None:
         for forbidden in (
             "ansible.builtin.shell:",
             "ansible.builtin.raw:",
@@ -439,12 +439,12 @@ class OpenTofuContractTests(unittest.TestCase):
             self.assertNotIn(forbidden_command, command_task)
 
         for required in (
-            "zero-resource",
+            "initialized against protected host state",
             "single-node failure domain",
-            "encrypted timestamped off-node copies",
+            "Encrypted timestamped",
             "Google Drive",
-            "UNKNOWN — STOP",
-            "no apply is permitted",
+            "isolated `tofu state list` restore rehearsal now pass",
+            "PROD route",
         ):
             self.assertIn(required, self.readme)
         for required in (

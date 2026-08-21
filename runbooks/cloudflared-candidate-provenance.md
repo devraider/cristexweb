@@ -1,8 +1,16 @@
-# cloudflared provenance — selected source, runtime blocked
+# cloudflared provenance — historical candidate evidence
 
-## Status and boundary
+## Current OpenTofu boundary — 2026-08-21
 
-**SOURCE SELECTED — RUNTIME NOT RUN/BLOCKED.** The reviewed cloudflared and Infisical token-materialization source closures exist, but no runtime apply or public route has been approved or executed.
+The committed OpenTofu source now contains the reviewed PROD Tunnel ingress and
+DNS record definitions, but provider initialization, state, plan, and apply remain
+unrun. No current cloudflared public route or runtime acceptance is claimed; the
+PROD route remains unapplied. This document's candidate evidence is historical and
+must not be read as provider or runtime evidence.
+
+## Historical status and boundary
+
+**SOURCE SELECTED — RUNTIME NOT RUN/BLOCKED.** The reviewed cloudflared and Infisical token-materialization source closures exist, but no runtime apply or public route had been approved or executed at that historical checkpoint.
 
 This document records controller-side public-source research captured at
 `2026-08-07T06:13:42Z`. It does not select a release, authorize a Cloudflare

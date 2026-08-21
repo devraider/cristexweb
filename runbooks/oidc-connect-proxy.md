@@ -1,14 +1,23 @@
 # Guarded OIDC CONNECT proxy
 
-Status: **source-only; runtime not run and blocked**.
+Status: **APPLIED / IDEMPOTENT / PRIVATE PROD VALIDATED**.
 
-This closure provides a dedicated Squid CONNECT proxy for the future CristexHub
-DEV backend and `oauth2-proxy` workloads. It permits only CONNECT requests to
-`auth.cristex-soft.com:443`, which is the selected Keycloak OIDC issuer host.
-It does not expose Keycloak, publish DNS, create an Ingress, or perform a live
-Kubernetes mutation.
+## Current live checkpoint — 2026-08-20
 
-## Source closure
+The guarded source is applied in `shared-services` and the exact client ingress
+policy includes the CristexHub DEV and PROD backend, Celery, and oauth2-proxy
+workloads. The proxy Service is healthy. Private PROD validation observed backend
+HTTP `200`, oauth2-proxy root/start redirects (`302`), backend startup completion,
+and a ready Celery worker connected to the TLS RabbitMQ broker. The proxy remains
+CONNECT-only to `auth.cristex-soft.com:443`; no public Keycloak administration,
+management, or direct-origin path is added. This evidence does not authorize the
+Cloudflare PROD route.
+
+The source-only status below is retained as historical evidence from the pre-apply
+checkpoint. Its exact status was **source-only; runtime not run and blocked**. It
+must not be read as current absence of the proxy or its PROD policy.
+
+## Historical source-only closure
 
 `ansible/files/components/oidc-connect-proxy/` contains exactly ten value-free
 objects: one ConfigMap, one ServiceAccount, one ClusterIP Service, one Deployment,
@@ -52,15 +61,15 @@ ansible/bin/bootstrap-oidc-connect-proxy check|apply
 
 It accepts no task selection, requires `--limit crtxweb --diff`, a private
 single-run attestation, the exact source hashes, active `shared-services` and
-`cristexhub-dev` Namespaces, healthy k3s/Tailscale, and present-only object
+reviewed consumer Namespaces, healthy k3s/Tailscale, and present-only object
 arguments. It has no delete path and refuses Secrets, PVCs, Ingresses, and
-ServiceMonitors. Runtime execution requires a separate reviewed approval; this
-change performs no check, apply, or API mutation.
+ServiceMonitors. The separately approved apply and idempotence evidence above
+reconciles only this proxy closure; it does not authorize any public route.
 
-Before any future apply, verify both target workloads have exactly the labels
-used by the policies, establish their required non-OIDC internal flows through
-separate policies, run check mode, and separately approve apply and idempotence.
-Validation must prove positive CONNECT to the issuer and negative CONNECT to
-another hostname, port 80, an IP literal, private/reserved destinations, and
-non-CONNECT HTTP, without recording tokens, cookies, Authorization headers, or
-proxy logs.
+The source and applied policy must continue to verify exact workload labels and
+separate non-OIDC internal flows. Ongoing validation must prove positive CONNECT
+to the issuer and negative CONNECT to another hostname, port 80, an IP literal,
+private/reserved destinations, and non-CONNECT HTTP, without recording tokens,
+cookies, Authorization headers, or proxy logs. Residual rotation of the exposed
+PROD MongoDB/RabbitMQ URL credentials and GHCR pull credential remains required
+before public cutover.

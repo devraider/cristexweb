@@ -6,7 +6,23 @@ build: 385 offline contracts and all playbook syntax checks pass; private PROD i
 date: 2026-08-20
 deploy_required_after_acceptance: yes
 
+current_checkpoint: |
+  Private CristexHub PROD at revision `751885a42798d282e168131db147f13694a0a621`
+  is Argo `Synced/Healthy`; backend, Celery, frontend, oauth2-proxy, and Redis are
+  each `1/1 Ready`. The OIDC CONNECT proxy policy includes PROD clients and private
+  root/OIDC checks passed. RabbitMQ is live for Celery, but the observed PROD
+  principal/permission expressions require least-privilege reconciliation and the
+  exposed RabbitMQ credential requires verified rotation. MongoDB `8.0.12` is live
+  under its operator with TLS/SCRAM, but private acceptance is blocked: no matching
+  NetworkPolicy selects `shared-mongodb-0`, and legacy selectors do not match the
+  live MongoDB or backend/Celery labels. The MongoDB URL credential and reused GHCR
+  pull credential require verified rotation; the exposed DeepSeek key needs separate
+  revoke/replace. OpenTofu remains source-only with no provider initialization,
+  state, plan, or apply; the committed PROD Cloudflare route is unapplied.
+
 note: |
+  The detailed paragraphs below preserve historical source/checkpoint evidence;
+  use `current_checkpoint` above for the current live-state claim.
   Operational implementation now includes the previously recorded dependency,
   administrator-access, recovery, stateful-service, backup, Infisical, Cloudflare,
   Keycloak, and private Argo checkpoints. The latest approved checkpoint adds a

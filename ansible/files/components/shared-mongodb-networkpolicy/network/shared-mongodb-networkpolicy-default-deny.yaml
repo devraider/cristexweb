@@ -1,0 +1,21 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: shared-mongodb-networkpolicy-default-deny
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: shared-databases
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+    cristex.io/component: shared-mongodb-networkpolicy
+spec:
+  podSelector:
+    matchLabels:
+      app: shared-mongodb-svc
+      app.kubernetes.io/part-of: shared-databases
+      cristex.io/component: mongodb
+  policyTypes:
+    - Ingress
+    - Egress

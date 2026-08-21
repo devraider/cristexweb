@@ -55,8 +55,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/cristexhub_dev_sync_transition_guarded_k8s.py"),
             Path("ansible/plugins/action/infisical_cristexhub_dev_runtime_guarded_k8s.py"),
             Path("ansible/plugins/action/infisical_cristexhub_prod_runtime_guarded_k8s.py"),
+            Path("ansible/plugins/action/shared_mongodb_networkpolicy_guarded_k8s.py"),
         }
-        self.assertEqual(29, len(allowed_action_plugins))
+        self.assertEqual(30, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -213,6 +214,11 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/shared_postgresql_provisioning/tasks/main.yml",
             "roles/shared_mongodb_provisioning/defaults/main.yml",
             "roles/shared_mongodb_provisioning/tasks/main.yml",
+            "bin/bootstrap-shared-mongodb-networkpolicy",
+            "playbooks/bootstrap_shared_mongodb_networkpolicy.yml",
+            "roles/shared_mongodb_networkpolicy_bootstrap/defaults/main.yml",
+            "roles/shared_mongodb_networkpolicy_bootstrap/tasks/main.yml",
+            "plugins/action/shared_mongodb_networkpolicy_guarded_k8s.py",
             "files/database-provisioning/postgresql-check.sh",
             "files/database-provisioning/postgresql-apply.sh",
             "files/database-provisioning/mongodb-check.sh",
@@ -340,6 +346,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "cristexhub-dev-sync-transition",
             "infisical-cristexhub-dev-runtime",
             "infisical-cristexhub-prod-runtime",
+            "shared-mongodb-networkpolicy",
         ):
             required.extend(
                 str(path.relative_to(ANSIBLE))
