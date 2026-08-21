@@ -4461,3 +4461,34 @@ checks passed. The `cristexhub-prod` Namespace is already Active/idempotent from
 separate checkpoint. No wrapper check/apply, Kubernetes API, Argo registration/sync,
 Secret, image publication, workload, database, broker, DNS, provider, or Cloudflare
 action ran.
+
+
+## CristexHub PROD private activation — APPLIED / SYNCED / HEALTHY
+
+This section supersedes the earlier source-only runtime and registration evidence
+above without rewriting those historical stops.
+
+- The PROD Infisical runtime seam final idempotence passed at
+  `ok=62 changed=0 failed=0 skipped=3`; the exact runtime and GHCR target Secrets
+  exist and remote/target key closure matched without value output.
+- The five-object Argo registration and active-state retry passed. The Application
+  uses the in-cluster server, `selfHeal=true`, `prune=false`, `allowEmpty=false`, and
+  `CreateNamespace=false` at revision
+  `751885a42798d282e168131db147f13694a0a621`.
+- Read-only validation on 2026-08-20 reported Argo `Synced/Healthy`; backend,
+  Celery, frontend, oauth2-proxy, and Redis were each `1/1 Ready`; backend root
+  returned `200`; oauth2-proxy root/start returned `302`; backend logged completed
+  startup; and Celery logged a TLS RabbitMQ connection and ready state.
+- The PROD OIDC proxy client policy is applied and includes the PROD namespace;
+  the exact eight PROD NetworkPolicies are present.
+- Source validation at commit `255aa62f7f3e9e662c9d65e830f85aac3b39fdda`
+  passed `385/385` offline contracts and all playbook syntax checks. GitHub Actions
+  runs `32375586986` (main) and `32375590391` (develop) completed successfully.
+- OpenTofu source now contains exactly the PROD Tunnel ingress and proxied DNS
+  record. Provider planning stopped safely with `403` because the available OAuth
+  credential lacks DNS-record permission; no provider mutation occurred and
+  `hub.cristex-soft.com` remains unresolved.
+- A local retained reviewer transcript exposed base64 Secret data and was removed.
+  Universal Auth and application/OIDC values were rotated. MongoDB/RabbitMQ URL
+  credentials and the reused GHCR pull credential still require verified rotation
+  before public cutover.

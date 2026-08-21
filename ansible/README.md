@@ -515,15 +515,16 @@ identities, two path-scoped StaticSecrets, eleven engine/per-consumer target con
 eight scoped VAP/binding objects, operator-only validation, additive
 no-delete/no-workload-write RBAC, byte/canonical/identity
 hashes, and negative fixtures. Its credential values, check/apply, sync, rotation,
-recovery, and runtime remain NOT RUN/BLOCKED. A separate source-only [CristexHub
+recovery, and runtime remain NOT RUN/BLOCKED. The separately guarded [CristexHub
 PROD runtime Infisical seam](../runbooks/infisical-cristexhub-prod-runtime-materialization.md)
-freezes the exact `/cristexhub/prod/runtime` source for the committed and now
-Active/idempotent `cristexhub-prod` Namespace, independent `cristexhub-prod-infisical-auth` and
-Universal Auth names, nine runtime keys plus `cristexhub-prod-ghcr-pull`, exact
-PROD-scoped VAP/bindings, additive least-privilege RBAC, hash-bound manifests, and
-its guarded `bin/bootstrap-infisical-cristexhub-prod-runtime check|apply` source.
-The Namespace, Universal Auth values, Infisical sync, target Secret values, and
-PROD runtime remain NOT RUN/BLOCKED. The value-free
+binds the exact `/cristexhub/prod/runtime` source for the Active/idempotent
+`cristexhub-prod` Namespace, independent PROD Auth/Universal Auth names, nine
+runtime keys plus `cristexhub-prod-ghcr-pull`, exact PROD-scoped VAP/bindings,
+additive writer RBAC, hash-bound manifests, and the guarded
+`bin/bootstrap-infisical-cristexhub-prod-runtime check|apply` entrypoint. Its apply,
+target synchronization, and final `ok=62 changed=0 failed=0 skipped=3` idempotence
+pass; private Argo workloads are `Synced/Healthy`, while the public route and
+residual credential rotations remain blocked. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 PostgreSQL and one standalone MongoDB engine in `shared-services`; guarded,
 hash-bound, present-only source now exists for both database pods while every live

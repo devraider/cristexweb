@@ -2,8 +2,8 @@
 
 state: agent:in-progress
 phase: implementing
-build: 385 offline contracts plus PROD Argo registration compile/shell/playbook syntax pass; exact five-object source remains NOT RUN/BLOCKED
-date: 2026-08-18
+build: 385 offline contracts and all playbook syntax checks pass; private PROD is Synced/Healthy and the public route remains unapplied
+date: 2026-08-20
 deploy_required_after_acceptance: yes
 
 note: |
@@ -26,15 +26,16 @@ note: |
   plaintext-temp-residue checks passed without value output. No Kubernetes Secret,
   Infisical CR, workload, PVC, database, route, or PROD activation was created;
   Universal Auth and materialization remain blocked. A separate source-only,
-  fail-closed CristexHub PROD runtime Infisical seam now binds exact
+  fail-closed CristexHub PROD runtime Infisical seam binds exact
   `/cristexhub/prod/runtime`, independent PROD Auth/Universal Auth names, the
   nine-key runtime plus `cristexhub-prod-ghcr-pull`, scoped VAP/bindings, additive
-  RBAC, hashes, and guarded source; its Namespace checkpoint is complete, but absent
-  identity values keep check/apply, sync, values, and runtime NOT RUN/BLOCKED. A separate five-object
-  PROD Argo registration source pins protected-main revision
-  `751885a42798d282e168131db147f13694a0a621`, uses namespace-scoped no-delete RBAC,
-  and remains manual behind an always-active deny window; registration check/apply
-  and every sync transition are NOT RUN/BLOCKED. A separate source-only, check-only
+  RBAC, hashes, and guarded source. Its approved apply and final idempotence passed
+  at `ok=62 changed=0 failed=0 skipped=3`. The five-object PROD Argo registration
+  pins protected-main revision `751885a42798d282e168131db147f13694a0a621`, uses
+  namespace-scoped no-delete RBAC and the exact in-cluster server destination, and
+  now reconciles with `selfHeal=true`, `prune=false`, and `allowEmpty=false`.
+  Argo and all five Deployments are `Synced/Healthy`; the Cloudflare route remains
+  unapplied. A separate source-only, check-only
   `k3s_datastore_preflight` role/playbook/wrapper is now offline-validated with
   fixed read-only argv under `no_log`, a bounded private mode-`0600` config slurp,
   strict duplicate/type/mapping/YAML and encryption-JSON parsers, exact

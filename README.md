@@ -29,12 +29,14 @@ creating only exact parent directories and the empty protected state directory. 
 reviewed controller-transfer check then passed at `ok=33 changed=6 failed=0`, the
 live recovery installed the verified CLI at `ok=39 changed=6 failed=0`, and the
 second run converged at `ok=30 changed=0 failed=0` without requiring host egress.
-The protected directory still contains no state file, and no provider operation or
-external resource has been executed. The root `opentofu/` source contains the reviewed
-Cloudflare Tunnel/DNS resource definitions, but remains uninitialized and unapplied. Committed Kubernetes source now contains exactly five Namespace
-manifests: `argocd`, `platform-edge`, `shared-services`, live `cristexhub-dev`, and
-source-only `cristexhub-prod`; the separately approved PROD Namespace checkpoint
-is now `Active` and idempotent, while all later PROD resources remain blocked. The
+The protected OpenTofu state is now live, encrypted off-node backup/readback and
+isolated restore rehearsal pass, and the existing Cloudflare Tunnel plus Keycloak/DEV
+routes are imported and managed. PROD Tunnel-ingress/DNS source is committed but
+unapplied because the available OAuth credential lacks DNS-record permission.
+Committed Kubernetes source contains exactly five Namespace manifests: `argocd`,
+`platform-edge`, `shared-services`, live `cristexhub-dev`, and live
+`cristexhub-prod`; the PROD Namespace, credential seam, Argo registration, and
+private workloads are active/idempotent, while public PROD routing remains blocked. The
 MongoDB
 operator control plane runs in the separately created live `mongodb-system` Namespace and watches the MongoDB runtime retained in `shared-services`. The historical
 `argocd`/`platform-edge` wrapper check, first apply, and idempotence retry completed
@@ -246,8 +248,8 @@ gateway remain in the separate CristexHub application repository.
 24. [`runbooks/infisical-database-secret-materialization.md`](runbooks/infisical-database-secret-materialization.md) — exact value-free Infisical database Secret seam, scoped admission, and blocked runtime gates.
 25. [`runbooks/infisical-universal-auth-value-lane.md`](runbooks/infisical-universal-auth-value-lane.md) — protected value generation/upload contracts and Secret-at-rest recovery gate.
 26. [`runbooks/shared-database-provisioning.md`](runbooks/shared-database-provisioning.md) — guarded empty-reservation provisioning and helper isolation boundary.
-27. [`runbooks/infisical-cristexhub-prod-runtime-materialization.md`](runbooks/infisical-cristexhub-prod-runtime-materialization.md) — exact source-only CristexHub PROD runtime Secret seam and blocked gates.
-28. [`runbooks/cristexhub-prod-argocd-registration.md`](runbooks/cristexhub-prod-argocd-registration.md) — exact-revision, permanently sync-denied source-only PROD Argo registration.
+27. [`runbooks/infisical-cristexhub-prod-runtime-materialization.md`](runbooks/infisical-cristexhub-prod-runtime-materialization.md) — applied/idempotent CristexHub PROD runtime Secret seam and residual rotation gates.
+28. [`runbooks/cristexhub-prod-argocd-registration.md`](runbooks/cristexhub-prod-argocd-registration.md) — exact-revision automated non-pruning PROD Argo registration and private activation evidence.
 29. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
 ## Read-only Ansible discovery
