@@ -158,7 +158,12 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("unselected-blocker", custodian["requiredRoleSet"])
         prod_auditor = spec["prodCompatibilityAuditor"]
         self.assertEqual("absent-blocker", prod_auditor["status"])
-        self.assertEqual(["GET"], prod_auditor["allowedMethods"])
+        self.assertEqual("unselected-blocker", prod_auditor["requiredRoleSet"])
+        self.assertEqual("unselected-blocker", prod_auditor["exactFieldProjection"])
+        self.assertEqual([], prod_auditor["allowedMethods"])
+        self.assertEqual(
+            "forbidden-until-role-and-projection-review", prod_auditor["adminRestCalls"]
+        )
         self.assertEqual([], prod_auditor["writeMethods"])
         self.assertEqual(
             "required",
@@ -176,12 +181,16 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual([], auditor["directRealmManagementRoles"])
         self.assertIn("manage-realm", auditor["forbiddenRealmManagementRoles"])
         self.assertIn("manage-clients", auditor["forbiddenRealmManagementRoles"])
+        self.assertIn("view-clients", auditor["forbiddenRealmManagementRoles"])
         rejected = auditor["rejectedDirectRoleBindings"]
         self.assertEqual(
-            "forbidden-can-enumerate-all-confidential-client-secrets",
+            "forbidden-unverified-collection-and-secret-projection-semantics",
             rejected["query-clients"],
         )
-        self.assertEqual("forbidden-enumerates-all-group-metadata", rejected["query-groups"])
+        self.assertEqual(
+            "forbidden-unverified-collection-projection-semantics",
+            rejected["query-groups"],
+        )
         fgap = auditor["fineGrainedAdminPermissionsV2"]
         self.assertEqual("none", fgap["recurringActorPolicies"])
         self.assertEqual("forbidden-exposes-confidential-client-secret", fgap["clientView"])
@@ -261,7 +270,13 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("forbidden", spec["apply"])
         self.assertEqual("keycloak-prod-compatibility-auditor", spec["legacyProd"]["actorRef"])
         self.assertEqual("absent-blocker", spec["legacyProd"]["actorCapability"])
-        self.assertEqual(["GET"], spec["legacyProd"]["allowedMethods"])
+        self.assertEqual("unselected-blocker", spec["legacyProd"]["requiredRoleSet"])
+        self.assertEqual("unselected-blocker", spec["legacyProd"]["exactFieldProjection"])
+        self.assertEqual(
+            "forbidden-until-role-and-projection-review",
+            spec["legacyProd"]["adminRestCalls"],
+        )
+        self.assertEqual([], spec["legacyProd"]["allowedMethods"])
         self.assertEqual([], spec["legacyProd"]["writeMethods"])
         self.assertEqual(["GET", "POST", "PUT"], spec["bootstrapPhase"]["allowedMethods"])
         bootstrap = spec["bootstrapPhase"]
@@ -282,7 +297,7 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual([], recurring["directRealmRoles"])
         self.assertEqual([], recurring["fgapPolicies"])
         self.assertEqual(
-            "can-enumerate-all-confidential-client-secrets",
+            "unverified-collection-and-secret-projection-semantics",
             recurring["rejectedCapabilities"]["query-clients"],
         )
         self.assertEqual("forbidden", recurring["adminRestCalls"])

@@ -4589,10 +4589,10 @@ The actor contract separates a one-transition master service account with only
 `create-realm` from a disabled `cristexhub-dev` auditor placeholder. Automatic
 creator grants require an exact role-ID ledger and removal by a distinct retirement
 custodian that remains absent/blocking. The auditor receives no direct role, FGAP
-policy, credential materialization, or Admin REST method: Keycloak 26.7.1
-`query-clients` can expose every confidential-client secret, `query-groups`
-enumerates all group metadata, client `view` authorizes secret reads, and group
-`view` exposes role-mapping/detail data beyond the boundary. Recurring Admin REST audit therefore remains blocked
+policy, credential materialization, or Admin REST method: exact Keycloak 26.7.1
+collection/projection semantics for `query-clients` and `query-groups` remain an
+unverified blocker; `view-clients` and client FGAP `view` authorize secret-bearing
+reads, while group `view` exposes role-mapping/detail data beyond the boundary. Recurring Admin REST audit therefore remains blocked
 until a genuinely narrower capability exists. Four distinct Infisical paths reserve browser, disabled admin-service,
 bootstrap value metadata and a disabled-auditor reservation; auditor value materialization is forbidden. There is no writer or Kubernetes target; existing
 VAP/RBAC seams cannot be reused, and provider CAS semantics remain an explicit

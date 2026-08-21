@@ -231,7 +231,10 @@
       - actor.spec.retirementCustodian.credentialPath == 'unselected-blocker'
       - actor.spec.retirementCustodian.requiredRoleSet == 'unselected-blocker'
       - actor.spec.prodCompatibilityAuditor.status == 'absent-blocker'
-      - actor.spec.prodCompatibilityAuditor.allowedMethods == ['GET']
+      - actor.spec.prodCompatibilityAuditor.requiredRoleSet == 'unselected-blocker'
+      - actor.spec.prodCompatibilityAuditor.exactFieldProjection == 'unselected-blocker'
+      - actor.spec.prodCompatibilityAuditor.allowedMethods == []
+      - actor.spec.prodCompatibilityAuditor.adminRestCalls == 'forbidden-until-role-and-projection-review'
       - actor.spec.prodCompatibilityAuditor.writeMethods == []
       - actor.spec.recurringAuditor.clientId == 'cristexhub-dev-auditor'
       - actor.spec.recurringAuditor.realm == 'cristexhub-dev'
@@ -242,8 +245,9 @@
       - actor.spec.recurringAuditor.directRealmManagementRoles == []
       - "'manage-realm' in actor.spec.recurringAuditor.forbiddenRealmManagementRoles"
       - "'manage-clients' in actor.spec.recurringAuditor.forbiddenRealmManagementRoles"
-      - actor.spec.recurringAuditor.rejectedDirectRoleBindings['query-clients'] == 'forbidden-can-enumerate-all-confidential-client-secrets'
-      - actor.spec.recurringAuditor.rejectedDirectRoleBindings['query-groups'] == 'forbidden-enumerates-all-group-metadata'
+      - "'view-clients' in actor.spec.recurringAuditor.forbiddenRealmManagementRoles"
+      - actor.spec.recurringAuditor.rejectedDirectRoleBindings['query-clients'] == 'forbidden-unverified-collection-and-secret-projection-semantics'
+      - actor.spec.recurringAuditor.rejectedDirectRoleBindings['query-groups'] == 'forbidden-unverified-collection-projection-semantics'
       - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.recurringActorPolicies == 'none'
       - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.clientView == 'forbidden-exposes-confidential-client-secret'
       - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.groupView == 'forbidden-exposes-group-role-mapping-and-detail-data'
@@ -282,7 +286,10 @@
       - api.spec.apply == 'forbidden'
       - api.spec.legacyProd.actorRef == 'keycloak-prod-compatibility-auditor'
       - api.spec.legacyProd.actorCapability == 'absent-blocker'
-      - api.spec.legacyProd.allowedMethods == ['GET']
+      - api.spec.legacyProd.requiredRoleSet == 'unselected-blocker'
+      - api.spec.legacyProd.exactFieldProjection == 'unselected-blocker'
+      - api.spec.legacyProd.adminRestCalls == 'forbidden-until-role-and-projection-review'
+      - api.spec.legacyProd.allowedMethods == []
       - api.spec.legacyProd.writeMethods == []
       - api.spec.bootstrapPhase.allowedMethods == ['GET', 'POST', 'PUT']
       - api.spec.bootstrapPhase.realmCreate.retry == 'forbidden'
@@ -295,8 +302,8 @@
       - api.spec.recurringAuditPhase.allowedMethods == []
       - api.spec.recurringAuditPhase.directRealmRoles == []
       - api.spec.recurringAuditPhase.fgapPolicies == []
-      - api.spec.recurringAuditPhase.rejectedCapabilities['query-clients'] == 'can-enumerate-all-confidential-client-secrets'
-      - api.spec.recurringAuditPhase.rejectedCapabilities['query-groups'] == 'enumerates-all-group-metadata'
+      - api.spec.recurringAuditPhase.rejectedCapabilities['query-clients'] == 'unverified-collection-and-secret-projection-semantics'
+      - api.spec.recurringAuditPhase.rejectedCapabilities['query-groups'] == 'unverified-collection-projection-semantics'
       - api.spec.recurringAuditPhase.adminRestCalls == 'forbidden'
       - api.spec.recurringAuditPhase.protocolMapperInventory == 'one-shot-transition-only'
       - api.spec.recurringAuditPhase.missingOwnedObjectBehavior == 'fail-closed-no-create'

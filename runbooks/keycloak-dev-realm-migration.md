@@ -104,14 +104,17 @@ It validates, without contacting any runtime:
 - a dedicated one-transition master service account with only `create-realm`, an
   explicit automatic-role ledger, and a still-absent separate retirement custodian;
 - a disabled realm-local auditor placeholder with no role, FGAP policy, credential
-  materialization, or Admin REST method: Keycloak 26.7.1 `query-clients` can expose
-  every confidential-client secret and `query-groups` enumerates all group metadata;
-  client `view` also authorizes secret reads, while group `view` exposes role-mapping
+  materialization, or Admin REST method: exact Keycloak 26.7.1 collection/projection
+  semantics for `query-clients` and `query-groups` remain an unverified blocker;
+  `view-clients` and client FGAP `view` authorize secret-bearing reads, while group
+  `view` exposes role-mapping
   and detail data beyond the auditor boundary;
 - four separate Infisical path reservations for browser, disabled admin-service,
   one-time bootstrap, and disabled auditor metadata, with no Kubernetes targets,
   no writer, and provider CAS semantics explicitly unverified; and
-- phase-specific API contracts: bootstrap GET/POST/PUT and no recurring Admin REST method,
+- phase-specific API contracts: bootstrap GET/POST/PUT, no recurring Admin REST
+  method, and no PROD compatibility GET until an exact role and field projection
+  are separately selected,
   opaque resource-ID binding, PROD before/after digests, ambiguous-write
   UNKNOWN-STOP, and unconditional
   `DELETE`/`PATCH`/users/memberships/dynamic-groups/routes/PROD-write denial.

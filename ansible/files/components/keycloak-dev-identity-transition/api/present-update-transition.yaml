@@ -20,15 +20,17 @@ spec:
     realm: cristexhub
     actorRef: keycloak-prod-compatibility-auditor
     actorCapability: absent-blocker
-    allowedMethods:
-      - GET
+    allowedMethods: []
     writeMethods: []
-    allowedPaths:
+    desiredEvidencePaths:
       - GET /admin/realms/cristexhub
       - GET /admin/realms/cristexhub/clients?clientId=cristexhub-prod
       - GET /admin/realms/cristexhub/groups?search=cristexhub-prod-super-admin
-    rawResponseSha256BeforeAfter: required-sanitized
-    canonicalProjectionSha256BeforeAfter: required-sanitized
+    requiredRoleSet: unselected-blocker
+    exactFieldProjection: unselected-blocker
+    adminRestCalls: forbidden-until-role-and-projection-review
+    rawResponseSha256BeforeAfter: blocked-pending-auditor-design
+    canonicalProjectionSha256BeforeAfter: blocked-pending-auditor-design
     mutation: forbidden
   bootstrapPhase:
     tokenExchange:
@@ -66,8 +68,8 @@ spec:
     directRealmRoles: []
     fgapPolicies: []
     rejectedCapabilities:
-      query-clients: can-enumerate-all-confidential-client-secrets
-      query-groups: enumerates-all-group-metadata
+      query-clients: unverified-collection-and-secret-projection-semantics
+      query-groups: unverified-collection-projection-semantics
       client-view: exposes-confidential-client-secret
       group-view: exposes-group-role-mapping-and-detail-data
     adminRestCalls: forbidden

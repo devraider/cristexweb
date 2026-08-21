@@ -64,6 +64,7 @@ spec:
     credentialPath: unselected-blocker
     credentialKey: unselected-blocker
     requiredRoleSet: unselected-blocker
+    exactFieldProjection: unselected-blocker
     distinctFromBootstrapActor: true
     recurringUse: forbidden
     allowedOperations:
@@ -82,12 +83,14 @@ spec:
     realm: cristexhub
     credentialPath: unselected-blocker
     credentialKey: unselected-blocker
-    allowedMethods:
-      - GET
-    allowedPaths:
+    requiredRoleSet: unselected-blocker
+    exactFieldProjection: unselected-blocker
+    allowedMethods: []
+    desiredEvidencePaths:
       - /admin/realms/cristexhub
       - /admin/realms/cristexhub/clients?clientId=cristexhub-prod
       - /admin/realms/cristexhub/groups?search=cristexhub-prod-super-admin
+    adminRestCalls: forbidden-until-role-and-projection-review
     writeMethods: []
   recurringAuditor:
     name: keycloak-dev-auditor
@@ -104,14 +107,15 @@ spec:
       - realm-admin
       - manage-realm
       - manage-clients
+      - view-clients
       - manage-users
       - view-users
       - impersonation
       - manage-authorization
       - manage-organizations
     rejectedDirectRoleBindings:
-      query-clients: forbidden-can-enumerate-all-confidential-client-secrets
-      query-groups: forbidden-enumerates-all-group-metadata
+      query-clients: forbidden-unverified-collection-and-secret-projection-semantics
+      query-groups: forbidden-unverified-collection-projection-semantics
     fineGrainedAdminPermissionsV2:
       recurringActorPolicies: none
       clientView: forbidden-exposes-confidential-client-secret
