@@ -4592,9 +4592,9 @@ custodian that remains absent/blocking. The auditor receives no direct role, FGA
 policy, credential materialization, or Admin REST method: Keycloak 26.7.1
 `query-clients` can expose every confidential-client secret, `query-groups`
 enumerates all group metadata, client `view` authorizes secret reads, and group
-`view` exposes memberships. Recurring Admin REST audit therefore remains blocked
+`view` exposes role-mapping/detail data beyond the boundary. Recurring Admin REST audit therefore remains blocked
 until a genuinely narrower capability exists. Four distinct Infisical paths reserve browser, disabled admin-service,
-bootstrap, and auditor secrets. There is no writer or Kubernetes target; existing
+bootstrap value metadata and a disabled-auditor reservation; auditor value materialization is forbidden. There is no writer or Kubernetes target; existing
 VAP/RBAC seams cannot be reused, and provider CAS semantics remain an explicit
 unverified blocker.
 
@@ -4611,7 +4611,7 @@ git diff --check
 ```
 
 Actual result: base successor check `ok=14 changed=1 failed=0`; transition check
-`ok=15 changed=1 failed=0`; `418/418` unit tests passed; all playbook syntax checks
+`ok=15 changed=1 failed=0`; `420/420` unit tests passed; all 47 playbook syntax checks
 passed; production-profile Ansible lint passed with only 14 pre-existing ignored
 warnings; compile and diff checks passed. Both predicted changes are offline source
 predictions only. No Keycloak/Admin API, Kubernetes, Infisical, Secret, database,

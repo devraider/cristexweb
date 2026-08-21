@@ -18,7 +18,8 @@
 - name: Require the source-only DEV transition approval contract
   ansible.builtin.assert:
     that:
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ENTRYPOINT') == 'v2'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_WRAPPER_PID') is match('^[1-9][0-9]*$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_TOKEN') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ATTESTATION_FILE') | length > 0
       - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ADMIN_TOKEN_FILE') | length == 0
@@ -225,6 +226,13 @@
       - actor.spec.bootstrapActor.recurringReconciliation == 'forbidden'
       - actor.spec.bootstrapActor.automaticCreatorGrantLedger.roleRemovalBeforeRecurringAudit == 'required'
       - actor.spec.retirementCustodian.status == 'absent-blocker'
+      - actor.spec.retirementCustodian.clientId == 'unselected-blocker'
+      - actor.spec.retirementCustodian.realm == 'master'
+      - actor.spec.retirementCustodian.credentialPath == 'unselected-blocker'
+      - actor.spec.retirementCustodian.requiredRoleSet == 'unselected-blocker'
+      - actor.spec.prodCompatibilityAuditor.status == 'absent-blocker'
+      - actor.spec.prodCompatibilityAuditor.allowedMethods == ['GET']
+      - actor.spec.prodCompatibilityAuditor.writeMethods == []
       - actor.spec.recurringAuditor.clientId == 'cristexhub-dev-auditor'
       - actor.spec.recurringAuditor.realm == 'cristexhub-dev'
       - actor.spec.recurringAuditor.masterRealmAccess == 'forbidden'
@@ -238,7 +246,7 @@
       - actor.spec.recurringAuditor.rejectedDirectRoleBindings['query-groups'] == 'forbidden-enumerates-all-group-metadata'
       - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.recurringActorPolicies == 'none'
       - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.clientView == 'forbidden-exposes-confidential-client-secret'
-      - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.groupView == 'forbidden-exposes-membership-data'
+      - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.groupView == 'forbidden-exposes-group-role-mapping-and-detail-data'
       - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.manage == 'forbidden'
       - actor.spec.recurringAuditor.missingOwnedObjectBehavior == 'fail-closed-no-create'
       - infisical.spec.contracts | map(attribute='path') | list == keycloak_dev_identity_transition_bootstrap_infisical_paths
@@ -272,6 +280,8 @@
       - api.spec.status == 'source-only-check-only'
       - api.spec.activation == 'apply-blocked-pending-all-transition-gates'
       - api.spec.apply == 'forbidden'
+      - api.spec.legacyProd.actorRef == 'keycloak-prod-compatibility-auditor'
+      - api.spec.legacyProd.actorCapability == 'absent-blocker'
       - api.spec.legacyProd.allowedMethods == ['GET']
       - api.spec.legacyProd.writeMethods == []
       - api.spec.bootstrapPhase.allowedMethods == ['GET', 'POST', 'PUT']

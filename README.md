@@ -89,21 +89,21 @@ now freezes the exact `/cristexhub/prod/runtime` source, independent PROD Auth a
 Universal Auth names, nine-key `cristexhub-prod-runtime` plus separate
 `cristexhub-prod-ghcr-pull` targets, exact PROD-scoped admission, additive
 least-privilege writer RBAC, manifest/action hashes, and guarded check/apply source.
-The PROD Namespace checkpoint is complete, but Universal Auth values are absent, so
-runtime-seam check/apply, sync, Secret values, workload, and promotion remain
-**NOT RUN/BLOCKED**; the fixed
-Infisical `prod` slug remains only a Cloud identifier. A separate guarded
+**Historical pre-activation checkpoint (superseded):** the PROD Namespace was
+complete while Universal Auth values, runtime-seam apply, sync, Secret targets, and
+workloads were still absent. The fixed Infisical `prod` slug remains only a Cloud
+environment identifier. A separate guarded
 [CristexHub PROD Argo registration](runbooks/cristexhub-prod-argocd-registration.md)
 source now pins the protected-main application revision
 `751885a42798d282e168131db147f13694a0a621` in a five-object, namespaced,
-permanently sync-denied closure. Its wrapper check/apply and every sync transition
-remain **NOT RUN/BLOCKED** and do not imply Namespace, Secret, workload, or route
-activation.
+historical manual-sync closure. That pre-activation state is superseded by the
+current private PROD registration and automated non-pruning sync recorded in
+`AGENTS.md`; it never implied public-route activation.
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
 it does not claim a live rename or deletion. Runtime checkpoint history remains recorded in `AGENTS.md` and the component
 runbooks; this source-only increment performs no runtime action. The live
-`cristexhub-prod` Namespace is Active; its Secrets, registration objects,
-workload, and route remain absent. The source-selection paragraphs below preserve
+`cristexhub-prod` Namespace, runtime Secrets, registration, and private workload are
+now live/idempotent; only its public Cloudflare route remains absent. The source-selection paragraphs below preserve
 historical pre-runtime absence checkpoints and must not be read as current Namespace
 absence evidence; `AGENTS.md` is authoritative for completed runtime checkpoints. The Argo CD candidate and release
 records bind chart

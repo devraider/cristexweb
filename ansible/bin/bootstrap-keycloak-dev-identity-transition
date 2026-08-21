@@ -21,6 +21,7 @@ fi
 [ -z "${CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_API_BASE_URL:-}" ] || exit 78
 [ -z "${CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_KUBECONFIG:-}" ] || exit 78
 user=$(/usr/bin/id -un)
+wrapper_pid=$$
 cd "$root/ansible"
 umask 077
 attestation="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-keycloak-dev-transition.XXXXXX")"
@@ -29,4 +30,6 @@ printf '%s:entrypoint\n' "$token" >"$attestation"
 cleanup() { /bin/rm -f -- "$attestation"; }
 trap cleanup EXIT HUP INT TERM
 set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_keycloak_dev_identity_transition.yml --diff --limit crtxweb --check --extra-vars '{"keycloak_dev_identity_transition_bootstrap_approved":true}'
-/usr/bin/env -i HOME="${HOME:-/home/paul}" USER="$user" LOGNAME="$user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ENTRYPOINT=v1 CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_TOKEN="$token" CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ATTESTATION_FILE="$attestation" "$@"
+status=0
+/usr/bin/env -i HOME="${HOME:-/home/paul}" USER="$user" LOGNAME="$user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ENTRYPOINT=v2 CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_WRAPPER_PID="$wrapper_pid" CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_TOKEN="$token" CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ATTESTATION_FILE="$attestation" "$@" || status=$?
+exit "$status"

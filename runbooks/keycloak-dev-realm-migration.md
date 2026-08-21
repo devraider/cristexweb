@@ -106,7 +106,8 @@ It validates, without contacting any runtime:
 - a disabled realm-local auditor placeholder with no role, FGAP policy, credential
   materialization, or Admin REST method: Keycloak 26.7.1 `query-clients` can expose
   every confidential-client secret and `query-groups` enumerates all group metadata;
-  client `view` also authorizes secret reads and group `view` exposes memberships;
+  client `view` also authorizes secret reads, while group `view` exposes role-mapping
+  and detail data beyond the auditor boundary;
 - four separate Infisical path reservations for browser, disabled admin-service,
   one-time bootstrap, and disabled auditor metadata, with no Kubernetes targets,
   no writer, and provider CAS semantics explicitly unverified; and
@@ -116,9 +117,12 @@ It validates, without contacting any runtime:
   `DELETE`/`PATCH`/users/memberships/dynamic-groups/routes/PROD-write denial.
 
 The wrapper rejects `apply`, public-host/API/token inputs, task-selection controls,
-unsafe inventory, and non-loopback transport values. Its same-UID attestation guards
-accidental/direct misuse; the controller account itself remains a trusted boundary
-and is not defended against a malicious process running as that user. This phase does not start a
+unsafe inventory, and non-loopback transport values. The action additionally binds
+the live ancestor PID, exact canonical wrapper argv/path/hash/owner/mode, and its
+single-run mode-`0600` attestation; a directly invoked official playbook with a
+self-minted receipt fails closed. The controller account itself remains a trusted
+boundary and is not defended against a malicious same-UID process that deliberately
+emulates process provenance. This phase does not start a
 port-forward, acquire an Admin REST credential, read Infisical, call Kubernetes, or
 create/update the successor realm. API transition apply, private transport
 activation, actor materialization, CAS writes, client Secret materialization,

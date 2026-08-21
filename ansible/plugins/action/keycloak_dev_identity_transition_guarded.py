@@ -5,12 +5,18 @@ import json
 import os
 import re
 import stat
+import subprocess
 from pathlib import Path
 from typing import Any
 
 from ansible import context
 from ansible.plugins.action import ActionBase
 
+_EXPECTED_WRAPPER_PATHS = {
+    "/Users/paul/Projects/cristexweb/ansible/bin/bootstrap-keycloak-dev-identity-transition",
+    "/home/paul/projects/cristexweb/ansible/bin/bootstrap-keycloak-dev-identity-transition",
+}
+_EXPECTED_WRAPPER_SHA256 = "e9bef7f4297437d057c35e907806c3327893bdaca70e72fd7715abe4ba20c4cd"
 _EXPECTED_TASK_SOURCES = {
     "/Users/paul/Projects/cristexweb/ansible/roles/keycloak_dev_identity_transition_bootstrap/tasks/main.yml",
     "/home/paul/projects/cristexweb/ansible/roles/keycloak_dev_identity_transition_bootstrap/tasks/main.yml",
@@ -21,9 +27,9 @@ _LEGACY_REALM = "cristexhub"
 _COMPONENT = "keycloak-dev-identity-transition"
 _EXPECTED_DEFINITION_HASHES: dict[str, str] = {
     "KeycloakAdminTransportContract/cristexhub-dev-admin-rest-port-forward": "4c81e84442bfb5046c19f9cb5a7126747ddaf273923457ba44d91d4e74eb36b9",
-    "KeycloakIdentityActorContract/cristexhub-dev-successor-actors": "80ccee88fe646c6a7bb44dfde20caace70d8f6bb3aeb5cb425c62c2c2f0aa93a",
+    "KeycloakIdentityActorContract/cristexhub-dev-successor-actors": "d90895459aa4f244d1b0408e7ed97ccfea88a9184bb64ffab666c4ca86a6995d",
     "InfisicalSuccessorValueContract/cristexhub-dev-successor-identity-values": "0b73d72d0c4f1fb42064da6f47954bbf059a26648adf8ccea600662a32571b9e",
-    "KeycloakDevIdentityApiTransitionContract/cristexhub-dev-present-update-api-transition": "4891dabe18461da22dd39123b2359735b4a94cb186bca90cbed1f00f4ec40ff7",
+    "KeycloakDevIdentityApiTransitionContract/cristexhub-dev-present-update-api-transition": "ba4f5e4383a1f309f6101e68b28a00ff9de85bf39210891894170344b3e5d346",
 }
 _EXPECTED_IDENTITY_SET_SHA256 = "b18beb541a118a4cc08fec680ff2ca42b4512f413a5b3582738faea9b4af8070"
 _EXPECTED_KEY_NAMES = [
@@ -79,6 +85,78 @@ def _labels_valid(definition: dict[str, Any]) -> bool:
         and labels.get("cristex.io/managed-by") == "ansible"
         and labels.get("cristex.io/value-owner") == "infisical-cloud"
     )
+
+
+def _parent_pid(pid: int) -> int:
+    proc_stat = Path(f"/proc/{pid}/stat")
+    if proc_stat.is_file():
+        tail = proc_stat.read_text().rsplit(") ", 1)[1].split()
+        return int(tail[1])
+    result = subprocess.run(
+        ["/bin/ps", "-o", "ppid=", "-p", str(pid)],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=2,
+    )
+    return int(result.stdout.strip()) if result.returncode == 0 else 0
+
+
+def _wrapper_process_valid() -> bool:
+    pid_text = os.environ.get("CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_WRAPPER_PID", "")
+    if not re.fullmatch(r"[1-9][0-9]*", pid_text):
+        return False
+    wrapper_pid = int(pid_text)
+    current = os.getpid()
+    ancestors: set[int] = set()
+    try:
+        while current > 1 and current not in ancestors:
+            ancestors.add(current)
+            current = _parent_pid(current)
+        if wrapper_pid not in ancestors:
+            return False
+        cmdline_path = Path(f"/proc/{wrapper_pid}/cmdline")
+        if cmdline_path.is_file():
+            argv = [
+                item.decode("utf-8", "strict")
+                for item in cmdline_path.read_bytes().split(b"\0")
+                if item
+            ]
+        else:
+            result = subprocess.run(
+                ["/bin/ps", "-o", "command=", "-p", str(wrapper_pid)],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            argv = result.stdout.strip().split() if result.returncode == 0 else []
+        wrapper_arg_present = any(
+            item in _EXPECTED_WRAPPER_PATHS
+            or item == "ansible/bin/bootstrap-keycloak-dev-identity-transition"
+            for item in argv
+        )
+        wrapper = next(
+            (
+                Path(item)
+                for item in _EXPECTED_WRAPPER_PATHS
+                if Path(item).is_file()
+                and hashlib.sha256(Path(item).read_bytes()).hexdigest()
+                == _EXPECTED_WRAPPER_SHA256
+            ),
+            None,
+        )
+        if not wrapper_arg_present or wrapper is None or not argv or argv[-1] != "check":
+            return False
+        wrapper_stat = wrapper.lstat()
+        return (
+            stat.S_ISREG(wrapper_stat.st_mode)
+            and not wrapper.is_symlink()
+            and stat.S_IMODE(wrapper_stat.st_mode) == 0o755
+            and wrapper_stat.st_uid == os.getuid()
+        )
+    except (OSError, ValueError, IndexError, subprocess.SubprocessError, UnicodeError):
+        return False
 
 
 def _transport_valid(spec: dict[str, Any]) -> bool:
@@ -147,6 +225,8 @@ def _identity_contract_valid(spec: dict[str, Any]) -> bool:
     auditor = spec.get("recurringAuditor") or {}
     legacy = spec.get("legacyRealm") or {}
     fgap = auditor.get("fineGrainedAdminPermissionsV2") or {}
+    custodian = spec.get("retirementCustodian") or {}
+    prod_auditor = spec.get("prodCompatibilityAuditor") or {}
     return (
         spec.get("status") == "source-only-check-only"
         and spec.get("activation")
@@ -164,14 +244,39 @@ def _identity_contract_valid(spec: dict[str, Any]) -> bool:
         and bootstrap.get("recurringReconciliation") == "forbidden"
         and bootstrap.get("allowedOperations") == [
             "POST /admin/realms target=cristexhub-dev",
-            "GET /admin/realms/cristexhub",
+            "GET /admin/realms/cristexhub-dev after-create-or-409-only",
             "initialize-exact-dev-clients-group-mappers-and-disabled-auditor",
         ]
-        and (spec.get("retirementCustodian") or {}).get("name")
-        == "keycloak-dev-bootstrap-retirement-custodian"
-        and (spec.get("retirementCustodian") or {}).get("status") == "absent-blocker"
-        and (spec.get("retirementCustodian") or {}).get("distinctFromBootstrapActor") is True
-        and (spec.get("retirementCustodian") or {}).get("recurringUse") == "forbidden"
+        and custodian.get("name") == "keycloak-dev-bootstrap-retirement-custodian"
+        and custodian.get("status") == "absent-blocker"
+        and custodian.get("clientId") == "unselected-blocker"
+        and custodian.get("realm") == "master"
+        and custodian.get("credentialPath") == "unselected-blocker"
+        and custodian.get("credentialKey") == "unselected-blocker"
+        and custodian.get("requiredRoleSet") == "unselected-blocker"
+        and custodian.get("distinctFromBootstrapActor") is True
+        and custodian.get("recurringUse") == "forbidden"
+        and custodian.get("allowedOperations") == [
+            "disable-exact-bootstrap-service-account",
+            "revoke-exact-create-realm-role-mapping",
+            "remove-exact-automatic-target-realm-role-mappings",
+        ]
+        and custodian.get("forbiddenOperations") == [
+            "successor-object-reconciliation", "users", "memberships", "prod-writes"
+        ]
+        and prod_auditor.get("name") == "keycloak-prod-compatibility-auditor"
+        and prod_auditor.get("status") == "absent-blocker"
+        and prod_auditor.get("clientId") == "unselected-blocker"
+        and prod_auditor.get("realm") == _LEGACY_REALM
+        and prod_auditor.get("credentialPath") == "unselected-blocker"
+        and prod_auditor.get("credentialKey") == "unselected-blocker"
+        and prod_auditor.get("allowedMethods") == ["GET"]
+        and prod_auditor.get("allowedPaths") == [
+            "/admin/realms/cristexhub",
+            "/admin/realms/cristexhub/clients?clientId=cristexhub-prod",
+            "/admin/realms/cristexhub/groups?search=cristexhub-prod-super-admin",
+        ]
+        and prod_auditor.get("writeMethods") == []
         and (bootstrap.get("automaticCreatorGrantLedger") or {}).get("captureBeforeCreate")
         == "required"
         and (bootstrap.get("automaticCreatorGrantLedger") or {}).get("captureAfterCreate")
@@ -200,7 +305,7 @@ def _identity_contract_valid(spec: dict[str, Any]) -> bool:
         and fgap.get("recurringActorPolicies") == "none"
         and fgap.get("clientView")
         == "forbidden-exposes-confidential-client-secret"
-        and fgap.get("groupView") == "forbidden-exposes-membership-data"
+        and fgap.get("groupView") == "forbidden-exposes-group-role-mapping-and-detail-data"
         and fgap.get("manage") == "forbidden"
         and fgap.get("selfManagement") == "forbidden"
         and auditor.get("missingOwnedObjectBehavior") == "fail-closed-no-create"
@@ -317,6 +422,8 @@ def _api_contract_valid(spec: dict[str, Any]) -> bool:
         and spec.get("retirementCustodianRef")
         == "keycloak-dev-bootstrap-retirement-custodian"
         and legacy.get("realm") == _LEGACY_REALM
+        and legacy.get("actorRef") == "keycloak-prod-compatibility-auditor"
+        and legacy.get("actorCapability") == "absent-blocker"
         and legacy.get("allowedMethods") == ["GET"]
         and legacy.get("writeMethods") == []
         and legacy.get("allowedPaths") == [
@@ -355,7 +462,7 @@ def _api_contract_valid(spec: dict[str, Any]) -> bool:
         and (recurring.get("rejectedCapabilities") or {}).get("client-view")
         == "exposes-confidential-client-secret"
         and (recurring.get("rejectedCapabilities") or {}).get("group-view")
-        == "exposes-membership-data"
+        == "exposes-group-role-mapping-and-detail-data"
         and recurring.get("adminRestCalls") == "forbidden"
         and recurring.get("protocolMapperInventory") == "one-shot-transition-only"
         and recurring.get("missingOwnedObjectBehavior") == "fail-closed-no-create"
@@ -446,7 +553,7 @@ class ActionModule(ActionBase):
         except (OSError, ValueError):
             state, value = None, ""
         valid_attestation = (
-            os.environ.get("CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ENTRYPOINT") == "v1"
+            os.environ.get("CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ENTRYPOINT") == "v2"
             and re.fullmatch(r"[0-9a-f]{64}", token) is not None
             and bool(attestation_file)
             and os.path.isabs(attestation_file)
@@ -473,6 +580,7 @@ class ActionModule(ActionBase):
             or not task_vars.get("ansible_check_mode")
             or not context.CLIARGS.get("diff")
             or not valid_attestation
+            or not _wrapper_process_valid()
             or not valid_binding
         ):
             return {"changed": False, "failed": True, "msg": "CHECK_ONLY_GUARD"}

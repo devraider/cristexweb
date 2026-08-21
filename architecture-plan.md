@@ -2,6 +2,12 @@
 
 ## Status
 
+> **Historical planning record.** Runtime/status statements below preserve the
+> checkpoint at which each architecture section was authored and are not current
+> absence evidence. Root `AGENTS.md` is authoritative for live/idempotent Argo,
+> Infisical, database, broker, edge, DEV, and private PROD checkpoints; the PROD
+> public Cloudflare route remains unapplied.
+
 This target design has the existing bounded Ansible workflows plus an
 executed non-destructive storage-discovery increment and temporary CNI/NetworkPolicy
 functional probe. Extended storage discovery confirmed the live curated device and

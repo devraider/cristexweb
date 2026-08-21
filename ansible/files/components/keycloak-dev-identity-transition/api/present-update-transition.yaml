@@ -18,6 +18,8 @@ spec:
   retirementCustodianRef: keycloak-dev-bootstrap-retirement-custodian
   legacyProd:
     realm: cristexhub
+    actorRef: keycloak-prod-compatibility-auditor
+    actorCapability: absent-blocker
     allowedMethods:
       - GET
     writeMethods: []
@@ -67,7 +69,7 @@ spec:
       query-clients: can-enumerate-all-confidential-client-secrets
       query-groups: enumerates-all-group-metadata
       client-view: exposes-confidential-client-secret
-      group-view: exposes-membership-data
+      group-view: exposes-group-role-mapping-and-detail-data
     adminRestCalls: forbidden
     protocolMapperInventory: one-shot-transition-only
     missingOwnedObjectBehavior: fail-closed-no-create

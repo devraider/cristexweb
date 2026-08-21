@@ -6,6 +6,7 @@ import os
 import re
 import stat
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -77,6 +78,13 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
             canonical = json.dumps(document, sort_keys=True, separators=(",", ":"))
             expected[identity] = hashlib.sha256(canonical.encode()).hexdigest()
         self.assertEqual(expected, plugin_hashes)
+        wrapper_hash = re.search(
+            r'_EXPECTED_WRAPPER_SHA256 = "([0-9a-f]{64})"', self.plugin_text
+        )
+        self.assertIsNotNone(wrapper_hash)
+        self.assertEqual(
+            hashlib.sha256(WRAPPER.read_bytes()).hexdigest(), wrapper_hash.group(1)
+        )
 
     def test_private_loopback_kubernetes_api_port_forward_is_exact(self) -> None:
         spec = self.by_kind["KeycloakAdminTransportContract"]["spec"]
@@ -142,7 +150,16 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("forbidden", bootstrap["existingBreakGlassReuse"])
         self.assertEqual("one-transition", bootstrap["maxUse"])
         self.assertEqual("forbidden", bootstrap["recurringReconciliation"])
-        self.assertEqual("absent-blocker", spec["retirementCustodian"]["status"])
+        custodian = spec["retirementCustodian"]
+        self.assertEqual("absent-blocker", custodian["status"])
+        self.assertEqual("unselected-blocker", custodian["clientId"])
+        self.assertEqual("master", custodian["realm"])
+        self.assertEqual("unselected-blocker", custodian["credentialPath"])
+        self.assertEqual("unselected-blocker", custodian["requiredRoleSet"])
+        prod_auditor = spec["prodCompatibilityAuditor"]
+        self.assertEqual("absent-blocker", prod_auditor["status"])
+        self.assertEqual(["GET"], prod_auditor["allowedMethods"])
+        self.assertEqual([], prod_auditor["writeMethods"])
         self.assertEqual(
             "required",
             bootstrap["automaticCreatorGrantLedger"]["roleRemovalBeforeRecurringAudit"],
@@ -168,7 +185,9 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         fgap = auditor["fineGrainedAdminPermissionsV2"]
         self.assertEqual("none", fgap["recurringActorPolicies"])
         self.assertEqual("forbidden-exposes-confidential-client-secret", fgap["clientView"])
-        self.assertEqual("forbidden-exposes-membership-data", fgap["groupView"])
+        self.assertEqual(
+            "forbidden-exposes-group-role-mapping-and-detail-data", fgap["groupView"]
+        )
         self.assertEqual("forbidden", fgap["manage"])
         self.assertEqual("forbidden", fgap["selfManagement"])
         self.assertEqual("fail-closed-no-create", auditor["missingOwnedObjectBehavior"])
@@ -204,30 +223,55 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
             ],
             [key for item in contracts for key in item["exactKeys"]],
         )
+        self.assertEqual("prod:/shared-services/keycloak", spec["predecessor"]["path"])
+        self.assertEqual("CRISTEXHUB_DEV_OIDC_CLIENT_SECRET", spec["predecessor"]["key"])
         self.assertEqual("forbidden", spec["predecessor"]["mutation"])
+        self.assertEqual(
+            "through-accepted-cutover-and-rollback-window", spec["predecessor"]["retention"]
+        )
         self.assertEqual("absent", spec["writers"]["dedicatedSuccessorWriter"])
-        self.assertEqual("forbidden", spec["writers"]["broadUploaderReuse"])
+        for key in ("broadUploaderReuse", "runtimeReaderReuse", "predecessorOverwrite"):
+            self.assertEqual("forbidden", spec["writers"][key])
         cas = spec["cas"]
-        self.assertEqual("absent", spec["bootstrapAbsencePreflight"]["requiredState"])
+        absence = spec["bootstrapAbsencePreflight"]
+        self.assertEqual("prod:/cristexhub/dev/identity/bootstrap", absence["path"])
+        self.assertEqual("KEYCLOAK_DEV_BOOTSTRAP_CLIENT_SECRET", absence["exactKey"])
+        self.assertTrue(absence["metadataOnly"])
+        self.assertEqual("absent", absence["requiredState"])
         self.assertEqual(
             "fail-closed-foreign-or-unknown-stop",
-            spec["bootstrapAbsencePreflight"]["preExistingValue"],
+            absence["preExistingValue"],
         )
         self.assertEqual("unverified-blocker", cas["apiSemantics"])
+        self.assertIn("conditional-write", cas["requiredBehavior"])
+        self.assertIn("ambiguous-write-unknown-stop-no-retry", cas["requiredBehavior"])
+        self.assertEqual(
+            "required-after-provider-api-verification", cas["ifMatchOrEquivalent"]
+        )
         self.assertEqual("forbidden", cas["blindRetry"])
         self.assertEqual("forbidden", cas["overwriteWithoutExpectedRevision"])
         self.assertEqual("never-returned", spec["noOutput"]["values"])
-        self.assertEqual("forbidden", spec["kubernetesAdmission"]["materializationCurrentPhase"])
+        admission = spec["kubernetesAdmission"]
+        self.assertTrue(admission["additiveExactVapSourceRequired"])
+        self.assertTrue(admission["additiveExactRbacSourceRequired"])
+        self.assertEqual("forbidden", admission["materializationCurrentPhase"])
 
     def test_api_transition_is_present_update_only_and_apply_blocked(self) -> None:
         spec = self.by_kind["KeycloakDevIdentityApiTransitionContract"]["spec"]
         self.assertEqual("forbidden", spec["apply"])
+        self.assertEqual("keycloak-prod-compatibility-auditor", spec["legacyProd"]["actorRef"])
+        self.assertEqual("absent-blocker", spec["legacyProd"]["actorCapability"])
         self.assertEqual(["GET"], spec["legacyProd"]["allowedMethods"])
         self.assertEqual([], spec["legacyProd"]["writeMethods"])
         self.assertEqual(["GET", "POST", "PUT"], spec["bootstrapPhase"]["allowedMethods"])
         bootstrap = spec["bootstrapPhase"]
         self.assertEqual("required", bootstrap["automaticCreatorGrantLedger"])
         self.assertEqual("absent-blocker", bootstrap["retirementCustodianCapability"])
+        self.assertEqual("forbidden", bootstrap["realmCreate"]["retry"])
+        self.assertEqual(
+            "one-exact-get-then-operator-review",
+            bootstrap["realmCreate"]["conflictResolution"],
+        )
         recurring = spec["recurringAuditPhase"]
         self.assertEqual(
             "blocked-no-viable-least-privilege-keycloak-admin-role", recurring["status"]
@@ -244,8 +288,13 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("forbidden", recurring["adminRestCalls"])
         self.assertEqual("one-shot-transition-only", recurring["protocolMapperInventory"])
         self.assertEqual("fail-closed-no-create", recurring["missingOwnedObjectBehavior"])
-        self.assertEqual("forbidden", spec["resourceIds"]["deriveFromNames"])
+        resource_ids = spec["resourceIds"]
+        self.assertEqual("forbidden", resource_ids["deriveFromNames"])
+        self.assertEqual("required", resource_ids["captureFromSameOriginLocationOrExactGet"])
+        self.assertEqual("required", resource_ids["bindToEphemeralAttestation"])
+        self.assertEqual("fail-closed", resource_ids["duplicateOrForeignOwned"])
         self.assertEqual(["DELETE", "PATCH"], spec["forbidden"]["methods"])
+        self.assertIn("prod-writes", spec["forbidden"]["paths"])
         for resource in ("users", "memberships", "dynamic-groups", "routes", "legacy-prod-realm"):
             self.assertIn(resource, spec["forbidden"]["resources"])
         for key in (
@@ -319,6 +368,46 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         )
         self.assertEqual(78, wrapper.returncode, wrapper.stdout)
         self.assertNotIn("PLAY [", wrapper.stdout)
+
+    def test_official_playbook_rejects_forged_same_user_attestation(self) -> None:
+        controller = ROOT / ".venv/bin/ansible-playbook"
+        token = "a" * 64
+        with tempfile.NamedTemporaryFile(mode="w", prefix="dev-transition-forged-") as receipt:
+            receipt.write(f"{token}:entrypoint\n")
+            receipt.flush()
+            os.chmod(receipt.name, 0o600)
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "ANSIBLE_CONFIG": str(ROOT / "ansible/ansible.cfg"),
+                    "CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ENTRYPOINT": "v2",
+                    "CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_WRAPPER_PID": str(os.getpid()),
+                    "CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_TOKEN": token,
+                    "CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ATTESTATION_FILE": receipt.name,
+                }
+            )
+            direct = subprocess.run(
+                [
+                    str(controller),
+                    "-i",
+                    ".ansible/inventory.local.yml",
+                    "playbooks/bootstrap_keycloak_dev_identity_transition.yml",
+                    "--diff",
+                    "--limit",
+                    "crtxweb",
+                    "--check",
+                    "--extra-vars",
+                    '{"keycloak_dev_identity_transition_bootstrap_approved":true}',
+                ],
+                cwd=ROOT / "ansible",
+                env=environment,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False,
+            )
+        self.assertNotEqual(0, direct.returncode, direct.stdout)
+        self.assertIn("failed=1", direct.stdout)
 
     def test_policy_and_runbook_bind_next_phase(self) -> None:
         successor = self.policy["realm_transition"]["successor_dev"]

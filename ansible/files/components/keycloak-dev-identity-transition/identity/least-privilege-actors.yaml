@@ -40,7 +40,7 @@ spec:
     recurringReconciliation: forbidden
     allowedOperations:
       - POST /admin/realms target=cristexhub-dev
-      - GET /admin/realms/cristexhub
+      - GET /admin/realms/cristexhub-dev after-create-or-409-only
       - initialize-exact-dev-clients-group-mappers-and-disabled-auditor
     automaticCreatorGrantLedger:
       captureBeforeCreate: required
@@ -59,6 +59,11 @@ spec:
   retirementCustodian:
     name: keycloak-dev-bootstrap-retirement-custodian
     status: absent-blocker
+    clientId: unselected-blocker
+    realm: master
+    credentialPath: unselected-blocker
+    credentialKey: unselected-blocker
+    requiredRoleSet: unselected-blocker
     distinctFromBootstrapActor: true
     recurringUse: forbidden
     allowedOperations:
@@ -70,6 +75,20 @@ spec:
       - users
       - memberships
       - prod-writes
+  prodCompatibilityAuditor:
+    name: keycloak-prod-compatibility-auditor
+    status: absent-blocker
+    clientId: unselected-blocker
+    realm: cristexhub
+    credentialPath: unselected-blocker
+    credentialKey: unselected-blocker
+    allowedMethods:
+      - GET
+    allowedPaths:
+      - /admin/realms/cristexhub
+      - /admin/realms/cristexhub/clients?clientId=cristexhub-prod
+      - /admin/realms/cristexhub/groups?search=cristexhub-prod-super-admin
+    writeMethods: []
   recurringAuditor:
     name: keycloak-dev-auditor
     clientId: cristexhub-dev-auditor
@@ -96,7 +115,7 @@ spec:
     fineGrainedAdminPermissionsV2:
       recurringActorPolicies: none
       clientView: forbidden-exposes-confidential-client-secret
-      groupView: forbidden-exposes-membership-data
+      groupView: forbidden-exposes-group-role-mapping-and-detail-data
       manage: forbidden
       selfManagement: forbidden
       serviceClientManagement: forbidden
