@@ -134,20 +134,20 @@ acceptance. Any unexpected UID, generation, owner, target, or StaticSecret state
 
 ## CNPG Secret-type decision gate
 
-Official CloudNativePG v1.30 documentation and controller/API source were reviewed
-on 2026-08-21. `DatabaseRole.spec.passwordSecret` requires a same-Namespace
-`kubernetes.io/basic-auth` Secret with `username` and `password`. Updating that
-Secret rotates the existing role in place, and convergence is proven when the
-DatabaseRole's observed Secret resourceVersion matches the target and `applied=true`.
-The existing Infisical targets are `Opaque`, so they do **not** satisfy the selected
-official contract. No apply-capable writer, Secret-type change, DatabaseRole change,
-or rotation may proceed until a separately reviewed basic-auth target-contract
-remediation is accepted.
+Official CloudNativePG v1.30 documentation, controller/API source, and exact live
+status were reviewed on 2026-08-21. Documentation shows a same-Namespace
+`kubernetes.io/basic-auth` Secret with `username` and `password`, but the pinned
+DatabaseRole controller validates the keys rather than enforcing `Secret.type`.
+Both live DatabaseRoles are applied against the current `Opaque` targets. Updating
+the Secret rotates the existing role in place, and convergence is proven when
+DatabaseRole `status.secretResourceVersion` matches the target and `applied=true`.
+The `Opaque` versus documented `basic-auth` difference remains source-normalization
+drift for separate review, but it is not itself a rotation blocker. No Secret-type
+or DatabaseRole mutation is authorized by this contract.
 
-After that decision, a future lane must require DatabaseRole `status.applied=true`,
+Any future lane must require DatabaseRole `status.applied=true`,
 current observed generation, matching post-sync Secret resourceVersion,
-CloudNativePG managed-role password resourceVersion/transaction metadata, a Ready
-cluster, and no `cannotReconcile` state. These are acceptance gates, not runtime
+DatabaseRole Secret resourceVersion and a Ready cluster. These are acceptance gates, not runtime
 claims in this source-only contract.
 
 ## Successor, revocation, and rollback order
@@ -187,7 +187,7 @@ rollouts; NetworkPolicy changes; route changes; and any delete/recreate path.
 This contract intentionally has no executable files, no check/apply wrapper, no
 runtime contact, and no provider or cluster operation. The apply gate is:
 
-`blocked-until-infisical-concurrency-and-cnpg-basic-auth-remediation`
+`blocked-until-infisical-concurrency-and-dedicated-writer`
 
 Unblocking additionally requires dedicated no-output writer review, protected
 predecessor custody review, exact successor authentication and negative tests, and

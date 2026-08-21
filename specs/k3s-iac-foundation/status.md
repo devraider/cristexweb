@@ -263,8 +263,9 @@ note: |
   NetworkPolicies select shared PostgreSQL; these objects are unaccepted drift. A
   review-log exposure makes both credentials rotation/revocation blockers. A
   dedicated source-only rotation contract now freezes exact two-key/no-output/stop
-  semantics but remains non-executable because Infisical documents no CAS and CNPG
-  1.30 requires `kubernetes.io/basic-auth` while the live targets are `Opaque`. The
+  semantics but remains non-executable because Infisical documents no CAS. CNPG 1.30 documents
+  `kubernetes.io/basic-auth`, but its pinned controller accepts the live key-correct
+  `Opaque` targets; normalization remains a separate source review. The
   successor DEV realm runtime, patched OIDC/local-auth behavior, dedicated Infisical
   and database ownership lanes, private object storage, ACL/TLS/NetworkPolicy,
   candidate image provenance mismatch, locked split-role migration, recovery,

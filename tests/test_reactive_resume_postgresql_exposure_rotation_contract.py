@@ -189,25 +189,31 @@ class ReactiveResumePostgresqlExposureRotationContractTests(unittest.TestCase):
 
         cnpg = self.policy["cnpg_contract"]
         self.assertEqual(
-            "blocked-current-target-type-incompatible-with-official-contract", cnpg["status"]
+            "reviewed-current-opaque-target-controller-compatible-documentation-drift",
+            cnpg["status"],
         )
         decision = cnpg["official_cnpg_secret_type_decision"]
-        self.assertEqual("reviewed-basic-auth-required", decision["status"])
+        self.assertEqual("reviewed-basic-auth-documented-opaque-controller-accepted", decision["status"])
         self.assertTrue(decision["accepted"])
         self.assertEqual("v1.30.0", decision["pinned_crd_version"])
         self.assertEqual("kubernetes.io/basic-auth", decision["documented_password_secret_type"])
         self.assertEqual(["username", "password"], decision["documented_keys"])
+        self.assertFalse(decision["controller_enforces_secret_type"])
         self.assertEqual("Opaque", decision["current_target_type"])
-        self.assertFalse(decision["current_target_compatible"])
-        self.assertEqual("official-cnpg-1.30-review-2026-08-21", decision["decision_record"])
+        self.assertTrue(decision["current_target_compatible"])
+        self.assertTrue(decision["live_database_roles_applied_with_current_target"])
         self.assertEqual(
-            "blocked-until-infisical-concurrency-and-cnpg-basic-auth-remediation",
+            "official-cnpg-1.30-controller-and-live-review-2026-08-21",
+            decision["decision_record"],
+        )
+        self.assertEqual(
+            "blocked-until-infisical-concurrency-and-dedicated-writer",
             cnpg["apply_gate"],
         )
         self.assertEqual(
             [
                 "vendor-confirmed-infisical-cas-or-accepted-external-serialization",
-                "cnpg-basic-auth-target-contract-remediation",
+                "cnpg-current-opaque-controller-compatibility-record",
                 "dedicated-no-output-writer-source-review",
                 "exact-predecessor-custody-review",
                 "exact-successor-authentication-and-negative-tests",
@@ -290,10 +296,10 @@ class ReactiveResumePostgresqlExposureRotationContractTests(unittest.TestCase):
             "CAS-UNKNOWN-STOP",
             "PARTIAL-STOP",
             "published contract contains **NO DOCUMENTED CAS**",
-            "requires a same-Namespace `kubernetes.io/basic-auth` Secret",
+            "Documentation shows a same-Namespace `kubernetes.io/basic-auth` Secret",
             "kubernetes.io/basic-auth",
             "Opaque",
-            "blocked-until-infisical-concurrency-and-cnpg-basic-auth-remediation",
+            "blocked-until-infisical-concurrency-and-dedicated-writer",
             "The 15-key bootstrap uploader is not a CAS writer and is forbidden",
             "no executable files",
             "No password, username value, Secret data",

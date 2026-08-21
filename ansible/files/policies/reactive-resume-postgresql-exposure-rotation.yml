@@ -170,26 +170,27 @@ materialization_contract:
   protected_successor_equality_check: required-no-output
   static_secret_successful_reconcile: required
 cnpg_contract:
-  status: blocked-current-target-type-incompatible-with-official-contract
+  status: reviewed-current-opaque-target-controller-compatible-documentation-drift
   official_cnpg_secret_type_decision:
-    status: reviewed-basic-auth-required
+    status: reviewed-basic-auth-documented-opaque-controller-accepted
     pinned_crd_version: v1.30.0
     documented_password_secret_type: kubernetes.io/basic-auth
     documented_keys: [username, password]
+    controller_enforces_secret_type: false
     current_target_type: Opaque
-    current_target_compatible: false
-    decision_record: official-cnpg-1.30-review-2026-08-21
+    current_target_compatible: true
+    live_database_roles_applied_with_current_target: true
+    source_normalization: separate-review-required-not-rotation-blocker
+    decision_record: official-cnpg-1.30-controller-and-live-review-2026-08-21
     accepted: true
-  apply_gate: blocked-until-infisical-concurrency-and-cnpg-basic-auth-remediation
+  apply_gate: blocked-until-infisical-concurrency-and-dedicated-writer
   database_role_spec_name_mutable: false
   role_password_update_without_role_recreation: required
   role_or_database_delete: forbidden
   role_reconciliation_status_applied: required
   role_observed_generation_current: required
   role_secret_resource_version_match: required
-  managed_role_password_resource_version_match: required
   cluster_ready: required
-  cannot_reconcile: forbidden
   runtime_role_acl_remediation: separate-blocked-lane
   authenticated_successor_probe: required-before-revocation
   predecessor_authentication_failure: required-before-completion
@@ -247,7 +248,7 @@ apply_gate:
   apply_capable_source: absent
   unblock_requires:
     - vendor-confirmed-infisical-cas-or-accepted-external-serialization
-    - cnpg-basic-auth-target-contract-remediation
+    - cnpg-current-opaque-controller-compatibility-record
     - dedicated-no-output-writer-source-review
     - exact-predecessor-custody-review
     - exact-successor-authentication-and-negative-tests

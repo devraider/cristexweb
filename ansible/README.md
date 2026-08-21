@@ -564,8 +564,9 @@ Broad-lane DEV and unapproved PROD PostgreSQL CRs plus Infisical-owned credentia
 Secrets are live but unaccepted; `INHERIT`, broad PUBLIC privileges, absent selecting
 NetworkPolicy, and exposed credentials block use. A dedicated source-only rotation
 contract freezes exact scope and no-output stop semantics but remains non-executable:
-Infisical documents no CAS and CNPG 1.30 requires `kubernetes.io/basic-auth` rather
-than the live `Opaque` targets. Successor identity, patched
+Infisical documents no CAS. CNPG 1.30 documents `kubernetes.io/basic-auth`, but the
+pinned controller accepts the live key-correct `Opaque` targets; normalization is a
+separate source review. Successor identity, patched
 OIDC/local-auth/privacy behavior, dedicated Infisical/database lanes, private object
 storage, the mismatched candidate image, locked split-role migration, recovery,
 workload objects, and runtime remain blocked; Agent/Redis are disabled and no

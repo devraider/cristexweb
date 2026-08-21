@@ -144,8 +144,9 @@ unapproved PROD PostgreSQL CRs plus Infisical-owned Secrets are already live but
 unaccepted; roles retain `INHERIT`, no NetworkPolicy selects shared PostgreSQL, and
 review-log exposure requires credential rotation/revocation. A dedicated source-only
 rotation contract now freezes exact scope/no-output/stop semantics but remains
-non-executable because Infisical documents no CAS and CNPG requires `basic-auth`
-while live targets are `Opaque`. Dedicated DEV-only Infisical/VAP/RBAC and PostgreSQL lanes, realm/issuer/callback/claims, accepted image,
+non-executable because Infisical documents no CAS. CNPG documents `basic-auth`,
+while its pinned controller accepts the live key-correct `Opaque` targets; that
+normalization drift is separate from rotation. Dedicated DEV-only Infisical/VAP/RBAC and PostgreSQL lanes, realm/issuer/callback/claims, accepted image,
 durable private object storage, application-key custody, disabled v5 Agent/Redis,
 patched OIDC, locked split-role migration, backup/restore, RPO/RTO,
 NetworkPolicy/TLS identity, and runtime remain blocked; PROD is reservation-only and
