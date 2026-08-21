@@ -15,8 +15,8 @@ The DEV successor lane authorizes only offline source validation. It performs no
 Admin API request and authorizes no apply, Secret operation, database mutation,
 route change, application cutover, or cluster mutation. The next transition source
 closure defines a blocked strict-TLS controller-local Kubernetes API port-forward,
-dedicated one-time bootstrap plus a blocked retirement custodian and FGAP V2
-read-only realm-auditor contracts,
+dedicated one-time bootstrap plus a blocked retirement custodian and a disabled
+realm-auditor placeholder with no roles, FGAP policy, credential, or Admin REST calls,
 four separated Infisical value paths with CAS semantics still unverified, and a
 future phase-specific API allowlist; all remain apply-blocked. No public hostname
 is an Admin REST transport. The existing

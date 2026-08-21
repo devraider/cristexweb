@@ -149,6 +149,8 @@
 - name: Require blocked strict-TLS loopback transport and no public route
   ansible.builtin.assert:
     that:
+      - item.spec.status == 'source-only-check-only'
+      - item.spec.activation == 'blocked-current-keycloak-has-no-https-admin-listener'
       - item.spec.mode == 'controller-kubernetes-api-port-forward'
       - item.spec.target.namespace == 'shared-services'
       - item.spec.target.deployment == 'keycloak'
@@ -163,6 +165,9 @@
       - item.spec.futureTls.privateCa == 'required'
       - item.spec.futureTls.serverCertificateSan == ['IP:127.0.0.1']
       - item.spec.futureTls.leafKeyCorrespondence == 'required'
+      - item.spec.futureTls.certificateSource == 'absent-blocker'
+      - item.spec.futureTls.caCertificateSha256 == 'absent-blocker'
+      - item.spec.futureTls.leafCertificateSha256 == 'absent-blocker'
       - item.spec.futureTls.exactCaVerification == 'required'
       - item.spec.futureTls.validateCertificates | bool
       - item.spec.futureTls.insecureSkipVerify == 'forbidden'
@@ -178,6 +183,8 @@
       - item.spec.portForward.cleanup.verifyListenerGone == 'required'
       - item.spec.portForward.cleanup.ambiguousCleanup == 'unknown-stop'
       - item.spec.adminRest.endpoint == 'https://127.0.0.1:18443'
+      - item.spec.adminRest.bootstrapTokenPath == '/realms/master/protocol/openid-connect/token'
+      - item.spec.adminRest.auditorTokenPath == 'forbidden-disabled-actor'
       - item.spec.publicExposure.publicHostname == 'forbidden'
       - item.spec.publicExposure.authHostname == 'forbidden'
       - item.spec.publicExposure.cloudflare == 'forbidden'
@@ -206,6 +213,8 @@
       selectattr('kind', 'equalto', 'KeycloakDevIdentityApiTransitionContract') | first }}
   ansible.builtin.assert:
     that:
+      - actor.spec.status == 'source-only-check-only'
+      - actor.spec.activation == 'blocked-pending-bootstrap-custodian-and-no-viable-least-privilege-recurring-admin-auditor'
       - actor.spec.legacyRealm.readMethods == ['GET']
       - actor.spec.legacyRealm.writeMethods == []
       - actor.spec.bootstrapActor.clientId == 'cristexhub-dev-bootstrap'
@@ -219,22 +228,36 @@
       - actor.spec.recurringAuditor.clientId == 'cristexhub-dev-auditor'
       - actor.spec.recurringAuditor.realm == 'cristexhub-dev'
       - actor.spec.recurringAuditor.masterRealmAccess == 'forbidden'
-      - actor.spec.recurringAuditor.recurringUse == 'future-read-only-drift-audit'
-      - actor.spec.recurringAuditor.directRealmManagementRoles == ['query-clients', 'query-groups']
+      - actor.spec.recurringAuditor.enabled == false
+      - actor.spec.recurringAuditor.credentialMaterialization == 'forbidden-while-disabled'
+      - actor.spec.recurringAuditor.recurringUse == 'blocked-no-viable-least-privilege-admin-rest-role'
+      - actor.spec.recurringAuditor.directRealmManagementRoles == []
       - "'manage-realm' in actor.spec.recurringAuditor.forbiddenRealmManagementRoles"
       - "'manage-clients' in actor.spec.recurringAuditor.forbiddenRealmManagementRoles"
-      - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.clientResource.scopes == ['view']
-      - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.groupResource.scopes == ['view']
-      - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.clientResource.resourceId == 'capture-opaque-client-uuid'
-      - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.groupResource.resourceId == 'capture-opaque-group-uuid'
+      - actor.spec.recurringAuditor.rejectedDirectRoleBindings['query-clients'] == 'forbidden-can-enumerate-all-confidential-client-secrets'
+      - actor.spec.recurringAuditor.rejectedDirectRoleBindings['query-groups'] == 'forbidden-enumerates-all-group-metadata'
+      - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.recurringActorPolicies == 'none'
+      - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.clientView == 'forbidden-exposes-confidential-client-secret'
+      - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.groupView == 'forbidden-exposes-membership-data'
+      - actor.spec.recurringAuditor.fineGrainedAdminPermissionsV2.manage == 'forbidden'
       - actor.spec.recurringAuditor.missingOwnedObjectBehavior == 'fail-closed-no-create'
       - infisical.spec.contracts | map(attribute='path') | list == keycloak_dev_identity_transition_bootstrap_infisical_paths
       - >-
         infisical.spec.contracts | map(attribute='exactKeys') | flatten ==
         keycloak_dev_identity_transition_bootstrap_infisical_key_names
+      - infisical.spec.status == 'source-only-check-only'
+      - infisical.spec.activation == 'blocked-no-writer-no-target-no-verified-cas'
+      - infisical.spec.predecessor.path == 'prod:/shared-services/keycloak'
+      - infisical.spec.predecessor.key == 'CRISTEXHUB_DEV_OIDC_CLIENT_SECRET'
       - infisical.spec.predecessor.mutation == 'forbidden'
+      - infisical.spec.predecessor.retention == 'through-accepted-cutover-and-rollback-window'
       - infisical.spec.writers.dedicatedSuccessorWriter == 'absent'
       - infisical.spec.writers.broadUploaderReuse == 'forbidden'
+      - infisical.spec.writers.runtimeReaderReuse == 'forbidden'
+      - infisical.spec.writers.predecessorOverwrite == 'forbidden'
+      - infisical.spec.bootstrapAbsencePreflight.path == 'prod:/cristexhub/dev/identity/bootstrap'
+      - infisical.spec.bootstrapAbsencePreflight.exactKey == 'KEYCLOAK_DEV_BOOTSTRAP_CLIENT_SECRET'
+      - infisical.spec.bootstrapAbsencePreflight.metadataOnly | bool
       - infisical.spec.bootstrapAbsencePreflight.requiredState == 'absent'
       - infisical.spec.bootstrapAbsencePreflight.preExistingValue == 'fail-closed-foreign-or-unknown-stop'
       - infisical.spec.cas.apiSemantics == 'unverified-blocker'
@@ -243,21 +266,35 @@
       - infisical.spec.noOutput['values'] == 'never-returned'
       - infisical.spec.kubernetesAdmission.existingDevRuntimeVapReuse == 'forbidden'
       - infisical.spec.kubernetesAdmission.existingSharedServicesVapReuse == 'forbidden'
+      - infisical.spec.kubernetesAdmission.additiveExactVapSourceRequired | bool
+      - infisical.spec.kubernetesAdmission.additiveExactRbacSourceRequired | bool
       - infisical.spec.kubernetesAdmission.materializationCurrentPhase == 'forbidden'
+      - api.spec.status == 'source-only-check-only'
+      - api.spec.activation == 'apply-blocked-pending-all-transition-gates'
       - api.spec.apply == 'forbidden'
       - api.spec.legacyProd.allowedMethods == ['GET']
       - api.spec.legacyProd.writeMethods == []
       - api.spec.bootstrapPhase.allowedMethods == ['GET', 'POST', 'PUT']
+      - api.spec.bootstrapPhase.realmCreate.retry == 'forbidden'
+      - api.spec.bootstrapPhase.realmCreate.conflictResolution == 'one-exact-get-then-operator-review'
       - api.spec.bootstrapPhase.automaticCreatorGrantLedger == 'required'
       - api.spec.bootstrapPhase.retirementCustodianCapability == 'absent-blocker'
-      - api.spec.recurringAuditPhase.allowedMethods == ['GET']
-      - api.spec.recurringAuditPhase.mapperCardinality.groups == 'exactly-one'
-      - api.spec.recurringAuditPhase.mapperCardinality.organization == 'exactly-one'
-      - api.spec.recurringAuditPhase.mapperCardinality['cristexhub-dev-audience'] == 'exactly-one'
-      - api.spec.recurringAuditPhase.emptyCollectionBehavior == 'fail-closed-missing-owned-object'
-      - api.spec.recurringAuditPhase.duplicateCollectionBehavior == 'fail-closed'
+      - api.spec.recurringAuditPhase.status == 'blocked-no-viable-least-privilege-keycloak-admin-role'
+      - api.spec.recurringAuditPhase.actorEnabled == false
+      - api.spec.recurringAuditPhase.credentialMaterialization == 'forbidden'
+      - api.spec.recurringAuditPhase.allowedMethods == []
+      - api.spec.recurringAuditPhase.directRealmRoles == []
+      - api.spec.recurringAuditPhase.fgapPolicies == []
+      - api.spec.recurringAuditPhase.rejectedCapabilities['query-clients'] == 'can-enumerate-all-confidential-client-secrets'
+      - api.spec.recurringAuditPhase.rejectedCapabilities['query-groups'] == 'enumerates-all-group-metadata'
+      - api.spec.recurringAuditPhase.adminRestCalls == 'forbidden'
+      - api.spec.recurringAuditPhase.protocolMapperInventory == 'one-shot-transition-only'
       - api.spec.recurringAuditPhase.missingOwnedObjectBehavior == 'fail-closed-no-create'
       - api.spec.resourceIds.deriveFromNames == 'forbidden'
+      - api.spec.resourceIds.captureFromSameOriginLocationOrExactGet == 'required'
+      - api.spec.resourceIds.bindToEphemeralAttestation == 'required'
+      - api.spec.resourceIds.duplicateOrForeignOwned == 'fail-closed'
+      - "'prod-writes' in api.spec.forbidden.paths"
       - api.spec.responseContract.conflictStatus == '409-not-success'
       - api.spec.responseContract.timeoutOrConnectionLoss == 'unknown-stop'
       - api.spec.responseContract.ambiguousPostRetry == 'forbidden'

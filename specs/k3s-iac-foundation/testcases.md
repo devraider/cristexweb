@@ -4572,7 +4572,7 @@ Actual result: offline wrapper `ok=14 changed=1 unreachable=0 failed=0 skipped=0
 Ansible lint passed with only the 14 pre-existing ignored warnings; compile, shell,
 and diff checks passed. The predicted change means runtime state is intentionally
 unknown, not that a mutation occurred. Realm creation, private Admin REST transport,
-bootstrap retirement custodian and read-only auditor identities, credential CAS/materialization, identity
+bootstrap retirement custodian and disabled auditor placeholder, credential CAS/materialization, identity
 migration, application cutover, and authenticated positive/negative tests remain
 **NOT RUN/BLOCKED** and require separate approvals.
 
@@ -4586,13 +4586,14 @@ for loopback port-forwarding. It creates no Service, helper Pod, route, listener
 certificate, or Kubernetes object.
 
 The actor contract separates a one-transition master service account with only
-`create-realm` from a recurring read-only `cristexhub-dev` auditor. Automatic
+`create-realm` from a disabled `cristexhub-dev` auditor placeholder. Automatic
 creator grants require an exact role-ID ledger and removal by a distinct retirement
-custodian that remains absent/blocking. The auditor receives only `query-clients`,
-`query-groups`, and UUID-bound FGAP V2 `view` policies for the DEV browser client
-and static group; every write, realm-wide management, users, memberships,
-organizations, self-management, service-client management, and PROD access remain
-forbidden. Four distinct Infisical paths reserve browser, disabled admin-service,
+custodian that remains absent/blocking. The auditor receives no direct role, FGAP
+policy, credential materialization, or Admin REST method: Keycloak 26.7.1
+`query-clients` can expose every confidential-client secret, `query-groups`
+enumerates all group metadata, client `view` authorizes secret reads, and group
+`view` exposes memberships. Recurring Admin REST audit therefore remains blocked
+until a genuinely narrower capability exists. Four distinct Infisical paths reserve browser, disabled admin-service,
 bootstrap, and auditor secrets. There is no writer or Kubernetes target; existing
 VAP/RBAC seams cannot be reused, and provider CAS semantics remain an explicit
 unverified blocker.

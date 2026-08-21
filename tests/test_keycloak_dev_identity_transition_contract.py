@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import stat
 import subprocess
 import unittest
@@ -63,8 +64,26 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual(4, self.defaults["keycloak_dev_identity_transition_bootstrap_object_count"])
         self.assertEqual(4, len(self.defaults["keycloak_dev_identity_transition_bootstrap_expected_hashes"]))
 
+    def test_plugin_canonical_hashes_match_every_exact_document(self) -> None:
+        plugin_hashes = dict(
+            re.findall(
+                r'"([^"/]+/[^"/]+)": "([0-9a-f]{64})"',
+                self.plugin_text,
+            )
+        )
+        expected = {}
+        for document in self.documents:
+            identity = f"{document['kind']}/{document['metadata']['name']}"
+            canonical = json.dumps(document, sort_keys=True, separators=(",", ":"))
+            expected[identity] = hashlib.sha256(canonical.encode()).hexdigest()
+        self.assertEqual(expected, plugin_hashes)
+
     def test_private_loopback_kubernetes_api_port_forward_is_exact(self) -> None:
         spec = self.by_kind["KeycloakAdminTransportContract"]["spec"]
+        self.assertEqual("source-only-check-only", spec["status"])
+        self.assertEqual(
+            "blocked-current-keycloak-has-no-https-admin-listener", spec["activation"]
+        )
         self.assertEqual("controller-kubernetes-api-port-forward", spec["mode"])
         self.assertTrue(spec["controllerOnly"])
         target = spec["target"]
@@ -86,6 +105,9 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("required", spec["futureTls"]["privateCa"])
         self.assertEqual(["IP:127.0.0.1"], spec["futureTls"]["serverCertificateSan"])
         self.assertEqual("required", spec["futureTls"]["leafKeyCorrespondence"])
+        self.assertEqual("absent-blocker", spec["futureTls"]["certificateSource"])
+        self.assertEqual("absent-blocker", spec["futureTls"]["caCertificateSha256"])
+        self.assertEqual("absent-blocker", spec["futureTls"]["leafCertificateSha256"])
         self.assertEqual("required", spec["futureTls"]["exactCaVerification"])
         self.assertTrue(spec["futureTls"]["validateCertificates"])
         self.assertEqual("forbidden", spec["futureTls"]["insecureSkipVerify"])
@@ -100,6 +122,11 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("required", forwarding["cleanup"]["verifyListenerGone"])
         self.assertEqual("unknown-stop", forwarding["cleanup"]["ambiguousCleanup"])
         self.assertEqual("https://127.0.0.1:18443", spec["adminRest"]["endpoint"])
+        self.assertEqual(
+            "/realms/master/protocol/openid-connect/token",
+            spec["adminRest"]["bootstrapTokenPath"],
+        )
+        self.assertEqual("forbidden-disabled-actor", spec["adminRest"]["auditorTokenPath"])
         for key in ("publicHostname", "authHostname", "cloudflare", "ingress", "service", "helperPod", "nodePort", "loadBalancer"):
             self.assertEqual("forbidden", spec["publicExposure"][key])
         self.assertNotIn("auth.cristex-soft.com", json.dumps(spec))
@@ -124,16 +151,25 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("cristexhub-dev-auditor", auditor["clientId"])
         self.assertEqual("cristexhub-dev", auditor["realm"])
         self.assertEqual("forbidden", auditor["masterRealmAccess"])
-        self.assertEqual("future-read-only-drift-audit", auditor["recurringUse"])
-        self.assertEqual(["query-clients", "query-groups"], auditor["directRealmManagementRoles"])
+        self.assertFalse(auditor["enabled"])
+        self.assertEqual("forbidden-while-disabled", auditor["credentialMaterialization"])
+        self.assertEqual(
+            "blocked-no-viable-least-privilege-admin-rest-role", auditor["recurringUse"]
+        )
+        self.assertEqual([], auditor["directRealmManagementRoles"])
         self.assertIn("manage-realm", auditor["forbiddenRealmManagementRoles"])
         self.assertIn("manage-clients", auditor["forbiddenRealmManagementRoles"])
+        rejected = auditor["rejectedDirectRoleBindings"]
+        self.assertEqual(
+            "forbidden-can-enumerate-all-confidential-client-secrets",
+            rejected["query-clients"],
+        )
+        self.assertEqual("forbidden-enumerates-all-group-metadata", rejected["query-groups"])
         fgap = auditor["fineGrainedAdminPermissionsV2"]
-        self.assertEqual("capture-opaque-client-uuid", fgap["clientResource"]["resourceId"])
-        self.assertEqual(["view"], fgap["clientResource"]["scopes"])
-        self.assertEqual("capture-opaque-group-uuid", fgap["groupResource"]["resourceId"])
-        self.assertEqual(["view"], fgap["groupResource"]["scopes"])
-        self.assertEqual("capture-opaque-uuid", fgap["actorBinding"]["serviceAccountUserId"])
+        self.assertEqual("none", fgap["recurringActorPolicies"])
+        self.assertEqual("forbidden-exposes-confidential-client-secret", fgap["clientView"])
+        self.assertEqual("forbidden-exposes-membership-data", fgap["groupView"])
+        self.assertEqual("forbidden", fgap["manage"])
         self.assertEqual("forbidden", fgap["selfManagement"])
         self.assertEqual("fail-closed-no-create", auditor["missingOwnedObjectBehavior"])
         for resource in ("users", "memberships", "dynamic-groups", "routes", "prod-clients", "protocol-mapper-writes"):
@@ -193,13 +229,20 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("required", bootstrap["automaticCreatorGrantLedger"])
         self.assertEqual("absent-blocker", bootstrap["retirementCustodianCapability"])
         recurring = spec["recurringAuditPhase"]
-        self.assertEqual(["GET"], recurring["allowedMethods"])
-        self.assertEqual("exactly-one", recurring["mapperCardinality"]["groups"])
-        self.assertEqual("exactly-one", recurring["mapperCardinality"]["organization"])
         self.assertEqual(
-            "exactly-one", recurring["mapperCardinality"]["cristexhub-dev-audience"]
+            "blocked-no-viable-least-privilege-keycloak-admin-role", recurring["status"]
         )
-        self.assertEqual("fail-closed", recurring["duplicateCollectionBehavior"])
+        self.assertFalse(recurring["actorEnabled"])
+        self.assertEqual("forbidden", recurring["credentialMaterialization"])
+        self.assertEqual([], recurring["allowedMethods"])
+        self.assertEqual([], recurring["directRealmRoles"])
+        self.assertEqual([], recurring["fgapPolicies"])
+        self.assertEqual(
+            "can-enumerate-all-confidential-client-secrets",
+            recurring["rejectedCapabilities"]["query-clients"],
+        )
+        self.assertEqual("forbidden", recurring["adminRestCalls"])
+        self.assertEqual("one-shot-transition-only", recurring["protocolMapperInventory"])
         self.assertEqual("fail-closed-no-create", recurring["missingOwnedObjectBehavior"])
         self.assertEqual("forbidden", spec["resourceIds"]["deriveFromNames"])
         self.assertEqual(["DELETE", "PATCH"], spec["forbidden"]["methods"])
@@ -289,7 +332,7 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         for required in (
             "Next source-only transition phase",
             "current HTTP `8080` listener is explicitly forbidden",
-            "read-only auditor using `query-clients`, `query-groups`,\n  and exact UUID-bound FGAP V2 `view` policies only",
+            "disabled realm-local auditor placeholder with no role, FGAP policy, credential\n  materialization, or Admin REST method",
             "provider CAS semantics explicitly unverified",
             "DELETE`/`PATCH`/users/memberships/dynamic-groups/routes/PROD-write denial",
             "private transport\nactivation",

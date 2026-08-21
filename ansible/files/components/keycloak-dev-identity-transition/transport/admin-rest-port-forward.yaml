@@ -31,6 +31,9 @@ spec:
     serverCertificateSan:
       - IP:127.0.0.1
     leafKeyCorrespondence: required
+    certificateSource: absent-blocker
+    caCertificateSha256: absent-blocker
+    leafCertificateSha256: absent-blocker
     exactCaVerification: required
     validateCertificates: true
     insecureSkipVerify: forbidden
@@ -53,7 +56,7 @@ spec:
     endpoint: https://127.0.0.1:18443
     basePath: /admin
     bootstrapTokenPath: /realms/master/protocol/openid-connect/token
-    reconcilerTokenPath: /realms/cristexhub-dev/protocol/openid-connect/token
+    auditorTokenPath: forbidden-disabled-actor
     followRedirects: false
     bearerTransport: controller-memory-only-no-log
     responseHandling: status-and-allowlisted-projection-only

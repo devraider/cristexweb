@@ -47,8 +47,8 @@ spec:
       tags: []
       exactKeys:
         - KEYCLOAK_DEV_REALM_AUDITOR_CLIENT_SECRET
-      lifecycle: recurring-read-only-drift-audit
-      kubernetesTarget: forbidden-controller-input-only
+      lifecycle: reserved-no-value-while-auditor-disabled
+      kubernetesTarget: forbidden-while-disabled
   predecessor:
     path: prod:/shared-services/keycloak
     key: CRISTEXHUB_DEV_OIDC_CLIENT_SECRET

@@ -94,9 +94,9 @@ plugins: ten canonical Namespace and Infisical/database/Argo and CristexHub DEV/
 Secret/seam/Universal Auth mutation guards, two guarded host rclone install/transfer
 boundaries, two no-log Secret cryptographic validators, five MongoDB/PostgreSQL/
 Keycloak/RabbitMQ/OIDC object-closure guards, four cloudflared/route closures, four
-CoreDNS/DEV/PROD registration/sync guards, two fixed logical-provisioning guards, and
-one source-only Keycloak DEV successor transport/actor/Infisical-CAS/API transition
-guard. No general-purpose operational Python or infrastructure collector exists. One
+CoreDNS/DEV/PROD registration/sync guards, two fixed logical-provisioning guards,
+one dedicated shared-MongoDB NetworkPolicy guard, and two source-only Keycloak DEV
+successor identity and transport/actor/Infisical-CAS/API transition guards. No general-purpose operational Python or infrastructure collector exists. One
 approved non-elevated check/diff run produced
 a locally reviewed host report. A separately approved playbook directly requested
 only `python3-kubernetes` and `python3-jsonpatch`; apt installed 37 packages including

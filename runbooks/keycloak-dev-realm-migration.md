@@ -103,12 +103,14 @@ It validates, without contacting any runtime:
   Ready Keycloak Pod UID, with no helper Pod, Service, route, or unpinned binary;
 - a dedicated one-transition master service account with only `create-realm`, an
   explicit automatic-role ledger, and a still-absent separate retirement custodian;
-- a distinct realm-local read-only auditor using `query-clients`, `query-groups`,
-  and exact UUID-bound FGAP V2 `view` policies only;
-- four separate Infisical paths for browser, disabled admin-service, one-time
-  bootstrap, and recurring auditor credentials, with no Kubernetes targets,
+- a disabled realm-local auditor placeholder with no role, FGAP policy, credential
+  materialization, or Admin REST method: Keycloak 26.7.1 `query-clients` can expose
+  every confidential-client secret and `query-groups` enumerates all group metadata;
+  client `view` also authorizes secret reads and group `view` exposes memberships;
+- four separate Infisical path reservations for browser, disabled admin-service,
+  one-time bootstrap, and disabled auditor metadata, with no Kubernetes targets,
   no writer, and provider CAS semantics explicitly unverified; and
-- phase-specific API contracts: bootstrap GET/POST/PUT and recurring audit GET only,
+- phase-specific API contracts: bootstrap GET/POST/PUT and no recurring Admin REST method,
   opaque resource-ID binding, PROD before/after digests, ambiguous-write
   UNKNOWN-STOP, and unconditional
   `DELETE`/`PATCH`/users/memberships/dynamic-groups/routes/PROD-write denial.
@@ -142,8 +144,8 @@ The following are separate gates and are not implied by source or check mode:
    writer are verified, without replacing predecessor or PROD values;
 7. dedicated HTTPS listener plus strict-TLS controller-local Kubernetes API
    port-forward transport and precreated
-   one-transition bootstrap, separate retirement-custodian, and read-only auditor
-   identities, followed by a separately approved read-only preflight;
+   one-transition bootstrap and separate retirement-custodian identities; recurring
+   Admin REST audit remains blocked until a genuinely narrower capability exists;
 8. private route/discovery/JWKS and callback source for the successor issuer;
 9. clean immutable CristexHub application revision with DEV issuer and realm
    changes only;

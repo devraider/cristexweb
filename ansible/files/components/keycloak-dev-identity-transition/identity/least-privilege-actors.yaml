@@ -10,7 +10,7 @@ metadata:
     cristex.io/value-owner: infisical-cloud
 spec:
   status: source-only-check-only
-  activation: blocked-pending-bootstrap-custodian-and-actor-materialization
+  activation: blocked-pending-bootstrap-custodian-and-no-viable-least-privilege-recurring-admin-auditor
   legacyRealm:
     name: cristexhub
     role: retained-prod-compatibility
@@ -41,7 +41,7 @@ spec:
     allowedOperations:
       - POST /admin/realms target=cristexhub-dev
       - GET /admin/realms/cristexhub
-      - initialize-exact-dev-clients-group-mappers-and-fgap
+      - initialize-exact-dev-clients-group-mappers-and-disabled-auditor
     automaticCreatorGrantLedger:
       captureBeforeCreate: required
       captureAfterCreate: required
@@ -74,14 +74,13 @@ spec:
     name: keycloak-dev-auditor
     clientId: cristexhub-dev-auditor
     realm: cristexhub-dev
+    enabled: false
     credentialPath: prod:/cristexhub/dev/identity/auditor
     credentialKey: KEYCLOAK_DEV_REALM_AUDITOR_CLIENT_SECRET
-    credentialTarget: protected-controller-input-only
+    credentialMaterialization: forbidden-while-disabled
     masterRealmAccess: forbidden
-    recurringUse: future-read-only-drift-audit
-    directRealmManagementRoles:
-      - query-clients
-      - query-groups
+    recurringUse: blocked-no-viable-least-privilege-admin-rest-role
+    directRealmManagementRoles: []
     forbiddenRealmManagementRoles:
       - realm-admin
       - manage-realm
@@ -91,30 +90,22 @@ spec:
       - impersonation
       - manage-authorization
       - manage-organizations
+    rejectedDirectRoleBindings:
+      query-clients: forbidden-can-enumerate-all-confidential-client-secrets
+      query-groups: forbidden-enumerates-all-group-metadata
     fineGrainedAdminPermissionsV2:
-      enablement: bootstrap-owned-required
-      adminPermissionsClientId: capture-opaque-uuid
-      actorBinding:
-        serviceAccountUserId: capture-opaque-uuid
-        subjectType: exact-user-policy
-      clientResource:
-        resourceId: capture-opaque-client-uuid
-        expectedClientId: cristexhub-dev
-        scopes:
-          - view
-      groupResource:
-        resourceId: capture-opaque-group-uuid
-        expectedPath: /cristexhub-dev-super-admin
-        scopes:
-          - view
+      recurringActorPolicies: none
+      clientView: forbidden-exposes-confidential-client-secret
+      groupView: forbidden-exposes-membership-data
+      manage: forbidden
       selfManagement: forbidden
       serviceClientManagement: forbidden
+      futureNarrowerGrant: separate-reviewed-transition-only
     missingOwnedObjectBehavior: fail-closed-no-create
-    allowedResources:
-      - successor-browser-client-read
-      - successor-static-group-read
-      - successor-browser-client-mapper-read
+    allowedResources: []
     forbiddenResources:
+      - all-client-collections
+      - all-group-collections
       - successor-realm-settings
       - successor-service-client-metadata
       - auditor-self
@@ -126,7 +117,10 @@ spec:
       - dynamic-groups
       - role-mappings
       - organizations
+      - client-resource-detail
+      - group-resource-detail
       - client-secret
+      - client-protocol-mapper-inventory
       - protocol-mapper-writes
       - routes
   credentialCustody:
