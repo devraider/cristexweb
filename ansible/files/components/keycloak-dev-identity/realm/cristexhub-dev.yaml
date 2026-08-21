@@ -22,6 +22,7 @@ spec:
   duplicateEmailsAllowed: false
   editUsernameAllowed: false
   bruteForceProtected: true
+  organizationsEnabled: true
   legacyRealm:
     name: cristexhub
     role: retained-prod-compatibility

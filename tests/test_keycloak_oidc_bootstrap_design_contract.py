@@ -54,7 +54,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
 
     def test_cristexhub_prod_browser_contract_is_exact_and_value_free(self) -> None:
         for required in (
-            "The CristexHub browser contracts are now selected without selecting runtime",
+            "Legacy DEV and private PROD\nconsumers are live on the retained realm; the DEV successor remains unactivated",
             "The `cristexhub-prod` client is confidential, uses\nPKCE `S256`",
             "https://hub.cristex-soft.com/oauth2/callback",
             "https://hub.cristex-soft.com",
@@ -66,7 +66,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "cristexhub-prod-super-admin",
             "Missing, unverified,\nambiguous, unmatched, or cross-environment group claims fail closed",
             "The two administrative service clients remain\n`browser_flow_allowed: false`",
-            "No public Keycloak route is\nauthorized now",
+            "existing reviewed browser-auth route and DEV application route are live",
         ):
             self.assertIn(required, self.text)
         self.assertNotIn("client_secret:", self.text)
@@ -83,20 +83,21 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
 
     def test_production_database_backup_and_restore_gates_fail_closed(self) -> None:
         for required in (
-            "selected official `26.7.1` linux/amd64 child\ndigest `sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2`\nand production startup, never `start-dev`",
+            "live Keycloak `26.7.1` workload uses the immutable CristexHub-derived digest",
+            "official\nlinux/amd64 digest\n`sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2`\nremains upstream selection evidence",
             "a dedicated logical database and dedicated owner role on the one general shared\nPostgreSQL instance",
             "Keycloak remains a separate deployment from PostgreSQL",
             "No\nseparate Keycloak PostgreSQL deployment or PVC is selected",
             "the shared engine and\nPVC remain a shared failure domain",
             "Keycloak role cannot access application databases, and application roles cannot\naccess the Keycloak database",
-            "Before the first private bootstrap, the database/storage\ndesign, backup tooling and destination, encryption/key custody, integrity procedure,\nrestore procedure, and provisional RPO/RTO must be reviewed and approved",
-            "first separately approved\nbootstrap remains non-authoritative: it creates only controlled test identity state",
+            "Encrypted\napplication-consistent backup, immutable off-node readback, and isolated restore\nhave runtime evidence",
+            "realm/client/admin behavioral recovery, role/ownership\nrestoration, measured RPO/RTO, and full production recovery acceptance remain open",
             "application-consistent `pg_dump` backup rather than live-volume synchronization",
             "timestamped non-destructive off-node copy",
             "integrity verification and retention policy",
             "isolated restore rehearsal covering database, roles, controlled test realm\n  state, and clients",
             "declared and measured RPO/RTO",
-            "Before authoritative identity state is accepted or OIDC is enabled",
+            "Before any identity migration or authoritative recovery claim",
             "PVC deletion, database recreation, realm\nre-import, and release downgrade are never routine rollback",
         ):
             self.assertIn(required, self.text)
@@ -105,8 +106,8 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         for required in (
             "one stable TLS identity from\nthe first accepted login",
             "Keycloak administration and its management health/metrics surface remain private",
-            "No public Keycloak route is\nauthorized now",
-            "later public browser-auth route may expose only the reviewed authentication surface",
+            "existing reviewed browser-auth route and DEV application route are live",
+            "`hub.cristex-soft.com` PROD application route remains unapplied",
             "Public authentication never makes the admin console, management\nlistener, database, Argo CD, k3s API, or host publicly reachable",
             "Argo server to selected stable OIDC issuer",
             "The Keycloak database accepts only the dedicated Keycloak role and bounded\nbackup/restore identities; application database roles are denied",

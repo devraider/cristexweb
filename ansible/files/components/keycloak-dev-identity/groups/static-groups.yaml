@@ -16,6 +16,11 @@ spec:
       owner: ansible
       dynamicMembership: false
   dynamicGroupOwner: cristexhub-application
+  dynamicGroupModel:
+    authorizationGroups: realm-groups
+    organizationMembership: keycloak-organizations
+    globallyUniqueLeafNamesRequired: true
+    membershipMigration: blocked
   forbiddenGroups:
     - cristexhub-prod-super-admin
     - cristexhub-prod-<organization-alias>-<role>

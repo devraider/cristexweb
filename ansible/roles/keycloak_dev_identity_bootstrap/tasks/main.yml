@@ -47,7 +47,6 @@
     follow: false
     get_checksum: false
   register: keycloak_dev_identity_bootstrap_internal_attestation_state
-  delegate_to: localhost
   changed_when: false
   no_log: true
 
@@ -63,7 +62,6 @@
         'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ATTESTATION_FILE')) ==
         lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_TOKEN') ~ ':entrypoint'
     fail_msg: Refusing an invalid DEV identity attestation.
-  delegate_to: localhost
   changed_when: false
   no_log: true
 
@@ -76,7 +74,6 @@
     get_mime: false
   loop: "{{ keycloak_dev_identity_bootstrap_manifest_paths }}"
   register: keycloak_dev_identity_bootstrap_internal_manifest_states
-  delegate_to: localhost
   changed_when: false
 
 - name: Require hash-bound value-free DEV identity source
@@ -93,7 +90,6 @@
   loop: "{{ keycloak_dev_identity_bootstrap_internal_manifest_states.results }}"
   loop_control:
     label: "{{ item.item }}"
-  delegate_to: localhost
   changed_when: false
 
 - name: Load the exact value-free DEV identity contracts
@@ -182,6 +178,7 @@
 - name: Bind the protected DEV identity preflight
   ansible.builtin.set_fact:
     keycloak_dev_identity_bootstrap_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_TOKEN') | hash('sha256') }}"
       object_count: "{{ keycloak_dev_identity_bootstrap_internal_manifests | length }}"
       identity_set_sha256: "{{ keycloak_dev_identity_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
       no_delete_path: true

@@ -161,7 +161,10 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         prod = browser["cristexhub-prod"]
         self.assertEqual("cristexhub-prod", prod["namespace"])
         self.assertTrue(prod["callback_selected"])
-        self.assertEqual("keycloak-configured-application-runtime-blocked", prod["activation"])
+        self.assertEqual(
+            "private-runtime-active-authenticated-acceptance-pending",
+            prod["activation"],
+        )
         self.assertEqual("confidential", prod["client_type"])
         self.assertEqual("S256", prod["pkce_method"])
         self.assertEqual(["https://hub.cristex-soft.com/oauth2/callback"], prod["redirect_uris"])
@@ -193,8 +196,14 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         )
         dev_service = services["cristexhub-admin-svc-dev"]
         self.assertEqual("cristexhub-dev", dev_service["realm"])
-        self.assertTrue(dev_service["service_accounts_enabled"])
+        self.assertFalse(dev_service["service_accounts_enabled"])
         self.assertFalse(dev_service["direct_access_grants_enabled"])
+        self.assertEqual(
+            "blocked-pending-least-privilege-role-selection",
+            dev_service["activation"],
+        )
+        self.assertEqual([], dev_service["realm_management_roles"])
+        self.assertEqual([], dev_service["application_audiences"])
         self.assertEqual(
             "prod:/cristexhub/dev/identity", dev_service["client_secret_path"]
         )
@@ -451,11 +460,10 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         )
         self.assertIn("all-runtime-check-apply-idempotence", self.policy["blocked"])
 
-    def test_selection_records_are_source_only_and_runtime_blocked(self) -> None:
+    def test_release_records_distinguish_historical_selection_from_runtime(self) -> None:
         records = {
             "argocd-release-selection.md": ("10.3.0", "v3.5.0"),
             "infisical-operator-release-selection.md": ("v0.11.7", "Universal Auth"),
-            "keycloak-release-selection.md": ("26.7.1", "17.10"),
         }
         for name, required in records.items():
             text = (ROOT / "runbooks" / name).read_text()
@@ -468,8 +476,14 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
             self.assertNotIn("/Users/", text)
 
         keycloak = (ROOT / "runbooks" / "keycloak-release-selection.md").read_text()
+        self.assertIn("private shared Keycloak workload and PostgreSQL runtime\nare now live checkpoints", keycloak)
+        self.assertIn(
+            "successor is source-only, offline-validated, and not\ncreated", keycloak
+        )
         self.assertIn("quay.io/keycloak/keycloak@sha256:", keycloak)
         self.assertIn("docker.io/library/postgres@sha256:", keycloak)
+        self.assertNotIn(".pi-subagents", keycloak)
+        self.assertNotIn("/Users/", keycloak)
 
     def test_only_infisical_controller_source_widens_outside_kubernetes_tree(self) -> None:
         self.assertEqual(

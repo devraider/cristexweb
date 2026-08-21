@@ -26,6 +26,11 @@ spec:
       protocol: openid-connect
       protocolMapper: oidc-organization-membership-mapper
       consentRequired: false
+      scopeContract:
+        requiredAuthorizationScope: organization
+        organizationContextRequired: true
+        claimIdentity: alias
+        immutableOrganizationIdIncluded: false
       config:
         claim.name: organization
         id.token.claim: "true"

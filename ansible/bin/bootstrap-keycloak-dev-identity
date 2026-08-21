@@ -8,6 +8,15 @@ root="$(CDPATH= cd -- "$dir/../.." && pwd -P)"
 case "$root" in /Users/paul/Projects/cristexweb|/home/paul/projects/cristexweb) ;; *) exit 78 ;; esac
 controller="$root/.venv/bin/ansible-playbook"
 [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
+inventory="$root/ansible/.ansible/inventory.local.yml"
+[ -s "$inventory" ] && [ -f "$inventory" ] && [ ! -L "$inventory" ] || exit 78
+if inventory_state=$(/usr/bin/stat -c '%a %u' "$inventory" 2>/dev/null); then
+  :
+else
+  inventory_state=$(/usr/bin/stat -f '%Lp %u' "$inventory")
+fi
+[ "$inventory_state" = "600 $(/usr/bin/id -u)" ] || exit 78
+[ -z "${ANSIBLE_RUN_TAGS:-}${ANSIBLE_SKIP_TAGS:-}${ANSIBLE_START_AT_TASK:-}" ] || exit 78
 [ -z "${CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ADMIN_TOKEN_FILE:-}" ] || exit 78
 [ -z "${CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_API_BASE_URL:-}" ] || exit 78
 user=$(/usr/bin/id -un)

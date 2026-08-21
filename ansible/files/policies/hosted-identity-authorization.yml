@@ -59,10 +59,18 @@ clients:
       realm: cristexhub
       successor_realm: cristexhub-dev
       successor_issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
-      activation: keycloak-configured-application-runtime-blocked
+      activation: legacy-private-runtime-active-successor-cutover-blocked
+      legacy_realm: cristexhub
+      successor_realm_activation: blocked
       callback_selected: true
       client_type: confidential
       pkce_method: S256
+      required_authorization_scopes:
+        - openid
+        - profile
+        - email
+        - organization
+      organization_context_required: true
       redirect_uris:
         - https://dev-hub.cristex-soft.com/oauth2/callback
       web_origins:
@@ -94,7 +102,7 @@ clients:
         missing_or_ambiguous: deny
     - id: cristexhub-prod
       namespace: cristexhub-prod
-      activation: keycloak-configured-application-runtime-blocked
+      activation: private-runtime-active-authenticated-acceptance-pending
       callback_selected: true
       client_type: confidential
       pkce_method: S256
@@ -143,8 +151,11 @@ clients:
       namespace: cristexhub-dev
       realm: cristexhub-dev
       browser_flow_allowed: false
-      service_accounts_enabled: true
+      service_accounts_enabled: false
       direct_access_grants_enabled: false
+      activation: blocked-pending-least-privilege-role-selection
+      realm_management_roles: []
+      application_audiences: []
       client_secret_owner: infisical-cloud
       client_secret_path: prod:/cristexhub/dev/identity
       client_secret_key: ADMIN_SERVICE_CLIENT_SECRET

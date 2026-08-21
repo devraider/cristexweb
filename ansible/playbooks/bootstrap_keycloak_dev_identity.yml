@@ -2,6 +2,7 @@
 - name: Check the source-only Keycloak DEV identity successor
   hosts: crtxweb
   gather_facts: false
+  connection: local
   become: false
   any_errors_fatal: true
   roles:

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import stat
+import subprocess
 import unittest
 from pathlib import Path
 from typing import Any
@@ -74,7 +76,21 @@ class KeycloakDevIdentityContractTests(unittest.TestCase):
             )
         ledger = (COMPONENT / "MANIFESTS.sha256").read_text()
         self.assertNotIn("REPLACE_", DEFAULTS.read_text())
-        self.assertEqual(4, len([line for line in ledger.splitlines() if line.strip()]))
+        ledger_entries = {
+            path: digest
+            for digest, path in (
+                line.split("  ", 1) for line in ledger.splitlines() if line.strip()
+            )
+        }
+        self.assertEqual(
+            {str(path.relative_to(COMPONENT)) for path in self.leaves},
+            set(ledger_entries),
+        )
+        for path in self.leaves:
+            self.assertEqual(
+                hashlib.sha256(path.read_bytes()).hexdigest(),
+                ledger_entries[str(path.relative_to(COMPONENT))],
+            )
 
     def test_realm_client_groups_and_mappers_are_dev_only(self) -> None:
         realm = self.by_kind["KeycloakRealmContract"]["spec"]
@@ -84,6 +100,7 @@ class KeycloakDevIdentityContractTests(unittest.TestCase):
         )
         self.assertEqual("cristexhub", realm["legacyRealm"]["name"])
         self.assertEqual("forbidden", realm["legacyRealm"]["mutation"])
+        self.assertTrue(realm["organizationsEnabled"])
         clients = self.by_kind["KeycloakClientContract"]["spec"]["clients"]
         self.assertEqual(
             ["cristexhub-dev", "cristexhub-admin-svc-dev"],
@@ -97,7 +114,13 @@ class KeycloakDevIdentityContractTests(unittest.TestCase):
         self.assertEqual("S256", browser["attributes"]["pkce.code.challenge.method"])
         self.assertFalse(service["bearerOnly"])
         self.assertFalse(service["standardFlowEnabled"])
-        self.assertTrue(service["serviceAccountsEnabled"])
+        self.assertFalse(service["enabled"])
+        self.assertFalse(service["serviceAccountsEnabled"])
+        self.assertEqual(
+            "blocked-pending-least-privilege-role-selection", service["activation"]
+        )
+        self.assertEqual([], service["authorizationContract"]["realmManagementRoles"])
+        self.assertEqual([], service["authorizationContract"]["applicationAudiences"])
         self.assertEqual(
             {"OIDC_CLIENT_SECRET", "ADMIN_SERVICE_CLIENT_SECRET"},
             {client["credentialContract"]["key"] for client in clients},
@@ -117,9 +140,20 @@ class KeycloakDevIdentityContractTests(unittest.TestCase):
             ["cristexhub-dev-super-admin"],
             [group["name"] for group in self.by_kind["KeycloakStaticGroupContract"]["spec"]["groups"]],
         )
+        mappers = self.by_kind["KeycloakProtocolMapperContract"]["spec"]["mappers"]
         self.assertEqual(
             ["groups", "organization", "cristexhub-dev-audience"],
-            [mapper["name"] for mapper in self.by_kind["KeycloakProtocolMapperContract"]["spec"]["mappers"]],
+            [mapper["name"] for mapper in mappers],
+        )
+        organization = next(mapper for mapper in mappers if mapper["name"] == "organization")
+        self.assertTrue(organization["scopeContract"]["organizationContextRequired"])
+        self.assertEqual(
+            "organization",
+            organization["scopeContract"]["requiredAuthorizationScope"],
+        )
+        self.assertEqual(
+            "blocked",
+            self.by_kind["KeycloakStaticGroupContract"]["spec"]["dynamicGroupModel"]["membershipMigration"],
         )
         source = json.dumps(self.documents, sort_keys=True)
         self.assertNotRegex(source, r'(?i)"(?:password|secret|token|clientSecret|privateKey)"\s*:')
@@ -151,10 +185,49 @@ class KeycloakDevIdentityContractTests(unittest.TestCase):
         self.assertIn("CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ENTRYPOINT=v1", self.wrapper_text)
         self.assertIn('[ -z "${CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ADMIN_TOKEN_FILE:-}" ]', self.wrapper_text)
         self.assertIn('[ -z "${CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_API_BASE_URL:-}" ]', self.wrapper_text)
+        self.assertIn("inventory.local.yml", self.wrapper_text)
+        self.assertIn("[ -s \"$inventory\" ]", self.wrapper_text)
+        self.assertIn("600 $(/usr/bin/id -u)", self.wrapper_text)
+        self.assertIn("ANSIBLE_RUN_TAGS", self.wrapper_text)
+        self.assertIn("ANSIBLE_SKIP_TAGS", self.wrapper_text)
+        self.assertIn("ANSIBLE_START_AT_TASK", self.wrapper_text)
         self.assertNotIn('mode=$1', self.wrapper_text)
         self.assertNotRegex(self.wrapper_text, r"\b(?:password|secret|token)=\$")
         self.assertIn("role: keycloak_dev_identity_bootstrap", PLAYBOOK.read_text())
         self.assertIn("hosts: crtxweb", PLAYBOOK.read_text())
+
+    def test_direct_action_and_wrapper_control_injection_are_rejected(self) -> None:
+        direct = subprocess.run(
+            [
+                str(ROOT / ".venv/bin/ansible-playbook"),
+                "-i",
+                "localhost,",
+                "../tests/reject_keycloak_dev_identity_action_only.yml",
+                "--check",
+                "--diff",
+            ],
+            cwd=ROOT / "ansible",
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+        self.assertNotEqual(0, direct.returncode, direct.stdout)
+        self.assertIn("ENTRYPOINT_GUARD", direct.stdout)
+
+        environment = os.environ.copy()
+        environment["ANSIBLE_RUN_TAGS"] = "definitely-not-present"
+        wrapper = subprocess.run(
+            [str(WRAPPER), "check"],
+            cwd=ROOT,
+            env=environment,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+        self.assertEqual(78, wrapper.returncode, wrapper.stdout)
+        self.assertNotIn("PLAY [", wrapper.stdout)
 
     def test_policy_and_runbook_preserve_legacy_prod_and_block_activation(self) -> None:
         transition = self.policy["realm_transition"]

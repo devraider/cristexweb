@@ -78,8 +78,9 @@ import nor a Kubernetes object. Client IDs are `cristexhub-dev`, `cristexhub-pro
 `reactive-resume-dev`, `reactive-resume-prod`, `argocd`,
 `cristexhub-admin-svc-dev`, and `cristexhub-admin-svc-prod`.
 
-The CristexHub browser contracts are now selected without selecting runtime. DEV
-remains bound to `https://dev-hub.cristex-soft.com` and PROD is bound only to
+The CristexHub browser contracts are selected. Legacy DEV and private PROD
+consumers are live on the retained realm; the DEV successor remains unactivated.
+DEV remains bound to `https://dev-hub.cristex-soft.com` and PROD is bound only to
 `https://hub.cristex-soft.com`. The `cristexhub-prod` client is confidential, uses
 PKCE `S256`, and permits exactly this callback:
 `https://hub.cristex-soft.com/oauth2/callback`. Its only web origin is
@@ -139,14 +140,14 @@ credentials are forbidden.
 
 ## Production Keycloak and database gates
 
-Production Keycloak must use the selected official `26.7.1` linux/amd64 child
-digest `sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2`
-and production startup, never `start-dev`. The first bootstrap uses the selected
-official default theme; a branded theme requires a separately selected immutable
-derived image. Its exact writable paths, shutdown behavior, startup,
-liveness and readiness probes, CPU and memory requests/limits, image trust,
-vulnerability policy, and admission behavior must be established before deployment.
-One replica on one node is explicitly not high availability.
+The live Keycloak `26.7.1` workload uses the immutable CristexHub-derived digest
+recorded in its Deployment and production startup, never `start-dev`. The official
+linux/amd64 digest
+`sha256:7523ccfbd950f59783504cdf5a0138dae48746dfe36075bbfccdb5a9ee245ee2`
+remains upstream selection evidence rather than the live image identity. Any image
+replacement requires separate publisher trust, SBOM/vulnerability disposition,
+off-node recovery, node pullability, and rollout approval. One replica on one node
+is explicitly not high availability.
 
 Keycloak requires PostgreSQL `17.10` at linux/amd64 child digest
 `sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b`,
@@ -155,13 +156,11 @@ PostgreSQL instance. The canonical value-free consumer/isolation contract is
 [`shared-database-architecture.yml`](../ansible/files/policies/shared-database-architecture.yml);
 Keycloak has no MongoDB consumer scope. Keycloak remains a separate deployment from PostgreSQL. No
 separate Keycloak PostgreSQL deployment or PVC is selected; the shared engine and
-PVC remain a shared failure domain. The database version must be supported by the
-selected Keycloak release. Before the first private bootstrap, the database/storage
-design, backup tooling and destination, encryption/key custody, integrity procedure,
-restore procedure, and provisional RPO/RTO must be reviewed and approved. The first separately approved
-bootstrap remains non-authoritative: it creates only controlled test identity state.
-Before authoritative identity state is accepted or OIDC is enabled, the design
-requires:
+PVC remain a shared failure domain. The database version is supported by the selected Keycloak release. Encrypted
+application-consistent backup, immutable off-node readback, and isolated restore
+have runtime evidence; realm/client/admin behavioral recovery, role/ownership
+restoration, measured RPO/RTO, and full production recovery acceptance remain open.
+Before any identity migration or authoritative recovery claim, the design requires:
 
 - application-consistent `pg_dump` backup rather than live-volume synchronization;
 - encryption and independently recoverable key custody;
@@ -193,15 +192,15 @@ separate exact callback. The Argo callback must match the future private
 administration URL exactly, and Reactive Resume receives a separate exact client
 and callback when that contract is selected.
 
+The existing reviewed browser-auth route and DEV application route are live.
 Keycloak administration and its management health/metrics surface remain private.
 The management listener receives no public Service, Ingress, Tunnel route, or public
-DNS route. Traefik remains the sole ingress controller. No public Keycloak route is
-authorized now.
+DNS route, and Traefik remains the sole ingress controller. The new DEV successor
+realm path is not created or separately activated by this source-only contract.
 
-A later public browser-auth route may expose only the reviewed authentication surface
-through the approved Cloudflare-to-Traefik path after separate route approval,
-positive login tests, negative administration/management reachability tests, and
-rollback evidence. Public authentication never makes the admin console, management
+The `hub.cristex-soft.com` PROD application route remains unapplied and requires its
+own Cloudflare plan/apply, positive login tests, negative administration/management
+reachability tests, and rollback evidence. Public authentication never makes the admin console, management
 listener, database, Argo CD, k3s API, or host publicly reachable.
 
 ## Network-policy direction

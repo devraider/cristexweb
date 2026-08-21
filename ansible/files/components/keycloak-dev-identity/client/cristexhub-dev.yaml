@@ -29,6 +29,13 @@ spec:
       attributes:
         pkce.code.challenge.method: S256
         post.logout.redirect.uris: https://dev-hub.cristex-soft.com/
+      authorizationScopeContract:
+        required:
+          - openid
+          - profile
+          - email
+          - organization
+        organizationContextRequired: true
       credentialContract:
         owner: infisical-cloud
         path: prod:/cristexhub/dev/identity
@@ -37,17 +44,22 @@ spec:
     - clientId: cristexhub-admin-svc-dev
       name: CristexHub DEV administration service client
       protocol: openid-connect
-      enabled: true
+      enabled: false
+      activation: blocked-pending-least-privilege-role-selection
       publicClient: false
       bearerOnly: false
       standardFlowEnabled: false
       implicitFlowEnabled: false
       directAccessGrantsEnabled: false
-      serviceAccountsEnabled: true
+      serviceAccountsEnabled: false
       authorizationServicesEnabled: false
       redirectUris: []
       webOrigins: []
       attributes: {}
+      authorizationContract:
+        realmManagementRoles: []
+        applicationAudiences: []
+        status: blocked-pending-least-privilege-role-selection
       credentialContract:
         owner: infisical-cloud
         path: prod:/cristexhub/dev/identity

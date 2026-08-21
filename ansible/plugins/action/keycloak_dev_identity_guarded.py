@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import re
+import stat
+from pathlib import Path
 from typing import Any
 
 from ansible import context
@@ -37,10 +41,10 @@ _SENSITIVE_KEYS = {
 
 # Canonical hashes bind invocations to the four committed value-free definitions.
 _EXPECTED_DEFINITION_HASHES: dict[str, str] = {
-    "KeycloakRealmContract/cristexhub-dev": "403c53be6dffcebc882d645be1564c0e3514ee78fd4bf6ff156aa3b0f5c4bda4",
-    "KeycloakClientContract/cristexhub-dev-clients": "3166a87c9d10f74ec29858833b213c8f2dacfb6c688ef3b4b73cf29e6bf6f69f",
-    "KeycloakStaticGroupContract/cristexhub-dev-static-groups": "bdddde4f93723c6f87edfdf3ac76bf14f9408d63062e0d11dc65af645d002722",
-    "KeycloakProtocolMapperContract/cristexhub-dev-claims": "5d42db820b4975eb1b228a2d49eb64452639de273ac902a4b9f13df913ef422c",
+    "KeycloakRealmContract/cristexhub-dev": "72b5f5d99614983fc6f20fc5104aa8e9f2b7b69f31c7c40b4ca8208d42166d85",
+    "KeycloakClientContract/cristexhub-dev-clients": "bcb826ead508179f599e5e0961669e11e8e902beb55008bd761174cdb9078ebb",
+    "KeycloakStaticGroupContract/cristexhub-dev-static-groups": "90b7252cb4a5c7a5673ad114d24304ffbaa91c7bb44f494eed2993b0475bc456",
+    "KeycloakProtocolMapperContract/cristexhub-dev-claims": "a96dc0e388aed0000ecef540f0e00df97815d54b0b6466b22618418bc9d467c5",
 }
 _EXPECTED_IDENTITY_SET_SHA256 = "019e67b41b810f59175ebea88f0250ed1dc59d582d531c7becebd9cfadfd624f"
 
@@ -95,6 +99,7 @@ def _scope_valid(definition: dict[str, Any]) -> bool:
         return (
             spec.get("issuer")
             == "https://auth.cristex-soft.com/realms/cristexhub-dev"
+            and spec.get("organizationsEnabled") is True
             and legacy.get("name") == _LEGACY_REALM
             and legacy.get("mutation") == "forbidden"
             and mutation.get("deletion") == "forbidden"
@@ -105,12 +110,23 @@ def _scope_valid(definition: dict[str, Any]) -> bool:
         ids = [item.get("clientId") for item in clients if isinstance(item, dict)]
         if ids != _EXPECTED_CLIENTS or any(_forbidden_identity(item) for item in ids):
             return False
-        return all(
-            (item.get("credentialContract") or {}).get("path")
-            == "prod:/cristexhub/dev/identity"
-            and (item.get("credentialContract") or {}).get("materialization")
-            == "blocked-pending-successor-value-lane"
-            for item in clients
+        browser, service = clients
+        return (
+            (browser.get("authorizationScopeContract") or {}).get(
+                "organizationContextRequired"
+            )
+            is True
+            and service.get("enabled") is False
+            and service.get("serviceAccountsEnabled") is False
+            and (service.get("authorizationContract") or {}).get("status")
+            == "blocked-pending-least-privilege-role-selection"
+            and all(
+                (item.get("credentialContract") or {}).get("path")
+                == "prod:/cristexhub/dev/identity"
+                and (item.get("credentialContract") or {}).get("materialization")
+                == "blocked-pending-successor-value-lane"
+                for item in clients
+            )
         )
     if kind == "KeycloakStaticGroupContract":
         groups = spec.get("groups") or []
@@ -118,12 +134,24 @@ def _scope_valid(definition: dict[str, Any]) -> bool:
         return (
             names == _EXPECTED_GROUPS
             and not any(_forbidden_identity(item) for item in names)
+            and (spec.get("dynamicGroupModel") or {}).get("membershipMigration")
+            == "blocked"
             and (spec.get("mutation") or {}).get("deletion") == "forbidden"
         )
     if kind == "KeycloakProtocolMapperContract":
         mappers = spec.get("mappers") or []
         names = [item.get("name") for item in mappers if isinstance(item, dict)]
-        return spec.get("clientId") == "cristexhub-dev" and names == _EXPECTED_MAPPERS
+        organization = next(
+            (item for item in mappers if item.get("name") == "organization"), {}
+        )
+        return (
+            spec.get("clientId") == "cristexhub-dev"
+            and names == _EXPECTED_MAPPERS
+            and (organization.get("scopeContract") or {}).get(
+                "organizationContextRequired"
+            )
+            is True
+        )
     return False
 
 
@@ -163,8 +191,33 @@ class ActionModule(ActionBase):
         binding = task_vars.get(
             "keycloak_dev_identity_bootstrap_internal_preflight_binding", {}
         )
+        entrypoint_token = os.environ.get(
+            "CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_TOKEN", ""
+        )
+        attestation_file = os.environ.get(
+            "CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ATTESTATION_FILE", ""
+        )
+        try:
+            attestation_state = os.stat(attestation_file, follow_symlinks=False)
+            attestation_value = Path(attestation_file).read_text().strip()
+        except (OSError, ValueError):
+            attestation_state, attestation_value = None, ""
+        valid_attestation = (
+            os.environ.get("CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ENTRYPOINT") == "v1"
+            and re.fullmatch(r"[0-9a-f]{64}", entrypoint_token) is not None
+            and bool(attestation_file)
+            and os.path.isabs(attestation_file)
+            and attestation_state is not None
+            and stat.S_ISREG(attestation_state.st_mode)
+            and not stat.S_ISLNK(attestation_state.st_mode)
+            and stat.S_IMODE(attestation_state.st_mode) == 0o600
+            and attestation_state.st_uid == os.getuid()
+            and attestation_value == f"{entrypoint_token}:entrypoint"
+        )
         valid_binding = (
             isinstance(binding, dict)
+            and binding.get("attestation_sha256")
+            == hashlib.sha256(entrypoint_token.encode()).hexdigest()
             and _integer(binding.get("object_count")) == 4
             and binding.get("identity_set_sha256") == _EXPECTED_IDENTITY_SET_SHA256
             and binding.get("no_delete_path") is True
@@ -176,6 +229,8 @@ class ActionModule(ActionBase):
             task_vars.get("keycloak_dev_identity_bootstrap_approved") is not True
             or task_vars.get("keycloak_dev_identity_bootstrap_state") != "present"
             or not task_vars.get("ansible_check_mode")
+            or not context.CLIARGS.get("diff")
+            or not valid_attestation
             or not valid_binding
         ):
             return {"changed": False, "failed": True, "msg": "CHECK_ONLY_GUARD"}

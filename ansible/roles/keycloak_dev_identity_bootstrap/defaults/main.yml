@@ -14,13 +14,13 @@ keycloak_dev_identity_bootstrap_manifest_paths:
   - "{{ keycloak_dev_identity_bootstrap_component_root }}/mappers/protocol-mappers.yaml"
 keycloak_dev_identity_bootstrap_expected_hashes:
   - path: "{{ keycloak_dev_identity_bootstrap_component_root }}/realm/cristexhub-dev.yaml"
-    sha256: 0ca26722672b03a6eb8578dd1b6a56b2658977753a003e40c8084da407b37184
+    sha256: a569c5aaec044e9d0281f2e0ce89ddeed4427830c5301292b2f861543733d6ab
   - path: "{{ keycloak_dev_identity_bootstrap_component_root }}/client/cristexhub-dev.yaml"
-    sha256: 3c443fea3c34f6ad4fd86d87fc2e8f21e35cc966174e7e5c88d8c3bb5c4f41ba
+    sha256: ce1ba97bb04a226df0c9372c565703caea2be3b8b30e685209e9e2cd38a887b6
   - path: "{{ keycloak_dev_identity_bootstrap_component_root }}/groups/static-groups.yaml"
-    sha256: 55bfcdbf11946727e3d243a85b21ce008e5717325371551ce1a4ed4e3fedf55d
+    sha256: feb1a1cfcbdb9c500988a39e45549fb61915290b856ef0d0e33e2546b78f52f2
   - path: "{{ keycloak_dev_identity_bootstrap_component_root }}/mappers/protocol-mappers.yaml"
-    sha256: c48e06c5b1261260bacdc5dbb88bd7ced023d24f07b6b0c550c9017c36dd08ef
+    sha256: e97f7ffd88ed26d083a11048b4cbdfc53d1afc781cb1cfeeebfcb4b99f7094a1
 keycloak_dev_identity_bootstrap_object_count: 4
 keycloak_dev_identity_bootstrap_expected_identity_set_sha256: 019e67b41b810f59175ebea88f0250ed1dc59d582d531c7becebd9cfadfd624f
 keycloak_dev_identity_bootstrap_realm: cristexhub-dev

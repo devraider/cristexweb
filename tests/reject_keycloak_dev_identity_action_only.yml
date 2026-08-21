@@ -1,0 +1,14 @@
+---
+- name: Reject direct Keycloak DEV identity action invocation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Attempt the exact DEV realm contract outside the guarded role source
+      keycloak_dev_identity_guarded:
+        state: present
+        definition: >-
+          {{ lookup('ansible.builtin.file', playbook_dir ~
+          '/../ansible/files/components/keycloak-dev-identity/realm/cristexhub-dev.yaml') |
+          from_yaml }}

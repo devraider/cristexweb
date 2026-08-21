@@ -4537,3 +4537,41 @@ The hardened guarded check passed at
 `ok=34 changed=1 unreachable=0 failed=0 skipped=0`; it predicted exactly the two
 absent NetworkPolicies and made no Kubernetes mutation. Apply and the required
 positive/negative enforcement probe remain separately approved and NOT RUN/BLOCKED.
+
+## Keycloak DEV successor realm source — OFFLINE CHECK PASSED / APPLY BLOCKED
+
+The retained `cristexhub` realm remains the current PROD-compatible issuer and is
+not a mutation target. A distinct four-leaf, hash-bound, value-free source contract
+now reserves successor realm `cristexhub-dev`, browser client `cristexhub-dev`, a
+disabled future `cristexhub-admin-svc-dev` service client, static DEV super-admin
+group, and exact groups/organization/audience mapper intent. Native Organizations
+are enabled in the contract; organization scope/context is mandatory; user,
+membership, dynamic-group, route, Secret, and runtime migration remain blocked.
+
+The dedicated wrapper accepts only `check`, validates the protected local inventory,
+uses local connection, rejects task-selection environment controls and API/token
+inputs, and invokes an offline action guard. No Keycloak, Kubernetes, Infisical,
+Cloudflare, provider, host, or application runtime request is made. Successor
+credential metadata reserves only `prod:/cristexhub/dev/identity` keys
+`OIDC_CLIENT_SECRET` and `ADMIN_SERVICE_CLIENT_SECRET`; no writer or value exists.
+
+Validation completed on 2026-08-21:
+
+```bash
+ansible/bin/bootstrap-keycloak-dev-identity check
+.venv/bin/python -m unittest discover -s tests -p 'test_*.py' -q
+cd ansible && for f in playbooks/*.yml; do ../.venv/bin/ansible-playbook "$f" --syntax-check; done
+cd ansible && ../.venv/bin/ansible-lint . ../tests/validate_storage_report.yml
+.venv/bin/python -m compileall -q ansible/plugins/action tests
+sh -n ansible/bin/bootstrap-keycloak-dev-identity
+git diff --check
+```
+
+Actual result: offline wrapper `ok=14 changed=1 unreachable=0 failed=0 skipped=0`;
+`409/409` unit tests passed; every playbook syntax check passed; production-profile
+Ansible lint passed with only the 14 pre-existing ignored warnings; compile, shell,
+and diff checks passed. The predicted change means runtime state is intentionally
+unknown, not that a mutation occurred. Realm creation, private Admin REST transport,
+least-privilege reconciler identity, credential CAS/materialization, identity
+migration, application cutover, and authenticated positive/negative tests remain
+**NOT RUN/BLOCKED** and require separate approvals.

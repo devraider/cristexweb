@@ -2,9 +2,17 @@
 
 ## Status
 
-Keycloak `26.7.1` and PostgreSQL `17.10` are **SELECTED FOR OFFLINE SOURCE
-AUTHORING ONLY**. They are not deployable, installed, or approved for check/apply.
-Keycloak and PostgreSQL runtime remain **NOT RUN/BLOCKED**.
+Keycloak `26.7.1` and PostgreSQL `17.10` were originally selected through this
+offline source record. The private shared Keycloak workload and PostgreSQL runtime
+are now live checkpoints. Current Keycloak runtime source uses the separately
+published immutable CristexHub-derived image recorded in the workload manifest;
+the official digest below remains historical upstream selection evidence, not a
+claim about the live child image.
+
+The retained realm `cristexhub` serves the current DEV and private PROD clients.
+The additive `cristexhub-dev` successor is source-only, offline-validated, and not
+created. No DEV issuer cutover, successor credential materialization, or PROD
+identity mutation is authorized by this record.
 
 The exact selected identities are:
 
@@ -52,15 +60,18 @@ direction, and references the separate canonical database topology policy. It is
 review and later Ansible reconciliation; it is not a Keycloak realm import,
 Kubernetes object, executable playbook, credential, or runtime approval.
 
-The CristexHub DEV and PROD browser contracts are source-selected. PROD uses client
+The CristexHub DEV and PROD browser contracts are source-selected, and the legacy
+DEV plus private PROD consumers are live on the retained realm. PROD uses client
 `cristexhub-prod`, confidential authorization with PKCE `S256`, the exact callback
 `https://hub.cristex-soft.com/oauth2/callback`, web origin
 `https://hub.cristex-soft.com`, and post-logout redirect
 `https://hub.cristex-soft.com/`. It is bound to the `cristexhub-prod-*` groups and
-fail-closed claim policy. Reactive Resume and Argo CD browser clients remain blocked
-until their exact private origins and callbacks are selected. No public Keycloak
-route is authorized; the browser-authentication route remains separate from private
-administration and the management listener.
+fail-closed claim policy; full authenticated acceptance remains pending. Reactive
+Resume and Argo CD browser clients remain blocked until their exact private origins
+and callbacks are selected. The existing browser-auth route is live, while
+administration, management, health, metrics, and direct origins remain excluded.
+The unapplied `hub.cristex-soft.com` PROD application route is a separate Cloudflare
+cutover and is not authorized by this identity record.
 
 ## Stop conditions
 

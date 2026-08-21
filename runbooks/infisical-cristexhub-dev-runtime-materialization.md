@@ -19,12 +19,19 @@ admission, and additive writer RBAC closure. No Secret value is committed.
 - Environment slug: `prod` (Infisical identifier, not Kubernetes PROD)
 - Path: `/cristexhub/dev/runtime`, non-recursive, empty tags
 - Target: `cristexhub-dev-runtime`, type `Opaque`, orphaned
-- Keys: `MONGODB_URL`, `RABBITMQ_URL`, `REDIS_URL`, `REDIS_PASSWORD`, `FERNET_KEY`, `OIDC_CLIENT_SECRET`, `OAUTH2_PROXY_COOKIE_SECRET`, `PRIVATE_CA_BUNDLE`.
+- Runtime target key closure: `MONGODB_URL`, `RABBITMQ_URL`, `REDIS_URL`,
+  `REDIS_PASSWORD`, `FERNET_KEY`, `OIDC_CLIENT_SECRET`,
+  `OAUTH2_PROXY_COOKIE_SECRET`, `CODE_RUNNER_AUTH_TOKEN`, `PRIVATE_CA_BUNDLE`.
 - `MONGODB_URL` and `RABBITMQ_URL` are composed from the existing DEV-scoped
   Infisical consumer credentials and service endpoints; credentials are URL-encoded
   and TLS is mandatory. `OIDC_CLIENT_SECRET` is read from the existing
-  `/shared-services/keycloak` `CRISTEXHUB_DEV_OIDC_CLIENT_SECRET` value without
-  rotation. `PRIVATE_CA_BUNDLE` is the exact concatenation of the MongoDB and
+  `/shared-services/keycloak` `CRISTEXHUB_DEV_OIDC_CLIENT_SECRET` predecessor
+  without rotation. The future `cristexhub-dev` successor realm instead reserves
+  `prod:/cristexhub/dev/identity#OIDC_CLIENT_SECRET`; that path is disconnected,
+  unmaterialized, and must not gain a second writer before a separately approved
+  handoff. The current composer does not upload `CODE_RUNNER_AUTH_TOKEN`, so later
+  value replacement remains blocked until its exact source and CAS writer contract
+  are reconciled. `PRIVATE_CA_BUNDLE` is the exact concatenation of the MongoDB and
   RabbitMQ public CA certificates (no leaf or private key), projected at
   `/etc/cristexhub/tls/ca-bundle.pem` for both clients. Redis, Fernet, and the
   OAuth cookie secret are generated only in the protected composition bundle.

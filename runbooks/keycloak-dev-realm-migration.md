@@ -43,9 +43,12 @@ The closure contains:
 - realm settings for `cristexhub-dev` with registration and direct grants disabled;
 - browser client `cristexhub-dev` with the exact DEV callback/origin/logout URI,
   confidential PKCE S256 settings, and no credential value;
-- service-account client `cristexhub-admin-svc-dev` with browser and direct-grant flows disabled;
+- disabled future service-account client `cristexhub-admin-svc-dev`, with browser,
+  direct-grant, and service-account flows blocked until exact least-privilege roles
+  and audiences are selected;
 - static group `cristexhub-dev-super-admin` only;
-- `groups`, `organization`, and DEV audience protocol-mapper contracts;
+- `groups`, scope/context-bound `organization`, and DEV audience mapper contracts;
+- native Keycloak Organizations enabled, with dynamic membership migration blocked;
 - Infisical ownership/path/key metadata only, never a client credential;
 - application ownership of dynamic organization membership groups.
 
