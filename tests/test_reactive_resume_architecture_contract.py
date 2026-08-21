@@ -109,6 +109,12 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
     def test_candidate_image_provenance_is_exact_and_non_deployable(self) -> None:
         candidate = self.policy["image_candidate_provenance"]
         self.assertEqual("candidate-only-not-deployable", candidate["status"])
+        self.assertEqual("2026-08-21", candidate["observed_at_utc"])
+        self.assertEqual(
+            "https://github.com/amruthpillai/reactive-resume",
+            candidate["upstream_repository"],
+        )
+        self.assertEqual("annotated", candidate["upstream_tag_type"])
         self.assertEqual("docker.io", candidate["registry"])
         self.assertEqual(
             "docker.io/amruthpillai/reactive-resume", candidate["registry_repository"]
@@ -139,11 +145,15 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertTrue(candidate["tag_source_reviewed"])
         self.assertFalse(candidate["candidate_image_source_reviewed"])
         self.assertEqual("16-commits-150-changed-files", candidate["mismatch_distance"])
+        self.assertEqual("2026-08-20T08:45:26.993Z", candidate["image_created_utc"])
         self.assertEqual("node", candidate["non_root_user"])
         self.assertEqual("3000/tcp", candidate["exposed_port"])
+        self.assertEqual("node-apps-server-dist-index-mjs", candidate["command"])
         self.assertEqual("/api/health", candidate["health_endpoint"])
         self.assertEqual("observed", candidate["index_signature"])
         self.assertEqual("not-observed-blocker", candidate["linux_amd64_child_signature"])
+        self.assertEqual("observed-not-accepted", candidate["spdx_sbom_attestation"])
+        self.assertEqual("observed-not-accepted", candidate["slsa_provenance_attestation"])
         self.assertEqual("absent-blocker", candidate["vulnerability_disposition"])
         self.assertEqual("forbidden", candidate["registry_equivalence_claim"])
         self.assertTrue(candidate["index_to_linux_amd64_binding_verified"])
@@ -679,7 +689,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
                 text = path.read_text(errors="ignore")
                 self.assertNotRegex(
                     text,
-                    r"(?im)^\s*image:\s*\S*reactive[-_/]?resume\S*@sha256:[0-9a-f]{64}\s*$",
+                    r"(?im)^\s*image:\s*\S*(?:amruthpillai/)?reactive[-_/]?resume\S*\s*$",
                     str(path),
                 )
                 self.assertNotIn("reactive-resume", path.name.lower(), str(path))
