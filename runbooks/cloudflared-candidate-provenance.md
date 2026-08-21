@@ -152,20 +152,20 @@ All items below block cloudflared runtime and public-route activation:
     post-apply API/no-op-plan verification, and public cutover remain separately
     gated.
 
-Until these gates close, the rollback for this increment is only a Git revert of
-this documentation and its offline contract test. There is no runtime rollback
-because no Cloudflare resource, token, Kubernetes object, route, or deployment was
-created.
+For the pending PROD-route increment, rollback before apply is a Git revert of its
+source. Existing imported Cloudflare resources, the Infisical token, and the live
+connector predate that increment and require their own bounded rollback; they must
+not be described as absent.
 
-## Phased route contract — source-only, runtime blocked
+## Historical phased route contract — pre-runtime checkpoint
 
 The future traffic path is fixed as:
 
 `Cloudflare → cloudflared/platform-edge → Traefik/kube-system → Keycloak/shared-services`.
 
-This is a value-free architecture contract only. Reviewed cloudflared and
-Infisical token-materialization manifests now exist as source, but no tunnel, DNS,
-Ingress, API token, Tunnel token value, or public route has been applied. The canonical policy is
+The following phase list preserves the historical pre-runtime architecture contract.
+It is superseded for the existing Tunnel, Keycloak/DEV DNS, Infisical token handoff,
+and live connector; only the PROD route remains unapplied. The canonical policy is
 [`ansible/files/policies/cloudflare-edge-architecture.yml`](../ansible/files/policies/cloudflare-edge-architecture.yml).
 
 ### Explicit phase boundaries
@@ -186,8 +186,9 @@ implies another:
 7. Run private and public positive/negative validation, then separately approve
    any production cutover.
 
-No runtime phase is currently approved or run. The token must never appear in
-Git, OpenTofu state/plan, argv, environment examples, logs, or evidence.
+At that historical checkpoint no runtime phase had run. Current token-bearing
+material must still never appear in Git, OpenTofu state/plan, argv, environment
+examples, logs, or evidence; the pending PROD route requires separate approval.
 
 ### Route and negative tests
 

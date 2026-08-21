@@ -130,9 +130,11 @@ The following is a design sequence, not an execution authorization:
    pass may a future lane reconcile the protected PROD backend and Celery consumers
    through their reviewed owner path. Wait for both Deployments to be Ready, verify
    backend health and Celery broker readiness, and require Argo `Synced/Healthy`.
-   Do not restart DEV, frontend, Redis, oauth2-proxy, or shared unrelated services.
-   Keep the predecessor active during this overlap window, but do not assume that
-   state survives a broker restart.
+   Readiness of old pods is insufficient: require a bounded rollout, new Pod UIDs,
+   and broker connection metadata proving the new consumers use the successor
+   principal before predecessor revocation. Do not restart DEV, frontend, Redis,
+   oauth2-proxy, or unrelated services. Keep the predecessor active during this
+   overlap window, but do not assume that state survives a broker restart.
 8. **Old-user revocation — separate permission denial from authentication
    revocation.** After private application acceptance and the reviewed overlap
    interval, first remove the predecessor's vhost permissions and prove that a
@@ -167,10 +169,13 @@ and verify protected predecessor recovery custody **before** any source cutover,
 must declare rollback unavailable and stop.
 
 The Infisical source-writer lane and conditional/CAS protocol are currently absent;
-therefore no source rollback or application cutover is executable. If a future
-cutover fails after a proven protected predecessor bundle exists, restore only via
-the separately approved writer using its verified expected revision, preserve the
-successor for diagnosis, and do not delete users, mutate PVCs, or use blind broker
+therefore no source rollback or application cutover is executable. Before predecessor
+permissions are removed, a future cutover may restore a proven protected predecessor
+bundle only through the approved writer and verified expected revision. After those
+permissions are removed, restoring source values alone is unsafe and insufficient:
+first restore the predecessor's exact broker permission contract through a separately
+approved broker operation, then verify it, or stop without changing application
+source. Preserve the successor for diagnosis and never mutate PVCs or use blind broker
 rollback. After predecessor authentication revocation, recovery requires a
 separately reviewed credential operation; this plan has no automatic rollback or
 delete path.

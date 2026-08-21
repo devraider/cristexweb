@@ -67,9 +67,10 @@ The active Application uses `selfHeal=true`, `prune=false`, `allowEmpty=false`,
 `FailOnSharedResource=true`. The AppProject accepts only the exact in-cluster
 server and `cristexhub-prod` Namespace.
 
-## Remaining gate after private activation
+## Completed registration/synchronization and remaining acceptance gates
 
-The private registration and synchronization gates below have completed:
+The private registration, Secret materialization, pinned workload sync, and readiness
+gates below have completed:
 
 - exact-main image promotion with immutable backend, frontend, and Keycloak
   evidence; current source publication governance remains a separate gate;
@@ -80,12 +81,14 @@ The private registration and synchronization gates below have completed:
   PROD consumers; this does not prove logical database authorization, cross-access
   negatives, backup/restore, or production scope acceptance. MongoDB private ingress
   isolation is still blocked by its NetworkPolicy gap;
-- exact Keycloak `cristexhub-prod` client reconciliation and private OIDC tests;
-- private workload validation and Argo sync transition.
+- exact Keycloak `cristexhub-prod` client reconciliation plus app-level OIDC smoke;
+  authenticated login/callback and live CONNECT positive/negative tests remain open;
+- private workload readiness and Argo sync transition.
 
-Cloudflare `hub.cristex-soft.com` remains the only unapplied activation phase.
-Route source is committed, but provider apply still requires a protected
-Cloudflare API token and exact plan review.
+Public cutover remains blocked by the MongoDB NetworkPolicy apply/enforcement probe,
+exposed MongoDB/RabbitMQ/GHCR/DeepSeek credential rotations, RabbitMQ identity and
+permission reconciliation, complete OIDC/CONNECT validation, and finally a protected
+DNS-capable Cloudflare credential plus exact two-change plan/apply.
 
 ## Offline validation
 

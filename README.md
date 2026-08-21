@@ -7,7 +7,8 @@ Private CristexHub PROD activation is live at the pinned revision
 backend/Celery/frontend/oauth2-proxy/Redis are each `1/1 Ready`, backend root
 returns `200`, oauth2-proxy returns the expected private `302`, and Celery is ready
 on the PROD RabbitMQ vhost. The guarded OIDC CONNECT proxy policy includes PROD
-clients and its private validation passed.
+clients and app-level `200`/`302` smoke passed; authenticated OIDC/callback and live
+positive/negative CONNECT validation remain open.
 
 The shared MongoDB engine is live as operator-managed MongoDB `8.0.12` with
 TLS/SCRAM, but **private PROD acceptance is blocked**: no NetworkPolicy currently
@@ -449,21 +450,22 @@ runbooks/                # recovery, provenance, guarded source, materialization
 tests/                   # offline contract tests and negative/executable parser fixtures
 ```
 
-The repository now includes source-only guarded Argo, Infisical, PostgreSQL,
-standalone MongoDB, Secret-materialization, protected-value, datastore-preflight,
-logical-provisioning, and cloudflared closures under `ansible/`; their runtime remains
-blocked unless explicitly recorded otherwise. The reviewed OpenTofu source manages
-five imported protected Cloudflare resources; its sixth PROD DNS resource and the
-associated Tunnel-config update remain unapplied. Exactly five persistent Namespace
-manifests under `kubernetes/` including source-only `cristexhub-prod`, the current
-runbook set, and offline `tests/` also exist. The `cristexhub-prod` Namespace is now Active
-and idempotent; its later check/apply/API resources remain blocked. The earlier
-source-only absence statement is historical pre-checkpoint evidence. An exact
+The repository includes guarded Argo, Infisical, PostgreSQL, MongoDB,
+Secret-materialization, protected-value, datastore-preflight, logical-provisioning,
+and cloudflared closures under `ansible/`; each runbook distinguishes live from
+source-only checkpoints. The reviewed OpenTofu source manages five imported protected
+Cloudflare resources; its sixth PROD DNS resource and associated Tunnel-config update
+remain unapplied. Exactly five persistent Namespace manifests exist under
+`kubernetes/`, including live `cristexhub-prod`. Its credential seam, Argo registration,
+and private workloads are live/idempotent; MongoDB NetworkPolicy apply/enforcement,
+credential rotations, and public routing remain blocked. Earlier source-only absence
+statements are historical pre-checkpoint evidence. An exact
 manifest and a distinct guarded wrapper now exist
 for `shared-services`; its interactive check retry predicted exactly that one
 Namespace, the separately approved first apply created and verified it, and the
-separately approved idempotence apply converged at `changed=0`. `platform-edge` is reserved for future cloudflared namespaced objects;
-Infisical Operator, separate Keycloak, one general PostgreSQL engine, and one shared
+separately approved idempotence apply converged at `changed=0`. `platform-edge` now
+contains the live private cloudflared connector; Infisical Operator, separate
+Keycloak, one general PostgreSQL engine, and one shared
 MongoDB engine belong in `shared-services`. Hash-bound, present-only PostgreSQL and
 standalone MongoDB StatefulSet/Service source now exists; it adds no Secret value,
 standalone PVC manifest, provisioning object, check/apply evidence, or runtime

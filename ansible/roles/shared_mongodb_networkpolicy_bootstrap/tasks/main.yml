@@ -258,7 +258,9 @@
       - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].status.currentReplicas | int == 1
       - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].status.readyReplicas | int == 1
       - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].spec.template.metadata.labels['app'] == 'shared-mongodb-svc'
-      - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].spec.template.metadata.labels['app.kubernetes.io/part-of'] == 'shared-databases'
+      - >-
+        shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].spec.template.metadata.labels[
+        'app.kubernetes.io/part-of'] == 'shared-databases'
       - shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].spec.template.metadata.labels['cristex.io/component'] == 'mongodb'
     fail_msg: Refusing NetworkPolicy check without the exact ready shared-mongodb StatefulSet.
   changed_when: false
@@ -289,9 +291,14 @@
       - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].apiVersion == 'apps/v1'
       - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].kind == 'StatefulSet'
       - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].name == 'shared-mongodb'
-      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].uid == shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].metadata.uid
+      - >-
+        shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].uid ==
+        shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].metadata.uid
       - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].controller | bool
-      - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length == 1
+      - >-
+        shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].status.conditions |
+        selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') |
+        list | length == 1
       - shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].spec.hostNetwork | default(false) | bool == false
     fail_msg: Refusing NetworkPolicy check without exactly shared-mongodb-0 Running/Ready StatefulSet-owned pod.
   changed_when: false
@@ -436,7 +443,10 @@
       pod_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources | length }}"
       pod_name: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.name }}"
       pod_phase: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].status.phase }}"
-      pod_ready: "{{ (shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length) == 1 }}"
+      pod_ready: >-
+        {{ (shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].status.conditions |
+        selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') |
+        list | length) == 1 }}
       pod_terminating: "{{ (shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.deletionTimestamp | default('')) != '' }}"
       pod_owner_api_version: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].apiVersion }}"
       pod_owner_kind: "{{ shared_mongodb_networkpolicy_bootstrap_internal_pod.resources[0].metadata.ownerReferences[0].kind }}"

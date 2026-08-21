@@ -50,7 +50,7 @@ class CloudflareEdgeArchitectureContractTests(unittest.TestCase):
         self.assertTrue(self.policy["executable_source_allowed"])
         self.assertEqual("selected-source-runtime-blocked", self.policy["runtime_source_status"])
         self.assertIn("Each phase requires its own review and approval", self.normalized)
-        self.assertIn("No runtime phase is currently approved or run", self.normalized)
+        self.assertIn("At that historical checkpoint no runtime phase had run", self.normalized)
         self.assertIn("source closures exist", self.normalized)
 
     def test_secret_and_surface_boundaries(self) -> None:

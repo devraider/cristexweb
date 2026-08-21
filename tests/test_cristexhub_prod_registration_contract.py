@@ -305,7 +305,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             "does not create the Namespace",
             "prune=false",
             "Cloudflare",
-            "provider apply still requires a protected",
+            "protected\nDNS-capable Cloudflare credential plus exact two-change plan/apply",
         ):
             self.assertIn(needle, runbook)
 

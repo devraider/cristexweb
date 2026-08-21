@@ -198,6 +198,12 @@ class ActionModule(KubernetesActionModule):
         live_pod_result = task_vars.get(
             'shared_mongodb_networkpolicy_bootstrap_internal_pod', {}
         )
+        policy_resources = (
+            all_networkpolicies.get('resources', [])
+            if isinstance(all_networkpolicies, dict)
+            and isinstance(all_networkpolicies.get('resources'), list)
+            else []
+        )
         try:
             attestation_state = os.stat(attestation_path, follow_symlinks=False)
             attestation_content = Path(attestation_path).read_text().strip()
@@ -225,10 +231,12 @@ class ActionModule(KubernetesActionModule):
             and binding.get('pod_owner_name') == 'shared-mongodb'
             and binding.get('pod_owner_uid') == binding.get('statefulset_uid')
             and _as_bool(binding.get('pod_owner_controller'))
-            and _safe_int(binding.get('networkpolicy_count')) == len((all_networkpolicies or {}).get('resources', []))
+            and _safe_int(binding.get('networkpolicy_count')) == len(policy_resources)
             and isinstance(binding.get('networkpolicy_names'), list)
             and sorted(binding.get('networkpolicy_names', [])) == sorted(
-                item.get('metadata', {}).get('name') for item in (all_networkpolicies or {}).get('resources', [])
+                item.get('metadata', {}).get('name')
+                for item in policy_resources
+                if isinstance(item, dict)
             )
             and _safe_int(binding.get('client_environment_count')) == 2
             and _safe_int(binding.get('coredns_count')) >= 1
@@ -247,12 +255,11 @@ class ActionModule(KubernetesActionModule):
             and attestation_content == f'{token}:entrypoint'
         )
         live_pods = (live_pod_result or {}).get('resources', [])
-        policy_inventory_present = (
-            isinstance(all_networkpolicies, dict)
-            and isinstance(all_networkpolicies.get('resources'), list)
+        policy_inventory_present = isinstance(all_networkpolicies, dict) and isinstance(
+            all_networkpolicies.get('resources'), list
         )
         policy_preflight_error = _networkpolicy_preflight_error(
-            (all_networkpolicies or {}).get('resources', []),
+            policy_resources,
             source_manifests,
             live_pods[0] if len(live_pods) == 1 else {},
         )
