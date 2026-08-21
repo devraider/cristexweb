@@ -101,7 +101,7 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
             sorted(defaults['shared_mongodb_networkpolicy_bootstrap_target_names']),
         )
         configured_hashes = {
-            entry['path'].split('/components/shared-mongodb-networkpolicy/', 1)[1]: entry['sha256']
+            entry['path'].split('}}/', 1)[1]: entry['sha256']
             for entry in defaults['shared_mongodb_networkpolicy_bootstrap_expected_hashes']
         }
         self.assertEqual(set(ledger), set(configured_hashes))

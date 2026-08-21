@@ -5,17 +5,19 @@ shared_mongodb_networkpolicy_bootstrap_state: present
 shared_mongodb_networkpolicy_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
 shared_mongodb_networkpolicy_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
 shared_mongodb_networkpolicy_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+shared_mongodb_networkpolicy_bootstrap_component_root: >-
+  {{ shared_mongodb_networkpolicy_bootstrap_repository_root }}/ansible/files/components/shared-mongodb-networkpolicy
 shared_mongodb_networkpolicy_bootstrap_manifest_paths:
-  - "{{ shared_mongodb_networkpolicy_bootstrap_repository_root }}/ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml"
-  - "{{ shared_mongodb_networkpolicy_bootstrap_repository_root }}/ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml"
+  - "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-allow.yaml"
+  - "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-default-deny.yaml"
 shared_mongodb_networkpolicy_bootstrap_object_count: 2
 shared_mongodb_networkpolicy_bootstrap_target_names:
   - shared-mongodb-networkpolicy-allow
   - shared-mongodb-networkpolicy-default-deny
 shared_mongodb_networkpolicy_bootstrap_expected_hashes:
-  - path: "{{ shared_mongodb_networkpolicy_bootstrap_repository_root }}/ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml"
+  - path: "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-allow.yaml"
     sha256: e8ffcf4d91ef589185d0da0ea9774210ca770d69acd0fc1abd1c188e8042806b
-  - path: "{{ shared_mongodb_networkpolicy_bootstrap_repository_root }}/ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml"
+  - path: "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-default-deny.yaml"
     sha256: 531923114cb79b0c73adc64014422a0b8ded8d39550ffe0d5adb1e7c361843fc
 shared_mongodb_networkpolicy_bootstrap_identity_set_sha256: 11352b9439d10f2ffdfad385ee31f524885fead8d74d38937101614f742ab575
 shared_mongodb_networkpolicy_bootstrap_namespace: shared-services
