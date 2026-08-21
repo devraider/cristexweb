@@ -88,16 +88,18 @@ committed.
 
 ## Admission and RBAC boundary
 
-The Secret VAP is fail-closed and applies only to `shared-services` writes that
-are either made by the exact Operator ServiceAccount
-`system:serviceaccount:shared-services:infisical-operator-controller` or address one
-of the eleven exact target names. Its validation then requires that exact Operator
-identity plus the exact namespace, target name/type/key set, three ownership
-labels, empty binary data, and no owner references. This two-stage scope means:
+The Secret VAP is fail-closed only for the eleven exact target names in
+`shared-services`. For those targets, validation requires the exact Operator
+ServiceAccount, namespace, name/type/key set, three ownership labels, empty binary
+data, and no owner references. A non-target Secret name skips this policy. Because
+the current writer Role grants unrestricted Secret `create` and broad reads, this
+VAP does **not** prove that the Operator cannot create or read an unreviewed Secret.
+Therefore the seam remains runtime-blocked and cannot be reused for Reactive Resume
+activation until RBAC and admission are redesigned and negative-tested. It does
+prove only that:
 
-- a foreign writer cannot write any exact target Secret;
-- the Operator cannot write an unreviewed Secret name in `shared-services`; and
-- the database policy cannot affect `argocd`.
+- a foreign writer cannot write an exact target Secret; and
+- the database policy does not match `argocd` namespace writes.
 
 The existing Argo Secret VAP uses the same namespace plus
 `(operator identity OR exact Argo target-name set)` match conditions and requires the

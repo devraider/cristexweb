@@ -56,11 +56,21 @@ identity:
   logout_and_account_linking_selected: false
   discovery_and_jwks_validation: unaccepted-blocker
   positive_negative_oidc_tests: unaccepted-blocker
+  upstream_v5_hardening:
+    callback_candidate: '${APP_URL}/api/auth/oauth2/callback/custom'
+    callback_verified_for_selected_release: false
+    password_login_disabled: false
+    trustworthy_email_verified_mapping: false
+    id_token_signature_issuer_nonce_validation: unaccepted-blocker
+    groups_as_authorization_boundary: forbidden
+    account_and_resume_identity_continuity: unselected-blocker
+    empty_successor_dev_decision: required
   administrator_surface: private-only
   local_development_inputs_allowed: false
   cross_environment_issuer_or_client_reuse: forbidden
   contract_required_before_client_mutation: true
   authorization:
+    application_group_or_organization_authorization: forbidden
     exact_client_role_set: unselected-blocker
     exact_field_projection: unselected-blocker
     view_clients_role: forbidden-until-reviewed
@@ -112,8 +122,11 @@ database:
     bypassrls: false
     login: true
     public_connect: revoke
+    public_temporary: revoke
     public_schema_create: revoke
     role_memberships: []
+    pg_auth_members_projection: required-empty
+    set_role_to_foreign_roles: deny
     cross_database_access: deny
     own_database_privileges_only: required
     acl_projection: exact-allowlisted-owner-and-runtime-privileges
@@ -145,7 +158,7 @@ secrets:
     infisical_database_secret_seam_reuse: forbidden-for-reactive-resume-activation
     infisical_manager_broad_secret_reads: forbidden
     all_eleven_target_materialization: forbidden
-    alternate_target_vap_reuse: forbidden-until-reviewed-with-live-typecheck-and-truth-table
+    existing_alternate_target_vap_reuse: forbidden
     broad_runtime_secret_writer_reuse: forbidden
     shared_database_secret_in_shared_services_only: forbidden-insufficient-for-app-namespace
   dedicated_dev_only:
@@ -173,8 +186,10 @@ secrets:
     status: absent-blocker
     dev_vap_source: absent
     dev_vap_exact_target_only: required
-    existing_namespace_inequality_validation: preserve-correct-deny-predicate
-    existing_matchcondition-skip-and-typecheck-findings: blocker
+    existing_namespace_inequality_validation: preserve-allow-outside-deny-inside-guard
+    existing_matchcondition_skip_behavior: blocker
+    existing_typecheck_status: unobserved-blocker
+    future_zero_typecheck_warnings: required
     alternate_target_in_target_namespace: deny
     foreign_target_name: deny
     foreign_target_namespace: deny
@@ -225,24 +240,28 @@ object_storage:
   encrypted_off_node_backup: required
   isolated_object_restore: required
   object_manifest_checksum_readback: required
+  reviewed_v5_candidate_objects:
+    - pictures
+    - screenshots
+    - pdfs
+  public_read_acl_or_unauthenticated_upload_serving: blocker
+  private_bucket_policy_and_readback: required
   local_ephemeral_storage_only: forbidden
 redis_ai:
-  status: blocked-feature-selection
-  feature_selection: unresolved-blocker
-  ai_agent: disabled-until-explicit-selection-and-review
-  redis: forbidden-until-agent-feature-selected
-  core_application_without_agent: required-test-before-runtime
-  active_streams: non_authoritative_transient_if-enabled
+  status: no-server-side-agent-or-redis-contract-selected
+  reviewed_v5_server_agent_evidence: absent
+  reviewed_v5_redis_requirement: absent
+  future_release_ai_or_redis: forbidden-until-pinned-and-reviewed
+  browser_local_ai_key_state: non-server-authoritative-candidate
   redis_backup_as_authoritative_state: forbidden
-  dev_prod_redis_scope_separation: required-if-enabled
-  private_authenticated_tls_redis: required-if-enabled
 application_keys:
   status: blocked-key-inventory-and-recovery-unselected
   exact_key_names: unselected-until-pinned-upstream-release
   candidate_required_names:
     - AUTH_SECRET
     - OAUTH_CLIENT_SECRET
-  candidate_conditional_names:
+  candidate_conditional_names: []
+  unverified_or_absent_upstream_keys:
     - ENCRYPTION_SECRET
   dev_path: unselected-blocker
   prod_path: unselected-blocker
@@ -255,8 +274,9 @@ application_keys:
   rotation_and_revocation_plan: required
   encryption_key_loss_recovery: required-if-agent-or-encrypted-provider-state
 migration:
-  status: blocked-migration-actor-and-rollback-unselected
-  automatic_startup_migrations: forbidden
+  status: blocked-upstream-startup-migration-not-fail-closed
+  upstream_startup_migration_behavior: present-and-unaccepted
+  migration_failure_propagation: absent-blocker
   dedicated_migration_actor: absent-blocker
   migration_lock: required
   pre_migration_backup: required
@@ -267,13 +287,14 @@ backup_restore:
   status: blocked-no-reactive-resume-scope
   postgresql_scope: absent-blocker
   object_storage_scope: absent-blocker
-  redis_scope: non_authoritative-rebuild-if-enabled
+  redis_scope: not-applicable-reviewed-v5-unless-future-release
   application_key_scope: absent-blocker
   database_and_object_consistency: required
   encrypted_off_node_copy: required
   integrity_readback: required
   isolated_restore: required
   login_and_upload_restore_tests: required
+  user_account_resume_identity_continuity: required-or-explicit-empty-dev
   measured_rpo_rto: false
   rpo: 24h-target-not-accepted
   rto: 4h-target-not-accepted
@@ -436,4 +457,5 @@ source_closure_review:
   no_image_digest_claimed: true
   broad_infisical_lanes_reusable: false
   broad_postgresql_lanes_reusable: false
-  current_runtime_state: unknown
+  current_runtime_state: observed-absent-2026-08-21-read-only-inventory
+  runtime_observation_is_reconciliation: false

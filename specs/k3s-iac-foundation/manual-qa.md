@@ -109,8 +109,10 @@ validation, additive writer RBAC, and offline negative/hash contracts; its value
 check/apply, sync, rotation, recovery, and runtime remain blocked. This source does
 not close a manual case. Previously approved Argo CD, cloudflared, shared databases, and CristexHub DEV
 checkpoints are live. The 44-object Operator expansion now also passes check/apply/
-post-check/idempotence, but broader admission/RBAC/traffic and every
-credential-bearing PROD phase remain pending, so it closes no full manual case. No
+post-check/idempotence. The later CristexHub PROD credential seam, registration, and
+private workload checkpoints are also live/idempotent; broader admission/RBAC,
+stateful acceptance, authenticated OIDC acceptance, and public routing remain
+pending, so this still closes no full manual case. No
 replacement recovery proof or complete manual runtime validation occurred. The separate source-only k3s datastore/encryption preflight completed one
 approved live read-only run at `ok=45 changed=1`; the sole change was its ignored
 mode-`0600` sanitized artifact, whose datastore/encryption stages remained unknown.
@@ -121,9 +123,9 @@ though warning-free fresh-session behavior passed. These results do not satisfy 
 remaining manual cases. The offline `shared-services` source correction adds no live
 Namespace, workload, database, credential, or route and therefore closes no manual
 case. The separate exact present-only `cristexhub-prod` Namespace checkpoint is complete:
-the live Namespace is Active and its idempotence apply converged. All later PROD
-Secret, registration, workload, stateful-scope, and route gates remain
-NOT RUN/BLOCKED. Future placement
+the live Namespace is Active and its idempotence apply converged. The later PROD
+Secret seam, Argo registration, and private workload are now live/idempotent;
+stateful acceptance and the public route remain blocked. Future placement
 is cloudflared-only `platform-edge`, with the Infisical
 Operator, separate Keycloak deployment, one general PostgreSQL engine, and one
 shared MongoDB engine in `shared-services`. The value-free database policy closes no

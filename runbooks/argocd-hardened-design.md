@@ -2,11 +2,12 @@
 
 ## Status and boundary
 
-**GUARDED PRIVATE BOOTSTRAP SOURCE READY — RUNTIME NOT RUN/BLOCKED.** Chart
-`10.3.0` and Argo CD `v3.5.0` are the pinned source baseline. The exact 32-object
-closure is deployable only through `ansible/bin/bootstrap-argocd check|apply` after
-the three Infisical-owned Secret contracts exist. No live call, check, apply, or
-runtime validation was performed in this source increment; Argo CD runtime remains **NOT RUN/BLOCKED**.
+**PRIVATE RUNTIME LIVE/IDEMPOTENT; ORIGINAL SOURCE INCREMENT PRESERVED.** Chart
+`10.3.0` and Argo CD `v3.5.0` are the pinned baseline. The exact 32-object closure
+remains executable only through `ansible/bin/bootstrap-argocd check|apply` with the
+three Infisical-owned Secret contracts. The original source increment made no live
+call, but later separately approved check/apply/idempotence established the private
+Argo core. Public exposure and omitted components remain blocked.
 
 Helm is not a runtime reconciler. The pinned local Helm binary was used only to
 render the vendored chart as offline evidence. Runtime reads the committed manifests

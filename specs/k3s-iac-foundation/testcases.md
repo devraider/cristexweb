@@ -2895,40 +2895,47 @@ only the future private object boundary in `cristexhub-dev` and the dedicated sh
 PostgreSQL scope `reactive_resume_dev` / `reactive_resume_dev_owner` while keeping
 executable source forbidden. It explicitly blocks reuse of the broad Infisical
 11-target/VAP/RBAC lanes and all-consumer PostgreSQL/CloudNativePG lanes, and records
-unresolved OIDC realm/callback/claims, CNPG TLS/NetworkPolicy identity, durable
-object storage, Redis/AI selection, application-key custody, migration, backup,
+successor-realm runtime and upstream OIDC callback/verification hardening, CNPG
+TLS/NetworkPolicy identity, durable
+object storage, future-release Redis/AI dependency review, application-key custody, migration, backup,
 restore, measured RPO/RTO, and DEV-soak gates. PROD remains a reservation/template
 only. No manifest, workload, wrapper, Secret value, image digest, PVC, route, or
 API/provider source was added.
 
 ```bash
-/home/paul/projects/cristexweb/.venv/bin/python -m unittest -v \
+.venv/bin/python -m unittest -v \
   tests.test_reactive_resume_architecture_contract
-/home/paul/projects/cristexweb/.venv/bin/python -m unittest discover \
+.venv/bin/python -m unittest discover \
   -s tests -p 'test_*.py' -q
 cd ansible && for f in playbooks/*.yml; do \
   ../.venv/bin/ansible-playbook "$f" --syntax-check >/dev/null || exit; done
 ../.venv/bin/ansible-lint . ../tests/validate_storage_report.yml
 cd ..
-/home/paul/projects/cristexweb/.venv/bin/python -m compileall -q \
+.venv/bin/python -m compileall -q \
   tests/test_reactive_resume_architecture_contract.py
 git diff --check
 git diff --cached --quiet
+kubectl get deployments,statefulsets,services,ingresses,networkpolicies,pvc,serviceaccounts,configmaps \
+  -n cristexhub-dev -o name | grep -Ei 'reactive|resume|rxresume'
+kubectl get applications.argoproj.io -n argocd -o name | \
+  grep -Ei 'reactive|resume|rxresume'
 ```
 
 Actual result:
 
 ```text
-Reactive Resume focused blocker-contract tests: 13 passed
-Full offline suite: 427/427 passed
+Reactive Resume focused blocker-contract tests: 14 passed
+Full offline suite: 428/428 passed
 All 47 playbook syntax checks passed
 Production-profile lint passed with only 14 configured pre-existing warnings
 Python compile: passed
-Diff hygiene passed; no runtime/API/provider operation occurred
+Diff hygiene passed; bounded read-only Kubernetes inventory found
+reactive_resume_matching_object_count=0; no Reactive Resume or provider mutation occurred
 ```
 
 The DEV runtime remains blocked pending dedicated source lanes, immutable upstream
-image/trust/recovery, exact OIDC contract, canonical PostgreSQL owner/NOINHERIT/ACL
+image/trust/recovery, successor-realm and hardened OIDC contract, canonical
+PostgreSQL owner/NOINHERIT/ACL
 and negative tests, CNPG-compatible TLS/NetworkPolicy, object-storage backup/restore,
 application-key recovery, migration safety, measured RPO/RTO, private validation,
 and an explicit DEV soak. PROD cannot be generated or activated from its reservation.

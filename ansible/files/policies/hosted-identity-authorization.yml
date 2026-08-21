@@ -144,11 +144,17 @@ clients:
         missing_or_ambiguous: deny
     - id: reactive-resume-dev
       namespace: cristexhub-dev
-      activation: blocked-pending-exact-origin
+      realm: cristexhub-dev
+      issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
+      realm_runtime_state: unknown-blocker
+      activation: blocked-pending-successor-realm-upstream-hardening-and-exact-origin
       callback_selected: false
     - id: reactive-resume-prod
       namespace: cristexhub-prod
-      activation: blocked-pending-exact-origin
+      realm: cristexhub
+      issuer: https://auth.cristex-soft.com/realms/cristexhub
+      realm_role: retained-prod-compatible
+      activation: blocked-pending-dev-acceptance-soak-and-exact-origin
       callback_selected: false
     - id: argocd
       namespace: argocd

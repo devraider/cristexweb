@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: 427 offline contracts and all 47 playbook syntax checks pass; private PROD is Synced/Healthy and the public route remains unapplied
+build: 428 offline contracts and all 47 playbook syntax checks pass; private PROD is Synced/Healthy and the public route remains unapplied
 date: 2026-08-21
 deploy_required_after_acceptance: yes
 
@@ -256,9 +256,11 @@ note: |
   remain unselected or blocked.
   The value-free
   [Reactive Resume hosted architecture](../../runbooks/reactive-resume-hosted-architecture.md)
-  includes private DEV in the MVP with separate future PROD, OIDC clients, and
-  dedicated shared-PostgreSQL consumer scopes. Upstream image selection, callbacks,
-  resources, Secrets, recovery, handoff, and runtime remain blocked. One SHA-pinned,
+  records an incomplete private-DEV blocker inventory with PROD reservation-only.
+  The successor DEV realm runtime, upstream auth hardening, dedicated Infisical and
+  database ownership lanes, private object storage, ACL/TLS/NetworkPolicy, image,
+  migration, recovery, handoff, and runtime all remain blocked; executable source is
+  forbidden. One SHA-pinned,
   read-only GitHub-hosted CI workflow now exists and the application publisher is
   disabled. Commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1` was pushed to
   `develop`; GitHub Actions run `31311995461` completed successfully with the sole
@@ -410,7 +412,7 @@ note: |
   shared MongoDB engine belong in `shared-services`.
   No external infrastructure resource, Kubernetes Secret/data, image publication,
   or component deployment operation was completed. In addition to historical public
-  source/Actions reads, the current integrated source validation passed 427/427 offline
+  source/Actions reads, the current integrated source validation passed 428/428 offline
   contracts, all 47 playbook syntax checks, executable datastore parser fixtures,
   production-profile lint (with only configured pre-existing warnings), Python and
   shell syntax, and diff checks. The k3s datastore/encryption preflight now privately parses only the bounded

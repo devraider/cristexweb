@@ -531,9 +531,9 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         self.assertIn("canonical guarded role task source", output)
         self.assertNotIn("Failed to connect", output)
 
-    def test_documentation_records_deployable_source_and_runtime_block(self) -> None:
+    def test_documentation_records_deployable_source_and_private_runtime_checkpoint(self) -> None:
         text = " ".join(RUNBOOK.read_text().split())
-        for required in ("GUARDED PRIVATE BOOTSTRAP SOURCE READY", "ApplicationSet runtime is absent", "exact 32-object closure", "Chart `10.3.0`", "Argo CD `v3.5.0`", "runtime remains **NOT RUN/BLOCKED**", "https://github.com/devraider/cristexweb.git", "develop", "port-only", "Infisical-owned"):
+        for required in ("PRIVATE RUNTIME LIVE/IDEMPOTENT", "ApplicationSet runtime is absent", "exact 32-object closure", "Chart `10.3.0`", "Argo CD `v3.5.0`", "Public exposure and omitted components remain blocked", "https://github.com/devraider/cristexweb.git", "develop", "port-only", "Infisical-owned"):
             self.assertIn(required, text)
 
 

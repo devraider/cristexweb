@@ -10,6 +10,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "ansible/files/policies/reactive-resume-architecture.yml"
 DATABASE_POLICY = ROOT / "ansible/files/policies/shared-database-architecture.yml"
+IDENTITY_POLICY = ROOT / "ansible/files/policies/hosted-identity-authorization.yml"
 RUNBOOK = ROOT / "runbooks/reactive-resume-hosted-architecture.md"
 KUBERNETES = ROOT / "kubernetes"
 
@@ -20,6 +21,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         cls.policy_text = POLICY.read_text()
         cls.policy = yaml.safe_load(cls.policy_text)
         cls.database_policy = yaml.safe_load(DATABASE_POLICY.read_text())
+        cls.identity_policy = yaml.safe_load(IDENTITY_POLICY.read_text())
         cls.runbook_text = RUNBOOK.read_text()
 
     def test_scope_is_source_only_and_prod_is_template(self) -> None:
@@ -93,12 +95,12 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("absent", vap["dev_vap_source"])
         self.assertEqual("required", vap["dev_vap_exact_target_only"])
         self.assertEqual(
-            "preserve-correct-deny-predicate",
+            "preserve-allow-outside-deny-inside-guard",
             vap["existing_namespace_inequality_validation"],
         )
-        self.assertEqual(
-            "blocker", vap["existing_matchcondition-skip-and-typecheck-findings"]
-        )
+        self.assertEqual("blocker", vap["existing_matchcondition_skip_behavior"])
+        self.assertEqual("unobserved-blocker", vap["existing_typecheck_status"])
+        self.assertEqual("required", vap["future_zero_typecheck_warnings"])
         for key in (
             "alternate_target_in_target_namespace",
             "foreign_target_name",
@@ -164,13 +166,39 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         ):
             self.assertFalse(owner[key], key)
         self.assertEqual("revoke", owner["public_connect"])
+        self.assertEqual("revoke", owner["public_temporary"])
         self.assertEqual("revoke", owner["public_schema_create"])
         self.assertEqual([], owner["role_memberships"])
+        self.assertEqual("required-empty", owner["pg_auth_members_projection"])
+        self.assertEqual("deny", owner["set_role_to_foreign_roles"])
         self.assertEqual("deny", owner["cross_database_access"])
         self.assertEqual(
             "exact-allowlisted-owner-and-runtime-privileges", owner["acl_projection"]
         )
         self.assertGreaterEqual(len(owner["negative_tests"]), 8)
+
+    def test_database_and_identity_reservations_match_canonical_policies(self) -> None:
+        consumers = self.database_policy["engines"]["postgresql"]["consumers"]
+        for environment, consumer_name in (
+            ("dev", "reactive-resume-dev"),
+            ("prod", "reactive-resume-prod"),
+        ):
+            expected = consumers[consumer_name]
+            scoped = self.policy["source_closure"][environment]["database_scope"]
+            self.assertEqual(expected["logical_database"], scoped["logical_database"])
+            self.assertEqual(expected["principal_name"], scoped["owner_role"])
+            self.assertEqual(expected["credential_secret"], scoped["credential_secret"])
+            self.assertEqual("inactive", expected["activation"])
+        clients = {
+            item["id"]: item for item in self.identity_policy["clients"]["browser"]
+        }
+        dev_identity = self.policy["source_closure"]["dev"]["identity_scope"]
+        prod_identity = self.policy["source_closure"]["prod"]["identity_scope"]
+        for scoped in (dev_identity, prod_identity):
+            canonical = clients[scoped["client_id"]]
+            self.assertEqual(canonical["realm"], scoped["realm"])
+            self.assertEqual(canonical["issuer"], scoped["issuer"])
+            self.assertFalse(canonical["callback_selected"])
 
     def test_database_and_network_identity_are_unresolved_blockers(self) -> None:
         tls = self.policy["database"]["tls_and_network"]
@@ -211,6 +239,14 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             self.assertFalse(identity[key], key)
         self.assertEqual("unaccepted-blocker", identity["discovery_and_jwks_validation"])
         self.assertEqual("unaccepted-blocker", identity["positive_negative_oidc_tests"])
+        hardening = identity["upstream_v5_hardening"]
+        self.assertFalse(hardening["callback_verified_for_selected_release"])
+        self.assertFalse(hardening["password_login_disabled"])
+        self.assertFalse(hardening["trustworthy_email_verified_mapping"])
+        self.assertEqual(
+            "unaccepted-blocker", hardening["id_token_signature_issuer_nonce_validation"]
+        )
+        self.assertEqual("forbidden", hardening["groups_as_authorization_boundary"])
         self.assertTrue(identity["contract_required_before_client_mutation"])
         self.assertFalse(identity["local_development_inputs_allowed"])
         self.assertEqual("forbidden", identity["cross_environment_issuer_or_client_reuse"])
@@ -246,13 +282,19 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             "object_manifest_checksum_readback",
         ):
             self.assertTrue(storage[key], key)
+        self.assertEqual(["pictures", "screenshots", "pdfs"], storage["reviewed_v5_candidate_objects"])
+        self.assertEqual("blocker", storage["public_read_acl_or_unauthenticated_upload_serving"])
+        self.assertTrue(storage["private_bucket_policy_and_readback"])
         self.assertEqual("forbidden", storage["local_ephemeral_storage_only"])
         redis_ai = self.policy["redis_ai"]
-        self.assertEqual("blocked-feature-selection", redis_ai["status"])
-        self.assertEqual("unresolved-blocker", redis_ai["feature_selection"])
-        self.assertEqual("disabled-until-explicit-selection-and-review", redis_ai["ai_agent"])
-        self.assertEqual("forbidden-until-agent-feature-selected", redis_ai["redis"])
-        self.assertTrue(redis_ai["core_application_without_agent"])
+        self.assertEqual(
+            "no-server-side-agent-or-redis-contract-selected", redis_ai["status"]
+        )
+        self.assertEqual("absent", redis_ai["reviewed_v5_server_agent_evidence"])
+        self.assertEqual("absent", redis_ai["reviewed_v5_redis_requirement"])
+        self.assertEqual(
+            "forbidden-until-pinned-and-reviewed", redis_ai["future_release_ai_or_redis"]
+        )
         self.assertEqual("forbidden", redis_ai["redis_backup_as_authoritative_state"])
 
     def test_application_keys_migrations_and_recovery_are_blocked(self) -> None:
@@ -264,7 +306,8 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual(
             ["AUTH_SECRET", "OAUTH_CLIENT_SECRET"], keys["candidate_required_names"]
         )
-        self.assertEqual(["ENCRYPTION_SECRET"], keys["candidate_conditional_names"])
+        self.assertEqual([], keys["candidate_conditional_names"])
+        self.assertEqual(["ENCRYPTION_SECRET"], keys["unverified_or_absent_upstream_keys"])
         for key in ("dev_path", "prod_path"):
             self.assertEqual("unselected-blocker", keys[key])
         for key in (
@@ -282,8 +325,11 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         ):
             self.assertTrue(keys[key], key)
         migration = self.policy["migration"]
-        self.assertEqual("blocked-migration-actor-and-rollback-unselected", migration["status"])
-        self.assertEqual("forbidden", migration["automatic_startup_migrations"])
+        self.assertEqual(
+            "blocked-upstream-startup-migration-not-fail-closed", migration["status"]
+        )
+        self.assertEqual("present-and-unaccepted", migration["upstream_startup_migration_behavior"])
+        self.assertEqual("absent-blocker", migration["migration_failure_propagation"])
         self.assertEqual("absent-blocker", migration["dedicated_migration_actor"])
         self.assertTrue(migration["migration_lock"])
         self.assertTrue(migration["pre_migration_backup"])
@@ -299,7 +345,9 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             "application_key_scope",
         ):
             self.assertEqual("absent-blocker", recovery[key], key)
-        self.assertEqual("non_authoritative-rebuild-if-enabled", recovery["redis_scope"])
+        self.assertEqual(
+            "not-applicable-reviewed-v5-unless-future-release", recovery["redis_scope"]
+        )
         for key in (
             "database_and_object_consistency",
             "encrypted_off_node_copy",
@@ -341,6 +389,12 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("required", order["public_route_last"])
 
     def test_prod_is_reservation_only_and_has_no_runtime_source(self) -> None:
+        review = self.policy["source_closure_review"]
+        self.assertEqual(
+            "observed-absent-2026-08-21-read-only-inventory",
+            review["current_runtime_state"],
+        )
+        self.assertFalse(review["runtime_observation_is_reconciliation"])
         prod = self.policy["source_closure"]["prod"]
         self.assertEqual("cristexhub-prod", prod["namespace"])
         self.assertTrue(prod["source_template"])
@@ -365,7 +419,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             "Application keys",
             "Migrations and recovery",
             "No blocker above is satisfied by a policy reservation",
-            "PROD is represented only as a promotion template",
+            "Reactive Resume PROD is represented only as a promotion template",
             "private DEV validation and an explicit DEV soak",
             "Ingress, Traefik public routes, NodePort, LoadBalancer, Cloudflare Tunnel",
             "No Deployment, StatefulSet, Service, PVC, Secret, Infisical CR",
@@ -395,6 +449,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         )
         self.assertNotRegex(combined, re.compile(r"@sha256:[0-9a-f]{64}"))
         self.assertNotIn("/Users/", combined)
+        self.assertNotIn("/home/paul/", combined)
 
 
 if __name__ == "__main__":
