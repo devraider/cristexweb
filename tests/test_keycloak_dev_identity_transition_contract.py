@@ -387,10 +387,18 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
     def test_official_playbook_rejects_forged_same_user_attestation(self) -> None:
         controller = ROOT / ".venv/bin/ansible-playbook"
         token = "a" * 64
-        with tempfile.NamedTemporaryFile(mode="w", prefix="dev-transition-forged-") as receipt:
+        with (
+            tempfile.NamedTemporaryFile(mode="w", prefix="dev-transition-forged-") as receipt,
+            tempfile.NamedTemporaryFile(mode="w", prefix="dev-transition-inventory-") as inventory,
+        ):
             receipt.write(f"{token}:entrypoint\n")
             receipt.flush()
             os.chmod(receipt.name, 0o600)
+            inventory.write(
+                "all:\n  hosts:\n    crtxweb:\n      ansible_connection: local\n"
+            )
+            inventory.flush()
+            os.chmod(inventory.name, 0o600)
             environment = os.environ.copy()
             environment.update(
                 {
@@ -405,7 +413,7 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
                 [
                     str(controller),
                     "-i",
-                    ".ansible/inventory.local.yml",
+                    inventory.name,
                     "playbooks/bootstrap_keycloak_dev_identity_transition.yml",
                     "--diff",
                     "--limit",
