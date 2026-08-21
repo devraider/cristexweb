@@ -1,0 +1,42 @@
+---
+apiVersion: cristex.io/v1alpha1
+kind: KeycloakProtocolMapperContract
+metadata:
+  name: cristexhub-dev-claims
+  labels:
+    cristex.io/component: keycloak-dev-identity
+    cristex.io/environment: dev
+    cristex.io/managed-by: ansible
+    cristex.io/value-owner: infisical-cloud
+spec:
+  realm: cristexhub-dev
+  clientId: cristexhub-dev
+  mappers:
+    - name: groups
+      protocol: openid-connect
+      protocolMapper: oidc-group-membership-mapper
+      consentRequired: false
+      config:
+        claim.name: groups
+        full.path: "false"
+        id.token.claim: "true"
+        access.token.claim: "true"
+        userinfo.token.claim: "true"
+    - name: organization
+      protocol: openid-connect
+      protocolMapper: oidc-organization-membership-mapper
+      consentRequired: false
+      config:
+        claim.name: organization
+        id.token.claim: "true"
+        access.token.claim: "true"
+        userinfo.token.claim: "true"
+    - name: cristexhub-dev-audience
+      protocol: openid-connect
+      protocolMapper: oidc-audience-mapper
+      consentRequired: false
+      config:
+        included.custom.audience: cristexhub-dev
+        access.token.claim: "true"
+        id.token.claim: "false"
+        userinfo.token.claim: "false"

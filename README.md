@@ -119,11 +119,13 @@ cryptographic contracts and refuses `argocd-initial-admin-secret`. Its non-passt
 AppProject GVK and waits for Established CRDs on apply. It is source-ready but no live check/apply/idempotence or runtime proof has occurred.
 Admission, node pulls, private TLS/login, NetworkPolicy positives/negatives, recovery,
 and later Git reconciliation remain blocked. The companion
-[source-only Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md)
-and [release selection](runbooks/keycloak-release-selection.md) select Keycloak
-`26.7.1`, PostgreSQL `17.10`, realm `cristexhub`, and issuer
-`https://auth.cristex-soft.com/realms/cristexhub` only for offline source authoring.
-The value-free hosted policy selects exact client IDs, environment role templates,
+[Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md) and
+[release selection](runbooks/keycloak-release-selection.md) retain the private
+Keycloak `26.7.1` workload, PostgreSQL `17.10`, PROD-compatibility realm
+`cristexhub`, and issuer `https://auth.cristex-soft.com/realms/cristexhub`.
+The separate [DEV successor realm runbook](runbooks/keycloak-dev-realm-migration.md)
+defines the value-free, check-only `cristexhub-dev` source lane; no DEV realm or
+application cutover is implied. The value-free hosted policy selects exact client IDs, environment role templates,
 Argo groups, deny-default authorization, Namespace trust, and Universal Auth
 direction. The separate [shared database architecture](runbooks/shared-database-architecture.md)
 freezes one PostgreSQL and one MongoDB engine in `shared-services`: CristexHub

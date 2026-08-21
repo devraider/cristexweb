@@ -1,0 +1,43 @@
+---
+# Source-only DEV successor identity contract. The existing cristexhub realm remains
+# retained PROD compatibility state; this lane never targets or deletes it.
+keycloak_dev_identity_bootstrap_approved: false
+keycloak_dev_identity_bootstrap_state: present
+keycloak_dev_identity_bootstrap_api_base_url: >-
+  {{ lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_API_BASE_URL') |
+  default('https://auth.cristex-soft.com', true) }}
+keycloak_dev_identity_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+keycloak_dev_identity_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+keycloak_dev_identity_bootstrap_token_file: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ADMIN_TOKEN_FILE') }}"
+keycloak_dev_identity_bootstrap_component_root: >-
+  {{ keycloak_dev_identity_bootstrap_repository_root }}/ansible/files/components/keycloak-dev-identity
+keycloak_dev_identity_bootstrap_manifest_paths:
+  - "{{ keycloak_dev_identity_bootstrap_component_root }}/realm/cristexhub-dev.yaml"
+  - "{{ keycloak_dev_identity_bootstrap_component_root }}/client/cristexhub-dev.yaml"
+  - "{{ keycloak_dev_identity_bootstrap_component_root }}/groups/static-groups.yaml"
+  - "{{ keycloak_dev_identity_bootstrap_component_root }}/mappers/protocol-mappers.yaml"
+keycloak_dev_identity_bootstrap_expected_hashes:
+  - path: "{{ keycloak_dev_identity_bootstrap_component_root }}/realm/cristexhub-dev.yaml"
+    sha256: 0ca26722672b03a6eb8578dd1b6a56b2658977753a003e40c8084da407b37184
+  - path: "{{ keycloak_dev_identity_bootstrap_component_root }}/client/cristexhub-dev.yaml"
+    sha256: 79fc0b865b40e2928cea49757fc39f5f20fb215f078fa3bd73ef8c63340404a3
+  - path: "{{ keycloak_dev_identity_bootstrap_component_root }}/groups/static-groups.yaml"
+    sha256: 55bfcdbf11946727e3d243a85b21ce008e5717325371551ce1a4ed4e3fedf55d
+  - path: "{{ keycloak_dev_identity_bootstrap_component_root }}/mappers/protocol-mappers.yaml"
+    sha256: c48e06c5b1261260bacdc5dbb88bd7ced023d24f07b6b0c550c9017c36dd08ef
+keycloak_dev_identity_bootstrap_object_count: 4
+keycloak_dev_identity_bootstrap_expected_identity_set_sha256: 019e67b41b810f59175ebea88f0250ed1dc59d582d531c7becebd9cfadfd624f
+keycloak_dev_identity_bootstrap_realm: cristexhub-dev
+keycloak_dev_identity_bootstrap_legacy_realm: cristexhub
+keycloak_dev_identity_bootstrap_client_ids:
+  - cristexhub-dev
+  - cristexhub-admin-svc-dev
+keycloak_dev_identity_bootstrap_static_group_names:
+  - cristexhub-dev-super-admin
+keycloak_dev_identity_bootstrap_forbidden_identity_names:
+  - cristexhub-prod
+  - cristexhub-admin-svc-prod
+  - cristexhub-prod-super-admin
+  - argocd-admin
+  - argocd-readonly
+  - master-admin

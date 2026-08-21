@@ -171,6 +171,7 @@ metadata:
                 ANSIBLE / "bin/bootstrap-mongodb",
                 ANSIBLE / "bin/bootstrap-postgresql",
                 ANSIBLE / "bin/bootstrap-keycloak",
+                ANSIBLE / "bin/bootstrap-keycloak-dev-identity",
                 ANSIBLE / "bin/bootstrap-cloudnative-pg",
                 ANSIBLE / "bin/bootstrap-cloudnative-pg-cluster",
                 ANSIBLE / "bin/install-backup-dependencies",

@@ -1,0 +1,33 @@
+---
+apiVersion: cristex.io/v1alpha1
+kind: KeycloakRealmContract
+metadata:
+  name: cristexhub-dev
+  labels:
+    cristex.io/component: keycloak-dev-identity
+    cristex.io/environment: dev
+    cristex.io/managed-by: ansible
+    cristex.io/value-owner: infisical-cloud
+spec:
+  realm: cristexhub-dev
+  issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
+  enabled: true
+  displayName: CristexHub DEV
+  registrationAllowed: false
+  directAccessGrantsEnabled: false
+  resetPasswordAllowed: false
+  rememberMe: false
+  verifyEmail: true
+  loginWithEmailAllowed: true
+  duplicateEmailsAllowed: false
+  editUsernameAllowed: false
+  bruteForceProtected: true
+  legacyRealm:
+    name: cristexhub
+    role: retained-prod-compatibility
+    mutation: forbidden
+  mutation:
+    mode: present-update-only
+    deletion: forbidden
+    masterRealm: forbidden
+    crossEnvironmentIdentities: forbidden

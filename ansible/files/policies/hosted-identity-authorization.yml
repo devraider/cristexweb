@@ -1,15 +1,45 @@
 ---
 policy_schema: cristex-hosted-identity-v3
-policy_status: source-selected-runtime-blocked
+policy_status: runtime-checkpointed-dev-successor-source-only
 realm:
   name: cristexhub
   issuer: https://auth.cristex-soft.com/realms/cristexhub
+  role: retained-prod-compatibility
   organizations_enabled: true
   registration_enabled: false
   direct_access_grants_enabled: false
   seeded_users_allowed: false
   seeded_credentials_allowed: false
   production_theme: keycloak-default
+realm_transition:
+  status: source-only-dev-successor-check-only
+  legacy_prod:
+    name: cristexhub
+    issuer: https://auth.cristex-soft.com/realms/cristexhub
+    mutation: forbidden
+    retirement: separate-approval-required
+  successor_dev:
+    name: cristexhub-dev
+    issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
+    owner: ansible
+    source_path: ansible/files/components/keycloak-dev-identity
+    mutation: present-update-only
+    deletion: forbidden
+    runtime_activation: blocked
+    application_cutover: separate-approval-required
+    route_change: separate-approval-required
+  migration_order:
+    - source-contract
+    - check-only-api-preflight
+    - identity-preservation-review
+    - dev-application-cutover
+    - private-validation-and-soak
+    - prod-compatibility-retirement
+  forbidden_targets:
+    - cristexhub-prod
+    - cristexhub-admin-svc-prod
+    - master
+    - argocd
 images:
   keycloak:
     repository: quay.io/keycloak/keycloak
@@ -25,6 +55,9 @@ clients:
   browser:
     - id: cristexhub-dev
       namespace: cristexhub-dev
+      realm: cristexhub
+      successor_realm: cristexhub-dev
+      successor_issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
       activation: keycloak-configured-application-runtime-blocked
       callback_selected: true
       client_type: confidential

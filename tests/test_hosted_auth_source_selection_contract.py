@@ -100,7 +100,7 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
 
     def test_selected_realm_clients_groups_and_images_are_exact(self) -> None:
         self.assertEqual("cristex-hosted-identity-v3", self.policy["policy_schema"])
-        self.assertEqual("source-selected-runtime-blocked", self.policy["policy_status"])
+        self.assertEqual("runtime-checkpointed-dev-successor-source-only", self.policy["policy_status"])
         self.assertEqual("cristexhub", self.policy["realm"]["name"])
         self.assertEqual(
             "https://auth.cristex-soft.com/realms/cristexhub",
@@ -488,6 +488,10 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "ansible/playbooks/bootstrap_keycloak_route.yml",
                 "ansible/roles/keycloak_route_bootstrap/defaults/main.yml",
                 "ansible/roles/keycloak_route_bootstrap/tasks/main.yml",
+                "ansible/bin/bootstrap-keycloak-dev-identity",
+                "ansible/playbooks/bootstrap_keycloak_dev_identity.yml",
+                "ansible/roles/keycloak_dev_identity_bootstrap/defaults/main.yml",
+                "ansible/roles/keycloak_dev_identity_bootstrap/tasks/main.yml",
             },
             {
                 str(path.relative_to(ROOT))

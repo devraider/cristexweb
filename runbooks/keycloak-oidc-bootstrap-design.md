@@ -2,19 +2,21 @@
 
 ## Status and boundary
 
-**SOURCE POLICY SELECTED — CONTROLLER SOURCE AND RUNTIME BLOCKED.** One future
-self-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD remains the
-identity architecture target. Keycloak `26.7.1`, PostgreSQL `17.10`, realm
-`cristexhub`, and issuer `https://auth.cristex-soft.com/realms/cristexhub` are
-selected for offline source authoring. The exact release identities are recorded in
-the [Keycloak release selection](keycloak-release-selection.md). No workload,
-Service, PVC, route, Secret, executable Ansible component, or deployable controller
-source is selected. Keycloak runtime remains **NOT RUN/BLOCKED**.
+**SOURCE POLICY SELECTED — EXISTING PRIVATE WORKLOAD; DEV SUCCESSOR SOURCE-ONLY.**
+The shared self-hosted Keycloak workload is an existing private runtime checkpoint.
+Keycloak `26.7.1`, PostgreSQL `17.10`, the retained PROD-compatibility realm
+`cristexhub`, and issuer `https://auth.cristex-soft.com/realms/cristexhub` remain
+canonical. The exact release identities are recorded in the [Keycloak release
+selection](keycloak-release-selection.md). A separate source-only DEV successor
+contract now defines realm `cristexhub-dev` and issuer
+`https://auth.cristex-soft.com/realms/cristexhub-dev`; it has no runtime activation.
 
-This record authorizes no discovery, check, installation, Secret operation, database
-mutation, route, or cluster contact. Argo CD chart `10.3.0` / app `v3.5.0` and
-Infisical Operator `v0.11.7` are independently selected only as offline source
-baselines; their controller source and runtime remain blocked.
+The DEV successor lane authorizes only offline source validation and a dedicated
+check-only Admin API preflight. It authorizes no apply, Secret operation, database
+mutation, route change, application cutover, or cluster mutation. The existing
+workload closure remains separately owned by Ansible until any future handoff.
+Argo CD chart `10.3.0` / app `v3.5.0` and Infisical Operator `v0.11.7` retain their
+independent source and runtime boundaries.
 
 ## Bounded bootstrap ownership
 
@@ -22,8 +24,9 @@ Ansible is selected as the future bounded bootstrap installer for foundational
 Namespaces, the Infisical Cloud Kubernetes Operator, Argo CD, Keycloak, and their
 privileged cluster-scoped prerequisites. Each component requires a separate exact
 source closure, dedicated non-passthrough entrypoint, reviewed check/diff, separately
-approved apply, and separately approved idempotence checkpoint. This design adds none
-of that executable source and grants no runtime approval.
+approved apply, and separately approved idempotence checkpoint. The existing workload
+closure is separate; the DEV successor adds only its dedicated check-only source lane
+and grants no runtime or apply approval.
 
 Ansible remains lifecycle owner of foundation CRDs, ClusterRoles,
 ClusterRoleBindings, and Keycloak realm, client, group, and group-claim
@@ -34,7 +37,10 @@ and successful sync plus managed-field evidence passes. Ansible and Argo must ne
 reconcile the same object concurrently.
 
 The previously completed `argocd` and `platform-edge` Namespace exception remains
-closed. `shared-services` now exists through its distinct bounded Ansible wrapper;
+closed. The DEV successor realm/client/group/mapper source and its check-only
+wrapper are documented in [the DEV realm migration runbook](keycloak-dev-realm-migration.md);
+they preserve `cristexhub` as retained PROD compatibility state and do not imply a
+runtime transition. `shared-services` now exists through its distinct bounded Ansible wrapper;
 check and separately approved first apply/idempotence passed, with the final run at
 `changed=0`. The superseded `platform-secrets` and
 `platform-identity` source was never run; its removal is not a live deletion. The old
@@ -274,11 +280,12 @@ mismatch, public administration, unexpected object or writer, wildcard identity
 mapping, default Argo privilege, dual reconciliation, failed negative authorization,
 failed recovery, or unreviewed database migration.
 
-This source-only design rolls back only by Git revert. No runtime rollback exists
-because no runtime operation occurred. Future rollback preserves PVCs and database
-backups, stops traffic before identity mutation, restores only a verified compatible
-database backup, and keeps a working predecessor credential until successor
-acceptance.
+The DEV successor lane rolls back only by Git revert before any approved transition.
+It has no runtime rollback because its check-only phase performs no write. Existing
+Keycloak workload rollback remains governed by its separate runtime evidence and
+backup procedure. Future identity rollback preserves PVCs and database backups,
+stops traffic before mutation, restores only a verified compatible database
+backup, and keeps a working predecessor credential until successor acceptance.
 
 ## Open decisions
 
@@ -294,6 +301,6 @@ acceptance.
   the selected group/RBAC policy; and
 - exact object-by-object Ansible-to-Argo handoff inventory and field ownership.
 
-Until these decisions, deployable controller source, separate approvals, and runtime
-evidence exist, the selected policy remains source-only and nothing new is installed
-in k3s.
+Until these decisions and the dedicated successor transition approvals exist, the
+DEV successor remains source-only and no new realm identity is installed or activated
+by this design.

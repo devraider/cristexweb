@@ -56,8 +56,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/infisical_cristexhub_dev_runtime_guarded_k8s.py"),
             Path("ansible/plugins/action/infisical_cristexhub_prod_runtime_guarded_k8s.py"),
             Path("ansible/plugins/action/shared_mongodb_networkpolicy_guarded_k8s.py"),
+            Path("ansible/plugins/action/keycloak_dev_identity_guarded.py"),
         }
-        self.assertEqual(30, len(allowed_action_plugins))
+        self.assertEqual(31, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -129,6 +130,11 @@ class AnsibleLayoutTests(unittest.TestCase):
             "plugins/action/keycloak_guarded_k8s.py",
             "roles/keycloak_bootstrap/defaults/main.yml",
             "roles/keycloak_bootstrap/tasks/main.yml",
+            "bin/bootstrap-keycloak-dev-identity",
+            "playbooks/bootstrap_keycloak_dev_identity.yml",
+            "plugins/action/keycloak_dev_identity_guarded.py",
+            "roles/keycloak_dev_identity_bootstrap/defaults/main.yml",
+            "roles/keycloak_dev_identity_bootstrap/tasks/main.yml",
             "bin/bootstrap-cloudnative-pg",
             "bin/bootstrap-cloudnative-pg-cluster",
             "bin/install-backup-dependencies",
@@ -347,6 +353,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "infisical-cristexhub-dev-runtime",
             "infisical-cristexhub-prod-runtime",
             "shared-mongodb-networkpolicy",
+            "keycloak-dev-identity",
         ):
             required.extend(
                 str(path.relative_to(ANSIBLE))

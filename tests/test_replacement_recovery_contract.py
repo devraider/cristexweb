@@ -47,6 +47,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "infisical-database-secret-materialization.md",
                 "infisical-universal-auth-value-lane.md",
                 "keycloak-oidc-bootstrap-design.md",
+                "keycloak-dev-realm-migration.md",
                 "keycloak-release-selection.md",
                 "k3s-datastore-preflight.md",
                 "oidc-connect-proxy.md",

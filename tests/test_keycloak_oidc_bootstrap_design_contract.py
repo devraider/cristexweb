@@ -16,14 +16,14 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.text = RUNBOOK.read_text()
 
-    def test_source_policy_selection_remains_without_controller_source_or_runtime(self) -> None:
+    def test_source_policy_selection_retains_prod_and_adds_dev_source_only_lane(self) -> None:
         for required in (
-            "**SOURCE POLICY SELECTED — CONTROLLER SOURCE AND RUNTIME BLOCKED.**",
-            "One future\nself-hosted Keycloak shared by CristexHub, Reactive Resume, and Argo CD remains the\nidentity architecture target",
-            "Keycloak `26.7.1`, PostgreSQL `17.10`, realm\n`cristexhub`, and issuer `https://auth.cristex-soft.com/realms/cristexhub` are\nselected for offline source authoring",
-            "No workload,\nService, PVC, route, Secret, executable Ansible component, or deployable controller\nsource is selected",
-            "Keycloak runtime remains **NOT RUN/BLOCKED**",
-            "authorizes no discovery, check, installation, Secret operation, database\nmutation, route, or cluster contact",
+            "**SOURCE POLICY SELECTED — EXISTING PRIVATE WORKLOAD; DEV SUCCESSOR SOURCE-ONLY.**",
+            "shared self-hosted Keycloak workload is an existing private runtime checkpoint",
+            "retained PROD-compatibility realm\n`cristexhub`, and issuer `https://auth.cristex-soft.com/realms/cristexhub` remain\ncanonical",
+            "source-only DEV successor\ncontract now defines realm `cristexhub-dev` and issuer",
+            "dedicated\ncheck-only Admin API preflight",
+            "authorizes no apply, Secret operation, database\nmutation, route change, application cutover, or cluster mutation",
         ):
             self.assertIn(required, self.text)
 
@@ -180,6 +180,10 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
                 "ansible/playbooks/bootstrap_keycloak_route.yml",
                 "ansible/roles/keycloak_route_bootstrap/defaults/main.yml",
                 "ansible/roles/keycloak_route_bootstrap/tasks/main.yml",
+                "ansible/bin/bootstrap-keycloak-dev-identity",
+                "ansible/playbooks/bootstrap_keycloak_dev_identity.yml",
+                "ansible/roles/keycloak_dev_identity_bootstrap/defaults/main.yml",
+                "ansible/roles/keycloak_dev_identity_bootstrap/tasks/main.yml",
             },
             {
                 str(path.relative_to(ROOT))
@@ -246,6 +250,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "cloudflared",
             "infisical-cloudflared-secrets",
             "keycloak-route",
+            "keycloak-dev-identity",
             "rabbitmq",
             "mongodb",
             "mongodb-operator",
