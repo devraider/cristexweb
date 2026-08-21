@@ -15,15 +15,8 @@ resource "github_repository" "reactive_resume_mirror" {
 }
 
 resource "github_actions_repository_permissions" "reactive_resume_mirror" {
-  repository      = github_repository.reactive_resume_mirror.name
-  enabled         = false
-  allowed_actions = "selected"
-
-  allowed_actions_config {
-    github_owned_allowed = false
-    verified_allowed     = false
-    patterns_allowed     = []
-  }
+  repository = github_repository.reactive_resume_mirror.name
+  enabled    = false
 
   lifecycle {
     prevent_destroy = true

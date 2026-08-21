@@ -2931,7 +2931,7 @@ Actual result:
 ```text
 Reactive Resume focused architecture tests: 16 passed
 Reactive Resume PostgreSQL exposure-rotation contract tests: 9 passed
-Full offline suite: 443/443 passed
+Full offline suite: 444/444 passed
 All 47 playbook syntax checks passed
 Production-profile lint passed with only 14 configured pre-existing warnings
 Python compile: passed

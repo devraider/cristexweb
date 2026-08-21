@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import json
+import os
 import re
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -94,11 +98,7 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
             "has_downloads        = false",
             "vulnerability_alerts = true",
             'resource "github_actions_repository_permissions" "reactive_resume_mirror"',
-            "enabled         = false",
-            'allowed_actions = "selected"',
-            "github_owned_allowed = false",
-            "verified_allowed     = false",
-            "patterns_allowed     = []",
+            "enabled    = false",
         ):
             self.assertIn(required, repository)
         for forbidden in (
@@ -109,6 +109,11 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
             "github_repository_webhook",
             "github_deploy_key",
             "github_actions_secret",
+            'allowed_actions = "selected"',
+            "allowed_actions_config",
+            "github_owned_allowed",
+            "patterns_allowed",
+            "verified_allowed",
             "github_actions_organization_permissions",
             "github_actions_environment_secret",
             "github_package",
@@ -126,6 +131,85 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
             "helm_",
         ):
             self.assertNotIn(forbidden, repository.lower(), forbidden)
+
+    def test_inventory_and_plan_guards_are_fixed_and_executable(self) -> None:
+        inventory = GITHUB_ROOT / "bin/check-repository-absence"
+        validator = GITHUB_ROOT / "bin/validate-create-plan"
+        for path in (inventory, validator):
+            self.assertTrue(path.is_file())
+            self.assertEqual(0o755, path.stat().st_mode & 0o777)
+        inventory_source = inventory.read_text()
+        for required in (
+            'OWNER = "devraider"',
+            'REPOSITORY = "cristex-reactive-resume"',
+            'method="GET"',
+            'os.environ.get("GITHUB_TOKEN", "")',
+            "error.code == 404",
+        ):
+            self.assertIn(required, inventory_source)
+        for forbidden in ("POST", "PATCH", "PUT", "DELETE", "subprocess", "curl"):
+            self.assertNotIn(forbidden, inventory_source)
+
+        plan = {
+            "output_changes": {},
+            "resource_drift": [],
+            "resource_changes": [
+                {
+                    "address": "github_repository.reactive_resume_mirror",
+                    "mode": "managed",
+                    "type": "github_repository",
+                    "provider_name": "registry.opentofu.org/integrations/github",
+                    "change": {
+                        "actions": ["create"],
+                        "before": None,
+                        "after": {
+                            "name": "cristex-reactive-resume",
+                            "visibility": "private",
+                            "auto_init": False,
+                            "has_issues": False,
+                            "has_projects": False,
+                            "has_wiki": False,
+                            "has_downloads": False,
+                            "vulnerability_alerts": True,
+                        },
+                        "after_sensitive": {},
+                    },
+                },
+                {
+                    "address": "github_actions_repository_permissions.reactive_resume_mirror",
+                    "mode": "managed",
+                    "type": "github_actions_repository_permissions",
+                    "provider_name": "registry.opentofu.org/integrations/github",
+                    "change": {
+                        "actions": ["create"],
+                        "before": None,
+                        "after": {"enabled": False},
+                        "after_sensitive": {},
+                    },
+                },
+            ],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            plan_path = Path(directory) / "plan.json"
+            plan_path.write_text(json.dumps(plan))
+            os.chmod(plan_path, 0o600)
+            accepted = subprocess.run(
+                [str(validator), str(plan_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, accepted.returncode, accepted.stdout + accepted.stderr)
+            plan["resource_changes"][0]["change"]["actions"] = ["delete", "create"]
+            plan_path.write_text(json.dumps(plan))
+            refused = subprocess.run(
+                [str(validator), str(plan_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(0, refused.returncode)
+            self.assertIn("reason=non_create_action", refused.stdout)
 
     def test_docs_preserve_owner_and_mutation_boundaries(self) -> None:
         normalized = " ".join(self.readme.split())

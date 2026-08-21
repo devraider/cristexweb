@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Fail-closed, value-free duplicate inventory for the GitHub repository."""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+
+OWNER = "devraider"
+REPOSITORY = "cristex-reactive-resume"
+URL = f"https://api.github.com/repos/{OWNER}/{REPOSITORY}"
+
+
+def fail(reason: str) -> None:
+    print(f"repository_status=failed reason={reason}")
+    raise SystemExit(1)
+
+
+token = os.environ.get("GITHUB_TOKEN", "")
+if not token or "\n" in token or "\r" in token:
+    fail("protected_token_absent")
+
+request = urllib.request.Request(
+    URL,
+    method="GET",
+    headers={
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "cristexweb-opentofu-inventory",
+    },
+)
+try:
+    with urllib.request.urlopen(request, timeout=20) as response:
+        payload = json.load(response)
+except urllib.error.HTTPError as error:
+    if error.code == 404:
+        print(f"repository_status=absent owner={OWNER} repository={REPOSITORY}")
+        raise SystemExit(0)
+    fail(f"github_http_{error.code}")
+except (OSError, ValueError, json.JSONDecodeError):
+    fail("github_request")
+
+if not isinstance(payload, dict):
+    fail("github_response")
+if payload.get("full_name") != f"{OWNER}/{REPOSITORY}":
+    fail("unexpected_repository")
+visibility = payload.get("visibility")
+private = payload.get("private")
+print(
+    "repository_status=present "
+    f"owner={OWNER} repository={REPOSITORY} visibility={visibility} private={str(private).lower()}"
+)
+raise SystemExit(2)

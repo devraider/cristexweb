@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""Validate the exact initial GitHub-only OpenTofu create plan."""
+
+from __future__ import annotations
+
+import json
+import os
+import stat
+import sys
+from pathlib import Path
+
+EXPECTED = {
+    "github_repository.reactive_resume_mirror": {
+        "type": "github_repository",
+        "after": {
+            "name": "cristex-reactive-resume",
+            "visibility": "private",
+            "auto_init": False,
+            "has_issues": False,
+            "has_projects": False,
+            "has_wiki": False,
+            "has_downloads": False,
+            "vulnerability_alerts": True,
+        },
+    },
+    "github_actions_repository_permissions.reactive_resume_mirror": {
+        "type": "github_actions_repository_permissions",
+        "after": {
+            "enabled": False,
+        },
+    },
+}
+PROVIDER = "registry.opentofu.org/integrations/github"
+
+
+def fail(reason: str) -> None:
+    print(f"plan_status=refused reason={reason}")
+    raise SystemExit(1)
+
+
+if len(sys.argv) != 2:
+    fail("usage")
+path = Path(sys.argv[1])
+try:
+    info = path.lstat()
+except OSError:
+    fail("plan_json_absent")
+if not stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode):
+    fail("plan_json_type")
+if stat.S_IMODE(info.st_mode) != 0o600 or info.st_uid != os.getuid():
+    fail("plan_json_permissions")
+try:
+    plan = json.loads(path.read_text(encoding="utf-8"))
+except (OSError, UnicodeError, json.JSONDecodeError):
+    fail("plan_json_parse")
+if not isinstance(plan, dict):
+    fail("plan_json_shape")
+if plan.get("output_changes") not in ({}, None):
+    fail("outputs_present")
+if plan.get("resource_drift") not in ([], None):
+    fail("resource_drift")
+changes = plan.get("resource_changes")
+if not isinstance(changes, list):
+    fail("resource_changes")
+by_address = {item.get("address"): item for item in changes if isinstance(item, dict)}
+if set(by_address) != set(EXPECTED) or len(changes) != len(EXPECTED):
+    fail("resource_closure")
+for address, contract in EXPECTED.items():
+    item = by_address[address]
+    if item.get("mode") != "managed" or item.get("type") != contract["type"]:
+        fail("resource_identity")
+    if item.get("provider_name") != PROVIDER:
+        fail("provider_scope")
+    change = item.get("change")
+    if not isinstance(change, dict) or change.get("actions") != ["create"]:
+        fail("non_create_action")
+    if change.get("before") is not None:
+        fail("prior_state")
+    after = change.get("after")
+    if not isinstance(after, dict):
+        fail("after_shape")
+    for key, expected in contract["after"].items():
+        if after.get(key) != expected:
+            fail(f"after_contract_{contract['type']}_{key}")
+    if contract["type"] == "github_actions_repository_permissions":
+        if after.get("allowed_actions_config") not in (None, [], {}):
+            fail("actions_selected_config_present")
+    sensitive = change.get("after_sensitive")
+    if sensitive not in ({}, None, False):
+        fail("sensitive_values")
+print("plan_status=accepted resources=2 actions=create provider=github cloudflare=absent secrets=absent")
