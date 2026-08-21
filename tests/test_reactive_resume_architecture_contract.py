@@ -46,6 +46,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertTrue(closure["no_secret_values_added"])
         self.assertTrue(closure["no_selected_image_digest_claimed"])
         self.assertTrue(closure["candidate_digest_is_not_selection"])
+        self.assertEqual([], closure["source_manifest_files"])
         self.assertEqual("absent-blocker", closure["executable_workload_source"])
         dev_objects = closure["dev"]["object_contract"]
         self.assertTrue(dev_objects["no_runtime_source"])
@@ -148,7 +149,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("2026-08-20T08:45:26.993Z", candidate["image_created_utc"])
         self.assertEqual("node", candidate["non_root_user"])
         self.assertEqual("3000/tcp", candidate["exposed_port"])
-        self.assertEqual("node-apps-server-dist-index-mjs", candidate["command"])
+        self.assertEqual(["node", "apps/server/dist/index.mjs"], candidate["command"])
         self.assertEqual("/api/health", candidate["health_endpoint"])
         self.assertEqual("observed", candidate["index_signature"])
         self.assertEqual("not-observed-blocker", candidate["linux_amd64_child_signature"])
@@ -162,12 +163,38 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         runtime = self.policy["reviewed_v5_runtime_contract"]
         self.assertEqual("source-tag-evidence-only-not-runtime-contract", runtime["status"])
         self.assertEqual("v5.2.7", runtime["source_tag"])
+        expected_environment = {
+            "PORT", "SERVER_PORT", "APP_URL", "DATABASE_URL", "AUTH_SECRET",
+            "BETTER_AUTH_API_KEY", "BETTER_AUTH_INTERNAL_URL", "GOOGLE_CLIENT_ID",
+            "GOOGLE_CLIENT_SECRET", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET",
+            "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET", "OAUTH_PROVIDER_NAME",
+            "OAUTH_CLIENT_ID", "OAUTH_CLIENT_SECRET", "OAUTH_DISCOVERY_URL",
+            "OAUTH_AUTHORIZATION_URL", "OAUTH_TOKEN_URL", "OAUTH_USER_INFO_URL",
+            "OAUTH_SCOPES", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS",
+            "SMTP_FROM", "SMTP_SECURE", "LOCAL_STORAGE_PATH", "S3_ACCESS_KEY_ID",
+            "S3_SECRET_ACCESS_KEY", "S3_REGION", "S3_ENDPOINT", "S3_BUCKET",
+            "S3_FORCE_PATH_STYLE", "REDIS_URL", "ENCRYPTION_SECRET",
+            "FLAG_DISABLE_SIGNUPS", "FLAG_DISABLE_EMAIL_AUTH",
+            "FLAG_DISABLE_IMAGE_PROCESSING", "FLAG_DISABLE_API_RATE_LIMIT",
+            "FLAG_SHOW_SPONSORS", "FLAG_ALLOW_UNSAFE_OAUTH_REDIRECT_URI",
+            "FLAG_ALLOW_UNSAFE_AI_BASE_URL",
+        }
+        self.assertEqual(expected_environment, set(runtime["environment_allowlist"]))
         self.assertEqual(43, len(runtime["environment_allowlist"]))
-        self.assertEqual(43, len(set(runtime["environment_allowlist"])))
+        self.assertEqual(
+            self.policy["image_candidate_provenance"]["upstream_tag_commit"],
+            runtime["source_commit"],
+        )
         self.assertEqual(
             ["APP_URL", "DATABASE_URL", "AUTH_SECRET"],
             runtime["required_core_environment"],
         )
+        self.assertEqual(
+            ["PORT", "BETTER_AUTH_INTERNAL_URL", "NODE_ENV"],
+            runtime["direct_process_environment_reads_outside_schema"],
+        )
+        self.assertEqual({"NODE_ENV": "production-required"}, runtime["runtime_metadata_environment"])
+        self.assertEqual("blocker", runtime["nonproduction_node_env_port_and_rate_limit_behavior"])
         self.assertEqual(3000, runtime["production_port"])
         self.assertEqual("/api/health", runtime["health_endpoint"])
         self.assertEqual(200, runtime["health_success_status"])
@@ -338,7 +365,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
     def test_oidc_realm_callbacks_claims_and_negative_tests_are_unresolved(self) -> None:
         identity = self.policy["identity"]
         self.assertEqual(
-            "blocked-successor-realm-not-live-and-upstream-oidc-hardening-unaccepted",
+            "blocked-successor-realm-runtime-unobserved-and-upstream-oidc-hardening-unaccepted",
             identity["status"],
         )
         self.assertEqual("cristexhub-dev", identity["realm"])
@@ -385,6 +412,10 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         )
         self.assertFalse(hardening["password_login_disabled"])
         self.assertFalse(hardening["username_password_direct_endpoint_disabled"])
+        self.assertEqual("unconditionally-enabled-blocker", hardening["passkey_plugin"])
+        for provider in ("google_provider", "github_provider", "linkedin_provider"):
+            self.assertEqual("forbidden-and-credentials-must-be-absent", hardening[provider])
+        self.assertEqual("required", hardening["alternate_authentication_negative_tests"])
         self.assertFalse(hardening["trustworthy_email_verified_mapping"])
         self.assertEqual("hardcoded-true-blocker", hardening["new_oauth_user_email_verified_behavior"])
         self.assertFalse(hardening["custom_provider_linking_requires_verified_trusted_email"])
@@ -499,6 +530,10 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             "custom-oauth-provider-selected",
             keys["conditional_requirements"]["OAUTH_CLIENT_SECRET"],
         )
+        self.assertEqual(
+            "saved-ai-provider-credentials-or-agent-workspace",
+            keys["conditional_requirements"]["ENCRYPTION_SECRET"],
+        )
         self.assertEqual(32, keys["encryption_secret_minimum_length"])
         self.assertEqual(
             ["saved-ai-provider-credentials", "agent-workspace"],
@@ -514,13 +549,13 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             "values_in_evidence",
         ):
             self.assertFalse(keys[key], key)
-        for key in (
-            "independent_custody",
-            "retrieval_and_decryption_rehearsal",
-            "rotation_and_revocation_plan",
-            "encryption_key_loss_recovery",
-        ):
-            self.assertTrue(keys[key], key)
+        self.assertEqual("required", keys["independent_custody"])
+        self.assertEqual("required", keys["retrieval_and_decryption_rehearsal"])
+        self.assertEqual("required", keys["rotation_and_revocation_plan"])
+        self.assertEqual(
+            "required-if-agent-or-encrypted-provider-state",
+            keys["encryption_key_loss_recovery"],
+        )
         migration = self.policy["migration"]
         self.assertEqual(
             "blocked-upstream-startup-migration-privilege-and-concurrency",
@@ -638,6 +673,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             "executable_source_allowed` remains `false`",
             "candidate-only, **not selected and not deployable**",
             "docker.io/amruthpillai/reactive-resume",
+            self.policy["image_candidate_provenance"]["upstream_tag"],
             self.policy["image_candidate_provenance"]["index_digest"],
             self.policy["image_candidate_provenance"]["linux_amd64_digest"],
             self.policy["image_candidate_provenance"]["config_digest"],
@@ -700,6 +736,26 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
                     r"(?im)^\s*image:\s*\S*(?:amruthpillai/)?reactive[-_/]?resume\S*\s*$",
                     str(path),
                 )
+                if path.suffix in {".yml", ".yaml"} and re.search(
+                    r"reactive[-_/]?resume", text, re.IGNORECASE
+                ):
+                    def image_values(value: object) -> list[str]:
+                        if isinstance(value, dict):
+                            found = [str(value["image"])] if "image" in value else []
+                            return found + [
+                                image
+                                for child in value.values()
+                                for image in image_values(child)
+                            ]
+                        if isinstance(value, list):
+                            return [image for child in value for image in image_values(child)]
+                        return []
+
+                    for document in yaml.safe_load_all(text):
+                        for image in image_values(document):
+                            self.assertNotRegex(
+                                image, r"(?i)(?:amruthpillai/)?reactive[-_/]?resume", str(path)
+                            )
                 self.assertNotIn("reactive-resume", path.name.lower(), str(path))
                 self.assertNotIn("reactive_resume", path.name.lower(), str(path))
         self.assertNotIn("/Users/", combined)

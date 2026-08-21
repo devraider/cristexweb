@@ -49,7 +49,7 @@ image_candidate_provenance:
   image_created_utc: '2026-08-20T08:45:26.993Z'
   non_root_user: node
   exposed_port: 3000/tcp
-  command: node-apps-server-dist-index-mjs
+  command: [node, apps/server/dist/index.mjs]
   health_endpoint: /api/health
   index_signature: observed
   linux_amd64_child_signature: not-observed-blocker
@@ -110,7 +110,10 @@ reviewed_v5_runtime_contract:
     - FLAG_ALLOW_UNSAFE_AI_BASE_URL
   zod_validated_count: 41
   required_core_environment: [APP_URL, DATABASE_URL, AUTH_SECRET]
-  direct_process_environment_reads_outside_schema: [PORT, BETTER_AUTH_INTERNAL_URL]
+  direct_process_environment_reads_outside_schema: [PORT, BETTER_AUTH_INTERNAL_URL, NODE_ENV]
+  runtime_metadata_environment:
+    NODE_ENV: production-required
+  nonproduction_node_env_port_and_rate_limit_behavior: blocker
   production_port: 3000
   development_server_port_default: 3001
   health_endpoint: /api/health
@@ -121,7 +124,7 @@ reviewed_v5_runtime_contract:
   startup_migrations_before_bind: true
   browser_or_printer_dependency: none-client-side-pdf
 identity:
-  status: blocked-successor-realm-not-live-and-upstream-oidc-hardening-unaccepted
+  status: blocked-successor-realm-runtime-unobserved-and-upstream-oidc-hardening-unaccepted
   realm: cristexhub-dev
   issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
   candidate_realms:
@@ -161,6 +164,11 @@ identity:
     id_token_signature_jwks_issuer_audience_expiry_validation: absent-blocker
     password_login_disabled: false
     username_password_direct_endpoint_disabled: false
+    passkey_plugin: unconditionally-enabled-blocker
+    google_provider: forbidden-and-credentials-must-be-absent
+    github_provider: forbidden-and-credentials-must-be-absent
+    linkedin_provider: forbidden-and-credentials-must-be-absent
+    alternate_authentication_negative_tests: required
     trustworthy_email_verified_mapping: false
     new_oauth_user_email_verified_behavior: hardcoded-true-blocker
     custom_provider_linking_requires_verified_trusted_email: false

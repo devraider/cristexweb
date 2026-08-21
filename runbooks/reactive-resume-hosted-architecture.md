@@ -44,9 +44,11 @@ GitHub Actions does not rebuild it.
 No first-party Kubernetes operator/chart has been accepted. Any future Kubernetes
 translation requires a patched, reproducibly bound source/image and must not
 silently copy Compose assumptions. Facts reviewed at the annotated tag source—not
-at the mismatched candidate image revision—include port `3000`, `GET /api/health`
-returning `200` or `503` from database/storage checks, no Browserless requirement,
-and client-side PDF rendering. Candidate image source behavior remains unreviewed;
+at the mismatched candidate image revision—include production `NODE_ENV`, port
+`3000`, `GET /api/health` returning `200` or `503` from database/storage checks, no
+Browserless requirement, and client-side PDF rendering. `NODE_ENV` is read outside
+the validated schema; a non-production value can select the development port and
+weaken rate limiting, so exact production metadata is mandatory. Candidate image source behavior remains unreviewed;
 none of these facts is a runtime contract.
 
 ## DEV placement and explicit blockers
@@ -101,7 +103,11 @@ The DEV contract is incomplete and blocked on all of the following:
   The reviewed integration has sound signed-cookie/DB-backed one-time state but no
   PKCE or OIDC nonce, decodes ID tokens without signature/JWKS/issuer/audience/
   expiry verification, hardcodes new OAuth users as email-verified, leaves the
-  direct username/password endpoint usable despite the email-auth flag, permits
+  direct username/password endpoint usable despite the email-auth flag,
+  unconditionally enables passkeys, and enables Google/GitHub/LinkedIn whenever
+  their credentials exist. Those alternate providers and their credentials are
+  forbidden for the Keycloak-only boundary and require direct negative tests. It
+  also permits
   insufficiently trusted account linking, does not consistently bind accounts to
   OIDC `sub`, and performs only local logout. Configuration alone cannot remediate
   this. A reviewed source patch or equivalent validating broker must add exact token
