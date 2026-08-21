@@ -1,0 +1,14 @@
+---
+- name: Reject direct Keycloak DEV transition action invocation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Attempt exact transport contract outside guarded role source
+      keycloak_dev_identity_transition_guarded:
+        state: present
+        definition: >-
+          {{ lookup('ansible.builtin.file', playbook_dir ~
+          '/../ansible/files/components/keycloak-dev-identity-transition/transport/admin-rest-port-forward.yaml') |
+          from_yaml }}

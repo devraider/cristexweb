@@ -126,7 +126,10 @@ class KeycloakDevIdentityContractTests(unittest.TestCase):
             {client["credentialContract"]["key"] for client in clients},
         )
         self.assertEqual(
-            {"prod:/cristexhub/dev/identity"},
+            {
+                "prod:/cristexhub/dev/identity/browser",
+                "prod:/cristexhub/dev/identity/admin-service",
+            },
             {client["credentialContract"]["path"] for client in clients},
         )
         self.assertTrue(

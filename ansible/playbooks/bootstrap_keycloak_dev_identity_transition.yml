@@ -1,0 +1,9 @@
+---
+- name: Check the source-only Keycloak DEV successor transition
+  hosts: crtxweb
+  gather_facts: false
+  connection: local
+  become: false
+  any_errors_fatal: true
+  roles:
+    - role: keycloak_dev_identity_transition_bootstrap

@@ -25,7 +25,7 @@ with strict, fail-closed version/datastore/config/encryption/service/Node stages
 A separately approved live read-only run passed at `ok=45 changed=1`; the only
 change was its ignored sanitized controller artifact, and it performed no backup,
 restore, encryption, host, cluster, or Secret mutation.
-Python is limited to offline contract tests plus twenty-nine exact-scope Ansible
+Python is limited to offline contract tests plus thirty-two exact-scope Ansible
 action plugins that enforce reviewed mutation and cryptographic boundaries; it is
 not a general operational implementation. Source-only guarded closures now exist for Argo,
 Infisical, PostgreSQL, standalone MongoDB, Secret materialization, and empty logical

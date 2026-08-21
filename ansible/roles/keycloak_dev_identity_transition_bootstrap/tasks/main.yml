@@ -1,0 +1,285 @@
+---
+- name: Reject externally supplied DEV transition internals
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied DEV transition variable
+      {{ item }}.
+  loop:
+    - keycloak_dev_identity_transition_bootstrap_internal_attestation_state
+    - keycloak_dev_identity_transition_bootstrap_internal_manifest_states
+    - keycloak_dev_identity_transition_bootstrap_internal_manifests
+    - keycloak_dev_identity_transition_bootstrap_internal_identity_keys
+    - keycloak_dev_identity_transition_bootstrap_internal_preflight_binding
+    - keycloak_dev_identity_transition_bootstrap_internal_read_results
+  changed_when: false
+
+- name: Require the source-only DEV transition approval contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ATTESTATION_FILE') | length > 0
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ADMIN_TOKEN_FILE') | length == 0
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_API_BASE_URL') | length == 0
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_KUBECONFIG') | length == 0
+      - keycloak_dev_identity_transition_bootstrap_approved | bool
+      - keycloak_dev_identity_transition_bootstrap_state == 'present'
+      - ansible_check_mode
+      - ansible_diff_mode
+      - ansible_connection == 'local'
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - keycloak_dev_identity_transition_bootstrap_manifest_paths | length == 4
+      - keycloak_dev_identity_transition_bootstrap_expected_hashes | length == 4
+      - keycloak_dev_identity_transition_bootstrap_object_count == 4
+      - keycloak_dev_identity_transition_bootstrap_legacy_realm == 'cristexhub'
+      - keycloak_dev_identity_transition_bootstrap_successor_realm == 'cristexhub-dev'
+      - keycloak_dev_identity_transition_bootstrap_local_bind_address == '127.0.0.1'
+      - keycloak_dev_identity_transition_bootstrap_local_port == 18443
+      - keycloak_dev_identity_transition_bootstrap_remote_port == 8443
+      - keycloak_dev_identity_transition_bootstrap_forbidden_methods == ['DELETE', 'PATCH']
+    fail_msg: >-
+      DEV transition configuration requires the dedicated non-passthrough offline
+      wrapper, exact source closure, local connection, and apply-blocked state.
+  changed_when: false
+
+- name: Inspect the ephemeral DEV transition attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+  register: keycloak_dev_identity_transition_bootstrap_internal_attestation_state
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run DEV transition attestation
+  ansible.builtin.assert:
+    that:
+      - keycloak_dev_identity_transition_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (keycloak_dev_identity_transition_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - keycloak_dev_identity_transition_bootstrap_internal_attestation_state.stat.pw_name == keycloak_dev_identity_transition_bootstrap_controller_user
+      - keycloak_dev_identity_transition_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing an invalid DEV transition attestation.
+  changed_when: false
+  no_log: true
+
+- name: Inspect every exact DEV transition source leaf
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ keycloak_dev_identity_transition_bootstrap_manifest_paths }}"
+  register: keycloak_dev_identity_transition_bootstrap_internal_manifest_states
+  changed_when: false
+
+- name: Require hash-bound value-free DEV transition source
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == keycloak_dev_identity_transition_bootstrap_controller_user
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - >-
+        item.stat.checksum == (keycloak_dev_identity_transition_bootstrap_expected_hashes |
+        selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - item.item.startswith(keycloak_dev_identity_transition_bootstrap_component_root ~ '/')
+    fail_msg: Refusing missing, unsafe, or hash-drifted DEV transition source.
+  loop: "{{ keycloak_dev_identity_transition_bootstrap_internal_manifest_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  changed_when: false
+
+- name: Load exact value-free DEV transition contracts
+  ansible.builtin.set_fact:
+    keycloak_dev_identity_transition_bootstrap_internal_manifests: >-
+      {{ (keycloak_dev_identity_transition_bootstrap_internal_manifests | default([])) +
+      [lookup('ansible.builtin.file', item) | from_yaml] }}
+  loop: "{{ keycloak_dev_identity_transition_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact DEV transition contract identities
+  ansible.builtin.set_fact:
+    keycloak_dev_identity_transition_bootstrap_internal_identity_keys: >-
+      {{ (keycloak_dev_identity_transition_bootstrap_internal_identity_keys | default([])) +
+      [item.apiVersion ~ '|' ~ item.kind ~ '|' ~ item.metadata.name] }}
+  loop: "{{ keycloak_dev_identity_transition_bootstrap_internal_manifests }}"
+  changed_when: false
+  no_log: true
+
+- name: Require the exact DEV transition closure
+  ansible.builtin.assert:
+    that:
+      - keycloak_dev_identity_transition_bootstrap_internal_manifests | length == 4
+      - keycloak_dev_identity_transition_bootstrap_internal_identity_keys | unique | length == 4
+      - >-
+        (keycloak_dev_identity_transition_bootstrap_internal_identity_keys | sort | join('\n') |
+        hash('sha256')) == keycloak_dev_identity_transition_bootstrap_expected_identity_set_sha256
+      - >-
+        keycloak_dev_identity_transition_bootstrap_internal_manifests | map(attribute='kind') |
+        list == ['KeycloakAdminTransportContract', 'KeycloakIdentityActorContract',
+        'InfisicalSuccessorValueContract', 'KeycloakDevIdentityApiTransitionContract']
+      - keycloak_dev_identity_transition_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - keycloak_dev_identity_transition_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Ingress') | list | length == 0
+    fail_msg: Refusing a transition source outside the exact value-free closure.
+  changed_when: false
+
+- name: Require exact transition ownership labels
+  ansible.builtin.assert:
+    that:
+      - item.metadata.labels['cristex.io/component'] == 'keycloak-dev-identity-transition'
+      - item.metadata.labels['cristex.io/environment'] == 'dev'
+      - item.metadata.labels['cristex.io/managed-by'] == 'ansible'
+      - item.metadata.labels['cristex.io/value-owner'] == 'infisical-cloud'
+    fail_msg: Refusing a transition source with foreign ownership labels.
+  loop: "{{ keycloak_dev_identity_transition_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  changed_when: false
+
+- name: Require blocked strict-TLS loopback transport and no public route
+  ansible.builtin.assert:
+    that:
+      - item.spec.mode == 'controller-kubernetes-api-port-forward'
+      - item.spec.target.namespace == 'shared-services'
+      - item.spec.target.deployment == 'keycloak'
+      - item.spec.target.readiness == 'exactly-one-ready-pod'
+      - item.spec.target.uidBinding == 'required-at-runtime'
+      - item.spec.target.currentHttpPort == 8080
+      - item.spec.target.currentHttpUse == 'forbidden'
+      - item.spec.target.futureHttpsPort == 8443
+      - item.spec.futureTls.listener == 'absent-blocker'
+      - item.spec.futureTls.serverCertificateSan == ['IP:127.0.0.1']
+      - item.spec.futureTls.validateCertificates | bool
+      - item.spec.futureTls.insecureSkipVerify == 'forbidden'
+      - item.spec.portForward.implementation == 'blocked-pending-pinned-focused-client'
+      - item.spec.portForward.externalKubectlBinary == 'forbidden-unpinned'
+      - item.spec.portForward.address == '127.0.0.1'
+      - item.spec.portForward.localPort == 18443
+      - item.spec.portForward.remotePort == 8443
+      - item.spec.portForward.mapping == '18443:8443'
+      - item.spec.portForward.listenerScope == 'loopback-only'
+      - item.spec.adminRest.endpoint == 'https://127.0.0.1:18443'
+      - item.spec.publicExposure.publicHostname == 'forbidden'
+      - item.spec.publicExposure.authHostname == 'forbidden'
+      - item.spec.publicExposure.cloudflare == 'forbidden'
+      - item.spec.publicExposure.ingress == 'forbidden'
+      - item.spec.publicExposure.service == 'forbidden'
+      - item.spec.publicExposure.helperPod == 'forbidden'
+      - item.spec.publicExposure.nodePort == 'forbidden'
+      - item.spec.publicExposure.loadBalancer == 'forbidden'
+      - item.spec.currentExecution == 'forbidden'
+    fail_msg: Refusing plaintext, public, unpinned, or executable Admin REST transport.
+  loop: "{{ keycloak_dev_identity_transition_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'KeycloakAdminTransportContract') | list }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  changed_when: false
+
+- name: Require exact actors, separated values, and API safety boundaries
+  vars:
+    actor: >-
+      {{ keycloak_dev_identity_transition_bootstrap_internal_manifests |
+      selectattr('kind', 'equalto', 'KeycloakIdentityActorContract') | first }}
+    infisical: >-
+      {{ keycloak_dev_identity_transition_bootstrap_internal_manifests |
+      selectattr('kind', 'equalto', 'InfisicalSuccessorValueContract') | first }}
+    api: >-
+      {{ keycloak_dev_identity_transition_bootstrap_internal_manifests |
+      selectattr('kind', 'equalto', 'KeycloakDevIdentityApiTransitionContract') | first }}
+  ansible.builtin.assert:
+    that:
+      - actor.spec.legacyRealm.readMethods == ['GET']
+      - actor.spec.legacyRealm.writeMethods == []
+      - actor.spec.bootstrapActor.clientId == 'cristexhub-dev-bootstrap'
+      - actor.spec.bootstrapActor.requiredMasterRoles == ['create-realm']
+      - actor.spec.bootstrapActor.existingBootstrapAdminReuse == 'forbidden'
+      - actor.spec.bootstrapActor.existingBreakGlassReuse == 'forbidden'
+      - actor.spec.bootstrapActor.maxUse == 'one-transition'
+      - actor.spec.bootstrapActor.recurringReconciliation == 'forbidden'
+      - actor.spec.reconcilerActor.clientId == 'cristexhub-dev-reconciler'
+      - actor.spec.reconcilerActor.realm == 'cristexhub-dev'
+      - actor.spec.reconcilerActor.masterRealmAccess == 'forbidden'
+      - actor.spec.reconcilerActor.directRealmManagementRoles == ['query-clients', 'query-groups']
+      - "'manage-realm' in actor.spec.reconcilerActor.forbiddenRealmManagementRoles"
+      - "'manage-clients' in actor.spec.reconcilerActor.forbiddenRealmManagementRoles"
+      - actor.spec.reconcilerActor.missingOwnedObjectBehavior == 'fail-closed-no-create'
+      - infisical.spec.contracts | map(attribute='path') | list == keycloak_dev_identity_transition_bootstrap_infisical_paths
+      - >-
+        infisical.spec.contracts | map(attribute='exactKeys') | flatten ==
+        keycloak_dev_identity_transition_bootstrap_infisical_key_names
+      - infisical.spec.predecessor.mutation == 'forbidden'
+      - infisical.spec.writers.dedicatedSuccessorWriter == 'absent'
+      - infisical.spec.writers.broadUploaderReuse == 'forbidden'
+      - infisical.spec.cas.apiSemantics == 'unverified-blocker'
+      - infisical.spec.cas.blindRetry == 'forbidden'
+      - infisical.spec.cas.overwriteWithoutExpectedRevision == 'forbidden'
+      - infisical.spec.noOutput['values'] == 'never-returned'
+      - infisical.spec.kubernetesAdmission.existingDevRuntimeVapReuse == 'forbidden'
+      - infisical.spec.kubernetesAdmission.existingSharedServicesVapReuse == 'forbidden'
+      - infisical.spec.kubernetesAdmission.materializationCurrentPhase == 'forbidden'
+      - api.spec.apply == 'forbidden'
+      - api.spec.legacyProd.allowedMethods == ['GET']
+      - api.spec.legacyProd.writeMethods == []
+      - api.spec.bootstrapPhase.allowedMethods == ['GET', 'POST', 'PUT']
+      - api.spec.recurringPhase.allowedMethods == ['GET', 'PUT']
+      - api.spec.recurringPhase.missingOwnedObjectBehavior == 'fail-closed-no-create'
+      - api.spec.resourceIds.deriveFromNames == 'forbidden'
+      - api.spec.responseContract.conflictStatus == '409-not-success'
+      - api.spec.responseContract.timeoutOrConnectionLoss == 'unknown-stop'
+      - api.spec.responseContract.ambiguousPostRetry == 'forbidden'
+      - api.spec.forbidden.methods == keycloak_dev_identity_transition_bootstrap_forbidden_methods
+      - api.spec.safety.noDeletePath | bool
+      - api.spec.safety.noPatchPath | bool
+      - api.spec.safety.noProdWritePath | bool
+      - api.spec.safety.noUserPath | bool
+      - api.spec.safety.noMembershipPath | bool
+      - api.spec.safety.noDynamicGroupPath | bool
+      - api.spec.safety.noRoutePath | bool
+      - api.spec.safety.noBlindRetry | bool
+    fail_msg: Refusing actor, value isolation, CAS blocker, or API scope drift.
+  changed_when: false
+  no_log: true
+
+- name: Bind the apply-blocked DEV transition preflight
+  ansible.builtin.set_fact:
+    keycloak_dev_identity_transition_bootstrap_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_TRANSITION_TOKEN') | hash('sha256') }}"
+      object_count: "{{ keycloak_dev_identity_transition_bootstrap_internal_manifests | length }}"
+      identity_set_sha256: "{{ keycloak_dev_identity_transition_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
+      offline_source_only: true
+      apply_blocked: true
+      legacy_realm: cristexhub
+  changed_when: false
+  no_log: true
+
+- name: Validate only the approved DEV transition source offline
+  keycloak_dev_identity_transition_guarded:
+    state: present
+    definition: "{{ item }}"
+  loop: "{{ keycloak_dev_identity_transition_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: keycloak_dev_identity_transition_bootstrap_internal_read_results
+  no_log: true
+
+- name: Confirm the DEV transition lane remained offline and apply-blocked
+  ansible.builtin.assert:
+    that:
+      - item.failed | default(false) | bool == false
+      - item.changed | default(false) | bool
+      - item.msg == 'DEV transition source validated offline; API and apply state were not inspected'
+    fail_msg: Refusing an unexpected DEV transition source validation result.
+  loop: "{{ keycloak_dev_identity_transition_bootstrap_internal_read_results.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true

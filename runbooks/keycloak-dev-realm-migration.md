@@ -74,33 +74,73 @@ not contact Keycloak, Kubernetes, Infisical, Cloudflare, or any other runtime.
 The public Keycloak hostname is not an approved Admin REST transport, and the
 current route source remains unchanged.
 
-Before any runtime preflight, a separately reviewed lane must establish a fixed
-private TLS Admin REST transport and a precreated least-privilege reconciliation
-identity under Infisical custody. That later lane must use exact GET endpoints,
-`no_log`, strict certificate validation, no redirects, and no public `/admin` or
-`/realms/master` exposure.
+Before any runtime preflight, the separate transition closure requires a dedicated
+Keycloak HTTPS listener, exact private-CA certificate with the reviewed loopback SAN,
+and controller-local Kubernetes API port-forward bound to the exact Ready Pod UID.
+The current HTTP `8080` listener is explicitly forbidden for Admin credentials.
+The future mapping is `127.0.0.1:18443` to HTTPS `8443`, with strict certificate
+validation and no public `/admin` or `/realms/master` exposure. Its implementation
+remains blocked until a focused controller client is pinned; an unpinned external
+`kubectl` binary is not selected.
 
 The source contract is present/update-oriented, but execution remains offline and
 check-only. It contains no API request, write verb, or resource-removal behavior.
 The retained legacy realm is never a target object.
 
+## Next source-only transition phase
+
+The next phase is represented by the separate four-leaf closure under
+`ansible/files/components/keycloak-dev-identity-transition/` and the only entrypoint
+is:
+
+```text
+ansible/bin/bootstrap-keycloak-dev-identity-transition check
+```
+
+It validates, without contacting any runtime:
+
+- a blocked strict-TLS controller-local port-forward contract targeting one exact
+  Ready Keycloak Pod UID, with no helper Pod, Service, route, or unpinned binary;
+- a dedicated one-time master service account with only `create-realm`, plus a
+  distinct realm-local reconciler using `query-clients`, `query-groups`, and exact
+  FGAP V2 resource policies;
+- four separate Infisical paths for browser, disabled admin-service, one-time
+  bootstrap, and recurring reconciler credentials, with no Kubernetes targets,
+  no writer, and provider CAS semantics explicitly unverified; and
+- phase-specific API contracts: bootstrap GET/POST/PUT and recurring GET/PUT only,
+  opaque resource-ID binding, PROD before/after digests, ambiguous-write
+  UNKNOWN-STOP, and unconditional
+  `DELETE`/`PATCH`/users/memberships/dynamic-groups/routes/PROD-write denial.
+
+The wrapper rejects `apply`, public-host/API/token inputs, task-selection controls,
+unsafe inventory, and non-loopback transport values. This phase does not start a
+port-forward, acquire an Admin REST credential, read Infisical, call Kubernetes, or
+create/update the successor realm. API transition apply, private transport
+activation, actor materialization, CAS writes, client Secret materialization,
+identity migration, and authenticated validation remain separately approved and
+blocked.
+
 ## Migration gates before any DEV cutover
 
 The following are separate gates and are not implied by source or check mode:
 
-1. fresh encrypted Keycloak database backup with role/ownership metadata;
-2. isolated restore using the exact Keycloak release, validating both realm rows,
-   clients, groups, mappers, admin access, and a synthetic login;
+1. fresh encrypted Keycloak database backup plus separately recoverable
+   role/ownership metadata (the current dump excludes ownership/privileges);
+2. isolated restore using the exact Keycloak release, validating roles/ownership,
+   realm rows, clients, groups, mappers, admin access, and a synthetic login rather
+   than only catalog count;
 3. `identity-preservation-review`: no-output inventory of legacy users, stable IDs,
    organizations, memberships, dynamic groups, client settings, and mapper contracts;
 4. proof that DEV users and memberships can be represented in the successor realm;
 5. proof of `(issuer, subject)` continuity or a separately reviewed application
    identity remapping migration;
-6. successor client credential generation at `prod:/cristexhub/dev/identity`
-   through a dedicated CAS/no-output lane, without replacing predecessor or PROD
-   values;
-7. fixed private TLS Admin REST transport and a precreated least-privilege
-   reconciliation identity, followed by a separately approved read-only preflight;
+6. successor credentials through the four exact `/cristexhub/dev/identity/*`
+   paths, only after Infisical provider CAS semantics and a dedicated no-output
+   writer are verified, without replacing predecessor or PROD values;
+7. dedicated HTTPS listener plus strict-TLS controller-local Kubernetes API
+   port-forward transport and precreated
+   least-privilege reconciliation identity, followed by a separately approved
+   read-only preflight;
 8. private route/discovery/JWKS and callback source for the successor issuer;
 9. clean immutable CristexHub application revision with DEV issuer and realm
    changes only;

@@ -24,7 +24,8 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "source-only DEV successor\ncontract now defines realm `cristexhub-dev` and issuer",
             "authorizes only offline source validation",
             "performs no\nAdmin API request and authorizes no apply, Secret operation, database mutation",
-            "private TLS Admin REST\ntransport and least-privilege reconciliation identity remain future prerequisites",
+            "next transition source\nclosure defines a blocked strict-TLS controller-local Kubernetes API port-forward",
+            "four separated Infisical value paths with CAS semantics still unverified",
         ):
             self.assertIn(required, self.text)
 
@@ -186,6 +187,10 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
                 "ansible/playbooks/bootstrap_keycloak_dev_identity.yml",
                 "ansible/roles/keycloak_dev_identity_bootstrap/defaults/main.yml",
                 "ansible/roles/keycloak_dev_identity_bootstrap/tasks/main.yml",
+                "ansible/bin/bootstrap-keycloak-dev-identity-transition",
+                "ansible/playbooks/bootstrap_keycloak_dev_identity_transition.yml",
+                "ansible/roles/keycloak_dev_identity_transition_bootstrap/defaults/main.yml",
+                "ansible/roles/keycloak_dev_identity_transition_bootstrap/tasks/main.yml",
             },
             {
                 str(path.relative_to(ROOT))
@@ -253,6 +258,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "infisical-cloudflared-secrets",
             "keycloak-route",
             "keycloak-dev-identity",
+            "keycloak-dev-identity-transition",
             "rabbitmq",
             "mongodb",
             "mongodb-operator",

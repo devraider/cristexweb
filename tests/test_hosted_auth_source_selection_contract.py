@@ -151,7 +151,9 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual(["https://dev-hub.cristex-soft.com"], dev["web_origins"])
         self.assertEqual(["https://dev-hub.cristex-soft.com/"], dev["post_logout_redirect_uris"])
         self.assertEqual("infisical-cloud", dev["client_secret_owner"])
-        self.assertEqual("prod:/cristexhub/dev/identity", dev["client_secret_path"])
+        self.assertEqual(
+            "prod:/cristexhub/dev/identity/browser", dev["client_secret_path"]
+        )
         self.assertEqual("OIDC_CLIENT_SECRET", dev["client_secret_key"])
         self.assertEqual(
             "blocked-pending-successor-value-lane",
@@ -205,7 +207,8 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual([], dev_service["realm_management_roles"])
         self.assertEqual([], dev_service["application_audiences"])
         self.assertEqual(
-            "prod:/cristexhub/dev/identity", dev_service["client_secret_path"]
+            "prod:/cristexhub/dev/identity/admin-service",
+            dev_service["client_secret_path"],
         )
         self.assertEqual(
             "ADMIN_SERVICE_CLIENT_SECRET", dev_service["client_secret_key"]
@@ -520,6 +523,10 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "ansible/playbooks/bootstrap_keycloak_dev_identity.yml",
                 "ansible/roles/keycloak_dev_identity_bootstrap/defaults/main.yml",
                 "ansible/roles/keycloak_dev_identity_bootstrap/tasks/main.yml",
+                "ansible/bin/bootstrap-keycloak-dev-identity-transition",
+                "ansible/playbooks/bootstrap_keycloak_dev_identity_transition.yml",
+                "ansible/roles/keycloak_dev_identity_transition_bootstrap/defaults/main.yml",
+                "ansible/roles/keycloak_dev_identity_transition_bootstrap/tasks/main.yml",
             },
             {
                 str(path.relative_to(ROOT))

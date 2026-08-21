@@ -13,8 +13,12 @@ contract now defines realm `cristexhub-dev` and issuer
 
 The DEV successor lane authorizes only offline source validation. It performs no
 Admin API request and authorizes no apply, Secret operation, database mutation,
-route change, application cutover, or cluster mutation. A private TLS Admin REST
-transport and least-privilege reconciliation identity remain future prerequisites. The existing
+route change, application cutover, or cluster mutation. The next transition source
+closure defines a blocked strict-TLS controller-local Kubernetes API port-forward,
+dedicated one-time bootstrap and FGAP V2 realm-scoped reconciler actor contracts,
+four separated Infisical value paths with CAS semantics still unverified, and a
+future phase-specific API allowlist; all remain apply-blocked. No public hostname
+is an Admin REST transport. The existing
 workload closure remains separately owned by Ansible until any future handoff.
 Argo CD chart `10.3.0` / app `v3.5.0` and Infisical Operator `v0.11.7` retain their
 independent source and runtime boundaries.

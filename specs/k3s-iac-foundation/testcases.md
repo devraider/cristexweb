@@ -4552,8 +4552,8 @@ The dedicated wrapper accepts only `check`, validates the protected local invent
 uses local connection, rejects task-selection environment controls and API/token
 inputs, and invokes an offline action guard. No Keycloak, Kubernetes, Infisical,
 Cloudflare, provider, host, or application runtime request is made. Successor
-credential metadata reserves only `prod:/cristexhub/dev/identity` keys
-`OIDC_CLIENT_SECRET` and `ADMIN_SERVICE_CLIENT_SECRET`; no writer or value exists.
+credential metadata reserves the separate browser and disabled admin-service
+paths below `prod:/cristexhub/dev/identity/`; no writer or value exists.
 
 Validation completed on 2026-08-21:
 
@@ -4575,3 +4575,45 @@ unknown, not that a mutation occurred. Realm creation, private Admin REST transp
 least-privilege reconciler identity, credential CAS/materialization, identity
 migration, application cutover, and authenticated positive/negative tests remain
 **NOT RUN/BLOCKED** and require separate approvals.
+
+## Keycloak DEV successor transition design — OFFLINE CHECK PASSED / RUNTIME BLOCKED
+
+A second four-leaf, hash-bound, value-free closure now defines only future
+transition prerequisites. It rejects the current plaintext Keycloak `8080` listener
+for Admin credentials and requires a still-absent strict-TLS `8443` listener, exact
+private CA/loopback SAN, one Ready Pod UID, and a focused pinned controller client
+for loopback port-forwarding. It creates no Service, helper Pod, route, listener,
+certificate, or Kubernetes object.
+
+The actor contract separates a one-transition master service account with only
+`create-realm` from a recurring `cristexhub-dev` reconciler. The reconciler receives
+only `query-clients`, `query-groups`, and exact FGAP V2 view/manage policies for the
+DEV browser client and static group; realm-wide management, users, memberships,
+organizations, self-management, service-client management, and PROD writes remain
+forbidden. Four distinct Infisical paths reserve browser, disabled admin-service,
+bootstrap, and reconciler secrets. There is no writer or Kubernetes target; existing
+VAP/RBAC seams cannot be reused, and provider CAS semantics remain an explicit
+unverified blocker.
+
+Validation completed on 2026-08-21:
+
+```bash
+ansible/bin/bootstrap-keycloak-dev-identity check
+ansible/bin/bootstrap-keycloak-dev-identity-transition check
+.venv/bin/python -m unittest discover -s tests -p 'test_*.py' -q
+cd ansible && for f in playbooks/*.yml; do ../.venv/bin/ansible-playbook "$f" --syntax-check; done
+cd ansible && ../.venv/bin/ansible-lint . ../tests/validate_storage_report.yml
+.venv/bin/python -m compileall -q ansible/plugins/action tests
+git diff --check
+```
+
+Actual result: base successor check `ok=14 changed=1 failed=0`; transition check
+`ok=15 changed=1 failed=0`; `418/418` unit tests passed; all playbook syntax checks
+passed; production-profile Ansible lint passed with only 14 pre-existing ignored
+warnings; compile and diff checks passed. Both predicted changes are offline source
+predictions only. No Keycloak/Admin API, Kubernetes, Infisical, Secret, database,
+host, application, route, or provider operation ran. HTTPS listener source/apply,
+backup role/ownership recovery, pinned transport implementation, actor/value
+creation, CAS writer/VAP/RBAC, Admin API preflight/apply/idempotence, identity
+migration, application cutover, and authenticated tests remain **NOT RUN/BLOCKED**
+and require separate approvals.

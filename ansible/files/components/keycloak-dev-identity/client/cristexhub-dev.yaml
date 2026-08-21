@@ -38,7 +38,7 @@ spec:
         organizationContextRequired: true
       credentialContract:
         owner: infisical-cloud
-        path: prod:/cristexhub/dev/identity
+        path: prod:/cristexhub/dev/identity/browser
         key: OIDC_CLIENT_SECRET
         materialization: blocked-pending-successor-value-lane
     - clientId: cristexhub-admin-svc-dev
@@ -62,6 +62,6 @@ spec:
         status: blocked-pending-least-privilege-role-selection
       credentialContract:
         owner: infisical-cloud
-        path: prod:/cristexhub/dev/identity
+        path: prod:/cristexhub/dev/identity/admin-service
         key: ADMIN_SERVICE_CLIENT_SECRET
         materialization: blocked-pending-successor-value-lane

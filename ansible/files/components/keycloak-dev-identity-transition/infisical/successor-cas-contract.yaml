@@ -1,0 +1,95 @@
+---
+apiVersion: cristex.io/v1alpha1
+kind: InfisicalSuccessorValueContract
+metadata:
+  name: cristexhub-dev-successor-identity-values
+  labels:
+    cristex.io/component: keycloak-dev-identity-transition
+    cristex.io/environment: dev
+    cristex.io/managed-by: ansible
+    cristex.io/value-owner: infisical-cloud
+spec:
+  status: source-only-check-only
+  activation: blocked-no-writer-no-target-no-verified-cas
+  project:
+    name: cristexweb-infrastructure
+    id: 619656da-14f3-4872-857b-be103cdc5326
+    environment: prod
+    slugIsInfisicalOnly: true
+  contracts:
+    - name: browser
+      path: prod:/cristexhub/dev/identity/browser
+      recursive: false
+      tags: []
+      exactKeys:
+        - OIDC_CLIENT_SECRET
+      lifecycle: successor-create-after-cas-verification
+      kubernetesTarget: absent-pending-additive-vap-rbac-source
+    - name: admin-service
+      path: prod:/cristexhub/dev/identity/admin-service
+      recursive: false
+      tags: []
+      exactKeys:
+        - ADMIN_SERVICE_CLIENT_SECRET
+      lifecycle: reserved-no-value-while-client-disabled
+      kubernetesTarget: forbidden-while-disabled
+    - name: bootstrap
+      path: prod:/cristexhub/dev/identity/bootstrap
+      recursive: false
+      tags: []
+      exactKeys:
+        - KEYCLOAK_DEV_BOOTSTRAP_CLIENT_SECRET
+      lifecycle: one-time-successor-create-then-retire
+      kubernetesTarget: forbidden-controller-input-only
+    - name: reconciler
+      path: prod:/cristexhub/dev/identity/reconciler
+      recursive: false
+      tags: []
+      exactKeys:
+        - KEYCLOAK_DEV_REALM_RECONCILER_CLIENT_SECRET
+      lifecycle: recurring-least-privilege
+      kubernetesTarget: forbidden-controller-input-only
+  predecessor:
+    path: prod:/shared-services/keycloak
+    key: CRISTEXHUB_DEV_OIDC_CLIENT_SECRET
+    mutation: forbidden
+    retention: through-accepted-cutover-and-rollback-window
+  sourceValues:
+    committed: forbidden
+    generatedByThisLane: forbidden
+    printed: forbidden
+    argv: forbidden
+    environment: forbidden
+    logs: forbidden
+    evidence: forbidden
+  writers:
+    identityPerPath: required
+    dedicatedSuccessorWriter: absent
+    currentExecution: forbidden
+    broadUploaderReuse: forbidden
+    runtimeReaderReuse: forbidden
+    predecessorOverwrite: forbidden
+  cas:
+    apiSemantics: unverified-blocker
+    requiredBehavior:
+      - metadata-only-preflight
+      - exact-absence-or-expected-revision-precondition
+      - conditional-write
+      - conflict-fails-closed
+      - ambiguous-write-unknown-stop-no-retry
+      - metadata-only-key-closure-and-revision-readback
+    ifMatchOrEquivalent: required-after-provider-api-verification
+    blindRetry: forbidden
+    overwriteWithoutExpectedRevision: forbidden
+  noOutput:
+    requestBodies: no-log-mode-0600-memory-only
+    responses: no-log-mode-0600-memory-only
+    accessTokens: no-log-mode-0600-memory-only
+    values: never-returned
+  kubernetesAdmission:
+    existingDevRuntimeVapReuse: forbidden
+    existingSharedServicesVapReuse: forbidden
+    additiveExactVapSourceRequired: true
+    additiveExactRbacSourceRequired: true
+    materializationCurrentPhase: forbidden
+  currentExecution: forbidden

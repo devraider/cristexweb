@@ -42,7 +42,7 @@ _SENSITIVE_KEYS = {
 # Canonical hashes bind invocations to the four committed value-free definitions.
 _EXPECTED_DEFINITION_HASHES: dict[str, str] = {
     "KeycloakRealmContract/cristexhub-dev": "72b5f5d99614983fc6f20fc5104aa8e9f2b7b69f31c7c40b4ca8208d42166d85",
-    "KeycloakClientContract/cristexhub-dev-clients": "bcb826ead508179f599e5e0961669e11e8e902beb55008bd761174cdb9078ebb",
+    "KeycloakClientContract/cristexhub-dev-clients": "28839beb1e7cec30c182d9928b5c45f133e432b047dd59f19c6830afc742d76a",
     "KeycloakStaticGroupContract/cristexhub-dev-static-groups": "90b7252cb4a5c7a5673ad114d24304ffbaa91c7bb44f494eed2993b0475bc456",
     "KeycloakProtocolMapperContract/cristexhub-dev-claims": "a96dc0e388aed0000ecef540f0e00df97815d54b0b6466b22618418bc9d467c5",
 }
@@ -122,7 +122,10 @@ def _scope_valid(definition: dict[str, Any]) -> bool:
             == "blocked-pending-least-privilege-role-selection"
             and all(
                 (item.get("credentialContract") or {}).get("path")
-                == "prod:/cristexhub/dev/identity"
+                in {
+                    "prod:/cristexhub/dev/identity/browser",
+                    "prod:/cristexhub/dev/identity/admin-service",
+                }
                 and (item.get("credentialContract") or {}).get("materialization")
                 == "blocked-pending-successor-value-lane"
                 for item in clients

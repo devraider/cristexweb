@@ -27,7 +27,7 @@ admission, and additive writer RBAC closure. No Secret value is committed.
   and TLS is mandatory. `OIDC_CLIENT_SECRET` is read from the existing
   `/shared-services/keycloak` `CRISTEXHUB_DEV_OIDC_CLIENT_SECRET` predecessor
   without rotation. The future `cristexhub-dev` successor realm instead reserves
-  `prod:/cristexhub/dev/identity#OIDC_CLIENT_SECRET`; that path is disconnected,
+  `prod:/cristexhub/dev/identity/browser#OIDC_CLIENT_SECRET`; that path is disconnected,
   unmaterialized, and must not gain a second writer before a separately approved
   handoff. The current composer does not upload `CODE_RUNNER_AUTH_TOKEN`, so later
   value replacement remains blocked until its exact source and CAS writer contract

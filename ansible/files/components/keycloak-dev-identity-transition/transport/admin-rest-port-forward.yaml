@@ -1,0 +1,69 @@
+---
+apiVersion: cristex.io/v1alpha1
+kind: KeycloakAdminTransportContract
+metadata:
+  name: cristexhub-dev-admin-rest-port-forward
+  labels:
+    cristex.io/component: keycloak-dev-identity-transition
+    cristex.io/environment: dev
+    cristex.io/managed-by: ansible
+    cristex.io/value-owner: infisical-cloud
+spec:
+  status: source-only-check-only
+  activation: blocked-current-keycloak-has-no-https-admin-listener
+  mode: controller-kubernetes-api-port-forward
+  controllerOnly: true
+  target:
+    namespace: shared-services
+    deployment: keycloak
+    selector:
+      app.kubernetes.io/name: keycloak
+      app.kubernetes.io/part-of: cristex-platform
+    readiness: exactly-one-ready-pod
+    uidBinding: required-at-runtime
+    currentHttpPort: 8080
+    currentHttpUse: forbidden
+    futureHttpsPort: 8443
+  futureTls:
+    listener: absent-blocker
+    owner: infisical-cloud
+    privateCa: required
+    serverCertificateSan:
+      - IP:127.0.0.1
+    leafKeyCorrespondence: required
+    exactCaVerification: required
+    validateCertificates: true
+    insecureSkipVerify: forbidden
+  portForward:
+    implementation: blocked-pending-pinned-focused-client
+    externalKubectlBinary: forbidden-unpinned
+    apiTransport: authenticated-kubernetes-api
+    kubeconfig: protected-controller-file
+    address: 127.0.0.1
+    localPort: 18443
+    remotePort: 8443
+    mapping: 18443:8443
+    listenerScope: loopback-only
+    persistentKubernetesObjects: forbidden
+    cleanup:
+      alwaysCloseStream: required
+      verifyListenerGone: required
+      ambiguousCleanup: unknown-stop
+  adminRest:
+    endpoint: https://127.0.0.1:18443
+    basePath: /admin
+    bootstrapTokenPath: /realms/master/protocol/openid-connect/token
+    reconcilerTokenPath: /realms/cristexhub-dev/protocol/openid-connect/token
+    followRedirects: false
+    bearerTransport: controller-memory-only-no-log
+    responseHandling: status-and-allowlisted-projection-only
+  publicExposure:
+    publicHostname: forbidden
+    authHostname: forbidden
+    cloudflare: forbidden
+    ingress: forbidden
+    service: forbidden
+    helperPod: forbidden
+    nodePort: forbidden
+    loadBalancer: forbidden
+  currentExecution: forbidden

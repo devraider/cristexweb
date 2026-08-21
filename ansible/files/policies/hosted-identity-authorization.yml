@@ -23,13 +23,21 @@ realm_transition:
     issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
     owner: ansible
     source_path: ansible/files/components/keycloak-dev-identity
+    transition_source_path: ansible/files/components/keycloak-dev-identity-transition
+    transport_contract: transport/admin-rest-port-forward.yaml
+    actor_contract: identity/least-privilege-actors.yaml
+    infisical_cas_contract: infisical/successor-cas-contract.yaml
+    api_transition_contract: api/present-update-transition.yaml
     mutation: present-update-only
     deletion: forbidden
     runtime_activation: blocked
+    transition_execution: offline-check-only
+    api_apply: forbidden
     application_cutover: separate-approval-required
     route_change: separate-approval-required
   migration_order:
     - source-contract
+    - transition-source-contract
     - private-admin-transport-and-credential
     - separately-approved-api-preflight
     - identity-preservation-review
@@ -78,7 +86,7 @@ clients:
       post_logout_redirect_uris:
         - https://dev-hub.cristex-soft.com/
       client_secret_owner: infisical-cloud
-      client_secret_path: prod:/cristexhub/dev/identity
+      client_secret_path: prod:/cristexhub/dev/identity/browser
       client_secret_key: OIDC_CLIENT_SECRET
       client_secret_materialization: blocked-pending-successor-value-lane
       group_authorization:
@@ -157,7 +165,7 @@ clients:
       realm_management_roles: []
       application_audiences: []
       client_secret_owner: infisical-cloud
-      client_secret_path: prod:/cristexhub/dev/identity
+      client_secret_path: prod:/cristexhub/dev/identity/admin-service
       client_secret_key: ADMIN_SERVICE_CLIENT_SECRET
       client_secret_materialization: blocked-pending-successor-value-lane
     - id: cristexhub-admin-svc-prod

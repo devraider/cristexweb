@@ -1,0 +1,109 @@
+---
+apiVersion: cristex.io/v1alpha1
+kind: KeycloakIdentityActorContract
+metadata:
+  name: cristexhub-dev-successor-actors
+  labels:
+    cristex.io/component: keycloak-dev-identity-transition
+    cristex.io/environment: dev
+    cristex.io/managed-by: ansible
+    cristex.io/value-owner: infisical-cloud
+spec:
+  status: source-only-check-only
+  activation: blocked-pending-dedicated-actor-materialization
+  legacyRealm:
+    name: cristexhub
+    role: retained-prod-compatibility
+    readMethods:
+      - GET
+    writeMethods: []
+    users: forbidden
+    memberships: forbidden
+  bootstrapActor:
+    name: keycloak-dev-successor-bootstrap
+    clientId: cristexhub-dev-bootstrap
+    realm: master
+    credentialPath: prod:/cristexhub/dev/identity/bootstrap
+    credentialKey: KEYCLOAK_DEV_BOOTSTRAP_CLIENT_SECRET
+    credentialTarget: protected-controller-input-only
+    existingBootstrapAdminReuse: forbidden
+    existingBreakGlassReuse: forbidden
+    requiredMasterRoles:
+      - create-realm
+    forbiddenMasterRoles:
+      - admin
+      - realm-admin
+      - manage-users
+      - impersonation
+    purpose: one-time-create-and-initialize-cristexhub-dev
+    maxUse: one-transition
+    recurringReconciliation: forbidden
+    allowedOperations:
+      - POST /admin/realms target=cristexhub-dev
+      - GET /admin/realms/cristexhub
+      - initialize-exact-dev-clients-group-mappers-and-fgap
+    retirement:
+      disableServiceAccount: required
+      revokeCreateRealm: required
+      removeAutomaticTargetRealmAccess: required
+      revokeCredential: separate-approval-required
+  reconcilerActor:
+    name: keycloak-dev-reconciler
+    clientId: cristexhub-dev-reconciler
+    realm: cristexhub-dev
+    credentialPath: prod:/cristexhub/dev/identity/reconciler
+    credentialKey: KEYCLOAK_DEV_REALM_RECONCILER_CLIENT_SECRET
+    credentialTarget: protected-controller-input-only
+    masterRealmAccess: forbidden
+    recurringUse: future-present-update-only
+    directRealmManagementRoles:
+      - query-clients
+      - query-groups
+    forbiddenRealmManagementRoles:
+      - realm-admin
+      - manage-realm
+      - manage-clients
+      - manage-users
+      - view-users
+      - impersonation
+      - manage-authorization
+      - manage-organizations
+    fineGrainedAdminPermissionsV2:
+      actorBinding: exact-service-account-user
+      clientResource:
+        clientId: cristexhub-dev
+        scopes:
+          - view
+          - manage
+      groupResource:
+        path: /cristexhub-dev-super-admin
+        scopes:
+          - view
+          - manage
+      selfManagement: forbidden
+      serviceClientManagement: forbidden
+    missingOwnedObjectBehavior: fail-closed-no-create
+    allowedResources:
+      - successor-browser-client
+      - successor-static-group
+      - successor-browser-client-mappers
+    forbiddenResources:
+      - successor-realm-settings
+      - successor-service-client-metadata
+      - reconciler-self
+      - legacy-prod-realm-writes
+      - prod-clients
+      - prod-groups
+      - users
+      - memberships
+      - dynamic-groups
+      - role-mappings
+      - organizations
+      - routes
+  credentialCustody:
+    valuesInSource: forbidden
+    valuesInArgv: forbidden
+    valuesInEnvironment: forbidden
+    valuesInLogs: forbidden
+    valuesInEvidence: forbidden
+  currentExecution: forbidden

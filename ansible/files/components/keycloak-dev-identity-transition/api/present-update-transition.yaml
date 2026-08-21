@@ -1,0 +1,153 @@
+---
+apiVersion: cristex.io/v1alpha1
+kind: KeycloakDevIdentityApiTransitionContract
+metadata:
+  name: cristexhub-dev-present-update-api-transition
+  labels:
+    cristex.io/component: keycloak-dev-identity-transition
+    cristex.io/environment: dev
+    cristex.io/managed-by: ansible
+    cristex.io/value-owner: infisical-cloud
+spec:
+  status: source-only-check-only
+  activation: apply-blocked-pending-all-transition-gates
+  apply: forbidden
+  transportRef: cristexhub-dev-admin-rest-port-forward
+  bootstrapActorRef: keycloak-dev-successor-bootstrap
+  reconcilerActorRef: keycloak-dev-reconciler
+  legacyProd:
+    realm: cristexhub
+    allowedMethods:
+      - GET
+    writeMethods: []
+    allowedPaths:
+      - GET /admin/realms/cristexhub
+      - GET /admin/realms/cristexhub/clients?clientId=cristexhub-prod
+      - GET /admin/realms/cristexhub/groups?search=cristexhub-prod-super-admin
+    rawResponseSha256BeforeAfter: required-sanitized
+    canonicalProjectionSha256BeforeAfter: required-sanitized
+    mutation: forbidden
+  bootstrapPhase:
+    tokenExchange:
+      method: POST
+      path: /realms/master/protocol/openid-connect/token
+      response: memory-only-no-log
+    actor: keycloak-dev-successor-bootstrap
+    allowedMethods:
+      - GET
+      - POST
+      - PUT
+    allowedResources:
+      - successor-realm
+      - browser-client
+      - disabled-admin-service-client
+      - static-group
+      - browser-client-mappers
+      - fgap-v2-policies
+      - recurring-reconciler-client
+    realmCreate:
+      method: POST
+      path: /admin/realms
+      exactTarget: cristexhub-dev
+      status: 201
+      retry: forbidden
+      conflictResolution: one-exact-get-then-operator-review
+    retirementAfterInitialization: required
+  recurringPhase:
+    tokenExchange:
+      method: POST
+      path: /realms/cristexhub-dev/protocol/openid-connect/token
+      response: memory-only-no-log
+    actor: keycloak-dev-reconciler
+    allowedMethods:
+      - GET
+      - PUT
+    exactOwnedResources:
+      - clientId: cristexhub-dev
+        idSource: attested-get-or-bootstrap-location
+        operations:
+          - detail
+          - protocol-mappers
+      - groupPath: /cristexhub-dev-super-admin
+        idSource: attested-get-or-bootstrap-location
+        operations:
+          - detail
+    missingOwnedObjectBehavior: fail-closed-no-create
+    forbiddenResources:
+      - cristexhub-dev-admin-svc-dev
+      - cristexhub-dev-reconciler
+      - realm-settings
+      - fgap-policies
+  resourceIds:
+    deriveFromNames: forbidden
+    captureFromSameOriginLocationOrExactGet: required
+    bindToEphemeralAttestation: required
+    duplicateOrForeignOwned: fail-closed
+  equality:
+    requestProjection: exact-allowlisted-fields
+    responseProjection: exact-allowlisted-fields
+    unknownSecurityRelevantField: fail-closed
+    credentialsInProjection: forbidden
+    unintendedMappersRolesMemberships: fail-closed
+  responseContract:
+    readStatuses:
+      - 200
+      - 404-target-absence-only-bootstrap-phase
+    createStatus: 201
+    createLocation: same-private-loopback-origin-required
+    updateStatus: 204-empty-body
+    conflictStatus: 409-not-success
+    unexpectedStatusesFailClosed:
+      - 401
+      - 403
+      - 429
+      - 500
+      - 502
+      - 503
+    redirects: forbidden
+    malformedJson: fail-closed
+    timeoutOrConnectionLoss: unknown-stop
+    ambiguousPostRetry: forbidden
+  forbidden:
+    methods:
+      - DELETE
+      - PATCH
+    paths:
+      - /admin/realms/cristexhub/users
+      - /admin/realms/cristexhub-dev/users
+      - /admin/realms/cristexhub/groups/{id}/members
+      - /admin/realms/cristexhub-dev/groups/{id}/members
+      - /admin/realms/cristexhub-dev/role-mappings
+      - routes
+      - ingress
+      - cloudflare
+      - prod-writes
+    resources:
+      - users
+      - memberships
+      - dynamic-groups
+      - application-organizations
+      - role-mappings
+      - routes
+      - legacy-prod-realm
+  evidence:
+    endpointMethodStatusReceipts: sanitized-only
+    bodyDigests: sanitized-only
+    resourceIdLedger: protected-ephemeral
+    zeroDelete: required
+    zeroProdWrite: required
+    firstApply: separate-approval-required
+    idempotenceApplyChangedZero: separate-approval-required
+    noSecretDisclosureScan: required
+  safety:
+    noDeletePath: true
+    noPatchPath: true
+    noProdWritePath: true
+    noUserPath: true
+    noMembershipPath: true
+    noDynamicGroupPath: true
+    noRoutePath: true
+    noBlindRetry: true
+    readbackAfterWrite: required
+    idempotenceRequired: true
+    currentExecution: not-run
