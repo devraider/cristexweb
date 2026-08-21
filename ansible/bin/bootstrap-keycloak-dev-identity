@@ -8,8 +8,8 @@ root="$(CDPATH= cd -- "$dir/../.." && pwd -P)"
 case "$root" in /Users/paul/Projects/cristexweb|/home/paul/projects/cristexweb) ;; *) exit 78 ;; esac
 controller="$root/.venv/bin/ansible-playbook"
 [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
-admin_token_file="${CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ADMIN_TOKEN_FILE:-}"
-[ -n "$admin_token_file" ] || { printf '%s\n' 'protected administrator token file path is required' >&2; exit 78; }
+[ -z "${CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ADMIN_TOKEN_FILE:-}" ] || exit 78
+[ -z "${CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_API_BASE_URL:-}" ] || exit 78
 user=$(/usr/bin/id -un)
 cd "$root/ansible"
 umask 077
@@ -19,4 +19,4 @@ printf '%s:entrypoint\n' "$token" >"$attestation"
 cleanup() { /bin/rm -f -- "$attestation"; }
 trap cleanup EXIT HUP INT TERM
 set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_keycloak_dev_identity.yml --diff --limit crtxweb --check --extra-vars '{"keycloak_dev_identity_bootstrap_approved":true}'
-/usr/bin/env -i HOME="${HOME:-/home/paul}" USER="$user" LOGNAME="$user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ENTRYPOINT=v1 CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_TOKEN="$token" CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ATTESTATION_FILE="$attestation" CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ADMIN_TOKEN_FILE="$admin_token_file" CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_API_BASE_URL=https://auth.cristex-soft.com "$@"
+/usr/bin/env -i HOME="${HOME:-/home/paul}" USER="$user" LOGNAME="$user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ENTRYPOINT=v1 CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_TOKEN="$token" CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ATTESTATION_FILE="$attestation" "$@"

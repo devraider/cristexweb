@@ -31,8 +31,9 @@ spec:
         post.logout.redirect.uris: https://dev-hub.cristex-soft.com/
       credentialContract:
         owner: infisical-cloud
-        path: prod:/shared-services/keycloak
-        key: CRISTEXHUB_DEV_OIDC_CLIENT_SECRET
+        path: prod:/cristexhub/dev/identity
+        key: OIDC_CLIENT_SECRET
+        materialization: blocked-pending-successor-value-lane
     - clientId: cristexhub-admin-svc-dev
       name: CristexHub DEV administration service client
       protocol: openid-connect
@@ -49,5 +50,6 @@ spec:
       attributes: {}
       credentialContract:
         owner: infisical-cloud
-        path: prod:/shared-services/keycloak
-        key: CRISTEXHUB_DEV_ADMIN_SERVICE_CLIENT_SECRET
+        path: prod:/cristexhub/dev/identity
+        key: ADMIN_SERVICE_CLIENT_SECRET
+        materialization: blocked-pending-successor-value-lane

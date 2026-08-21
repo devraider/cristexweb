@@ -11,9 +11,10 @@ selection](keycloak-release-selection.md). A separate source-only DEV successor
 contract now defines realm `cristexhub-dev` and issuer
 `https://auth.cristex-soft.com/realms/cristexhub-dev`; it has no runtime activation.
 
-The DEV successor lane authorizes only offline source validation and a dedicated
-check-only Admin API preflight. It authorizes no apply, Secret operation, database
-mutation, route change, application cutover, or cluster mutation. The existing
+The DEV successor lane authorizes only offline source validation. It performs no
+Admin API request and authorizes no apply, Secret operation, database mutation,
+route change, application cutover, or cluster mutation. A private TLS Admin REST
+transport and least-privilege reconciliation identity remain future prerequisites. The existing
 workload closure remains separately owned by Ansible until any future handoff.
 Argo CD chart `10.3.0` / app `v3.5.0` and Infisical Operator `v0.11.7` retain their
 independent source and runtime boundaries.

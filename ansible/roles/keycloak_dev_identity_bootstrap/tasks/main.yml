@@ -8,7 +8,6 @@
       {{ item }}.
   loop:
     - keycloak_dev_identity_bootstrap_internal_attestation_state
-    - keycloak_dev_identity_bootstrap_internal_token_state
     - keycloak_dev_identity_bootstrap_internal_manifest_states
     - keycloak_dev_identity_bootstrap_internal_manifests
     - keycloak_dev_identity_bootstrap_internal_identity_keys
@@ -22,15 +21,14 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ENTRYPOINT') == 'v1'
       - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_TOKEN') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ATTESTATION_FILE') | length > 0
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ADMIN_TOKEN_FILE') == keycloak_dev_identity_bootstrap_token_file
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_API_BASE_URL') == keycloak_dev_identity_bootstrap_api_base_url
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ADMIN_TOKEN_FILE') | length == 0
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_API_BASE_URL') | length == 0
       - keycloak_dev_identity_bootstrap_approved | bool
       - keycloak_dev_identity_bootstrap_state == 'present'
       - ansible_check_mode
       - ansible_diff_mode
       - (ansible_limit | default('')) == 'crtxweb'
       - ansible_play_hosts_all | length == 1
-      - keycloak_dev_identity_bootstrap_api_base_url == 'https://auth.cristex-soft.com'
       - keycloak_dev_identity_bootstrap_manifest_paths | length == 4
       - keycloak_dev_identity_bootstrap_expected_hashes | length == 4
       - keycloak_dev_identity_bootstrap_object_count == 4
@@ -65,31 +63,6 @@
         'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ATTESTATION_FILE')) ==
         lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_TOKEN') ~ ':entrypoint'
     fail_msg: Refusing an invalid DEV identity attestation.
-  delegate_to: localhost
-  changed_when: false
-  no_log: true
-
-- name: Inspect the protected DEV identity administrator token file
-  ansible.builtin.stat:
-    path: "{{ keycloak_dev_identity_bootstrap_token_file }}"
-    follow: false
-    get_checksum: false
-  register: keycloak_dev_identity_bootstrap_internal_token_state
-  delegate_to: localhost
-  changed_when: false
-  no_log: true
-
-- name: Require protected administrator token custody without reading its value
-  ansible.builtin.assert:
-    that:
-      - keycloak_dev_identity_bootstrap_token_file | length > 0
-      - keycloak_dev_identity_bootstrap_token_file.startswith('/')
-      - not keycloak_dev_identity_bootstrap_token_file.startswith(keycloak_dev_identity_bootstrap_repository_root)
-      - keycloak_dev_identity_bootstrap_internal_token_state.stat.isreg | default(false)
-      - not (keycloak_dev_identity_bootstrap_internal_token_state.stat.islnk | default(false))
-      - keycloak_dev_identity_bootstrap_internal_token_state.stat.pw_name == keycloak_dev_identity_bootstrap_controller_user
-      - keycloak_dev_identity_bootstrap_internal_token_state.stat.mode == '0600'
-    fail_msg: Refusing an absent, symlinked, or weakly protected administrator token file.
   delegate_to: localhost
   changed_when: false
   no_log: true
@@ -156,9 +129,6 @@
       - keycloak_dev_identity_bootstrap_internal_manifests | selectattr('spec.realm', 'equalto', 'cristexhub-dev') | list | length == 4
       - keycloak_dev_identity_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
       - keycloak_dev_identity_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Ingress') | list | length == 0
-      - "'password' not in (keycloak_dev_identity_bootstrap_internal_manifests | string | lower)"
-      - "'access_token' not in (keycloak_dev_identity_bootstrap_internal_manifests | string | lower)"
-      - "'refresh_token' not in (keycloak_dev_identity_bootstrap_internal_manifests | string | lower)"
     fail_msg: Refusing a DEV identity source outside the exact value-free contract.
   changed_when: false
 
@@ -212,34 +182,32 @@
 - name: Bind the protected DEV identity preflight
   ansible.builtin.set_fact:
     keycloak_dev_identity_bootstrap_internal_preflight_binding:
-      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_TOKEN') | hash('sha256') }}"
       object_count: "{{ keycloak_dev_identity_bootstrap_internal_manifests | length }}"
       identity_set_sha256: "{{ keycloak_dev_identity_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
       no_delete_path: true
-      check_only: true
+      offline_source_only: true
+      runtime_api_access: false
       legacy_realm: cristexhub
   changed_when: false
   no_log: true
 
-- name: Inspect only the approved DEV identity API state
+- name: Validate only the approved DEV identity source offline
   keycloak_dev_identity_guarded:
     state: present
     definition: "{{ item }}"
-    api_base_url: "{{ keycloak_dev_identity_bootstrap_api_base_url }}"
-    token_file: "{{ keycloak_dev_identity_bootstrap_token_file }}"
-    timeout: 15
   loop: "{{ keycloak_dev_identity_bootstrap_internal_manifests }}"
   loop_control:
     label: "{{ item.kind }}/{{ item.metadata.name }}"
   register: keycloak_dev_identity_bootstrap_internal_read_results
   no_log: true
 
-- name: Confirm the DEV identity lane remained read-only
+- name: Confirm the DEV identity lane remained offline and source-only
   ansible.builtin.assert:
     that:
       - item.failed | default(false) | bool == false
-      - item.msg == 'DEV identity state inspected read-only'
-    fail_msg: Refusing an unexpected DEV identity API operation result.
+      - item.changed | default(false) | bool
+      - item.msg == 'DEV identity source validated offline; runtime state was not inspected'
+    fail_msg: Refusing an unexpected DEV identity source validation result.
   loop: "{{ keycloak_dev_identity_bootstrap_internal_read_results.results }}"
   loop_control:
     label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"

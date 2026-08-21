@@ -43,7 +43,7 @@ The closure contains:
 - realm settings for `cristexhub-dev` with registration and direct grants disabled;
 - browser client `cristexhub-dev` with the exact DEV callback/origin/logout URI,
   confidential PKCE S256 settings, and no credential value;
-- bearer-only service client `cristexhub-admin-svc-dev` with browser flow disabled;
+- service-account client `cristexhub-admin-svc-dev` with browser and direct-grant flows disabled;
 - static group `cristexhub-dev-super-admin` only;
 - `groups`, `organization`, and DEV audience protocol-mapper contracts;
 - Infisical ownership/path/key metadata only, never a client credential;
@@ -56,28 +56,30 @@ realm asset.
 ## Guard and transport boundary
 
 `ansible/roles/keycloak_dev_identity_bootstrap/` and
-`ansible/plugins/action/keycloak_dev_identity_guarded.py` implement a focused,
-read-only Admin API preflight using `ansible.builtin.uri` internally. For each
-source leaf, the action:
+`ansible/plugins/action/keycloak_dev_identity_guarded.py` implement an offline
+source validator. For each source leaf, the action:
 
-1. verifies the one-shot wrapper attestation and exact source hash;
-2. verifies a controller-local administrator token file is a regular mode-0600
-   file owned by the invoking user without printing or exporting its contents;
-3. reads the retained `cristexhub` realm and refuses legacy identity drift;
-4. reads only the DEV realm inventory, clients, groups, and required mappers;
-5. rejects PROD, Argo, master, or foreign identities;
-6. reports absent or differing DEV state as predicted change without issuing a
-   write request.
+1. verifies the one-shot wrapper attestation and exact canonical source hash;
+2. validates the exact DEV realm, clients, group, mappers, and successor-only
+   Infisical metadata;
+3. rejects PROD, Argo, master, cross-environment, secret-bearing, or deletion
+   contracts;
+4. reports predicted change because runtime state is deliberately unknown.
 
-The wrapper passes only the protected token-file **path** and fixed API base URL.
-The token value never enters Git, argv, examples, evidence, or returned Ansible
-results. The action removes URI response content and invocation data before
-returning. The current Keycloak route source does not change in this phase; an
-Admin API transport/private route for future execution requires its own review.
+The wrapper rejects administrator-token and API-base environment inputs. It does
+not contact Keycloak, Kubernetes, Infisical, Cloudflare, or any other runtime.
+The public Keycloak hostname is not an approved Admin REST transport, and the
+current route source remains unchanged.
 
-The lane is present/update-oriented in its contract but check-only in execution.
-It contains no write verb and no resource-removal behavior. The retained legacy
-realm is never a target object.
+Before any runtime preflight, a separately reviewed lane must establish a fixed
+private TLS Admin REST transport and a precreated least-privilege reconciliation
+identity under Infisical custody. That later lane must use exact GET endpoints,
+`no_log`, strict certificate validation, no redirects, and no public `/admin` or
+`/realms/master` exposure.
+
+The source contract is present/update-oriented, but execution remains offline and
+check-only. It contains no API request, write verb, or resource-removal behavior.
+The retained legacy realm is never a target object.
 
 ## Migration gates before any DEV cutover
 
@@ -91,14 +93,17 @@ The following are separate gates and are not implied by source or check mode:
 4. proof that DEV users and memberships can be represented in the successor realm;
 5. proof of `(issuer, subject)` continuity or a separately reviewed application
    identity remapping migration;
-6. successor client credential generation and Infisical custody without replacing
-   PROD values;
-7. private route/discovery/JWKS and callback source for the successor issuer;
-8. clean immutable CristexHub application revision with DEV issuer and realm
+6. successor client credential generation at `prod:/cristexhub/dev/identity`
+   through a dedicated CAS/no-output lane, without replacing predecessor or PROD
+   values;
+7. fixed private TLS Admin REST transport and a precreated least-privilege
+   reconciliation identity, followed by a separately approved read-only preflight;
+8. private route/discovery/JWKS and callback source for the successor issuer;
+9. clean immutable CristexHub application revision with DEV issuer and realm
    changes only;
-9. DEV-first rollout, authenticated login/callback/logout tests, negative
-   cross-environment tests, and a soak period;
-10. separate PROD compatibility retirement approval after the rollback/token-drain
+10. DEV-first rollout, authenticated login/callback/logout tests, negative
+    cross-environment tests, and a soak period;
+11. separate PROD compatibility retirement approval after the rollback/token-drain
     window.
 
 The existing `cristexhub` realm is retained during all gates. Realm deletion,

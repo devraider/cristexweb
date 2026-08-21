@@ -99,6 +99,21 @@ class KeycloakDevIdentityContractTests(unittest.TestCase):
         self.assertFalse(service["standardFlowEnabled"])
         self.assertTrue(service["serviceAccountsEnabled"])
         self.assertEqual(
+            {"OIDC_CLIENT_SECRET", "ADMIN_SERVICE_CLIENT_SECRET"},
+            {client["credentialContract"]["key"] for client in clients},
+        )
+        self.assertEqual(
+            {"prod:/cristexhub/dev/identity"},
+            {client["credentialContract"]["path"] for client in clients},
+        )
+        self.assertTrue(
+            all(
+                client["credentialContract"]["materialization"]
+                == "blocked-pending-successor-value-lane"
+                for client in clients
+            )
+        )
+        self.assertEqual(
             ["cristexhub-dev-super-admin"],
             [group["name"] for group in self.by_kind["KeycloakStaticGroupContract"]["spec"]["groups"]],
         )
@@ -112,19 +127,19 @@ class KeycloakDevIdentityContractTests(unittest.TestCase):
         self.assertNotIn("cristexhub-prod", [group["name"] for group in self.by_kind["KeycloakStaticGroupContract"]["spec"]["groups"]])
         self.assertNotIn("argocd-admin", [group["name"] for group in self.by_kind["KeycloakStaticGroupContract"]["spec"]["groups"]])
 
-    def test_guard_is_check_only_and_read_only(self) -> None:
-        self.assertIn('module_name="ansible.builtin.uri"', self.plugin_text)
-        self.assertIn('"method": "GET"', self.plugin_text)
-        self.assertNotIn('"method": "POST"', self.plugin_text)
-        self.assertNotIn('"method": "PUT"', self.plugin_text)
-        self.assertNotIn('"method": "PATCH"', self.plugin_text)
-        self.assertNotIn('"method": "DELETE"', self.plugin_text)
+    def test_guard_is_check_only_offline_and_source_only(self) -> None:
+        self.assertNotIn('module_name="ansible.builtin.uri"', self.plugin_text)
+        self.assertNotIn("_execute_module", self.plugin_text)
+        for method in ("GET", "POST", "PUT", "PATCH", "DELETE"):
+            self.assertNotIn(f'"method": "{method}"', self.plugin_text)
         self.assertIn('not task_vars.get("ansible_check_mode")', self.plugin_text)
         self.assertIn("_LEGACY_REALM", self.plugin_text)
         self.assertIn("_FORBIDDEN_IDENTITIES", self.plugin_text)
         self.assertIn("_EXPECTED_DEFINITION_HASHES", self.plugin_text)
         self.assertIn("no_delete_path", self.tasks_text)
-        self.assertIn("check_only", self.tasks_text)
+        self.assertIn("offline_source_only", self.tasks_text)
+        self.assertIn("runtime_api_access: false", self.tasks_text)
+        self.assertNotIn("ansible.builtin.uri", self.tasks_text)
         self.assertNotIn("ansible.builtin.command", self.tasks_text)
         self.assertNotIn("ansible.builtin.shell", self.tasks_text)
 
@@ -133,8 +148,9 @@ class KeycloakDevIdentityContractTests(unittest.TestCase):
         self.assertIn("[ \"$1\" = check ]", self.wrapper_text)
         self.assertIn("--check", self.wrapper_text)
         self.assertIn("--diff", self.wrapper_text)
-        self.assertIn("CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ADMIN_TOKEN_FILE", self.wrapper_text)
         self.assertIn("CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ENTRYPOINT=v1", self.wrapper_text)
+        self.assertIn('[ -z "${CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_ADMIN_TOKEN_FILE:-}" ]', self.wrapper_text)
+        self.assertIn('[ -z "${CRISTEXWEB_KEYCLOAK_DEV_IDENTITY_API_BASE_URL:-}" ]', self.wrapper_text)
         self.assertNotIn('mode=$1', self.wrapper_text)
         self.assertNotRegex(self.wrapper_text, r"\b(?:password|secret|token)=\$")
         self.assertIn("role: keycloak_dev_identity_bootstrap", PLAYBOOK.read_text())
@@ -153,7 +169,7 @@ class KeycloakDevIdentityContractTests(unittest.TestCase):
             "existing `cristexhub` realm and\nissuer remain the retained PROD-compatibility identity:",
             "The wrapper rejects `apply`",
             "four hash-bound, value-free source leaves",
-            "reports absent or differing DEV state as predicted change without issuing a\n   write request.",
+            "reports predicted change because runtime state is deliberately unknown.",
             "identity-preservation-review",
             "Cross-environment negative tests must prove PROD tokens cannot authenticate to DEV",
         ):

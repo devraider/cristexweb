@@ -30,7 +30,8 @@ realm_transition:
     route_change: separate-approval-required
   migration_order:
     - source-contract
-    - check-only-api-preflight
+    - private-admin-transport-and-credential
+    - separately-approved-api-preflight
     - identity-preservation-review
     - dev-application-cutover
     - private-validation-and-soak
@@ -69,8 +70,9 @@ clients:
       post_logout_redirect_uris:
         - https://dev-hub.cristex-soft.com/
       client_secret_owner: infisical-cloud
-      client_secret_path: prod:/shared-services/keycloak
-      client_secret_key: CRISTEXHUB_DEV_OIDC_CLIENT_SECRET
+      client_secret_path: prod:/cristexhub/dev/identity
+      client_secret_key: OIDC_CLIENT_SECRET
+      client_secret_materialization: blocked-pending-successor-value-lane
       group_authorization:
         environment: dev
         accepted_group_forms:
@@ -139,7 +141,14 @@ clients:
   service:
     - id: cristexhub-admin-svc-dev
       namespace: cristexhub-dev
+      realm: cristexhub-dev
       browser_flow_allowed: false
+      service_accounts_enabled: true
+      direct_access_grants_enabled: false
+      client_secret_owner: infisical-cloud
+      client_secret_path: prod:/cristexhub/dev/identity
+      client_secret_key: ADMIN_SERVICE_CLIENT_SECRET
+      client_secret_materialization: blocked-pending-successor-value-lane
     - id: cristexhub-admin-svc-prod
       namespace: cristexhub-prod
       browser_flow_allowed: false

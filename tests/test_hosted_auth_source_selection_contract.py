@@ -151,8 +151,12 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual(["https://dev-hub.cristex-soft.com"], dev["web_origins"])
         self.assertEqual(["https://dev-hub.cristex-soft.com/"], dev["post_logout_redirect_uris"])
         self.assertEqual("infisical-cloud", dev["client_secret_owner"])
-        self.assertEqual("prod:/shared-services/keycloak", dev["client_secret_path"])
-        self.assertEqual("CRISTEXHUB_DEV_OIDC_CLIENT_SECRET", dev["client_secret_key"])
+        self.assertEqual("prod:/cristexhub/dev/identity", dev["client_secret_path"])
+        self.assertEqual("OIDC_CLIENT_SECRET", dev["client_secret_key"])
+        self.assertEqual(
+            "blocked-pending-successor-value-lane",
+            dev["client_secret_materialization"],
+        )
 
         prod = browser["cristexhub-prod"]
         self.assertEqual("cristexhub-prod", prod["namespace"])
@@ -183,9 +187,19 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
             claims["required_identity"],
         )
         self.assertFalse(claims["groups_use_full_path"])
-        service_ids = [entry["id"] for entry in self.policy["clients"]["service"]]
+        services = {entry["id"]: entry for entry in self.policy["clients"]["service"]}
         self.assertEqual(
-            ["cristexhub-admin-svc-dev", "cristexhub-admin-svc-prod"], service_ids
+            {"cristexhub-admin-svc-dev", "cristexhub-admin-svc-prod"}, set(services)
+        )
+        dev_service = services["cristexhub-admin-svc-dev"]
+        self.assertEqual("cristexhub-dev", dev_service["realm"])
+        self.assertTrue(dev_service["service_accounts_enabled"])
+        self.assertFalse(dev_service["direct_access_grants_enabled"])
+        self.assertEqual(
+            "prod:/cristexhub/dev/identity", dev_service["client_secret_path"]
+        )
+        self.assertEqual(
+            "ADMIN_SERVICE_CLIENT_SECRET", dev_service["client_secret_key"]
         )
         roles = self.policy["roles"]["cristexhub"]
         self.assertEqual(["admin", "hr", "viewer", "interviewer"], roles["values"])

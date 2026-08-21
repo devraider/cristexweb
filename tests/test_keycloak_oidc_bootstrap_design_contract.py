@@ -22,8 +22,9 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "shared self-hosted Keycloak workload is an existing private runtime checkpoint",
             "retained PROD-compatibility realm\n`cristexhub`, and issuer `https://auth.cristex-soft.com/realms/cristexhub` remain\ncanonical",
             "source-only DEV successor\ncontract now defines realm `cristexhub-dev` and issuer",
-            "dedicated\ncheck-only Admin API preflight",
-            "authorizes no apply, Secret operation, database\nmutation, route change, application cutover, or cluster mutation",
+            "authorizes only offline source validation",
+            "performs no\nAdmin API request and authorizes no apply, Secret operation, database mutation",
+            "private TLS Admin REST\ntransport and least-privilege reconciliation identity remain future prerequisites",
         ):
             self.assertIn(required, self.text)
 
