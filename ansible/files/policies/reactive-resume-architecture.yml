@@ -24,10 +24,10 @@ image_source:
   target_pull_and_admission: unaccepted-blocker
   github_actions_build_owner: upstream-not-rebuilt
   upstream_release_contract: blocked-tag-image-revision-mismatch
-  environment_variable_allowlist: reviewed-candidate-not-runtime-contract
-  health_and_readiness_endpoint: reviewed-candidate-not-accepted
-  migration_command_and_locking: reviewed-blocked
-  printer_or_browser_dependency: reviewed-none-client-side-pdf
+  environment_variable_allowlist: reviewed-tag-source-not-image-runtime-contract
+  health_and_readiness_endpoint: reviewed-tag-source-not-image-runtime-contract
+  migration_command_and_locking: reviewed-tag-source-blocked
+  printer_or_browser_dependency: reviewed-tag-source-none-client-side-pdf
 image_candidate_provenance:
   status: candidate-only-not-deployable
   observed_at_utc: '2026-08-21'
@@ -43,7 +43,9 @@ image_candidate_provenance:
   config_digest: sha256:7f2c997d1f48b152e649c2561e0e23e2d5bc7d9e7e7dbf3e6cac7dd1a6f002f7
   config_revision: 3221afda9ddfb03d6cce87927b0ce47338b4cfa8
   tag_commit_matches_config_revision: false
-  mismatch_distance: 16-commits-150-files
+  tag_source_reviewed: true
+  candidate_image_source_reviewed: false
+  mismatch_distance: 16-commits-150-changed-files
   image_created_utc: '2026-08-20T08:45:26.993Z'
   non_root_user: node
   exposed_port: 3000/tcp
@@ -164,6 +166,8 @@ identity:
     custom_provider_linking_requires_verified_trusted_email: false
     stable_provider_account_id_uses_oidc_sub: false
     rp_initiated_logout: absent-blocker
+    oauth_access_refresh_and_id_token_application_encryption: absent-blocker
+    token_encryption_key_custody_patch: required-per-environment
     smtp_absent_reset_and_verification_logging: privacy-blocker
     id_token_signature_issuer_nonce_validation: unaccepted-blocker
     groups_as_authorization_boundary: forbidden
@@ -355,6 +359,7 @@ object_storage:
   reviewed_v5_delete_only_prefixes:
     - screenshots
     - pdfs
+  legacy_delete_only_object_exposure: unreviewed-blocker
   reviewed_v5_streamed_not_persisted:
     - resume-export-pdfs
   public_read_acl_or_unauthenticated_upload_serving: blocker
@@ -368,6 +373,8 @@ object_storage:
   partial_s3_configuration_fallback: silent-local-storage-blocker
   s3_configuration_all_or_none: required
   s3_delete_pagination_and_complete_prefix_coverage: required
+  prefix_boundary_enforcement: required
+  object_key_timestamp_collision_handling: required
   s3_health_behavior: root-fixed-key-put-delete-insufficient
   s3_health_private_sentinel_readback_and_cleanup: required
   object_ownership_and_public_access_block: required
@@ -388,6 +395,7 @@ redis_ai:
   redis_health_coverage: absent-in-v5-health-endpoint
   browser_local_ai_key_state: non-server-authoritative-candidate
   redis_backup_as_authoritative_state: forbidden
+  redis_recovery: not-applicable-while-agent-disabled-required-if-selected
 application_keys:
   status: blocked-source-patch-feature-and-recovery-unselected
   exact_key_names: reviewed-candidate-not-materialization-contract
@@ -444,7 +452,7 @@ backup_restore:
   status: blocked-no-reactive-resume-scope
   postgresql_scope: absent-blocker
   object_storage_scope: absent-blocker
-  redis_scope: not-applicable-reviewed-v5-unless-future-release
+  redis_scope: not-applicable-while-agent-disabled-required-if-selected
   application_key_scope: absent-blocker
   database_and_object_consistency: required
   encrypted_off_node_copy: required
@@ -508,6 +516,7 @@ source_closure:
   read_only_research_contact:
     github_source_and_release_metadata: performed
     docker_hub_oci_metadata_and_attestations: performed
+    ghcr_oci_metadata_and_attestations: performed-no-equivalence-or-selection-claim
     kubernetes_absence_inventory: performed
   ownership:
     bootstrap: ansible-bounded-source-only

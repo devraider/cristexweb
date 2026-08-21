@@ -28,8 +28,10 @@ linux/amd64 child
 `sha256:befa93b3af3e8fe91a4dd02401fc7996c4aa2f19641463e3b2aaa77089caff5a`,
 and config
 `sha256:7f2c997d1f48b152e649c2561e0e23e2d5bc7d9e7e7dbf3e6cac7dd1a6f002f7`.
-This is specifically `docker.io/amruthpillai/reactive-resume`; it makes no GHCR
-registry-equivalence claim.
+The candidate record is specifically
+`docker.io/amruthpillai/reactive-resume`. GHCR metadata was also inspected
+read-only, but it is a separate registry identity and no equivalence, selection, or
+mirror claim is made.
 
 The image config instead identifies revision
 `3221afda9ddfb03d6cce87927b0ce47338b4cfa8`, 16 commits and 150 files beyond the
@@ -41,10 +43,11 @@ GitHub Actions does not rebuild it.
 
 No first-party Kubernetes operator/chart has been accepted. Any future Kubernetes
 translation requires a patched, reproducibly bound source/image and must not
-silently copy Compose assumptions. Reviewed source facts include container port
-`3000`, `GET /api/health` returning `200` or `503` from database/storage checks, no
-Browserless requirement, and client-side PDF rendering; they are evidence, not a
-runtime contract.
+silently copy Compose assumptions. Facts reviewed at the annotated tag source—not
+at the mismatched candidate image revision—include port `3000`, `GET /api/health`
+returning `200` or `503` from database/storage checks, no Browserless requirement,
+and client-side PDF rendering. Candidate image source behavior remains unreviewed;
+none of these facts is a runtime contract.
 
 ## DEV placement and explicit blockers
 
@@ -106,17 +109,21 @@ The DEV contract is incomplete and blocked on all of the following:
   local-auth disablement, stable account continuity, and RP-initiated logout.
   Keycloak groups/organizations must not become an application authorization
   boundary. Wrong issuer/audience/key, replay, expired-token, local-login,
-  account-linking, and cross-environment tests remain mandatory. PROD gets a
-  separate client only after DEV acceptance.
+  account-linking, and cross-environment tests remain mandatory. OAuth access,
+  refresh, and ID tokens are stored without application-level token encryption;
+  activation additionally requires a reviewed per-environment encryption/key-custody
+  patch. PROD gets a separate client only after DEV acceptance.
 - **Object storage:** PostgreSQL stores resume JSON but is not the whole application
   state. Reviewed v5.2.7 persists profile pictures plus application resume/cover-letter
   PDFs under the pictures prefix and private Agent attachments under a separate
-  Agent prefix. `screenshots` and `pdfs` appear as delete-only legacy prefixes, while
-  resume-export PDFs are streamed rather than persisted. The observed upstream
+  Agent prefix. `screenshots` and `pdfs` appear as delete-only legacy prefixes whose
+  residual-object exposure remains unreviewed, while resume-export PDFs are streamed
+  rather than persisted. The observed upstream
   public-read ACL, unauthenticated and publicly immutable-cacheable
   `/uploads` behavior, and arbitrary upload MIME acceptance are activation blockers.
-  Partial S3 configuration also silently falls back to local storage, while health
-  proves only a fixed-key put/delete. A source patch plus a private backend with
+  Partial S3 configuration also silently falls back to local storage, while delete
+  pagination/completeness, prefix boundaries, timestamp collisions, and health's
+  root fixed-key put/delete are unaccepted. A source patch plus a private backend with
   separate DEV/PROD scope, authenticated reads, strict MIME policy, encryption,
   versioning/immutable manifests, URL continuity, checksum/readback, bucket-policy
   proof, and database/object-consistent encrypted backup and isolated restore are
@@ -126,7 +133,9 @@ The DEV contract is incomplete and blocked on all of the following:
   require private S3, and Redis is absent from `/api/health`. Agent and Redis remain
   disabled and unselected for the MVP. They may not be deployed until a separate
   feature, health, Secret, storage, NetworkPolicy, backup, and recovery review is
-  accepted. Browser-local AI-key state is not authoritative server state.
+  accepted. Redis recovery is not applicable while Agent is disabled but becomes
+  mandatory if Agent/Redis is selected. Browser-local AI-key state is not
+  authoritative server state.
 - **Application keys:** reviewed candidate keys include required `AUTH_SECRET` and
   custom-provider `OAUTH_CLIENT_SECRET`. `ENCRYPTION_SECRET` is a genuine upstream
   conditional key with a minimum length of 32 for saved AI-provider credentials and
@@ -202,7 +211,8 @@ unaccepted migrations/workloads.
 No Deployment, StatefulSet, Service, PVC, Secret, Infisical CR, Database object,
 Ingress, Argo Application, route, image pull, registry write, host, Kubernetes,
 Infisical, database, or provider mutation was performed. Read-only contact was
-limited to GitHub source/release metadata, Docker Hub OCI metadata/attestations, and
-the bounded Kubernetes absence inventory recorded above.
+limited to GitHub source/release metadata, separate Docker Hub and GHCR OCI
+metadata/attestations without an equivalence claim, and the bounded Kubernetes
+absence inventory recorded above.
 Rollback is a Git revert; namespace/PVC/database deletion and implicit credential
 rotation are forbidden.

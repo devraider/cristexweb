@@ -73,12 +73,18 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             "blocked-tag-image-revision-mismatch", source["upstream_release_contract"]
         )
         self.assertEqual(
-            "reviewed-candidate-not-runtime-contract",
+            "reviewed-tag-source-not-image-runtime-contract",
             source["environment_variable_allowlist"],
         )
-        self.assertEqual("reviewed-candidate-not-accepted", source["health_and_readiness_endpoint"])
-        self.assertEqual("reviewed-blocked", source["migration_command_and_locking"])
-        self.assertEqual("reviewed-none-client-side-pdf", source["printer_or_browser_dependency"])
+        self.assertEqual(
+            "reviewed-tag-source-not-image-runtime-contract",
+            source["health_and_readiness_endpoint"],
+        )
+        self.assertEqual("reviewed-tag-source-blocked", source["migration_command_and_locking"])
+        self.assertEqual(
+            "reviewed-tag-source-none-client-side-pdf",
+            source["printer_or_browser_dependency"],
+        )
         self.assertEqual(
             {
                 "host": "forbidden",
@@ -94,6 +100,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             {
                 "github_source_and_release_metadata": "performed",
                 "docker_hub_oci_metadata_and_attestations": "performed",
+                "ghcr_oci_metadata_and_attestations": "performed-no-equivalence-or-selection-claim",
                 "kubernetes_absence_inventory": "performed",
             },
             self.policy["source_closure"]["read_only_research_contact"],
@@ -129,7 +136,9 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             candidate["config_revision"],
         )
         self.assertFalse(candidate["tag_commit_matches_config_revision"])
-        self.assertEqual("16-commits-150-files", candidate["mismatch_distance"])
+        self.assertTrue(candidate["tag_source_reviewed"])
+        self.assertFalse(candidate["candidate_image_source_reviewed"])
+        self.assertEqual("16-commits-150-changed-files", candidate["mismatch_distance"])
         self.assertEqual("node", candidate["non_root_user"])
         self.assertEqual("3000/tcp", candidate["exposed_port"])
         self.assertEqual("/api/health", candidate["health_endpoint"])
@@ -364,6 +373,13 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertFalse(hardening["stable_provider_account_id_uses_oidc_sub"])
         self.assertEqual("absent-blocker", hardening["rp_initiated_logout"])
         self.assertEqual(
+            "absent-blocker",
+            hardening["oauth_access_refresh_and_id_token_application_encryption"],
+        )
+        self.assertEqual(
+            "required-per-environment", hardening["token_encryption_key_custody_patch"]
+        )
+        self.assertEqual(
             "privacy-blocker", hardening["smtp_absent_reset_and_verification_logging"]
         )
         self.assertEqual("insufficient", hardening["configuration_only_remediation"])
@@ -412,6 +428,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             storage["reviewed_v5_persisted_objects"],
         )
         self.assertEqual(["screenshots", "pdfs"], storage["reviewed_v5_delete_only_prefixes"])
+        self.assertEqual("unreviewed-blocker", storage["legacy_delete_only_object_exposure"])
         self.assertEqual(["resume-export-pdfs"], storage["reviewed_v5_streamed_not_persisted"])
         self.assertEqual("blocker", storage["public_read_acl_or_unauthenticated_upload_serving"])
         self.assertEqual("public-read-blocker", storage["reviewed_v5_normal_s3_acl"])
@@ -442,6 +459,10 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         )
         self.assertFalse(redis_ai["agent_enabled"])
         self.assertFalse(redis_ai["redis_selected"])
+        self.assertEqual(
+            "not-applicable-while-agent-disabled-required-if-selected",
+            redis_ai["redis_recovery"],
+        )
         self.assertEqual("absent-in-v5-health-endpoint", redis_ai["redis_health_coverage"])
         self.assertEqual("forbidden", redis_ai["redis_backup_as_authoritative_state"])
 
@@ -530,7 +551,8 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         ):
             self.assertEqual("absent-blocker", recovery[key], key)
         self.assertEqual(
-            "not-applicable-reviewed-v5-unless-future-release", recovery["redis_scope"]
+            "not-applicable-while-agent-disabled-required-if-selected",
+            recovery["redis_scope"]
         )
         for key in (
             "database_and_object_consistency",

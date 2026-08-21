@@ -2917,10 +2917,11 @@ cd ..
   tests/test_reactive_resume_architecture_contract.py
 git diff --check
 git diff --cached --quiet
-kubectl get deployments,statefulsets,services,ingresses,networkpolicies,pvc,serviceaccounts,configmaps \
-  -n cristexhub-dev -o name | grep -Ei 'reactive|resume|rxresume'
-kubectl get applications.argoproj.io -n argocd -o name | \
-  grep -Ei 'reactive|resume|rxresume'
+matches="$(kubectl get deployments,statefulsets,services,ingresses,networkpolicies,pvc,serviceaccounts,configmaps \
+  -n cristexhub-dev -o name | grep -Ei 'reactive|resume|rxresume' || true)"
+argo_matches="$(kubectl get applications.argoproj.io -n argocd -o name | \
+  grep -Ei 'reactive|resume|rxresume' || true)"
+test -z "${matches}${argo_matches}"
 ```
 
 Actual result:
