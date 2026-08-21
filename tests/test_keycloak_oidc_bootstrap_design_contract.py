@@ -220,6 +220,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         expected_public_inputs = {
             "policies/hosted-identity-authorization.yml",
             "policies/reactive-resume-architecture.yml",
+            "policies/reactive-resume-postgresql-exposure-rotation.yml",
             "policies/shared-database-architecture.yml",
             "policies/shared-rabbitmq-architecture.yml",
             "policies/shared-stateful-backup-architecture.yml",

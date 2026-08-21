@@ -18,8 +18,10 @@ cannot be activated from this policy.
 
 The canonical contract is
 [`reactive-resume-architecture.yml`](../ansible/files/policies/reactive-resume-architecture.yml).
-`executable_source_allowed` remains `false`. No runtime/API/provider operation is
-authorized by this document.
+The separately approved, source-only [PostgreSQL exposure-rotation contract](reactive-resume-postgresql-exposure-rotation.md)
+freezes only the two exposed DEV/PROD password scopes and remains blocked on
+official Infisical CAS and CNPG Secret-type decisions. `executable_source_allowed`
+remains `false`. No runtime/API/provider operation is authorized by this document.
 
 ## Source boundary
 

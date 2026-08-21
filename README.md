@@ -142,8 +142,10 @@ and backup implementations remain policy-only. The separate [Reactive Resume hos
 includes only a planned private DEV workload reservation. Broad-lane DEV and
 unapproved PROD PostgreSQL CRs plus Infisical-owned Secrets are already live but
 unaccepted; roles retain `INHERIT`, no NetworkPolicy selects shared PostgreSQL, and
-review-log exposure requires credential rotation/revocation. Dedicated DEV-only
-Infisical/VAP/RBAC and PostgreSQL lanes, realm/issuer/callback/claims, accepted image,
+review-log exposure requires credential rotation/revocation. A dedicated source-only
+rotation contract now freezes exact scope/no-output/stop semantics but remains
+non-executable because Infisical documents no CAS and CNPG requires `basic-auth`
+while live targets are `Opaque`. Dedicated DEV-only Infisical/VAP/RBAC and PostgreSQL lanes, realm/issuer/callback/claims, accepted image,
 durable private object storage, application-key custody, disabled v5 Agent/Redis,
 patched OIDC, locked split-role migration, backup/restore, RPO/RTO,
 NetworkPolicy/TLS identity, and runtime remain blocked; PROD is reservation-only and

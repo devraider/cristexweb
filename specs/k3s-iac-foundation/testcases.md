@@ -2929,8 +2929,9 @@ test -z "${matches}${argo_matches}"
 Actual result:
 
 ```text
-Reactive Resume focused blocker-contract tests: 16 passed
-Full offline suite: 430/430 passed
+Reactive Resume focused architecture tests: 16 passed
+Reactive Resume PostgreSQL exposure-rotation contract tests: 9 passed
+Full offline suite: 439/439 passed
 All 47 playbook syntax checks passed
 Production-profile lint passed with only 14 configured pre-existing warnings
 Python compile: passed

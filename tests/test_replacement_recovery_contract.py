@@ -53,6 +53,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "oidc-connect-proxy.md",
                 "postgresql-bootstrap.md",
                 "reactive-resume-hosted-architecture.md",
+                "reactive-resume-postgresql-exposure-rotation.md",
                 "shared-database-architecture.md",
                 "shared-database-provisioning.md",
                 "shared-rabbitmq-architecture.md",

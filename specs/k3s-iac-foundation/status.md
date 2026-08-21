@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: 430 offline contracts and all 47 playbook syntax checks pass; private PROD is Synced/Healthy and the public route remains unapplied
+build: 439 offline contracts and all 47 playbook syntax checks pass; private PROD is Synced/Healthy and the public route remains unapplied
 date: 2026-08-21
 deploy_required_after_acceptance: yes
 
@@ -261,7 +261,10 @@ note: |
   and unapproved PROD PostgreSQL Database/DatabaseRole CRs plus Infisical-owned
   Secrets. Both roles retain `INHERIT`, PUBLIC access remains broad, and zero
   NetworkPolicies select shared PostgreSQL; these objects are unaccepted drift. A
-  review-log exposure makes both credentials rotation/revocation blockers. The
+  review-log exposure makes both credentials rotation/revocation blockers. A
+  dedicated source-only rotation contract now freezes exact two-key/no-output/stop
+  semantics but remains non-executable because Infisical documents no CAS and CNPG
+  1.30 requires `kubernetes.io/basic-auth` while the live targets are `Opaque`. The
   successor DEV realm runtime, patched OIDC/local-auth behavior, dedicated Infisical
   and database ownership lanes, private object storage, ACL/TLS/NetworkPolicy,
   candidate image provenance mismatch, locked split-role migration, recovery,
@@ -421,7 +424,7 @@ note: |
   shared MongoDB engine belong in `shared-services`.
   No external infrastructure resource, Kubernetes Secret/data, image publication,
   or component deployment operation was completed. In addition to historical public
-  source/Actions reads, the current integrated source validation passed 430/430 offline
+  source/Actions reads, the current integrated source validation passed 439/439 offline
   contracts, all 47 playbook syntax checks, executable datastore parser fixtures,
   production-profile lint (with only configured pre-existing warnings), Python and
   shell syntax, and diff checks. The k3s datastore/encryption preflight now privately parses only the bounded

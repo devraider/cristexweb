@@ -1,6 +1,7 @@
 ---
 policy_schema: cristex-reactive-resume-v4
 policy_status: source-policy-only-runtime-blocked
+postgresql_exposure_rotation_contract: ansible/files/policies/reactive-resume-postgresql-exposure-rotation.yml
 mvp_scope: included-private-dev
 environments:
   dev:

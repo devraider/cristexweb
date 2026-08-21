@@ -1,0 +1,266 @@
+---
+policy_schema: cristex-reactive-resume-postgresql-exposure-rotation-v1
+policy_status: source-only-design-not-run-blocked
+purpose: successor-first-rotation-of-two-exposed-reactive-resume-postgresql-passwords
+executable_source_allowed: false
+apply_capable: false
+runtime_mutation_allowed: false
+values_allowed_in_source: false
+values_allowed_in_argv: false
+values_allowed_in_environment: false
+values_allowed_in_logs: false
+values_allowed_in_evidence: false
+scope:
+  project_slug: cristexweb-infrastructure
+  project_id: 619656da-14f3-4872-857b-be103cdc5326
+  environment_slug: prod
+  secret_path: /shared-services/postgresql
+  rotation_concurrency: one-environment-per-approved-invocation
+  simultaneous_dev_prod_rotation: forbidden
+  source_key_count: 15
+  exact_source_keys:
+    - POSTGRESQL_ADMIN_USERNAME
+    - POSTGRESQL_ADMIN_PASSWORD
+    - POSTGRESQL_TLS_CA_CRT
+    - POSTGRESQL_TLS_CRT
+    - POSTGRESQL_TLS_KEY
+    - POSTGRESQL_CRISTEXHUB_DEV_USERNAME
+    - POSTGRESQL_CRISTEXHUB_DEV_PASSWORD
+    - POSTGRESQL_CRISTEXHUB_PROD_USERNAME
+    - POSTGRESQL_CRISTEXHUB_PROD_PASSWORD
+    - POSTGRESQL_REACTIVE_RESUME_DEV_USERNAME
+    - POSTGRESQL_REACTIVE_RESUME_DEV_PASSWORD
+    - POSTGRESQL_REACTIVE_RESUME_PROD_USERNAME
+    - POSTGRESQL_REACTIVE_RESUME_PROD_PASSWORD
+    - POSTGRESQL_KEYCLOAK_USERNAME
+    - POSTGRESQL_KEYCLOAK_PASSWORD
+  extra_source_keys: forbidden
+  missing_source_keys: forbidden
+  source_values: never-read-by-source-only-contract
+consumers:
+  dev:
+    environment: dev
+    logical_database: reactive_resume_dev
+    database_role: reactive_resume_dev_owner
+    database_role_resource: reactive-resume-dev-owner
+    database_role_name_is_immutable: true
+    credential_secret: shared-postgresql-reactive-resume-dev
+    target_namespace: shared-services
+    target_type: Opaque
+    target_keys: [username, password]
+    target_creation_policy: Orphan
+    target_labels:
+      app.kubernetes.io/managed-by: infisical
+      app.kubernetes.io/part-of: shared-databases
+      cristex.io/value-owner: infisical-cloud
+    source_username_key: POSTGRESQL_REACTIVE_RESUME_DEV_USERNAME
+    source_password_key: POSTGRESQL_REACTIVE_RESUME_DEV_PASSWORD
+    fixed_principal: reactive_resume_dev_owner
+    password_successor_semantics: same-principal-new-password
+    username_change: forbidden
+    new_role_or_user: forbidden
+    role_delete_recreate: forbidden
+    database_delete_recreate: forbidden
+    source_key_update_scope: password-key-only
+    unrelated_source_keys_preserved: 14
+    predecessor_revocation: required-after-successor-acceptance
+  prod:
+    environment: prod
+    logical_database: reactive_resume_prod
+    database_role: reactive_resume_prod_owner
+    database_role_resource: reactive-resume-prod-owner
+    database_role_name_is_immutable: true
+    credential_secret: shared-postgresql-reactive-resume-prod
+    target_namespace: shared-services
+    target_type: Opaque
+    target_keys: [username, password]
+    target_creation_policy: Orphan
+    target_labels:
+      app.kubernetes.io/managed-by: infisical
+      app.kubernetes.io/part-of: shared-databases
+      cristex.io/value-owner: infisical-cloud
+    source_username_key: POSTGRESQL_REACTIVE_RESUME_PROD_USERNAME
+    source_password_key: POSTGRESQL_REACTIVE_RESUME_PROD_PASSWORD
+    fixed_principal: reactive_resume_prod_owner
+    password_successor_semantics: same-principal-new-password
+    username_change: forbidden
+    new_role_or_user: forbidden
+    role_delete_recreate: forbidden
+    database_delete_recreate: forbidden
+    source_key_update_scope: password-key-only
+    unrelated_source_keys_preserved: 14
+    predecessor_revocation: required-after-successor-acceptance
+no_output_contract:
+  source_preflight_metadata_only: true
+  allowed_receipt_fields:
+    - environment
+    - logical_database
+    - database_role
+    - credential_secret
+    - target_uid
+    - target_resource_version
+    - target_generation
+    - static_secret_generation
+    - static_secret_revision_metadata
+    - database_role_applied
+    - database_role_observed_generation
+    - cnpg_secret_resource_version
+    - cnpg_password_status_resource_version
+    - cas_revision_metadata
+    - etag_metadata
+    - sanitized_timestamps
+    - boolean_results
+  prohibited_receipt_fields:
+    - password
+    - username_value
+    - secret_data
+    - secret_data_base64
+    - connection_url
+    - token
+    - request_body
+    - response_body
+    - hash
+    - sql_output
+  protected_predecessor_custody: required-before-source-write
+  successor_generation: protected-cleanup-first-mode-0600-only
+  successor_format: 64-lowercase-hex
+  predecessor_and_successor_values: never-output-or-logged
+  values_in_process_argv: forbidden
+  values_in_process_environment: forbidden
+  values_in_git_or_plan: forbidden
+  plaintext_residue_after_completion: zero-required
+cas_contract:
+  status: blocked-official-infisical-api-has-no-documented-cas
+  official_infisical_cas_decision:
+    status: reviewed-no-documented-cas
+    provider_endpoint: PATCH-/api/v3/secrets/raw/{secretName}
+    provider_authentication: universal-auth-bearer-token
+    conditional_header_or_equivalent: absent-from-official-contract
+    bulk_atomicity: not-documented
+    stale_write_conflict_status: not-documented
+    secret_history_or_rollback_is_cas: false
+    decision_record: official-api-review-2026-08-21
+    accepted: false
+    required_resolution: vendor-confirmed-cas-or-separately-accepted-external-serialization
+  expected_revision_or_etag: required
+  if_match_or_equivalent: required
+  update_scope: exactly-one-scoped-password-key-per-invocation
+  preserve_fixed_username: true
+  preserve_unrelated_source_keys: true
+  post_write_revision_metadata: required
+  conflict_result: CAS-CONFLICT-STOP
+  timeout_result: CAS-UNKNOWN-STOP
+  malformed_or_missing_authoritative_revision: CAS-UNKNOWN-STOP
+  partial_or_ambiguous_write: PARTIAL-STOP
+  blind_retry: forbidden
+  source_batch_uploader_reuse: forbidden
+  provider_response_values: never-output
+materialization_contract:
+  status: blocked-operator-sync-and-cnpg-type-decision
+  operator_is_secret_value_owner: true
+  direct_kubernetes_secret_patch: forbidden
+  direct_kubernetes_secret_apply: forbidden
+  static_secret_identity: shared-postgresql-infisical-secrets
+  refresh_interval_source: 1h
+  instant_updates_source: false
+  bounded_sync_wait: at-least-two-refresh-intervals
+  target_uid_preservation: required
+  target_resource_version_advancement: required
+  target_metadata_exact: required
+  protected_successor_equality_check: required-no-output
+  static_secret_successful_reconcile: required
+cnpg_contract:
+  status: blocked-current-target-type-incompatible-with-official-contract
+  official_cnpg_secret_type_decision:
+    status: reviewed-basic-auth-required
+    pinned_crd_version: v1.30.0
+    documented_password_secret_type: kubernetes.io/basic-auth
+    documented_keys: [username, password]
+    current_target_type: Opaque
+    current_target_compatible: false
+    decision_record: official-cnpg-1.30-review-2026-08-21
+    accepted: true
+  apply_gate: blocked-until-infisical-concurrency-and-cnpg-basic-auth-remediation
+  database_role_spec_name_mutable: false
+  role_password_update_without_role_recreation: required
+  role_or_database_delete: forbidden
+  role_reconciliation_status_applied: required
+  role_observed_generation_current: required
+  role_secret_resource_version_match: required
+  managed_role_password_resource_version_match: required
+  cluster_ready: required
+  cannot_reconcile: forbidden
+  runtime_role_acl_remediation: separate-blocked-lane
+  authenticated_successor_probe: required-before-revocation
+  predecessor_authentication_failure: required-before-completion
+  authorization_denial_is_not_authentication_revocation: true
+predecessor_revocation:
+  status: blocked-until-successor-acceptance
+  successor_acceptance_before_revocation: required
+  predecessor_authentication_must_fail: required
+  predecessor_authorization_denial_is_insufficient: true
+  revocation_source_receipt: sanitized-boolean-only
+  existing_sessions_revocation: separate-approval-required
+  infisical_history_purge: forbidden
+rollback:
+  status: source-only-design
+  before_cas: discard_successor_custody_without_remote_change
+  after_cas_only_exact_revision: true
+  restore_predecessor_on_revision_mismatch: forbidden
+  ambiguous_write: CAS-UNKNOWN-STOP-and-preserve-encrypted-custody
+  direct_secret_patch_rollback: forbidden
+  role_database_pvc_delete: forbidden
+  blind_restore: forbidden
+broad_lane_prohibition:
+  status: hard-block
+  forbidden_paths:
+    - ansible/bin/upload-infisical-bootstrap-values
+    - ansible/bin/provision-shared-postgresql
+    - ansible/playbooks/bootstrap_cloudnative_pg_cluster.yml
+    - ansible/files/components/infisical-database-secrets/source/shared-postgresql-infisical-secrets.yaml
+    - ansible/files/components/cloudnative-pg/cluster/shared-postgresql.yaml
+    - ansible/plugins/action/database_provisioning_guarded_exec.py
+    - ansible/plugins/action/database_provisioning_guarded_k8s.py
+  forbidden_reuse:
+    - broad-15-key-postgresql-uploader
+    - all-consumer-static-secret
+    - all-consumer-cloudnative-pg-lifecycle
+    - shared-database-provisioning-wrapper
+    - direct-kubernetes-secret-write
+    - direct-sql-alter-role
+  forbidden_mutations:
+    - database_cr
+    - databaserole_cr
+    - role_or_user_create
+    - role_or_user_delete
+    - database_delete
+    - pvc_delete
+    - networkpolicy_change
+    - workload_rollout
+    - argo_sync
+    - route_change
+  dedicated_rotation_source: absent-by-design
+  apply_wrapper: absent-by-design
+  runtime_contact: forbidden
+apply_gate:
+  status: blocked
+  apply_capable_source: absent
+  unblock_requires:
+    - vendor-confirmed-infisical-cas-or-accepted-external-serialization
+    - cnpg-basic-auth-target-contract-remediation
+    - dedicated-no-output-writer-source-review
+    - exact-predecessor-custody-review
+    - exact-successor-authentication-and-negative-tests
+    - separate-acl-and-networkpolicy-acceptance
+  no_apply_in_this_contract: true
+  no_check_apply_wrapper_in_this_contract: true
+source_closure:
+  manifest_files: []
+  executable_files: []
+  runtime_objects_added: false
+  secret_values_added: false
+  provider_calls: false
+  kubernetes_calls: false
+  database_calls: false
+  infisical_calls: false
+  no_runtime_mutation: true

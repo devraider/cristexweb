@@ -82,6 +82,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "README.md",
             "files/policies/hosted-identity-authorization.yml",
             "files/policies/reactive-resume-architecture.yml",
+            "files/policies/reactive-resume-postgresql-exposure-rotation.yml",
             "files/policies/shared-database-architecture.yml",
             "files/policies/shared-rabbitmq-architecture.yml",
             "files/policies/shared-stateful-backup-architecture.yml",
