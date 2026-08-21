@@ -134,7 +134,7 @@ identity:
     dev:
       id: reactive-resume-dev
       namespace: cristexhub-dev
-      status: source-only-successor-client-absent-blocker
+      status: source-only-successor-client-runtime-unobserved-blocker
     prod:
       id: reactive-resume-prod
       namespace: cristexhub-prod
@@ -558,7 +558,7 @@ source_closure:
     identity_scope:
       realm: cristexhub-dev
       issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
-      realm_runtime_state: absent-blocker
+      realm_runtime_state: unobserved-blocker
       client_id: reactive-resume-dev
       namespace: cristexhub-dev
       callbacks: unselected-blocker

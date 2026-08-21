@@ -347,6 +347,14 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         )
         self.assertEqual("cristexhub", identity["candidate_realms"]["retained_prod_compatible"])
         self.assertEqual("cristexhub-dev", identity["candidate_realms"]["successor_dev_source"])
+        self.assertEqual(
+            "source-only-successor-client-runtime-unobserved-blocker",
+            identity["clients"]["dev"]["status"],
+        )
+        self.assertEqual(
+            "unobserved-blocker",
+            self.policy["source_closure"]["dev"]["identity_scope"]["realm_runtime_state"],
+        )
         for key in (
             "exact_callbacks_selected",
             "exact_web_origins_selected",

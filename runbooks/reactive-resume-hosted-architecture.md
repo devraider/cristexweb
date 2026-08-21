@@ -112,7 +112,8 @@ The DEV contract is incomplete and blocked on all of the following:
   account-linking, and cross-environment tests remain mandatory. OAuth access,
   refresh, and ID tokens are stored without application-level token encryption;
   activation additionally requires a reviewed per-environment encryption/key-custody
-  patch. PROD gets a separate client only after DEV acceptance.
+  patch. Without SMTP, reset and verification message contents are logged, which is
+  also a privacy blocker. PROD gets a separate client only after DEV acceptance.
 - **Object storage:** PostgreSQL stores resume JSON but is not the whole application
   state. Reviewed v5.2.7 persists profile pictures plus application resume/cover-letter
   PDFs under the pictures prefix and private Agent attachments under a separate
@@ -124,8 +125,11 @@ The DEV contract is incomplete and blocked on all of the following:
   Partial S3 configuration also silently falls back to local storage, while delete
   pagination/completeness, prefix boundaries, timestamp collisions, and health's
   root fixed-key put/delete are unaccepted. A source patch plus a private backend with
-  separate DEV/PROD scope, authenticated reads, strict MIME policy, encryption,
-  versioning/immutable manifests, URL continuity, checksum/readback, bucket-policy
+  separate DEV/PROD scope, authenticated reads, byte-validated MIME allowlisting,
+  safe disposition and `nosniff`, active-content denial, complete paginated prefix
+  deletion, encryption, versioning/immutable manifests, URL continuity, checksum/
+  readback, private-sentinel cleanup, Object Ownership/Public Access Block, anonymous
+  `Get/List/Head/Put/Delete` denial, cross-environment prefix denial, bucket-policy
   proof, and database/object-consistent encrypted backup and isolated restore are
   required. Local ephemeral container storage is forbidden.
 - **Redis and AI:** v5.2.7 contains a server Agent workspace. It conditionally
@@ -134,8 +138,9 @@ The DEV contract is incomplete and blocked on all of the following:
   disabled and unselected for the MVP. They may not be deployed until a separate
   feature, health, Secret, storage, NetworkPolicy, backup, and recovery review is
   accepted. Redis recovery is not applicable while Agent is disabled but becomes
-  mandatory if Agent/Redis is selected. Browser-local AI-key state is not
-  authoritative server state.
+  mandatory if Agent/Redis is selected; a Redis backup must never be presented as
+  authoritative application state. Browser-local AI-key state is not authoritative
+  server state.
 - **Application keys:** reviewed candidate keys include required `AUTH_SECRET` and
   custom-provider `OAUTH_CLIENT_SECRET`. `ENCRYPTION_SECRET` is a genuine upstream
   conditional key with a minimum length of 32 for saved AI-provider credentials and
@@ -149,9 +154,12 @@ The DEV contract is incomplete and blocked on all of the following:
   process exit, and pending SQL runs in one transaction; however, selection is by
   migration name rather than checksum and there is no advisory/distributed lock,
   timeout, migration-only mode, startup-disable flag, or separate migration URL.
-  Broad/destructive DDL exists. The existing CNPG role also has `inherit: true`,
-  contradicting the required `NOINHERIT`, and the unpatched runtime cannot use a
-  DDL-free role. Executable source therefore requires a reviewed source patch plus a
+  Migration schema/ledger bootstrap occurs outside the transaction that wraps the
+  pending SQL and ledger inserts. Broad/destructive DDL exists. Both DEV and PROD
+  Reactive Resume roles in the current broad CNPG source have `inherit: true`,
+  contradicting required `NOINHERIT`; that all-consumer source remains forbidden for
+  activation, and the unpatched runtime cannot use a DDL-free role. Executable
+  source therefore requires a reviewed source patch plus a
   single-run locked migration Job, distinct migration/runtime privileges,
   pre-migration backup, forward-compatible expand/contract policy, and schema
   rollback evidence. Separate PostgreSQL, object-storage, application-key, and (if
