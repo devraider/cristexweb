@@ -55,7 +55,69 @@ image_candidate_provenance:
   slsa_provenance_attestation: observed-not-accepted
   vulnerability_disposition: absent-blocker
   registry_equivalence_claim: forbidden
+  index_to_linux_amd64_binding_verified: true
+  linux_amd64_to_config_binding_verified: true
   promotion: forbidden
+reviewed_v5_runtime_contract:
+  status: source-tag-evidence-only-not-runtime-contract
+  source_tag: v5.2.7
+  source_commit: 5392728f22580ac107cad25a5ccfcde962133535
+  environment_allowlist:
+    - PORT
+    - SERVER_PORT
+    - APP_URL
+    - DATABASE_URL
+    - AUTH_SECRET
+    - BETTER_AUTH_API_KEY
+    - BETTER_AUTH_INTERNAL_URL
+    - GOOGLE_CLIENT_ID
+    - GOOGLE_CLIENT_SECRET
+    - GITHUB_CLIENT_ID
+    - GITHUB_CLIENT_SECRET
+    - LINKEDIN_CLIENT_ID
+    - LINKEDIN_CLIENT_SECRET
+    - OAUTH_PROVIDER_NAME
+    - OAUTH_CLIENT_ID
+    - OAUTH_CLIENT_SECRET
+    - OAUTH_DISCOVERY_URL
+    - OAUTH_AUTHORIZATION_URL
+    - OAUTH_TOKEN_URL
+    - OAUTH_USER_INFO_URL
+    - OAUTH_SCOPES
+    - SMTP_HOST
+    - SMTP_PORT
+    - SMTP_USER
+    - SMTP_PASS
+    - SMTP_FROM
+    - SMTP_SECURE
+    - LOCAL_STORAGE_PATH
+    - S3_ACCESS_KEY_ID
+    - S3_SECRET_ACCESS_KEY
+    - S3_REGION
+    - S3_ENDPOINT
+    - S3_BUCKET
+    - S3_FORCE_PATH_STYLE
+    - REDIS_URL
+    - ENCRYPTION_SECRET
+    - FLAG_DISABLE_SIGNUPS
+    - FLAG_DISABLE_EMAIL_AUTH
+    - FLAG_DISABLE_IMAGE_PROCESSING
+    - FLAG_DISABLE_API_RATE_LIMIT
+    - FLAG_SHOW_SPONSORS
+    - FLAG_ALLOW_UNSAFE_OAUTH_REDIRECT_URI
+    - FLAG_ALLOW_UNSAFE_AI_BASE_URL
+  zod_validated_count: 41
+  required_core_environment: [APP_URL, DATABASE_URL, AUTH_SECRET]
+  direct_process_environment_reads_outside_schema: [PORT, BETTER_AUTH_INTERNAL_URL]
+  production_port: 3000
+  development_server_port_default: 3001
+  health_endpoint: /api/health
+  health_success_status: 200
+  health_dependency_failure_status: 503
+  health_dependencies: [postgresql, storage]
+  health_dependency_timeout_seconds: 1.5
+  startup_migrations_before_bind: true
+  browser_or_printer_dependency: none-client-side-pdf
 identity:
   status: blocked-successor-realm-not-live-and-upstream-oidc-hardening-unaccepted
   realm: cristexhub-dev
@@ -89,6 +151,7 @@ identity:
   upstream_v5_hardening:
     reviewed_release: v5.2.7-source-tag-only
     callback_candidate: '${APP_URL}/api/auth/oauth2/callback/custom'
+    callback_verified_for_reviewed_source_tag: true
     callback_verified_for_selected_release: false
     state_csrf_protection: reviewed-db-backed-signed-cookie-one-time-ten-minute
     pkce: absent-blocker
@@ -101,6 +164,7 @@ identity:
     custom_provider_linking_requires_verified_trusted_email: false
     stable_provider_account_id_uses_oidc_sub: false
     rp_initiated_logout: absent-blocker
+    smtp_absent_reset_and_verification_logging: privacy-blocker
     id_token_signature_issuer_nonce_validation: unaccepted-blocker
     groups_as_authorization_boundary: forbidden
     account_and_resume_identity_continuity: unselected-blocker
@@ -284,17 +348,31 @@ object_storage:
   encrypted_off_node_backup: required
   isolated_object_restore: required
   object_manifest_checksum_readback: required
-  reviewed_v5_candidate_objects:
-    - pictures
+  reviewed_v5_persisted_objects:
+    - profile-pictures-under-uploads-user-pictures
+    - application-resume-and-cover-letter-pdfs-under-pictures-prefix
+    - private-agent-attachments-under-uploads-user-agent
+  reviewed_v5_delete_only_prefixes:
     - screenshots
     - pdfs
+  reviewed_v5_streamed_not_persisted:
+    - resume-export-pdfs
   public_read_acl_or_unauthenticated_upload_serving: blocker
   reviewed_v5_normal_s3_acl: public-read-blocker
   reviewed_v5_upload_read_route: unauthenticated-blocker
   reviewed_v5_upload_cache_control: public-immutable-blocker
   reviewed_v5_generic_upload_mime_allowlist: absent-blocker
+  required_mime_byte_validation_and_safe_disposition: required
+  svg_html_and_active_content_upload: deny
+  response_nosniff: required
   partial_s3_configuration_fallback: silent-local-storage-blocker
-  s3_health_behavior: fixed-key-put-delete-insufficient
+  s3_configuration_all_or_none: required
+  s3_delete_pagination_and_complete_prefix_coverage: required
+  s3_health_behavior: root-fixed-key-put-delete-insufficient
+  s3_health_private_sentinel_readback_and_cleanup: required
+  object_ownership_and_public_access_block: required
+  anonymous_get_list_head_put_delete: deny
+  cross_environment_prefix_access: deny
   private_bucket_policy_and_readback: required
   source_patch_for_authenticated_private_reads: required
   local_ephemeral_storage_only: forbidden
@@ -315,10 +393,13 @@ application_keys:
   exact_key_names: reviewed-candidate-not-materialization-contract
   candidate_required_names:
     - AUTH_SECRET
-    - OAUTH_CLIENT_SECRET
   candidate_conditional_names:
+    - OAUTH_CLIENT_SECRET
     - ENCRYPTION_SECRET
   encryption_secret_minimum_length: 32
+  conditional_requirements:
+    OAUTH_CLIENT_SECRET: custom-oauth-provider-selected
+    ENCRYPTION_SECRET: saved-ai-provider-credentials-or-agent-workspace
   encryption_secret_conditions:
     - saved-ai-provider-credentials
     - agent-workspace
@@ -338,7 +419,8 @@ migration:
   reviewed_release: v5.2.7-source-tag-only
   upstream_startup_migration_behavior: always-before-listen-same-database-url
   migration_failure_propagation: rethrow-and-process-exit-one
-  transaction_scope: all-pending-sql-single-begin-commit
+  transaction_scope: pending-sql-and-ledger-single-begin-commit
+  migration_schema_and_ledger_bootstrap_transaction: outside-pending-transaction
   distributed_or_advisory_lock: absent-blocker
   lock_timeout: absent-blocker
   checksum_comparison: absent-name-only-selection
@@ -347,7 +429,10 @@ migration:
   separate_migration_database_url: absent-blocker
   destructive_or_broad_ddl_observed: true
   runtime_role_without_ddl_compatible_with_upstream: false
-  current_cnpg_owner_inherit_setting: true-conflicts-with-required-noinherit
+  current_cnpg_source_path: ansible/files/components/cloudnative-pg/cluster/shared-postgresql.yaml
+  current_cnpg_dev_owner_inherit_setting: true-conflicts-with-required-noinherit
+  current_cnpg_prod_owner_inherit_setting: true-conflicts-with-required-noinherit
+  cnpg_source_contract_drift: blocker
   dedicated_migration_actor: absent-blocker
   required_remediation: reviewed-source-patch-plus-single-run-locked-migration-job
   migration_lock: required

@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "ansible/files/policies/reactive-resume-architecture.yml"
 DATABASE_POLICY = ROOT / "ansible/files/policies/shared-database-architecture.yml"
 IDENTITY_POLICY = ROOT / "ansible/files/policies/hosted-identity-authorization.yml"
+CNPG_CLUSTER = ROOT / "ansible/files/components/cloudnative-pg/cluster/shared-postgresql.yaml"
 RUNBOOK = ROOT / "runbooks/reactive-resume-hosted-architecture.md"
 KUBERNETES = ROOT / "kubernetes"
 
@@ -45,6 +46,16 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertTrue(closure["no_secret_values_added"])
         self.assertTrue(closure["no_selected_image_digest_claimed"])
         self.assertTrue(closure["candidate_digest_is_not_selection"])
+        self.assertEqual("absent-blocker", closure["executable_workload_source"])
+        dev_objects = closure["dev"]["object_contract"]
+        self.assertTrue(dev_objects["no_runtime_source"])
+        self.assertEqual(
+            "absent-until-image-and-config-review",
+            dev_objects["exact_objects"]["deployment"],
+        )
+        self.assertEqual(
+            "absent-until-image-and-config-review", dev_objects["exact_objects"]["service"]
+        )
 
     def test_image_and_runtime_contact_remain_blocked(self) -> None:
         source = self.policy["image_source"]
@@ -126,7 +137,24 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("not-observed-blocker", candidate["linux_amd64_child_signature"])
         self.assertEqual("absent-blocker", candidate["vulnerability_disposition"])
         self.assertEqual("forbidden", candidate["registry_equivalence_claim"])
+        self.assertTrue(candidate["index_to_linux_amd64_binding_verified"])
+        self.assertTrue(candidate["linux_amd64_to_config_binding_verified"])
         self.assertEqual("forbidden", candidate["promotion"])
+        runtime = self.policy["reviewed_v5_runtime_contract"]
+        self.assertEqual("source-tag-evidence-only-not-runtime-contract", runtime["status"])
+        self.assertEqual("v5.2.7", runtime["source_tag"])
+        self.assertEqual(43, len(runtime["environment_allowlist"]))
+        self.assertEqual(43, len(set(runtime["environment_allowlist"])))
+        self.assertEqual(
+            ["APP_URL", "DATABASE_URL", "AUTH_SECRET"],
+            runtime["required_core_environment"],
+        )
+        self.assertEqual(3000, runtime["production_port"])
+        self.assertEqual("/api/health", runtime["health_endpoint"])
+        self.assertEqual(200, runtime["health_success_status"])
+        self.assertEqual(503, runtime["health_dependency_failure_status"])
+        self.assertEqual(["postgresql", "storage"], runtime["health_dependencies"])
+        self.assertTrue(runtime["startup_migrations_before_bind"])
 
     def test_infisical_lane_is_dedicated_dev_only_and_broad_reuse_is_forbidden(self) -> None:
         secrets = self.policy["secrets"]
@@ -255,6 +283,26 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             self.assertEqual(canonical["issuer"], scoped["issuer"])
             self.assertFalse(canonical["callback_selected"])
 
+    def test_current_broad_cnpg_reactive_resume_roles_match_recorded_blocker(self) -> None:
+        objects = list(yaml.safe_load_all(CNPG_CLUSTER.read_text()))
+        roles = {
+            item["spec"]["name"]: item
+            for item in objects
+            if item and item.get("kind") == "DatabaseRole"
+        }
+        for role_name in ("reactive_resume_dev_owner", "reactive_resume_prod_owner"):
+            self.assertTrue(roles[role_name]["spec"]["inherit"], role_name)
+        migration = self.policy["migration"]
+        self.assertEqual("blocker", migration["cnpg_source_contract_drift"])
+        self.assertEqual(
+            "ansible/files/components/cloudnative-pg/cluster/shared-postgresql.yaml",
+            migration["current_cnpg_source_path"],
+        )
+        self.assertIn(
+            "forbidden",
+            self.policy["database"]["current_broad_lanes"]["cloudnative_pg_rr_database_objects"],
+        )
+
     def test_database_and_network_identity_are_unresolved_blockers(self) -> None:
         tls = self.policy["database"]["tls_and_network"]
         self.assertEqual("absent-blocker", tls["status"])
@@ -296,6 +344,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("unaccepted-blocker", identity["positive_negative_oidc_tests"])
         hardening = identity["upstream_v5_hardening"]
         self.assertEqual("v5.2.7-source-tag-only", hardening["reviewed_release"])
+        self.assertTrue(hardening["callback_verified_for_reviewed_source_tag"])
         self.assertFalse(hardening["callback_verified_for_selected_release"])
         self.assertEqual(
             "reviewed-db-backed-signed-cookie-one-time-ten-minute",
@@ -314,6 +363,9 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertFalse(hardening["custom_provider_linking_requires_verified_trusted_email"])
         self.assertFalse(hardening["stable_provider_account_id_uses_oidc_sub"])
         self.assertEqual("absent-blocker", hardening["rp_initiated_logout"])
+        self.assertEqual(
+            "privacy-blocker", hardening["smtp_absent_reset_and_verification_logging"]
+        )
         self.assertEqual("insufficient", hardening["configuration_only_remediation"])
         self.assertEqual("forbidden", hardening["groups_as_authorization_boundary"])
         self.assertTrue(identity["contract_required_before_client_mutation"])
@@ -351,14 +403,30 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             "object_manifest_checksum_readback",
         ):
             self.assertTrue(storage[key], key)
-        self.assertEqual(["pictures", "screenshots", "pdfs"], storage["reviewed_v5_candidate_objects"])
+        self.assertEqual(
+            [
+                "profile-pictures-under-uploads-user-pictures",
+                "application-resume-and-cover-letter-pdfs-under-pictures-prefix",
+                "private-agent-attachments-under-uploads-user-agent",
+            ],
+            storage["reviewed_v5_persisted_objects"],
+        )
+        self.assertEqual(["screenshots", "pdfs"], storage["reviewed_v5_delete_only_prefixes"])
+        self.assertEqual(["resume-export-pdfs"], storage["reviewed_v5_streamed_not_persisted"])
         self.assertEqual("blocker", storage["public_read_acl_or_unauthenticated_upload_serving"])
         self.assertEqual("public-read-blocker", storage["reviewed_v5_normal_s3_acl"])
         self.assertEqual("unauthenticated-blocker", storage["reviewed_v5_upload_read_route"])
         self.assertEqual("public-immutable-blocker", storage["reviewed_v5_upload_cache_control"])
         self.assertEqual("absent-blocker", storage["reviewed_v5_generic_upload_mime_allowlist"])
+        self.assertEqual("required", storage["required_mime_byte_validation_and_safe_disposition"])
+        self.assertEqual("deny", storage["svg_html_and_active_content_upload"])
+        self.assertEqual("required", storage["response_nosniff"])
         self.assertEqual("silent-local-storage-blocker", storage["partial_s3_configuration_fallback"])
-        self.assertEqual("fixed-key-put-delete-insufficient", storage["s3_health_behavior"])
+        self.assertEqual("required", storage["s3_configuration_all_or_none"])
+        self.assertEqual("root-fixed-key-put-delete-insufficient", storage["s3_health_behavior"])
+        self.assertEqual("required", storage["object_ownership_and_public_access_block"])
+        self.assertEqual("deny", storage["anonymous_get_list_head_put_delete"])
+        self.assertEqual("deny", storage["cross_environment_prefix_access"])
         self.assertTrue(storage["private_bucket_policy_and_readback"])
         self.assertEqual("required", storage["source_patch_for_authenticated_private_reads"])
         self.assertEqual("forbidden", storage["local_ephemeral_storage_only"])
@@ -383,10 +451,15 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual(
             "reviewed-candidate-not-materialization-contract", keys["exact_key_names"]
         )
+        self.assertEqual(["AUTH_SECRET"], keys["candidate_required_names"])
         self.assertEqual(
-            ["AUTH_SECRET", "OAUTH_CLIENT_SECRET"], keys["candidate_required_names"]
+            ["OAUTH_CLIENT_SECRET", "ENCRYPTION_SECRET"],
+            keys["candidate_conditional_names"],
         )
-        self.assertEqual(["ENCRYPTION_SECRET"], keys["candidate_conditional_names"])
+        self.assertEqual(
+            "custom-oauth-provider-selected",
+            keys["conditional_requirements"]["OAUTH_CLIENT_SECRET"],
+        )
         self.assertEqual(32, keys["encryption_secret_minimum_length"])
         self.assertEqual(
             ["saved-ai-provider-credentials", "agent-workspace"],
@@ -419,7 +492,13 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             migration["upstream_startup_migration_behavior"],
         )
         self.assertEqual("rethrow-and-process-exit-one", migration["migration_failure_propagation"])
-        self.assertEqual("all-pending-sql-single-begin-commit", migration["transaction_scope"])
+        self.assertEqual(
+            "pending-sql-and-ledger-single-begin-commit", migration["transaction_scope"]
+        )
+        self.assertEqual(
+            "outside-pending-transaction",
+            migration["migration_schema_and_ledger_bootstrap_transaction"],
+        )
         self.assertEqual("absent-blocker", migration["distributed_or_advisory_lock"])
         self.assertEqual("absent-name-only-selection", migration["checksum_comparison"])
         self.assertEqual("absent-blocker", migration["migration_only_mode"])
@@ -428,8 +507,13 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertFalse(migration["runtime_role_without_ddl_compatible_with_upstream"])
         self.assertEqual(
             "true-conflicts-with-required-noinherit",
-            migration["current_cnpg_owner_inherit_setting"],
+            migration["current_cnpg_dev_owner_inherit_setting"],
         )
+        self.assertEqual(
+            "true-conflicts-with-required-noinherit",
+            migration["current_cnpg_prod_owner_inherit_setting"],
+        )
+        self.assertEqual("blocker", migration["cnpg_source_contract_drift"])
         self.assertEqual("absent-blocker", migration["dedicated_migration_actor"])
         self.assertTrue(migration["migration_lock"])
         self.assertTrue(migration["pre_migration_backup"])
@@ -495,6 +579,8 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             review["current_runtime_state"],
         )
         self.assertFalse(review["runtime_observation_is_reconciliation"])
+        self.assertTrue(review["no_selected_image_digest_claimed"])
+        self.assertTrue(review["candidate_digest_is_not_selection"])
         prod = self.policy["source_closure"]["prod"]
         self.assertEqual("cristexhub-prod", prod["namespace"])
         self.assertTrue(prod["source_template"])
@@ -511,6 +597,12 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             "SOURCE POLICY ONLY — RUNTIME BLOCKED / DEV CONTRACT INCOMPLETE",
             "executable_source_allowed` remains `false`",
             "candidate-only, **not selected and not deployable**",
+            "docker.io/amruthpillai/reactive-resume",
+            self.policy["image_candidate_provenance"]["index_digest"],
+            self.policy["image_candidate_provenance"]["linux_amd64_digest"],
+            self.policy["image_candidate_provenance"]["config_digest"],
+            self.policy["image_candidate_provenance"]["upstream_tag_commit"],
+            self.policy["image_candidate_provenance"]["config_revision"],
             "16 commits and 150 files beyond the release tag",
             "Configuration alone cannot remediate this",
             "single-run locked migration Job",
@@ -551,6 +643,25 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             combined,
             r"(?im)^\s*(?:password|token|client_secret|api_key|credentials?)\s*:\s*\S+",
         )
+        executable_roots = (
+            ROOT / "kubernetes",
+            ROOT / "ansible/files/components",
+            ROOT / "ansible/playbooks",
+            ROOT / "ansible/roles",
+            ROOT / "ansible/bin",
+        )
+        for root in executable_roots:
+            for path in root.rglob("*"):
+                if not path.is_file():
+                    continue
+                text = path.read_text(errors="ignore")
+                self.assertNotRegex(
+                    text,
+                    r"(?im)^\s*image:\s*\S*reactive[-_/]?resume\S*@sha256:[0-9a-f]{64}\s*$",
+                    str(path),
+                )
+                self.assertNotIn("reactive-resume", path.name.lower(), str(path))
+                self.assertNotIn("reactive_resume", path.name.lower(), str(path))
         self.assertNotIn("/Users/", combined)
         self.assertNotIn("/home/paul/", combined)
 

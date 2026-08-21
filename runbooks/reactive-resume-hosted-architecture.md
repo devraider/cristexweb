@@ -109,9 +109,11 @@ The DEV contract is incomplete and blocked on all of the following:
   account-linking, and cross-environment tests remain mandatory. PROD gets a
   separate client only after DEV acceptance.
 - **Object storage:** PostgreSQL stores resume JSON but is not the whole application
-  state. Reviewed v5 candidates also persist pictures and PDFs; screenshots are
-  cache-like objects whose recovery semantics still require review. The observed
-  upstream public-read ACL, unauthenticated and publicly immutable-cacheable
+  state. Reviewed v5.2.7 persists profile pictures plus application resume/cover-letter
+  PDFs under the pictures prefix and private Agent attachments under a separate
+  Agent prefix. `screenshots` and `pdfs` appear as delete-only legacy prefixes, while
+  resume-export PDFs are streamed rather than persisted. The observed upstream
+  public-read ACL, unauthenticated and publicly immutable-cacheable
   `/uploads` behavior, and arbitrary upload MIME acceptance are activation blockers.
   Partial S3 configuration also silently falls back to local storage, while health
   proves only a fixed-key put/delete. A source patch plus a private backend with

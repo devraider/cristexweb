@@ -2926,8 +2926,8 @@ kubectl get applications.argoproj.io -n argocd -o name | \
 Actual result:
 
 ```text
-Reactive Resume focused blocker-contract tests: 15 passed
-Full offline suite: 429/429 passed
+Reactive Resume focused blocker-contract tests: 16 passed
+Full offline suite: 430/430 passed
 All 47 playbook syntax checks passed
 Production-profile lint passed with only 14 configured pre-existing warnings
 Python compile: passed
