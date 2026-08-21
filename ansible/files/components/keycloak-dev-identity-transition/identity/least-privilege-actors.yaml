@@ -10,7 +10,7 @@ metadata:
     cristex.io/value-owner: infisical-cloud
 spec:
   status: source-only-check-only
-  activation: blocked-pending-dedicated-actor-materialization
+  activation: blocked-pending-bootstrap-custodian-and-actor-materialization
   legacyRealm:
     name: cristexhub
     role: retained-prod-compatibility
@@ -42,20 +42,43 @@ spec:
       - POST /admin/realms target=cristexhub-dev
       - GET /admin/realms/cristexhub
       - initialize-exact-dev-clients-group-mappers-and-fgap
+    automaticCreatorGrantLedger:
+      captureBeforeCreate: required
+      captureAfterCreate: required
+      exactGrantedRoleIds: protected-ephemeral-ledger
+      allRealmRolesExpected: true
+      roleRemovalBeforeRecurringAudit: required
     retirement:
+      custodianRef: keycloak-dev-bootstrap-retirement-custodian
       disableServiceAccount: required
       revokeCreateRealm: required
-      removeAutomaticTargetRealmAccess: required
+      removeAutomaticTargetRealmAccessByExactRoleIds: required
+      verifyTokenRejected: required
       revokeCredential: separate-approval-required
-  reconcilerActor:
-    name: keycloak-dev-reconciler
-    clientId: cristexhub-dev-reconciler
+      currentCapability: absent-blocker
+  retirementCustodian:
+    name: keycloak-dev-bootstrap-retirement-custodian
+    status: absent-blocker
+    distinctFromBootstrapActor: true
+    recurringUse: forbidden
+    allowedOperations:
+      - disable-exact-bootstrap-service-account
+      - revoke-exact-create-realm-role-mapping
+      - remove-exact-automatic-target-realm-role-mappings
+    forbiddenOperations:
+      - successor-object-reconciliation
+      - users
+      - memberships
+      - prod-writes
+  recurringAuditor:
+    name: keycloak-dev-auditor
+    clientId: cristexhub-dev-auditor
     realm: cristexhub-dev
-    credentialPath: prod:/cristexhub/dev/identity/reconciler
-    credentialKey: KEYCLOAK_DEV_REALM_RECONCILER_CLIENT_SECRET
+    credentialPath: prod:/cristexhub/dev/identity/auditor
+    credentialKey: KEYCLOAK_DEV_REALM_AUDITOR_CLIENT_SECRET
     credentialTarget: protected-controller-input-only
     masterRealmAccess: forbidden
-    recurringUse: future-present-update-only
+    recurringUse: future-read-only-drift-audit
     directRealmManagementRoles:
       - query-clients
       - query-groups
@@ -69,28 +92,32 @@ spec:
       - manage-authorization
       - manage-organizations
     fineGrainedAdminPermissionsV2:
-      actorBinding: exact-service-account-user
+      enablement: bootstrap-owned-required
+      adminPermissionsClientId: capture-opaque-uuid
+      actorBinding:
+        serviceAccountUserId: capture-opaque-uuid
+        subjectType: exact-user-policy
       clientResource:
-        clientId: cristexhub-dev
+        resourceId: capture-opaque-client-uuid
+        expectedClientId: cristexhub-dev
         scopes:
           - view
-          - manage
       groupResource:
-        path: /cristexhub-dev-super-admin
+        resourceId: capture-opaque-group-uuid
+        expectedPath: /cristexhub-dev-super-admin
         scopes:
           - view
-          - manage
       selfManagement: forbidden
       serviceClientManagement: forbidden
     missingOwnedObjectBehavior: fail-closed-no-create
     allowedResources:
-      - successor-browser-client
-      - successor-static-group
-      - successor-browser-client-mappers
+      - successor-browser-client-read
+      - successor-static-group-read
+      - successor-browser-client-mapper-read
     forbiddenResources:
       - successor-realm-settings
       - successor-service-client-metadata
-      - reconciler-self
+      - auditor-self
       - legacy-prod-realm-writes
       - prod-clients
       - prod-groups
@@ -99,6 +126,8 @@ spec:
       - dynamic-groups
       - role-mappings
       - organizations
+      - client-secret
+      - protocol-mapper-writes
       - routes
   credentialCustody:
     valuesInSource: forbidden

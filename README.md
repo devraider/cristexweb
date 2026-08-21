@@ -426,7 +426,7 @@ ansible/                 # discovery plus guarded host/Kubernetes/database sourc
   bin/                    # non-passthrough operational entrypoints
   inventory/
   playbooks/
-  plugins/action/         # twenty-nine exact-scope mutation/validation guards
+  plugins/action/         # thirty-two exact-scope mutation/validation guards
   roles/                  # bounded discovery, host, Namespace, controller, Secret, and database roles
   files/components/       # hash-bound Argo, Infisical, PostgreSQL, and MongoDB source
   files/vendor/           # hash-bound public chart/provenance/key inputs only

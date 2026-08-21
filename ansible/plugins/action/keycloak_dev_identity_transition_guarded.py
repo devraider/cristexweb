@@ -21,16 +21,16 @@ _LEGACY_REALM = "cristexhub"
 _COMPONENT = "keycloak-dev-identity-transition"
 _EXPECTED_DEFINITION_HASHES: dict[str, str] = {
     "KeycloakAdminTransportContract/cristexhub-dev-admin-rest-port-forward": "06bcc65419865a5254ea5f2537662bbe6246e822d7686c4ba495b617e1dcd936",
-    "KeycloakIdentityActorContract/cristexhub-dev-successor-actors": "168422c3aa802b325ec01a8e56c365d9d343a22d9e100255a197e6f44343b3cc",
-    "InfisicalSuccessorValueContract/cristexhub-dev-successor-identity-values": "8fec3fb602d5bfbd49b2f6741cc4e3df58ea60ec4a2f243485bb9734d8fbca8c",
-    "KeycloakDevIdentityApiTransitionContract/cristexhub-dev-present-update-api-transition": "6ea2b2fda727afa71968b635e1bcb98aeac9900e324c7e897423a35fa56f41af",
+    "KeycloakIdentityActorContract/cristexhub-dev-successor-actors": "dd47542c74f87173ee1d4f05fc629d9d13b67029f7d3b588b3293e8f067124a5",
+    "InfisicalSuccessorValueContract/cristexhub-dev-successor-identity-values": "b841642209afef6bdc0bde30dd9989684c7fcc74b2fea977fd385e7f8df546df",
+    "KeycloakDevIdentityApiTransitionContract/cristexhub-dev-present-update-api-transition": "42ea86bdd236036cb8cab71ee903797895ad77ada699ae6c0d9ae56ceaf108d7",
 }
 _EXPECTED_IDENTITY_SET_SHA256 = "b18beb541a118a4cc08fec680ff2ca42b4512f413a5b3582738faea9b4af8070"
 _EXPECTED_KEY_NAMES = [
     "OIDC_CLIENT_SECRET",
     "ADMIN_SERVICE_CLIENT_SECRET",
     "KEYCLOAK_DEV_BOOTSTRAP_CLIENT_SECRET",
-    "KEYCLOAK_DEV_REALM_RECONCILER_CLIENT_SECRET",
+    "KEYCLOAK_DEV_REALM_AUDITOR_CLIENT_SECRET",
 ]
 _SENSITIVE_KEYS = {
     "secret",
@@ -91,13 +91,21 @@ def _transport_valid(spec: dict[str, Any]) -> bool:
         and spec.get("controllerOnly") is True
         and target.get("namespace") == "shared-services"
         and target.get("deployment") == "keycloak"
+        and target.get("selector")
+        == {
+            "app.kubernetes.io/name": "keycloak",
+            "app.kubernetes.io/part-of": "cristex-platform",
+        }
         and target.get("readiness") == "exactly-one-ready-pod"
         and target.get("uidBinding") == "required-at-runtime"
         and target.get("currentHttpPort") == 8080
         and target.get("currentHttpUse") == "forbidden"
         and target.get("futureHttpsPort") == 8443
         and tls.get("listener") == "absent-blocker"
+        and tls.get("privateCa") == "required"
         and tls.get("serverCertificateSan") == ["IP:127.0.0.1"]
+        and tls.get("leafKeyCorrespondence") == "required"
+        and tls.get("exactCaVerification") == "required"
         and tls.get("validateCertificates") is True
         and tls.get("insecureSkipVerify") == "forbidden"
         and forwarding.get("implementation")
@@ -108,6 +116,10 @@ def _transport_valid(spec: dict[str, Any]) -> bool:
         and forwarding.get("remotePort") == 8443
         and forwarding.get("mapping") == "18443:8443"
         and forwarding.get("listenerScope") == "loopback-only"
+        and forwarding.get("persistentKubernetesObjects") == "forbidden"
+        and (forwarding.get("cleanup") or {}).get("alwaysCloseStream") == "required"
+        and (forwarding.get("cleanup") or {}).get("verifyListenerGone") == "required"
+        and (forwarding.get("cleanup") or {}).get("ambiguousCleanup") == "unknown-stop"
         and (spec.get("adminRest") or {}).get("endpoint")
         == "https://127.0.0.1:18443"
         and all(public.get(key) == "forbidden" for key in (
@@ -120,9 +132,9 @@ def _transport_valid(spec: dict[str, Any]) -> bool:
 
 def _identity_contract_valid(spec: dict[str, Any]) -> bool:
     bootstrap = spec.get("bootstrapActor") or {}
-    reconciler = spec.get("reconcilerActor") or {}
+    auditor = spec.get("recurringAuditor") or {}
     legacy = spec.get("legacyRealm") or {}
-    fgap = reconciler.get("fineGrainedAdminPermissionsV2") or {}
+    fgap = auditor.get("fineGrainedAdminPermissionsV2") or {}
     return (
         legacy.get("name") == _LEGACY_REALM
         and legacy.get("readMethods") == ["GET"]
@@ -135,23 +147,35 @@ def _identity_contract_valid(spec: dict[str, Any]) -> bool:
         and bootstrap.get("existingBreakGlassReuse") == "forbidden"
         and bootstrap.get("maxUse") == "one-transition"
         and bootstrap.get("recurringReconciliation") == "forbidden"
-        and reconciler.get("clientId") == "cristexhub-dev-reconciler"
-        and reconciler.get("credentialPath")
-        == "prod:/cristexhub/dev/identity/reconciler"
-        and reconciler.get("realm") == _EXPECTED_REALM
-        and reconciler.get("masterRealmAccess") == "forbidden"
-        and reconciler.get("directRealmManagementRoles")
+        and (spec.get("retirementCustodian") or {}).get("status") == "absent-blocker"
+        and (bootstrap.get("automaticCreatorGrantLedger") or {}).get(
+            "roleRemovalBeforeRecurringAudit"
+        )
+        == "required"
+        and auditor.get("clientId") == "cristexhub-dev-auditor"
+        and auditor.get("credentialPath")
+        == "prod:/cristexhub/dev/identity/auditor"
+        and auditor.get("realm") == _EXPECTED_REALM
+        and auditor.get("masterRealmAccess") == "forbidden"
+        and auditor.get("recurringUse") == "future-read-only-drift-audit"
+        and auditor.get("directRealmManagementRoles")
         == ["query-clients", "query-groups"]
-        and "manage-realm" in (reconciler.get("forbiddenRealmManagementRoles") or [])
-        and "manage-clients" in (reconciler.get("forbiddenRealmManagementRoles") or [])
-        and (fgap.get("clientResource") or {}).get("clientId") == "cristexhub-dev"
-        and (fgap.get("groupResource") or {}).get("path")
-        == "/cristexhub-dev-super-admin"
+        and "manage-realm" in (auditor.get("forbiddenRealmManagementRoles") or [])
+        and "manage-clients" in (auditor.get("forbiddenRealmManagementRoles") or [])
+        and (fgap.get("clientResource") or {}).get("resourceId")
+        == "capture-opaque-client-uuid"
+        and (fgap.get("clientResource") or {}).get("scopes") == ["view"]
+        and (fgap.get("groupResource") or {}).get("resourceId")
+        == "capture-opaque-group-uuid"
+        and (fgap.get("groupResource") or {}).get("scopes") == ["view"]
+        and (fgap.get("actorBinding") or {}).get("serviceAccountUserId")
+        == "capture-opaque-uuid"
         and fgap.get("selfManagement") == "forbidden"
-        and reconciler.get("missingOwnedObjectBehavior") == "fail-closed-no-create"
-        and "users" in (reconciler.get("forbiddenResources") or [])
-        and "memberships" in (reconciler.get("forbiddenResources") or [])
-        and "routes" in (reconciler.get("forbiddenResources") or [])
+        and auditor.get("missingOwnedObjectBehavior") == "fail-closed-no-create"
+        and "users" in (auditor.get("forbiddenResources") or [])
+        and "memberships" in (auditor.get("forbiddenResources") or [])
+        and "protocol-mapper-writes" in (auditor.get("forbiddenResources") or [])
+        and "routes" in (auditor.get("forbiddenResources") or [])
     )
 
 
@@ -172,17 +196,21 @@ def _infisical_contract_valid(spec: dict[str, Any]) -> bool:
         project.get("name") == "cristexweb-infrastructure"
         and project.get("id") == "619656da-14f3-4872-857b-be103cdc5326"
         and project.get("environment") == "prod"
-        and names == ["browser", "admin-service", "bootstrap", "reconciler"]
+        and names == ["browser", "admin-service", "bootstrap", "auditor"]
         and paths == [
             "prod:/cristexhub/dev/identity/browser",
             "prod:/cristexhub/dev/identity/admin-service",
             "prod:/cristexhub/dev/identity/bootstrap",
-            "prod:/cristexhub/dev/identity/reconciler",
+            "prod:/cristexhub/dev/identity/auditor",
         ]
         and keys == _EXPECTED_KEY_NAMES
         and (spec.get("writers") or {}).get("dedicatedSuccessorWriter") == "absent"
         and (spec.get("writers") or {}).get("broadUploaderReuse") == "forbidden"
         and (spec.get("predecessor") or {}).get("mutation") == "forbidden"
+        and (spec.get("bootstrapAbsencePreflight") or {}).get("requiredState")
+        == "absent"
+        and (spec.get("bootstrapAbsencePreflight") or {}).get("preExistingValue")
+        == "fail-closed-foreign-or-unknown-stop"
         and cas.get("apiSemantics") == "unverified-blocker"
         and cas.get("blindRetry") == "forbidden"
         and cas.get("overwriteWithoutExpectedRevision") == "forbidden"
@@ -196,7 +224,7 @@ def _infisical_contract_valid(spec: dict[str, Any]) -> bool:
 def _api_contract_valid(spec: dict[str, Any]) -> bool:
     legacy = spec.get("legacyProd") or {}
     bootstrap = spec.get("bootstrapPhase") or {}
-    recurring = spec.get("recurringPhase") or {}
+    recurring = spec.get("recurringAuditPhase") or {}
     forbidden = spec.get("forbidden") or {}
     safety = spec.get("safety") or {}
     response = spec.get("responseContract") or {}
@@ -208,8 +236,20 @@ def _api_contract_valid(spec: dict[str, Any]) -> bool:
         and legacy.get("rawResponseSha256BeforeAfter") == "required-sanitized"
         and bootstrap.get("actor") == "keycloak-dev-successor-bootstrap"
         and bootstrap.get("allowedMethods") == ["GET", "POST", "PUT"]
-        and recurring.get("actor") == "keycloak-dev-reconciler"
-        and recurring.get("allowedMethods") == ["GET", "PUT"]
+        and bootstrap.get("automaticCreatorGrantLedger") == "required"
+        and bootstrap.get("retirementCustodianCapability") == "absent-blocker"
+        and recurring.get("actor") == "keycloak-dev-auditor"
+        and recurring.get("allowedMethods") == ["GET"]
+        and recurring.get("mapperCardinality")
+        == {
+            "groups": "exactly-one",
+            "organization": "exactly-one",
+            "cristexhub-dev-audience": "exactly-one",
+            "unexpectedMapper": "fail-closed",
+        }
+        and recurring.get("emptyCollectionBehavior")
+        == "fail-closed-missing-owned-object"
+        and recurring.get("duplicateCollectionBehavior") == "fail-closed"
         and recurring.get("missingOwnedObjectBehavior") == "fail-closed-no-create"
         and (spec.get("resourceIds") or {}).get("deriveFromNames") == "forbidden"
         and forbidden.get("methods") == ["DELETE", "PATCH"]

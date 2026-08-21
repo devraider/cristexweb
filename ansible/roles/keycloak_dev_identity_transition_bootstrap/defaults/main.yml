@@ -15,11 +15,11 @@ keycloak_dev_identity_transition_bootstrap_expected_hashes:
   - path: "{{ keycloak_dev_identity_transition_bootstrap_component_root }}/transport/admin-rest-port-forward.yaml"
     sha256: 0eb9f7172c50636bd2b3210b2420b6a6bdfe092414bb1c9779e3fc5c4b8c7a01
   - path: "{{ keycloak_dev_identity_transition_bootstrap_component_root }}/identity/least-privilege-actors.yaml"
-    sha256: 88826c01095cee55242ea6902039efbb9abe23326bedf3428fcf83d6e8fe9438
+    sha256: 22562cf14ba1b9da73d412fa8249f20bdcb88b6ef21a4d953e68cf3dab8ab978
   - path: "{{ keycloak_dev_identity_transition_bootstrap_component_root }}/infisical/successor-cas-contract.yaml"
-    sha256: b0c15b8d8dedfa43bb5e1666f44cd73e7dc82a960c3be7e126f57e0d1573158b
+    sha256: 3feb2f6f6beda126b0966b32cdb8350e59db206a2355488d5b1909208f97dc08
   - path: "{{ keycloak_dev_identity_transition_bootstrap_component_root }}/api/present-update-transition.yaml"
-    sha256: c6278f05831ff15314e3e9544e457a0d1348f823771d8fcd81f0f8b21e9f93a9
+    sha256: 35dd32696888f00fc38834099d432158740543996febbb2bfda8512dcb2fb872
 keycloak_dev_identity_transition_bootstrap_object_count: 4
 keycloak_dev_identity_transition_bootstrap_expected_identity_set_sha256: b18beb541a118a4cc08fec680ff2ca42b4512f413a5b3582738faea9b4af8070
 keycloak_dev_identity_transition_bootstrap_legacy_realm: cristexhub
@@ -33,12 +33,12 @@ keycloak_dev_identity_transition_bootstrap_infisical_paths:
   - prod:/cristexhub/dev/identity/browser
   - prod:/cristexhub/dev/identity/admin-service
   - prod:/cristexhub/dev/identity/bootstrap
-  - prod:/cristexhub/dev/identity/reconciler
+  - prod:/cristexhub/dev/identity/auditor
 keycloak_dev_identity_transition_bootstrap_infisical_key_names:
   - OIDC_CLIENT_SECRET
   - ADMIN_SERVICE_CLIENT_SECRET
   - KEYCLOAK_DEV_BOOTSTRAP_CLIENT_SECRET
-  - KEYCLOAK_DEV_REALM_RECONCILER_CLIENT_SECRET
+  - KEYCLOAK_DEV_REALM_AUDITOR_CLIENT_SECRET
 keycloak_dev_identity_transition_bootstrap_forbidden_methods:
   - DELETE
   - PATCH

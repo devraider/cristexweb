@@ -562,7 +562,7 @@ message/definitions recovery and residual credential rotations remain blocked. T
 private DEV in MVP intent while keeping its image, callbacks, objects, Secrets, and
 runtime blocked. GitHub CI may run only syntax/lint and offline contracts from this
 source; it supplies no inventory and invokes no operational wrapper. The repository
-contains twenty-nine exact-scope action plugins; these focused Python exceptions
+contains thirty-two exact-scope action plugins; these focused Python exceptions
 are source guards/validators only, not a general operational collector.
 
 Each component requires a dedicated non-passthrough entrypoint and frozen

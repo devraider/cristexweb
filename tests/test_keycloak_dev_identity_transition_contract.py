@@ -70,13 +70,23 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         target = spec["target"]
         self.assertEqual("shared-services", target["namespace"])
         self.assertEqual("keycloak", target["deployment"])
+        self.assertEqual(
+            {
+                "app.kubernetes.io/name": "keycloak",
+                "app.kubernetes.io/part-of": "cristex-platform",
+            },
+            target["selector"],
+        )
         self.assertEqual("exactly-one-ready-pod", target["readiness"])
         self.assertEqual("required-at-runtime", target["uidBinding"])
         self.assertEqual(8080, target["currentHttpPort"])
         self.assertEqual("forbidden", target["currentHttpUse"])
         self.assertEqual(8443, target["futureHttpsPort"])
         self.assertEqual("absent-blocker", spec["futureTls"]["listener"])
+        self.assertEqual("required", spec["futureTls"]["privateCa"])
         self.assertEqual(["IP:127.0.0.1"], spec["futureTls"]["serverCertificateSan"])
+        self.assertEqual("required", spec["futureTls"]["leafKeyCorrespondence"])
+        self.assertEqual("required", spec["futureTls"]["exactCaVerification"])
         self.assertTrue(spec["futureTls"]["validateCertificates"])
         self.assertEqual("forbidden", spec["futureTls"]["insecureSkipVerify"])
         forwarding = spec["portForward"]
@@ -85,6 +95,10 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("127.0.0.1", forwarding["address"])
         self.assertEqual("18443:8443", forwarding["mapping"])
         self.assertEqual("loopback-only", forwarding["listenerScope"])
+        self.assertEqual("forbidden", forwarding["persistentKubernetesObjects"])
+        self.assertEqual("required", forwarding["cleanup"]["alwaysCloseStream"])
+        self.assertEqual("required", forwarding["cleanup"]["verifyListenerGone"])
+        self.assertEqual("unknown-stop", forwarding["cleanup"]["ambiguousCleanup"])
         self.assertEqual("https://127.0.0.1:18443", spec["adminRest"]["endpoint"])
         for key in ("publicHostname", "authHostname", "cloudflare", "ingress", "service", "helperPod", "nodePort", "loadBalancer"):
             self.assertEqual("forbidden", spec["publicExposure"][key])
@@ -101,19 +115,29 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("forbidden", bootstrap["existingBreakGlassReuse"])
         self.assertEqual("one-transition", bootstrap["maxUse"])
         self.assertEqual("forbidden", bootstrap["recurringReconciliation"])
-        reconciler = spec["reconcilerActor"]
-        self.assertEqual("cristexhub-dev-reconciler", reconciler["clientId"])
-        self.assertEqual("cristexhub-dev", reconciler["realm"])
-        self.assertEqual("forbidden", reconciler["masterRealmAccess"])
-        self.assertEqual(["query-clients", "query-groups"], reconciler["directRealmManagementRoles"])
-        self.assertIn("manage-realm", reconciler["forbiddenRealmManagementRoles"])
-        self.assertIn("manage-clients", reconciler["forbiddenRealmManagementRoles"])
-        self.assertEqual("cristexhub-dev", reconciler["fineGrainedAdminPermissionsV2"]["clientResource"]["clientId"])
-        self.assertEqual("/cristexhub-dev-super-admin", reconciler["fineGrainedAdminPermissionsV2"]["groupResource"]["path"])
-        self.assertEqual("forbidden", reconciler["fineGrainedAdminPermissionsV2"]["selfManagement"])
-        self.assertEqual("fail-closed-no-create", reconciler["missingOwnedObjectBehavior"])
-        for resource in ("users", "memberships", "dynamic-groups", "routes", "prod-clients"):
-            self.assertIn(resource, reconciler["forbiddenResources"])
+        self.assertEqual("absent-blocker", spec["retirementCustodian"]["status"])
+        self.assertEqual(
+            "required",
+            bootstrap["automaticCreatorGrantLedger"]["roleRemovalBeforeRecurringAudit"],
+        )
+        auditor = spec["recurringAuditor"]
+        self.assertEqual("cristexhub-dev-auditor", auditor["clientId"])
+        self.assertEqual("cristexhub-dev", auditor["realm"])
+        self.assertEqual("forbidden", auditor["masterRealmAccess"])
+        self.assertEqual("future-read-only-drift-audit", auditor["recurringUse"])
+        self.assertEqual(["query-clients", "query-groups"], auditor["directRealmManagementRoles"])
+        self.assertIn("manage-realm", auditor["forbiddenRealmManagementRoles"])
+        self.assertIn("manage-clients", auditor["forbiddenRealmManagementRoles"])
+        fgap = auditor["fineGrainedAdminPermissionsV2"]
+        self.assertEqual("capture-opaque-client-uuid", fgap["clientResource"]["resourceId"])
+        self.assertEqual(["view"], fgap["clientResource"]["scopes"])
+        self.assertEqual("capture-opaque-group-uuid", fgap["groupResource"]["resourceId"])
+        self.assertEqual(["view"], fgap["groupResource"]["scopes"])
+        self.assertEqual("capture-opaque-uuid", fgap["actorBinding"]["serviceAccountUserId"])
+        self.assertEqual("forbidden", fgap["selfManagement"])
+        self.assertEqual("fail-closed-no-create", auditor["missingOwnedObjectBehavior"])
+        for resource in ("users", "memberships", "dynamic-groups", "routes", "prod-clients", "protocol-mapper-writes"):
+            self.assertIn(resource, auditor["forbiddenResources"])
         self.assertEqual("forbidden", spec["credentialCustody"]["valuesInSource"])
 
     def test_infisical_successor_keys_and_cas_are_exact(self) -> None:
@@ -123,7 +147,7 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("prod", spec["project"]["environment"])
         contracts = spec["contracts"]
         self.assertEqual(
-            ["browser", "admin-service", "bootstrap", "reconciler"],
+            ["browser", "admin-service", "bootstrap", "auditor"],
             [item["name"] for item in contracts],
         )
         self.assertEqual(
@@ -131,7 +155,7 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
                 "prod:/cristexhub/dev/identity/browser",
                 "prod:/cristexhub/dev/identity/admin-service",
                 "prod:/cristexhub/dev/identity/bootstrap",
-                "prod:/cristexhub/dev/identity/reconciler",
+                "prod:/cristexhub/dev/identity/auditor",
             ],
             [item["path"] for item in contracts],
         )
@@ -140,7 +164,7 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
                 "OIDC_CLIENT_SECRET",
                 "ADMIN_SERVICE_CLIENT_SECRET",
                 "KEYCLOAK_DEV_BOOTSTRAP_CLIENT_SECRET",
-                "KEYCLOAK_DEV_REALM_RECONCILER_CLIENT_SECRET",
+                "KEYCLOAK_DEV_REALM_AUDITOR_CLIENT_SECRET",
             ],
             [key for item in contracts for key in item["exactKeys"]],
         )
@@ -148,6 +172,11 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual("absent", spec["writers"]["dedicatedSuccessorWriter"])
         self.assertEqual("forbidden", spec["writers"]["broadUploaderReuse"])
         cas = spec["cas"]
+        self.assertEqual("absent", spec["bootstrapAbsencePreflight"]["requiredState"])
+        self.assertEqual(
+            "fail-closed-foreign-or-unknown-stop",
+            spec["bootstrapAbsencePreflight"]["preExistingValue"],
+        )
         self.assertEqual("unverified-blocker", cas["apiSemantics"])
         self.assertEqual("forbidden", cas["blindRetry"])
         self.assertEqual("forbidden", cas["overwriteWithoutExpectedRevision"])
@@ -160,8 +189,18 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         self.assertEqual(["GET"], spec["legacyProd"]["allowedMethods"])
         self.assertEqual([], spec["legacyProd"]["writeMethods"])
         self.assertEqual(["GET", "POST", "PUT"], spec["bootstrapPhase"]["allowedMethods"])
-        self.assertEqual(["GET", "PUT"], spec["recurringPhase"]["allowedMethods"])
-        self.assertEqual("fail-closed-no-create", spec["recurringPhase"]["missingOwnedObjectBehavior"])
+        bootstrap = spec["bootstrapPhase"]
+        self.assertEqual("required", bootstrap["automaticCreatorGrantLedger"])
+        self.assertEqual("absent-blocker", bootstrap["retirementCustodianCapability"])
+        recurring = spec["recurringAuditPhase"]
+        self.assertEqual(["GET"], recurring["allowedMethods"])
+        self.assertEqual("exactly-one", recurring["mapperCardinality"]["groups"])
+        self.assertEqual("exactly-one", recurring["mapperCardinality"]["organization"])
+        self.assertEqual(
+            "exactly-one", recurring["mapperCardinality"]["cristexhub-dev-audience"]
+        )
+        self.assertEqual("fail-closed", recurring["duplicateCollectionBehavior"])
+        self.assertEqual("fail-closed-no-create", recurring["missingOwnedObjectBehavior"])
         self.assertEqual("forbidden", spec["resourceIds"]["deriveFromNames"])
         self.assertEqual(["DELETE", "PATCH"], spec["forbidden"]["methods"])
         for resource in ("users", "memberships", "dynamic-groups", "routes", "legacy-prod-realm"):
@@ -250,7 +289,7 @@ class KeycloakDevIdentityTransitionContractTests(unittest.TestCase):
         for required in (
             "Next source-only transition phase",
             "current HTTP `8080` listener is explicitly forbidden",
-            "`query-clients`, `query-groups`, and exact\n  FGAP V2 resource policies",
+            "read-only auditor using `query-clients`, `query-groups`,\n  and exact UUID-bound FGAP V2 `view` policies only",
             "provider CAS semantics explicitly unverified",
             "DELETE`/`PATCH`/users/memberships/dynamic-groups/routes/PROD-write denial",
             "private transport\nactivation",

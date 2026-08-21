@@ -101,19 +101,22 @@ It validates, without contacting any runtime:
 
 - a blocked strict-TLS controller-local port-forward contract targeting one exact
   Ready Keycloak Pod UID, with no helper Pod, Service, route, or unpinned binary;
-- a dedicated one-time master service account with only `create-realm`, plus a
-  distinct realm-local reconciler using `query-clients`, `query-groups`, and exact
-  FGAP V2 resource policies;
+- a dedicated one-transition master service account with only `create-realm`, an
+  explicit automatic-role ledger, and a still-absent separate retirement custodian;
+- a distinct realm-local read-only auditor using `query-clients`, `query-groups`,
+  and exact UUID-bound FGAP V2 `view` policies only;
 - four separate Infisical paths for browser, disabled admin-service, one-time
-  bootstrap, and recurring reconciler credentials, with no Kubernetes targets,
+  bootstrap, and recurring auditor credentials, with no Kubernetes targets,
   no writer, and provider CAS semantics explicitly unverified; and
-- phase-specific API contracts: bootstrap GET/POST/PUT and recurring GET/PUT only,
+- phase-specific API contracts: bootstrap GET/POST/PUT and recurring audit GET only,
   opaque resource-ID binding, PROD before/after digests, ambiguous-write
   UNKNOWN-STOP, and unconditional
   `DELETE`/`PATCH`/users/memberships/dynamic-groups/routes/PROD-write denial.
 
 The wrapper rejects `apply`, public-host/API/token inputs, task-selection controls,
-unsafe inventory, and non-loopback transport values. This phase does not start a
+unsafe inventory, and non-loopback transport values. Its same-UID attestation guards
+accidental/direct misuse; the controller account itself remains a trusted boundary
+and is not defended against a malicious process running as that user. This phase does not start a
 port-forward, acquire an Admin REST credential, read Infisical, call Kubernetes, or
 create/update the successor realm. API transition apply, private transport
 activation, actor materialization, CAS writes, client Secret materialization,
@@ -139,8 +142,8 @@ The following are separate gates and are not implied by source or check mode:
    writer are verified, without replacing predecessor or PROD values;
 7. dedicated HTTPS listener plus strict-TLS controller-local Kubernetes API
    port-forward transport and precreated
-   least-privilege reconciliation identity, followed by a separately approved
-   read-only preflight;
+   one-transition bootstrap, separate retirement-custodian, and read-only auditor
+   identities, followed by a separately approved read-only preflight;
 8. private route/discovery/JWKS and callback source for the successor issuer;
 9. clean immutable CristexHub application revision with DEV issuer and realm
    changes only;

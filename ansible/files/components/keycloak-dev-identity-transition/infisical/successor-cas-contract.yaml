@@ -41,13 +41,13 @@ spec:
         - KEYCLOAK_DEV_BOOTSTRAP_CLIENT_SECRET
       lifecycle: one-time-successor-create-then-retire
       kubernetesTarget: forbidden-controller-input-only
-    - name: reconciler
-      path: prod:/cristexhub/dev/identity/reconciler
+    - name: auditor
+      path: prod:/cristexhub/dev/identity/auditor
       recursive: false
       tags: []
       exactKeys:
-        - KEYCLOAK_DEV_REALM_RECONCILER_CLIENT_SECRET
-      lifecycle: recurring-least-privilege
+        - KEYCLOAK_DEV_REALM_AUDITOR_CLIENT_SECRET
+      lifecycle: recurring-read-only-drift-audit
       kubernetesTarget: forbidden-controller-input-only
   predecessor:
     path: prod:/shared-services/keycloak
@@ -69,6 +69,13 @@ spec:
     broadUploaderReuse: forbidden
     runtimeReaderReuse: forbidden
     predecessorOverwrite: forbidden
+  bootstrapAbsencePreflight:
+    path: prod:/cristexhub/dev/identity/bootstrap
+    exactKey: KEYCLOAK_DEV_BOOTSTRAP_CLIENT_SECRET
+    metadataOnly: true
+    requiredState: absent
+    preExistingValue: fail-closed-foreign-or-unknown-stop
+    ownershipAdoption: forbidden
   cas:
     apiSemantics: unverified-blocker
     requiredBehavior:

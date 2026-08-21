@@ -14,7 +14,8 @@ spec:
   apply: forbidden
   transportRef: cristexhub-dev-admin-rest-port-forward
   bootstrapActorRef: keycloak-dev-successor-bootstrap
-  reconcilerActorRef: keycloak-dev-reconciler
+  recurringAuditorRef: keycloak-dev-auditor
+  retirementCustodianRef: keycloak-dev-bootstrap-retirement-custodian
   legacyProd:
     realm: cristexhub
     allowedMethods:
@@ -43,8 +44,8 @@ spec:
       - disabled-admin-service-client
       - static-group
       - browser-client-mappers
-      - fgap-v2-policies
-      - recurring-reconciler-client
+      - fgap-v2-enable-admin-permissions-client-and-exact-view-policies
+      - recurring-auditor-client
     realmCreate:
       method: POST
       path: /admin/realms
@@ -52,32 +53,45 @@ spec:
       status: 201
       retry: forbidden
       conflictResolution: one-exact-get-then-operator-review
-    retirementAfterInitialization: required
-  recurringPhase:
+    automaticCreatorGrantLedger: required
+    retirementCustodianCapability: absent-blocker
+    retirementBeforeRecurringAudit: required
+  recurringAuditPhase:
     tokenExchange:
       method: POST
       path: /realms/cristexhub-dev/protocol/openid-connect/token
       response: memory-only-no-log
-    actor: keycloak-dev-reconciler
+    actor: keycloak-dev-auditor
     allowedMethods:
       - GET
-      - PUT
     exactOwnedResources:
-      - clientId: cristexhub-dev
-        idSource: attested-get-or-bootstrap-location
+      - expectedClientId: cristexhub-dev
+        resourceId: attested-opaque-client-uuid
+        cardinality: exactly-one
         operations:
-          - detail
-          - protocol-mappers
-      - groupPath: /cristexhub-dev-super-admin
-        idSource: attested-get-or-bootstrap-location
+          - detail-read
+          - protocol-mapper-inventory-read
+      - expectedGroupPath: /cristexhub-dev-super-admin
+        resourceId: attested-opaque-group-uuid
+        cardinality: exactly-one
         operations:
-          - detail
+          - detail-read
+    mapperCardinality:
+      groups: exactly-one
+      organization: exactly-one
+      cristexhub-dev-audience: exactly-one
+      unexpectedMapper: fail-closed
+    emptyCollectionBehavior: fail-closed-missing-owned-object
+    duplicateCollectionBehavior: fail-closed
     missingOwnedObjectBehavior: fail-closed-no-create
     forbiddenResources:
       - cristexhub-dev-admin-svc-dev
-      - cristexhub-dev-reconciler
+      - cristexhub-dev-auditor
       - realm-settings
-      - fgap-policies
+      - fgap-policy-writes
+      - client-secret
+      - protocol-mapper-writes
+      - group-memberships
   resourceIds:
     deriveFromNames: forbidden
     captureFromSameOriginLocationOrExactGet: required
@@ -136,8 +150,9 @@ spec:
     resourceIdLedger: protected-ephemeral
     zeroDelete: required
     zeroProdWrite: required
-    firstApply: separate-approval-required
-    idempotenceApplyChangedZero: separate-approval-required
+    firstBootstrapApply: separate-approval-required
+    bootstrapRetirement: separate-approval-required
+    recurringAuditChangedZero: required-after-retirement
     noSecretDisclosureScan: required
   safety:
     noDeletePath: true
