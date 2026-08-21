@@ -3,6 +3,11 @@
 This is no longer a zero-resource scaffold: it contains only the reviewed
 Cloudflare Tunnel and DNS resource boundaries described below.
 
+The private standalone GitHub repository boundary is intentionally a separate
+source root at [`opentofu/github`](github/README.md), with independent state
+`/var/lib/opentofu/cristexweb/github.tfstate`. Never combine that root with this
+Cloudflare root or reuse this root's state.
+
 This module is initialized against protected host state. The protected local backend
 at `/var/lib/opentofu/cristexweb/foundation.tfstate` contains exactly five imported
 resource addresses: the Tunnel, its configuration, Keycloak DNS, DEV DNS, and the
