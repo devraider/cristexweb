@@ -32,7 +32,7 @@ recipient=$(/usr/bin/tr -d '\n' <"$recipient_file")
 printf '%s\n' "$recipient" | /usr/bin/grep -Eq '^age1[0-9a-z]+$' || fail recipient_contract
 [ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] || fail rclone_config_contract
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || fail rclone_config_contract
-configured_remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long) || fail rclone_backend
+configured_remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long | /usr/bin/sed 's/[[:space:]]*$//') || fail rclone_backend
 [ "$configured_remotes" = 'drive: drive' ] || fail rclone_backend
 exec 9>"$lock_file"
 /usr/bin/flock -n 9 || { printf '%s\n' 'absence_status=refused reason=concurrent_run'; exit 75; }

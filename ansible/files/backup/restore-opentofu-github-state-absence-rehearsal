@@ -25,7 +25,7 @@ check_parent
 check_absent
 [ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] || { printf '%s\n' 'restore_status=failed stage=rclone_config_contract'; exit 1; }
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || { printf '%s\n' 'restore_status=failed stage=rclone_config_contract'; exit 1; }
-configured_remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long) || { printf '%s\n' 'restore_status=failed stage=rclone_backend'; exit 1; }
+configured_remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long | /usr/bin/sed 's/[[:space:]]*$//') || { printf '%s\n' 'restore_status=failed stage=rclone_backend'; exit 1; }
 [ "$configured_remotes" = 'drive: drive' ] || { printf '%s\n' 'restore_status=failed stage=rclone_backend'; exit 1; }
 candidates=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sed 's#/$##' | /usr/bin/sort -r)
 latest=
@@ -41,7 +41,7 @@ manifest.json'
     [ "$leaves" = "$expected" ] || continue
     candidate_manifest="$work/candidate-manifest"
     /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_root/$candidate/manifest.json" "$candidate_manifest" || { /usr/bin/rm -f -- "$candidate_manifest"; continue; }
-    if ! TIMESTAMP="$candidate" FILE="$candidate_manifest" /usr/bin/python3 - <<'PY'
+    if TIMESTAMP="$candidate" FILE="$candidate_manifest" /usr/bin/python3 - <<'PY'
 import datetime
 import json
 import os

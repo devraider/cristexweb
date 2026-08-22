@@ -53,6 +53,7 @@ class OpenTofuGithubStateBackupContractTests(unittest.TestCase):
             "/usr/bin/cmp -s",
             "address_scope=exact-three",
             "listremotes --long",
+            "s/[[:space:]]*$//",
             "drive: drive",
             "github_actions_repository_permissions.reactive_resume_mirror",
             "github_repository.reactive_resume_mirror",
@@ -79,6 +80,8 @@ class OpenTofuGithubStateBackupContractTests(unittest.TestCase):
             "non_mutating=true",
         ):
             self.assertIn(value, self.restore)
+        self.assertIn('if TIMESTAMP="$candidate" FILE="$candidate_manifest"', self.restore)
+        self.assertNotIn('if ! TIMESTAMP="$candidate" FILE="$candidate_manifest"', self.restore)
         for forbidden in ("tofu apply", "state push", "tofu import", "rclone delete", "assert "):
             self.assertNotIn(forbidden, self.restore)
 
@@ -100,6 +103,8 @@ class OpenTofuGithubStateBackupContractTests(unittest.TestCase):
             self.assertIn(value, self.absence)
         self.assertIn("github-absence", self.absence_restore)
         self.assertIn("nested_dirs", self.absence_restore)
+        self.assertIn('if TIMESTAMP="$candidate" FILE="$candidate_manifest"', self.absence_restore)
+        self.assertNotIn('if ! TIMESTAMP="$candidate" FILE="$candidate_manifest"', self.absence_restore)
         self.assertIn("state_write=false", self.absence_restore)
         self.assertIn("non_mutating=true", self.absence_restore)
         for text in (self.absence, self.absence_restore):
