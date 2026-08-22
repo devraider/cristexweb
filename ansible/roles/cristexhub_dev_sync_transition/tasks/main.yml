@@ -29,6 +29,7 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_SYNC_TRANSITION_ATTESTATION_FILE') | length > 0
       - cristexhub_dev_sync_transition_approved | bool
       - cristexhub_dev_sync_transition_state == 'present'
+      - cristexhub_dev_sync_transition_image_provenance_verified | bool
       - ansible_diff_mode
       - (ansible_limit | default('')) == 'crtxweb'
       - ansible_play_hosts_all | length == 1
@@ -255,7 +256,9 @@
       - cristexhub_dev_sync_transition_internal_cluster_secret.resources[0].data.clusterResources | b64decode == 'false'
       - cristexhub_dev_sync_transition_internal_controller_role.resources | length == 1
       - cristexhub_dev_sync_transition_internal_controller_role.resources[0].metadata.namespace == cristexhub_dev_sync_transition_namespace
-      - cristexhub_dev_sync_transition_internal_deployments.resources | length == 0 or (cristexhub_dev_sync_transition_internal_images | select('match', '^[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}$') | list | length == cristexhub_dev_sync_transition_internal_images | length)
+      - cristexhub_dev_sync_transition_expected_deployments | difference(cristexhub_dev_sync_transition_internal_deployments.resources | map(attribute='metadata.name') | list) | length == 0
+      - cristexhub_dev_sync_transition_internal_images | length > 0
+      - cristexhub_dev_sync_transition_internal_images | select('match', '^[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}$') | list | length == cristexhub_dev_sync_transition_internal_images | length
       - cristexhub_dev_sync_transition_unavailable_deployments | default([]) | length == 0
       - cristexhub_dev_sync_transition_internal_oidc_proxy.resources | length == 1
       - cristexhub_dev_sync_transition_internal_oidc_proxy.resources[0].status.availableReplicas | default(0) | int >= 1

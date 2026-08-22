@@ -1,4 +1,6 @@
 cristexhub_dev_sync_transition_approved: false
+# Must be changed only with commit-bound backend/frontend digest promotion evidence.
+cristexhub_dev_sync_transition_image_provenance_verified: false
 cristexhub_dev_sync_transition_state: present
 cristexhub_dev_sync_transition_kubeconfig: /etc/rancher/k3s/k3s.yaml
 cristexhub_dev_sync_transition_repository_root: '{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}'
@@ -20,14 +22,22 @@ cristexhub_dev_sync_transition_runtime_secret_keys:
   - RABBITMQ_URL
   - REDIS_PASSWORD
   - REDIS_URL
+cristexhub_dev_sync_transition_expected_deployments:
+  - backend
+  - browserless
+  - browserless-gateway
+  - celery-worker
+  - frontend
+  - oauth2-proxy
+  - redis
 cristexhub_dev_sync_transition_oidc_proxy_namespace: shared-services
 cristexhub_dev_sync_transition_oidc_proxy_deployment: oidc-connect-proxy
 cristexhub_dev_sync_transition_dependency_services:
   - {namespace: shared-services, name: shared-mongodb-svc}
   - {namespace: shared-services, name: shared-rabbitmq}
 cristexhub_dev_sync_transition_repository: ssh://git@ssh.github.com:443/devraider/cristexhub.git
-cristexhub_dev_sync_transition_revision: c609b8ab3eecd63c97f3e2829a938e613b2352b8
+cristexhub_dev_sync_transition_revision: a186195afa2af76cf38f53903b92724a74d4ef13
 cristexhub_dev_sync_transition_path: infra/kubernetes/cristexhub-dev
 cristexhub_dev_sync_transition_expected_hashes:
   appproject-cristexhub-dev-automated.yaml: 00ab28336aa2076bf173d101addf8952556f7c97e0a7e6d61a20c4ffb506ceca
-  application-cristexhub-dev-automated.yaml: de3c8f190157d5901b98874bf66a9bb2e4b58ac03cac766f1fa699f58a228c2b
+  application-cristexhub-dev-automated.yaml: ec6c755d15817ba0512d8555b834f18c6f9b51e7cc231de493dce9c6725a1c0a

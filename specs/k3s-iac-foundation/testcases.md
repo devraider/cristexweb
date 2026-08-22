@@ -4493,7 +4493,7 @@ and public-route validation were **NOT RUN**.
 
 ## CristexHub PROD runtime Infisical seam — hardened check STOPPED/BLOCKED
 
-The value-free production seam adapts the DEV contract without sharing names or
+Historical prior-source evidence (nine-key checkpoint): the value-free production seam adapts the DEV contract without sharing names or
 Universal Auth identity. It binds Infisical project
 `cristexweb-infrastructure` / `619656da-14f3-4872-857b-be103cdc5326`, the Cloud
 identifier slug `prod`, exact source `/cristexhub/prod/runtime`, existing Active

@@ -30,8 +30,9 @@ synchronization until a later gate-removal source revision. Runtime comparison
 passed with 18 rendered objects after namespace-scoped cluster registration and
 external DNS recovery.
 
-Automatic or first manual synchronization remains blocked until all three
-application image references have verified nonzero promotion digests, the exact
+Automatic or first manual synchronization remains blocked until all application
+image references have commit-bound promotion evidence and the explicit
+`image_provenance_verified` gate is changed in reviewed source, the exact
 ten-key Infisical-owned `cristexhub-dev-runtime` Secret is reconciled, and the
 approved OIDC egress path is implemented and validated. Enabling automated sync
 before those gates would intentionally deploy a broken revision.

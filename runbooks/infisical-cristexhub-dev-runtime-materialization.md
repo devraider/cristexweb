@@ -30,7 +30,8 @@ admission, and additive writer RBAC closure. No Secret value is committed.
   `prod:/cristexhub/dev/identity/browser#OIDC_CLIENT_SECRET`; that path is disconnected,
   unmaterialized, and must not gain a second writer before a separately approved
   handoff. A clean bootstrap composes fresh `CODE_RUNNER_AUTH_TOKEN` and
-  `BROWSERLESS_TOKEN` values inside its protected no-output bundle. The existing
+  `BROWSERLESS_TOKEN` values inside its protected no-output bundle and requires a
+  mode-0600 `cristexhub-dev-docker-config.json` input for the separate GHCR target. The existing
   live path is non-empty, so its ten-key migration remains blocked until an exact
   rotation/CAS writer contract is separately approved. `PRIVATE_CA_BUNDLE` is the exact concatenation of the MongoDB and
   RabbitMQ public CA certificates (no leaf or private key), projected at

@@ -28,6 +28,10 @@ done
 
 protected_root="$controller_home/Library/Application Support/CristexWeb/infisical/universal-auth"
 [ -d "$protected_root" ] && [ ! -L "$protected_root" ] || { printf '%s\n' 'refusing an unsafe protected-input directory' >&2; exit 77; }
+docker_config_source="$protected_root/cristexhub-dev-docker-config.json"
+[ -f "$docker_config_source" ] && [ ! -L "$docker_config_source" ] || { printf '%s\n' 'refusing absent or unsafe protected Docker config input' >&2; exit 77; }
+[ "$(/usr/bin/stat -f '%Lp' "$docker_config_source" 2>/dev/null || /usr/bin/stat -c '%a' "$docker_config_source")" = 600 ] || { printf '%s\n' 'refusing Docker config input without mode 0600' >&2; exit 77; }
+"$jq_tool" -e 'type == "object" and (.auths | type == "object" and length > 0)' "$docker_config_source" >/dev/null 2>/dev/null || { printf '%s\n' 'refusing invalid protected Docker config input' >&2; exit 77; }
 [ "$(stat -f '%OLp' "$protected_root" 2>/dev/null || stat -c '%a' "$protected_root")" = 700 ] || { printf '%s\n' 'refusing an incorrectly protected input directory' >&2; exit 77; }
 reader="$protected_root/cristexhub-dev-runtime-reader.json"
 [ -f "$reader" ] && [ ! -L "$reader" ] || { printf '%s\n' 'refusing a missing runtime read-only Universal Auth input' >&2; exit 77; }
@@ -118,10 +122,11 @@ printf '%s\n' 'redis://cristexhub-redis.cristexhub-dev.svc:6379/0' >"$temporary_
 openssl rand -hex 32 >"$temporary_directory/REDIS_PASSWORD"
 openssl rand -base64 32 | tr -d '\n' >"$temporary_directory/FERNET_KEY"
 openssl rand -base64 32 | tr -d '\n' >"$temporary_directory/OAUTH2_PROXY_COOKIE_SECRET"
-openssl rand -hex 32 >"$temporary_directory/CODE_RUNNER_AUTH_TOKEN"
-openssl rand -hex 32 >"$temporary_directory/BROWSERLESS_TOKEN"
+openssl rand -hex 32 | tr -d '\n' >"$temporary_directory/CODE_RUNNER_AUTH_TOKEN"
+openssl rand -hex 32 | tr -d '\n' >"$temporary_directory/BROWSERLESS_TOKEN"
+cp "$docker_config_source" "$temporary_directory/DOCKER_CONFIG_JSON"
 cp "$temporary_directory/keycloak-CRISTEXHUB_DEV_OIDC_CLIENT_SECRET" "$temporary_directory/OIDC_CLIENT_SECRET"
-for key in MONGODB_URL RABBITMQ_URL REDIS_URL REDIS_PASSWORD FERNET_KEY OIDC_CLIENT_SECRET OAUTH2_PROXY_COOKIE_SECRET PRIVATE_CA_BUNDLE CODE_RUNNER_AUTH_TOKEN BROWSERLESS_TOKEN; do
+for key in MONGODB_URL RABBITMQ_URL REDIS_URL REDIS_PASSWORD FERNET_KEY OIDC_CLIENT_SECRET OAUTH2_PROXY_COOKIE_SECRET PRIVATE_CA_BUNDLE CODE_RUNNER_AUTH_TOKEN BROWSERLESS_TOKEN DOCKER_CONFIG_JSON; do
   chmod 600 "$temporary_directory/$key"
 done
 
@@ -137,16 +142,16 @@ request="$temporary_directory/upload.json"
 "$jq_tool" -n --arg project cristexweb-infrastructure --arg environment prod --arg secretPath /cristexhub/dev/runtime \
   --rawfile k1 "$temporary_directory/MONGODB_URL" --rawfile k2 "$temporary_directory/RABBITMQ_URL" --rawfile k3 "$temporary_directory/REDIS_URL" --rawfile k4 "$temporary_directory/REDIS_PASSWORD" \
   --rawfile k5 "$temporary_directory/FERNET_KEY" --rawfile k6 "$temporary_directory/OIDC_CLIENT_SECRET" --rawfile k7 "$temporary_directory/OAUTH2_PROXY_COOKIE_SECRET" --rawfile k8 "$temporary_directory/PRIVATE_CA_BUNDLE" \
-  --rawfile k9 "$temporary_directory/CODE_RUNNER_AUTH_TOKEN" --rawfile k10 "$temporary_directory/BROWSERLESS_TOKEN" \
-  '{projectSlug:$project,environmentSlug:$environment,secretPath:$secretPath,secrets:[{secretKey:"MONGODB_URL",secretValue:$k1},{secretKey:"RABBITMQ_URL",secretValue:$k2},{secretKey:"REDIS_URL",secretValue:$k3},{secretKey:"REDIS_PASSWORD",secretValue:$k4},{secretKey:"FERNET_KEY",secretValue:$k5},{secretKey:"OIDC_CLIENT_SECRET",secretValue:$k6},{secretKey:"OAUTH2_PROXY_COOKIE_SECRET",secretValue:$k7},{secretKey:"PRIVATE_CA_BUNDLE",secretValue:$k8},{secretKey:"CODE_RUNNER_AUTH_TOKEN",secretValue:$k9},{secretKey:"BROWSERLESS_TOKEN",secretValue:$k10}]}' >"$request"
+  --rawfile k9 "$temporary_directory/CODE_RUNNER_AUTH_TOKEN" --rawfile k10 "$temporary_directory/BROWSERLESS_TOKEN" --rawfile k11 "$temporary_directory/DOCKER_CONFIG_JSON" \
+  '{projectSlug:$project,environmentSlug:$environment,secretPath:$secretPath,secrets:[{secretKey:"MONGODB_URL",secretValue:$k1},{secretKey:"RABBITMQ_URL",secretValue:$k2},{secretKey:"REDIS_URL",secretValue:$k3},{secretKey:"REDIS_PASSWORD",secretValue:$k4},{secretKey:"FERNET_KEY",secretValue:$k5},{secretKey:"OIDC_CLIENT_SECRET",secretValue:$k6},{secretKey:"OAUTH2_PROXY_COOKIE_SECRET",secretValue:$k7},{secretKey:"PRIVATE_CA_BUNDLE",secretValue:$k8},{secretKey:"CODE_RUNNER_AUTH_TOKEN",secretValue:$k9},{secretKey:"BROWSERLESS_TOKEN",secretValue:$k10},{secretKey:"DOCKER_CONFIG_JSON",secretValue:$k11}]}' >"$request"
 chmod 600 "$request"
 response="$temporary_directory/upload-response.json"
 api_request POST "$api_base/v3/secrets/batch" "$request" "$response" upload
-"$jq_tool" -e '(.secrets | map(.secretKey) | sort) == ["BROWSERLESS_TOKEN","CODE_RUNNER_AUTH_TOKEN","FERNET_KEY","MONGODB_URL","OAUTH2_PROXY_COOKIE_SECRET","OIDC_CLIENT_SECRET","PRIVATE_CA_BUNDLE","RABBITMQ_URL","REDIS_PASSWORD","REDIS_URL"] and (.revision | type == "number" and . >= 1 and . == floor)' "$response" >/dev/null 2>/dev/null || {
+"$jq_tool" -e '(.secrets | map(.secretKey) | sort) == ["BROWSERLESS_TOKEN","CODE_RUNNER_AUTH_TOKEN","DOCKER_CONFIG_JSON","FERNET_KEY","MONGODB_URL","OAUTH2_PROXY_COOKIE_SECRET","OIDC_CLIENT_SECRET","PRIVATE_CA_BUNDLE","RABBITMQ_URL","REDIS_PASSWORD","REDIS_URL"] and (.revision | type == "number" and . >= 1 and . == floor)' "$response" >/dev/null 2>/dev/null || {
   printf '%s\n' 'refusing an unverified runtime Infisical upload response' >&2; exit 77;
 }
 api_request GET "$api_base/v3/secrets?projectSlug=cristexweb-infrastructure&environmentSlug=prod&secretPath=%2Fcristexhub%2Fdev%2Fruntime" '' "$metadata" readback
-"$jq_tool" -e '(.secrets | map(.secretKey) | sort) == ["BROWSERLESS_TOKEN","CODE_RUNNER_AUTH_TOKEN","FERNET_KEY","MONGODB_URL","OAUTH2_PROXY_COOKIE_SECRET","OIDC_CLIENT_SECRET","PRIVATE_CA_BUNDLE","RABBITMQ_URL","REDIS_PASSWORD","REDIS_URL"]' "$metadata" >/dev/null 2>/dev/null || {
+"$jq_tool" -e '(.secrets | map(.secretKey) | sort) == ["BROWSERLESS_TOKEN","CODE_RUNNER_AUTH_TOKEN","DOCKER_CONFIG_JSON","FERNET_KEY","MONGODB_URL","OAUTH2_PROXY_COOKIE_SECRET","OIDC_CLIENT_SECRET","PRIVATE_CA_BUNDLE","RABBITMQ_URL","REDIS_PASSWORD","REDIS_URL"]' "$metadata" >/dev/null 2>/dev/null || {
   printf '%s\n' 'refusing an unverified runtime Infisical key closure' >&2; exit 77;
 }
 printf '%s\n' 'CristexHub DEV runtime values composed, uploaded atomically, and key-closure verified without value disclosure.'

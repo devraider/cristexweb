@@ -102,8 +102,8 @@ current private PROD registration and automated non-pruning sync recorded in
 The superseded `platform-secrets`/`platform-identity` source was never run; removing
 it does not claim a live rename or deletion. Runtime checkpoint history remains recorded in `AGENTS.md` and the component
 runbooks; this source-only increment performs no runtime action. The live
-`cristexhub-prod` Namespace, runtime Secrets, registration, and private workload are
-now live/idempotent; only its public Cloudflare route remains absent. The source-selection paragraphs below preserve
+`cristexhub-prod` Namespace, prior nine-key runtime Secrets, registration, and private workload are
+live/idempotent; the ten-key source update is blocked and its public Cloudflare route remains absent. The source-selection paragraphs below preserve
 historical pre-runtime absence checkpoints and must not be read as current Namespace
 absence evidence; `AGENTS.md` is authoritative for completed runtime checkpoints. The Argo CD candidate and release
 records bind chart
@@ -290,7 +290,7 @@ gateway remain in the separate CristexHub application repository.
 24. [`runbooks/infisical-database-secret-materialization.md`](runbooks/infisical-database-secret-materialization.md) — exact value-free Infisical database Secret seam, scoped admission, and blocked runtime gates.
 25. [`runbooks/infisical-universal-auth-value-lane.md`](runbooks/infisical-universal-auth-value-lane.md) — protected value generation/upload contracts and Secret-at-rest recovery gate.
 26. [`runbooks/shared-database-provisioning.md`](runbooks/shared-database-provisioning.md) — guarded empty-reservation provisioning and helper isolation boundary.
-27. [`runbooks/infisical-cristexhub-prod-runtime-materialization.md`](runbooks/infisical-cristexhub-prod-runtime-materialization.md) — applied/idempotent CristexHub PROD runtime Secret seam and residual rotation gates.
+27. [`runbooks/infisical-cristexhub-prod-runtime-materialization.md`](runbooks/infisical-cristexhub-prod-runtime-materialization.md) — historical nine-key applied/idempotent seam, blocked ten-key Browserless source update, and residual rotation gates.
 28. [`runbooks/cristexhub-prod-argocd-registration.md`](runbooks/cristexhub-prod-argocd-registration.md) — exact-revision automated non-pruning PROD Argo registration and private activation evidence.
 29. [`specs/k3s-iac-foundation/testcases.md`](specs/k3s-iac-foundation/testcases.md) — validation contract and honest current results.
 
