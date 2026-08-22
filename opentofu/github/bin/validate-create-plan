@@ -19,8 +19,12 @@ EXPECTED = {
             "has_issues": False,
             "has_projects": False,
             "has_wiki": False,
-            "has_downloads": False,
-            "vulnerability_alerts": True,
+        },
+    },
+    "github_repository_vulnerability_alerts.reactive_resume_mirror": {
+        "type": "github_repository_vulnerability_alerts",
+        "after": {
+            "enabled": True,
         },
     },
     "github_actions_repository_permissions.reactive_resume_mirror": {
@@ -88,4 +92,4 @@ for address, contract in EXPECTED.items():
     sensitive = change.get("after_sensitive")
     if sensitive not in ({}, None, False):
         fail("sensitive_values")
-print("plan_status=accepted resources=2 actions=create provider=github cloudflare=absent secrets=absent")
+print("plan_status=accepted resources=3 actions=create provider=github cloudflare=absent secrets=absent")

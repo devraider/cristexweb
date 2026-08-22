@@ -7,15 +7,17 @@ Cloudflare state or the pending public-route change.
 
 ## Exact boundary
 
-The root contains exactly two resources:
+The root contains exactly three resources:
 
 - `github_repository.reactive_resume_mirror`
   - owner: `devraider`
   - name: `cristex-reactive-resume`
   - visibility: `private`
   - `auto_init = false`
-  - issues/projects/wiki/downloads disabled
-  - vulnerability alerts enabled
+  - issues/projects/wiki disabled
+  - `prevent_destroy = true`
+- `github_repository_vulnerability_alerts.reactive_resume_mirror`
+  - vulnerability alerts enabled through the non-deprecated dedicated resource
   - `prevent_destroy = true`
 - `github_actions_repository_permissions.reactive_resume_mirror`
   - Actions disabled before any upstream ref is pushed
@@ -44,8 +46,9 @@ integrity verification, and isolated `tofu state list` restore rehearsal before 
 provider-backed operation. The separate Ansible lane is documented in
 [`runbooks/opentofu-github-state-backup.md`](../../runbooks/opentofu-github-state-backup.md)
 and uses only the fixed GitHub state/archive/unit closure; it never controls the
-foundation timer or state. No `tofu init`, `tofu plan`, `tofu apply`, import, or
-GitHub API call was performed while authoring this source.
+foundation timer or state. Controller-only provider/backend initialization and
+warning-free `tofu validate` passed with the state path still absent. No `tofu plan`,
+`tofu apply`, import, state mutation, or GitHub API call was performed.
 
 ## Apply gates
 
@@ -59,7 +62,7 @@ Before a future separately approved check/plan/apply:
 3. back up and rehearse recovery of `github.tfstate`;
 4. write the binary plan and `tofu show -json` rendering to protected mode-`0600`
    files, then run `bin/validate-create-plan PLAN.json`;
-5. accept only the two exact GitHub create actions; reject replacement, destroy,
+5. accept only the three exact GitHub create actions; reject replacement, destroy,
    source-file, secret, webhook, deploy-key, permissive Actions, package,
    collaborator, team, provider drift, output, or Cloudflare address;
 6. apply only the previously validated binary plan after explicit GitHub provider
