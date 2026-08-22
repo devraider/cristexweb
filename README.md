@@ -86,7 +86,7 @@ idempotent; the earlier pre-checkpoint source-only absence evidence is historica
 A separate source-only, fail-closed
 [CristexHub PROD runtime Infisical seam](runbooks/infisical-cristexhub-prod-runtime-materialization.md)
 now freezes the exact `/cristexhub/prod/runtime` source, independent PROD Auth and
-Universal Auth names, nine-key `cristexhub-prod-runtime` plus separate
+Universal Auth names, a ten-key source `cristexhub-prod-runtime` plus separate
 `cristexhub-prod-ghcr-pull` targets, exact PROD-scoped admission, additive
 least-privilege writer RBAC, manifest/action hashes, and guarded check/apply source.
 **Historical pre-activation checkpoint (superseded):** the PROD Namespace was
@@ -208,8 +208,9 @@ and additive writer RBAC. Its credential Secrets, check/apply, sync, values, and
 runtime remain **NOT RUN/BLOCKED**. The separate source-only
 [CristexHub PROD runtime seam](runbooks/infisical-cristexhub-prod-runtime-materialization.md)
 freezes the exact `/cristexhub/prod/runtime` source, independent PROD identity,
-nine-key runtime plus `cristexhub-prod-ghcr-pull` target, exact Namespace-scoped
-VAPs, least-privilege RBAC, hashes, and guarded check/apply source. Its Namespace,
+ten-key source runtime plus `cristexhub-prod-ghcr-pull` target, exact Namespace-scoped
+VAPs, least-privilege RBAC, hashes, and guarded check/apply source. The prior nine-key
+target remains live; the ten-key update is **NOT RUN/BLOCKED**. Its Namespace,
 Universal Auth values, sync, targets, workload, and promotion remain **NOT RUN/BLOCKED**.
 A separate source-only
 [Universal Auth/value lane](runbooks/infisical-universal-auth-value-lane.md) accepts

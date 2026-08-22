@@ -399,7 +399,7 @@ logs, or bootstrap cannot be recovered.
   soak, identity recovery, and separate PROD resource approvals satisfy KIF-025.
 - [x] Add the source-only, fail-closed CristexHub PROD runtime Infisical seam with
   independent Auth/Universal Auth names, exact `/cristexhub/prod/runtime` source,
-  nine-key runtime plus GHCR-pull target, PROD-scoped VAP/bindings, least-privilege
+  historical nine-key runtime plus GHCR-pull target and the blocked ten-key Browserless source update, PROD-scoped VAP/bindings, least-privilege
   RBAC, hashes, guarded wrapper/role/plugin, policy, runbook, and offline contracts;
   Namespace, identity values, sync, and runtime remain NOT RUN/BLOCKED (`KIF-005`,
   `KIF-013`–`KIF-016`, `KIF-021`, `KIF-025`, `KIF-030`).

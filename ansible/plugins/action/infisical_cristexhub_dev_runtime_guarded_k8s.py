@@ -14,7 +14,7 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 )
 
 _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-dev-runtime-alternate-target-boundary'): '35322c054efb137bf371efa7e601141d65928258dfc6384495da7f9c00464e0c',
- ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-dev-runtime-secret-write-boundary'): '2772d20ad06469a6da26feaacb140e75674e959b7490735421af8e862330727d',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-dev-runtime-secret-write-boundary'): '30f7dfdd8995917b5afa67c64c1ba9b8f9c033fb5000eeba9fe440443559198b',
  ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-dev-runtime-source-boundary'): 'fec85c253bbae0d908fba8bd0091692a88100fddbc80cf69ec97e270268e3712',
  ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-dev-runtime-static-secret-boundary'): '3f1badd184ae8bd86b43400d8cea72422b09091014b40e6b9c9ee1a8d6cf7cda',
  ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-dev-runtime-alternate-target-boundary'): 'b76c62c997183176fafc3524e3e898c2e230d19b941517dfddbcc415ff681fcd',

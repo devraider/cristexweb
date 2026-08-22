@@ -49,9 +49,10 @@ note: |
   Universal Auth and materialization remain blocked. A separate source-only,
   fail-closed CristexHub PROD runtime Infisical seam binds exact
   `/cristexhub/prod/runtime`, independent PROD Auth/Universal Auth names, the
-  nine-key runtime plus `cristexhub-prod-ghcr-pull`, scoped VAP/bindings, additive
-  RBAC, hashes, and guarded source. Its approved apply and final idempotence passed
-  at `ok=62 changed=0 failed=0 skipped=3`. The five-object PROD Argo registration
+  ten-key source runtime plus `cristexhub-prod-ghcr-pull`, scoped VAP/bindings,
+  additive RBAC, hashes, and guarded source. The prior nine-key target apply and final
+  idempotence passed at `ok=62 changed=0 failed=0 skipped=3`; the ten-key update is
+  NOT RUN/BLOCKED. The five-object PROD Argo registration
   pins protected-main revision `751885a42798d282e168131db147f13694a0a621`, uses
   namespace-scoped no-delete RBAC and the exact in-cluster server destination, and
   now reconciles with `selfHeal=true`, `prune=false`, and `allowEmpty=false`.

@@ -56,7 +56,7 @@ class RuntimeSeamTests(unittest.TestCase):
   self.assertIn("[ \"$1\" = apply ]",t)
   self.assertIn('v3/secrets/raw/',t)
   self.assertIn('/shared-services/mongodb',t); self.assertIn('/shared-services/rabbitmq',t); self.assertIn('/shared-services/keycloak',t)
-  self.assertIn('PRIVATE_CA_BUNDLE',t); self.assertIn('atomic',POLICY.read_text())
+  self.assertIn('PRIVATE_CA_BUNDLE',t); self.assertIn('CODE_RUNNER_AUTH_TOKEN',t); self.assertIn('BROWSERLESS_TOKEN',t); self.assertIn('atomic',POLICY.read_text())
   self.assertIn('PRIVATE KEY',t); self.assertIn('UNKNOWN — STOP',t)
   self.assertNotIn('set +x',t)
 if __name__=='__main__': unittest.main()

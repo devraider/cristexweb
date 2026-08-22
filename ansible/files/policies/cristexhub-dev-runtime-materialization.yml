@@ -45,6 +45,8 @@ sources:
       - REDIS_PASSWORD
       - FERNET_KEY
       - OAUTH2_PROXY_COOKIE_SECRET
+      - CODE_RUNNER_AUTH_TOKEN
+      - BROWSERLESS_TOKEN
     redis_url: redis://cristexhub-redis.cristexhub-dev.svc:6379/0
 
 # Values are assembled only in protected mode-0600 files. PRIVATE_CA_BUNDLE
