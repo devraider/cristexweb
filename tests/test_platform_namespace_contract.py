@@ -205,6 +205,7 @@ metadata:
                 ANSIBLE / "bin/configure-coredns-external-forwarding",
                 ANSIBLE / "bin/validate-argocd-ui-tls-material",
                 ANSIBLE / "bin/configure-opentofu-state-backup",
+                ANSIBLE / "bin/configure-opentofu-github-state-backup",
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()},
         )

@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+usage='usage: ansible/bin/configure-opentofu-github-state-backup check|apply|test|restore|enable-check|enable-apply'
+[ "$#" -eq 1 ] || { printf '%s\n' "$usage" >&2; exit 64; }
+case "$1" in check) mode=install; check=true;; apply) mode=install; check=false;; test) mode=test; check=false;; restore) mode=restore; check=false;; enable-check) mode=enable; check=true;; enable-apply) mode=enable; check=false;; *) printf '%s\n' "$usage" >&2; exit 64;; esac
+script=$0; [ ! -L "$script" ] || exit 66
+dir=$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script")" && pwd -P); root=$(CDPATH= cd -- "$dir/../.." && pwd -P)
+[ "$root" = /home/paul/projects/cristexweb ] || exit 78
+controller="$root/.venv/bin/ansible-playbook"; [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
+cd "$root/ansible"; umask 077
+set -- "$controller" -i .ansible/inventory.local.yml playbooks/configure_opentofu_github_state_backup.yml --diff --limit crtxweb --ask-become-pass --extra-vars "{\"opentofu_github_state_backup_approved\":true,\"opentofu_github_state_backup_mode\":\"$mode\"}"
+[ "$check" = false ] || set -- "$@" --check
+exec /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_ENTRYPOINT=v1 "$@"

@@ -158,6 +158,10 @@ disk state. Restore preserved configuration before continuing.
 - [ ] Implement encrypted timestamped Google Drive state copies, independent key
   custody, integrity verification, and isolated restore before any apply
   (`KIF-013`, `KIF-028`).
+- [x] Add the separate source-only GitHub-root state backup/readback/isolated-restore
+  lane with fixed `github.tfstate`, dedicated archive/lock/systemd/wrapper/playbook
+  closure, and no foundation timer/state path (`KIF-005`, `KIF-013`, `KIF-028`,
+  `KIF-030`). No provider, host, Drive, Infisical, or state operation ran.
 - [ ] Implement only explicitly approved external resources and review a sanitized
   plan with no destroy/replacement or public route (`KIF-002`, `KIF-005`, `KIF-013`).
 - [ ] Obtain explicit approval for the first exact reviewed OpenTofu apply (`KIF-002`).

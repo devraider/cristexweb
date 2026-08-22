@@ -252,6 +252,7 @@ metadata:
                 ANSIBLE / "bin/validate-argocd-ui-tls-material",
                 ANSIBLE / "bin/bootstrap-cloudflared",
                 ANSIBLE / "bin/bootstrap-infisical-cloudflared-secrets",
+                ANSIBLE / "bin/configure-opentofu-github-state-backup",
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()}, # includes separately guarded component entrypoints
         )

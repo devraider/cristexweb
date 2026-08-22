@@ -93,3 +93,11 @@ Infisical `prod:/shared-services/backup-recovery`; it is never retained on the
 host, in OpenTofu state, or in Git. Approved backup, decrypt, `tofu state list` validation, cleanup, and non-mutation
 restore rehearsal have passed. Source authoring itself still runs no backup or
 restore command.
+
+The separate GitHub root has an independent, fixed source-only backup lane at
+[`runbooks/opentofu-github-state-backup.md`](../runbooks/opentofu-github-state-backup.md).
+It protects only `/var/lib/opentofu/cristexweb/github.tfstate`, stores encrypted
+leaves only under `opentofu/github`, and uses unique executables, lock, systemd
+units, timer, wrapper, and playbook. It does not read, write, enable, disable, or
+restore the foundation state/timer. Backup, readback, and isolated restore remain
+unrun until the GitHub state producer and separate approvals exist.

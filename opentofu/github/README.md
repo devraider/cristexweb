@@ -41,7 +41,10 @@ The independent local backend is:
 
 That state requires its own encrypted backup/readback, independent-key recovery,
 integrity verification, and isolated `tofu state list` restore rehearsal before any
-provider-backed operation. No `tofu init`, `tofu plan`, `tofu apply`, import, or
+provider-backed operation. The separate Ansible lane is documented in
+[`runbooks/opentofu-github-state-backup.md`](../../runbooks/opentofu-github-state-backup.md)
+and uses only the fixed GitHub state/archive/unit closure; it never controls the
+foundation timer or state. No `tofu init`, `tofu plan`, `tofu apply`, import, or
 GitHub API call was performed while authoring this source.
 
 ## Apply gates

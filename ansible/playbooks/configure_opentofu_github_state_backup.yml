@@ -1,0 +1,163 @@
+---
+- name: Configure guarded OpenTofu GitHub state backup scheduler
+  hosts: crtxweb
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  serial: 1
+  vars:
+    opentofu_github_state_backup_approved: false
+    opentofu_github_state_backup_mode: install
+  pre_tasks:
+    - name: Require bounded OpenTofu GitHub state backup approval
+      ansible.builtin.assert:
+        that:
+          - opentofu_github_state_backup_approved | bool
+          - lookup('ansible.builtin.env', 'CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_ENTRYPOINT') == 'v1'
+          - (ansible_limit | default('') | string) == 'crtxweb'
+          - ansible_play_hosts_all | length == 1
+          - opentofu_github_state_backup_mode in ['install', 'test', 'restore', 'enable']
+      changed_when: false
+    - name: Collect package facts
+      ansible.builtin.package_facts:
+        manager: apt
+    - name: Require pinned age
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.packages.age | default([]) | length == 1
+          - ansible_facts.packages.age[0].version == '1.2.1-1+b5'
+          - ansible_facts.packages.age[0].arch == 'amd64'
+      changed_when: false
+    - name: Inspect protected backup inputs
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+      loop:
+        - /usr/local/bin/rclone
+        - /opt/rclone/1.71.1/rclone
+        - /home/paul/.config/rclone/rclone.conf
+        - /home/paul/.config/cristexweb/backup/shared-database-backup.recipient
+        - /var/lib/opentofu/cristexweb/github.tfstate
+      register: opentofu_github_state_backup_inputs
+    - name: Require protected backup inputs
+      ansible.builtin.assert:
+        that:
+          - opentofu_github_state_backup_inputs.results[0].stat.islnk | default(false)
+          - opentofu_github_state_backup_inputs.results[0].stat.lnk_source == '/opt/rclone/1.71.1/rclone'
+          - opentofu_github_state_backup_inputs.results[0].stat.pw_name == 'root'
+          - opentofu_github_state_backup_inputs.results[1].stat.isreg | default(false)
+          - opentofu_github_state_backup_inputs.results[1].stat.pw_name == 'root'
+          - opentofu_github_state_backup_inputs.results[1].stat.mode == '0755'
+          - opentofu_github_state_backup_inputs.results[2].stat.isreg | default(false)
+          - opentofu_github_state_backup_inputs.results[2].stat.pw_name == 'paul'
+          - opentofu_github_state_backup_inputs.results[2].stat.mode == '0600'
+          - opentofu_github_state_backup_inputs.results[3].stat.isreg | default(false)
+          - opentofu_github_state_backup_inputs.results[3].stat.pw_name == 'paul'
+          - opentofu_github_state_backup_inputs.results[3].stat.mode == '0644'
+          - opentofu_github_state_backup_mode == 'install' or (opentofu_github_state_backup_inputs.results[4].stat.isreg | default(false))
+          - opentofu_github_state_backup_mode == 'install' or opentofu_github_state_backup_inputs.results[4].stat.pw_name == 'paul'
+          - opentofu_github_state_backup_mode == 'install' or opentofu_github_state_backup_inputs.results[4].stat.mode == '0600'
+      changed_when: false
+    - name: Verify the sole configured rclone remote without reading its token
+      ansible.builtin.command:
+        argv: [/usr/local/bin/rclone, --config, /home/paul/.config/rclone/rclone.conf, listremotes]
+      become: false
+      register: opentofu_github_state_backup_rclone_remotes
+      changed_when: false
+      check_mode: false
+      no_log: true
+    - name: Require the exact Google Drive remote
+      ansible.builtin.assert:
+        that:
+          - opentofu_github_state_backup_rclone_remotes.stdout_lines == ['drive:']
+      changed_when: false
+  tasks:
+    - name: Create protected OpenTofu backup directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - {path: /etc/cristexweb-backup, owner: root, group: paul, mode: '0750'}
+        - {path: /usr/local/libexec/cristexweb, owner: root, group: root, mode: '0755'}
+        - {path: /var/lib/cristexweb-backup, owner: paul, group: paul, mode: '0700'}
+        - {path: /var/lib/cristexweb-backup/opentofu, owner: paul, group: paul, mode: '0700'}
+        - {path: /var/lib/cristexweb-backup/opentofu/github, owner: paul, group: paul, mode: '0700'}
+    - name: Install public age recipient
+      ansible.builtin.copy:
+        src: /home/paul/.config/cristexweb/backup/shared-database-backup.recipient
+        dest: /etc/cristexweb-backup/age.recipient
+        owner: root
+        group: paul
+        mode: '0640'
+    - name: Install OpenTofu backup and restore executables
+      ansible.builtin.copy:
+        src: "{{ playbook_dir | ansible.builtin.dirname }}/files/backup/{{ item.src }}"
+        dest: "/usr/local/libexec/cristexweb/{{ item.dest }}"
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - {src: opentofu-github-state-backup, dest: opentofu-github-state-backup}
+        - {src: restore-opentofu-github-state-rehearsal, dest: restore-opentofu-github-state-rehearsal}
+    - name: Install OpenTofu systemd units
+      ansible.builtin.copy:
+        src: "{{ playbook_dir | ansible.builtin.dirname }}/files/backup/{{ item }}"
+        dest: "/etc/systemd/system/{{ item }}"
+        owner: root
+        group: root
+        mode: '0644'
+      loop:
+        - cristexweb-opentofu-github-state-backup.service
+        - cristexweb-opentofu-github-state-backup.timer
+      notify: Reload systemd for OpenTofu GitHub state backup
+    - name: Flush OpenTofu GitHub state backup handlers
+      ansible.builtin.meta: flush_handlers
+    - name: Keep timer disabled until restore acceptance
+      ansible.builtin.systemd_service:
+        name: cristexweb-opentofu-github-state-backup.timer
+        enabled: false
+        state: stopped
+      when:
+        - opentofu_github_state_backup_mode in ['install', 'test', 'restore']
+        - not ansible_check_mode
+    - name: Run approved OpenTofu GitHub state backup test
+      ansible.builtin.systemd_service:
+        name: cristexweb-opentofu-github-state-backup.service
+        state: started
+      when:
+        - opentofu_github_state_backup_mode == 'test'
+        - not ansible_check_mode
+    - name: Run approved isolated OpenTofu GitHub state restore
+      ansible.builtin.command:
+        argv: [/usr/local/libexec/cristexweb/restore-opentofu-github-state-rehearsal]
+      become: false
+      register: opentofu_github_state_restore_result
+      changed_when: true
+      when:
+        - opentofu_github_state_backup_mode == 'restore'
+        - not ansible_check_mode
+    - name: Require sanitized OpenTofu restore receipt
+      ansible.builtin.assert:
+        that:
+          - >-
+            opentofu_github_state_restore_result.stdout is match(
+            '^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z target=isolated-tmpfs checksum=verified
+            private_residue=none state_validation=tofu-state-list non_mutating=true$'
+            )
+      changed_when: false
+      when:
+        - opentofu_github_state_backup_mode == 'restore'
+        - not ansible_check_mode
+    - name: Enable accepted timer
+      ansible.builtin.systemd_service:
+        name: cristexweb-opentofu-github-state-backup.timer
+        enabled: true
+        state: started
+      when: opentofu_github_state_backup_mode == 'enable'
+  handlers:
+    - name: Reload systemd for OpenTofu GitHub state backup
+      ansible.builtin.systemd_service:
+        daemon_reload: true

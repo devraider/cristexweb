@@ -1,0 +1,41 @@
+#!/bin/sh
+set -eu
+umask 077
+PATH=/usr/local/bin:/usr/bin:/bin
+export PATH
+project_id=619656da-14f3-4872-857b-be103cdc5326
+infisical_path=/shared-services/backup-recovery
+remote_root=drive:cristexweb-recovery/opentofu/github
+rclone_config=/home/paul/.config/rclone/rclone.conf
+work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-github-restore.XXXXXX)
+cleanup() { /usr/bin/rm -rf -- "$work"; }
+trap cleanup EXIT HUP INT TERM
+chmod 0700 "$work"
+latest=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sort | /usr/bin/tail -1 | /usr/bin/tr -d '/')
+printf '%s\n' "$latest" | /usr/bin/grep -Eq '^20[0-9]{6}T[0-9]{6}Z$' || { printf '%s\n' 'restore_status=failed stage=remote_catalog'; exit 1; }
+remote="$remote_root/$latest"
+for leaf in github.tfstate.age github.tfstate.age.sha256 manifest.json; do /usr/local/bin/rclone --config "$rclone_config" copyto "$remote/$leaf" "$work/$leaf"; done
+(cd "$work" && /usr/bin/sha256sum -c github.tfstate.age.sha256 >/dev/null)
+FILE="$work/manifest.json" TIMESTAMP="$latest" EXPECTED_SHA="$(/usr/bin/cut -d ' ' -f1 "$work/github.tfstate.age.sha256")" ARCHIVE_BYTES="$(/usr/bin/stat -c %s "$work/github.tfstate.age")" /usr/bin/python3 - <<'PY'
+import json, os
+x=json.load(open(os.environ['FILE']))
+assert set(x)=={'schema','service','state','created_at_utc','archive','archive_bytes','archive_sha256','encryption','backend','state_path'}
+assert x['schema']==1 and x['service']=='opentofu-github' and x['state']=='github.tfstate'
+assert x['created_at_utc']==os.environ['TIMESTAMP'] and x['archive']=='github.tfstate.age'
+assert x['encryption']=='age-x25519' and x['backend']=='local' and x['state_path']=='/var/lib/opentofu/cristexweb/github.tfstate'
+assert x['archive_sha256']==os.environ['EXPECTED_SHA'] and x['archive_bytes']==int(os.environ['ARCHIVE_BYTES'])
+PY
+/home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity"
+chmod 0600 "$work/identity"
+/usr/bin/age -d -i "$work/identity" "$work/github.tfstate.age" >"$work/github.tfstate"
+/usr/bin/rm -f -- "$work/identity"
+[ -s "$work/github.tfstate" ]
+STATE="$work/github.tfstate" /usr/bin/python3 - <<'PY'
+import json, os
+x=json.load(open(os.environ['STATE']))
+assert isinstance(x,dict) and x.get('version') in (3,4)
+assert isinstance(x.get('lineage',''),str) and isinstance(x.get('serial'),int)
+PY
+TOFU_DISABLE_CHECKPOINT=1 /usr/local/bin/tofu state list -state="$work/github.tfstate" >"$work/resources"
+/usr/bin/rm -f -- "$work/github.tfstate" "$work/resources"
+printf 'restore_status=success source_timestamp=%s target=isolated-tmpfs checksum=verified private_residue=none state_validation=tofu-state-list non_mutating=true\n' "$latest"
