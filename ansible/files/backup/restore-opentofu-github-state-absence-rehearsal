@@ -41,7 +41,13 @@ manifest.json'
     [ "$leaves" = "$expected" ] || continue
     candidate_manifest="$work/candidate-manifest"
     /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_root/$candidate/manifest.json" "$candidate_manifest" || { /usr/bin/rm -f -- "$candidate_manifest"; continue; }
-    if TIMESTAMP="$candidate" FILE="$candidate_manifest" /usr/bin/python3 - <<'PY'
+    if ! /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_root/$candidate/absence-attestation.json.age" "$work/absence-attestation.json.age" ||
+       ! /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_root/$candidate/absence-attestation.json.age.sha256" "$work/absence-attestation.json.age.sha256" ||
+       ! (cd "$work" && /usr/bin/sha256sum -c absence-attestation.json.age.sha256 >/dev/null); then
+        /usr/bin/rm -f -- "$candidate_manifest" "$work/absence-attestation.json.age" "$work/absence-attestation.json.age.sha256"
+        continue
+    fi
+    if TIMESTAMP="$candidate" FILE="$candidate_manifest" EXPECTED_SHA="$(/usr/bin/cut -d ' ' -f1 "$work/absence-attestation.json.age.sha256")" ARCHIVE_BYTES="$(/usr/bin/stat -c %s "$work/absence-attestation.json.age")" /usr/bin/python3 - <<'PY'
 import datetime
 import json
 import os
@@ -57,6 +63,8 @@ try:
         raise ValueError("manifest_contract")
     if not isinstance(value["archive_bytes"], int) or value["archive_bytes"] <= 0 or not re.fullmatch(r"[0-9a-f]{64}", value["archive_sha256"]):
         raise ValueError("manifest_shape")
+    if value["archive_sha256"] != os.environ["EXPECTED_SHA"] or value["archive_bytes"] != int(os.environ["ARCHIVE_BYTES"]):
+        raise ValueError("manifest_integrity")
     created = datetime.datetime.strptime(value["created_at_utc"], "%Y%m%dT%H%M%SZ")
     expires = datetime.datetime.strptime(value["expires_at_utc"], "%Y%m%dT%H%M%SZ")
     if expires != created + datetime.timedelta(minutes=15):
@@ -67,10 +75,10 @@ PY
     then
         :
     else
-        /usr/bin/rm -f -- "$candidate_manifest"
+        /usr/bin/rm -f -- "$candidate_manifest" "$work/absence-attestation.json.age" "$work/absence-attestation.json.age.sha256"
         continue
     fi
-    /usr/bin/rm -f -- "$candidate_manifest"
+    /usr/bin/rm -f -- "$candidate_manifest" "$work/absence-attestation.json.age" "$work/absence-attestation.json.age.sha256"
     latest="$candidate"
     break
 done <<EOF

@@ -18,6 +18,7 @@
         - opentofu_github_state_backup_internal_input_states
         - opentofu_github_state_backup_internal_remote_list
         - opentofu_github_state_backup_internal_recipient_state
+        - opentofu_github_state_backup_internal_backup_result
         - opentofu_github_state_backup_internal_state_result
         - opentofu_github_state_backup_internal_absence_result
         - opentofu_github_state_backup_internal_restore_result
@@ -303,9 +304,23 @@
       no_log: true
       when: opentofu_github_state_backup_mode == 'restore-absence'
     - name: Run the approved OpenTofu GitHub state backup test
-      ansible.builtin.systemd_service:
-        name: cristexweb-opentofu-github-state-backup.service
-        state: started
+      ansible.builtin.command:
+        argv: [/usr/local/libexec/cristexweb/opentofu-github-state-backup]
+      become: false
+      register: opentofu_github_state_backup_internal_backup_result
+      changed_when: true
+      no_log: true
+      check_mode: false
+      when: opentofu_github_state_backup_mode == 'test'
+    - name: Require the sanitized OpenTofu GitHub state backup receipt
+      ansible.builtin.assert:
+        that:
+          - >-
+            opentofu_github_state_backup_internal_backup_result.stdout is match(
+            '^backup_status=success service=opentofu-github state=github timestamp=20[0-9]{6}T[0-9]{6}Z '
+            ~ 'archive_bytes=[1-9][0-9]* readback=verified address_scope=exact-three$')
+      changed_when: false
+      no_log: true
       when: opentofu_github_state_backup_mode == 'test'
     - name: Run the approved isolated OpenTofu GitHub state restore
       ansible.builtin.command:

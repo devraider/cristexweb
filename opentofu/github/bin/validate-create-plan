@@ -94,6 +94,7 @@ for address, contract in EXPECTED.items():
             "archived",
             "allow_auto_merge",
             "allow_forking",
+            "fork",
             "has_discussions",
             "has_downloads",
             "is_template",
@@ -104,6 +105,8 @@ for address, contract in EXPECTED.items():
             fail("repository_pages_present")
         if after.get("template") not in (None, [], {}):
             fail("repository_template_present")
+        if after.get("source_owner") not in (None, "") or after.get("source_repo") not in (None, ""):
+            fail("repository_fork_source_present")
         if after.get("homepage_url") not in (None, ""):
             fail("repository_homepage_present")
         if after.get("gitignore_template") not in (None, "") or after.get("license_template") not in (None, ""):

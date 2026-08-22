@@ -29,7 +29,13 @@ manifest.json'
     [ "$leaves" = "$expected" ] || continue
     candidate_manifest="$work/candidate-manifest"
     /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_root/$candidate/manifest.json" "$candidate_manifest" || { /usr/bin/rm -f -- "$candidate_manifest"; continue; }
-    if TIMESTAMP="$candidate" FILE="$candidate_manifest" /usr/bin/python3 - <<'PY'
+    if ! /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_root/$candidate/github.tfstate.age" "$work/github.tfstate.age" ||
+       ! /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_root/$candidate/github.tfstate.age.sha256" "$work/github.tfstate.age.sha256" ||
+       ! (cd "$work" && /usr/bin/sha256sum -c github.tfstate.age.sha256 >/dev/null); then
+        /usr/bin/rm -f -- "$candidate_manifest" "$work/github.tfstate.age" "$work/github.tfstate.age.sha256"
+        continue
+    fi
+    if TIMESTAMP="$candidate" FILE="$candidate_manifest" EXPECTED_SHA="$(/usr/bin/cut -d ' ' -f1 "$work/github.tfstate.age.sha256")" ARCHIVE_BYTES="$(/usr/bin/stat -c %s "$work/github.tfstate.age")" /usr/bin/python3 - <<'PY'
 import json
 import os
 import re
@@ -44,16 +50,18 @@ try:
         raise ValueError("manifest_contract")
     if value["state_path"] != "/var/lib/opentofu/cristexweb/github.tfstate" or not isinstance(value["archive_bytes"], int) or value["archive_bytes"] <= 0 or not re.fullmatch(r"[0-9a-f]{64}", value["archive_sha256"]):
         raise ValueError("manifest_shape")
+    if value["archive_sha256"] != os.environ["EXPECTED_SHA"] or value["archive_bytes"] != int(os.environ["ARCHIVE_BYTES"]):
+        raise ValueError("manifest_integrity")
 except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
     sys.exit(1)
 PY
     then
         :
     else
-        /usr/bin/rm -f -- "$candidate_manifest"
+        /usr/bin/rm -f -- "$candidate_manifest" "$work/github.tfstate.age" "$work/github.tfstate.age.sha256"
         continue
     fi
-    /usr/bin/rm -f -- "$candidate_manifest"
+    /usr/bin/rm -f -- "$candidate_manifest" "$work/github.tfstate.age" "$work/github.tfstate.age.sha256"
     latest="$candidate"
     break
 done <<EOF

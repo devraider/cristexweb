@@ -155,6 +155,8 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
             '"visibility": "all"',
             "canonical_owner_identity",
             "repository_inventory_pagination",
+            'ProxyHandler({})',
+            "proxy_override",
         ):
             self.assertIn(required, inventory_source)
         for forbidden in ("POST", "PATCH", "PUT", "DELETE", "subprocess", "curl"):
@@ -267,6 +269,20 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
             )
             self.assertNotEqual(0, permissive.returncode)
             self.assertIn("reason=repository_permissive_feature", permissive.stdout)
+
+            plan["resource_changes"][0]["change"]["after"]["has_downloads"] = False
+            plan["resource_changes"][0]["change"]["after"].update(
+                {"fork": True, "source_owner": "foreign", "source_repo": "source"}
+            )
+            plan_path.write_text(json.dumps(plan))
+            fork = subprocess.run(
+                [str(validator), str(plan_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(0, fork.returncode)
+            self.assertIn("reason=repository_permissive_feature", fork.stdout)
 
     def test_docs_preserve_owner_and_mutation_boundaries(self) -> None:
         normalized = " ".join(self.readme.split())

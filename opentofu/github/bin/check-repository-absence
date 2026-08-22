@@ -25,6 +25,10 @@ if not token or "\n" in token or "\r" in token:
     fail("protected_token_absent")
 if os.environ.get("GITHUB_BASE_URL") or os.environ.get("GITHUB_API_URL"):
     fail("github_endpoint_override")
+if any(os.environ.get(name) for name in ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY")):
+    fail("proxy_override")
+
+opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 def get_json(path: str, query: dict[str, str] | None = None) -> object:
@@ -42,7 +46,7 @@ def get_json(path: str, query: dict[str, str] | None = None) -> object:
         },
     )
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with opener.open(request, timeout=20) as response:
             return json.load(response)
     except urllib.error.HTTPError as error:
         fail(f"github_http_{error.code}")

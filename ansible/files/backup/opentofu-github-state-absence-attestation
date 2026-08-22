@@ -55,6 +55,9 @@ archive_sha256=$(/usr/bin/cut -d ' ' -f1 "$run_directory/absence-attestation.jso
 /usr/bin/printf '{"schema":1,"service":"opentofu-github","artifact":"absence-attestation","state":"github.tfstate","created_at_utc":"%s","expires_at_utc":"%s","archive":"absence-attestation.json.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","state_path":"/var/lib/opentofu/cristexweb/github.tfstate","state_present":false}\n' "$timestamp" "$expires" "$archive_bytes" "$archive_sha256" >"$run_directory/manifest.json"
 /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/absence-attestation.json.age" "$remote_directory/absence-attestation.json.age"
 /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/absence-attestation.json.age.sha256" "$remote_directory/absence-attestation.json.age.sha256"
+# Publish the completion leaf only after absence is revalidated.
+check_parent
+check_absent
 /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/manifest.json" "$remote_directory/manifest.json"
 readback=$(/usr/bin/mktemp -d "$run_directory/.readback.XXXXXX")
 for leaf in absence-attestation.json.age absence-attestation.json.age.sha256 manifest.json; do /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_directory/$leaf" "$readback/$leaf"; /usr/bin/cmp -s "$run_directory/$leaf" "$readback/$leaf" || fail readback; done

@@ -80,7 +80,7 @@ class OpenTofuGithubStateBackupContractTests(unittest.TestCase):
             "non_mutating=true",
         ):
             self.assertIn(value, self.restore)
-        self.assertIn('if TIMESTAMP="$candidate" FILE="$candidate_manifest"', self.restore)
+        self.assertIn('if TIMESTAMP="$candidate" FILE="$candidate_manifest" EXPECTED_SHA=', self.restore)
         self.assertNotIn('if ! TIMESTAMP="$candidate" FILE="$candidate_manifest"', self.restore)
         for forbidden in ("tofu apply", "state push", "tofu import", "rclone delete", "assert "):
             self.assertNotIn(forbidden, self.restore)
@@ -103,7 +103,7 @@ class OpenTofuGithubStateBackupContractTests(unittest.TestCase):
             self.assertIn(value, self.absence)
         self.assertIn("github-absence", self.absence_restore)
         self.assertIn("nested_dirs", self.absence_restore)
-        self.assertIn('if TIMESTAMP="$candidate" FILE="$candidate_manifest"', self.absence_restore)
+        self.assertIn('if TIMESTAMP="$candidate" FILE="$candidate_manifest" EXPECTED_SHA=', self.absence_restore)
         self.assertNotIn('if ! TIMESTAMP="$candidate" FILE="$candidate_manifest"', self.absence_restore)
         self.assertIn("state_write=false", self.absence_restore)
         self.assertIn("non_mutating=true", self.absence_restore)
@@ -112,6 +112,9 @@ class OpenTofuGithubStateBackupContractTests(unittest.TestCase):
             self.assertNotIn("state push", text)
             self.assertNotIn("assert ", text)
         self.assertEqual(3, self.absence.count("copyto --immutable"))
+        manifest_upload = self.absence.index('copyto --immutable "$run_directory/manifest.json"')
+        self.assertLess(self.absence.rfind("check_absent", 0, manifest_upload), manifest_upload)
+        self.assertGreater(self.absence.rfind("check_absent", 0, manifest_upload), 0)
 
     def test_playbook_has_attestation_and_exact_remote_type_without_timer_mutation(self):
         for value in (
@@ -147,12 +150,14 @@ class OpenTofuGithubStateBackupContractTests(unittest.TestCase):
             "--diff",
             "--limit crtxweb",
             "--extra-vars",
-            "exec /usr/bin/env -i HOME=/home/paul USER=paul",
+            "/usr/bin/env -i HOME=/home/paul USER=paul",
         ):
             self.assertIn(value, self.wrapper)
         self.assertNotIn("enable-check", self.wrapper)
         self.assertNotIn("enable-apply", self.wrapper)
+        self.assertNotIn('exec /usr/bin/env', self.wrapper)
         self.assertNotIn('exec "$@"', self.wrapper)
+        self.assertIn('trap cleanup EXIT HUP INT TERM', self.wrapper)
 
     def test_shell_sources_are_parseable(self):
         for path in (BACKUP, RESTORE, ABSENCE, ABSENCE_RESTORE, WRAPPER):
