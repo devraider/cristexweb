@@ -7,11 +7,12 @@ import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 OWNER = "devraider"
 REPOSITORY = "cristex-reactive-resume"
-URL = f"https://api.github.com/repos/{OWNER}/{REPOSITORY}"
+API_ROOT = "https://api.github.com"
 
 
 def fail(reason: str) -> None:
@@ -22,36 +23,63 @@ def fail(reason: str) -> None:
 token = os.environ.get("GITHUB_TOKEN", "")
 if not token or "\n" in token or "\r" in token:
     fail("protected_token_absent")
+if os.environ.get("GITHUB_BASE_URL") or os.environ.get("GITHUB_API_URL"):
+    fail("github_endpoint_override")
 
-request = urllib.request.Request(
-    URL,
-    method="GET",
-    headers={
-        "Accept": "application/vnd.github+json",
-        "Authorization": f"Bearer {token}",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "cristexweb-opentofu-inventory",
-    },
-)
-try:
-    with urllib.request.urlopen(request, timeout=20) as response:
-        payload = json.load(response)
-except urllib.error.HTTPError as error:
-    if error.code == 404:
+
+def get_json(path: str, query: dict[str, str] | None = None) -> object:
+    url = f"{API_ROOT}{path}"
+    if query:
+        url = f"{url}?{urllib.parse.urlencode(query)}"
+    request = urllib.request.Request(
+        url,
+        method="GET",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "cristexweb-opentofu-inventory",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as error:
+        fail(f"github_http_{error.code}")
+    except (OSError, ValueError, json.JSONDecodeError):
+        fail("github_request")
+
+
+identity = get_json("/user")
+if not isinstance(identity, dict) or str(identity.get("login", "")).casefold() != OWNER.casefold():
+    fail("canonical_owner_identity")
+
+for page in range(1, 101):
+    payload = get_json(
+        "/user/repos",
+        {
+            "affiliation": "owner",
+            "visibility": "all",
+            "per_page": "100",
+            "page": str(page),
+        },
+    )
+    if not isinstance(payload, list):
+        fail("repository_inventory_shape")
+    for item in payload:
+        if not isinstance(item, dict):
+            fail("repository_inventory_item")
+        full_name = str(item.get("full_name", ""))
+        name = str(item.get("name", ""))
+        if name.casefold() == REPOSITORY.casefold() or full_name.casefold() == f"{OWNER}/{REPOSITORY}".casefold():
+            visibility = item.get("visibility")
+            private = item.get("private")
+            print(
+                "repository_status=present "
+                f"owner={OWNER} repository={REPOSITORY} visibility={visibility} private={str(private).lower()}"
+            )
+            raise SystemExit(2)
+    if len(payload) < 100:
         print(f"repository_status=absent owner={OWNER} repository={REPOSITORY}")
         raise SystemExit(0)
-    fail(f"github_http_{error.code}")
-except (OSError, ValueError, json.JSONDecodeError):
-    fail("github_request")
-
-if not isinstance(payload, dict):
-    fail("github_response")
-if payload.get("full_name") != f"{OWNER}/{REPOSITORY}":
-    fail("unexpected_repository")
-visibility = payload.get("visibility")
-private = payload.get("private")
-print(
-    "repository_status=present "
-    f"owner={OWNER} repository={REPOSITORY} visibility={visibility} private={str(private).lower()}"
-)
-raise SystemExit(2)
+fail("repository_inventory_pagination")

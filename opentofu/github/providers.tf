@@ -1,3 +1,4 @@
 provider "github" {
-  owner = "devraider"
+  owner    = "devraider"
+  base_url = "https://api.github.com/"
 }

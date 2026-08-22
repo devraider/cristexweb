@@ -56,9 +56,10 @@ Before a future separately approved check/plan/apply:
 
 1. confirm the canonical Git worktree and this root's exact file/resource closure;
 2. with `GITHUB_TOKEN` supplied only by the protected process environment, run
-   `bin/check-repository-absence`; it performs one fixed GET and succeeds only on an
-   authenticated absent-repository result. Import an existing matching repository
-   instead of creating a duplicate;
+   `bin/check-repository-absence`; it pins `api.github.com`, verifies the authenticated
+   identity is exactly `devraider`, paginates every repository owned by that identity,
+   and succeeds only when the case-insensitive slug is absent. Import an existing
+   matching repository instead of creating a duplicate;
 3. back up and rehearse recovery of `github.tfstate`;
 4. write the binary plan and `tofu show -json` rendering to protected mode-`0600`
    files, then run `bin/validate-create-plan PLAN.json`;

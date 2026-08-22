@@ -24,12 +24,14 @@ EXPECTED = {
     "github_repository_vulnerability_alerts.reactive_resume_mirror": {
         "type": "github_repository_vulnerability_alerts",
         "after": {
+            "repository": "cristex-reactive-resume",
             "enabled": True,
         },
     },
     "github_actions_repository_permissions.reactive_resume_mirror": {
         "type": "github_actions_repository_permissions",
         "after": {
+            "repository": "cristex-reactive-resume",
             "enabled": False,
         },
     },
@@ -87,8 +89,15 @@ for address, contract in EXPECTED.items():
         if after.get(key) != expected:
             fail(f"after_contract_{contract['type']}_{key}")
     if contract["type"] == "github_actions_repository_permissions":
+        if after.get("allowed_actions") not in (None, "all"):
+            fail("actions_policy_present")
         if after.get("allowed_actions_config") not in (None, [], {}):
             fail("actions_selected_config_present")
+        if after.get("sha_pinning_required") not in (None, False):
+            fail("actions_unexpected_sha_policy")
+    if contract["type"] == "github_repository_vulnerability_alerts":
+        if after.get("repository_id") not in (None, 0):
+            fail("alerts_unexpected_repository_id")
     sensitive = change.get("after_sensitive")
     if sensitive not in ({}, None, False):
         fail("sensitive_values")

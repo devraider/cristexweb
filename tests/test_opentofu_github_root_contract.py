@@ -65,7 +65,8 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
             'source  = "integrations/github"',
             'version = "= 6.13.0"',
             'provider "github"',
-            'owner = "devraider"',
+            'owner    = "devraider"',
+            'base_url = "https://api.github.com/"',
             'provider "registry.opentofu.org/integrations/github"',
             'version     = "6.13.0"',
             'constraints = "6.13.0"',
@@ -145,9 +146,15 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
         for required in (
             'OWNER = "devraider"',
             'REPOSITORY = "cristex-reactive-resume"',
+            'API_ROOT = "https://api.github.com"',
             'method="GET"',
             'os.environ.get("GITHUB_TOKEN", "")',
-            "error.code == 404",
+            'get_json("/user")',
+            '"/user/repos"',
+            '"affiliation": "owner"',
+            '"visibility": "all"',
+            "canonical_owner_identity",
+            "repository_inventory_pagination",
         ):
             self.assertIn(required, inventory_source)
         for forbidden in ("POST", "PATCH", "PUT", "DELETE", "subprocess", "curl"):
@@ -184,7 +191,7 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
                     "change": {
                         "actions": ["create"],
                         "before": None,
-                        "after": {"enabled": True},
+                        "after": {"repository": "cristex-reactive-resume", "enabled": True},
                         "after_sensitive": {},
                     },
                 },
@@ -196,7 +203,7 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
                     "change": {
                         "actions": ["create"],
                         "before": None,
-                        "after": {"enabled": False},
+                        "after": {"repository": "cristex-reactive-resume", "enabled": False},
                         "after_sensitive": {},
                     },
                 },
@@ -223,6 +230,30 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
             )
             self.assertNotEqual(0, refused.returncode)
             self.assertIn("reason=non_create_action", refused.stdout)
+
+            plan["resource_changes"][0]["change"]["actions"] = ["create"]
+            plan["resource_changes"][2]["change"]["after"]["allowed_actions"] = "selected"
+            plan_path.write_text(json.dumps(plan))
+            selected = subprocess.run(
+                [str(validator), str(plan_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(0, selected.returncode)
+            self.assertIn("reason=actions_policy_present", selected.stdout)
+
+            plan["resource_changes"][2]["change"]["after"].pop("allowed_actions")
+            plan["resource_changes"][1]["change"]["after"]["repository"] = "foreign"
+            plan_path.write_text(json.dumps(plan))
+            foreign = subprocess.run(
+                [str(validator), str(plan_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(0, foreign.returncode)
+            self.assertIn("after_contract_github_repository_vulnerability_alerts_repository", foreign.stdout)
 
     def test_docs_preserve_owner_and_mutation_boundaries(self) -> None:
         normalized = " ".join(self.readme.split())
