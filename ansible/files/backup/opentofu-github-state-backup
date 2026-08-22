@@ -3,36 +3,79 @@ set -eu
 umask 077
 PATH=/usr/local/bin:/usr/bin:/bin
 export PATH
-state_file=/var/lib/opentofu/cristexweb/github.tfstate
+state_parent=/var/lib/opentofu/cristexweb
+state_file="$state_parent/github.tfstate"
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
 rclone_config=/home/paul/.config/rclone/rclone.conf
 archive_root=/var/lib/cristexweb-backup/opentofu/github
 remote_root=drive:cristexweb-recovery/opentofu/github
 lock_file=/run/lock/cristexweb-opentofu-github-state-backup.lock
+expected_addresses="$archive_root/.expected-addresses.$$"
+expected_actual="$expected_addresses.actual"
+expected_sorted="$expected_addresses.sorted"
+state_snapshot="$archive_root/.github.tfstate.snapshot.$$"
+
+fail() { printf 'backup_status=failed stage=%s\n' "$1"; exit 1; }
+check_dir_contract() {
+    [ -d "$1" ] && [ ! -L "$1" ] || fail parent_contract
+    [ "$(/usr/bin/realpath -e -- "$1")" = "$1" ] || fail parent_symlink
+}
+check_dir_contract "$state_parent"
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$state_parent")" = 'paul:root:700' ] || fail parent_contract
+[ -f "$state_file" ] && [ ! -L "$state_file" ] || fail state_contract
+[ "$(/usr/bin/realpath -e -- "$state_file")" = "$state_file" ] || fail state_symlink
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$state_file")" = 'paul:paul:600' ] || fail state_contract
+[ -d "$archive_root" ] && [ ! -L "$archive_root" ] || fail archive_contract
+[ "$(/usr/bin/realpath -e -- "$archive_root")" = "$archive_root" ] || fail archive_symlink
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$archive_root")" = 'paul:paul:700' ] || fail archive_contract
+[ -f "$recipient_file" ] && [ ! -L "$recipient_file" ] || fail recipient_contract
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$recipient_file")" = 'root:paul:640' ] || fail recipient_contract
+[ "$(/usr/bin/sha256sum "$recipient_file" | /usr/bin/cut -d ' ' -f1)" = "$recipient_sha256" ] || fail recipient_contract
+recipient=$(/usr/bin/tr -d '\n' <"$recipient_file")
+printf '%s\n' "$recipient" | /usr/bin/grep -Eq '^age1[0-9a-z]+$' || fail recipient_contract
+[ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] || fail rclone_config_contract
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || fail rclone_config_contract
+configured_remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long) || fail rclone_backend
+[ "$configured_remotes" = 'drive: drive' ] || fail rclone_backend
+
 exec 9>"$lock_file"
 /usr/bin/flock -n 9 || { printf '%s\n' 'backup_status=refused reason=concurrent_run'; exit 75; }
-[ -f "$state_file" ] && [ ! -L "$state_file" ] && [ "$(/usr/bin/stat -c '%U:%G:%a' "$state_file")" = 'paul:paul:600' ] || { printf '%s\n' 'backup_status=failed stage=state_contract'; exit 1; }
-TOFU_DISABLE_CHECKPOINT=1 /usr/local/bin/tofu state list -state="$state_file" >/dev/null 2>&1 || { printf '%s\n' 'backup_status=failed stage=state_validation'; exit 1; }
-[ -f "$recipient_file" ] && [ ! -L "$recipient_file" ] && [ "$(/usr/bin/sha256sum "$recipient_file" | /usr/bin/cut -d ' ' -f1)" = "$recipient_sha256" ] || { printf '%s\n' 'backup_status=failed stage=recipient_contract'; exit 1; }
-recipient=$(/usr/bin/tr -d '\n' <"$recipient_file")
-printf '%s\n' "$recipient" | /usr/bin/grep -Eq '^age1[0-9a-z]+$' || exit 1
-[ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] && [ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || { printf '%s\n' 'backup_status=failed stage=rclone_config_contract'; exit 1; }
+cleanup() { /usr/bin/rm -f -- "$expected_addresses" "$expected_actual" "$expected_sorted" "$state_snapshot"; }
+trap cleanup EXIT HUP INT TERM
+state_sha_before=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f1)
+/usr/bin/install -m 0600 "$state_file" "$state_snapshot"
+state_sha_after=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f1)
+snapshot_sha=$(/usr/bin/sha256sum "$state_snapshot" | /usr/bin/cut -d ' ' -f1)
+[ "$state_sha_before" = "$state_sha_after" ] && [ "$state_sha_after" = "$snapshot_sha" ] || fail state_race
+[ -f "$state_file" ] && [ ! -L "$state_file" ] && [ "$(/usr/bin/realpath -e -- "$state_file")" = "$state_file" ] || fail state_race
+/usr/bin/printf '%s\n' \
+  'github_actions_repository_permissions.reactive_resume_mirror' \
+  'github_repository.reactive_resume_mirror' \
+  'github_repository_vulnerability_alerts.reactive_resume_mirror' >"$expected_addresses"
+actual_addresses=$(/usr/local/bin/tofu state list -state="$state_snapshot" 2>/dev/null) || fail state_validation
+printf '%s\n' "$actual_addresses" | /usr/bin/sort >"$expected_actual"
+/usr/bin/sort "$expected_addresses" >"$expected_sorted"
+/usr/bin/cmp -s "$expected_actual" "$expected_sorted" || fail state_scope
+/usr/bin/rm -f -- "$expected_actual" "$expected_sorted"
 timestamp=$(/usr/bin/date -u +%Y%m%dT%H%M%SZ)
 run_directory="$archive_root/$timestamp"
 remote_directory="$remote_root/$timestamp"
 [ ! -e "$run_directory" ] || { printf '%s\n' 'backup_status=refused reason=local_timestamp_collision'; exit 73; }
 /usr/bin/install -d -m 0700 "$run_directory"
-/usr/bin/age -r "$recipient" -o "$run_directory/github.tfstate.age" "$state_file"
+/usr/bin/age -r "$recipient" -o "$run_directory/github.tfstate.age" "$state_snapshot"
+/usr/bin/rm -f -- "$state_snapshot"
 (cd "$run_directory" && /usr/bin/sha256sum github.tfstate.age >github.tfstate.age.sha256)
 archive_bytes=$(/usr/bin/stat -c %s "$run_directory/github.tfstate.age")
 archive_sha256=$(/usr/bin/cut -d ' ' -f1 "$run_directory/github.tfstate.age.sha256")
-/usr/bin/printf '{"schema":1,"service":"opentofu-github","state":"github.tfstate","created_at_utc":"%s","archive":"github.tfstate.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","backend":"local","state_path":"/var/lib/opentofu/cristexweb/github.tfstate"}\n' "$timestamp" "$archive_bytes" "$archive_sha256" >"$run_directory/manifest.json"
-for leaf in github.tfstate.age github.tfstate.age.sha256 manifest.json; do /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/$leaf" "$remote_directory/$leaf"; done
+/usr/bin/printf '{"schema":1,"service":"opentofu-github","state":"github.tfstate","created_at_utc":"%s","archive":"github.tfstate.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","backend":"local","state_path":"/var/lib/opentofu/cristexweb/github.tfstate","address_scope":"exact-three"}\n' "$timestamp" "$archive_bytes" "$archive_sha256" >"$run_directory/manifest.json"
+# Publish the manifest last: an interrupted upload cannot look complete to restore.
+/usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/github.tfstate.age" "$remote_directory/github.tfstate.age"
+/usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/github.tfstate.age.sha256" "$remote_directory/github.tfstate.age.sha256"
+/usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/manifest.json" "$remote_directory/manifest.json"
 readback=$(/usr/bin/mktemp -d "$run_directory/.readback.XXXXXX")
-trap '/usr/bin/rm -rf -- "$readback"' EXIT HUP INT TERM
-for leaf in github.tfstate.age github.tfstate.age.sha256 manifest.json; do /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_directory/$leaf" "$readback/$leaf"; /usr/bin/cmp -s "$run_directory/$leaf" "$readback/$leaf" || { printf 'backup_status=failed stage=readback leaf=%s\n' "$leaf"; exit 1; }; done
+trap '/usr/bin/rm -rf -- "$readback" "$expected_addresses" "$expected_actual" "$expected_sorted" "$state_snapshot"' EXIT HUP INT TERM
+for leaf in github.tfstate.age github.tfstate.age.sha256 manifest.json; do /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_directory/$leaf" "$readback/$leaf"; /usr/bin/cmp -s "$run_directory/$leaf" "$readback/$leaf" || fail readback; done
 /usr/bin/rm -rf -- "$readback"
-trap - EXIT HUP INT TERM
 /usr/bin/find "$archive_root" -mindepth 1 -maxdepth 1 -type d -mtime +14 -name '20[0-9][0-9][01][0-9][0-3][0-9]T[0-2][0-9][0-5][0-9][0-5][0-9]Z' -exec /usr/bin/rm -rf -- {} +
-printf 'backup_status=success service=opentofu-github state=github timestamp=%s archive_bytes=%s readback=verified\n' "$timestamp" "$archive_bytes"
+printf 'backup_status=success service=opentofu-github state=github timestamp=%s archive_bytes=%s readback=verified address_scope=exact-three\n' "$timestamp" "$archive_bytes"

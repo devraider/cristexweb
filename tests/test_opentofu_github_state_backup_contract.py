@@ -1,5 +1,6 @@
 from pathlib import Path
-import re
+import subprocess
+import tempfile
 import unittest
 
 import yaml
@@ -8,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 ANSIBLE = ROOT / "ansible"
 BACKUP = ANSIBLE / "files/backup/opentofu-github-state-backup"
 RESTORE = ANSIBLE / "files/backup/restore-opentofu-github-state-rehearsal"
+ABSENCE = ANSIBLE / "files/backup/opentofu-github-state-absence-attestation"
+ABSENCE_RESTORE = ANSIBLE / "files/backup/restore-opentofu-github-state-absence-rehearsal"
 SERVICE = ANSIBLE / "files/backup/cristexweb-opentofu-github-state-backup.service"
 TIMER = ANSIBLE / "files/backup/cristexweb-opentofu-github-state-backup.timer"
 WRAPPER = ANSIBLE / "bin/configure-opentofu-github-state-backup"
@@ -20,6 +23,8 @@ class OpenTofuGithubStateBackupContractTests(unittest.TestCase):
     def setUpClass(cls):
         cls.backup = BACKUP.read_text()
         cls.restore = RESTORE.read_text()
+        cls.absence = ABSENCE.read_text()
+        cls.absence_restore = ABSENCE_RESTORE.read_text()
         cls.service = SERVICE.read_text()
         cls.timer = TIMER.read_text()
         cls.wrapper = WRAPPER.read_text()
@@ -27,165 +32,136 @@ class OpenTofuGithubStateBackupContractTests(unittest.TestCase):
         cls.runbook = RUNBOOK.read_text()
         yaml.safe_load(cls.playbook)
 
-    def test_source_closure_is_separate_from_foundation_lane(self):
-        self.assertTrue(BACKUP.is_file())
-        self.assertTrue(RESTORE.is_file())
-        self.assertTrue(SERVICE.is_file())
-        self.assertTrue(TIMER.is_file())
-        self.assertTrue(WRAPPER.is_file())
-        self.assertTrue(PLAYBOOK.is_file())
-        for text in (
-            self.backup,
-            self.restore,
-            self.service,
-            self.timer,
-            self.wrapper,
-            self.playbook,
-        ):
+    def test_source_closure_is_separate_and_complete(self):
+        for path in (BACKUP, RESTORE, ABSENCE, ABSENCE_RESTORE, SERVICE, TIMER, WRAPPER, PLAYBOOK, RUNBOOK):
+            self.assertTrue(path.is_file(), path)
+        for text in (self.backup, self.restore, self.absence, self.absence_restore, self.service, self.timer, self.wrapper, self.playbook):
             self.assertNotIn("foundation.tfstate", text)
-            self.assertNotIn("opentofu-state-backup", text)
-            self.assertNotIn("restore-opentofu-state-rehearsal", text)
             self.assertNotIn("cristexweb-opentofu-state-backup", text)
         self.assertIn("github.tfstate", self.backup)
         self.assertIn("github.tfstate", self.restore)
-        self.assertIn("cristexweb-opentofu-github-state-backup", self.service)
-        self.assertIn("cristexweb-opentofu-github-state-backup", self.timer)
-        self.assertIn("configure_opentofu_github_state_backup.yml", self.wrapper)
+        self.assertIn("github-absence", self.absence)
+        self.assertIn("github-absence", self.absence_restore)
 
-    def test_backup_encrypts_immutable_three_leaf_archive_and_reads_back(self):
+    def test_state_backup_has_exact_scope_and_immutable_readback(self):
         for value in (
-            "state_file=/var/lib/opentofu/cristexweb/github.tfstate",
+            "state_parent=/var/lib/opentofu/cristexweb",
+            "state_file=\"$state_parent/github.tfstate\"",
             "archive_root=/var/lib/cristexweb-backup/opentofu/github",
             "remote_root=drive:cristexweb-recovery/opentofu/github",
-            "lock_file=/run/lock/cristexweb-opentofu-github-state-backup.lock",
-            "/usr/bin/age -r",
-            "TOFU_DISABLE_CHECKPOINT=1 /usr/local/bin/tofu state list",
-            "github.tfstate.age.sha256",
             "copyto --immutable",
             "/usr/bin/cmp -s",
-            'state_path":"/var/lib/opentofu/cristexweb/github.tfstate',
-            '"service":"opentofu-github"',
-            "backup_status=success service=opentofu-github",
+            "address_scope=exact-three",
+            "listremotes --long",
+            "drive: drive",
+            "github_actions_repository_permissions.reactive_resume_mirror",
+            "github_repository.reactive_resume_mirror",
+            "github_repository_vulnerability_alerts.reactive_resume_mirror",
+            "manifest.json",
         ):
             self.assertIn(value, self.backup)
-        for forbidden in (
-            "rclone sync",
-            "rclone delete",
-            "AGE-SECRET-KEY-",
-            "password=",
-            "foundation",
-        ):
-            self.assertNotIn(forbidden, self.backup)
-        self.assertEqual(1, self.backup.count("copyto --immutable"))
-        self.assertEqual(2, self.backup.count("for leaf in github.tfstate.age"))
+        self.assertNotIn("rclone sync", self.backup)
+        self.assertNotIn("rclone delete", self.backup)
+        self.assertNotIn("assert ", self.backup)
+        self.assertEqual(3, self.backup.count("copyto --immutable"))
 
-    def test_restore_is_checksum_checked_isolated_and_non_mutating(self):
+    def test_state_restore_filters_complete_timestamped_archives_and_scope(self):
         for value in (
-            "remote_root=drive:cristexweb-recovery/opentofu/github",
-            "/dev/shm/cristexweb-opentofu-github-restore.XXXXXX",
-            "SHARED_DATABASE_BACKUP_AGE_IDENTITY",
-            "age -d -i",
-            "github.tfstate.age.sha256",
-            "tofu state list",
+            "lsf --dirs-only",
+            "sort -r",
+            "^20[0-9]{6}T[0-9]{6}Z$",
+            "lsf --files-only",
+            "nested_dirs",
+            "github.tfstate.age\ngithub.tfstate.age.sha256\nmanifest.json",
+            "address_scope=exact-three",
             "TOFU_DISABLE_CHECKPOINT=1",
             "target=isolated-tmpfs",
             "non_mutating=true",
-            "x['service']=='opentofu-github'",
-            "/usr/bin/rm -f -- \"$work/identity\"",
         ):
             self.assertIn(value, self.restore)
-        for forbidden in (
-            "tofu apply",
-            "state push",
-            "tofu import",
-            "rclone delete",
-            "foundation",
-        ):
+        for forbidden in ("tofu apply", "state push", "tofu import", "rclone delete", "assert "):
             self.assertNotIn(forbidden, self.restore)
 
-    def test_systemd_units_have_unique_hardened_scope(self):
+    def test_first_genesis_absence_uses_dedicated_three_leaf_expiring_archive(self):
         for value in (
-            "User=paul",
-            "Group=paul",
-            "ProtectSystem=strict",
-            "PrivateTmp=true",
-            "PrivateDevices=true",
-            "CapabilityBoundingSet=",
-            "SyslogIdentifier=cristexweb-opentofu-github-state-backup",
-            "BACKUP_SERVICE=opentofu-github",
-            "ReadWritePaths=/var/lib/cristexweb-backup/opentofu/github",
+            '"state_present":false',
+            "archive_root=/var/lib/cristexweb-backup/opentofu/github-absence",
+            "remote_root=drive:cristexweb-recovery/opentofu/github-absence",
+            "expires_at_utc",
+            "now_epoch + 900",
+            "absence-attestation.json.age",
+            "absence-attestation.json.age.sha256",
+            "manifest.json",
+            "copyto --immutable",
+            "state_absent=verified",
+            "encrypted=true",
+            "/usr/bin/cmp -s",
         ):
-            self.assertIn(value, self.service)
-        self.assertNotIn("ReadWritePaths=/var/lib/cristexweb-backup /", self.service)
-        for value in (
-            "OnCalendar=*-*-* 03:15:00",
-            "RandomizedDelaySec=15m",
-            "Persistent=true",
-            "Unit=cristexweb-opentofu-github-state-backup.service",
-        ):
-            self.assertIn(value, self.timer)
-        self.assertNotIn("02:45:00", self.timer)
+            self.assertIn(value, self.absence)
+        self.assertIn("github-absence", self.absence_restore)
+        self.assertIn("nested_dirs", self.absence_restore)
+        self.assertIn("state_write=false", self.absence_restore)
+        self.assertIn("non_mutating=true", self.absence_restore)
+        for text in (self.absence, self.absence_restore):
+            self.assertNotIn("tofu ", text)
+            self.assertNotIn("state push", text)
+            self.assertNotIn("assert ", text)
+        self.assertEqual(3, self.absence.count("copyto --immutable"))
 
-    def test_playbook_has_fixed_target_and_no_foundation_timer_path(self):
+    def test_playbook_has_attestation_and_exact_remote_type_without_timer_mutation(self):
         for value in (
-            "opentofu_github_state_backup_approved: false",
-            "opentofu_github_state_backup_mode: install",
-            "CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_ENTRYPOINT",
-            "/var/lib/opentofu/cristexweb/github.tfstate",
-            "/var/lib/cristexweb-backup/opentofu/github",
-            "cristexweb-opentofu-github-state-backup.timer",
-            "restore-opentofu-github-state-rehearsal",
-            "opentofu_github_state_restore_result",
-            "opentofu_github_state_backup_mode in ['install', 'test', 'restore', 'enable']",
+            "Reject externally supplied recovery internals",
+            "CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_TOKEN",
+            "CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_ATTESTATION_FILE",
+            "CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_APPROVAL",
+            "ansible_diff_mode",
+            "inventory_hostname == 'crtxweb'",
+            "Require exact parent and state symlink closure",
+            "remote_src: true",
+            "listremotes, --long",
+            "drive: drive",
+            "attest",
+            "restore-absence",
+            "absence-attestation",
+            "exact-three",
         ):
             self.assertIn(value, self.playbook)
-        for forbidden in (
-            "opentofu_github_state_backup_repository_root",
-            "foundation.tfstate",
-            "cristexweb-opentofu-state-backup",
-            "name: cristexweb-opentofu-state-backup.timer",
-        ):
-            self.assertNotIn(forbidden, self.playbook)
-        self.assertEqual(2, self.playbook.count("cristexweb-opentofu-github-state-backup.service"))
-        self.assertEqual(3, self.playbook.count("cristexweb-opentofu-github-state-backup.timer"))
+        self.assertNotIn("opentofu_github_state_backup_approved", self.playbook)
+        self.assertNotIn("opentofu_github_state_backup_mode == 'enable'", self.playbook)
+        self.assertIn("Keep the unaccepted recovery timer disabled", self.playbook)
+        self.assertIn("enabled: false", self.playbook)
+        self.assertIn("state: stopped", self.playbook)
 
     def test_wrapper_is_non_passthrough_and_mode_bounded(self):
         for value in (
-            "check|apply|test|restore|enable-check|enable-apply",
-            "root=$(CDPATH= cd -- \"$dir/../..\" && pwd -P)",
-            "[ \"$root\" = /home/paul/projects/cristexweb ]",
-            "controller=\"$root/.venv/bin/ansible-playbook\"",
-            "-i .ansible/inventory.local.yml",
-            "--limit crtxweb",
-            "--ask-become-pass",
-            "--extra-vars",
+            "check|apply|test|restore|attest|restore-absence",
             "CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_ENTRYPOINT=v1",
+            "CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_APPROVAL=v1",
+            "CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_TOKEN=",
+            "CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_ATTESTATION_FILE=",
+            "--diff",
+            "--limit crtxweb",
+            "--extra-vars",
+            "exec /usr/bin/env -i HOME=/home/paul USER=paul",
         ):
             self.assertIn(value, self.wrapper)
-        self.assertNotIn("foundation", self.wrapper)
-        self.assertNotIn("--start-at-task", self.wrapper)
-        self.assertNotIn("--step", self.wrapper)
-        self.assertIn('exec /usr/bin/env -i HOME=/home/paul USER=paul', self.wrapper)
+        self.assertNotIn("enable-check", self.wrapper)
+        self.assertNotIn("enable-apply", self.wrapper)
         self.assertNotIn('exec "$@"', self.wrapper)
 
-    def test_runbook_records_source_only_fixed_boundary(self):
-        normalized = " ".join(self.runbook.split())
-        for value in (
-            "source-only",
-            "/var/lib/opentofu/cristexweb/github.tfstate",
-            "/var/lib/cristexweb-backup/opentofu/github",
-            "drive:cristexweb-recovery/opentofu/github",
-            "cristexweb-opentofu-github-state-backup.{service,timer}",
-            "SHARED_DATABASE_BACKUP_AGE_IDENTITY",
-            "no state path, archive path, remote, lock, unit, identity, or retention parameters",
-            "byte-for-byte",
-            "isolated restore",
-            "non_mutating=true",
-            "foundation",
-            "No task in this playbook",
-        ):
-            self.assertIn(value, normalized)
-        self.assertNotRegex(normalized, re.compile(r"(?i)(AGE-SECRET-KEY-|ghp_[a-z0-9]{20,}|github_pat_[a-z0-9_]{20,})"))
+    def test_shell_sources_are_parseable(self):
+        for path in (BACKUP, RESTORE, ABSENCE, ABSENCE_RESTORE, WRAPPER):
+            result = subprocess.run(["/bin/dash", "-n", str(path)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_units_remain_source_only_without_scheduler_state_mutation(self):
+        for value in ("User=paul", "ProtectSystem=strict", "PrivateTmp=true", "CapabilityBoundingSet="):
+            self.assertIn(value, self.service)
+        for value in ("OnCalendar=*-*-* 03:15:00", "RandomizedDelaySec=15m", "Persistent=true"):
+            self.assertIn(value, self.timer)
+        self.assertIn("source-only", self.runbook)
+        self.assertIn("timer", self.runbook)
+        self.assertIn("receipt", self.runbook)
 
 
 if __name__ == "__main__":

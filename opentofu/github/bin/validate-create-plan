@@ -14,6 +14,7 @@ EXPECTED = {
         "type": "github_repository",
         "after": {
             "name": "cristex-reactive-resume",
+            "description": "Private standalone Reactive Resume source mirror",
             "visibility": "private",
             "auto_init": False,
             "has_issues": False,
@@ -88,6 +89,25 @@ for address, contract in EXPECTED.items():
     for key, expected in contract["after"].items():
         if after.get(key) != expected:
             fail(f"after_contract_{contract['type']}_{key}")
+    if contract["type"] == "github_repository":
+        safe_false = (
+            "archived",
+            "allow_auto_merge",
+            "allow_forking",
+            "has_discussions",
+            "has_downloads",
+            "is_template",
+        )
+        if any(after.get(key) not in (None, False) for key in safe_false):
+            fail("repository_permissive_feature")
+        if after.get("pages") not in (None, [], {}):
+            fail("repository_pages_present")
+        if after.get("template") not in (None, [], {}):
+            fail("repository_template_present")
+        if after.get("homepage_url") not in (None, ""):
+            fail("repository_homepage_present")
+        if after.get("gitignore_template") not in (None, "") or after.get("license_template") not in (None, ""):
+            fail("repository_generated_content")
     if contract["type"] == "github_actions_repository_permissions":
         if after.get("allowed_actions") not in (None, "all"):
             fail("actions_policy_present")

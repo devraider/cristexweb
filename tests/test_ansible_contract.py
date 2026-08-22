@@ -223,6 +223,8 @@ class AnsibleLayoutTests(unittest.TestCase):
             "files/backup/cristexweb-opentofu-github-state-backup.timer",
             "files/backup/opentofu-github-state-backup",
             "files/backup/restore-opentofu-github-state-rehearsal",
+            "files/backup/opentofu-github-state-absence-attestation",
+            "files/backup/restore-opentofu-github-state-absence-rehearsal",
             "bin/configure-opentofu-github-state-backup",
             "playbooks/configure_opentofu_github_state_backup.yml",
             "bin/provision-shared-postgresql",

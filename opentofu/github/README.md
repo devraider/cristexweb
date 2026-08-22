@@ -60,7 +60,8 @@ Before a future separately approved check/plan/apply:
    identity is exactly `devraider`, paginates every repository owned by that identity,
    and succeeds only when the case-insensitive slug is absent. Import an existing
    matching repository instead of creating a duplicate;
-3. back up and rehearse recovery of `github.tfstate`;
+3. before genesis, run the separate absence attestation/readback/restore rehearsal;
+   after genesis, back up and rehearse recovery of `github.tfstate`;
 4. write the binary plan and `tofu show -json` rendering to protected mode-`0600`
    files, then run `bin/validate-create-plan PLAN.json`;
 5. accept only the three exact GitHub create actions; reject replacement, destroy,

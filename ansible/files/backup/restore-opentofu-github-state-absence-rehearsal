@@ -1,0 +1,144 @@
+#!/bin/sh
+set -eu
+umask 077
+PATH=/usr/local/bin:/usr/bin:/bin
+export PATH
+project_id=619656da-14f3-4872-857b-be103cdc5326
+infisical_path=/shared-services/backup-recovery
+state_parent=/var/lib/opentofu/cristexweb
+state_file="$state_parent/github.tfstate"
+remote_root=drive:cristexweb-recovery/opentofu/github-absence
+rclone_config=/home/paul/.config/rclone/rclone.conf
+work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-github-absence-restore.XXXXXX)
+cleanup() { /usr/bin/rm -rf -- "$work"; }
+trap cleanup EXIT HUP INT TERM
+chmod 0700 "$work"
+check_parent() {
+    [ -d "$state_parent" ] && [ ! -L "$state_parent" ] || { printf '%s\n' 'restore_status=failed stage=parent_contract'; exit 1; }
+    [ "$(/usr/bin/realpath -e -- "$state_parent")" = "$state_parent" ] || { printf '%s\n' 'restore_status=failed stage=parent_symlink'; exit 1; }
+    [ "$(/usr/bin/stat -c '%U:%G:%a' "$state_parent")" = 'paul:root:700' ] || { printf '%s\n' 'restore_status=failed stage=parent_contract'; exit 1; }
+}
+check_absent() {
+    [ ! -e "$state_file" ] && [ ! -L "$state_file" ] || { printf '%s\n' 'restore_status=failed stage=state_present'; exit 1; }
+}
+check_parent
+check_absent
+[ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] || { printf '%s\n' 'restore_status=failed stage=rclone_config_contract'; exit 1; }
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || { printf '%s\n' 'restore_status=failed stage=rclone_config_contract'; exit 1; }
+configured_remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long) || { printf '%s\n' 'restore_status=failed stage=rclone_backend'; exit 1; }
+[ "$configured_remotes" = 'drive: drive' ] || { printf '%s\n' 'restore_status=failed stage=rclone_backend'; exit 1; }
+candidates=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sed 's#/$##' | /usr/bin/sort -r)
+latest=
+while IFS= read -r candidate; do
+    [ -n "$candidate" ] || continue
+    printf '%s\n' "$candidate" | /usr/bin/grep -Eq '^20[0-9]{6}T[0-9]{6}Z$' || continue
+    nested_dirs=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root/$candidate")
+    [ -z "$nested_dirs" ] || continue
+    leaves=$(/usr/local/bin/rclone --config "$rclone_config" lsf --files-only "$remote_root/$candidate" | /usr/bin/sort)
+    expected='absence-attestation.json.age
+absence-attestation.json.age.sha256
+manifest.json'
+    [ "$leaves" = "$expected" ] || continue
+    candidate_manifest="$work/candidate-manifest"
+    /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_root/$candidate/manifest.json" "$candidate_manifest" || { /usr/bin/rm -f -- "$candidate_manifest"; continue; }
+    if ! TIMESTAMP="$candidate" FILE="$candidate_manifest" /usr/bin/python3 - <<'PY'
+import datetime
+import json
+import os
+import re
+import sys
+try:
+    with open(os.environ["FILE"], encoding="utf-8") as stream:
+        value = json.load(stream)
+    expected_keys = {"schema", "service", "artifact", "state", "created_at_utc", "expires_at_utc", "archive", "archive_bytes", "archive_sha256", "encryption", "state_path", "state_present"}
+    if set(value) != expected_keys or value["schema"] != 1 or value["service"] != "opentofu-github" or value["artifact"] != "absence-attestation":
+        raise ValueError("manifest_identity")
+    if value["state"] != "github.tfstate" or value["state_path"] != "/var/lib/opentofu/cristexweb/github.tfstate" or value["state_present"] is not False or value["created_at_utc"] != os.environ["TIMESTAMP"] or value["archive"] != "absence-attestation.json.age" or value["encryption"] != "age-x25519":
+        raise ValueError("manifest_contract")
+    if not isinstance(value["archive_bytes"], int) or value["archive_bytes"] <= 0 or not re.fullmatch(r"[0-9a-f]{64}", value["archive_sha256"]):
+        raise ValueError("manifest_shape")
+    created = datetime.datetime.strptime(value["created_at_utc"], "%Y%m%dT%H%M%SZ")
+    expires = datetime.datetime.strptime(value["expires_at_utc"], "%Y%m%dT%H%M%SZ")
+    if expires != created + datetime.timedelta(minutes=15):
+        raise ValueError("manifest_expiry")
+except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+    sys.exit(1)
+PY
+    then
+        :
+    else
+        /usr/bin/rm -f -- "$candidate_manifest"
+        continue
+    fi
+    /usr/bin/rm -f -- "$candidate_manifest"
+    latest="$candidate"
+    break
+done <<EOF
+$candidates
+EOF
+[ -n "$latest" ] || { printf '%s\n' 'restore_status=failed stage=remote_catalog'; exit 1; }
+remote="$remote_root/$latest"
+for leaf in absence-attestation.json.age absence-attestation.json.age.sha256 manifest.json; do /usr/local/bin/rclone --config "$rclone_config" copyto "$remote/$leaf" "$work/$leaf"; done
+(cd "$work" && /usr/bin/sha256sum -c absence-attestation.json.age.sha256 >/dev/null)
+FILE="$work/manifest.json" PAYLOAD_TIMESTAMP="$latest" EXPECTED_SHA="$(/usr/bin/cut -d ' ' -f1 "$work/absence-attestation.json.age.sha256")" ARCHIVE_BYTES="$(/usr/bin/stat -c %s "$work/absence-attestation.json.age")" /usr/bin/python3 - <<'PY'
+import json
+import os
+import sys
+try:
+    with open(os.environ["FILE"], encoding="utf-8") as stream:
+        value = json.load(stream)
+    expected_keys = {"schema", "service", "artifact", "state", "created_at_utc", "expires_at_utc", "archive", "archive_bytes", "archive_sha256", "encryption", "state_path", "state_present"}
+    if set(value) != expected_keys:
+        raise ValueError("manifest_keys")
+    if value["schema"] != 1 or value["service"] != "opentofu-github" or value["artifact"] != "absence-attestation":
+        raise ValueError("manifest_identity")
+    if value["state"] != "github.tfstate" or value["state_path"] != "/var/lib/opentofu/cristexweb/github.tfstate" or value["state_present"] is not False:
+        raise ValueError("manifest_state")
+    if value["created_at_utc"] != os.environ["PAYLOAD_TIMESTAMP"] or value["archive"] != "absence-attestation.json.age":
+        raise ValueError("manifest_timestamp")
+    if value["encryption"] != "age-x25519" or value["archive_sha256"] != os.environ["EXPECTED_SHA"] or value["archive_bytes"] != int(os.environ["ARCHIVE_BYTES"]):
+        raise ValueError("manifest_integrity")
+except (OSError, ValueError, TypeError, json.JSONDecodeError):
+    sys.exit(1)
+PY
+/home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity"
+chmod 0600 "$work/identity"
+/usr/bin/age -d -i "$work/identity" "$work/absence-attestation.json.age" >"$work/absence-attestation.json"
+/usr/bin/rm -f -- "$work/identity"
+FILE="$work/absence-attestation.json" MANIFEST="$work/manifest.json" EXPECTED_TIMESTAMP="$latest" /usr/bin/python3 - <<'PY'
+import datetime
+import json
+import os
+import sys
+try:
+    with open(os.environ["FILE"], encoding="utf-8") as stream:
+        value = json.load(stream)
+    with open(os.environ["MANIFEST"], encoding="utf-8") as stream:
+        manifest = json.load(stream)
+    expected_keys = {"schema", "service", "artifact", "state_path", "state_present", "parent_path", "parent_realpath", "parent_owner", "parent_group", "parent_mode", "attested_at_utc", "expires_at_utc"}
+    if set(value) != expected_keys:
+        raise ValueError("payload_keys")
+    if value["schema"] != 1 or value["service"] != "opentofu-github" or value["artifact"] != "absence-attestation":
+        raise ValueError("payload_identity")
+    if value["state_path"] != "/var/lib/opentofu/cristexweb/github.tfstate" or value["state_present"] is not False:
+        raise ValueError("payload_state")
+    if value["parent_path"] != "/var/lib/opentofu/cristexweb" or value["parent_realpath"] != value["parent_path"] or value["parent_owner"] != "paul" or value["parent_group"] != "root" or value["parent_mode"] != "0700":
+        raise ValueError("payload_parent")
+    if value["attested_at_utc"] != os.environ["EXPECTED_TIMESTAMP"]:
+        raise ValueError("payload_timestamp")
+    if manifest["created_at_utc"] != value["attested_at_utc"] or manifest["expires_at_utc"] != value["expires_at_utc"]:
+        raise ValueError("manifest_payload_binding")
+    attested = datetime.datetime.strptime(value["attested_at_utc"], "%Y%m%dT%H%M%SZ").replace(tzinfo=datetime.timezone.utc)
+    expires = datetime.datetime.strptime(value["expires_at_utc"], "%Y%m%dT%H%M%SZ").replace(tzinfo=datetime.timezone.utc)
+    if expires != attested + datetime.timedelta(minutes=15):
+        raise ValueError("payload_expiry_window")
+    now = datetime.datetime.now(datetime.timezone.utc)
+    if expires <= now or expires > now + datetime.timedelta(minutes=15, seconds=5):
+        raise ValueError("payload_expiry")
+except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+    sys.exit(1)
+PY
+/usr/bin/rm -f -- "$work/absence-attestation.json" "$work/absence-attestation.json.age" "$work/absence-attestation.json.age.sha256" "$work/manifest.json"
+check_parent
+check_absent
+printf 'restore_status=success artifact=absence-attestation source_timestamp=%s target=isolated-tmpfs checksum=verified state_absent=verified private_residue=none state_write=false non_mutating=true\n' "$latest"

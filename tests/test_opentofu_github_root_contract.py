@@ -174,6 +174,7 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
                         "before": None,
                         "after": {
                             "name": "cristex-reactive-resume",
+                            "description": "Private standalone Reactive Resume source mirror",
                             "visibility": "private",
                             "auto_init": False,
                             "has_issues": False,
@@ -254,6 +255,18 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
             )
             self.assertNotEqual(0, foreign.returncode)
             self.assertIn("after_contract_github_repository_vulnerability_alerts_repository", foreign.stdout)
+
+            plan["resource_changes"][1]["change"]["after"]["repository"] = "cristex-reactive-resume"
+            plan["resource_changes"][0]["change"]["after"]["has_downloads"] = True
+            plan_path.write_text(json.dumps(plan))
+            permissive = subprocess.run(
+                [str(validator), str(plan_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(0, permissive.returncode)
+            self.assertIn("reason=repository_permissive_feature", permissive.stdout)
 
     def test_docs_preserve_owner_and_mutation_boundaries(self) -> None:
         normalized = " ".join(self.readme.split())

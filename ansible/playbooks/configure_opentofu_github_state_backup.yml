@@ -1,23 +1,72 @@
 ---
-- name: Configure guarded OpenTofu GitHub state backup scheduler
+- name: Configure guarded OpenTofu GitHub state recovery
   hosts: crtxweb
   gather_facts: false
   become: true
   any_errors_fatal: true
   serial: 1
   vars:
-    opentofu_github_state_backup_approved: false
     opentofu_github_state_backup_mode: install
   pre_tasks:
-    - name: Require bounded OpenTofu GitHub state backup approval
+    - name: Reject externally supplied recovery internals
+      ansible.builtin.assert:
+        that: item not in vars
+        fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied recovery internal variable {{ item }}."
+      loop:
+        - opentofu_github_state_backup_internal_attestation_state
+        - opentofu_github_state_backup_internal_parent_states
+        - opentofu_github_state_backup_internal_input_states
+        - opentofu_github_state_backup_internal_remote_list
+        - opentofu_github_state_backup_internal_recipient_state
+        - opentofu_github_state_backup_internal_state_result
+        - opentofu_github_state_backup_internal_absence_result
+        - opentofu_github_state_backup_internal_restore_result
+      changed_when: false
+    - name: Require the guarded recovery invocation
       ansible.builtin.assert:
         that:
-          - opentofu_github_state_backup_approved | bool
           - lookup('ansible.builtin.env', 'CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_ENTRYPOINT') == 'v1'
+          - lookup('ansible.builtin.env', 'CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_TOKEN') is match('^[0-9a-f]{64}$')
+          - lookup('ansible.builtin.env', 'CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_ATTESTATION_FILE') | length > 0
+          - lookup('ansible.builtin.env', 'CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_APPROVAL') == 'v1'
+          - lookup('ansible.builtin.env', 'CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_MODE') == opentofu_github_state_backup_mode
+          - lookup('ansible.builtin.env', 'CRISTEXWEB_REPOSITORY_ROOT') == '/home/paul/projects/cristexweb'
+          - ansible_diff_mode
           - (ansible_limit | default('') | string) == 'crtxweb'
+          - inventory_hostname == 'crtxweb'
           - ansible_play_hosts_all | length == 1
-          - opentofu_github_state_backup_mode in ['install', 'test', 'restore', 'enable']
+          - opentofu_github_state_backup_mode in ['install', 'test', 'restore', 'attest', 'restore-absence']
+        fail_msg: Recovery requires the canonical wrapper, per-run attestation, diff mode, one exact host, and a bounded mode.
       changed_when: false
+      no_log: true
+    - name: Inspect the ephemeral recovery attestation
+      ansible.builtin.stat:
+        path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_ATTESTATION_FILE') }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+      register: opentofu_github_state_backup_internal_attestation_state
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      no_log: true
+    - name: Require the private single-run recovery attestation
+      ansible.builtin.assert:
+        that:
+          - opentofu_github_state_backup_internal_attestation_state.stat.exists | default(false)
+          - opentofu_github_state_backup_internal_attestation_state.stat.isreg | default(false)
+          - not (opentofu_github_state_backup_internal_attestation_state.stat.islnk | default(false))
+          - opentofu_github_state_backup_internal_attestation_state.stat.pw_name == 'paul'
+          - opentofu_github_state_backup_internal_attestation_state.stat.mode == '0600'
+          - >-
+            lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+            'CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_ATTESTATION_FILE')) ==
+            lookup('ansible.builtin.env', 'CRISTEXWEB_OPENTOFU_GITHUB_STATE_BACKUP_TOKEN') ~ ':entrypoint'
+        fail_msg: Refusing a missing, reusable, foreign-owned, symlinked, or invalid recovery attestation.
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      no_log: true
     - name: Collect package facts
       ansible.builtin.package_facts:
         manager: apt
@@ -28,51 +77,117 @@
           - ansible_facts.packages.age[0].version == '1.2.1-1+b5'
           - ansible_facts.packages.age[0].arch == 'amd64'
       changed_when: false
-    - name: Inspect protected backup inputs
+    - name: Inspect protected recovery paths
       ansible.builtin.stat:
         path: "{{ item }}"
         follow: false
+        get_checksum: "{{ item == '/home/paul/.config/cristexweb/backup/shared-database-backup.recipient' }}"
+        checksum_algorithm: sha256
       loop:
+        - /var
+        - /var/lib
+        - /var/lib/opentofu
+        - /var/lib/opentofu/cristexweb
+        - /var/lib/opentofu/cristexweb/github.tfstate
         - /usr/local/bin/rclone
         - /opt/rclone/1.71.1/rclone
         - /home/paul/.config/rclone/rclone.conf
         - /home/paul/.config/cristexweb/backup/shared-database-backup.recipient
-        - /var/lib/opentofu/cristexweb/github.tfstate
-      register: opentofu_github_state_backup_inputs
-    - name: Require protected backup inputs
-      ansible.builtin.assert:
-        that:
-          - opentofu_github_state_backup_inputs.results[0].stat.islnk | default(false)
-          - opentofu_github_state_backup_inputs.results[0].stat.lnk_source == '/opt/rclone/1.71.1/rclone'
-          - opentofu_github_state_backup_inputs.results[0].stat.pw_name == 'root'
-          - opentofu_github_state_backup_inputs.results[1].stat.isreg | default(false)
-          - opentofu_github_state_backup_inputs.results[1].stat.pw_name == 'root'
-          - opentofu_github_state_backup_inputs.results[1].stat.mode == '0755'
-          - opentofu_github_state_backup_inputs.results[2].stat.isreg | default(false)
-          - opentofu_github_state_backup_inputs.results[2].stat.pw_name == 'paul'
-          - opentofu_github_state_backup_inputs.results[2].stat.mode == '0600'
-          - opentofu_github_state_backup_inputs.results[3].stat.isreg | default(false)
-          - opentofu_github_state_backup_inputs.results[3].stat.pw_name == 'paul'
-          - opentofu_github_state_backup_inputs.results[3].stat.mode == '0644'
-          - opentofu_github_state_backup_mode == 'install' or (opentofu_github_state_backup_inputs.results[4].stat.isreg | default(false))
-          - opentofu_github_state_backup_mode == 'install' or opentofu_github_state_backup_inputs.results[4].stat.pw_name == 'paul'
-          - opentofu_github_state_backup_mode == 'install' or opentofu_github_state_backup_inputs.results[4].stat.mode == '0600'
+      register: opentofu_github_state_backup_internal_input_states
       changed_when: false
-    - name: Verify the sole configured rclone remote without reading its token
+      no_log: true
+    - name: Resolve exact recovery parent ancestors
       ansible.builtin.command:
-        argv: [/usr/local/bin/rclone, --config, /home/paul/.config/rclone/rclone.conf, listremotes]
-      become: false
-      register: opentofu_github_state_backup_rclone_remotes
+        argv: [/usr/bin/realpath, -e, --, "{{ item }}"]
+      loop:
+        - /var
+        - /var/lib
+        - /var/lib/opentofu
+        - /var/lib/opentofu/cristexweb
+      register: opentofu_github_state_backup_internal_parent_states
       changed_when: false
       check_mode: false
       no_log: true
-    - name: Require the exact Google Drive remote
+    - name: Require exact parent real paths
       ansible.builtin.assert:
         that:
-          - opentofu_github_state_backup_rclone_remotes.stdout_lines == ['drive:']
+          - item.stdout | trim == item.item
+      loop: "{{ opentofu_github_state_backup_internal_parent_states.results }}"
+      loop_control:
+        label: "{{ item.item }}"
       changed_when: false
+      no_log: true
+    - name: Require exact parent and state symlink closure
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists | default(false) or item.item == '/var/lib/opentofu/cristexweb/github.tfstate'
+          - not (item.stat.islnk | default(false))
+      loop: "{{ opentofu_github_state_backup_internal_input_states.results[0:5] }}"
+      loop_control:
+        label: "{{ item.item }}"
+      changed_when: false
+      no_log: true
+    - name: Require exact state parent ownership and mode
+      ansible.builtin.assert:
+        that:
+          - opentofu_github_state_backup_internal_input_states.results[3].stat.isdir | default(false)
+          - opentofu_github_state_backup_internal_input_states.results[3].stat.pw_name == 'paul'
+          - opentofu_github_state_backup_internal_input_states.results[3].stat.gr_name == 'root'
+          - opentofu_github_state_backup_internal_input_states.results[3].stat.mode == '0700'
+      changed_when: false
+      no_log: true
+    - name: Require state mode for state operations
+      ansible.builtin.assert:
+        that:
+          - opentofu_github_state_backup_internal_input_states.results[4].stat.isreg | default(false)
+          - opentofu_github_state_backup_internal_input_states.results[4].stat.pw_name == 'paul'
+          - opentofu_github_state_backup_internal_input_states.results[4].stat.gr_name == 'paul'
+          - opentofu_github_state_backup_internal_input_states.results[4].stat.mode == '0600'
+      when: opentofu_github_state_backup_mode == 'test'
+      changed_when: false
+      no_log: true
+    - name: Require state absence for absence attestation and rehearsal
+      ansible.builtin.assert:
+        that:
+          - not (opentofu_github_state_backup_internal_input_states.results[4].stat.exists | default(false))
+          - not (opentofu_github_state_backup_internal_input_states.results[4].stat.islnk | default(false))
+      when: opentofu_github_state_backup_mode in ['attest', 'restore-absence']
+      changed_when: false
+      no_log: true
+    - name: Require pinned host tools and protected inputs
+      ansible.builtin.assert:
+        that:
+          - opentofu_github_state_backup_internal_input_states.results[5].stat.islnk | default(false)
+          - opentofu_github_state_backup_internal_input_states.results[5].stat.lnk_source == '/opt/rclone/1.71.1/rclone'
+          - opentofu_github_state_backup_internal_input_states.results[5].stat.pw_name == 'root'
+          - opentofu_github_state_backup_internal_input_states.results[6].stat.isreg | default(false)
+          - opentofu_github_state_backup_internal_input_states.results[6].stat.pw_name == 'root'
+          - opentofu_github_state_backup_internal_input_states.results[6].stat.mode == '0755'
+          - opentofu_github_state_backup_internal_input_states.results[7].stat.isreg | default(false)
+          - opentofu_github_state_backup_internal_input_states.results[7].stat.pw_name == 'paul'
+          - opentofu_github_state_backup_internal_input_states.results[7].stat.mode == '0600'
+          - opentofu_github_state_backup_internal_input_states.results[8].stat.isreg | default(false)
+          - opentofu_github_state_backup_internal_input_states.results[8].stat.pw_name == 'paul'
+          - opentofu_github_state_backup_internal_input_states.results[8].stat.mode == '0644'
+          - opentofu_github_state_backup_internal_input_states.results[8].stat.checksum == 'ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28'
+      changed_when: false
+      no_log: true
+    - name: Verify the sole configured rclone remote and backend without reading its token
+      ansible.builtin.command:
+        argv: [/usr/local/bin/rclone, --config, /home/paul/.config/rclone/rclone.conf, listremotes, --long]
+      become: false
+      register: opentofu_github_state_backup_internal_remote_list
+      changed_when: false
+      check_mode: false
+      no_log: true
+    - name: Require exactly one Google Drive remote
+      ansible.builtin.assert:
+        that:
+          - opentofu_github_state_backup_internal_remote_list.stdout_lines | map('trim') | list == ['drive: drive']
+      changed_when: false
+      no_log: true
   tasks:
-    - name: Create protected OpenTofu backup directories
+    - name: Create protected OpenTofu recovery directories
       ansible.builtin.file:
         path: "{{ item.path }}"
         state: directory
@@ -85,14 +200,38 @@
         - {path: /var/lib/cristexweb-backup, owner: paul, group: paul, mode: '0700'}
         - {path: /var/lib/cristexweb-backup/opentofu, owner: paul, group: paul, mode: '0700'}
         - {path: /var/lib/cristexweb-backup/opentofu/github, owner: paul, group: paul, mode: '0700'}
-    - name: Install public age recipient
+        - {path: /var/lib/cristexweb-backup/opentofu/github-absence, owner: paul, group: paul, mode: '0700'}
+    - name: Install public age recipient from the host custody path
       ansible.builtin.copy:
         src: /home/paul/.config/cristexweb/backup/shared-database-backup.recipient
+        remote_src: true
         dest: /etc/cristexweb-backup/age.recipient
         owner: root
         group: paul
         mode: '0640'
-    - name: Install OpenTofu backup and restore executables
+    - name: Verify installed public age recipient binding
+      ansible.builtin.stat:
+        path: /etc/cristexweb-backup/age.recipient
+        follow: false
+        get_checksum: true
+        checksum_algorithm: sha256
+      register: opentofu_github_state_backup_internal_recipient_state
+      changed_when: false
+      when: not ansible_check_mode
+      no_log: true
+    - name: Require installed recipient to match host custody
+      ansible.builtin.assert:
+        that:
+          - opentofu_github_state_backup_internal_recipient_state.stat.isreg | default(false)
+          - not (opentofu_github_state_backup_internal_recipient_state.stat.islnk | default(false))
+          - opentofu_github_state_backup_internal_recipient_state.stat.pw_name == 'root'
+          - opentofu_github_state_backup_internal_recipient_state.stat.gr_name == 'paul'
+          - opentofu_github_state_backup_internal_recipient_state.stat.mode == '0640'
+          - opentofu_github_state_backup_internal_recipient_state.stat.checksum == 'ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28'
+      changed_when: false
+      when: not ansible_check_mode
+      no_log: true
+    - name: Install OpenTofu recovery executables
       ansible.builtin.copy:
         src: "{{ playbook_dir | ansible.builtin.dirname }}/files/backup/{{ item.src }}"
         dest: "/usr/local/libexec/cristexweb/{{ item.dest }}"
@@ -102,7 +241,9 @@
       loop:
         - {src: opentofu-github-state-backup, dest: opentofu-github-state-backup}
         - {src: restore-opentofu-github-state-rehearsal, dest: restore-opentofu-github-state-rehearsal}
-    - name: Install OpenTofu systemd units
+        - {src: opentofu-github-state-absence-attestation, dest: opentofu-github-state-absence-attestation}
+        - {src: restore-opentofu-github-state-absence-rehearsal, dest: restore-opentofu-github-state-absence-rehearsal}
+    - name: Install OpenTofu recovery systemd units
       ansible.builtin.copy:
         src: "{{ playbook_dir | ansible.builtin.dirname }}/files/backup/{{ item }}"
         dest: "/etc/systemd/system/{{ item }}"
@@ -112,52 +253,81 @@
       loop:
         - cristexweb-opentofu-github-state-backup.service
         - cristexweb-opentofu-github-state-backup.timer
-      notify: Reload systemd for OpenTofu GitHub state backup
-    - name: Flush OpenTofu GitHub state backup handlers
+      notify: Reload systemd for OpenTofu GitHub state recovery
+    - name: Flush OpenTofu GitHub state recovery handlers
       ansible.builtin.meta: flush_handlers
-    - name: Keep timer disabled until restore acceptance
+    - name: Keep the unaccepted recovery timer disabled
       ansible.builtin.systemd_service:
         name: cristexweb-opentofu-github-state-backup.timer
         enabled: false
         state: stopped
-      when:
-        - opentofu_github_state_backup_mode in ['install', 'test', 'restore']
-        - not ansible_check_mode
-    - name: Run approved OpenTofu GitHub state backup test
-      ansible.builtin.systemd_service:
-        name: cristexweb-opentofu-github-state-backup.service
-        state: started
-      when:
-        - opentofu_github_state_backup_mode == 'test'
-        - not ansible_check_mode
-    - name: Run approved isolated OpenTofu GitHub state restore
+      when: not ansible_check_mode
+    - name: Run the approved first-genesis absence attestation
       ansible.builtin.command:
-        argv: [/usr/local/libexec/cristexweb/restore-opentofu-github-state-rehearsal]
+        argv: [/usr/local/libexec/cristexweb/opentofu-github-state-absence-attestation]
       become: false
-      register: opentofu_github_state_restore_result
+      register: opentofu_github_state_backup_internal_absence_result
       changed_when: true
-      when:
-        - opentofu_github_state_backup_mode == 'restore'
-        - not ansible_check_mode
-    - name: Require sanitized OpenTofu restore receipt
+      no_log: true
+      check_mode: false
+      when: opentofu_github_state_backup_mode == 'attest'
+    - name: Require the sanitized absence attestation receipt
       ansible.builtin.assert:
         that:
           - >-
-            opentofu_github_state_restore_result.stdout is match(
-            '^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z target=isolated-tmpfs checksum=verified
-            private_residue=none state_validation=tofu-state-list non_mutating=true$'
-            )
+            opentofu_github_state_backup_internal_absence_result.stdout is match(
+            '^absence_status=success service=opentofu-github artifact=absence-attestation state=github '
+            ~ 'timestamp=20[0-9]{6}T[0-9]{6}Z readback=verified state_absent=verified '
+            ~ 'encrypted=true expires_at=20[0-9]{6}T[0-9]{6}Z$')
       changed_when: false
-      when:
-        - opentofu_github_state_backup_mode == 'restore'
-        - not ansible_check_mode
-    - name: Enable accepted timer
+      no_log: true
+      when: opentofu_github_state_backup_mode == 'attest'
+    - name: Run the approved first-genesis absence restore rehearsal
+      ansible.builtin.command:
+        argv: [/usr/local/libexec/cristexweb/restore-opentofu-github-state-absence-rehearsal]
+      become: false
+      register: opentofu_github_state_backup_internal_restore_result
+      changed_when: true
+      no_log: true
+      check_mode: false
+      when: opentofu_github_state_backup_mode == 'restore-absence'
+    - name: Require the sanitized absence restore receipt
+      ansible.builtin.assert:
+        that:
+          - >-
+            opentofu_github_state_backup_internal_restore_result.stdout is match(
+            '^restore_status=success artifact=absence-attestation source_timestamp=20[0-9]{6}T[0-9]{6}Z '
+            ~ 'target=isolated-tmpfs checksum=verified state_absent=verified private_residue=none '
+            ~ 'state_write=false non_mutating=true$')
+      changed_when: false
+      no_log: true
+      when: opentofu_github_state_backup_mode == 'restore-absence'
+    - name: Run the approved OpenTofu GitHub state backup test
       ansible.builtin.systemd_service:
-        name: cristexweb-opentofu-github-state-backup.timer
-        enabled: true
+        name: cristexweb-opentofu-github-state-backup.service
         state: started
-      when: opentofu_github_state_backup_mode == 'enable'
+      when: opentofu_github_state_backup_mode == 'test'
+    - name: Run the approved isolated OpenTofu GitHub state restore
+      ansible.builtin.command:
+        argv: [/usr/local/libexec/cristexweb/restore-opentofu-github-state-rehearsal]
+      become: false
+      register: opentofu_github_state_backup_internal_state_result
+      changed_when: true
+      no_log: true
+      check_mode: false
+      when: opentofu_github_state_backup_mode == 'restore'
+    - name: Require the sanitized OpenTofu GitHub state restore receipt
+      ansible.builtin.assert:
+        that:
+          - >-
+            opentofu_github_state_backup_internal_state_result.stdout is match(
+            '^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z target=isolated-tmpfs '
+            ~ 'checksum=verified private_residue=none state_validation=tofu-state-list '
+            ~ 'address_scope=exact-three non_mutating=true$')
+      changed_when: false
+      no_log: true
+      when: opentofu_github_state_backup_mode == 'restore'
   handlers:
-    - name: Reload systemd for OpenTofu GitHub state backup
+    - name: Reload systemd for OpenTofu GitHub state recovery
       ansible.builtin.systemd_service:
         daemon_reload: true

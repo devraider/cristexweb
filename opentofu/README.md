@@ -98,6 +98,8 @@ The separate GitHub root has an independent, fixed source-only backup lane at
 [`runbooks/opentofu-github-state-backup.md`](../runbooks/opentofu-github-state-backup.md).
 It protects only `/var/lib/opentofu/cristexweb/github.tfstate`, stores encrypted
 leaves only under `opentofu/github`, and uses unique executables, lock, systemd
-units, timer, wrapper, and playbook. It does not read, write, enable, disable, or
-restore the foundation state/timer. Backup, readback, and isolated restore remain
-unrun until the GitHub state producer and separate approvals exist.
+units, timer, wrapper, and playbook. It does not read, write, start, stop, enable, disable, or restore the foundation
+state/timer. Before the GitHub state producer exists, its dedicated absence
+attestation/readback/restore records only the missing-state condition and never
+manufactures `github.tfstate`; post-genesis backup/readback/restore remain unrun
+until the state producer and separate approvals exist.

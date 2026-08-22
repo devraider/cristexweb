@@ -11,31 +11,108 @@ work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-github-restore.XXXXXX)
 cleanup() { /usr/bin/rm -rf -- "$work"; }
 trap cleanup EXIT HUP INT TERM
 chmod 0700 "$work"
-latest=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sort | /usr/bin/tail -1 | /usr/bin/tr -d '/')
-printf '%s\n' "$latest" | /usr/bin/grep -Eq '^20[0-9]{6}T[0-9]{6}Z$' || { printf '%s\n' 'restore_status=failed stage=remote_catalog'; exit 1; }
+[ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] || { printf '%s\n' 'restore_status=failed stage=rclone_config_contract'; exit 1; }
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || { printf '%s\n' 'restore_status=failed stage=rclone_config_contract'; exit 1; }
+configured_remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long) || { printf '%s\n' 'restore_status=failed stage=rclone_backend'; exit 1; }
+[ "$configured_remotes" = 'drive: drive' ] || { printf '%s\n' 'restore_status=failed stage=rclone_backend'; exit 1; }
+candidates=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sed 's#/$##' | /usr/bin/sort -r)
+latest=
+while IFS= read -r candidate; do
+    [ -n "$candidate" ] || continue
+    printf '%s\n' "$candidate" | /usr/bin/grep -Eq '^20[0-9]{6}T[0-9]{6}Z$' || continue
+    nested_dirs=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root/$candidate")
+    [ -z "$nested_dirs" ] || continue
+    leaves=$(/usr/local/bin/rclone --config "$rclone_config" lsf --files-only "$remote_root/$candidate" | /usr/bin/sort)
+    expected='github.tfstate.age
+github.tfstate.age.sha256
+manifest.json'
+    [ "$leaves" = "$expected" ] || continue
+    candidate_manifest="$work/candidate-manifest"
+    /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_root/$candidate/manifest.json" "$candidate_manifest" || { /usr/bin/rm -f -- "$candidate_manifest"; continue; }
+    if ! TIMESTAMP="$candidate" FILE="$candidate_manifest" /usr/bin/python3 - <<'PY'
+import json
+import os
+import re
+import sys
+try:
+    with open(os.environ["FILE"], encoding="utf-8") as stream:
+        value = json.load(stream)
+    expected_keys = {"schema", "service", "state", "created_at_utc", "archive", "archive_bytes", "archive_sha256", "encryption", "backend", "state_path", "address_scope"}
+    if set(value) != expected_keys or value["schema"] != 1 or value["service"] != "opentofu-github" or value["state"] != "github.tfstate":
+        raise ValueError("manifest_identity")
+    if value["created_at_utc"] != os.environ["TIMESTAMP"] or value["archive"] != "github.tfstate.age" or value["encryption"] != "age-x25519" or value["backend"] != "local" or value["address_scope"] != "exact-three":
+        raise ValueError("manifest_contract")
+    if value["state_path"] != "/var/lib/opentofu/cristexweb/github.tfstate" or not isinstance(value["archive_bytes"], int) or value["archive_bytes"] <= 0 or not re.fullmatch(r"[0-9a-f]{64}", value["archive_sha256"]):
+        raise ValueError("manifest_shape")
+except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+    sys.exit(1)
+PY
+    then
+        :
+    else
+        /usr/bin/rm -f -- "$candidate_manifest"
+        continue
+    fi
+    /usr/bin/rm -f -- "$candidate_manifest"
+    latest="$candidate"
+    break
+done <<EOF
+$candidates
+EOF
+[ -n "$latest" ] || { printf '%s\n' 'restore_status=failed stage=remote_catalog'; exit 1; }
 remote="$remote_root/$latest"
 for leaf in github.tfstate.age github.tfstate.age.sha256 manifest.json; do /usr/local/bin/rclone --config "$rclone_config" copyto "$remote/$leaf" "$work/$leaf"; done
 (cd "$work" && /usr/bin/sha256sum -c github.tfstate.age.sha256 >/dev/null)
 FILE="$work/manifest.json" TIMESTAMP="$latest" EXPECTED_SHA="$(/usr/bin/cut -d ' ' -f1 "$work/github.tfstate.age.sha256")" ARCHIVE_BYTES="$(/usr/bin/stat -c %s "$work/github.tfstate.age")" /usr/bin/python3 - <<'PY'
-import json, os
-x=json.load(open(os.environ['FILE']))
-assert set(x)=={'schema','service','state','created_at_utc','archive','archive_bytes','archive_sha256','encryption','backend','state_path'}
-assert x['schema']==1 and x['service']=='opentofu-github' and x['state']=='github.tfstate'
-assert x['created_at_utc']==os.environ['TIMESTAMP'] and x['archive']=='github.tfstate.age'
-assert x['encryption']=='age-x25519' and x['backend']=='local' and x['state_path']=='/var/lib/opentofu/cristexweb/github.tfstate'
-assert x['archive_sha256']==os.environ['EXPECTED_SHA'] and x['archive_bytes']==int(os.environ['ARCHIVE_BYTES'])
+import json
+import os
+import sys
+
+try:
+    with open(os.environ["FILE"], encoding="utf-8") as stream:
+        value = json.load(stream)
+    expected_keys = {"schema", "service", "state", "created_at_utc", "archive", "archive_bytes", "archive_sha256", "encryption", "backend", "state_path", "address_scope"}
+    if set(value) != expected_keys:
+        raise ValueError("manifest_keys")
+    if value["schema"] != 1 or value["service"] != "opentofu-github" or value["state"] != "github.tfstate":
+        raise ValueError("manifest_identity")
+    if value["created_at_utc"] != os.environ["TIMESTAMP"] or value["archive"] != "github.tfstate.age":
+        raise ValueError("manifest_timestamp")
+    if value["encryption"] != "age-x25519" or value["backend"] != "local" or value["address_scope"] != "exact-three":
+        raise ValueError("manifest_contract")
+    if value["state_path"] != "/var/lib/opentofu/cristexweb/github.tfstate":
+        raise ValueError("manifest_state_path")
+    if value["archive_sha256"] != os.environ["EXPECTED_SHA"] or value["archive_bytes"] != int(os.environ["ARCHIVE_BYTES"]):
+        raise ValueError("manifest_integrity")
+except (OSError, ValueError, TypeError, json.JSONDecodeError):
+    sys.exit(1)
 PY
 /home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity"
 chmod 0600 "$work/identity"
 /usr/bin/age -d -i "$work/identity" "$work/github.tfstate.age" >"$work/github.tfstate"
 /usr/bin/rm -f -- "$work/identity"
-[ -s "$work/github.tfstate" ]
+[ -s "$work/github.tfstate" ] || { printf '%s\n' 'restore_status=failed stage=decrypted_state'; exit 1; }
 STATE="$work/github.tfstate" /usr/bin/python3 - <<'PY'
-import json, os
-x=json.load(open(os.environ['STATE']))
-assert isinstance(x,dict) and x.get('version') in (3,4)
-assert isinstance(x.get('lineage',''),str) and isinstance(x.get('serial'),int)
+import json
+import os
+import sys
+try:
+    with open(os.environ["STATE"], encoding="utf-8") as stream:
+        value = json.load(stream)
+    if not isinstance(value, dict) or value.get("version") not in (3, 4):
+        raise ValueError("state_shape")
+    if not isinstance(value.get("lineage"), str) or not value["lineage"] or not isinstance(value.get("serial"), int):
+        raise ValueError("state_identity")
+except (OSError, ValueError, TypeError, json.JSONDecodeError):
+    sys.exit(1)
 PY
+printf '%s\n' \
+  'github_actions_repository_permissions.reactive_resume_mirror' \
+  'github_repository.reactive_resume_mirror' \
+  'github_repository_vulnerability_alerts.reactive_resume_mirror' >"$work/expected-addresses"
 TOFU_DISABLE_CHECKPOINT=1 /usr/local/bin/tofu state list -state="$work/github.tfstate" >"$work/resources"
-/usr/bin/rm -f -- "$work/github.tfstate" "$work/resources"
-printf 'restore_status=success source_timestamp=%s target=isolated-tmpfs checksum=verified private_residue=none state_validation=tofu-state-list non_mutating=true\n' "$latest"
+/usr/bin/sort "$work/expected-addresses" >"$work/expected-addresses.sorted"
+/usr/bin/sort "$work/resources" >"$work/resources.sorted"
+/usr/bin/cmp -s "$work/expected-addresses.sorted" "$work/resources.sorted" || { printf '%s\n' 'restore_status=failed stage=state_scope'; exit 1; }
+/usr/bin/rm -f -- "$work/github.tfstate" "$work/resources" "$work/expected-addresses" "$work/expected-addresses.sorted" "$work/resources.sorted"
+printf 'restore_status=success source_timestamp=%s target=isolated-tmpfs checksum=verified private_residue=none state_validation=tofu-state-list address_scope=exact-three non_mutating=true\n' "$latest"
