@@ -60,6 +60,8 @@ target_keys:
   - OIDC_CLIENT_SECRET
   - OAUTH2_PROXY_COOKIE_SECRET
   - PRIVATE_CA_BUNDLE
+  - CODE_RUNNER_AUTH_TOKEN
+  - BROWSERLESS_TOKEN
 
 url_contract:
   mongodb_scheme: mongodb

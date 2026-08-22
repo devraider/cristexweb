@@ -10,6 +10,7 @@ cristexhub_dev_sync_transition_object_count: 2
 cristexhub_dev_sync_transition_namespace: cristexhub-dev
 cristexhub_dev_sync_transition_runtime_secret: cristexhub-dev-runtime
 cristexhub_dev_sync_transition_runtime_secret_keys:
+  - BROWSERLESS_TOKEN
   - CODE_RUNNER_AUTH_TOKEN
   - FERNET_KEY
   - MONGODB_URL
@@ -25,8 +26,8 @@ cristexhub_dev_sync_transition_dependency_services:
   - {namespace: shared-services, name: shared-mongodb-svc}
   - {namespace: shared-services, name: shared-rabbitmq}
 cristexhub_dev_sync_transition_repository: ssh://git@ssh.github.com:443/devraider/cristexhub.git
-cristexhub_dev_sync_transition_revision: 2bba6aaacb0886705abc0a57f9caafac0cb67e90
+cristexhub_dev_sync_transition_revision: 8af460079d1a4ef10542a267b3af5742bf065a93
 cristexhub_dev_sync_transition_path: infra/kubernetes/cristexhub-dev
 cristexhub_dev_sync_transition_expected_hashes:
   appproject-cristexhub-dev-automated.yaml: 00ab28336aa2076bf173d101addf8952556f7c97e0a7e6d61a20c4ffb506ceca
-  application-cristexhub-dev-automated.yaml: 64215ec31a5e58d0290fb45a8556c946ca9dfc1cd034e7f8278e7ae2f0e6d495
+  application-cristexhub-dev-automated.yaml: 5710338dfeee61757c33caf75c3f1ca41f4794dbf1f2d054bb0efd051a7ff86b

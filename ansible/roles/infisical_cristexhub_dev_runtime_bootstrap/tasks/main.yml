@@ -35,7 +35,7 @@
       - cristexhub_dev_runtime_bootstrap_environment_slug == 'prod'
       - cristexhub_dev_runtime_bootstrap_secret_path == '/cristexhub/dev/runtime'
       - cristexhub_dev_runtime_bootstrap_credential_name == 'cristexhub-dev-infisical-universal-auth'
-      - cristexhub_dev_runtime_bootstrap_target_keys | length == 9
+      - cristexhub_dev_runtime_bootstrap_target_keys | length == 10
       - cristexhub_dev_runtime_bootstrap_credential_contract.name == 'cristexhub-dev-infisical-universal-auth'
       - cristexhub_dev_runtime_bootstrap_credential_contract.namespace == 'cristexhub-dev'
       - cristexhub_dev_runtime_bootstrap_credential_contract.type == 'Opaque'

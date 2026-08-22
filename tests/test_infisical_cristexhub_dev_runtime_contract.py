@@ -17,7 +17,7 @@ class RuntimeSeamTests(unittest.TestCase):
   self.assertEqual(13,len(self.objects)); self.assertFalse(any(x['kind']=='Secret' for x in self.objects))
   self.assertEqual({'ValidatingAdmissionPolicy':4,'ValidatingAdmissionPolicyBinding':4,'Role':1,'RoleBinding':1,'InfisicalConnection':1,'InfisicalAuth':1,'InfisicalStaticSecret':1},{k:sum(x['kind']==k for x in self.objects) for k in {x['kind'] for x in self.objects}})
  def test_fixed_source_target_and_keys(self):
-  s=next(x for x in self.objects if x['kind']=='InfisicalStaticSecret'); self.assertEqual('cristexhub-dev',s['metadata']['namespace']); self.assertEqual('/cristexhub/dev/runtime',s['spec']['sources'][0]['secretPath']); self.assertEqual('prod',s['spec']['sources'][0]['environmentSlug']); self.assertEqual('619656da-14f3-4872-857b-be103cdc5326',s['spec']['sources'][0]['projectId']); self.assertEqual({'MONGODB_URL','RABBITMQ_URL','REDIS_URL','REDIS_PASSWORD','FERNET_KEY','OIDC_CLIENT_SECRET','OAUTH2_PROXY_COOKIE_SECRET','PRIVATE_CA_BUNDLE','CODE_RUNNER_AUTH_TOKEN'},set(s['spec']['targets'][0]['template']['data']))
+  s=next(x for x in self.objects if x['kind']=='InfisicalStaticSecret'); self.assertEqual('cristexhub-dev',s['metadata']['namespace']); self.assertEqual('/cristexhub/dev/runtime',s['spec']['sources'][0]['secretPath']); self.assertEqual('prod',s['spec']['sources'][0]['environmentSlug']); self.assertEqual('619656da-14f3-4872-857b-be103cdc5326',s['spec']['sources'][0]['projectId']); self.assertEqual({'MONGODB_URL','RABBITMQ_URL','REDIS_URL','REDIS_PASSWORD','FERNET_KEY','OIDC_CLIENT_SECRET','OAUTH2_PROXY_COOKIE_SECRET','PRIVATE_CA_BUNDLE','CODE_RUNNER_AUTH_TOKEN','BROWSERLESS_TOKEN'},set(s['spec']['targets'][0]['template']['data']))
   self.assertEqual('cristexhub-ghcr-pull', s['spec']['targets'][1]['name']); self.assertEqual('kubernetes.io/dockerconfigjson', s['spec']['targets'][1]['secretType']); self.assertEqual({'.dockerconfigjson'}, set(s['spec']['targets'][1]['template']['data']))
   self.assertEqual({'address': 'https://app.infisical.com'}, next(x for x in self.objects if x['kind']=='InfisicalConnection')['spec'])
   auth=next(x for x in self.objects if x['kind']=='InfisicalAuth'); self.assertEqual('universal',auth['spec']['method']); self.assertEqual('cristexhub-dev',auth['spec']['infisicalConnectionRef']['namespace'])
@@ -42,7 +42,7 @@ class RuntimeSeamTests(unittest.TestCase):
   self.assertIn('check|apply',WRAPPER.read_text()); self.assertNotIn('clientSecret:', '\n'.join(p.read_text() for p in self.paths)); self.assertIn('_EXPECTED_OBJECT_HASHES',PLUGIN.read_text())
  def test_composition_policy_binds_existing_contracts_and_tls(self):
   policy=yaml.safe_load(POLICY.read_text())
-  self.assertEqual(policy['target_keys'], ['MONGODB_URL','RABBITMQ_URL','REDIS_URL','REDIS_PASSWORD','FERNET_KEY','OIDC_CLIENT_SECRET','OAUTH2_PROXY_COOKIE_SECRET','PRIVATE_CA_BUNDLE'])
+  self.assertEqual(policy['target_keys'], ['MONGODB_URL','RABBITMQ_URL','REDIS_URL','REDIS_PASSWORD','FERNET_KEY','OIDC_CLIENT_SECRET','OAUTH2_PROXY_COOKIE_SECRET','PRIVATE_CA_BUNDLE','CODE_RUNNER_AUTH_TOKEN','BROWSERLESS_TOKEN'])
   self.assertEqual(policy['sources']['mongodb']['path'], '/shared-services/mongodb')
   self.assertEqual(policy['sources']['rabbitmq']['path'], '/shared-services/rabbitmq')
   self.assertEqual(policy['sources']['keycloak']['path'], '/shared-services/keycloak')

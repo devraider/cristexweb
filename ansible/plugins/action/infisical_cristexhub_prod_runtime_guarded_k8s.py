@@ -13,21 +13,19 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
     ActionModule as KubernetesActionModule,
 )
 
-_EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-alternate-target-boundary'): 'f9814d97dc32dd6cbeebdbbe00f5529fa88424bb992995da6adb707513042d77',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-secret-write-boundary'): 'd62b6846b294ba5d4f9475f1c3593379b534539c1353a7e206f1fcc6bcb9c2d8',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-source-boundary'): 'e632d4e98818bb29d8057a0a89d80f6c6542366faddb5f17d53117b3e49c37e1',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-static-secret-boundary'): '443070ad0eac95a34ad9637899ab2f888671af85d3e599a3234399a87c922af8',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-prod-runtime-alternate-target-boundary'): '2e0439d1622eb50e93a9cf3ae0280eef9aa9db7eef3cd62ddd3c788d621e4308',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-prod-runtime-secret-write-boundary'): '49db55c48fe2a2db1a02a776e5f77b72c2e512893a7b0655be8277fca5a87c1f',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-prod-runtime-source-boundary'): '919d0a5f04773a28fee5beb606254943fec60f5b7e7d4816b8b4ab5a2d6a9397',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-prod-runtime-static-secret-boundary'): '66f35a9abcb010e63ef9a2b0e529181501ee3c5093915129e2deb801cea84877',
-    ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-prod', 'infisical-cristexhub-prod-runtime-secret-writer'): '2935ea4190154f1110de72764e86841d0c5c74632819f533a9b881192fce4bd0',
-    ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-prod', 'infisical-cristexhub-prod-runtime-secret-writer'): '5ebfbd5b01b0cbb086044b73d2bf87df09aaf09c299d0ab80968fa4d808aadf5',
-    ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'cristexhub-prod', 'cristexhub-prod-infisical-auth'): '2431da24946ca30fa377c9269b04e1f0bfceaaad6fa1d1c039621166b7699d7a',
-    ('secrets.infisical.com/v1beta1', 'InfisicalConnection', 'cristexhub-prod', 'infisical-cloud'): 'a9405cf0d8e1b78fe0433e6acfe6d46f645fea3bad61beeafdd0ba96bb8e17ca',
-    ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'cristexhub-prod', 'cristexhub-prod-runtime'): 'd18b1db7a698f2b1953b0861cf78729c66369043e33e0ae091e7e57ab6991e0c',
-}
+_EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-alternate-target-boundary'): 'f9814d97dc32dd6cbeebdbbe00f5529fa88424bb992995da6adb707513042d77',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-secret-write-boundary'): 'fa46c9463302340fa187d0bd1f8c3698be5b62588d2f127877a56b8edba3cb8e',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-source-boundary'): 'e632d4e98818bb29d8057a0a89d80f6c6542366faddb5f17d53117b3e49c37e1',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-prod-runtime-static-secret-boundary'): '901dd275283d64ceae362f009edd15bcd72ed37c39fe7479433465d0c8320b70',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-prod-runtime-alternate-target-boundary'): '2e0439d1622eb50e93a9cf3ae0280eef9aa9db7eef3cd62ddd3c788d621e4308',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-prod-runtime-secret-write-boundary'): '49db55c48fe2a2db1a02a776e5f77b72c2e512893a7b0655be8277fca5a87c1f',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-prod-runtime-source-boundary'): '919d0a5f04773a28fee5beb606254943fec60f5b7e7d4816b8b4ab5a2d6a9397',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-prod-runtime-static-secret-boundary'): '66f35a9abcb010e63ef9a2b0e529181501ee3c5093915129e2deb801cea84877',
+ ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-prod', 'infisical-cristexhub-prod-runtime-secret-writer'): '2935ea4190154f1110de72764e86841d0c5c74632819f533a9b881192fce4bd0',
+ ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-prod', 'infisical-cristexhub-prod-runtime-secret-writer'): '5ebfbd5b01b0cbb086044b73d2bf87df09aaf09c299d0ab80968fa4d808aadf5',
+ ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'cristexhub-prod', 'cristexhub-prod-infisical-auth'): '2431da24946ca30fa377c9269b04e1f0bfceaaad6fa1d1c039621166b7699d7a',
+ ('secrets.infisical.com/v1beta1', 'InfisicalConnection', 'cristexhub-prod', 'infisical-cloud'): 'a9405cf0d8e1b78fe0433e6acfe6d46f645fea3bad61beeafdd0ba96bb8e17ca',
+ ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'cristexhub-prod', 'cristexhub-prod-runtime'): '2ad01a9154e424941a2ed36a78204aa3d9809e72979da80ba0dc5083ced2563e'}
 _EXPECTED_IDENTITY_SET_SHA256 = "d46dde754f05f248bbc19ff28a65ec44ccb1f84c53221c1f7d4e3bb355d6ff20"
 _EXPECTED_IDENTITY_KEYS_SHA256 = "fe4d04be8cd80c5bc9c36ca25dcb89cf26b6c1269ff835dcfbaa8fddcaadd0ce"
 _EXPECTED_OIDC_CLIENT_SECRET_SOURCE = {

@@ -1,6 +1,6 @@
 # CristexHub PROD runtime Infisical seam
 
-Status: **APPLIED / MATERIALIZED / IDEMPOTENT**.
+Status: **PRIOR NINE-KEY TARGET APPLIED; TEN-KEY SOURCE UPDATE NOT RUN / BLOCKED**.
 
 This runbook records the value-free production runtime Secret seam only. The
 canonical offline policy is
@@ -44,9 +44,13 @@ credential still require separately verified rotation before public cutover.
 - Runtime target: `cristexhub-prod-runtime`, an orphaned `Opaque` Secret with
   exactly `MONGODB_URL`, `RABBITMQ_URL`, `REDIS_URL`, `REDIS_PASSWORD`,
   `FERNET_KEY`, `OIDC_CLIENT_SECRET`, `OAUTH2_PROXY_COOKIE_SECRET`,
-  `PRIVATE_CA_BUNDLE`, and `CODE_RUNNER_AUTH_TOKEN`.
+  `PRIVATE_CA_BUNDLE`, `CODE_RUNNER_AUTH_TOKEN`, and `BROWSERLESS_TOKEN`.
 - Image-pull target: `cristexhub-prod-ghcr-pull`, an independent orphaned
   `kubernetes.io/dockerconfigjson` Secret with only `.dockerconfigjson`.
+
+The ten-key source is not runtime-applied: the live checkpoint remains the prior
+nine-key target until `BROWSERLESS_TOKEN` is inserted through an approved Infisical
+value lane and the guarded check/apply/idempotence sequence passes.
 
 The committed manifest source contains no Secret object and no secret value. The four
 fail-closed ValidatingAdmissionPolicy/binding pairs constrain the exact PROD
@@ -87,8 +91,8 @@ source. The guarded Infisical Operator source closure now watches `cristexhub-pr
 contains its exact namespaced manager Role/Binding plus the generic Auth,
 Connection, and StaticSecret five-namespace admission allowlists. Secret,
 PushSecret, and DynamicSecret remain PROD-excluded. The Operator
-watch/RBAC expansion is applied/idempotent; this separately approved runtime
-seam is applied/idempotent. The seam created the exact Connection, Auth,
+watch/RBAC expansion is applied/idempotent; the prior nine-key runtime seam is
+applied/idempotent, while this ten-key source update is blocked. The prior seam created the exact Connection, Auth,
 StaticSecret, writer RBAC, admission objects, and two generated target Secrets;
 it created no Namespace, PVC, database engine, or Cloudflare route.
 
@@ -96,7 +100,7 @@ it created no Namespace, PVC, database engine, or Cloudflare route.
 
 The focused contract test verifies the exact source path/environment, the shared
 value-free PROD OIDC client-secret source contract, independent PROD names and
-identity, nine-key runtime closure, separate GHCR target, VAP
+identity, ten-key source runtime closure, separate GHCR target, VAP
 scope/failure policy, Role/RoleBinding boundaries, manifest/default/action hashes,
 wrapper gates, and blocked policy/runbook statements. Run only offline validation:
 
@@ -108,8 +112,9 @@ git diff --check
 git diff --cached --quiet
 ```
 
-Current status: offline checks pass; runtime final idempotence passed at
-`ok=62 changed=0 failed=0 skipped=3`; both target Secrets match the exact remote key
-closure; and Argo reports the private workloads `Synced/Healthy`. Public exposure
+Historical runtime status: final nine-key idempotence passed at
+`ok=62 changed=0 failed=0 skipped=3`; both prior target Secrets matched that remote key
+closure, and Argo reported the private workloads `Synced/Healthy`. The ten-key source
+update is not applied. Public exposure
 remains blocked on the provider apply and the residual credential rotations recorded
 above.

@@ -36,7 +36,7 @@
       - cristexhub_dev_sync_transition_manifest_paths | length == 2
       - cristexhub_dev_sync_transition_object_count == 2
       - cristexhub_dev_sync_transition_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
-      - cristexhub_dev_sync_transition_revision == '2bba6aaacb0886705abc0a57f9caafac0cb67e90'
+      - cristexhub_dev_sync_transition_revision == '8af460079d1a4ef10542a267b3af5742bf065a93'
       - cristexhub_dev_sync_transition_path == 'infra/kubernetes/cristexhub-dev'
       - cristexhub_dev_sync_transition_dependency_services | length == 2
     fail_msg: Refusing unapproved or non-canonical automated-sync transition.

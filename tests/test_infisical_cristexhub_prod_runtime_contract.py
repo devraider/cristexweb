@@ -40,6 +40,7 @@ RUNTIME_KEYS = [
     "OAUTH2_PROXY_COOKIE_SECRET",
     "PRIVATE_CA_BUNDLE",
     "CODE_RUNNER_AUTH_TOKEN",
+    "BROWSERLESS_TOKEN",
 ]
 
 
@@ -202,7 +203,7 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             self.assertNotIn("cristexhub-dev", json.dumps(policy))
         static = next(policy for policy in policies if "static-secret" in policy["metadata"]["name"])
         static_expression = json.dumps(static["spec"]["validations"])
-        for required in (NAMESPACE, RUNTIME_NAME, PULL_NAME, "/cristexhub/prod/runtime", "CODE_RUNNER_AUTH_TOKEN", ".dockerconfigjson"):
+        for required in (NAMESPACE, RUNTIME_NAME, PULL_NAME, "/cristexhub/prod/runtime", "CODE_RUNNER_AUTH_TOKEN", "BROWSERLESS_TOKEN", ".dockerconfigjson"):
             self.assertIn(required, static_expression)
         source = next(policy for policy in policies if "source-boundary" in policy["metadata"]["name"])
         source_expression = json.dumps(source["spec"]["validations"])
@@ -343,6 +344,8 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         self.assertEqual("/cristexhub/prod/runtime", policy["project"]["target_path"])
         self.assertEqual(NAMESPACE, policy["project"]["target_namespace"])
         self.assertEqual(RUNTIME_KEYS, policy["target_keys"])
+        self.assertEqual(RUNTIME_KEYS, policy["targets"][0]["keys"])
+        self.assertEqual(PULL_NAME, policy["targets"][1]["name"])
         self.assertEqual(UNIVERSAL_AUTH_NAME, policy["authorization"]["universal_auth_secret"]["name"])
         defaults = yaml.safe_load(DEFAULTS.read_text())
         self.assertEqual(
@@ -353,14 +356,14 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
             {"name": PULL_NAME, "namespace": NAMESPACE, "type": "kubernetes.io/dockerconfigjson", "keys": [".dockerconfigjson"]},
             defaults["cristexhub_prod_runtime_bootstrap_target_contract"]["ghcr_pull"],
         )
-        self.assertEqual("APPLIED/IDEMPOTENT", policy["workflow"]["runtime_execution"])
+        self.assertEqual("NOT RUN/BLOCKED", policy["workflow"]["runtime_execution"])
         self.assertTrue(policy["authorization"]["no_plaintext_output"])
 
     def test_runtime_runbook_records_materialization_and_remaining_rotation_gate(self) -> None:
         runbook = ROOT / "runbooks/infisical-cristexhub-prod-runtime-materialization.md"
         text = runbook.read_text()
         for required in (
-            "APPLIED / MATERIALIZED / IDEMPOTENT",
+            "PRIOR NINE-KEY TARGET APPLIED; TEN-KEY SOURCE UPDATE NOT RUN / BLOCKED",
             "cristexhub-prod",
             "cristexhub-prod-infisical-universal-auth",
             "/cristexhub/prod/runtime",
@@ -404,7 +407,7 @@ class InfisicalCristexhubProdRuntimeContractTests(unittest.TestCase):
         self.assertIn("watch/RBAC expansion is applied/idempotent", runbook)
         self.assertIn("seam created the exact Connection, Auth", runbook)
         self.assertIn("created no Namespace, PVC, database engine", runbook)
-        self.assertIn("separately approved runtime", runbook)
+        self.assertIn("prior nine-key runtime seam", runbook)
         tasks = TASKS.read_text()
         parsed_tasks = yaml.safe_load(tasks)
         credential_task = next(

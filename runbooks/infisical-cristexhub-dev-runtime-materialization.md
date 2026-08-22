@@ -21,7 +21,7 @@ admission, and additive writer RBAC closure. No Secret value is committed.
 - Target: `cristexhub-dev-runtime`, type `Opaque`, orphaned
 - Runtime target key closure: `MONGODB_URL`, `RABBITMQ_URL`, `REDIS_URL`,
   `REDIS_PASSWORD`, `FERNET_KEY`, `OIDC_CLIENT_SECRET`,
-  `OAUTH2_PROXY_COOKIE_SECRET`, `CODE_RUNNER_AUTH_TOKEN`, `PRIVATE_CA_BUNDLE`.
+  `OAUTH2_PROXY_COOKIE_SECRET`, `CODE_RUNNER_AUTH_TOKEN`, `BROWSERLESS_TOKEN`, `PRIVATE_CA_BUNDLE`.
 - `MONGODB_URL` and `RABBITMQ_URL` are composed from the existing DEV-scoped
   Infisical consumer credentials and service endpoints; credentials are URL-encoded
   and TLS is mandatory. `OIDC_CLIENT_SECRET` is read from the existing
@@ -29,7 +29,7 @@ admission, and additive writer RBAC closure. No Secret value is committed.
   without rotation. The future `cristexhub-dev` successor realm instead reserves
   `prod:/cristexhub/dev/identity/browser#OIDC_CLIENT_SECRET`; that path is disconnected,
   unmaterialized, and must not gain a second writer before a separately approved
-  handoff. The current composer does not upload `CODE_RUNNER_AUTH_TOKEN`, so later
+  handoff. The current composer does not upload `CODE_RUNNER_AUTH_TOKEN` or `BROWSERLESS_TOKEN`, so later
   value replacement remains blocked until its exact source and CAS writer contract
   are reconciled. `PRIVATE_CA_BUNDLE` is the exact concatenation of the MongoDB and
   RabbitMQ public CA certificates (no leaf or private key), projected at

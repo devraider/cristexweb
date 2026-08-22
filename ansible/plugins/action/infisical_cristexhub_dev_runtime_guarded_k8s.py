@@ -14,9 +14,9 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 )
 
 _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-dev-runtime-alternate-target-boundary'): '35322c054efb137bf371efa7e601141d65928258dfc6384495da7f9c00464e0c',
- ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-dev-runtime-secret-write-boundary'): '6b226bb3392901bb9e6dbf23696ace9b4cdc155b49702b11e1c3779466ca4164',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-dev-runtime-secret-write-boundary'): '2772d20ad06469a6da26feaacb140e75674e959b7490735421af8e862330727d',
  ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-dev-runtime-source-boundary'): 'fec85c253bbae0d908fba8bd0091692a88100fddbc80cf69ec97e270268e3712',
- ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-dev-runtime-static-secret-boundary'): '76e5befacb84b99d8b60cdbea4f5da8f286081529611f6abe10d8ddaed16b95e',
+ ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'infisical-cristexhub-dev-runtime-static-secret-boundary'): '3f1badd184ae8bd86b43400d8cea72422b09091014b40e6b9c9ee1a8d6cf7cda',
  ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-dev-runtime-alternate-target-boundary'): 'b76c62c997183176fafc3524e3e898c2e230d19b941517dfddbcc415ff681fcd',
  ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-dev-runtime-secret-write-boundary'): 'f4350e8ac3cbe2c94a4e80413bd82582cb563409273e496685ae145e4cff3d49',
  ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'infisical-cristexhub-dev-runtime-source-boundary'): '5c0bcd5caf98d43b08d7e4da068187b8564c1518e2346ea8abffccdd56309b52',
@@ -25,7 +25,7 @@ _EXPECTED_OBJECT_HASHES: dict[tuple[str, str, str, str], str] = {('admissionregi
  ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-dev', 'infisical-cristexhub-dev-runtime-secret-writer'): '37894d4e116768341d84dde12c310b9b0de2043c9dbcf2276678694c9156d38a',
  ('secrets.infisical.com/v1beta1', 'InfisicalAuth', 'cristexhub-dev', 'cristexhub-dev-infisical-auth'): '1354d0c7e51fe243f333bdcacc3fb87073aa70c75a2cc99513b30f6fb5350dfa',
  ('secrets.infisical.com/v1beta1', 'InfisicalConnection', 'cristexhub-dev', 'infisical-cloud'): '71a21173e618795af3d0bb0da397f13564f3217cb621bcc9ec2e0e18d88b30af',
- ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'cristexhub-dev', 'cristexhub-dev-runtime'): '7fbe90d81eb66cbd141bca6ee668bd8bf672736e3e7f291b453cba7ff7636b6a'}
+ ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'cristexhub-dev', 'cristexhub-dev-runtime'): 'bc93369dd7cf8a30883bfa52f5d2a103d0af3a9c326011e80014fc8352d7f903'}
 _EXPECTED_IDENTITY_SET_SHA256 = "8b743f04a3fc8caae30f5825ee0c20bf29b35fccbd1cb62b9a756329bfeaeef3"
 _EXPECTED_ARGUMENT_KEYS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 _EXPECTED_TASK_SOURCES = {

@@ -78,7 +78,7 @@
       - cristexhub_prod_runtime_bootstrap_credential_name == 'cristexhub-prod-infisical-universal-auth'
       - cristexhub_prod_runtime_bootstrap_target_keys ==
         ['MONGODB_URL', 'RABBITMQ_URL', 'REDIS_URL', 'REDIS_PASSWORD', 'FERNET_KEY',
-         'OIDC_CLIENT_SECRET', 'OAUTH2_PROXY_COOKIE_SECRET', 'PRIVATE_CA_BUNDLE', 'CODE_RUNNER_AUTH_TOKEN']
+         'OIDC_CLIENT_SECRET', 'OAUTH2_PROXY_COOKIE_SECRET', 'PRIVATE_CA_BUNDLE', 'CODE_RUNNER_AUTH_TOKEN', 'BROWSERLESS_TOKEN']
       - >-
         cristexhub_prod_runtime_bootstrap_labels ==
         {'app.kubernetes.io/managed-by': 'infisical', 'app.kubernetes.io/part-of': 'cristexhub',

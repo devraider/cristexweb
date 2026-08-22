@@ -1,6 +1,6 @@
 ---
 policy_schema: cristexhub-prod-runtime-materialization-v1
-policy_status: runtime-applied-private-workload-live
+policy_status: ten-key-source-selected-runtime-update-blocked
 
 # `prod` is an Infisical Cloud environment identifier only. It does not create
 # or activate the Kubernetes cristexhub-prod Namespace or any PROD workload.
@@ -30,6 +30,7 @@ target_keys:
   - OAUTH2_PROXY_COOKIE_SECRET
   - PRIVATE_CA_BUNDLE
   - CODE_RUNNER_AUTH_TOKEN
+  - BROWSERLESS_TOKEN
 
 # This value-free source contract is shared with the hosted Keycloak PROD
 # client policy. The target template below must remain a direct, same-key
@@ -67,6 +68,7 @@ targets:
       - OAUTH2_PROXY_COOKIE_SECRET
       - PRIVATE_CA_BUNDLE
       - CODE_RUNNER_AUTH_TOKEN
+      - BROWSERLESS_TOKEN
   - name: cristexhub-prod-ghcr-pull
     type: kubernetes.io/dockerconfigjson
     creation_policy: Orphan
@@ -111,7 +113,8 @@ workflow:
   requires_diff: true
   one_host_limit: crtxweb
   state: present
-  runtime_execution: APPLIED/IDEMPOTENT
+  runtime_execution: NOT RUN/BLOCKED
   remaining_gates:
+    - The prior nine-key target is live; BROWSERLESS_TOKEN insertion and guarded ten-key reconciliation require separate approval.
     - MongoDB/RabbitMQ URL credentials and the reused GHCR pull credential require verified rotation after local transcript exposure.
     - Cloudflare public route source is committed but provider apply remains pending protected authorization.

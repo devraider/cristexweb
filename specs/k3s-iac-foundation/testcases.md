@@ -4681,3 +4681,11 @@ backup role/ownership recovery, pinned transport implementation, actor/value
 creation, CAS writer/VAP/RBAC, Admin API preflight/apply/idempotence, identity
 migration, application cutover, and authenticated tests remain **NOT RUN/BLOCKED**
 and require separate approvals.
+
+## Browserless runtime secret durability (2026-08-22)
+
+| ID | Scenario | Expected | Actual |
+|---|---|---|---|
+| KIF-BR-01 | DEV/PROD Browserless credential contract | The guarded Infisical StaticSecret source, target-write admission, role assertions, policies, and hash ledgers require exactly one additional `BROWSERLESS_TOKEN` without committing a value or granting Argo Secret ownership | PASS — focused DEV/PROD runtime contract tests; source closure is ten keys and remains unapplied pending approved Infisical value insertion |
+| KIF-BR-02 | Ownership boundary | Browserless/gateway and code-runner workload manifests stay in `cristexhub`; `cristexweb` owns only Infisical materialization and pinned Argo registration, preventing dual Ansible/Argo reconciliation | PASS — existing AppProject/RBAC already permits Deployment, Service, ConfigMap, and NetworkPolicy while excluding Secret writes |
+| KIF-BR-03 | Review-log credential incident | A read-only reviewer accidentally emitted existing DEV/PROD runtime Secret data into its private session; exact child/async artifacts are removed without repeating values and affected credentials must be rotated before the ten-key seam or revision transition is applied | BLOCKED — rotation/revocation requires a separately approved no-output Infisical operation; no runtime apply or Argo revision mutation is authorized by this source change |
