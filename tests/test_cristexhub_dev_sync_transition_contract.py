@@ -36,7 +36,7 @@ class AutomatedSyncTransitionContractTests(unittest.TestCase):
         self.assertIn('cristexhub_dev_sync_transition_runtime_secret_keys:', defaults)
         parsed_defaults = yaml.safe_load(defaults)
         self.assertIn('BROWSERLESS_TOKEN', parsed_defaults['cristexhub_dev_sync_transition_runtime_secret_keys'])
-        self.assertEqual('d4e82085cba355da6b727d4b5c872559fb10ef9b', parsed_defaults['cristexhub_dev_sync_transition_revision'])
+        self.assertEqual('e5d5d302cd1c8b9c76d330ebbe6bf0b8d023fa3f', parsed_defaults['cristexhub_dev_sync_transition_revision'])
         self.assertFalse(parsed_defaults['cristexhub_dev_sync_transition_image_provenance_verified'])
         for gate in ('image', 'runtime Secret', 'namespace-scoped Argo cache', 'OIDC proxy', 'dependency'):
             self.assertIn(gate, tasks)
