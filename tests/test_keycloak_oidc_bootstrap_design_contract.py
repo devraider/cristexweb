@@ -245,6 +245,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "infisical-operator",
             "argocd",
             "argocd-route",
+            "reactive-resume-dev-route",
             "cristexhub-dev-registration",
             "cristexhub-prod-registration",
             "cristexhub-dev-sync-transition",

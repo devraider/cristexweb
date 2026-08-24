@@ -1,0 +1,7 @@
+---
+- name: Guarded Reactive Resume DEV private route bootstrap
+  hosts: k3s_servers
+  gather_facts: false
+  become: false
+  roles:
+    - role: reactive_resume_dev_route_bootstrap

@@ -1,0 +1,209 @@
+---
+- name: Reject externally supplied Reactive Resume DEV route internals
+  ansible.builtin.assert:
+    that: item not in vars
+  loop:
+    - reactive_resume_dev_route_bootstrap_internal_attestation_state
+    - reactive_resume_dev_route_bootstrap_internal_manifest_states
+    - reactive_resume_dev_route_bootstrap_internal_manifests
+    - reactive_resume_dev_route_bootstrap_internal_identity_keys
+    - reactive_resume_dev_route_bootstrap_internal_namespace
+    - reactive_resume_dev_route_bootstrap_internal_kubeconfig_state
+    - reactive_resume_dev_route_bootstrap_internal_prestate
+    - reactive_resume_dev_route_bootstrap_internal_preflight_binding
+    - reactive_resume_dev_route_bootstrap_internal_poststate
+    - reactive_resume_dev_route_bootstrap_internal_tls_secret
+  changed_when: false
+- name: Require guarded Reactive Resume DEV route approval
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_ATTESTATION_FILE') | length > 0
+      - reactive_resume_dev_route_bootstrap_approved | bool
+      - reactive_resume_dev_route_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - reactive_resume_dev_route_bootstrap_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - reactive_resume_dev_route_bootstrap_manifest_paths | length == 2
+      - reactive_resume_dev_route_bootstrap_expected_hashes | length == 2
+      - reactive_resume_dev_route_bootstrap_object_count == 2
+      - reactive_resume_dev_route_bootstrap_namespace == 'cristexhub-dev'
+    fail_msg: Reactive Resume DEV route requires exact guarded two-object present-only closure.
+  changed_when: false
+- name: Inspect route attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+  register: reactive_resume_dev_route_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+- name: Require route attestation
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_route_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (reactive_resume_dev_route_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - reactive_resume_dev_route_bootstrap_internal_attestation_state.stat.pw_name == reactive_resume_dev_route_bootstrap_controller_user
+      - reactive_resume_dev_route_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+- name: Inspect exact route source leaves
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: "{{ reactive_resume_dev_route_bootstrap_manifest_paths }}"
+  register: reactive_resume_dev_route_bootstrap_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+- name: Require hash-bound route source leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - item.stat.checksum == reactive_resume_dev_route_bootstrap_expected_hashes[item.item | replace(reactive_resume_dev_route_bootstrap_repository_root ~ '/ansible/files/components/reactive-resume-dev-route/', '')]
+      - item.item.startswith(reactive_resume_dev_route_bootstrap_repository_root ~ '/ansible/files/components/reactive-resume-dev-route/')
+  loop: "{{ reactive_resume_dev_route_bootstrap_internal_manifest_states.results }}"
+  delegate_to: localhost
+  changed_when: false
+- name: Load exact route objects
+  ansible.builtin.set_fact:
+    reactive_resume_dev_route_bootstrap_internal_manifests: "{{ (reactive_resume_dev_route_bootstrap_internal_manifests | default([])) + [lookup('ansible.builtin.file', item) | from_yaml] }}"
+  loop: "{{ reactive_resume_dev_route_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+- name: Bind exact route identities
+  ansible.builtin.set_fact:
+    reactive_resume_dev_route_bootstrap_internal_identity_keys: "{{ (reactive_resume_dev_route_bootstrap_internal_identity_keys | default([])) + [item.apiVersion ~ '|' ~ item.kind ~ '|' ~ (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}"
+  loop: "{{ reactive_resume_dev_route_bootstrap_internal_manifests }}"
+  changed_when: false
+  no_log: true
+- name: Require exact value-free route inventory
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_route_bootstrap_internal_manifests | length == 2
+      - reactive_resume_dev_route_bootstrap_internal_identity_keys | unique | length == 2
+      - reactive_resume_dev_route_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Ingress') | list | length == 1
+      - reactive_resume_dev_route_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 1
+      - reactive_resume_dev_route_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+  changed_when: false
+- name: Inspect protected kubeconfig
+  ansible.builtin.stat:
+    path: "{{ reactive_resume_dev_route_bootstrap_kubeconfig }}"
+    follow: false
+  register: reactive_resume_dev_route_bootstrap_internal_kubeconfig_state
+  changed_when: false
+  no_log: true
+- name: Require protected kubeconfig
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_route_bootstrap_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (reactive_resume_dev_route_bootstrap_internal_kubeconfig_state.stat.islnk | default(false))
+      - reactive_resume_dev_route_bootstrap_internal_kubeconfig_state.stat.pw_name == 'root'
+      - reactive_resume_dev_route_bootstrap_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+      - reactive_resume_dev_route_bootstrap_internal_kubeconfig_state.stat.mode == '0640'
+  changed_when: false
+  no_log: true
+- name: Query cristexhub-dev namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: cristexhub-dev
+    kubeconfig: "{{ reactive_resume_dev_route_bootstrap_kubeconfig }}"
+  register: reactive_resume_dev_route_bootstrap_internal_namespace
+  changed_when: false
+- name: Require established cristexhub-dev namespace
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_route_bootstrap_internal_namespace.resources | length == 1
+      - reactive_resume_dev_route_bootstrap_internal_namespace.resources[0].status.phase == 'Active'
+  changed_when: false
+- name: Query precreated Reactive Resume DEV TLS Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: reactive-resume-dev-tls
+    namespace: cristexhub-dev
+    kubeconfig: "{{ reactive_resume_dev_route_bootstrap_kubeconfig }}"
+  register: reactive_resume_dev_route_bootstrap_internal_tls_secret
+  changed_when: false
+  no_log: true
+- name: Require precreated Reactive Resume DEV TLS Secret
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_route_bootstrap_internal_tls_secret.resources | length == 1
+      - reactive_resume_dev_route_bootstrap_internal_tls_secret.resources[0].type == 'kubernetes.io/tls'
+      - (reactive_resume_dev_route_bootstrap_internal_tls_secret.resources[0].data | default({})).keys() | list | sort == ['tls.crt', 'tls.key']
+  changed_when: false
+  no_log: true
+- name: Query route object pre-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ reactive_resume_dev_route_bootstrap_kubeconfig }}"
+  loop: "{{ reactive_resume_dev_route_bootstrap_internal_manifests }}"
+  register: reactive_resume_dev_route_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+- name: Refuse foreign existing route objects
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources | length == 0 or item.resources[0].metadata.labels.get('cristex.io/component') == 'reactive-resume-dev-route'
+  loop: "{{ reactive_resume_dev_route_bootstrap_internal_prestate.results }}"
+  changed_when: false
+  no_log: true
+- name: Bind protected route preflight
+  ansible.builtin.set_fact:
+    reactive_resume_dev_route_bootstrap_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_TOKEN') | hash('sha256') }}"
+      object_count: "{{ reactive_resume_dev_route_bootstrap_internal_manifests | length }}"
+      identity_set_sha256: "{{ reactive_resume_dev_route_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
+      prestate_count: "{{ reactive_resume_dev_route_bootstrap_internal_prestate.results | length }}"
+      namespace_contract: true
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+- name: Reconcile only approved route objects
+  reactive_resume_dev_route_guarded_k8s:
+    state: present
+    definition: "{{ item }}"
+    kubeconfig: "{{ reactive_resume_dev_route_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  loop: "{{ reactive_resume_dev_route_bootstrap_internal_manifests }}"
+  register: reactive_resume_dev_route_bootstrap_internal_apply
+  no_log: true
+- name: Query exact route post-state
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ reactive_resume_dev_route_bootstrap_kubeconfig }}"
+  loop: "{{ reactive_resume_dev_route_bootstrap_internal_manifests }}"
+  register: reactive_resume_dev_route_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+- name: Require exact route post-state ownership
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources[0].metadata.labels.get('cristex.io/component') == 'reactive-resume-dev-route'
+  loop: "{{ reactive_resume_dev_route_bootstrap_internal_poststate.results | default([]) }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode

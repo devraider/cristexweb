@@ -32,7 +32,7 @@ note: |
   administrator-access, recovery, stateful-service, backup, Infisical, Cloudflare,
   Keycloak, and private Argo checkpoints. The latest approved checkpoint adds a
   read-only private CristexHub repository credential, manual-sync DEV registration,
-  bounded Argo cache RBAC, and exact-field CoreDNS external-forwarding recovery. Python is limited to offline tests plus thirty-two exact-scope
+  bounded Argo cache RBAC, and exact-field CoreDNS external-forwarding recovery. Python is limited to offline tests plus thirty-three exact-scope
   Ansible action plugins (Namespace, Infisical/Argo/database and CristexHub DEV/PROD
   Secret, registration/sync, CoreDNS, proxy, Universal Auth, and related object-boundary
   guards; two focused host-rclone boundary guards; two no-log Secret cryptographic

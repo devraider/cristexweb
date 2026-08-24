@@ -572,7 +572,7 @@ storage, the mismatched candidate image, locked split-role migration, recovery,
 workload objects, and runtime remain blocked; Agent/Redis are disabled and no
 executable workload source exists. GitHub CI may run only syntax/lint and offline contracts from this
 source; it supplies no inventory and invokes no operational wrapper. The repository
-contains thirty-two exact-scope action plugins; these focused Python exceptions
+contains thirty-three exact-scope action plugins; these focused Python exceptions
 are source guards/validators only, not a general operational collector.
 
 Each component requires a dedicated non-passthrough entrypoint and frozen

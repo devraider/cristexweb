@@ -1,0 +1,14 @@
+---
+reactive_resume_dev_route_bootstrap_approved: false
+reactive_resume_dev_route_bootstrap_state: present
+reactive_resume_dev_route_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+reactive_resume_dev_route_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+reactive_resume_dev_route_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+reactive_resume_dev_route_bootstrap_manifest_paths:
+  - "{{ reactive_resume_dev_route_bootstrap_repository_root }}/ansible/files/components/reactive-resume-dev-route/network/allow-traefik.yaml"
+  - "{{ reactive_resume_dev_route_bootstrap_repository_root }}/ansible/files/components/reactive-resume-dev-route/route/ingress-reactive-resume-dev.yaml"
+reactive_resume_dev_route_bootstrap_object_count: 2
+reactive_resume_dev_route_bootstrap_namespace: cristexhub-dev
+reactive_resume_dev_route_bootstrap_expected_hashes:
+  network/allow-traefik.yaml: 3e03a9d551e2309ba5e6b4eff2c602e0cfb6c36c76054003214d8cdbd98c18b5
+  route/ingress-reactive-resume-dev.yaml: e2fe7e0a4fb711e6e3173db72d43d17d78ad313baddafc6685791ed505cd4339

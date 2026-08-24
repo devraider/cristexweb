@@ -770,6 +770,14 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         approved_backup_sources = {
             ROOT / "ansible/playbooks/configure_reactive_resume_dev_backup.yml",
             ROOT / "ansible/bin/configure-reactive-resume-dev-backup",
+            ROOT / "ansible/bin/bootstrap-reactive-resume-dev-route",
+            ROOT / "ansible/playbooks/bootstrap_reactive_resume_dev_route.yml",
+            ROOT / "ansible/plugins/action/reactive_resume_dev_route_guarded_k8s.py",
+            ROOT / "ansible/roles/reactive_resume_dev_route_bootstrap/defaults/main.yml",
+            ROOT / "ansible/roles/reactive_resume_dev_route_bootstrap/tasks/main.yml",
+            ROOT / "ansible/files/components/reactive-resume-dev-route/MANIFESTS.sha256",
+            ROOT / "ansible/files/components/reactive-resume-dev-route/network/allow-traefik.yaml",
+            ROOT / "ansible/files/components/reactive-resume-dev-route/route/ingress-reactive-resume-dev.yaml",
         }
         for root in executable_roots:
             for path in root.rglob("*"):
