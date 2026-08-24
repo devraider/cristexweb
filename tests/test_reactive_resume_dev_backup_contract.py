@@ -104,7 +104,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "reactive-resume-object-storage-tls",
             "reactive-resume-object-storage-auth",
             "RCLONE_CONFIG_S3_ENDPOINT",
-            "RCLONE_CONFIG_S3_CA_CERT",
+            "RCLONE_CA_CERT",
             "tls_contract=",
             "auth_contract=",
             "https://$object_service.$namespace.svc.cluster.local:8333",
