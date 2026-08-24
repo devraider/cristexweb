@@ -1,0 +1,98 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: infisical-reactive-resume-dev-tls-secret-write-boundary
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["secrets"]
+        scope: Namespaced
+  matchConditions:
+    - name: exact-target
+      expression: "request.namespace == 'cristexhub-dev' && object.metadata.name == 'reactive-resume-dev-tls'"
+  validations:
+    - expression: "request.userInfo.username == 'system:serviceaccount:shared-services:infisical-operator-controller' && object.metadata.labels['app.kubernetes.io/managed-by'] == 'infisical' && object.metadata.labels['app.kubernetes.io/part-of'] == 'reactive-resume' && object.metadata.labels['cristex.io/value-owner'] == 'infisical-cloud' && object.type == 'kubernetes.io/tls' && object.data.size() == 2 && object.data.exists(k, k == 'tls.crt') && object.data.exists(k, k == 'tls.key')"
+      message: Only Infisical may write the exact Reactive Resume DEV TLS Secret.
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: infisical-reactive-resume-dev-tls-secret-write-boundary
+spec:
+  policyName: infisical-reactive-resume-dev-tls-secret-write-boundary
+  validationActions: [Deny]
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: infisical-reactive-resume-dev-tls-source-boundary
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["secrets.infisical.com"]
+        apiVersions: ["v1beta1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["infisicalstaticsecrets"]
+        scope: Namespaced
+  matchConditions:
+    - name: exact-source
+      expression: "request.namespace == 'cristexhub-dev' && object.metadata.name == 'reactive-resume-dev-tls'"
+  validations:
+    - expression: "(request.userInfo.username == 'system:admin' || (request.userInfo.username == 'system:serviceaccount:shared-services:infisical-operator-controller' && oldObject != null && oldObject.spec == object.spec)) && object.metadata.labels.size() == 4 && object.metadata.labels['app.kubernetes.io/managed-by'] == 'ansible' && object.metadata.labels['app.kubernetes.io/part-of'] == 'reactive-resume' && object.metadata.labels['cristex.io/component'] == 'reactive-resume-dev-tls' && object.metadata.labels['cristex.io/environment'] == 'dev' && object.spec.sources.size() == 1 && object.spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326' && object.spec.sources[0].environmentSlug == 'prod' && object.spec.sources[0].secretPath == '/reactive-resume/dev/tls' && object.spec.sources[0].recursive == false && object.spec.sources[0].tagSlugs.size() == 0 && object.spec.infisicalAuthRef.name == 'cristexhub-dev-infisical-auth' && object.spec.infisicalAuthRef.namespace == 'cristexhub-dev' && object.spec.syncOptions.refreshInterval == '1h' && object.spec.syncOptions.instantUpdates == false && object.spec.targets.size() == 1 && object.spec.targets[0].name == 'reactive-resume-dev-tls' && object.spec.targets[0].namespace == 'cristexhub-dev' && object.spec.targets[0].kind == 'Secret' && object.spec.targets[0].secretType == 'kubernetes.io/tls' && object.spec.targets[0].creationPolicy == 'Orphan' && object.spec.targets[0].metadata.labels.size() == 3 && object.spec.targets[0].metadata.labels['app.kubernetes.io/managed-by'] == 'infisical' && object.spec.targets[0].metadata.labels['app.kubernetes.io/part-of'] == 'reactive-resume' && object.spec.targets[0].metadata.labels['cristex.io/value-owner'] == 'infisical-cloud' && object.spec.targets[0].template.engineVersion == 'v1' && object.spec.targets[0].template.data.size() == 2 && object.spec.targets[0].template.data.exists(k, k == 'tls.crt') && object.spec.targets[0].template.data.exists(k, k == 'tls.key')"
+      message: Only the exact Reactive Resume DEV TLS Infisical source is permitted.
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: infisical-reactive-resume-dev-tls-source-boundary
+spec:
+  policyName: infisical-reactive-resume-dev-tls-source-boundary
+  validationActions: [Deny]
+---
+apiVersion: secrets.infisical.com/v1beta1
+kind: InfisicalStaticSecret
+metadata:
+  name: reactive-resume-dev-tls
+  namespace: cristexhub-dev
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: reactive-resume
+    cristex.io/component: reactive-resume-dev-tls
+    cristex.io/environment: dev
+spec:
+  infisicalAuthRef:
+    name: cristexhub-dev-infisical-auth
+    namespace: cristexhub-dev
+  sources:
+    - projectId: 619656da-14f3-4872-857b-be103cdc5326
+      environmentSlug: prod
+      secretPath: /reactive-resume/dev/tls
+      recursive: false
+      tagSlugs: []
+  syncOptions:
+    refreshInterval: 1h
+    instantUpdates: false
+  targets:
+    - name: reactive-resume-dev-tls
+      namespace: cristexhub-dev
+      kind: Secret
+      secretType: kubernetes.io/tls
+      creationPolicy: Orphan
+      metadata:
+        annotations: {}
+        labels:
+          app.kubernetes.io/managed-by: infisical
+          app.kubernetes.io/part-of: reactive-resume
+          cristex.io/value-owner: infisical-cloud
+      template:
+        engineVersion: v1
+        data:
+          tls.crt: "{{ .TLS_CRT.Value }}"
+          tls.key: "{{ .TLS_KEY.Value }}"
