@@ -101,7 +101,7 @@
     - name: Require the exact Google Drive remote
       ansible.builtin.assert:
         that:
-          - reactive_resume_dev_backup_rclone_remotes.stdout_lines | map('trim') | list == ['drive: drive']
+          - "reactive_resume_dev_backup_rclone_remotes.stdout_lines | map('trim') | list == ['drive: drive']"
         fail_msg: Refusing a host rclone configuration outside the exact drive remote.
       changed_when: false
       no_log: true
@@ -173,7 +173,9 @@
         name: "{{ reactive_resume_dev_backup_timer }}"
         enabled: false
         state: stopped
-      when: reactive_resume_dev_backup_mode in ['install', 'test', 'restore']
+      when:
+        - reactive_resume_dev_backup_mode in ['install', 'test', 'restore']
+        - not ansible_check_mode or not reactive_resume_dev_backup_timer_unit.changed
 
     - name: Execute the separately approved one-time combined backup test
       ansible.builtin.systemd_service:
@@ -224,7 +226,9 @@
         name: "{{ reactive_resume_dev_backup_timer }}"
         enabled: true
         state: started
-      when: reactive_resume_dev_backup_mode == 'enable'
+      when:
+        - reactive_resume_dev_backup_mode == 'enable'
+        - not ansible_check_mode or not reactive_resume_dev_backup_timer_unit.changed
 
   post_tasks:
     - name: Collect final service facts
