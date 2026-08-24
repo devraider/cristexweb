@@ -206,6 +206,7 @@ metadata:
                 ANSIBLE / "bin/validate-argocd-ui-tls-material",
                 ANSIBLE / "bin/configure-opentofu-state-backup",
                 ANSIBLE / "bin/configure-opentofu-github-state-backup",
+                ANSIBLE / "bin/configure-reactive-resume-dev-backup",
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()},
         )

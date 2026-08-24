@@ -376,6 +376,16 @@ class AnsibleLayoutTests(unittest.TestCase):
                 for path in sorted((ANSIBLE / "files/components" / component).rglob("*"))
                 if path.is_file()
             )
+        required.extend(
+            [
+                "bin/configure-reactive-resume-dev-backup",
+                "files/backup/reactive-resume-dev-backup",
+                "files/backup/restore-reactive-resume-dev-backup-rehearsal",
+                "files/backup/cristexweb-reactive-resume-dev-backup.service",
+                "files/backup/cristexweb-reactive-resume-dev-backup.timer",
+                "playbooks/configure_reactive_resume_dev_backup.yml",
+            ]
+        )
         self.assertEqual([], [path for path in required if not (ANSIBLE / path).is_file()])
         actual = {
             str(path.relative_to(ANSIBLE))

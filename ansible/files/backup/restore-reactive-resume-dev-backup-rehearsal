@@ -1,0 +1,340 @@
+#!/bin/sh
+set -eu
+umask 077
+
+PATH=/usr/local/bin:/usr/bin:/bin
+export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null
+
+project_id=619656da-14f3-4872-857b-be103cdc5326
+infisical_path=/shared-services/backup-recovery
+namespace=shared-services
+bucket=reactive-resume-dev
+service=reactive-resume-object-storage
+tls_secret=reactive-resume-object-storage-tls
+auth_secret=reactive-resume-object-storage-auth
+postgres_image='docker.io/library/postgres:17.10@sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b'
+seaweed_image='chrislusf/seaweedfs:4.44@sha256:c927ea0755b1d7dd5a3101081e4717126d00e75e89d3142e21df374b0a90acad'
+rclone_image='rclone/rclone:1.71.1@sha256:e99b436167f8e5b41b557979b780a85797aef45a7da49629ad99cd39c59deae'
+remote_root=drive:cristexweb-recovery/reactive-resume/dev
+rclone_config=/home/paul/.config/rclone/rclone.conf
+lock_file=/run/lock/cristexweb-reactive-resume-dev-backup-restore.lock
+
+fail() { printf 'restore_status=failed stage=%s\n' "$1" >&2; exit 1; }
+[ "$#" -eq 1 ] && [ "$1" = restore ] || {
+  printf '%s\n' 'usage: restore-reactive-resume-dev-backup-rehearsal restore' >&2
+  exit 64
+}
+[ "$(id -u)" -ne 0 ] || fail non_root_operator_required
+[ "${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ENTRYPOINT-}" = v1 ] || fail approval_entrypoint
+[ "${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_APPROVED-}" = true ] || fail approval_missing
+approval_file=${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ATTESTATION_FILE-}
+token=${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_TOKEN-}
+[ -n "$approval_file" ] && [ -f "$approval_file" ] && [ ! -L "$approval_file" ] || fail approval_attestation
+printf '%s\n' "$token" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || fail approval_token
+[ "$(/usr/bin/stat -c '%U:%a' "$approval_file")" = "$(id -un):600" ] || fail approval_attestation
+[ "$(/usr/bin/cat "$approval_file")" = "$token:restore" ] || fail approval_attestation
+
+exec 9>"$lock_file"
+/usr/bin/flock -n 9 || { printf '%s\n' 'restore_status=refused reason=concurrent_run'; exit 75; }
+[ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] || fail rclone_config_metadata
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || fail rclone_config_metadata
+remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long | /usr/bin/sed 's/[[:space:]]*$//')
+[ "$remotes" = 'drive: drive' ] || fail rclone_remote_contract
+
+work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-reactive-resume-dev-restore.XXXXXX)
+pg_uid=
+pg_pod=
+storage_uid=
+storage_pod=
+run_id=
+pod_run_id=
+cleanup_pod() {
+  name=$1
+  uid=$2
+  [ -n "$uid" ] || return 0
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)
+  current_name=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" -o jsonpath='{.metadata.labels.app\.kubernetes\.io/name}' 2>/dev/null || true)
+  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" -o jsonpath='{.metadata.labels.cristex\.io/run-id}' 2>/dev/null || true)
+  expected_name=$3
+  [ "$current_uid" = "$uid" ] && [ "$current_name" = "$expected_name" ] && [ "$current_run_id" = "$pod_run_id" ] || return 1
+  /usr/bin/printf '{"kind":"DeleteOptions","apiVersion":"v1","propagationPolicy":"Orphan","preconditions":{"uid":"%s"}}\n' "$uid" >"$work/delete-$name.json"
+  /usr/local/bin/kubectl delete --raw "/api/v1/namespaces/$namespace/pods/$name" -f "$work/delete-$name.json" >/dev/null
+  /usr/local/bin/kubectl -n "$namespace" wait --for=delete "pod/$name" --timeout=120s >/dev/null 2>&1 || true
+  [ -z "$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" -o name 2>/dev/null || true)" ] || return 1
+}
+cleanup() {
+  cleanup_pod "${pg_pod:-}" "${pg_uid:-}" reactive-resume-dev-postgresql-restore >/dev/null 2>&1 || true
+  cleanup_pod "${storage_pod:-}" "${storage_uid:-}" reactive-resume-dev-storage-restore >/dev/null 2>&1 || true
+  /usr/bin/rm -rf -- "$work"
+}
+trap cleanup EXIT HUP INT TERM
+/usr/bin/chmod 0700 "$work"
+
+# Select only a complete timestamp directory; partial immutable uploads are ignored.
+candidates=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sed 's#/$##' | /usr/bin/sort -r)
+selected=
+expected_leaves='object-storage.manifest.json
+object-storage.tar.gz.age
+object-storage.tar.gz.age.sha256
+postgresql.dump.gz.age
+postgresql.dump.gz.age.sha256
+postgresql.manifest.json
+run-manifest.json'
+while IFS= read -r candidate; do
+  [ -n "$candidate" ] || continue
+  printf '%s\n' "$candidate" | /usr/bin/grep -Eq '^20[0-9]{6}T[0-9]{6}Z$' || continue
+  leaves=$(/usr/local/bin/rclone --config "$rclone_config" lsf --files-only "$remote_root/$candidate" | /usr/bin/sort)
+  [ "$leaves" = "$expected_leaves" ] || continue
+  selected=$candidate
+  break
+done <<EOF
+$candidates
+EOF
+[ -n "$selected" ] || fail remote_catalog
+run_id=$selected
+pod_run_id=$(/usr/bin/printf '%s' "$run_id" | /usr/bin/tr '[:upper:]' '[:lower:]')
+remote="$remote_root/$run_id"
+for leaf in object-storage.manifest.json object-storage.tar.gz.age object-storage.tar.gz.age.sha256 postgresql.dump.gz.age postgresql.dump.gz.age.sha256 postgresql.manifest.json run-manifest.json; do
+  /usr/local/bin/rclone --config "$rclone_config" copyto "$remote/$leaf" "$work/$leaf"
+done
+(cd "$work" && /usr/bin/sha256sum -c postgresql.dump.gz.age.sha256 >/dev/null)
+(cd "$work" && /usr/bin/sha256sum -c object-storage.tar.gz.age.sha256 >/dev/null)
+RUN_MANIFEST="$work/run-manifest.json" PG_MANIFEST="$work/postgresql.manifest.json" OBJECT_MANIFEST="$work/object-storage.manifest.json" RUN_ID="$run_id" /usr/bin/python3 - <<'PY'
+import json, os
+run = json.load(open(os.environ["RUN_MANIFEST"], encoding="utf-8"))
+pg = json.load(open(os.environ["PG_MANIFEST"], encoding="utf-8"))
+obj = json.load(open(os.environ["OBJECT_MANIFEST"], encoding="utf-8"))
+assert set(run) == {"schema", "service", "run_id", "encryption", "database", "object_storage"}
+assert run["schema"] == 1 and run["service"] == "reactive-resume-dev"
+assert run["run_id"] == os.environ["RUN_ID"] and run["encryption"] == "age-x25519"
+assert set(run["database"]) == {"name", "archive", "bytes", "sha256"}
+assert run["database"]["name"] == "reactive_resume_dev_successor"
+assert run["database"]["archive"] == "postgresql.dump.gz.age"
+assert set(run["object_storage"]) == {"bucket", "archive", "bytes", "sha256", "object_count", "total_object_bytes"}
+assert run["object_storage"]["bucket"] == "reactive-resume-dev"
+assert run["object_storage"]["archive"] == "object-storage.tar.gz.age"
+assert set(pg) == {"schema", "service", "database", "run_id", "archive", "archive_bytes", "archive_sha256", "encryption", "source_cluster"}
+assert pg["run_id"] == os.environ["RUN_ID"] and pg["database"] == "reactive_resume_dev_successor"
+assert set(obj) == {"schema", "bucket", "run_id", "archive", "archive_bytes", "archive_sha256", "encryption", "object_count", "total_object_bytes"}
+assert obj["run_id"] == os.environ["RUN_ID"] and obj["bucket"] == "reactive-resume-dev"
+assert isinstance(obj["object_count"], int) and obj["object_count"] >= 0
+assert isinstance(obj["total_object_bytes"], int) and obj["total_object_bytes"] >= 0
+assert run["database"]["sha256"] == pg["archive_sha256"]
+assert run["object_storage"]["sha256"] == obj["archive_sha256"]
+PY
+
+# Retrieve the age identity only for this explicitly approved restore.
+/home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY \
+  --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity"
+/usr/bin/chmod 0600 "$work/identity"
+/usr/bin/age -d -i "$work/identity" "$work/postgresql.dump.gz.age" | /usr/bin/gzip -d >"$work/postgresql.dump"
+/usr/bin/age -d -i "$work/identity" "$work/object-storage.tar.gz.age" >"$work/object-storage.tar.gz"
+/usr/bin/rm -f -- "$work/identity" "$work/postgresql.dump.gz.age" "$work/object-storage.tar.gz.age" "$work/postgresql.dump.gz.age.sha256" "$work/object-storage.tar.gz.age.sha256"
+[ -s "$work/postgresql.dump" ] || fail pg_archive_empty
+[ -s "$work/object-storage.tar.gz" ] || fail object_archive_empty
+
+# Validate object archive paths before extraction.
+/usr/bin/tar -tzf "$work/object-storage.tar.gz" >"$work/tar-list"
+TAR_LIST="$work/tar-list" /usr/bin/python3 - <<'PY'
+import os
+for raw in open(os.environ["TAR_LIST"], encoding="utf-8"):
+    path = raw.rstrip("\n")
+    if path.startswith("/") or ".." in path.split("/") or "\\" in path or "\x00" in path or not path.startswith("objects/"):
+        raise SystemExit(1)
+PY
+/usr/bin/rm -f -- "$work/tar-list"
+
+# Isolated PostgreSQL 17 restore. The pod has emptyDir only and listens on no network address.
+pg_pod=reactive-resume-dev-postgresql-restore-$pod_run_id
+cat >"$work/pg-pod.yaml" <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: $pg_pod
+  namespace: $namespace
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev-postgresql-restore
+    cristex.io/run-id: $pod_run_id
+spec:
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999
+    seccompProfile: {type: RuntimeDefault}
+  initContainers:
+    - name: initialize-data-permissions
+      image: $postgres_image
+      imagePullPolicy: IfNotPresent
+      command: [/bin/sh, -ec, "chown 999:999 /var/lib/postgresql/data && chmod 0700 /var/lib/postgresql/data"]
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        allowPrivilegeEscalation: false
+        capabilities: {drop: [ALL], add: [CHOWN, FOWNER]}
+      volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+  containers:
+    - name: postgres
+      image: $postgres_image
+      imagePullPolicy: IfNotPresent
+      args: ["-c", "listen_addresses="]
+      env:
+        - {name: POSTGRES_HOST_AUTH_METHOD, value: trust}
+        - {name: POSTGRES_DB, value: reactive_resume_restore}
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities: {drop: [ALL]}
+      resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: "1", memory: 1Gi}}
+      volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}, {name: restore, mountPath: /restore}]
+      readinessProbe:
+        exec: {command: [/usr/bin/pg_isready, -h, /var/run/postgresql, -d, reactive_resume_restore]}
+        periodSeconds: 2
+        failureThreshold: 90
+  volumes:
+    - {name: data, emptyDir: {sizeLimit: 4Gi}}
+    - {name: restore, emptyDir: {sizeLimit: 4Gi}}
+EOF
+/usr/local/bin/kubectl apply -f "$work/pg-pod.yaml" >/dev/null
+pg_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pg_pod" -o jsonpath='{.metadata.uid}')
+[ -n "$pg_uid" ] || fail pg_restore_uid
+/usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$pg_pod" --timeout=240s >/dev/null
+/usr/local/bin/kubectl -n "$namespace" cp "$work/postgresql.dump" "$pg_pod:/restore/postgresql.dump" -c postgres >/dev/null
+/usr/local/bin/kubectl -n "$namespace" exec "$pg_pod" -c postgres -- /usr/bin/pg_restore --exit-on-error --no-owner --no-privileges --dbname=reactive_resume_restore /restore/postgresql.dump >/dev/null
+pg_table_count=$(/usr/local/bin/kubectl -n "$namespace" exec "$pg_pod" -c postgres -- /usr/bin/psql --no-psqlrc --tuples-only --no-align --dbname=reactive_resume_restore --command="SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema');")
+printf '%s\n' "$pg_table_count" | /usr/bin/grep -Eq '^[0-9]+$' || fail pg_restore_catalog
+/usr/bin/rm -f -- "$work/postgresql.dump"
+cleanup_pod "$pg_pod" "$pg_uid" reactive-resume-dev-postgresql-restore || fail pg_restore_cleanup
+pg_uid=
+
+# Isolated SeaweedFS restore. It has emptyDir only; the production PVC is never mounted.
+storage_pod=reactive-resume-dev-storage-restore-$pod_run_id
+cat >"$work/storage-pod.yaml" <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: $storage_pod
+  namespace: $namespace
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev-storage-restore
+    cristex.io/run-id: $pod_run_id
+spec:
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  hostAliases:
+    - ip: 127.0.0.1
+      hostnames: [$service.$namespace.svc.cluster.local]
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile: {type: RuntimeDefault}
+  initContainers:
+    - name: render-config
+      image: $seaweed_image
+      imagePullPolicy: IfNotPresent
+      command: [/bin/sh, -ec]
+      args:
+        - |
+          umask 077
+          cat > /etc/seaweedfs-config/s3.json <<EOF_CONFIG
+          {"identities":[{"name":"reactive-resume-dev","credentials":[{"accessKey":"\$SEAWEEDFS_S3_ACCESS_KEY_ID","secretKey":"\$SEAWEEDFS_S3_SECRET_ACCESS_KEY"}],"actions":["List:reactive-resume-dev","Read:reactive-resume-dev/*","Write:reactive-resume-dev/*","Tagging:reactive-resume-dev/*"]}]}
+          EOF_CONFIG
+      env:
+        - name: SEAWEEDFS_S3_ACCESS_KEY_ID
+          valueFrom: {secretKeyRef: {name: $auth_secret, key: accessKey, optional: false}}
+        - name: SEAWEEDFS_S3_SECRET_ACCESS_KEY
+          valueFrom: {secretKeyRef: {name: $auth_secret, key: secretKey, optional: false}}
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities: {drop: [ALL]}
+      volumeMounts: [{name: config, mountPath: /etc/seaweedfs-config}]
+    - name: initialize-data-permissions
+      image: $seaweed_image
+      imagePullPolicy: IfNotPresent
+      command: [/bin/sh, -ec, "install -d -m 0700 -o 1000 -g 1000 /data"]
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        allowPrivilegeEscalation: false
+        capabilities: {drop: [ALL], add: [CHOWN, FOWNER]}
+      volumeMounts: [{name: data, mountPath: /data}]
+  containers:
+    - name: seaweedfs
+      image: $seaweed_image
+      imagePullPolicy: IfNotPresent
+      command: [/usr/bin/weed]
+      args: [server, -dir=/data, -ip=0.0.0.0, -master.port=9333, -volume.port=8080, -filer.port=8888, -s3, -s3.port=8333, -s3.config=/etc/seaweedfs-config/s3.json, -s3.key.file=/etc/seaweedfs-tls/tls.key, -s3.cert.file=/etc/seaweedfs-tls/tls.crt, -s3.cacert.file=/etc/seaweedfs-tls/ca.crt, -s3.tlsVerifyClientCert=false]
+      env: [{name: HOME, value: /tmp}]
+      ports: [{name: s3-https, containerPort: 8333, protocol: TCP}]
+      securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+      resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: "1", memory: 1Gi}}
+      readinessProbe: {tcpSocket: {port: s3-https}, periodSeconds: 2, failureThreshold: 120}
+      volumeMounts:
+        - {name: data, mountPath: /data}
+        - {name: config, mountPath: /etc/seaweedfs-config, readOnly: true}
+        - {name: tls, mountPath: /etc/seaweedfs-tls, readOnly: true}
+        - {name: tmp, mountPath: /tmp}
+    - name: bucket-genesis
+      image: $seaweed_image
+      imagePullPolicy: IfNotPresent
+      command: [/bin/sh, -ec]
+      args: ["until printf '%s\\n' 's3.bucket.create -name reactive-resume-dev -owner reactive-resume-dev' | /usr/bin/weed shell -master=127.0.0.1:9333; do sleep 2; done; exec sleep 3600"]
+      securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+      resources: {requests: {cpu: 10m, memory: 32Mi}, limits: {cpu: 100m, memory: 128Mi}}
+      volumeMounts: [{name: tmp, mountPath: /tmp}]
+    - name: rclone
+      image: $rclone_image
+      imagePullPolicy: IfNotPresent
+      command: [/bin/sh, -ec, "sleep 3600"]
+      env:
+        - {name: RCLONE_CONFIG_S3_TYPE, value: s3}
+        - {name: RCLONE_CONFIG_S3_PROVIDER, value: Other}
+        - {name: RCLONE_CONFIG_S3_ENDPOINT, value: https://$service.$namespace.svc.cluster.local:8333}
+        - {name: RCLONE_CONFIG_S3_REGION, value: us-east-1}
+        - {name: RCLONE_CONFIG_S3_FORCE_PATH_STYLE, value: "true"}
+        - {name: RCLONE_CONFIG_S3_CA_CERT, value: /tls/ca.crt}
+        - name: RCLONE_CONFIG_S3_ACCESS_KEY_ID
+          valueFrom: {secretKeyRef: {name: $auth_secret, key: accessKey, optional: false}}
+        - name: RCLONE_CONFIG_S3_SECRET_ACCESS_KEY
+          valueFrom: {secretKeyRef: {name: $auth_secret, key: secretKey, optional: false}}
+      securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+      resources: {requests: {cpu: 25m, memory: 64Mi}, limits: {cpu: 250m, memory: 256Mi}}
+      volumeMounts:
+        - {name: tls, mountPath: /tls, readOnly: true}
+        - {name: restore, mountPath: /restore}
+  volumes:
+    - {name: data, emptyDir: {sizeLimit: 4Gi}}
+    - {name: config, emptyDir: {sizeLimit: 1Mi}}
+    - name: tls
+      secret:
+        secretName: $tls_secret
+        defaultMode: 0440
+        items: [{key: ca.crt, path: ca.crt}, {key: tls.crt, path: tls.crt}, {key: tls.key, path: tls.key}]
+    - {name: restore, emptyDir: {sizeLimit: 4Gi}}
+    - {name: tmp, emptyDir: {medium: Memory, sizeLimit: 16Mi}}
+EOF
+/usr/local/bin/kubectl apply -f "$work/storage-pod.yaml" >/dev/null
+storage_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$storage_pod" -o jsonpath='{.metadata.uid}')
+[ -n "$storage_uid" ] || fail storage_restore_uid
+/usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$storage_pod" --timeout=300s >/dev/null
+/usr/local/bin/kubectl -n "$namespace" exec -i "$storage_pod" -c rclone -- tar -xzf - -C /restore <"$work/object-storage.tar.gz"
+/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone copy --s3-no-check-bucket /restore/objects "s3:$bucket" >/dev/null
+/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone check --one-way --size-only /restore/objects "s3:$bucket" >/dev/null
+actual_count=$(/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone lsf --recursive --files-only "s3:$bucket" | /usr/bin/wc -l | /usr/bin/tr -d ' ')
+actual_total=$(/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone size --json "s3:$bucket" | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin)["bytes"])')
+expected_count=$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["object_count"])' "$work/object-storage.manifest.json")
+expected_total=$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["total_object_bytes"])' "$work/object-storage.manifest.json")
+[ "$actual_count" = "$expected_count" ] || fail object_count
+[ "$actual_total" = "$expected_total" ] || fail object_total
+cleanup_pod "$storage_pod" "$storage_uid" reactive-resume-dev-storage-restore || fail storage_restore_cleanup
+storage_uid=
+/usr/bin/rm -f -- "$work/object-storage.tar.gz"
+trap - EXIT HUP INT TERM
+/usr/bin/rm -rf -- "$work"
+printf 'restore_status=success source_run_id=%s postgres_catalog_table_count=%s object_count=%s object_bytes=%s checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none\n' "$run_id" "$pg_table_count" "$actual_count" "$actual_total"

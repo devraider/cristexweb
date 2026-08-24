@@ -1,0 +1,269 @@
+---
+- name: Configure the guarded weekly Reactive Resume DEV backup scheduler
+  hosts: crtxweb
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  serial: 1
+
+  vars:
+    reactive_resume_dev_backup_approved: false
+    reactive_resume_dev_backup_mode: install
+    reactive_resume_dev_backup_age_version: 1.2.1-1+b5
+    reactive_resume_dev_backup_recipient_sha256: ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
+    reactive_resume_dev_backup_repository_root: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_REPOSITORY_ROOT') | trim }}"
+    reactive_resume_dev_backup_service: cristexweb-reactive-resume-dev-backup.service
+    reactive_resume_dev_backup_timer: cristexweb-reactive-resume-dev-backup.timer
+
+  pre_tasks:
+    - name: Require the canonical weekly backup contract
+      ansible.builtin.assert:
+        that:
+          - reactive_resume_dev_backup_approved | bool
+          - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT') == 'v1'
+          - (ansible_limit | default('') | string) == 'crtxweb'
+          - (ansible_play_hosts_all | length) == 1
+          - inventory_hostname == 'crtxweb'
+          - reactive_resume_dev_backup_mode in ['install', 'test', 'restore', 'enable']
+          - reactive_resume_dev_backup_age_version == '1.2.1-1+b5'
+          - reactive_resume_dev_backup_repository_root == '/home/paul/projects/cristexweb'
+        fail_msg: Refusing backup scheduler execution outside the fixed guarded wrapper.
+      changed_when: false
+      no_log: true
+
+    - name: Collect installed package facts
+      ansible.builtin.package_facts:
+        manager: apt
+
+    - name: Verify the pinned age package
+      ansible.builtin.assert:
+        that:
+          - "'age' in ansible_facts.packages"
+          - (ansible_facts.packages.age | length) == 1
+          - ansible_facts.packages.age[0].version == reactive_resume_dev_backup_age_version
+          - ansible_facts.packages.age[0].arch == 'amd64'
+        fail_msg: Refusing an absent or drifted age package.
+      changed_when: false
+
+    - name: Inspect protected host backup inputs
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+        checksum_algorithm: sha256
+      loop:
+        - /usr/local/bin/rclone
+        - /opt/rclone/1.71.1/rclone
+        - /home/paul/.config/rclone/rclone.conf
+        - /home/paul/.config/cristexweb/backup/shared-database-backup.recipient
+        - /etc/rancher/k3s/k3s.yaml
+      register: reactive_resume_dev_backup_input_states
+
+    - name: Verify protected host backup input metadata
+      ansible.builtin.assert:
+        that:
+          - reactive_resume_dev_backup_input_states.results[0].stat.islnk | default(false)
+          - reactive_resume_dev_backup_input_states.results[0].stat.lnk_source == '/opt/rclone/1.71.1/rclone'
+          - reactive_resume_dev_backup_input_states.results[0].stat.pw_name == 'root'
+          - reactive_resume_dev_backup_input_states.results[1].stat.isreg | default(false)
+          - not (reactive_resume_dev_backup_input_states.results[1].stat.islnk | default(false))
+          - reactive_resume_dev_backup_input_states.results[1].stat.pw_name == 'root'
+          - reactive_resume_dev_backup_input_states.results[1].stat.mode == '0755'
+          - reactive_resume_dev_backup_input_states.results[2].stat.isreg | default(false)
+          - not (reactive_resume_dev_backup_input_states.results[2].stat.islnk | default(false))
+          - reactive_resume_dev_backup_input_states.results[2].stat.pw_name == 'paul'
+          - reactive_resume_dev_backup_input_states.results[2].stat.mode == '0600'
+          - reactive_resume_dev_backup_input_states.results[3].stat.isreg | default(false)
+          - not (reactive_resume_dev_backup_input_states.results[3].stat.islnk | default(false))
+          - reactive_resume_dev_backup_input_states.results[3].stat.pw_name == 'paul'
+          - reactive_resume_dev_backup_input_states.results[3].stat.mode == '0644'
+          - reactive_resume_dev_backup_input_states.results[3].stat.checksum == reactive_resume_dev_backup_recipient_sha256
+          - reactive_resume_dev_backup_input_states.results[4].stat.isreg | default(false)
+          - reactive_resume_dev_backup_input_states.results[4].stat.gr_name == 'k3s-admin'
+          - reactive_resume_dev_backup_input_states.results[4].stat.mode == '0640'
+        fail_msg: Refusing unsafe rclone, recipient, or kubeconfig metadata.
+      changed_when: false
+      no_log: true
+
+    - name: Verify the sole configured rclone remote without reading its token
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/rclone
+          - --config
+          - /home/paul/.config/rclone/rclone.conf
+          - listremotes
+          - --long
+      become: false
+      register: reactive_resume_dev_backup_rclone_remotes
+      changed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: Require the exact Google Drive remote
+      ansible.builtin.assert:
+        that:
+          - reactive_resume_dev_backup_rclone_remotes.stdout_lines | map('trim') | list == ['drive: drive']
+        fail_msg: Refusing a host rclone configuration outside the exact drive remote.
+      changed_when: false
+      no_log: true
+
+  tasks:
+    - name: Create protected backup directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - {path: /etc/cristexweb-backup, owner: root, group: paul, mode: '0750'}
+        - {path: /usr/local/libexec/cristexweb, owner: root, group: root, mode: '0755'}
+        - {path: /var/lib/cristexweb-backup, owner: paul, group: paul, mode: '0700'}
+        - {path: /var/lib/cristexweb-backup/reactive-resume, owner: paul, group: paul, mode: '0700'}
+        - {path: /var/lib/cristexweb-backup/reactive-resume/dev, owner: paul, group: paul, mode: '0700'}
+
+    - name: Install the public age recipient
+      ansible.builtin.copy:
+        src: /home/paul/.config/cristexweb/backup/shared-database-backup.recipient
+        dest: /etc/cristexweb-backup/age.recipient
+        owner: root
+        group: paul
+        mode: '0640'
+
+    - name: Install the combined logical and object backup executable
+      ansible.builtin.copy:
+        src: "{{ reactive_resume_dev_backup_repository_root }}/ansible/files/backup/reactive-resume-dev-backup"
+        dest: /usr/local/libexec/cristexweb/reactive-resume-dev-backup
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install the isolated combined restore executable
+      ansible.builtin.copy:
+        src: "{{ reactive_resume_dev_backup_repository_root }}/ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal"
+        dest: /usr/local/libexec/cristexweb/restore-reactive-resume-dev-backup-rehearsal
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install the weekly systemd service unit
+      ansible.builtin.copy:
+        src: "{{ reactive_resume_dev_backup_repository_root }}/ansible/files/backup/cristexweb-reactive-resume-dev-backup.service"
+        dest: /etc/systemd/system/cristexweb-reactive-resume-dev-backup.service
+        owner: root
+        group: root
+        mode: '0644'
+      register: reactive_resume_dev_backup_service_unit
+
+    - name: Install the weekly systemd timer unit
+      ansible.builtin.copy:
+        src: "{{ reactive_resume_dev_backup_repository_root }}/ansible/files/backup/cristexweb-reactive-resume-dev-backup.timer"
+        dest: /etc/systemd/system/cristexweb-reactive-resume-dev-backup.timer
+        owner: root
+        group: root
+        mode: '0644'
+      register: reactive_resume_dev_backup_timer_unit
+
+    - name: Reload systemd for installed units
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: reactive_resume_dev_backup_service_unit.changed or reactive_resume_dev_backup_timer_unit.changed
+
+    - name: Keep the weekly timer disabled until restore acceptance
+      ansible.builtin.systemd_service:
+        name: "{{ reactive_resume_dev_backup_timer }}"
+        enabled: false
+        state: stopped
+      when: reactive_resume_dev_backup_mode in ['install', 'test', 'restore']
+
+    - name: Execute the separately approved one-time combined backup test
+      ansible.builtin.systemd_service:
+        name: "{{ reactive_resume_dev_backup_service }}"
+        state: started
+      when:
+        - reactive_resume_dev_backup_mode == 'test'
+        - not ansible_check_mode
+
+    - name: Execute the separately approved isolated combined restore rehearsal
+      ansible.builtin.command:
+        argv:
+          - /usr/local/libexec/cristexweb/restore-reactive-resume-dev-backup-rehearsal
+          - restore
+      become: false
+      environment:
+        CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ENTRYPOINT: >-
+          {{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ENTRYPOINT') }}
+        CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_APPROVED: >-
+          {{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_APPROVED') }}
+        CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ATTESTATION_FILE: >-
+          {{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ATTESTATION_FILE') }}
+        CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_TOKEN: >-
+          {{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_TOKEN') }}
+      register: reactive_resume_dev_backup_restore_result
+      changed_when: true
+      no_log: true
+      when:
+        - reactive_resume_dev_backup_mode == 'restore'
+        - not ansible_check_mode
+
+    - name: Require the sanitized successful combined restore receipt
+      ansible.builtin.assert:
+        that:
+          - >-
+            reactive_resume_dev_backup_restore_result.stdout is match(
+            '^restore_status=success source_run_id=20[0-9]{6}T[0-9]{6}Z '
+            ~ 'postgres_catalog_table_count=[0-9]+ object_count=[0-9]+ object_bytes=[0-9]+ '
+            ~ 'checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none$')
+        fail_msg: The combined isolated restore rehearsal did not produce the exact sanitized success receipt.
+      changed_when: false
+      when:
+        - reactive_resume_dev_backup_mode == 'restore'
+        - not ansible_check_mode
+
+    - name: Enable the accepted weekly timer
+      ansible.builtin.systemd_service:
+        name: "{{ reactive_resume_dev_backup_timer }}"
+        enabled: true
+        state: started
+      when: reactive_resume_dev_backup_mode == 'enable'
+
+  post_tasks:
+    - name: Collect final service facts
+      ansible.builtin.service_facts:
+
+    - name: Inspect final timer active state
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, is-active, "{{ reactive_resume_dev_backup_timer }}"]
+      become: false
+      register: reactive_resume_dev_backup_timer_active
+      changed_when: false
+      check_mode: false
+      failed_when: false
+      when:
+        - reactive_resume_dev_backup_mode == 'enable'
+        - not ansible_check_mode
+
+    - name: Inspect final timer enabled state
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, is-enabled, "{{ reactive_resume_dev_backup_timer }}"]
+      become: false
+      register: reactive_resume_dev_backup_timer_enabled
+      changed_when: false
+      check_mode: false
+      failed_when: false
+      when:
+        - reactive_resume_dev_backup_mode == 'enable'
+        - not ansible_check_mode
+
+    - name: Verify critical services and requested timer state
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['k3s.service'].state == 'running'
+          - ansible_facts.services['tailscaled.service'].state == 'running'
+          - >-
+            ansible_check_mode or reactive_resume_dev_backup_mode != 'enable' or
+            (reactive_resume_dev_backup_timer_active.rc == 0 and
+             reactive_resume_dev_backup_timer_active.stdout == 'active' and
+             reactive_resume_dev_backup_timer_enabled.rc == 0 and
+             reactive_resume_dev_backup_timer_enabled.stdout == 'enabled')
+        fail_msg: Refusing acceptance because service health or timer state is wrong.
+      changed_when: false

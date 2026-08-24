@@ -767,6 +767,10 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             ROOT / "ansible/roles",
             ROOT / "ansible/bin",
         )
+        approved_backup_sources = {
+            ROOT / "ansible/playbooks/configure_reactive_resume_dev_backup.yml",
+            ROOT / "ansible/bin/configure-reactive-resume-dev-backup",
+        }
         for root in executable_roots:
             for path in root.rglob("*"):
                 if not path.is_file():
@@ -797,8 +801,9 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
                             self.assertNotRegex(
                                 image, r"(?i)(?:amruthpillai/)?reactive[-_/]?resume", str(path)
                             )
-                self.assertNotIn("reactive-resume", path.name.lower(), str(path))
-                self.assertNotIn("reactive_resume", path.name.lower(), str(path))
+                if path not in approved_backup_sources:
+                    self.assertNotIn("reactive-resume", path.name.lower(), str(path))
+                    self.assertNotIn("reactive_resume", path.name.lower(), str(path))
         self.assertNotIn("/Users/", combined)
         self.assertNotIn("/home/paul/", combined)
 

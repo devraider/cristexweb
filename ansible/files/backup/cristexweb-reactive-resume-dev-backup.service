@@ -1,0 +1,46 @@
+[Unit]
+Description=CristexWeb encrypted Reactive Resume DEV PostgreSQL and object-storage backup
+Documentation=file:///home/paul/projects/cristexweb/runbooks/reactive-resume-dev-backup.md
+After=network-online.target k3s.service tailscaled.service
+Wants=network-online.target
+Requires=k3s.service
+
+[Service]
+Type=oneshot
+User=paul
+Group=paul
+SupplementaryGroups=k3s-admin
+UMask=0077
+ExecStart=/usr/local/libexec/cristexweb/reactive-resume-dev-backup backup
+TimeoutStartSec=60min
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/cristexweb-backup /run/lock /home/paul/.config/rclone
+ProtectKernelTunables=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cristexweb-reactive-resume-dev-backup
+LogExtraFields=BACKUP_SERVICE=reactive-resume-dev BACKUP_RUN_CORRELATED=true
+
+[Install]
+WantedBy=multi-user.target

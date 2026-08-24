@@ -1,0 +1,53 @@
+#!/bin/sh
+set -eu
+
+usage='usage: ansible/bin/configure-reactive-resume-dev-backup check|apply|test|restore|enable-check|enable-apply'
+if [ "$#" -ne 1 ]; then
+  printf '%s\n%s\n' "$usage" 'refusing passthrough arguments or task selection' >&2
+  exit 64
+fi
+case "$1" in
+  check) mode=install; check_mode=true ;;
+  apply) mode=install; check_mode=false ;;
+  test) mode=test; check_mode=false ;;
+  restore) mode=restore; check_mode=false ;;
+  enable-check) mode=enable; check_mode=true ;;
+  enable-apply) mode=enable; check_mode=false ;;
+  *) printf '%s\n%s\n' "$usage" 'refusing passthrough arguments or task selection' >&2; exit 64 ;;
+esac
+script_path=$0
+[ ! -L "$script_path" ] || { printf '%s\n' 'refusing a symlinked entrypoint' >&2; exit 66; }
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
+[ "$repository_root" = '/home/paul/projects/cristexweb' ] || {
+  printf '%s\n' 'refusing a repository outside the pinned host path' >&2
+  exit 78
+}
+controller="$repository_root/.venv/bin/ansible-playbook"
+[ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || {
+  printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2
+  exit 69
+}
+cd -- "$repository_root/ansible"
+umask 077
+set -- "$controller" -i .ansible/inventory.local.yml \
+  playbooks/configure_reactive_resume_dev_backup.yml --diff --limit crtxweb \
+  --ask-become-pass \
+  --extra-vars "{\"reactive_resume_dev_backup_approved\":true,\"reactive_resume_dev_backup_mode\":\"$mode\",\"reactive_resume_dev_backup_repository_root\":\"$repository_root\"}"
+[ "$check_mode" = false ] || set -- "$@" --check
+if [ "$mode" = restore ]; then
+  exec /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 \
+    ANSIBLE_CONFIG="$PWD/ansible.cfg" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT=v1 \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_REPOSITORY_ROOT="$repository_root" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ENTRYPOINT="${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ENTRYPOINT-}" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_APPROVED="${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_APPROVED-}" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ATTESTATION_FILE="${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ATTESTATION_FILE-}" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_TOKEN="${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_TOKEN-}" \
+    "$@"
+fi
+exec /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 \
+  ANSIBLE_CONFIG="$PWD/ansible.cfg" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT=v1 \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_REPOSITORY_ROOT="$repository_root" \
+  "$@"
