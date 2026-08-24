@@ -56,10 +56,11 @@ class OpenTofuContractTests(unittest.TestCase):
                 ("cloudflare_dns_record", "cristexhub_dev"),
                 ("cloudflare_dns_record", "cristexhub_prod"),
                 ("cloudflare_dns_record", "argocd_tailscale"),
+                ("cloudflare_dns_record", "reactive_resume_dev_tailscale"),
             },
             resource_addresses,
         )
-        self.assertEqual(6, len(resource_addresses))
+        self.assertEqual(7, len(resource_addresses))
         for required in (
             'required_version = "= 1.12.5"',
             'source  = "cloudflare/cloudflare"',
@@ -69,7 +70,9 @@ class OpenTofuContractTests(unittest.TestCase):
             'resource "cloudflare_zero_trust_tunnel_cloudflared_config"',
             'resource "cloudflare_dns_record"',
             'resource "cloudflare_dns_record" "argocd_tailscale"',
+            'resource "cloudflare_dns_record" "reactive_resume_dev_tailscale"',
             'name    = "argo.cristex-soft.com"',
+            'name    = "resume-dev.cristex-soft.com"',
             'type    = "A"',
             'content = "100.122.139.32"',
             'proxied = false',

@@ -12,6 +12,7 @@
     - reactive_resume_dev_route_bootstrap_internal_prestate
     - reactive_resume_dev_route_bootstrap_internal_preflight_binding
     - reactive_resume_dev_route_bootstrap_internal_poststate
+    - reactive_resume_dev_route_bootstrap_internal_service
     - reactive_resume_dev_route_bootstrap_internal_tls_secret
   changed_when: false
 - name: Require guarded Reactive Resume DEV route approval
@@ -125,6 +126,24 @@
     that:
       - reactive_resume_dev_route_bootstrap_internal_namespace.resources | length == 1
       - reactive_resume_dev_route_bootstrap_internal_namespace.resources[0].status.phase == 'Active'
+  changed_when: false
+- name: Query Reactive Resume DEV Service
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Service
+    name: reactive-resume-dev
+    namespace: cristexhub-dev
+    kubeconfig: "{{ reactive_resume_dev_route_bootstrap_kubeconfig }}"
+  register: reactive_resume_dev_route_bootstrap_internal_service
+  changed_when: false
+- name: Require exact private Reactive Resume DEV Service
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_route_bootstrap_internal_service.resources | length == 1
+      - reactive_resume_dev_route_bootstrap_internal_service.resources[0].spec.type == 'ClusterIP'
+      - reactive_resume_dev_route_bootstrap_internal_service.resources[0].spec.ports | length == 1
+      - reactive_resume_dev_route_bootstrap_internal_service.resources[0].spec.ports[0].port == 3000
+      - reactive_resume_dev_route_bootstrap_internal_service.resources[0].spec.ports[0].targetPort == 'http'
   changed_when: false
 - name: Query precreated Reactive Resume DEV TLS Secret metadata
   kubernetes.core.k8s_info:

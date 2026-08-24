@@ -93,3 +93,17 @@ resource "cloudflare_dns_record" "argocd_tailscale" {
     prevent_destroy = true
   }
 }
+
+resource "cloudflare_dns_record" "reactive_resume_dev_tailscale" {
+  zone_id = var.cloudflare_zone_id
+  name    = "resume-dev.cristex-soft.com"
+  type    = "A"
+  content = "100.122.139.32"
+  ttl     = 300
+  proxied = false
+  comment = "Managed by OpenTofu; private Reactive Resume DEV endpoint on Tailscale"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
