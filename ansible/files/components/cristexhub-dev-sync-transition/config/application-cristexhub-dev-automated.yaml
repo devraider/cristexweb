@@ -12,7 +12,7 @@ spec:
   project: cristexhub-dev
   source:
     repoURL: ssh://git@ssh.github.com:443/devraider/cristexhub.git
-    targetRevision: e6dbddb3d3ab22af3721f6e1926dd9f46334bd9e
+    targetRevision: 280e3e8d943dff5c68c1c0f2c813f1e16af2fae1
     path: infra/kubernetes/cristexhub-dev
   destination:
     name: cristexhub-dev-local
