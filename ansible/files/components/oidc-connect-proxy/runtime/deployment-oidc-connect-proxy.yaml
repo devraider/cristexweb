@@ -21,7 +21,7 @@ spec:
   template:
     metadata:
       annotations:
-        cristex.io/proxy-config-sha256: 535ee125b7806463d4ebaef5f55e7886c99da78ea71ba82c42c66ead0d985edd
+        cristex.io/proxy-config-sha256: c9520d793731728912a351f396725d0ee13bde634080322a966f9fcc3a487c8e
       labels:
         app.kubernetes.io/name: oidc-connect-proxy
         app.kubernetes.io/part-of: cristex-platform
