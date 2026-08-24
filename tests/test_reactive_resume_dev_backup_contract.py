@@ -14,6 +14,7 @@ BACKUP = ROOT / "ansible/files/backup/reactive-resume-dev-backup"
 RESTORE = ROOT / "ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal"
 SERVICE = ROOT / "ansible/files/backup/cristexweb-reactive-resume-dev-backup.service"
 TIMER = ROOT / "ansible/files/backup/cristexweb-reactive-resume-dev-backup.timer"
+NETWORK_POLICY = ROOT / "ansible/files/backup/reactive-resume-dev-backup-networkpolicy.yaml"
 PLAYBOOK = ROOT / "ansible/playbooks/configure_reactive_resume_dev_backup.yml"
 WRAPPER = ROOT / "ansible/bin/configure-reactive-resume-dev-backup"
 RUNBOOK = ROOT / "runbooks/reactive-resume-dev-backup.md"
@@ -35,9 +36,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         for path in (BACKUP, RESTORE, WRAPPER):
             subprocess.run(["sh", "-n", str(path)], check=True)
             self.assertEqual(0o755, stat.S_IMODE(path.stat().st_mode), path)
-        for path in (SERVICE, TIMER, PLAYBOOK, RUNBOOK):
+        for path in (SERVICE, TIMER, NETWORK_POLICY, PLAYBOOK, RUNBOOK):
             self.assertTrue(path.is_file(), path)
-        combined = "\n".join((self.backup, self.restore, self.service, self.timer, self.playbook_text))
+        combined = "\n".join((self.backup, self.restore, self.service, self.timer, NETWORK_POLICY.read_text(), self.playbook_text))
         self.assertNotIn("AGE-SECRET-KEY-", combined)
         self.assertNotRegex(combined, r"(?im)^\s*(?:password|clientsecret|token)\s*[:=]\s*[^$<\n]")
 
@@ -130,6 +131,18 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             self.assertIn(value, self.restore, value)
         self.assertNotIn("/data" + " ", self.backup)
         self.assertNotIn("PersistentVolume", self.restore)
+        policy = yaml.safe_load(NETWORK_POLICY.read_text())
+        self.assertEqual("reactive-resume-object-storage-allow-backup", policy["metadata"]["name"])
+        self.assertEqual("shared-services", policy["metadata"]["namespace"])
+        self.assertEqual(
+            {
+                "app.kubernetes.io/name": "reactive-resume-dev-backup",
+                "cristex.io/object-storage-client": "backup",
+            },
+            policy["spec"]["ingress"][0]["from"][0]["podSelector"]["matchLabels"],
+        )
+        self.assertEqual([{"protocol": "TCP", "port": 8333}], policy["spec"]["ingress"][0]["ports"])
+        self.assertIn("reactive-resume-dev-backup-networkpolicy.yaml", self.playbook_text)
 
     def test_uid_bound_helper_cleanup_and_no_service_account(self) -> None:
         for text in (self.backup, self.restore):
