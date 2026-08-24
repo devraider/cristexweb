@@ -10,14 +10,14 @@ from pathlib import Path
 from ansible import context
 from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule as KubernetesActionModule
 
-_EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'oidc-connect-proxy'): '989f70665225a0ec5aaa71967d9c7fd545f750da9dc7aa725c51f68a029b2607',
+_EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'oidc-connect-proxy'): '0a01060fc0b1646346207e3c3369e51dc05c02a72cfaa55a5d4a06393c2b106f',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'cristexhub-backend-allow-oidc-proxy'): 'b71a698a978952c068220db0dfa842409baa4394b77672bd04c532ec81b73f05',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'oauth2-proxy-allow-oidc-proxy'): '6a15389649dfa29a25802071c7630b5576f8ff36b55075d00e64b3a0aa8afc15',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-auth-egress'): '6b03dd1081d31d8c128c64231eee309b3570938a3b9f9767a93da9f64ed3641f',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-clients'): 'b8a40367df5814aa6df64079dee85a407b0f05f36368ad0ae85220b6be742f3c',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-dns'): '1c6e1b62e40ad388f5033ceb00e9f80ab62c4cbe87f7bcc23ff6ecbfe51e704b',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-default-deny'): '21a51a152e008488dbb90fac6c550833f63e74d47153b93abea66f9f348dc25f',
- ('v1', 'ConfigMap', 'shared-services', 'oidc-connect-proxy-config'): '9f2baecbdca48fa66855df9bca961f9946f4a10b6077bf819231d2ac1651e9b4',
+ ('v1', 'ConfigMap', 'shared-services', 'oidc-connect-proxy-config'): 'd85ba9b9b6432625f6be3d2fb7d2d000187f305252396b4fa685254a5a5c94e0',
  ('v1', 'Service', 'shared-services', 'oidc-connect-proxy'): '4ead3c00dd5ba42d341878904d36fd1d67ce25eb4dc2a3121a259b67a510d4e6',
  ('v1', 'ServiceAccount', 'shared-services', 'oidc-connect-proxy'): 'eb8a14e1f526d468fcd756b510af7d15f0600573dd0bd788aff99bbda16d6087'}
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
