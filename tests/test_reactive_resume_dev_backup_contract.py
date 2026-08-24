@@ -107,6 +107,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "object_archive_paths",
         ):
             self.assertIn(f"fail {stage}", self.restore)
+        self.assertIn('obj["service"] == "seaweedfs"', self.restore)
         self.assertIn("listen_addresses=", self.restore)
         self.assertIn("pg_restore --exit-on-error --no-owner --no-privileges", self.restore)
 

@@ -115,7 +115,8 @@ assert run["object_storage"]["bucket"] == "reactive-resume-dev"
 assert run["object_storage"]["archive"] == "object-storage.tar.gz.age"
 assert set(pg) == {"schema", "service", "database", "run_id", "archive", "archive_bytes", "archive_sha256", "encryption", "source_cluster"}
 assert pg["run_id"] == os.environ["RUN_ID"] and pg["database"] == "reactive_resume_dev_successor"
-assert set(obj) == {"schema", "bucket", "run_id", "archive", "archive_bytes", "archive_sha256", "encryption", "object_count", "total_object_bytes"}
+assert set(obj) == {"schema", "service", "bucket", "run_id", "archive", "archive_bytes", "archive_sha256", "encryption", "object_count", "total_object_bytes"}
+assert obj["service"] == "seaweedfs"
 assert obj["run_id"] == os.environ["RUN_ID"] and obj["bucket"] == "reactive-resume-dev"
 assert isinstance(obj["object_count"], int) and obj["object_count"] >= 0
 assert isinstance(obj["total_object_bytes"], int) and obj["total_object_bytes"] >= 0
