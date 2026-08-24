@@ -111,6 +111,10 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "pictures/",
             "uploads/user-agent/",
             "object-storage.tar.gz.age",
+            "raw-manifest.json.tmp",
+            "mv /work/raw-manifest.json.tmp /work/raw-manifest.json",
+            "touch /work/export.ready",
+            "test -f /work/export.ready && test -s /work/raw-manifest.json",
         ):
             self.assertIn(value, self.backup, value)
         for value in (
@@ -133,6 +137,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             self.assertIn('preconditions":{"uid":"%s"}', text)
             self.assertIn("current_uid", text)
             self.assertIn("wait --for=delete", text)
+        self.assertIn('rm -rf -- "$run_directory" "$work"', self.backup)
         self.assertIn("helper_uid=", self.backup)
         self.assertIn("pg_uid=", self.restore)
         self.assertIn("storage_uid=", self.restore)

@@ -87,7 +87,7 @@ cleanup_helper() {
 cleanup_plaintext() {
   cleanup_helper >/dev/null 2>&1 || true
   /usr/bin/rm -f -- "$run_directory/reactive-resume-dev.dump" "$work/raw-manifest.json" "$work/object-manifest.json"
-  /usr/bin/rm -rf -- "$work"
+  /usr/bin/rm -rf -- "$run_directory" "$work"
 }
 trap cleanup_plaintext EXIT HUP INT TERM
 /usr/bin/chmod 0700 "$work"
@@ -123,8 +123,10 @@ spec:
           test -n "\$RCLONE_CONFIG_S3_ACCESS_KEY_ID"
           test -n "\$RCLONE_CONFIG_S3_SECRET_ACCESS_KEY"
           mkdir -p /work/objects
-          rclone lsjson --recursive --hash --metadata "s3:$object_bucket" >/work/raw-manifest.json
+          rclone lsjson --recursive --hash --metadata "s3:$object_bucket" >/work/raw-manifest.json.tmp
+          mv /work/raw-manifest.json.tmp /work/raw-manifest.json
           rclone copy --s3-no-check-bucket "s3:$object_bucket" /work/objects
+          touch /work/export.ready
           sleep 3600
       env:
         - {name: RCLONE_CONFIG_S3_TYPE, value: s3}
@@ -145,7 +147,7 @@ spec:
         requests: {cpu: 25m, memory: 64Mi}
         limits: {cpu: 250m, memory: 256Mi}
       readinessProbe:
-        exec: {command: [/bin/sh, -ec, test -s /work/raw-manifest.json]}
+        exec: {command: [/bin/sh, -ec, test -f /work/export.ready && test -s /work/raw-manifest.json]}
         periodSeconds: 2
         failureThreshold: 120
       volumeMounts:
