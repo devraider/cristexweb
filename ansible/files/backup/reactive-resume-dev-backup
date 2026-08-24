@@ -149,7 +149,7 @@ spec:
       readinessProbe:
         exec: {command: [/bin/sh, -ec, test -f /work/export.ready && test -s /work/raw-manifest.json]}
         periodSeconds: 2
-        failureThreshold: 120
+        failureThreshold: 900
       volumeMounts:
         - {name: tls, mountPath: /tls, readOnly: true}
         - {name: work, mountPath: /work}
@@ -165,7 +165,7 @@ EOF
 /usr/local/bin/kubectl apply -f "$work/helper.yaml" >/dev/null
 helper_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" -o jsonpath='{.metadata.uid}')
 [ -n "$helper_uid" ] || fail helper_uid
-/usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$helper_pod" --timeout=240s >/dev/null
+/usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$helper_pod" --timeout=1800s >/dev/null
 /usr/local/bin/kubectl -n "$namespace" cp "$helper_pod:/work/raw-manifest.json" "$work/raw-manifest.json" -c rclone >/dev/null
 RAW="$work/raw-manifest.json" OUT="$work/object-manifest.json" /usr/bin/python3 - <<'PY'
 import json, os

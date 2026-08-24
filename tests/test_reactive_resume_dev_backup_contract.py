@@ -115,6 +115,8 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "mv /work/raw-manifest.json.tmp /work/raw-manifest.json",
             "touch /work/export.ready",
             "test -f /work/export.ready && test -s /work/raw-manifest.json",
+            'wait --for=condition=Ready "pod/$helper_pod" --timeout=1800s',
+            "failureThreshold: 900",
         ):
             self.assertIn(value, self.backup, value)
         for value in (
