@@ -212,10 +212,31 @@
           {{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_TOKEN') }}
       register: reactive_resume_dev_backup_restore_result
       changed_when: true
+      failed_when: false
       no_log: true
       when:
         - reactive_resume_dev_backup_mode == 'restore'
         - not ansible_check_mode
+
+    - name: Extract only the allowlisted restore failure stage
+      ansible.builtin.set_fact:
+        reactive_resume_dev_backup_restore_failure_stage: >-
+          {{ (reactive_resume_dev_backup_restore_result.stderr
+              | regex_findall('restore_status=failed stage=([a-z0-9_-]+)')
+              | last) | default('unclassified', true) }}
+      no_log: true
+      when:
+        - reactive_resume_dev_backup_mode == 'restore'
+        - not ansible_check_mode
+        - reactive_resume_dev_backup_restore_result.rc != 0
+
+    - name: Report the sanitized restore failure stage
+      ansible.builtin.fail:
+        msg: "Restore rehearsal failed at sanitized stage: {{ reactive_resume_dev_backup_restore_failure_stage }}"
+      when:
+        - reactive_resume_dev_backup_mode == 'restore'
+        - not ansible_check_mode
+        - reactive_resume_dev_backup_restore_result.rc != 0
 
     - name: Require the sanitized successful combined restore receipt
       ansible.builtin.assert:

@@ -95,6 +95,18 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         for forbidden in ("PersistentVolumeClaim", "rclone sync", "kubectl cp .*data", "shared-postgresql-reactive-resume"):
             self.assertNotIn(forbidden, combined, forbidden)
         self.assertIn("emptyDir", self.restore)
+        for stage in (
+            "remote_download",
+            "postgresql_checksum",
+            "object_checksum",
+            "manifest_contract",
+            "infisical_identity",
+            "postgresql_decrypt",
+            "object_decrypt",
+            "object_archive_list",
+            "object_archive_paths",
+        ):
+            self.assertIn(f"fail {stage}", self.restore)
         self.assertIn("listen_addresses=", self.restore)
         self.assertIn("pg_restore --exit-on-error --no-owner --no-privileges", self.restore)
 
@@ -206,6 +218,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "Enable the accepted weekly timer",
             "reactive_resume_dev_backup_mode == 'enable'",
             "not ansible_check_mode",
+            "failed_when: false",
+            "Extract only the allowlisted restore failure stage",
+            "restore_status=failed stage=([a-z0-9_-]+)",
             "reactive_resume_dev_backup_repository_root == '/home/paul/projects/cristexweb'",
         ):
             self.assertIn(value, self.playbook_text, value)
