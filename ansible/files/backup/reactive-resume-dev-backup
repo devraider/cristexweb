@@ -20,7 +20,7 @@ rclone_config=/home/paul/.config/rclone/rclone.conf
 archive_root=/var/lib/cristexweb-backup/reactive-resume/dev
 remote_root=drive:cristexweb-recovery/reactive-resume/dev
 lock_file=/run/lock/cristexweb-reactive-resume-dev-backup.lock
-rclone_image='rclone/rclone:1.71.1@sha256:e99b436167f8e5b41b557979b780a85797aef45a7da49629ad99cd39c59deae'
+rclone_image='rclone/rclone:1.71.1@sha256:e99b4361672a8e5b41b557979b780a85797aef45a7da49629ad99cd39c59deae'
 
 fail() { printf 'backup_status=failed stage=%s\n' "$1" >&2; exit 1; }
 [ "$#" -eq 1 ] && [ "$1" = backup ] || {
