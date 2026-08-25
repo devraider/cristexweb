@@ -27,44 +27,42 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
 
     def test_scope_is_source_only_and_prod_is_template(self) -> None:
         self.assertEqual("cristex-reactive-resume-v4", self.policy["policy_schema"])
-        self.assertEqual("source-policy-only-runtime-blocked", self.policy["policy_status"])
+        self.assertEqual("private-dev-runtime-checkpointed-acceptance-pending", self.policy["policy_status"])
         self.assertEqual("included-private-dev", self.policy["mvp_scope"])
         self.assertEqual(
-            "blocked-pending-dedicated-dev-lanes-and-private-acceptance",
+            "private-runtime-checkpointed-full-acceptance-pending",
             self.policy["environments"]["dev"]["activation"],
         )
         self.assertEqual(
             "promotion-blocked-template-only",
             self.policy["environments"]["prod"]["activation"],
         )
-        self.assertFalse(self.policy["executable_source_allowed"])
+        self.assertEqual("guarded-private-dev-and-argocd-handoff-only", self.policy["executable_source_allowed"])
         closure = self.policy["source_closure"]
-        self.assertEqual("value-free-policy-only-incomplete-blocked", closure["status"])
+        self.assertEqual("private-dev-runtime-checkpointed-acceptance-pending", closure["status"])
         self.assertFalse(closure["dev_contract_complete"])
         self.assertTrue(closure["prod_promotion_template_only"])
-        self.assertTrue(closure["no_runtime_objects_added"])
+        self.assertFalse(closure["no_runtime_objects_added"])
         self.assertTrue(closure["no_secret_values_added"])
-        self.assertTrue(closure["no_selected_image_digest_claimed"])
+        self.assertFalse(closure["no_selected_image_digest_claimed"])
         self.assertTrue(closure["candidate_digest_is_not_selection"])
-        self.assertEqual([], closure["source_manifest_files"])
-        self.assertEqual("absent-blocker", closure["executable_workload_source"])
+        self.assertEqual(7, len(closure["source_manifest_files"]))
+        self.assertIn("networkpolicy-default-deny.yaml", " ".join(closure["source_manifest_files"]))
+        self.assertEqual("guarded-private-dev-runtime", closure["executable_workload_source"])
         dev_objects = closure["dev"]["object_contract"]
-        self.assertTrue(dev_objects["no_runtime_source"])
-        self.assertEqual(
-            "absent-until-image-and-config-review",
-            dev_objects["exact_objects"]["deployment"],
-        )
-        self.assertEqual(
-            "absent-until-image-and-config-review", dev_objects["exact_objects"]["service"]
-        )
+        self.assertFalse(dev_objects["no_runtime_source"])
+        self.assertEqual("live-argo-managed", dev_objects["exact_objects"]["deployment"])
+        self.assertEqual("live-argo-managed-including-default-deny", dev_objects["exact_objects"]["network_policies"])
+        self.assertEqual("live-private-argo-managed", dev_objects["exact_objects"]["ingress"])
 
     def test_image_and_runtime_contact_remain_blocked(self) -> None:
         source = self.policy["image_source"]
-        self.assertEqual("unselected", source["selection"])
-        self.assertIsNone(source["repository"])
-        self.assertIsNone(source["version"])
-        self.assertIsNone(source["linux_amd64_digest"])
+        self.assertEqual("selected-private-dev-runtime", source["selection"])
+        self.assertEqual("ghcr.io/devraider/cristex-reactive-resume", source["repository"])
+        self.assertEqual("v5.2.7", source["version"])
+        self.assertEqual("sha256:720ff5a60a7f6b91a75535e230dbb664207fdf1bc5cb8732d584bae7ebdac13c", source["linux_amd64_digest"])
         self.assertFalse(source["trust_accepted"])
+        self.assertFalse(source["selected_runtime_is_promotion_accepted"])
         self.assertEqual("unaccepted-blocker", source["sbom_and_vulnerability_review"])
         self.assertEqual("unaccepted-blocker", source["off_node_oci_recovery"])
         self.assertEqual("unaccepted-blocker", source["target_pull_and_admission"])
@@ -90,7 +88,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             {
                 "host": "forbidden",
                 "registry": "forbidden",
-                "kubernetes_api": "forbidden",
+                "kubernetes_api": "guarded-private-dev-only",
                 "infisical_api": "forbidden",
                 "database": "forbidden",
                 "provider": "forbidden",
@@ -209,18 +207,18 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             self.assertIn("forbidden", value, key)
         dev = secrets["dedicated_dev_only"]
         self.assertEqual(
-            "live-broad-secret-unaccepted-dedicated-app-lane-absent", dev["status"]
+            "live-infisical-owned-runtime-contract-acceptance-pending", dev["status"]
         )
-        self.assertEqual("absent", dev["source"])
+        self.assertEqual("guarded-static-secret-source", dev["source"])
         self.assertEqual("cristexhub-dev", dev["target_namespace"])
-        self.assertEqual("reactive-resume-runtime", dev["target_name"])
-        self.assertEqual("unselected-blocker", dev["infisical_path"])
+        self.assertEqual("reactive-resume-dev-runtime", dev["target_name"])
+        self.assertEqual("prod:/reactive-resume/dev/runtime", dev["infisical_path"])
         self.assertEqual(
-            "blocked-pending-source-patch-and-feature-selection", dev["exact_keys"]
+            "reviewed-runtime-key-contract", dev["exact_keys"]
         )
-        self.assertEqual("absent-blocker", dev["dedicated_machine_identity"])
-        self.assertEqual("absent-blocker", dev["dedicated_writer"])
-        self.assertEqual("forbidden-until-dedicated-lane", dev["materialization"])
+        self.assertEqual("namespace-scoped-reviewed-identity", dev["dedicated_machine_identity"])
+        self.assertEqual("exact-target-only-reviewed-writer", dev["dedicated_writer"])
+        self.assertEqual("live-private-dev-checkpointed", dev["materialization"])
         vap = secrets["vap_rbac"]
         self.assertEqual("absent-blocker", vap["status"])
         self.assertEqual("absent", vap["dev_vap_source"])
@@ -260,12 +258,12 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         db = self.policy["database"]
         self.assertEqual("postgresql", db["engine"])
         lane = db["canonical_lane"]
-        self.assertEqual("unresolved-dual-owner-blocker", lane["status"])
+        self.assertEqual("successor-runtime-migration-scope-live-acceptance-pending", lane["status"])
         self.assertEqual(
             "cloudnative-pg-database-and-role-crs-via-ansible",
             lane["lifecycle_owner_candidate"],
         )
-        self.assertEqual("required-before-source", lane["final_owner_selection"])
+        self.assertEqual("cloudnative-pg-successor-crs", lane["final_owner_selection"])
         self.assertEqual(["reactive-resume-dev"], lane["allowed_consumers"])
         self.assertEqual("exact-consumer-and-secret-binding", lane["dev_only_selector"])
         self.assertEqual("forbidden", lane["prod_consumer_in_dev_run"])
@@ -290,17 +288,19 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             self.assertEqual("unselected-blocker", capacity[key], key)
         self.assertEqual("required-before-dev-apply", capacity["contention_review"])
         live = db["live_read_only_observation_2026_08_21"]
-        self.assertEqual("applied", live["dev_database_cr"])
-        self.assertEqual("applied-inherit-true", live["dev_database_role_cr"])
+        self.assertEqual("successor-applied-noinherit", live["dev_database_cr"])
+        self.assertEqual("successor-runtime-and-migrator-applied-noinherit", live["dev_database_role_cr"])
         self.assertEqual("applied-unapproved-for-rr-promotion", live["prod_database_cr"])
         self.assertEqual("observed-blocker", live["public_connect_on_all_shared_databases"])
         self.assertEqual("observed-blocker", live["public_temporary_on_all_shared_databases"])
         self.assertEqual(0, live["shared_postgresql_selecting_networkpolicies"])
         self.assertFalse(live["activation_authorized"])
         owner = db["owner_role_contract"]
-        self.assertEqual("absent-blocker", owner["status"])
-        self.assertEqual("reactive_resume_dev_owner", owner["role"])
-        self.assertEqual("reactive_resume_dev", owner["database"])
+        self.assertEqual("successor-runtime-and-migration-roles-live-acceptance-pending", owner["status"])
+        self.assertEqual("reactive_resume_dev_runtime", owner["role"])
+        self.assertEqual("reactive_resume_dev_successor", owner["database"])
+        self.assertEqual("reactive_resume_dev_migrator", owner["migration_role"])
+        self.assertEqual("reactive-resume-dev-runtime", owner["runtime_secret"])
         for key in (
             "superuser",
             "createdb",
@@ -330,9 +330,15 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         ):
             expected = consumers[consumer_name]
             scoped = self.policy["source_closure"][environment]["database_scope"]
-            self.assertEqual(expected["logical_database"], scoped["logical_database"])
-            self.assertEqual(expected["principal_name"], scoped["owner_role"])
-            self.assertEqual(expected["credential_secret"], scoped["credential_secret"])
+            if environment == "dev":
+                self.assertEqual("reactive_resume_dev_successor", scoped["logical_database"])
+                self.assertEqual("reactive_resume_dev_runtime", scoped["runtime_role"])
+                self.assertEqual("reactive_resume_dev_migrator", scoped["migration_role"])
+                self.assertEqual("reactive-resume-dev-runtime", scoped["credential_secret"])
+            else:
+                self.assertEqual(expected["logical_database"], scoped["logical_database"])
+                self.assertEqual(expected["principal_name"], scoped["owner_role"])
+                self.assertEqual(expected["credential_secret"], scoped["credential_secret"])
             self.assertEqual("inactive", expected["activation"])
         clients = {
             item["id"]: item for item in self.identity_policy["clients"]["browser"]
@@ -370,12 +376,12 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
 
     def test_database_and_network_identity_are_unresolved_blockers(self) -> None:
         tls = self.policy["database"]["tls_and_network"]
-        self.assertEqual("absent-blocker", tls["status"])
-        self.assertEqual("unresolved-blocker", tls["service_identity"])
-        self.assertEqual("unresolved-blocker", tls["tls_secret_identity"])
-        self.assertEqual("required-before-selection", tls["cnpg_server_tls_secret"])
-        self.assertEqual("required-before-selection", tls["cnpg_compatible_network_policy"])
-        self.assertEqual("absent-blocker", tls["network_policy_source"])
+        self.assertEqual("dev-ca-materialized-database-acceptance-pending", tls["status"])
+        self.assertEqual("shared-postgresql-rw", tls["service_identity"])
+        self.assertEqual("reactive-resume-dev-postgresql-ca", tls["tls_secret_identity"])
+        self.assertEqual("materialized-dev-scoped", tls["cnpg_server_tls_secret"])
+        self.assertEqual("acceptance-pending", tls["cnpg_compatible_network_policy"])
+        self.assertEqual("reviewed-private-dev-source", tls["network_policy_source"])
         self.assertEqual("required", tls["default_deny"])
         self.assertEqual("exact-service-and-port-only", tls["allowed_destinations"])
         self.assertEqual("forbidden", tls["broad_namespace_or_selector_allow"])
@@ -480,16 +486,16 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
 
     def test_object_storage_is_authoritative_and_redis_ai_is_blocked(self) -> None:
         storage = self.policy["object_storage"]
-        self.assertEqual("blocked-authoritative-state-unselected", storage["status"])
+        self.assertEqual("live-private-dev-checkpointed-acceptance-pending", storage["status"])
         self.assertTrue(storage["required_for_runtime"])
         self.assertEqual("durable-application-state", storage["authority"])
         for key in (
-            "backend_selection",
-            "provider",
-            "dev_bucket_or_prefix",
             "prod_bucket_or_prefix",
         ):
             self.assertEqual("unselected-blocker", storage[key], key)
+        self.assertEqual("seaweedfs", storage["backend_selection"])
+        self.assertEqual("internal-s3-compatible", storage["provider"])
+        self.assertEqual("reactive-resume-dev-reviewed-private-prefix", storage["dev_bucket_or_prefix"])
         for key in (
             "environment_scopes_separate",
             "private_access_only",
@@ -630,13 +636,13 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
 
     def test_backup_restore_and_rpo_rto_are_explicitly_unaccepted(self) -> None:
         recovery = self.policy["backup_restore"]
-        self.assertEqual("blocked-no-reactive-resume-scope", recovery["status"])
-        for key in (
-            "postgresql_scope",
-            "object_storage_scope",
-            "application_key_scope",
-        ):
-            self.assertEqual("absent-blocker", recovery[key], key)
+        self.assertEqual("hardened-schema-2-pending", recovery["status"])
+        self.assertEqual("reactive_resume_dev_successor", recovery["postgresql_scope"])
+        self.assertEqual("private-seaweedfs-reactive-resume-dev", recovery["object_storage_scope"])
+        self.assertEqual("separate-custody-pending", recovery["application_key_scope"])
+        self.assertTrue(recovery["restore_data_only"])
+        self.assertEqual("separate-custody-not-included", recovery["restore_roles_acl"])
+        self.assertEqual("separate-infisical-cnpg-contract", recovery["restore_credential_custody"])
         self.assertEqual(
             "not-applicable-while-agent-disabled-required-if-selected",
             recovery["redis_scope"]
@@ -658,7 +664,6 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         forbidden = set(self.policy["exposure"]["forbidden"])
         self.assertTrue(
             {
-                "Ingress",
                 "NodePort",
                 "LoadBalancer",
                 "CloudflareTunnel",
@@ -669,7 +674,8 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
                 "direct-origin",
             }.issubset(forbidden)
         )
-        self.assertEqual("forbidden-until-separate-public-cutover", self.policy["exposure"]["traefik_ingress"])
+        self.assertEqual("live-private-argo-managed", self.policy["exposure"]["traefik_ingress"])
+        self.assertEqual("live-argo-managed", self.policy["exposure"]["private_traefik_ingress"])
         self.assertEqual("forbidden-until-separate-public-cutover", self.policy["exposure"]["cloudflare_route"])
         self.assertEqual("forbidden", self.policy["exposure"]["dns_mutation"])
         gates = self.policy["promotion_gates"]
@@ -684,20 +690,20 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
     def test_prod_is_reservation_only_and_has_no_runtime_source(self) -> None:
         review = self.policy["source_closure_review"]
         self.assertEqual(
-            "observed-absent-2026-08-21-read-only-inventory",
+            "live-private-argo-checkpointed-2026-08-25",
             review["workload_runtime_state"],
         )
         self.assertEqual(
-            "dev-and-prod-database-and-role-crs-applied-unaccepted",
+            "live-successor-scope-acceptance-pending",
             review["shared_database_scope_state"],
         )
         self.assertEqual(
-            "dev-and-prod-live-exposed-rotation-required",
+            "live-infisical-owned-runtime-rotation-and-revocation-required",
             review["shared_database_secret_state"],
         )
-        self.assertEqual("zero-selecting-policies", review["shared_postgresql_networkpolicy_state"])
-        self.assertFalse(review["runtime_observation_is_reconciliation"])
-        self.assertTrue(review["no_selected_image_digest_claimed"])
+        self.assertEqual("exact-dev-policy-present-database-acceptance-pending", review["shared_postgresql_networkpolicy_state"])
+        self.assertTrue(review["runtime_observation_is_reconciliation"])
+        self.assertFalse(review["no_selected_image_digest_claimed"])
         self.assertTrue(review["candidate_digest_is_not_selection"])
         dev = self.policy["source_closure"]["dev"]
         self.assertEqual(
@@ -728,9 +734,14 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
     def test_runbook_records_all_blockers_without_claiming_completion(self) -> None:
         normalized = " ".join(self.runbook_text.split())
         for required in (
-            "DEV PRIVATE RUNTIME CHECKPOINTED — CANONICAL HANDOFF AND SOAK REMAIN OPEN.",
-            "executable_source_allowed` remains `false`",
+            "DEV PRIVATE RUNTIME AND ARGO HANDOFF CHECKPOINTED",
+            "executable_source_allowed` is bounded",
             "candidate-only, **not selected and not deployable**",
+            "selected immutable GHCR runtime digest",
+            "seven value-free Argo manifests",
+            "reactive-resume-dev-runtime",
+            "reactive_resume_dev_successor",
+            "roles, ownership, ACLs, and login credentials are not in the archive",
             "docker.io/amruthpillai/reactive-resume",
             self.policy["image_candidate_provenance"]["upstream_tag"],
             self.policy["image_candidate_provenance"]["index_digest"],
@@ -752,11 +763,14 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             "No blocker above is satisfied by a policy reservation",
             "Reactive Resume PROD is represented only as a promotion template",
             "private DEV validation and an explicit DEV soak",
-            "Ingress, Traefik public routes, NodePort, LoadBalancer, Cloudflare Tunnel",
-            "No Deployment, StatefulSet, Service, PVC, Secret, Infisical CR",
+            "private Traefik Ingress is live and Argo-managed",
+            "seven value-free Argo manifests",
+            "reactive-resume-dev-runtime",
+            "reactive_resume_dev_successor",
         ):
             self.assertIn(required, normalized)
         self.assertNotIn("source-only DEV closure is complete", normalized)
+        self.assertNotIn("Those objects are absent until", normalized)
 
     def test_no_executable_source_or_secret_value_is_added(self) -> None:
         self.assertEqual(

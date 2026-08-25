@@ -2901,11 +2901,12 @@ source-only policy closes no manual QA case.
 
 ## Reactive Resume DEV blocker inventory hardening — 2026-08-21
 
-The canonical Reactive Resume policy now records an explicitly incomplete,
-value-free DEV blocker inventory rather than claiming a runtime closure. It reserves
-only the future private object boundary in `cristexhub-dev` and the dedicated shared
-PostgreSQL scope `reactive_resume_dev` / `reactive_resume_dev_owner` while keeping
-executable source forbidden. It explicitly blocks reuse of the broad Infisical
+The canonical Reactive Resume policy now records the live private DEV checkpoint
+separately from full acceptance: seven Argo manifests including default-deny, private
+Traefik route, materialized CA, runtime Secret `reactive-resume-dev-runtime`, selected
+DEV digests, and successor PostgreSQL scope `reactive_resume_dev_successor`. Image
+provenance/promotion, OIDC/database ACLs, data-only recovery with separate role/ACL/
+credential custody, TLS renewal, soak, PROD, and public route remain blocked. It explicitly blocks reuse of the broad Infisical
 11-target/VAP/RBAC lanes and all-consumer PostgreSQL/CloudNativePG lanes, and records
 successor-realm runtime, required OIDC/local-auth source patch, CNPG
 TLS/NetworkPolicy identity, private durable object storage, disabled v5 Agent/Redis

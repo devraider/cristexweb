@@ -1,29 +1,32 @@
 ---
 policy_schema: cristex-reactive-resume-v4
-policy_status: source-policy-only-runtime-blocked
+policy_status: private-dev-runtime-checkpointed-acceptance-pending
 postgresql_exposure_rotation_contract: ansible/files/policies/reactive-resume-postgresql-exposure-rotation.yml
 mvp_scope: included-private-dev
 environments:
   dev:
     namespace: cristexhub-dev
     identity_client: reactive-resume-dev
-    activation: blocked-pending-dedicated-dev-lanes-and-private-acceptance
+    activation: private-runtime-checkpointed-full-acceptance-pending
   prod:
     namespace: cristexhub-prod
     identity_client: reactive-resume-prod
     activation: promotion-blocked-template-only
 image_source:
-  selection: unselected
-  repository: null
-  version: null
-  linux_amd64_digest: null
+  selection: selected-private-dev-runtime
+  repository: ghcr.io/devraider/cristex-reactive-resume
+  version: v5.2.7
+  linux_amd64_digest: sha256:720ff5a60a7f6b91a75535e230dbb664207fdf1bc5cb8732d584bae7ebdac13c
   trust_accepted: false
+  selected_runtime_is_promotion_accepted: false
+  selected_runtime_provenance: unaccepted-blocker
   candidate_record_is_deployable: false
   candidate_record_is_selection: false
   sbom_and_vulnerability_review: unaccepted-blocker
   off_node_oci_recovery: unaccepted-blocker
   target_pull_and_admission: unaccepted-blocker
-  github_actions_build_owner: upstream-not-rebuilt
+  github_actions_build_owner: private-fork-build-source-unaccepted
+  selected_runtime_image_is_live_dev_only: true
   upstream_release_contract: blocked-tag-image-revision-mismatch
   environment_variable_allowlist: reviewed-tag-source-not-image-runtime-contract
   health_and_readiness_endpoint: reviewed-tag-source-not-image-runtime-contract
@@ -225,10 +228,10 @@ database:
     prod: reactive-resume-prod
   separate_engine_or_pvc_per_environment: false
   canonical_lane:
-    status: unresolved-dual-owner-blocker
+    status: successor-runtime-migration-scope-live-acceptance-pending
     lifecycle_owner_candidate: cloudnative-pg-database-and-role-crs-via-ansible
     acl_hardening_candidate: bounded-helper-read-and-acl-only
-    final_owner_selection: required-before-source
+    final_owner_selection: cloudnative-pg-successor-crs
     allowed_consumers:
       - reactive-resume-dev
     dev_only_selector: exact-consumer-and-secret-binding
@@ -253,9 +256,11 @@ database:
     implicit_prod_scope_creation: forbidden
     broad_lane_remediation: required-before-dev-apply
   live_read_only_observation_2026_08_21:
-    status: existing-broad-lane-materialization-unaccepted
-    dev_database_cr: applied
-    dev_database_role_cr: applied-inherit-true
+    status: successor-scope-live-broad-predecessor-unaccepted
+    dev_database_cr: successor-applied-noinherit
+    dev_database_role_cr: successor-runtime-and-migrator-applied-noinherit
+    predecessor_database_cr: applied-unaccepted
+    predecessor_database_role_cr: applied-inherit-true
     prod_database_cr: applied-unapproved-for-rr-promotion
     prod_database_role_cr: applied-inherit-true-unapproved-for-rr-promotion
     public_connect_on_all_shared_databases: observed-blocker
@@ -265,9 +270,16 @@ database:
     activation_authorized: false
     deletion_or_recreation_authorized: false
   owner_role_contract:
-    status: absent-blocker
-    role: reactive_resume_dev_owner
-    database: reactive_resume_dev
+    status: successor-runtime-and-migration-roles-live-acceptance-pending
+    role: reactive_resume_dev_runtime
+    migration_role: reactive_resume_dev_migrator
+    database: reactive_resume_dev_successor
+    runtime_secret: reactive-resume-dev-runtime
+    migration_secret: reactive-resume-dev-migration
+    runtime_inherit: false
+    migration_inherit: false
+    role_acl_restore: separate-from-data-only-archive
+    credential_custody: infisical-and-cnpg-separate
     superuser: false
     createdb: false
     createrole: false
@@ -294,12 +306,12 @@ database:
       - reactive-resume-dev-create-role
       - reactive-resume-dev-public-schema-create
   tls_and_network:
-    status: absent-blocker
-    service_identity: unresolved-blocker
-    tls_secret_identity: unresolved-blocker
-    cnpg_server_tls_secret: required-before-selection
-    cnpg_compatible_network_policy: required-before-selection
-    network_policy_source: absent-blocker
+    status: dev-ca-materialized-database-acceptance-pending
+    service_identity: shared-postgresql-rw
+    tls_secret_identity: reactive-resume-dev-postgresql-ca
+    cnpg_server_tls_secret: materialized-dev-scoped
+    cnpg_compatible_network_policy: acceptance-pending
+    network_policy_source: reviewed-private-dev-source
     default_deny: required
     allowed_destinations: exact-service-and-port-only
     broad_namespace_or_selector_allow: forbidden
@@ -326,15 +338,15 @@ secrets:
     predecessor_revocation_required: true
     runtime_use_before_rotation: forbidden
   dedicated_dev_only:
-    status: live-broad-secret-unaccepted-dedicated-app-lane-absent
-    source: absent
+    status: live-infisical-owned-runtime-contract-acceptance-pending
+    source: guarded-static-secret-source
     target_namespace: cristexhub-dev
-    target_name: reactive-resume-runtime
-    infisical_path: unselected-blocker
-    exact_keys: blocked-pending-source-patch-and-feature-selection
-    dedicated_machine_identity: absent-blocker
-    dedicated_writer: absent-blocker
-    materialization: forbidden-until-dedicated-lane
+    target_name: reactive-resume-dev-runtime
+    infisical_path: prod:/reactive-resume/dev/runtime
+    exact_keys: reviewed-runtime-key-contract
+    dedicated_machine_identity: namespace-scoped-reviewed-identity
+    dedicated_writer: exact-target-only-reviewed-writer
+    materialization: live-private-dev-checkpointed
     value_generation: forbidden
     value_output: forbidden
     target_type: Opaque
@@ -367,12 +379,11 @@ secrets:
     pushsecret_and_dynamicsecret_foreign_targets: deny
 exposure:
   current_scope: private-only
-  service_identity: unselected
+  service_identity: reactive-resume-dev
   reviewed_candidate_container_port: 3000
   reviewed_candidate_health_endpoint: /api/health
-  ports: unselected
+  ports: [3000]
   forbidden:
-    - Ingress
     - NodePort
     - LoadBalancer
     - CloudflareTunnel
@@ -381,7 +392,8 @@ exposure:
     - public-route
     - public-administration
     - direct-origin
-  traefik_ingress: forbidden-until-separate-public-cutover
+  private_traefik_ingress: live-argo-managed
+  traefik_ingress: live-private-argo-managed
   cloudflare_route: forbidden-until-separate-public-cutover
   dns_mutation: forbidden
 ownership:
@@ -390,12 +402,15 @@ ownership:
   runtime_value_owner: infisical-cloud
   dual_reconciliation: forbidden
 object_storage:
-  status: blocked-authoritative-state-unselected
+  status: live-private-dev-checkpointed-acceptance-pending
   required_for_runtime: true
   authority: durable-application-state
-  backend_selection: unselected-blocker
-  provider: unselected-blocker
-  dev_bucket_or_prefix: unselected-blocker
+  backend_selection: seaweedfs
+  provider: internal-s3-compatible
+  dev_bucket_or_prefix: reactive-resume-dev-reviewed-private-prefix
+  runtime_private_tls: validated
+  authenticated_upload_read_delete: passed
+  anonymous_access: denied
   prod_bucket_or_prefix: unselected-blocker
   environment_scopes_separate: true
   private_access_only: required
@@ -503,11 +518,14 @@ migration:
   rollback_by_database_restore_only: forbidden-as-routine
   schema_compatibility_evidence: unaccepted-blocker
 backup_restore:
-  status: blocked-no-reactive-resume-scope
-  postgresql_scope: absent-blocker
-  object_storage_scope: absent-blocker
+  status: hardened-schema-2-pending
+  postgresql_scope: reactive_resume_dev_successor
+  object_storage_scope: private-seaweedfs-reactive-resume-dev
   redis_scope: not-applicable-while-agent-disabled-required-if-selected
-  application_key_scope: absent-blocker
+  application_key_scope: separate-custody-pending
+  restore_data_only: true
+  restore_roles_acl: separate-custody-not-included
+  restore_credential_custody: separate-infisical-cnpg-contract
   database_and_object_consistency: required
   encrypted_off_node_copy: required
   integrity_readback: required
@@ -548,22 +566,29 @@ promotion_order:
   simultaneous_dev_prod_activation: forbidden
   prod_runtime_objects_from_reservation: forbidden
   public_route_last: required
-executable_source_allowed: false
+executable_source_allowed: guarded-private-dev-and-argocd-handoff-only
 source_closure:
-  status: value-free-policy-only-incomplete-blocked
+  status: private-dev-runtime-checkpointed-acceptance-pending
   dev_contract_complete: false
   prod_promotion_template_only: true
-  source_manifest_files: []
-  no_runtime_objects_added: true
+  source_manifest_files:
+    - ansible/files/components/reactive-resume-dev-argocd/deployment.yaml
+    - ansible/files/components/reactive-resume-dev-argocd/ingress-private.yaml
+    - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-default-deny.yaml
+    - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-egress.yaml
+    - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-route-allow-traefik.yaml
+    - ansible/files/components/reactive-resume-dev-argocd/service.yaml
+    - ansible/files/components/reactive-resume-dev-argocd/serviceaccount.yaml
+  no_runtime_objects_added: false
   no_secret_values_added: true
-  no_selected_image_digest_claimed: true
+  no_selected_image_digest_claimed: false
   candidate_digest_is_not_selection: true
-  executable_workload_source: absent-blocker
-  apply_capable_wrapper: absent
+  executable_workload_source: guarded-private-dev-runtime
+  apply_capable_wrapper: guarded-private-dev-and-argocd-handoff
   runtime_mutation:
     host: forbidden
     registry: forbidden
-    kubernetes_api: forbidden
+    kubernetes_api: guarded-private-dev-only
     infisical_api: forbidden
     database: forbidden
     provider: forbidden
@@ -585,25 +610,27 @@ source_closure:
     credential_rotation: separate-approval-only
   dev:
     namespace: cristexhub-dev
-    activation: blocked-pending-dedicated-lanes-and-private-acceptance
+    activation: private-runtime-checkpointed-full-acceptance-pending
     source_template: false
     object_contract:
-      source_status: absent-until-separate-approved-closure
+      source_status: live-private-dev-argo-handoff
       exact_objects:
-        deployment: absent-until-image-and-config-review
-        service: absent-until-image-and-config-review
-        network_policies: absent-until-selector-and-tls-review
-        ingress: forbidden
-        pvc: absent-until-object-storage-review
-        argo_application: absent-until-object-by-object-handoff
-      no_runtime_source: true
+        deployment: live-argo-managed
+        service: live-argo-managed
+        network_policies: live-argo-managed-including-default-deny
+        ingress: live-private-argo-managed
+        pvc: not-used-private-s3
+        argo_application: live-synced-healthy
+      exact_manifest_count: 7
+      no_runtime_source: false
     database_scope:
       engine_namespace: shared-services
       engine: postgresql
       consumer: reactive-resume-dev
-      logical_database: reactive_resume_dev
-      owner_role: reactive_resume_dev_owner
-      credential_secret: shared-postgresql-reactive-resume-dev
+      logical_database: reactive_resume_dev_successor
+      runtime_role: reactive_resume_dev_runtime
+      migration_role: reactive_resume_dev_migrator
+      credential_secret: reactive-resume-dev-runtime
       credential_keys: [username, password]
       credential_values: forbidden
       materialization: live-from-forbidden-broad-lane-not-accepted
@@ -629,12 +656,18 @@ source_closure:
       cross_environment_identity: forbidden
     runtime_secret_contract:
       target_namespace: cristexhub-dev
-      target_name: reactive-resume-runtime
+      target_name: reactive-resume-dev-runtime
       target_type: Opaque
-      exact_keys: unselected-until-image-and-config-review
+      exact_keys: reviewed-runtime-key-contract
       values: forbidden
-      source_path: unselected-blocker
-      materialization: forbidden-in-this-increment
+      source_path: prod:/reactive-resume/dev/runtime
+      materialization: live-private-dev-checkpointed
+    ca_contract:
+      target_name: reactive-resume-dev-postgresql-ca
+      source_path: prod:/reactive-resume/dev/object-storage-tls
+      source_keys: [POSTGRESQL_CA_CRT, STORAGE_TLS_CA_CRT]
+      materialization: live-infisical-owned
+      values: forbidden
   prod:
     namespace: cristexhub-prod
     activation: promotion-blocked-until-dev-private-acceptance-and-soak
@@ -685,14 +718,14 @@ source_closure:
 source_closure_review:
   dev_contract_complete: false
   prod_promotion_template_only: true
-  no_runtime_objects_added: true
+  no_runtime_objects_added: false
   no_secret_values_added: true
-  no_selected_image_digest_claimed: true
+  no_selected_image_digest_claimed: false
   candidate_digest_is_not_selection: true
   broad_infisical_lanes_reusable: false
   broad_postgresql_lanes_reusable: false
-  workload_runtime_state: observed-absent-2026-08-21-read-only-inventory
-  shared_database_scope_state: dev-and-prod-database-and-role-crs-applied-unaccepted
-  shared_database_secret_state: dev-and-prod-live-exposed-rotation-required
-  shared_postgresql_networkpolicy_state: zero-selecting-policies
-  runtime_observation_is_reconciliation: false
+  workload_runtime_state: live-private-argo-checkpointed-2026-08-25
+  shared_database_scope_state: live-successor-scope-acceptance-pending
+  shared_database_secret_state: live-infisical-owned-runtime-rotation-and-revocation-required
+  shared_postgresql_networkpolicy_state: exact-dev-policy-present-database-acceptance-pending
+  runtime_observation_is_reconciliation: true

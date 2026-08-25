@@ -415,22 +415,20 @@ logs, or bootstrap cannot be recovered.
   deny-first authorization, private-only exposure, Infisical value ownership, and
   closed promotion gates without adding executable objects (`KIF-005`, `KIF-013`,
   `KIF-016`–`KIF-019`, `KIF-021`, `KIF-026`–`KIF-030`).
-- [x] Add the value-free Reactive Resume hosted policy/runbook and checked
-  source-only DEV blocker inventory: reserve the future one-replica private
-  Deployment/ClusterIP/deny-first NetworkPolicy boundary in `cristexhub-dev`,
-  dedicated shared-PostgreSQL `reactive_resume_dev` scope, and explicit blockers
-  for image/OIDC/Infisical/database/storage/recovery; keep executable source
-  forbidden and PROD as a promotion-blocked template only (`KIF-012`–`KIF-017`,
-  `KIF-021`, `KIF-023`, `KIF-026`–`KIF-030`). Runtime closure remains incomplete.
+- [x] Reconcile the Reactive Resume hosted policy/runbook with the live private DEV checkpoint:
+  selected immutable DEV GHCR digests, exact seven Argo manifests including default-deny,
+  private Traefik route, materialized CA, runtime Secret `reactive-resume-dev-runtime`,
+  successor database `reactive_resume_dev_successor`, and explicit remaining image-trust,
+  OIDC/database/role, data-only recovery, TLS-renewal, soak, PROD, and public-route gates
+  (`KIF-012`–`KIF-017`, `KIF-021`, `KIF-023`, `KIF-026`–`KIF-030`).
 - [x] Add the source-only guarded logical provisioning lane for one general
   PostgreSQL instance and standalone MongoDB: exact five PostgreSQL and two MongoDB
   empty reservations, precreated Infisical consumer Secret contracts, no-secret-argv
   scripts, exact drift/idempotence checks, UID-bound temporary helpers with cleanup,
   and no database/user/PVC delete path (`KIF-017`, `KIF-026`, `KIF-030`).
-- [ ] Create one general PostgreSQL instance with separate CristexHub DEV/PROD,
-  Reactive Resume DEV/PROD, and Keycloak logical databases/owner roles, no
-  consumer-specific PostgreSQL workload/PVC, and bidirectional negative
-  cross-database access tests (`KIF-017`). The source lane's check/apply,
+- [ ] Maintain the live DEV successor PostgreSQL scope `reactive_resume_dev_successor`
+  with separate NOINHERIT runtime/migrator roles; prove ACL/cross-database negatives
+  and keep role/ACL/credential recovery separate from the logical data archive (`KIF-017`). The source lane's check/apply,
   idempotence, authorization, runtime, and recovery evidence remains NOT RUN/BLOCKED.
 - [x] Select the MongoDB `8.0.28` linux/amd64 digest offline and add the
   intentionally standalone, non-authoritative source closure with private Service,
@@ -491,9 +489,9 @@ pressure, or inability to preserve encryption keys. Never delete PVCs as rollbac
   `KIF-024`).
 - [ ] Validate OIDC/auth, API, worker, exactly-one Beat, migration, WebSocket, and
   private routing behavior (`KIF-010`, `KIF-021`, `KIF-025`).
-- [ ] After the minimal slice passes a capacity checkpoint, add the MVP's private
-  environment-local Reactive Resume and Browserless/gateway by reviewed immutable
-  image digests and exact resource/network limits (`KIF-016`, `KIF-019`, `KIF-021`,
+- [ ] The private Reactive Resume DEV Argo checkpoint is complete; next prove the
+  remaining full acceptance and soak gates for the selected immutable image and
+  exact resource/network limits (`KIF-016`, `KIF-019`, `KIF-021`,
   `KIF-023`, `KIF-029`).
 - [ ] Prove Git/digest rollback and complete the approved soak (`KIF-024`, `KIF-025`,
   `KIF-030`).

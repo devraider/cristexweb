@@ -176,7 +176,7 @@ class ReactiveResumeDevPrivateRouteContractTests(unittest.TestCase):
     def test_runbook_is_source_only_and_private(self) -> None:
         normalized = " ".join(self.runbook.split())
         for value in (
-            "source-only guarded closure",
+            "superseded Ansible source closure",
             "resume-dev.cristex-soft.com",
             "cristexhub-dev",
             "reactive-resume-dev-tls",
@@ -186,6 +186,8 @@ class ReactiveResumeDevPrivateRouteContractTests(unittest.TestCase):
         ):
             self.assertIn(value, normalized, value)
         self.assertIn("no DNS/provider path", self.runbook)
+        self.assertIn("live and Argo-managed", self.runbook)
+        self.assertIn("forbidden public Cloudflare route", self.runbook)
 
 
 if __name__ == "__main__":

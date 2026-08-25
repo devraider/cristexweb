@@ -2,12 +2,12 @@
 
 ## Status and ownership
 
-This is a **source-only guarded closure** for the private Reactive Resume DEV
-route. It is not evidence of a live route, DNS record, certificate issuance,
-Kubernetes apply, Argo handoff, or public exposure. The route remains disabled
-until a separate operator-approved check/apply sequence succeeds.
+This is the **superseded Ansible source closure** for the private Reactive Resume
+DEV route. The route is live and Argo-managed after the approved handoff; this
+Ansible lane must refuse the Argo tracking marker and must not be rerun. The
+private route is distinct from the forbidden public Cloudflare route.
 
-- Ansible owns this bounded bootstrap closure until object-by-object handoff.
+- Ansible owned this bounded bootstrap closure until the completed object-by-object handoff; Argo now owns the adopted route.
 - Traefik in `kube-system` is the only ingress controller and the only allowed
   source of application ingress.
 - The Reactive Resume workload and route belong in `cristexhub-dev`.
@@ -64,12 +64,11 @@ foreign objects, hash drift, and any object outside the exact identity set.
 Check mode must be run first. Apply remains a separate operator approval. The
 closure has no deletion or rollback path; rollback is a reviewed Git revert and
 removal of only these exact route objects through a separately approved
-operation. Before every route check/apply, the role queries the
-`argocd/reactive-resume-dev` Application handoff marker and requires it to be
-absent. Once registration exists, the route wrapper fails closed; the duplicate
-route source cannot reconcile after Argo handoff. A label is not an Argo handoff:
-registration, adoption, successful sync, and managed-fields evidence are still
-required before ownership changes.
+operation. The role queries the `argocd/reactive-resume-dev` Application handoff marker and
+requires it to be absent before any legacy action. Once registration exists, the
+route wrapper fails closed; the duplicate route source cannot reconcile after Argo
+handoff. Registration, adoption, successful sync, and tracking evidence passed;
+this route is now Argo-managed.
 
 ## Validation and residual risks
 

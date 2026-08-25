@@ -216,10 +216,11 @@ paths, encrypted timestamped non-destructive off-node copies, integrity verifica
 and isolated restore. The approved source profile uses daily archives, 14-day local
 and off-node retention, RPO `24h`, RTO `4h`, and independent encryption-key custody.
 Exact backup tooling/image, destination identity/folder, staging path, credentials,
-and restore implementation remain unknown. Acceptance requires application-consistent PostgreSQL and MongoDB dumps, separate
-consumer scopes, and isolated restore proof. PostgreSQL role
-and ownership recreation must be proven without leaking credential hashes. A
-successful backup job alone is not recovery evidence.
+and restore implementation remain unknown. Acceptance requires application-consistent PostgreSQL and MongoDB data dumps,
+separate consumer scopes, and isolated restore proof. PostgreSQL role/ownership/ACL
+reconciliation and login credential custody are separate gates from data restore;
+the logical archive is explicitly data-only and must not contain password material.
+A successful backup job alone is not recovery evidence.
 
 ## Executable-source stop gate
 

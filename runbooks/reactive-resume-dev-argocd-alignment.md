@@ -2,8 +2,7 @@
 
 ## Status
 
-**SOURCE-ONLY / GUARDED CHECK AND APPLY LANE; NOT RUN LIVE.** This lane is a
-one-shot, present-only alignment of exactly seven canonical
+**SUPERSEDED AFTER ARGO ADOPTION — DO NOT RERUN.** This lane was the one-shot, present-only alignment of exactly seven canonical
 `ansible/files/components/reactive-resume-dev-argocd` objects and the four
 reviewed destination NetworkPolicies listed in the role defaults. It does not
 include the migration Job, any Secret, a Namespace, PVC, RBAC object, delete,
@@ -45,9 +44,7 @@ must be reviewed and passed before any separately approved `apply`.
 
 ## Ownership and residual gates
 
-This lane is Ansible-owned bootstrap alignment only. It does not register,
-adopt, or sync an Argo Application. A later handoff must separately prove
-registration, adoption, managed-field ownership, and successful private sync.
-The lane has not been run live from this source-only change; live drift,
-readiness, migration completion, and destination-policy convergence remain
-unverified until the guarded check is explicitly approved and executed.
+This lane was Ansible-owned bootstrap alignment only. Registration, adoption, and
+successful sync now pass; Argo now owns the adopted workload objects. The lane must
+refuse Argo tracking markers and must not be rerun. Migration completion, database,
+OIDC, recovery, and soak acceptance remain separate gates.

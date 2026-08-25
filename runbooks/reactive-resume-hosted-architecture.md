@@ -2,7 +2,7 @@
 
 ## Status
 
-**DEV PRIVATE RUNTIME CHECKPOINTED — CANONICAL HANDOFF AND SOAK REMAIN OPEN.**
+**DEV PRIVATE RUNTIME AND ARGO HANDOFF CHECKPOINTED — FULL ACCEPTANCE AND SOAK REMAIN OPEN.**
 Reactive Resume DEV runs in `cristexhub-dev` at the private hostname
 `https://resume-dev.cristex-soft.com`. The shared `cristexhub` Keycloak client is
 represented by an exact guarded value-free source contract; its secret remains
@@ -11,9 +11,13 @@ reconciled by the source. The former same-named `cristexhub-dev` client is disab
 retained only for rollback, and deletion is forbidden.
 
 Historical absence inventories remain historical and must not be read as current
-state. The canonical DEV workload source, private route, runtime Secret materialization,
-backup timer, and private validation are checkpointed. Remaining gates are the
-object-by-object Argo handoff/sync, measured non-empty recovery correlation, and
+state. The canonical DEV workload source contains exactly seven value-free Argo manifests
+(including the default-deny NetworkPolicy), the private Traefik route, the
+Infisical-owned `reactive-resume-dev-runtime` Secret, and materialized DEV CA
+projections. Argo revision `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` is
+`Synced/Healthy`; the superseded Ansible alignment and route lanes refuse
+reconciliation after handoff. Remaining gates are full OIDC/database acceptance,
+measured non-empty schema-2 recovery correlation, TLS renewal installation, and
 DEV soak. Existing broad database drift remains unaccepted; PROD remains a
 reservation/template only and cannot be activated from this policy.
 
@@ -22,7 +26,9 @@ The canonical contract is
 The separately approved, source-only [PostgreSQL exposure-rotation contract](reactive-resume-postgresql-exposure-rotation.md)
 freezes only the two exposed DEV/PROD password scopes and remains blocked on
 official Infisical CAS and CNPG Secret-type decisions. `executable_source_allowed`
-remains `false`. No runtime/API/provider operation is authorized by this document.
+remains `false`. This document authorizes no new runtime/API/provider operation.
+
+`executable_source_allowed` is bounded to the reviewed private-DEV/Argo handoff closure; this document authorizes no new runtime/API/provider operation.
 
 ## Source boundary
 
@@ -45,8 +51,14 @@ The image config instead identifies revision
 release tag, and was created after that release. The index signature plus SPDX and
 SLSA attestations were observed, but direct linux/amd64-child signing was not;
 vulnerability disposition, off-node OCI recovery, and target admission remain
-absent. The digest is therefore candidate-only, **not selected and not deployable**.
-GitHub Actions does not rebuild it.
+absent. That Docker Hub digest remains candidate-only, **not selected and not deployable**.
+The live private DEV source separately selects the immutable GHCR runtime digest
+`sha256:720ff5a60a7f6b91a75535e230dbb664207fdf1bc5cb8732d584bae7ebdac13c` and
+migration digest
+`sha256:a4f0157e023c10c1c6ff163d34bf25c3343647247eddb1d4f9bfa9b46e1a3093`.
+Those DEV selections are not provenance, vulnerability, off-node recovery, or
+PROD promotion acceptance; GHCR equivalence to the Docker Hub candidate remains
+unclaimed. GitHub Actions does not rebuild it.
 
 No first-party Kubernetes operator/chart has been accepted. Any future Kubernetes
 translation requires a patched, reproducibly bound source/image and must not
@@ -83,11 +95,11 @@ CristexHub client. This runbook authorizes no delete or implicit re-enable path.
 
 The intended application namespace is `cristexhub-dev`, not `shared-services`.
 `shared-services` supplies only shared infrastructure and the dedicated PostgreSQL
-logical scope. The future application boundary is one private single-replica
-Deployment, one private ClusterIP Service, exact deny-first NetworkPolicy objects,
-and no Ingress, NodePort, LoadBalancer, Cloudflare Tunnel, Cloudflare DNS, public
-route, or direct origin. Those objects are absent until a separate executable
-closure is reviewed.
+logical scope. The live application boundary is one private single-replica Deployment, one
+private ClusterIP Service, seven exact Argo manifests including deny-first
+NetworkPolicies and a private Traefik Ingress. It has no NodePort, LoadBalancer,
+Cloudflare Tunnel, Cloudflare DNS, public route, or direct origin. The public
+Cloudflare route remains separately forbidden.
 
 The DEV contract is incomplete and blocked on all of the following:
 
@@ -112,7 +124,10 @@ The DEV contract is incomplete and blocked on all of the following:
   forbidden for RR activation as a combined path. Select exactly one lifecycle
   owner before source: the current candidate is CloudNativePG CRs via bounded
   Ansible, while any helper is limited to read-only verification and narrowly
-  reviewed ACL hardening. Its DEV selector cannot include PROD. The owner must be `reactive_resume_dev_owner` with
+  reviewed ACL hardening. Its DEV selector cannot include PROD. The successor runtime role is `reactive_resume_dev_runtime` and the separate
+migration role is `reactive_resume_dev_migrator` in logical database
+`reactive_resume_dev_successor`; both are NOINHERIT and remain subject to ACL
+acceptance. The owner must be `reactive_resume_dev_runtime` with
   `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOINHERIT`, `NOREPLICATION`, and
   `NOBYPASSRLS`; revoke PUBLIC `CONNECT`, `TEMPORARY`, and schema creation, prove
   empty `pg_auth_members` plus denied `SET ROLE` to every foreign role, grant only
@@ -263,11 +278,14 @@ Simultaneous DEV and PROD activation is forbidden because it destroys causal
 validation evidence and can expose the shared PostgreSQL failure domain to two
 unaccepted migrations/workloads.
 
-## No mutation in this revision
+## Current runtime boundary and custody
 
-No Deployment, StatefulSet, Service, PVC, Secret, Infisical CR, Database object,
-Ingress, Argo Application, route, image pull, registry write, host, Kubernetes,
-Infisical, database, or provider mutation was performed. Read-only contact included
+The private DEV Deployment, Service, ServiceAccount, three workload NetworkPolicies,
+private Ingress, runtime Secret, materialized CA, and Argo Application are live
+checkpoints. The seven workload manifests are value-free; Secret values remain
+Infisical-owned. The live image digest is a DEV selection only and is not accepted
+for promotion. PostgreSQL data restore, role/ACL restore, and credential custody are
+separate contracts. No PROD workload or public route is authorized. Read-only contact included
 GitHub source/release metadata, separate Docker Hub and GHCR OCI metadata/
 attestations without an equivalence claim, workload/Argo absence inventory, and
 CloudNativePG/NetworkPolicy/Secret metadata. One review child improperly requested
@@ -276,3 +294,10 @@ removed, and DEV/PROD PostgreSQL credential rotation plus predecessor revocation
 now mandatory.
 Rollback is a Git revert; namespace/PVC/database deletion and implicit credential
 rotation are forbidden.
+
+
+The selected immutable GHCR runtime digest is a DEV-only selection; provenance, promotion, and recovery acceptance remain unaccepted.
+
+Logical restore is data-only: roles, ownership, ACLs, and login credentials are not in the archive; their custody is separate.
+
+The private Traefik Ingress is live and Argo-managed; the public Cloudflare route remains forbidden.

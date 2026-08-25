@@ -111,8 +111,10 @@ systemd.
 
 ## Service-specific recovery and future admission
 
-PostgreSQL uses application-consistent logical dumps with role and ownership
-recreation. MongoDB uses one replica-set-wide oplog-consistent archive; the MongoDB
+PostgreSQL uses application-consistent logical dumps for data recovery. Role,
+ownership, ACL/default privileges, and login credential recreation remain a
+separate database/Infisical/CNPG custody gate and are never inferred from a data
+archive. MongoDB uses one replica-set-wide oplog-consistent archive; the MongoDB
 Community Operator plus Infisical remain declarative owners for user/SCRAM recreation,
 while the archive recovers application data and compatible database metadata. Its
 restore rehearsal uses the same immutable `8.0.12` image digest, isolated `emptyDir`,

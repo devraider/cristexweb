@@ -126,10 +126,11 @@ class ReactiveResumeDevArgoAlignmentContractTests(unittest.TestCase):
         self.assertEqual(0o755, stat.S_IMODE(WRAPPER.stat().st_mode))
         self.assertEqual("reactive_resume_dev_argocd_alignment", PLAYBOOK.read_text().split("role: ", 1)[1].splitlines()[0])
 
-    def test_runbook_states_scope_and_not_run_boundary(self) -> None:
+    def test_runbook_states_superseded_handoff_boundary(self) -> None:
         text = RUNBOOK.read_text()
-        for value in ("SOURCE-ONLY", "NOT RUN LIVE", "seven", "four", "migration Job", "no delete", "no prune", "check", "apply"):
+        for value in ("SUPERSEDED AFTER ARGO ADOPTION", "seven", "four", "migration Job", "no delete", "no prune", "check", "apply", "Argo now owns"):
             self.assertIn(value, text)
+        self.assertNotIn("NOT RUN LIVE", text)
         self.assertNotIn("cristexhub-prod", text)
 
 

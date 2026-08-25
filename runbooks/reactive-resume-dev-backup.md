@@ -176,7 +176,9 @@ a drifted launcher or binary fails closed without contacting Infisical.
 PostgreSQL restores into an isolated PostgreSQL 17 temporary Pod with only `emptyDir`,
 `listen_addresses=` and no Service, PVC, or source-database connection. It runs
 `pg_restore --exit-on-error` and validates the catalog and expected logical table
-count before UID-preconditioned orphan cleanup. A run-labelled default-deny
+count before UID-preconditioned orphan cleanup. This is a data-only rehearsal: the
+archive excludes PostgreSQL roles, ownership, ACL/default privileges, and passwords;
+those remain separate Infisical/CNPG custody and authorization gates. A run-labelled default-deny
 NetworkPolicy is created before the Pod and permits no ingress or egress. Both
 the Pod and its NetworkPolicy are deleted only after exact run-label, component,
 and UID checks; any cleanup failure fails closed. The backup first runs
