@@ -44,7 +44,9 @@ infisical:
   upload: preauthenticated-cli-session-without-token-flag
   exact_key_closure: [TLS_CRT, TLS_KEY]
   readback: yaml_key_set_and_byte_equality_verified
-  mismatch_recovery: restore_preupload_two_key_payload_then_fail
+  mismatch_recovery: fail_closed_without_rollback_when_postwrite_convergence_fails
+  rollback_cas: unavailable
+  postwrite_failure: uploaded_infisical_pair_may_remain_and_requires_guarded_manual_recovery
 kubernetes:
   target_namespace: cristexhub-dev
   target_secret: reactive-resume-dev-tls
@@ -74,5 +76,7 @@ safety:
   lock: flock
   no_direct_kubernetes_secret_write: true
   no_prod_or_public_route_mutation: true
-  rollback: leave_existing_infisical_values_and_secret_unchanged_on_failure
+  rollback: >-
+    no_automatic_rollback_without_infisical_cas; prewrite_failures_leave_values_unchanged;
+    postwrite_failures_may_leave_the_uploaded_pair_pending_operator_recovery
   endpoint_tls_trust_store: /etc/ssl/certs/ca-certificates.crt
