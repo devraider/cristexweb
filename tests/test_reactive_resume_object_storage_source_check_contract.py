@@ -372,6 +372,19 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {"name": "shared-postgresql", "namespace": "shared-services", "uid": "uid-shared-postgresql", "resourceVersion": "1"},
             ),
         )
+        self.assertIsNone(
+            _metadata_module._producer_targets(
+                {
+                    "apiVersion": "secrets.infisical.com/v1beta1",
+                    "kind": "InfisicalStaticSecret",
+                    "metadata": {"name": "shared-postgresql", "namespace": "shared-services", "uid": "replacement", "resourceVersion": "2"},
+                    "spec": {"targets": [{"name": "safe-target", "namespace": "shared-services", "kind": "Secret"}]},
+                },
+                "InfisicalStaticSecret",
+                "secrets.infisical.com/v1beta1",
+                {"name": "shared-postgresql", "namespace": "shared-services", "uid": "uid-shared-postgresql", "resourceVersion": "1"},
+            )
+        )
         self.assertEqual(
             [{"name": "safe-target", "namespace": "shared-services", "kind": "Secret"}],
             _metadata_module._producer_targets(
