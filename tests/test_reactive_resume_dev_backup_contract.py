@@ -139,6 +139,16 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         with mock.patch.object(module.context, "CLIARGS", {"start_at_task": "mutation"}):
             with self.assertRaisesRegex(Exception, "TASK_SELECTION_GUARD"):
                 strategy.run(None, None)
+        empty_selection = {
+            "start_at_task": "",
+            "step": False,
+            "tags": [],
+            "skip_tags": [],
+        }
+        with mock.patch.object(module.context, "CLIARGS", empty_selection):
+            with mock.patch.object(module.sys, "argv", ["ansible-playbook", "--start-at-task="]):
+                with self.assertRaisesRegex(Exception, "TASK_SELECTION_GUARD"):
+                    strategy.run(None, None)
 
     def test_wrapper_playbook_and_source_hash_pins_are_current(self):
         wrapper = WRAPPER.read_text()
