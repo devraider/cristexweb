@@ -22,12 +22,16 @@ _METADATA_DROPS = {
 # when the source omits them.  They are handled pairwise below so an explicit
 # source value is never hidden.  In particular, traffic policy and session
 # affinity are behavior/security controls and are never dropped.
-_SERVICE_SPEC_DROPS = {
+_SERVICE_ALLOCATOR_FIELDS = {
     "clusterIP",
     "clusterIPs",
     "ipFamilies",
     "ipFamilyPolicy",
 }
+_SERVICE_SINGLE_STACK_FAMILIES = {"IPv4", "IPv6"}
+# Compatibility name retained for focused source-contract tests; fields are not
+# dropped unless the complete allocator result passes the canonical predicate.
+_SERVICE_SPEC_DROPS = _SERVICE_ALLOCATOR_FIELDS
 _SERVICE_DEFAULTS = {
     "internalTrafficPolicy": "Cluster",
     "sessionAffinity": "None",
@@ -107,14 +111,40 @@ def _pop_path(value: dict[str, Any], path: tuple[str, ...]) -> None:
         current.pop(path[-1], None)
 
 
+def _service_allocator_default_is_canonical(live_spec: dict[str, Any]) -> bool:
+    """Return whether a live Service has ordinary single-stack allocation.
+
+    A source omission does not authorize hiding headless or dual-stack
+    behavior.  The API-assigned values are ignorable only when the Service is
+    a normal ClusterIP with one non-None address, one IP family, and the
+    matching SingleStack policy.
+    """
+    cluster_ip = live_spec.get("clusterIP")
+    cluster_ips = live_spec.get("clusterIPs")
+    ip_families = live_spec.get("ipFamilies")
+    return (
+        isinstance(cluster_ip, str)
+        and bool(cluster_ip)
+        and cluster_ip != "None"
+        and isinstance(cluster_ips, list)
+        and cluster_ips == [cluster_ip]
+        and isinstance(ip_families, list)
+        and len(ip_families) == 1
+        and ip_families[0] in _SERVICE_SINGLE_STACK_FAMILIES
+        and live_spec.get("ipFamilyPolicy") == "SingleStack"
+    )
+
+
 def _effective_pair(desired: dict[str, Any], live: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """Normalize API defaults without hiding a non-default behavior change.
 
     Kubernetes writes allocator fields and documented defaults into returned
     objects even when the source omitted them.  For each such field, a live
-    value is ignored only when the source omitted the field.  Defaults are
-    copied to the omitted side only when the observed value is the documented
-    default; an explicit non-default value therefore remains a drift.
+    value is ignored only when the source omitted the field and the complete
+    allocator result is the canonical single-stack ClusterIP default.  Headless
+    and dual-stack values remain in the comparison and therefore fail closed.
+    Defaults are copied to the omitted side only when the observed value is the
+    documented default; an explicit non-default value remains a drift.
     """
     normalized_desired = _normalized(desired)
     normalized_live = _normalized(live)
@@ -123,9 +153,14 @@ def _effective_pair(desired: dict[str, Any], live: dict[str, Any]) -> tuple[dict
     if kind == "Service":
         desired_spec = normalized_desired.setdefault("spec", {})
         live_spec = normalized_live.setdefault("spec", {})
-        for field in _SERVICE_SPEC_DROPS:
-            if field not in desired_spec:
-                live_spec.pop(field, None)
+        service_types = {
+            desired_spec.get("type", "ClusterIP"),
+            live_spec.get("type", "ClusterIP"),
+        }
+        if service_types == {"ClusterIP"} and _service_allocator_default_is_canonical(live_spec):
+            for field in _SERVICE_ALLOCATOR_FIELDS:
+                if field not in desired_spec:
+                    live_spec.pop(field, None)
         for field, default in _SERVICE_DEFAULTS.items():
             desired_has = field in desired_spec
             live_has = field in live_spec

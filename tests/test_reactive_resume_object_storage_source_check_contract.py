@@ -17,6 +17,12 @@ CURRENT_ALLOW = ROOT / (
 )
 ROLE = ROOT / "ansible/roles/reactive_resume_object_storage_source_check"
 FULL_SPEC_GUARD = ROOT / "ansible/plugins/action/reactive_resume_object_storage_full_spec_guarded.py"
+METADATA_MODULE = ROOT / "ansible/library/reactive_resume_object_storage_metadata.py"
+_metadata_spec = importlib.util.spec_from_file_location("reactive_resume_object_storage_metadata", METADATA_MODULE)
+assert _metadata_spec and _metadata_spec.loader
+_metadata_module = importlib.util.module_from_spec(_metadata_spec)
+_metadata_spec.loader.exec_module(_metadata_module)
+_metadata_response = _metadata_module._metadata
 _spec = importlib.util.spec_from_file_location("reactive_resume_object_storage_full_spec_guarded", FULL_SPEC_GUARD)
 assert _spec and _spec.loader
 _full_spec_module = importlib.util.module_from_spec(_spec)
@@ -163,6 +169,18 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             defaults["reactive_resume_object_storage_source_check_argo_destination_namespace"],
         )
         self.assertEqual("reactive-resume-dev", defaults["reactive_resume_object_storage_source_check_argo_project"])
+        self.assertEqual(
+            ["ansible", "argocd-controller", "infisical"],
+            defaults["reactive_resume_object_storage_source_check_metadata_allowed_managers"],
+        )
+        self.assertEqual(
+            ["ansible"],
+            defaults["reactive_resume_object_storage_source_check_runtime_managed_field_managers"],
+        )
+        self.assertEqual(
+            ["infisical"],
+            defaults["reactive_resume_object_storage_source_check_secret_managed_field_managers"],
+        )
         self.assertTrue(defaults["reactive_resume_object_storage_source_check_argo_self_heal"])
         self.assertEqual(
             [
@@ -179,6 +197,9 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         for required in (
             "_METADATA_DROPS",
             "_SERVICE_SPEC_DROPS",
+            "_SERVICE_ALLOCATOR_FIELDS",
+            "_SERVICE_SINGLE_STACK_FAMILIES",
+            "_service_allocator_default_is_canonical",
             "_SERVICE_DEFAULTS",
             "_STATEFULSET_DEFAULTS",
             "kubectl.kubernetes.io/last-applied-configuration",
@@ -198,6 +219,33 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         behavior_drift = yaml.safe_load((HISTORY / "runtime/service.yaml").read_text())
         behavior_drift["spec"]["sessionAffinity"] = "ClientIP"
         self.assertNotEqual(_normalized_pair(desired, behavior_drift)[0], _normalized_pair(desired, behavior_drift)[1])
+        headless = yaml.safe_load((HISTORY / "runtime/service.yaml").read_text())
+        headless["spec"].update({
+            "clusterIP": "None",
+            "clusterIPs": ["None"],
+            "ipFamilies": ["IPv4"],
+            "ipFamilyPolicy": "SingleStack",
+        })
+        self.assertNotEqual(_normalized_pair(desired, headless)[0], _normalized_pair(desired, headless)[1])
+        dual_stack = yaml.safe_load((HISTORY / "runtime/service.yaml").read_text())
+        dual_stack["spec"].update({
+            "clusterIP": "10.0.0.1",
+            "clusterIPs": ["10.0.0.1", "2001:db8::1"],
+            "ipFamilies": ["IPv4", "IPv6"],
+            "ipFamilyPolicy": "RequireDualStack",
+        })
+        self.assertNotEqual(_normalized_pair(desired, dual_stack)[0], _normalized_pair(desired, dual_stack)[1])
+        external_name = yaml.safe_load((HISTORY / "runtime/service.yaml").read_text())
+        external_name["spec"]["type"] = "ExternalName"
+        external_live = yaml.safe_load((HISTORY / "runtime/service.yaml").read_text())
+        external_live["spec"]["type"] = "ExternalName"
+        external_live["spec"].update({
+            "clusterIP": "10.0.0.1",
+            "clusterIPs": ["10.0.0.1"],
+            "ipFamilies": ["IPv4"],
+            "ipFamilyPolicy": "SingleStack",
+        })
+        self.assertNotEqual(_normalized_pair(external_name, external_live)[0], _normalized_pair(external_name, external_live)[1])
         deleting = yaml.safe_load((HISTORY / "runtime/service.yaml").read_text())
         deleting["metadata"]["deletionTimestamp"] = "2026-01-01T00:00:00Z"
         self.assertNotEqual(_normalized_pair(desired, deleting)[0], _normalized_pair(desired, deleting)[1])
@@ -207,12 +255,27 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         self.assertEqual(_normalized_pair(statefulset, live_statefulset)[0], _normalized_pair(statefulset, live_statefulset)[1])
 
     def test_metadata_request_never_returns_secret_body(self) -> None:
-        metadata_module = ROOT / "ansible/library/reactive_resume_object_storage_metadata.py"
-        text = metadata_module.read_text()
+        text = METADATA_MODULE.read_text()
         self.assertIn("PartialObjectMetadata", text)
         self.assertIn("_PARTIAL_METADATA_ACCEPT", text)
+        self.assertIn("_PARTIAL_METADATA_TOP_LEVEL_KEYS", text)
+        self.assertIn("_PARTIAL_METADATA_METADATA_KEYS", text)
+        self.assertIn("module.fail_json", text)
         self.assertNotIn('"data"', text)
         self.assertNotIn('"stringData"', text)
+        exact = {
+            "apiVersion": "meta.k8s.io/v1",
+            "kind": "PartialObjectMetadata",
+            "metadata": {"name": "safe", "managedFields": []},
+        }
+        self.assertEqual({"name": "safe", "managedFields": []}, _metadata_response(exact))
+        for invalid in (
+            {**exact, "data": {"password": "must-not-be-accepted"}},
+            {**exact, "kind": "Secret"},
+            {**exact, "apiVersion": "v1"},
+            {**exact, "metadata": {"name": "safe", "unexpected": "field"}},
+        ):
+            self.assertIsNone(_metadata_response(invalid))
 
     def test_role_is_read_only_and_ownership_guarded(self) -> None:
         for required in (
@@ -229,12 +292,16 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "Require historical InfisicalStaticSecret source to remain absent",
             "reactive_resume_object_storage_metadata:",
             "without requesting Secret data",
+            "exact PartialObjectMetadata closure",
             "alternate Secret producer",
             "owner provenance and deletion metadata",
             "live Secret custody",
             "reactive_resume_object_storage_source_check_live_secret_name",
             "reactive_resume_object_storage_source_check_argo_revision",
             "reactive_resume_object_storage_source_check_internal_live_objects",
+            "reactive_resume_object_storage_source_check_metadata_allowed_managers == ['ansible', 'argocd-controller', 'infisical']",
+            "reactive_resume_object_storage_source_check_runtime_managed_field_managers == ['ansible']",
+            "reactive_resume_object_storage_source_check_secret_managed_field_managers == ['infisical']",
             "Require every historical runtime object-storage identity to be live exactly once",
             "Require current object ownership to remain Ansible pending Argo handoff",
             "argocd.argoproj.io/instance",
@@ -242,6 +309,12 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "Require exact normalized current object full-spec fidelity",
             "reactive_resume_object_storage_full_spec_guarded",
             "reactive_resume_object_storage_source_check_live_secret_labels",
+            "metadata_allowed_managers",
+            "managedFields",
+            "secret_managed_field_managers",
+            "runtime_managed_field_managers",
+            "fieldsType",
+            "fieldsV1",
             "spec.source.repoURL",
             "spec.source.path",
             "spec.destination.server",

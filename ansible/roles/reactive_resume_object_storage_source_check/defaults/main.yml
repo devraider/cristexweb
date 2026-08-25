@@ -84,6 +84,10 @@ reactive_resume_object_storage_source_check_metadata_allowed_managers:
   - ansible
   - argocd-controller
   - infisical
+reactive_resume_object_storage_source_check_runtime_managed_field_managers:
+  - ansible
+reactive_resume_object_storage_source_check_secret_managed_field_managers:
+  - infisical
 reactive_resume_object_storage_source_check_argo_resource_identities:
   - '|v1|Service|cristexhub-dev|reactive-resume-dev'
   - '|v1|ServiceAccount|cristexhub-dev|reactive-resume-dev'

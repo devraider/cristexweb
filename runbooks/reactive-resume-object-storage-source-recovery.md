@@ -78,9 +78,16 @@ separate live Secret custody metadata. It compares normalized full specs and
 ConfigMap data (using the current DEV policy leaf where the source intentionally
 differs). Foreign, absent, duplicate, or Argo-tracked identities fail closed.
 The metadata inventory records ownerReferences, managedFields provenance,
-finalizers, deletion timestamps, and alternate producer identities; any foreign
-owner, producer, or pending deletion fails closed. Secret values, PVC data, and
-object contents are never queried.
+finalizers, deletion timestamps, and alternate producer identities; runtime
+objects must have exactly the configured `ansible` managed-field manager and the
+live Infisical-owned Secret exactly the configured `infisical` manager, with every
+entry using a valid API version, operation, and FieldsV1 payload. Every manager
+must also belong to `metadata_allowed_managers`; any foreign manager, owner,
+producer, or pending deletion fails closed. Secret values, PVC data, and object
+contents are never queried. The metadata helper fails closed unless the response
+has exactly `apiVersion: meta.k8s.io/v1`, `kind: PartialObjectMetadata`, and only
+the top-level `apiVersion`, `kind`, and `metadata` keys; an ignored Accept header
+cannot turn a full Secret response into an accepted result.
 
 ## Read-only entrypoint
 

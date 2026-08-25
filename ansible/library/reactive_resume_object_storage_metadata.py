@@ -6,37 +6,55 @@ from __future__ import annotations
 from ansible.module_utils.basic import AnsibleModule
 
 
+_PARTIAL_METADATA_API_VERSION = "meta.k8s.io/v1"
+_PARTIAL_METADATA_KIND = "PartialObjectMetadata"
 _PARTIAL_METADATA_ACCEPT = (
     "application/json;as=PartialObjectMetadata;g=meta.k8s.io;v=v1"
 )
+_PARTIAL_METADATA_TOP_LEVEL_KEYS = {"apiVersion", "kind", "metadata"}
+_PARTIAL_METADATA_METADATA_KEYS = {
+    "annotations",
+    "clusterName",
+    "creationTimestamp",
+    "deletionGracePeriodSeconds",
+    "deletionTimestamp",
+    "finalizers",
+    "generateName",
+    "generation",
+    "labels",
+    "managedFields",
+    "name",
+    "namespace",
+    "ownerReferences",
+    "resourceVersion",
+    "selfLink",
+    "uid",
+}
 _NOT_FOUND = {404, 410}
 
 
 def _metadata(value):
-    if not isinstance(value, dict):
+    """Return metadata only when the API proved the partial-media response.
+
+    An ignored Accept header could otherwise return a Secret or full runtime
+    object.  Exact top-level and metadata-key closure is therefore validated
+    before any metadata is copied into the module result.
+    """
+    if not isinstance(value, dict) or set(value) != _PARTIAL_METADATA_TOP_LEVEL_KEYS:
+        return None
+    if (
+        value.get("apiVersion") != _PARTIAL_METADATA_API_VERSION
+        or value.get("kind") != _PARTIAL_METADATA_KIND
+    ):
         return None
     metadata = value.get("metadata")
-    if not isinstance(metadata, dict):
+    if not isinstance(metadata, dict) or not set(metadata).issubset(_PARTIAL_METADATA_METADATA_KEYS):
         return None
     # Explicitly copy only metadata fields.  The module never returns the API
     # body, which prevents Secret data/stringData from entering Ansible facts.
     return {
         key: metadata[key]
-        for key in (
-            "name",
-            "namespace",
-            "labels",
-            "annotations",
-            "ownerReferences",
-            "finalizers",
-            "deletionTimestamp",
-            "deletionGracePeriodSeconds",
-            "managedFields",
-            "uid",
-            "resourceVersion",
-            "generation",
-            "creationTimestamp",
-        )
+        for key in _PARTIAL_METADATA_METADATA_KEYS
         if key in metadata
     }
 
@@ -82,7 +100,12 @@ def main():
 
     metadata = _metadata(value)
     if metadata is None:
-        module.exit_json(changed=False, found=False, api_available=True, metadata={})
+        module.fail_json(
+            msg=(
+                "METADATA_API: response was not the exact "
+                "meta.k8s.io/v1 PartialObjectMetadata closure"
+            )
+        )
     module.exit_json(changed=False, found=True, api_available=True, metadata=metadata)
 
 
