@@ -220,6 +220,8 @@ def _producer_targets(value, expected_kind, expected_api_version, expected_metad
             if not isinstance(target, dict):
                 return None
             raw_targets.append(target)
+        if not raw_targets:
+            return None
         normalized = [
             {
                 "name": target.get("secretName"),
@@ -232,35 +234,38 @@ def _producer_targets(value, expected_kind, expected_api_version, expected_metad
         push = spec.get("push", {})
         if not isinstance(push, dict):
             return None
+        normalized = []
         secret = push.get("secret")
         if secret is not None:
             if not isinstance(secret, dict):
                 return None
-            normalized = [{
+            normalized.append({
                 "name": secret.get("secretName"),
                 "namespace": secret.get("secretNamespace"),
                 "kind": "Secret",
-            }]
-        else:
-            generators = push.get("generators", [])
-            if not isinstance(generators, list):
-                return None
-            normalized = [
-                {
-                    "name": generator.get("destinationSecretName"),
-                    "namespace": metadata.get("namespace"),
-                    "kind": "Secret",
-                }
-                for generator in generators
-                if isinstance(generator, dict)
-            ]
-            if len(normalized) != len(generators):
-                return None
+            })
+        generators = push.get("generators", [])
+        if not isinstance(generators, list):
+            return None
+        generator_targets = [
+            {
+                "name": generator.get("destinationSecretName"),
+                "namespace": metadata.get("namespace"),
+                "kind": "Secret",
+            }
+            for generator in generators
+            if isinstance(generator, dict)
+        ]
+        if len(generator_targets) != len(generators):
+            return None
+        normalized.extend(generator_targets)
+        if not normalized:
+            return None
     elif expected_kind == "InfisicalDynamicSecret":
         target = spec.get("managedSecretReference")
         if target is None:
-            normalized = []
-        elif isinstance(target, dict):
+            return None
+        if isinstance(target, dict):
             normalized = [{
                 "name": target.get("secretName"),
                 "namespace": target.get("secretNamespace"),
@@ -269,11 +274,11 @@ def _producer_targets(value, expected_kind, expected_api_version, expected_metad
         else:
             return None
     elif expected_kind == "ExternalSecret":
-        target = spec.get("target")
+        target = spec.get("target", {})
         if not isinstance(target, dict):
             return None
         normalized = [{
-            "name": target.get("name"),
+            "name": target.get("name", metadata.get("name")),
             "namespace": metadata.get("namespace"),
             "kind": "Secret",
         }]

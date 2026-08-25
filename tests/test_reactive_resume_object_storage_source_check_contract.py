@@ -371,6 +371,53 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {"name": "shared-postgresql", "namespace": "shared-services"},
             ),
         )
+        self.assertEqual(
+            [
+                {"name": "direct", "namespace": "shared-services", "kind": "Secret"},
+                {"name": "generated", "namespace": "shared-services", "kind": "Secret"},
+            ],
+            _metadata_module._producer_targets(
+                {
+                    "apiVersion": "secrets.infisical.com/v1alpha1",
+                    "kind": "InfisicalPushSecret",
+                    "metadata": {"name": "push", "namespace": "shared-services"},
+                    "spec": {"push": {
+                        "secret": {"secretName": "direct", "secretNamespace": "shared-services"},
+                        "generators": [{"destinationSecretName": "generated"}],
+                    }},
+                },
+                "InfisicalPushSecret",
+                "secrets.infisical.com/v1alpha1",
+                {"name": "push", "namespace": "shared-services"},
+            ),
+        )
+        self.assertIsNone(
+            _metadata_module._producer_targets(
+                {
+                    "apiVersion": "secrets.infisical.com/v1alpha1",
+                    "kind": "InfisicalDynamicSecret",
+                    "metadata": {"name": "dynamic", "namespace": "shared-services"},
+                    "spec": {},
+                },
+                "InfisicalDynamicSecret",
+                "secrets.infisical.com/v1alpha1",
+                {"name": "dynamic", "namespace": "shared-services"},
+            )
+        )
+        self.assertEqual(
+            [{"name": "external", "namespace": "shared-services", "kind": "Secret"}],
+            _metadata_module._producer_targets(
+                {
+                    "apiVersion": "external-secrets.io/v1beta1",
+                    "kind": "ExternalSecret",
+                    "metadata": {"name": "external", "namespace": "shared-services"},
+                    "spec": {},
+                },
+                "ExternalSecret",
+                "external-secrets.io/v1beta1",
+                {"name": "external", "namespace": "shared-services"},
+            ),
+        )
         for invalid in (
             {**exact, "data": {"password": "must-not-be-accepted"}},
             {**exact, "metadata": {"name": "safe", "managedFields": [{**managed_field, "fieldsV1": {}}]}},
