@@ -3,8 +3,10 @@
 ## Status
 
 **LIVE / SYNCED / HEALTHY.** The five-object registration closure, exact
-migration prerequisite, dependency key closure, seven-object desired state, and
-four destination NetworkPolicies passed the guarded preflight. The alignment
+migration prerequisite, dependency key closure, and pinned seven-object desired
+state passed the guarded preflight. Current HEAD contains an eighth checked-in
+YAML, `networkpolicy-allow-backend.yaml`, which is source-only and is not claimed
+live, Argo-managed, or applied. The alignment
 apply converged and its retry passed at `changed=0`; registration then applied
 and converged at `changed=0`. After the approved deny-window removal and exact
 in-cluster destination correction, Argo reconciled revision
@@ -32,8 +34,11 @@ eight namespaced DEV workload objects: the Deployment, migration Job, Service,
 ServiceAccount, two workload NetworkPolicies, the Traefik-only route
 NetworkPolicy, and the private Ingress. Secret, Namespace, PVC, RBAC, shared
 service, Keycloak, Infisical, and PROD objects remain outside this handoff.
-Only seven of those objects are automated Argo desired state: the migration
-Job remains inventory-only and is a separately guarded one-shot prerequisite.
+Only seven of those objects are automated Argo desired state at pinned revision
+`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`: the migration Job remains
+inventory-only and is a separately guarded one-shot prerequisite. The current-HEAD
+`networkpolicy-allow-backend.yaml` is outside that pinned revision and carries no
+live or Argo-managed claim.
 The migration Job is excluded from the automated Argo desired-state.
 
 An Infisical-owned, value-bearing-free repository Secret named

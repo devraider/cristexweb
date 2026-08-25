@@ -14,12 +14,15 @@ runtime evidence is not attributed to the source wrapper. The former same-named
 forbidden.
 
 Historical absence inventories remain historical and must not be read as current
-state. The canonical DEV workload source contains exactly seven value-free Argo manifests
-(including the default-deny NetworkPolicy), the private Traefik route, the
-Infisical-owned `reactive-resume-dev-runtime` Secret, and materialized DEV CA
-projections. Argo revision `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` is
-`Synced/Healthy`; the superseded Ansible alignment and route lanes refuse
-reconciliation after handoff. Remaining gates are full OIDC/database acceptance,
+state. The pinned live Argo revision
+`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` contains exactly seven value-free
+Argo manifests (including the default-deny NetworkPolicy), the private Traefik
+route, the Infisical-owned `reactive-resume-dev-runtime` Secret, and materialized
+DEV CA projections. Current HEAD contains eight YAML manifests in the checked-in
+path, adding `networkpolicy-allow-backend.yaml`; that eighth manifest is
+source-only and is not claimed live, Argo-managed, or applied. Argo revision
+`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` is `Synced/Healthy`; the superseded
+Ansible alignment and route lanes refuse reconciliation after handoff. Remaining gates are full OIDC/database acceptance,
 measured non-empty schema-2 recovery correlation, TLS renewal installation, and
 DEV soak. Existing broad database drift remains unaccepted; PROD remains a
 reservation/template only and cannot be activated from this policy.
@@ -99,8 +102,10 @@ CristexHub client. This runbook authorizes no delete or implicit re-enable path.
 The intended application namespace is `cristexhub-dev`, not `shared-services`.
 `shared-services` supplies only shared infrastructure and the dedicated PostgreSQL
 logical scope. The live application boundary is one private single-replica Deployment, one
-private ClusterIP Service, seven exact Argo manifests including deny-first
-NetworkPolicies and a private Traefik Ingress. It has no NodePort, LoadBalancer,
+private ClusterIP Service, the pinned revision's seven exact Argo manifests
+including deny-first NetworkPolicies and a private Traefik Ingress. Current HEAD
+also contains the separately identified, unapplied `networkpolicy-allow-backend.yaml`;
+it is not part of the live Argo count. It has no NodePort, LoadBalancer,
 Cloudflare Tunnel, Cloudflare DNS, public route, or direct origin. The public
 Cloudflare route remains separately forbidden.
 
@@ -251,9 +256,10 @@ The private DEV Traefik Ingress is live and Argo-managed through the Tailscale-o
 hostname. NodePort, LoadBalancer, Cloudflare Tunnel/DNS routing, public
 administration, public Traefik routing, and direct origins remain forbidden. Any
 future public route requires separate provider, hostname, positive-flow,
-negative-admin/direct-origin, and rollback approval and is last. Argo now owns the
-exact seven-object namespaced workload set; the superseded Ansible alignment and
-route lanes refuse tracked objects. The API omits `metadata.managedFields`, so that
+negative-admin/direct-origin, and rollback approval and is last. Argo now owns the exact seven-object namespaced workload set from pinned
+revision `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`; the current-HEAD
+`networkpolicy-allow-backend.yaml` is not claimed live or Argo-managed. The
+superseded Ansible alignment and route lanes refuse tracked objects. The API omits `metadata.managedFields`, so that
 evidence is unavailable rather than claimed. Dual reconciliation remains
 forbidden.
 

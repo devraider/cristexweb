@@ -68,6 +68,8 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         ):
             self.assertIn(required, combined)
         self.assertIn("successor database provisioning wrapper", combined)
+        self.assertIn("networkpolicy-allow-backend.yaml", combined)
+        self.assertIn("not claimed live, Argo-managed, or applied", combined)
         self.assertIn(
             "The source-only `shared-postgresql-ingress` manifest exists at",
             AGENTS.read_text(),
@@ -101,6 +103,18 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertTrue(closure["candidate_digest_is_not_selection"])
         self.assertEqual(7, len(closure["source_manifest_files"]))
         self.assertIn("networkpolicy-default-deny.yaml", " ".join(closure["source_manifest_files"]))
+        live_argo = closure["live_argo_source"]
+        self.assertEqual("dd7d4cedd902e68266d9713d1dbb8e90f0b529b1", live_argo["target_revision"])
+        self.assertEqual(7, live_argo["manifest_count"])
+        self.assertEqual(set(closure["source_manifest_files"]), set(live_argo["manifest_files"]))
+        current_head = closure["current_head_source"]
+        self.assertEqual(8, current_head["manifest_count"])
+        self.assertEqual(8, len(current_head["manifest_files"]))
+        self.assertEqual(
+            ["ansible/files/components/reactive-resume-dev-argocd/networkpolicy-allow-backend.yaml"],
+            current_head["additional_unapplied_files"],
+        )
+        self.assertEqual("checked-in-source-not-live-or-argo-managed", current_head["status"])
         self.assertEqual("guarded-private-dev-runtime", closure["executable_workload_source"])
         dev_objects = closure["dev"]["object_contract"]
         self.assertFalse(dev_objects["no_runtime_source"])

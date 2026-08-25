@@ -7,10 +7,16 @@ private Reactive Resume DEV workload:
 ansible/files/components/reactive-resume-dev-argocd/
 ```
 
-It contains exactly seven value-free Kubernetes objects in
-`cristexhub-dev`: one immutable-digest Deployment, one ClusterIP Service, one
-tokenless ServiceAccount, three workload NetworkPolicies, and the private
-Traefik Ingress. The migration Job is excluded from the automated Argo desired-state by design.
+The live Argo application is pinned to revision
+`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`, whose source contains exactly seven
+value-free Kubernetes objects in `cristexhub-dev`: one immutable-digest
+Deployment, one ClusterIP Service, one tokenless ServiceAccount, three workload
+NetworkPolicies, and the private Traefik Ingress. Current HEAD contains eight
+YAML manifests in this path: it additionally checks in
+`networkpolicy-allow-backend.yaml`. That eighth HEAD manifest is source-only and
+is not claimed live, Argo-managed, or applied; it is not part of the pinned
+revision until a separately reviewed revision and runtime handoff. The migration
+Job is excluded from the automated Argo desired-state by design.
 The Ingress references the precreated
 `reactive-resume-dev-tls` Secret; this path never creates or updates Secrets,
 PVCs, Namespaces, RBAC, Jobs, object storage, database, or Infisical resources.
@@ -54,7 +60,9 @@ all migration checks must use that name and the separate one-shot gate.
 
 Ansible remains the bootstrap writer until the guarded Argo registration has
 verified all eight existing live handoff objects (including the migration Job),
-no Argo managed fields/tracking annotation, the exact repository credential,
+while the pinned Argo source remains the exact seven-object revision described
+above; the additional current-HEAD manifest is not included in that live count,
+with no Argo managed fields/tracking annotation, the exact repository credential,
 and a no-dual-reconciliation preflight. Only then may the separate registration
 gate reconcile the five Argo registration objects. The migration Job remains
 outside Argo and requires a separately reviewed, one-shot migration prerequisite

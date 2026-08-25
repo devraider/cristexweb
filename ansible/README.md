@@ -16,13 +16,16 @@ exact plan review, separate provider/DNS/public-cutover approvals, and post-vali
 Historical source-only paragraphs below retain their original checkpoint wording and
 are explicitly not current-state claims.
 
-Reactive Resume DEV has a live private runtime/Argo checkpoint: the exact seven
-Argo-managed resources (including default-deny), private Traefik route, materialized
+Reactive Resume DEV has a live private runtime/Argo checkpoint: pinned revision
+`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` has exactly seven Argo-managed
+resources (including default-deny), private Traefik route, materialized
 `reactive-resume-dev-runtime` Secret and DEV CA, shared-realm session/logout cycle,
-and successor PostgreSQL scope are observed at the private hostname. Argo revision
-`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` is `Synced/Healthy`; this is live
-checkpoint evidence, not full acceptance or source-reproducibility evidence. The
-selected immutable GHCR runtime and migration digests are live DEV inputs only, not
+and successor PostgreSQL scope are observed at the private hostname. Current HEAD
+contains eight YAML manifests in the checked-in path, adding
+`networkpolicy-allow-backend.yaml`; that eighth manifest is source-only and is not
+claimed live, Argo-managed, or applied. The pinned revision is `Synced/Healthy`;
+this is live checkpoint evidence, not full acceptance or source-reproducibility
+evidence. The selected immutable GHCR runtime and migration digests are live DEV inputs only, not
 image trust, provenance, vulnerability, off-node recovery, registry-equivalence, or
 promotion acceptance.
 
@@ -580,8 +583,10 @@ unreproducible from this checkout. Read-only evidence records the SQL-created li
 successor database `reactive_resume_dev_successor` and separate `NOINHERIT` roles
 `reactive_resume_dev_runtime` and `reactive_resume_dev_migrator`, even though the
 successor Database/DatabaseRole CRs are absent; source check/apply/idempotence and
-ACL/cross-database acceptance remain pending. The seven-object private DEV Argo
-workload source is present and hash-bound, but does not close those remaining gates.
+ACL/cross-database acceptance remain pending. The pinned seven-object private DEV Argo workload source is present and hash-bound,
+while current HEAD also contains the separately identified, unapplied
+`networkpolicy-allow-backend.yaml`; that eighth manifest does not close those
+remaining gates or carry a live/Argo-managed claim.
 Broad-lane DEV and unapproved PROD PostgreSQL CRs plus Infisical-owned credential
 Secrets are live but unaccepted; the source-only `shared-postgresql-ingress` manifest
 is at `ansible/files/components/postgresql/network/postgresql-ingress.yaml`, while
@@ -596,8 +601,9 @@ key-correct `Opaque` targets; normalization is a separate source review.
 Successor identity, patched OIDC/local-auth/privacy behavior, dedicated
 Infisical/database source closures, private object storage, image trust and
 provenance, locked split-role migration, recovery, full application acceptance,
-and DEV soak remain blocked; Agent/Redis are disabled. The seven-object Argo
-workload source is present for the private DEV checkpoint, while the remaining
+and DEV soak remain blocked; Agent/Redis are disabled. The pinned seven-object Argo workload source is present for the private DEV
+checkpoint; current HEAD's additional `networkpolicy-allow-backend.yaml` remains
+unapplied and is not claimed live or Argo-managed, while the remaining
 runtime/migration and database source lanes are not complete. GitHub CI may run
 only syntax/lint and offline contracts from this source; it supplies no inventory
 and invokes no operational wrapper. The repository contains forty exact-scope

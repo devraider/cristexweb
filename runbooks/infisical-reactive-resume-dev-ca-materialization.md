@@ -45,7 +45,10 @@ own exact identities in source so this additive CA policy owns only the two
 reviewed CA target names. The old runtime closure remains otherwise unchanged.
 
 Status: the guarded check predicted one closure change. The first approved apply
-created the seven-object closure, but the initial object-storage template referenced
+created the pinned revision's seven-object closure, but the current HEAD
+additional `networkpolicy-allow-backend.yaml` manifest was not part of that
+closure and is not claimed live, Argo-managed, or applied; the initial
+object-storage template referenced
 the nonexistent `CA_CRT` key and produced an invalid trust payload. Correcting it
 to `STORAGE_TLS_CA_CRT` restored storage. The initially selected broad
 `POSTGRESQL_TLS_CA_CRT` did not validate the live CloudNativePG endpoint, so a

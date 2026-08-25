@@ -579,6 +579,32 @@ source_closure:
     - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-route-allow-traefik.yaml
     - ansible/files/components/reactive-resume-dev-argocd/service.yaml
     - ansible/files/components/reactive-resume-dev-argocd/serviceaccount.yaml
+  live_argo_source:
+    target_revision: dd7d4cedd902e68266d9713d1dbb8e90f0b529b1
+    manifest_count: 7
+    manifest_files:
+      - ansible/files/components/reactive-resume-dev-argocd/deployment.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/ingress-private.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-default-deny.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-egress.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-route-allow-traefik.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/service.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/serviceaccount.yaml
+    status: pinned-revision-synced-healthy
+  current_head_source:
+    manifest_count: 8
+    manifest_files:
+      - ansible/files/components/reactive-resume-dev-argocd/deployment.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/ingress-private.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-allow-backend.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-default-deny.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-egress.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-route-allow-traefik.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/service.yaml
+      - ansible/files/components/reactive-resume-dev-argocd/serviceaccount.yaml
+    additional_unapplied_files:
+      - ansible/files/components/reactive-resume-dev-argocd/networkpolicy-allow-backend.yaml
+    status: checked-in-source-not-live-or-argo-managed
   no_runtime_objects_added: false
   no_secret_values_added: true
   no_selected_image_digest_claimed: false

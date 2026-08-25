@@ -26,13 +26,16 @@ the available OAuth credential lacks DNS-record permission; `hub.cristex-soft.co
 therefore remains unresolved. Historical source-only checkpoints below are retained
 as evidence and are explicitly not current-state claims.
 
-Reactive Resume DEV also has a live private runtime/Argo checkpoint: the exact seven
+Reactive Resume DEV also has a live private runtime/Argo checkpoint: the pinned
+revision `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` has exactly seven
 Argo-managed resources (including default-deny), private Traefik route, materialized
 `reactive-resume-dev-runtime` Secret and DEV CA, shared-realm session/logout cycle,
-and successor PostgreSQL scope are observed at the private hostname. Argo revision
-`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` is `Synced/Healthy`; this is live
-checkpoint evidence, not full acceptance or source-reproducibility evidence. The
-selected immutable GHCR runtime and migration digests are live DEV inputs only, not
+and successor PostgreSQL scope are observed at the private hostname. Current HEAD
+contains eight YAML manifests in the checked-in path, adding
+`networkpolicy-allow-backend.yaml`; that eighth manifest is source-only and is not
+claimed live, Argo-managed, or applied. The pinned revision is `Synced/Healthy`; this
+is live checkpoint evidence, not full acceptance or source-reproducibility evidence.
+The selected immutable GHCR runtime and migration digests are live DEV inputs only, not
 image trust, provenance, vulnerability, off-node recovery, registry-equivalence, or
 promotion acceptance.
 
@@ -160,8 +163,10 @@ unreproducible from this checkout. Read-only evidence records the SQL-created li
 successor database `reactive_resume_dev_successor` and separate `NOINHERIT` roles
 `reactive_resume_dev_runtime` and `reactive_resume_dev_migrator`, even though the
 successor Database/DatabaseRole CRs are absent; source check/apply/idempotence and
-ACL/cross-database acceptance remain pending. The seven-object private DEV Argo
-workload source is present and hash-bound, but does not close those remaining gates.
+ACL/cross-database acceptance remain pending. The pinned seven-object private DEV Argo workload source is present and hash-bound,
+while current HEAD also contains the separately identified, unapplied
+`networkpolicy-allow-backend.yaml`; that eighth manifest does not close those
+remaining gates or carry a live/Argo-managed claim.
 Broad-lane DEV and unapproved PROD PostgreSQL CRs plus Infisical-owned Secrets are
 already live but unaccepted; the source-only `shared-postgresql-ingress` manifest is
 at `ansible/files/components/postgresql/network/postgresql-ingress.yaml`, while

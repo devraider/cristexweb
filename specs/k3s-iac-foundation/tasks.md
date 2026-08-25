@@ -416,8 +416,11 @@ logs, or bootstrap cannot be recovered.
   closed promotion gates without adding executable objects (`KIF-005`, `KIF-013`,
   `KIF-016`–`KIF-019`, `KIF-021`, `KIF-026`–`KIF-030`).
 - [x] Reconcile the Reactive Resume hosted policy/runbook with the live private DEV checkpoint:
-  selected immutable DEV GHCR digests, exact seven Argo manifests including default-deny,
-  private Traefik route, materialized CA, runtime Secret `reactive-resume-dev-runtime`,
+  selected immutable DEV GHCR digests, the pinned revision's exact seven Argo manifests
+  including default-deny, private Traefik route, materialized CA, runtime Secret
+  `reactive-resume-dev-runtime`; current HEAD's additional
+  `networkpolicy-allow-backend.yaml` remains source-only and is not claimed live,
+  Argo-managed, or applied,
   successor database `reactive_resume_dev_successor`, and explicit remaining image-trust,
   OIDC/database/role, data-only recovery, TLS-renewal, soak, PROD, and public-route gates
   (`KIF-012`–`KIF-017`, `KIF-021`, `KIF-023`, `KIF-026`–`KIF-030`).

@@ -2,16 +2,20 @@
 
 ## Status
 
-**SUPERSEDED AFTER ARGO ADOPTION — DO NOT RERUN.** This lane was the one-shot, present-only alignment of exactly seven canonical
+**SUPERSEDED AFTER ARGO ADOPTION — DO NOT RERUN.** This lane was the one-shot,
+present-only alignment of the pinned revision's exactly seven
 `ansible/files/components/reactive-resume-dev-argocd` objects and the four
-reviewed destination NetworkPolicies listed in the role defaults. It does not
-include the migration Job, any Secret, a Namespace, PVC, RBAC object, delete,
-prune, Argo sync, or workload restart.
+reviewed destination NetworkPolicies listed in the role defaults. Current HEAD
+contains an additional `networkpolicy-allow-backend.yaml` manifest, but it was
+not part of that pinned alignment and is not claimed live, Argo-managed, or
+applied. This lane does not include the migration Job, any Secret, a Namespace,
+PVC, RBAC object, delete, prune, Argo sync, or workload restart.
 
 ## Exact closure
 
-The seven DEV objects are the Deployment, private Ingress, three DEV
-NetworkPolicies, Service, and ServiceAccount in `cristexhub-dev`. The four
+The pinned seven DEV objects are the Deployment, private Ingress, three DEV
+NetworkPolicies, Service, and ServiceAccount in `cristexhub-dev`; current HEAD's
+additional backend NetworkPolicy is outside that historical/live closure. The four
 shared-services destination policies are:
 
 - `shared-postgresql-ingress`
