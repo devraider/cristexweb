@@ -10,11 +10,11 @@ not create the Namespace or the DEV `InfisicalAuth`; the latter must already be
 - Infisical project: `619656da-14f3-4872-857b-be103cdc5326`
 - Environment: `prod` (Infisical environment slug only)
 - Existing Auth: `cristexhub-dev/cristexhub-dev-infisical-auth`
-- Source `prod:/shared-services/postgresql`, template key
-  `POSTGRESQL_TLS_CA_CRT` -> `ConfigMap/reactive-resume-dev-postgresql-ca` key
+- Source `prod:/reactive-resume/dev/object-storage-tls`, template key
+  `POSTGRESQL_CA_CRT` -> `ConfigMap/reactive-resume-dev-postgresql-ca` key
   `ca.crt`.
-- Source `prod:/reactive-resume/dev/object-storage-tls`, template key `CA_CRT`
-  -> `Opaque Secret/reactive-resume-dev-object-storage-ca` key `ca.crt`.
+- The same source path's `STORAGE_TLS_CA_CRT` key projects to
+  `Opaque Secret/reactive-resume-dev-object-storage-ca` key `ca.crt`.
 - Both target objects are Infisical-owned, Orphan-created, value-free in Git,
   and remain in `cristexhub-dev`.
 

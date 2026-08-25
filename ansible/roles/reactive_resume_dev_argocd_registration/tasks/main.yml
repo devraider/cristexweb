@@ -247,8 +247,8 @@
       - item.resources[0].metadata.resourceVersion | default('') | length > 0
       - item.resources[0].metadata.labels == item.item.labels
       - (item.resources[0].metadata.ownerReferences | default([])) | length == 0
-      - (item.resources[0].metadata.annotations | default({})).keys() | list == [item.item.annotation_key]
-      - item.resources[0].metadata.annotations[item.item.annotation_key] | length > 0
+      - (item.resources[0].metadata.annotations | default({})).keys() | list | sort == item.item.annotation_keys | sort
+      - item.resources[0].metadata.annotations['secrets.infisical.com/version'] | length > 0
       - item.item.type is not defined or item.resources[0].type == item.item.type
       - item.resources[0].data is not defined
       - item.resources[0].stringData is not defined
@@ -280,12 +280,12 @@
       - (item.resources[0].metadata.finalizers | default([])) | length == 0
       - "'argocd.argoproj.io/tracking-id' not in (item.resources[0].metadata.annotations | default({}))"
       - (item.resources[0].metadata.managedFields | default([]) | map(attribute='manager') | list | select('search', 'argocd') | list | length) == 0
-    loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results }}'
-    loop_control:
-      index_var: handoff_index
-    vars:
-      handoff_source: '{{ reactive_resume_dev_argocd_registration_internal_handoff_manifests[handoff_index] }}'
     fail_msg: Refusing a missing, foreign, Argo-managed, or dual-reconciled Reactive Resume DEV handoff object.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results }}'
+  loop_control:
+    index_var: handoff_index
+  vars:
+    handoff_source: '{{ reactive_resume_dev_argocd_registration_internal_handoff_manifests[handoff_index] }}'
   changed_when: false
   no_log: true
 
@@ -297,8 +297,8 @@
       - item.item.kind != 'Deployment' or (item.resources[0].status.readyReplicas | default(0) | int) == (item.resources[0].spec.replicas | default(0) | int)
       - item.item.kind != 'Deployment' or (item.resources[0].status.availableReplicas | default(0) | int) == (item.resources[0].spec.replicas | default(0) | int)
       - item.item.kind != 'Job' or (item.resources[0].status.succeeded | default(0) | int) == 1
-    loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results }}'
     fail_msg: Refusing RR DEV registration until existing workload dependencies are ready; no workload reconciliation is performed here.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results }}'
   changed_when: false
   no_log: true
 

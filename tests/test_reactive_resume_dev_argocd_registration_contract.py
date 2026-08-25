@@ -64,7 +64,13 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
         )
         for item in contracts:
             self.assertEqual('cristexhub-dev', item['namespace'])
-            self.assertEqual('secrets.infisical.com/version', item['annotation_key'])
+            expected_annotations = ['secrets.infisical.com/version']
+            if item['name'] in {'reactive-resume-dev-postgresql-ca', 'reactive-resume-dev-object-storage-ca'}:
+                expected_annotations = [
+                    'kubectl.kubernetes.io/last-applied-configuration',
+                    'secrets.infisical.com/version',
+                ]
+            self.assertEqual(expected_annotations, item['annotation_keys'])
             self.assertIn('data', item['hidden_fields'])
             self.assertIn('binaryData', item['hidden_fields'])
             self.assertEqual(

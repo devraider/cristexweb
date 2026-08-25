@@ -7,12 +7,12 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule 
 
 EXPECTED: dict[tuple[str, str, str, str], str] = {
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'reactive-resume-dev-ca-source-boundary'): 'c9e9b65a8a72f754119d023ccade6bd72767fa21694e04e88d49af2f269ebf51',
-    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'reactive-resume-dev-ca-source-boundary'): '4e952a1cebbd5413a99986677d6fdfd1a7685b05af925de0027528e50bc966de',
+    ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'reactive-resume-dev-ca-source-boundary'): '0f5041d274aadf2f7af77b0eec7085f11135763c2d29be3378ad63ab5efd4515',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicyBinding', '', 'reactive-resume-dev-ca-target-boundary'): '4cc7112e5f414970aeb8a9ff8b01a0f0d01bcbcf8e2161b11192edea50e7ec0c',
     ('admissionregistration.k8s.io/v1', 'ValidatingAdmissionPolicy', '', 'reactive-resume-dev-ca-target-boundary'): '7e70ada05d26d7c0c7f2be1737dbc5e0ea5945b2b063fbf58a219f520a8f2283',
     ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-dev', 'reactive-resume-dev-ca-secret-writer'): 'd5ade307167d4c6bba1335da1687aae77eefcfa5c2a975e959b1776d8c0df4c0',
     ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-dev', 'reactive-resume-dev-ca-secret-writer'): '5d00994be70dc4a3b3d212a33e02d127f167a85fb9998ee9a4319f48297fc346',
-    ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'cristexhub-dev', 'reactive-resume-dev-ca'): '1612b102d4b45a0aee28e7e4083c06b3b6816a559345e169e736351bd38effa2'
+    ('secrets.infisical.com/v1beta1', 'InfisicalStaticSecret', 'cristexhub-dev', 'reactive-resume-dev-ca'): 'f3b903f0d0a77e69193692b6a63c42ad1688b8343cdd18f84f1c7b14825ffac2'
 }
 TASK_SUFFIX = '/ansible/roles/infisical_reactive_resume_dev_ca_bootstrap/tasks/main.yml'
 ARGS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}

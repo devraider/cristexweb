@@ -26,8 +26,19 @@ spec:
         object.metadata.labels['app.kubernetes.io/managed-by'] == 'ansible' && object.metadata.labels['app.kubernetes.io/part-of'] == 'reactive-resume' &&
         object.metadata.labels['cristex.io/component'] == 'infisical-reactive-resume-dev-ca' && object.metadata.labels['cristex.io/environment'] == 'dev' &&
         object.spec.infisicalAuthRef.name == 'cristexhub-dev-infisical-auth' && object.spec.infisicalAuthRef.namespace == 'cristexhub-dev' &&
-        object.spec.sources.size() == 2 && object.spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326' && object.spec.sources[0].environmentSlug == 'prod' && object.spec.sources[0].secretPath == '/shared-services/postgresql' &&
-        object.spec.sources[1].projectId == '619656da-14f3-4872-857b-be103cdc5326' && object.spec.sources[1].environmentSlug == 'prod' && object.spec.sources[1].secretPath == '/reactive-resume/dev/object-storage-tls' &&
-        object.spec.targets.size() == 2 && object.spec.targets[0].name == 'reactive-resume-dev-postgresql-ca' && object.spec.targets[0].kind == 'ConfigMap' && object.spec.targets[1].name == 'reactive-resume-dev-object-storage-ca' && object.spec.targets[1].kind == 'Secret'
+        object.spec.sources.size() == 1 &&
+        object.spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326' &&
+        object.spec.sources[0].environmentSlug == 'prod' &&
+        object.spec.sources[0].secretPath == '/reactive-resume/dev/object-storage-tls' &&
+        object.spec.sources[0].recursive == false && object.spec.sources[0].tagSlugs.size() == 0 &&
+        object.spec.targets.size() == 2 &&
+        object.spec.targets[0].name == 'reactive-resume-dev-postgresql-ca' &&
+        object.spec.targets[0].kind == 'ConfigMap' &&
+        object.spec.targets[0].template.data.size() == 1 &&
+        object.spec.targets[0].template.data['ca.crt'] == '{{ .POSTGRESQL_CA_CRT.Value }}' &&
+        object.spec.targets[1].name == 'reactive-resume-dev-object-storage-ca' &&
+        object.spec.targets[1].kind == 'Secret' &&
+        object.spec.targets[1].template.data.size() == 1 &&
+        object.spec.targets[1].template.data['ca.crt'] == '{{ .STORAGE_TLS_CA_CRT.Value }}'
       message: Only the exact Reactive Resume DEV CA StaticSecret source is allowed.
       reason: Forbidden
