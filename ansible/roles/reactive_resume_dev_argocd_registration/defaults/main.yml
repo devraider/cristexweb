@@ -12,11 +12,11 @@ reactive_resume_dev_argocd_registration_manifest_paths:
   - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd-registration/config/secret-cluster-reactive-resume-dev.yaml"
 reactive_resume_dev_argocd_registration_object_count: 5
 reactive_resume_dev_argocd_registration_repository: ssh://git@ssh.github.com:443/devraider/cristexweb.git
-reactive_resume_dev_argocd_registration_revision: 2be0d834a5a07b28961613a564dcf5a87f020c97
+reactive_resume_dev_argocd_registration_revision: 7d1c33c5abfbfe86d942bc3d887a95b5cdc2760c
 reactive_resume_dev_argocd_registration_path: ansible/files/components/reactive-resume-dev-argocd
 reactive_resume_dev_argocd_registration_repository_secret: argocd-repository-cristexweb
 reactive_resume_dev_argocd_registration_expected_hashes:
-  config/application-reactive-resume-dev.yaml: 8b12385396a44dd16fc9b8426f3fd4ab42a2c34eba25ee16062f4a104204921a
+  config/application-reactive-resume-dev.yaml: 0166c87cb672544f27c2a6085c03bc49d95114cf5cc0caa3881332172e4ffd91
   config/appproject-reactive-resume-dev.yaml: dad4f5231dd1229a51390f4b823be7c4da9d707771efe688bd36c9ab7b7b891b
   config/secret-cluster-reactive-resume-dev.yaml: e2fbba0e829fbcd269a10ec3fabaa8205595d79fc78ee4ab089bc53357169915
   rbac/role-argocd-application-controller-reactive-resume-dev.yaml: e0ba049a1f6c34cae3160b83e55dde986cef830c57232e9b97d69e51d21042d4

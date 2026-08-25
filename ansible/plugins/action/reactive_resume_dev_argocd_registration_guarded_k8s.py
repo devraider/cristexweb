@@ -30,9 +30,9 @@ EXPECTED_HANDOFF = {
 }
 ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 TASK_SUFFIX = "/ansible/roles/reactive_resume_dev_argocd_registration/tasks/main.yml"
-EXPECTED_REVISION = "2e5b1b0d81734685eaab5f98b2ce7860d125ad80"
+EXPECTED_REVISION = "7d1c33c5abfbfe86d942bc3d887a95b5cdc2760c"
 EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {
-    ("argoproj.io/v1alpha1", "Application", "argocd", "reactive-resume-dev"): "f3d8238ffed58317f8d67c94d05a30c1170885633e5d783f5d641bcefa6d5c9a",
+    ("argoproj.io/v1alpha1", "Application", "argocd", "reactive-resume-dev"): "5d89f2b00639dabf244ba2fa96fae4a78f51e381ecf6365fba1f6e16f2a9b928",
     ("argoproj.io/v1alpha1", "AppProject", "argocd", "reactive-resume-dev"): "1c8de13c913a2a9b8ec05cfb64fcb6793dfd5a94cac7c73010481be692e4b159",
     ("v1", "Secret", "argocd", "argocd-cluster-reactive-resume-dev"): "7bc10653f97ab05c96f515b555a51b9f7a6f219722e694facff518f278da14ea",
     ("rbac.authorization.k8s.io/v1", "Role", "cristexhub-dev", "argocd-application-controller-reactive-resume-dev"): "0ebe151c5b7cd00a1d9d819b1e47bbb37c0503b274802bb9d87390c7244f15cf",
