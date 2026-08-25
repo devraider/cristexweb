@@ -124,6 +124,10 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         ):
             self.assertIn(value, self.backup, value)
         self.assertIn("sha256sum -c", self.restore)
+        self.assertIn('sha256sum "$work/postgresql.dump.gz.age"', self.restore)
+        self.assertIn('sha256sum "$work/object-storage.tar.gz.age"', self.restore)
+        self.assertIn('= "$pg_actual_sha256  postgresql.dump.gz.age"', self.restore)
+        self.assertIn('= "$object_actual_sha256  object-storage.tar.gz.age"', self.restore)
 
     def test_postgresql_is_logical_only_and_no_raw_pv_copy(self) -> None:
         for value in (

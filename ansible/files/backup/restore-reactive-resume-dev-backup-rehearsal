@@ -136,10 +136,12 @@ remote="$remote_root/$run_id"
 for leaf in object-storage.manifest.json object-storage.tar.gz.age object-storage.tar.gz.age.sha256 postgresql.dump.gz.age postgresql.dump.gz.age.sha256 postgresql.manifest.json run-manifest.json; do
   /usr/local/bin/rclone --config "$rclone_config" copyto "$remote/$leaf" "$work/$leaf" || fail remote_download
 done
+pg_actual_sha256=$(/usr/bin/sha256sum "$work/postgresql.dump.gz.age" | /usr/bin/cut -d ' ' -f 1)
+object_actual_sha256=$(/usr/bin/sha256sum "$work/object-storage.tar.gz.age" | /usr/bin/cut -d ' ' -f 1)
+[ "$(/usr/bin/cat "$work/postgresql.dump.gz.age.sha256")" = "$pg_actual_sha256  postgresql.dump.gz.age" ] || fail postgresql_checksum
+[ "$(/usr/bin/cat "$work/object-storage.tar.gz.age.sha256")" = "$object_actual_sha256  object-storage.tar.gz.age" ] || fail object_checksum
 (cd "$work" && /usr/bin/sha256sum -c postgresql.dump.gz.age.sha256 >/dev/null) || fail postgresql_checksum
 (cd "$work" && /usr/bin/sha256sum -c object-storage.tar.gz.age.sha256 >/dev/null) || fail object_checksum
-pg_actual_sha256=$(/usr/bin/cut -d ' ' -f 1 "$work/postgresql.dump.gz.age.sha256")
-object_actual_sha256=$(/usr/bin/cut -d ' ' -f 1 "$work/object-storage.tar.gz.age.sha256")
 pg_actual_bytes=$(/usr/bin/stat -c %s "$work/postgresql.dump.gz.age")
 object_actual_bytes=$(/usr/bin/stat -c %s "$work/object-storage.tar.gz.age")
 RUN_MANIFEST="$work/run-manifest.json" PG_MANIFEST="$work/postgresql.manifest.json" OBJECT_MANIFEST="$work/object-storage.manifest.json" RUN_ID="$run_id" PG_ACTUAL_SHA256="$pg_actual_sha256" OBJECT_ACTUAL_SHA256="$object_actual_sha256" PG_ACTUAL_BYTES="$pg_actual_bytes" OBJECT_ACTUAL_BYTES="$object_actual_bytes" /usr/bin/python3 - <<'PY' || fail manifest_contract
