@@ -52,6 +52,10 @@
       - reactive_resume_object_storage_source_check_namespace == 'shared-services'
       - reactive_resume_object_storage_source_check_object_count == 8
       - reactive_resume_object_storage_source_check_managed_field_managers | length == 8
+      - >-
+        (reactive_resume_object_storage_source_check_managed_field_managers |
+        to_json(sort_keys=true) | hash('sha256')) ==
+        'a12c1ccfe58ad1c35408744b43ccb0d4f07eaa1c273a45e1eaccec665549daba'
     fail_msg: >-
       Refusing object-storage source inspection outside the single-host,
       check-only, canonical repository boundary.

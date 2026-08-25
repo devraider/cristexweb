@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 import stat
 import subprocess
 import sys
@@ -172,6 +173,15 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             hashlib.sha256((HISTORY / "MANIFESTS.sha256").read_bytes()).hexdigest(),
             defaults["reactive_resume_object_storage_source_check_manifest_ledger_sha256"],
         )
+        managers = defaults["reactive_resume_object_storage_source_check_managed_field_managers"]
+        managers_digest = hashlib.sha256(
+            json.dumps(managers, sort_keys=True).encode()
+        ).hexdigest()
+        self.assertEqual(
+            "a12c1ccfe58ad1c35408744b43ccb0d4f07eaa1c273a45e1eaccec665549daba",
+            managers_digest,
+        )
+        self.assertIn(managers_digest, self.tasks)
         self.assertEqual("shared-services", defaults["reactive_resume_object_storage_source_check_secret_metadata_resource"]["namespace"])
         self.assertEqual("reactive-resume-object-storage-auth", defaults["reactive_resume_object_storage_source_check_secret_metadata_resource"]["name"])
         producers = defaults["reactive_resume_object_storage_source_check_alternate_producers"]
