@@ -49,8 +49,20 @@
       - reactive_resume_dev_successor_runtime_role == 'reactive_resume_dev_runtime'
       - reactive_resume_dev_successor_migration_role == 'reactive_resume_dev_migrator'
       - reactive_resume_dev_successor_source_paths | length == 3
+      - >-
+        reactive_resume_dev_successor_source_paths | sort ==
+        [reactive_resume_dev_successor_repository_root ~ '/ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml',
+        reactive_resume_dev_successor_repository_root ~ '/ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml',
+        reactive_resume_dev_successor_repository_root ~ '/ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml'] | sort
       - reactive_resume_dev_successor_source_manifest_entries | length == 3
-      - reactive_resume_dev_successor_ca_source_path.endswith('/ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml')
+      - >-
+        reactive_resume_dev_successor_ca_source_path ==
+        reactive_resume_dev_successor_repository_root ~
+        '/ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml'
+      - >-
+        reactive_resume_dev_successor_forbidden_secret_names | sort ==
+        ['shared-postgresql-reactive-resume-dev',
+        'shared-postgresql-reactive-resume-prod'] | sort
       - reactive_resume_dev_successor_runtime_keys | length == 15
       - reactive_resume_dev_successor_migration_keys | length == 2
       - reactive_resume_dev_successor_runtime_keys | unique | length == 15
@@ -469,6 +481,9 @@
       - >-
         reactive_resume_dev_successor_internal_ca_source.resources[0].spec.syncOptions == {'refreshInterval': '1h', 'instantUpdates': false}
       - reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources | length == 1
+      - reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources[0].projectId == reactive_resume_dev_successor_project_id
+      - reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources[0].environmentSlug == reactive_resume_dev_successor_environment
+      - reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources[0].secretPath == '/reactive-resume/dev/object-storage-tls'
       - reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources[0].recursive is false
       - reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources[0].tagSlugs == []
       - >-

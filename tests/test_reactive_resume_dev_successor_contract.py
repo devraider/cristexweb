@@ -117,10 +117,33 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
     def test_ca_ownership_is_external_existing_lane(self) -> None:
         ca = yaml.safe_load((ROOT / "ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml").read_text())
         self.assertEqual("reactive-resume-dev-ca", ca["metadata"]["name"])
-        self.assertEqual("/reactive-resume/dev/object-storage-tls", ca["spec"]["sources"][0]["secretPath"])
+        source = ca["spec"]["sources"][0]
+        self.assertEqual("619656da-14f3-4872-857b-be103cdc5326", source["projectId"])
+        self.assertEqual("prod", source["environmentSlug"])
+        self.assertEqual("/reactive-resume/dev/object-storage-tls", source["secretPath"])
         self.assertIn("reactive-resume-dev-postgresql-ca", [item["name"] for item in ca["spec"]["targets"]])
         self.assertNotIn("postgresql-ca-static-secret.yaml", "\n".join(self.defaults["reactive_resume_dev_successor_source_paths"]))
+        self.assertEqual(
+            sorted(self.defaults["reactive_resume_dev_successor_source_paths"]),
+            sorted([
+                "{{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml",
+                "{{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml",
+                "{{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml",
+            ]),
+        )
+        self.assertEqual(
+            sorted(self.defaults["reactive_resume_dev_successor_forbidden_secret_names"]),
+            ["shared-postgresql-reactive-resume-dev", "shared-postgresql-reactive-resume-prod"],
+        )
         self.assertIn("reactive-resume-dev-ca", self.tasks)
+        for required in (
+            "reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources[0].projectId == reactive_resume_dev_successor_project_id",
+            "reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources[0].environmentSlug == reactive_resume_dev_successor_environment",
+            "reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources[0].secretPath == '/reactive-resume/dev/object-storage-tls'",
+            "reactive_resume_dev_successor_forbidden_secret_names | sort ==",
+            "reactive_resume_dev_successor_source_paths | sort ==",
+        ):
+            self.assertIn(required, self.tasks)
 
     def test_catalog_checker_uses_local_socket_and_full_acl_projection(self) -> None:
         for required in (
@@ -265,6 +288,19 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertEqual("#!/usr/bin/python3", text.splitlines()[0])
         self.assertNotIn("/usr/bin/env python3", text.splitlines()[0])
 
+    def test_wrapper_uses_exact_linux_inventory_and_toolchain_boundary(self) -> None:
+        self.assertNotIn("/Users/paul/Projects/cristexweb", self.wrapper)
+        self.assertNotIn("shasum", self.wrapper)
+        for required in (
+            "inventory_source=",
+            "inventory_expected=",
+            "successor inventory semantic drift",
+            "ansible/.ansible/inventory.local.yml",
+            "kubernetes.core toolchain manifest",
+            r"6\.1\.0",
+        ):
+            self.assertIn(required, self.wrapper, required)
+
     def test_metadata_module_cannot_return_secret_payload(self) -> None:
         text = METADATA.read_text()
         self.assertIn("PartialObjectMetadata", text)
@@ -295,6 +331,10 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             "verify_source ansible/library/reactive_resume_dev_secret_metadata.py",
             "canonical_action_file",
             "canonical_wrapper_file",
+            "inventory_source",
+            "inventory_expected",
+            "collection_manifest",
+            "toolchain_path",
         )
         for value in required:
             self.assertIn(value, self.wrapper, value)
@@ -330,10 +370,20 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
                     destination = root / relative
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(source, destination)
+                inventory = root / "ansible/.ansible/inventory.local.yml"
+                inventory.parent.mkdir(parents=True, exist_ok=True)
+                inventory.write_text(
+                    "---\nall:\n  children:\n    k3s_servers:\n      hosts:\n        crtxweb:\n          ansible_connection: local\n          ansible_python_interpreter: /usr/bin/python3\n          ansible_user: paul\n"
+                )
+                inventory.chmod(0o600)
+                collection_manifest = root / "ansible/.ansible/collections/ansible_collections/kubernetes/core/MANIFEST.json"
+                collection_manifest.parent.mkdir(parents=True, exist_ok=True)
+                collection_manifest.write_text('{"version": "6.1.0"}\n')
+                collection_manifest.chmod(0o644)
                 wrapper = root / "ansible/bin/check-reactive-resume-dev-successor"
                 wrapper_text = wrapper.read_text()
                 wrapper_text = wrapper_text.replace(
-                    "  /home/paul/projects/cristexweb|/Users/paul/Projects/cristexweb) ;;",
+                    "  /home/paul/projects/cristexweb) ;;",
                     f"  {root}) ;;",
                     1,
                 )
@@ -376,7 +426,7 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         baseline_rc, baseline_started = run_copy(None)
         self.assertEqual(0, baseline_rc)
         self.assertTrue(baseline_started)
-        for relative in closure_paths:
+        for relative in [*closure_paths, "ansible/.ansible/inventory.local.yml"]:
             with self.subTest(relative=relative):
                 rc, started = run_copy(relative)
                 self.assertNotEqual(0, rc)
@@ -585,6 +635,9 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         action._task = SyntheticTask(args)
         with tempfile.TemporaryDirectory() as directory:
             attestation = Path(directory) / "attestation"
+            inventory = Path(directory) / "inventory.local.yml"
+            inventory.write_bytes(guarded._INVENTORY_BYTES)
+            inventory.chmod(0o600)
             raw_wrapper_hash = hashlib.sha256(WRAPPER.read_bytes()).hexdigest()
             attestation.write_text(f"{token}:entrypoint:{os.getpid()}:{raw_wrapper_hash}\n")
             attestation.chmod(0o600)
@@ -596,7 +649,7 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
                 "subset": "crtxweb",
                 "diff": True,
                 "check": True,
-                "inventory": ["/synthetic/.ansible/inventory.local.yml"],
+                "inventory": [str(inventory)],
             }
             environment = {
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_ENTRYPOINT": "v1",
@@ -606,7 +659,7 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_PATH": str(guarded._WRAPPER_SOURCE),
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_SHA256": raw_wrapper_hash,
             }
-            with patch.object(guarded.context, "CLIARGS", guarded.context.CLIARGS.__class__(cliargs)), patch.dict(os.environ, environment, clear=False), patch.object(guarded.ActionModule.__mro__[1], "run", return_value={}), patch.object(guarded.ActionModule, "_execute_module", return_value={"rc": 0}) as execute:
+            with patch.object(guarded, "_INVENTORY_SOURCE", inventory), patch.object(guarded.context, "CLIARGS", guarded.context.CLIARGS.__class__(cliargs)), patch.dict(os.environ, environment, clear=False), patch.object(guarded.ActionModule.__mro__[1], "run", return_value={}), patch.object(guarded.ActionModule, "_execute_module", return_value={"rc": 0}) as execute:
                 result = action.run(task_vars={
                     "reactive_resume_dev_successor_approved": True,
                     "reactive_resume_dev_successor_internal_binding": binding,

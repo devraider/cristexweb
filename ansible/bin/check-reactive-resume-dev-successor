@@ -11,32 +11,23 @@ script_path=$0
 script_directory=$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)
 repository_root=$(CDPATH= cd -- "$script_directory/../.." && pwd -P)
 case "$repository_root" in
-  /home/paul/projects/cristexweb|/Users/paul/Projects/cristexweb) ;;
+  /home/paul/projects/cristexweb) ;;
   *) printf '%s\n' 'refusing an unpinned repository path' >&2; exit 78 ;;
 esac
 controller_user=$(/usr/bin/id -un)
 sha_tool=/usr/bin/sha256sum
-[ -x "$sha_tool" ] || sha_tool=/usr/bin/shasum
 openssl_tool=/usr/bin/openssl
-[ -x "$openssl_tool" ] || openssl_tool=/opt/homebrew/bin/openssl
 [ -x "$sha_tool" ] && [ -x "$openssl_tool" ] || {
   printf '%s\n' 'refusing missing protected hashing or random source tool' >&2
   exit 69
 }
 sha_file() {
-  case "$sha_tool" in
-    */shasum)
-    "$sha_tool" -a 256 "$1" | /usr/bin/cut -d' ' -f1
-    ;;
-    *)
-    "$sha_tool" "$1" | /usr/bin/cut -d' ' -f1
-    ;;
-  esac
+  "$sha_tool" "$1" | /usr/bin/cut -d' ' -f1
 }
 # The self hash replaces this literal with zeros before hashing, avoiding a
 # circular digest while still binding every other wrapper byte.
 closure_manifest="$repository_root/ansible/files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256"
-closure_manifest_expected='2101b9da4f658fddeeaa8ec34676e6b686e786502d7d11c1e50c5d0ad0b56424'
+closure_manifest_expected='b77281eca7b73000f67cf19a259d54918c105dd43d0debc2ad84d699ee4a8562'
 action_source="$repository_root/ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
 config_source="$repository_root/ansible/ansible.cfg"
 library_source="$repository_root/ansible/library/reactive_resume_dev_secret_metadata.py"
@@ -46,6 +37,10 @@ task_source="$repository_root/ansible/roles/reactive_resume_dev_successor/tasks/
 defaults_source="$repository_root/ansible/roles/reactive_resume_dev_successor/defaults/main.yml"
 playbook_source="$repository_root/ansible/playbooks/check_reactive_resume_dev_successor.yml"
 policy_source="$repository_root/ansible/files/policies/reactive-resume-dev-postgresql-successor.yml"
+inventory_source="$repository_root/ansible/.ansible/inventory.local.yml"
+inventory_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
+toolchain_path="$repository_root/.venv/bin/ansible-playbook"
+collection_manifest="$repository_root/ansible/.ansible/collections/ansible_collections/kubernetes/core/MANIFEST.json"
 closure_paths='ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256 ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml ansible/roles/reactive_resume_dev_successor/tasks/main.yml ansible/roles/reactive_resume_dev_successor/defaults/main.yml ansible/playbooks/check_reactive_resume_dev_successor.yml ansible/files/policies/reactive-resume-dev-postgresql-successor.yml ansible/ansible.cfg ansible/library/reactive_resume_dev_secret_metadata.py ansible/bin/check-reactive-resume-dev-successor ansible/plugins/action/reactive_resume_dev_successor_guarded.py'
 [ -f "$closure_manifest" ] && [ ! -L "$closure_manifest" ] || {
   printf '%s\n' 'refusing a missing or symlinked successor source closure' >&2
@@ -92,6 +87,41 @@ verify_source ansible/playbooks/check_reactive_resume_dev_successor.yml "$playbo
 verify_source ansible/files/policies/reactive-resume-dev-postgresql-successor.yml "$policy_source" 644
 verify_source ansible/ansible.cfg "$config_source" 644
 verify_source ansible/library/reactive_resume_dev_secret_metadata.py "$library_source" 644
+[ -f "$inventory_source" ] && [ ! -L "$inventory_source" ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$inventory_source")" = 'paul:paul:600' ] || exit 69
+[ "$(sha_file "$inventory_source")" = "$inventory_expected" ] || {
+  printf '%s\n' 'refusing successor inventory hash drift' >&2
+  exit 69
+}
+/usr/bin/awk '
+  NR == 1 { ok = ($0 == "---") }
+  NR == 2 { ok = ok && ($0 == "all:") }
+  NR == 3 { ok = ok && ($0 == "  children:") }
+  NR == 4 { ok = ok && ($0 == "    k3s_servers:") }
+  NR == 5 { ok = ok && ($0 == "      hosts:") }
+  NR == 6 { ok = ok && ($0 == "        crtxweb:") }
+  NR == 7 { ok = ok && ($0 == "          ansible_connection: local") }
+  NR == 8 { ok = ok && ($0 == "          ansible_python_interpreter: /usr/bin/python3") }
+  NR == 9 { ok = ok && ($0 == "          ansible_user: paul") }
+  END { exit !(ok && NR == 9) }
+' "$inventory_source" || {
+  printf '%s\n' 'refusing successor inventory semantic drift' >&2
+  exit 69
+}
+[ -f "$toolchain_path" ] && [ ! -L "$toolchain_path" ] || {
+  printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2
+  exit 69
+}
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$toolchain_path")" = 'paul:paul:755' ] || exit 69
+[ -f "$collection_manifest" ] && [ ! -L "$collection_manifest" ] || {
+  printf '%s\n' 'refusing an absent or symlinked kubernetes.core toolchain manifest' >&2
+  exit 69
+}
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$collection_manifest")" = 'paul:paul:644' ] || exit 69
+/usr/bin/grep -Eq '"version"[[:space:]]*:[[:space:]]*"6\.1\.0"' "$collection_manifest" || {
+  printf '%s\n' 'refusing an unpinned kubernetes.core toolchain' >&2
+  exit 69
+}
 canonical_action_file=''
 canonical_wrapper_file=''
 attestation_file=''
@@ -123,10 +153,6 @@ wrapper_expected=$(closure_entry ansible/bin/check-reactive-resume-dev-successor
 [ -f "$action_source" ] && [ ! -L "$action_source" ] || exit 69
 [ "$(/usr/bin/stat -c '%a' "$action_source")" = 644 ] || exit 69
 controller="$repository_root/.venv/bin/ansible-playbook"
-[ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || {
-  printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2
-  exit 69
-}
 cd -- "$repository_root"
 [ -z "$(/usr/bin/git status --porcelain=v1 --untracked-files=all)" ] || {
   printf '%s\n' 'refusing a dirty source tree' >&2

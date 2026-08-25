@@ -51,8 +51,14 @@ ansible/bin/check-reactive-resume-dev-successor check
 ```
 
 The non-passthrough wrapper supplies `--check --diff --limit crtxweb`, a
-single-use attestation, an allowlisted environment, and the pinned controller.
-Before invoking Ansible it verifies the fixed `SOURCE-CLOSURE.sha256` for the
+single-use attestation, an allowlisted environment, and the trusted Debian
+`.venv/bin/ansible-playbook` plus the installed `kubernetes.core` 6.1.0 collection.
+Those ignored toolchain files are an external host trust boundary, not committed
+source closure: the wrapper requires the controller and collection manifest to be
+owned by `paul`, non-symlinked, mode-correct, and the manifest version to be exactly
+6.1.0. It also verifies the ignored `ansible/.ansible/inventory.local.yml` is
+owned by `paul`, mode `0600`, has the exact fixed local `crtxweb`/`/usr/bin/python3`
+semantics, and matches its pinned SHA-256 before invoking the controller. Before invoking Ansible it verifies the fixed `SOURCE-CLOSURE.sha256` for the
 checker, source manifest, all three nested successor YAML leaves, the existing
 `ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml`
 CA source leaf, role task/defaults, playbook, policy, `ansible.cfg`, metadata-only
