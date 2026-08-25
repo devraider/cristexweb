@@ -42,14 +42,18 @@ for index, (api_version, kind, namespace, name) in enumerate(sorted(module.EXPEC
         "kind": kind,
         "namespace": namespace,
         "name": name,
+        "identity": f"{api_version}|{kind}|{namespace}|{name}",
         "uid": f"00000000-0000-4000-8000-{index:012d}",
         "resourceVersion": "7",
+        "generation": "1",
     })
 token = "a" * 64
 binding = {
     "attestation_sha256": hashlib.sha256(token.encode()).hexdigest(),
     "manifest_names": sorted(name for _, _, _, name in module.EXPECTED),
+    "manifest_identities": sorted(f"{api}|{kind}|{namespace}|{name}" for api, kind, namespace, name in module.EXPECTED),
     "prestate_names": sorted(name for _, _, _, name in module.EXPECTED),
+    "prestate_identities": sorted(f"{api}|{kind}|{namespace}|{name}" for api, kind, namespace, name in module.EXPECTED),
     "object_count": 5,
     "namespace_contract": True,
     "repository_contract": True,

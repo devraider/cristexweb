@@ -218,6 +218,12 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             "Require unchanged UID and resourceVersion immediately before mutation",
             "Add exact resourceVersion optimistic-concurrency preconditions",
             "difference(['name', 'namespace', 'uid', 'resourceVersion'",
+            "manifest_identities",
+            "observed_prestate_identities",
+            "Require exact registration mutation result closure",
+            "Query exact live registration post-state after reconciliation wait",
+            "status.sync.revision",
+            "metadata.generation",
         ):
             self.assertIn(needle, tasks)
         for needle in (
@@ -225,10 +231,31 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             "prestate_object_count",
             "resourceVersion",
             "metadata.resourceVersion",
-            "set(entry) == {\"apiVersion\", \"kind\", \"namespace\", \"name\", \"uid\", \"resourceVersion\"}",
+            "EXPECTED_IDENTITIES",
+            "set(entry) == {\"apiVersion\", \"kind\", \"namespace\", \"name\", \"identity\", \"uid\", \"resourceVersion\", \"generation\"}",
+            "entry.get(\"identity\") == \"|\".join(object_identity(entry))",
         ):
             self.assertIn(needle, plugin)
         self.assertEqual(5, defaults["cristexhub_prod_registration_object_count"])
+
+    def test_manifest_identity_and_legacy_hash_closure_is_exact(self) -> None:
+        expected = {
+            "argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod",
+            "argoproj.io/v1alpha1|Application|argocd|cristexhub-prod",
+            "rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod",
+            "rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|argocd-application-controller-cristexhub-prod",
+            "v1|Secret|argocd|argocd-cluster-cristexhub-prod",
+        }
+        actual = {
+            f"{obj['apiVersion']}|{obj['kind']}|{obj['metadata'].get('namespace', '')}|{obj['metadata']['name']}"
+            for obj in objects()
+        }
+        self.assertEqual(expected, actual)
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        specs = defaults["cristexhub_prod_registration_legacy_transition_specs"]
+        hashes = defaults["cristexhub_prod_registration_legacy_transition_spec_hashes"]
+        for kind, spec in specs.items():
+            self.assertEqual(hashes[kind], canonical(spec))
 
     def test_legacy_alias_transition_rejects_foreign_uid_or_spec(self) -> None:
         defaults = yaml.safe_load(DEFAULTS.read_text())

@@ -49,13 +49,14 @@ revision `751885a42798d282e168131db147f13694a0a621`, repository
 `infra/kubernetes/cristexhub-prod`. Branch names, tags, and floating revisions
 are refused.
 
-The exact five-object registration closure is:
+The exact five-object registration closure is keyed by unique
+`apiVersion|kind|namespace|name` identities:
 
-1. `argocd/AppProject/cristexhub-prod`;
-2. `argocd/Application/cristexhub-prod`;
-3. `cristexhub-prod/Role/argocd-application-controller-cristexhub-prod`;
-4. `cristexhub-prod/RoleBinding/argocd-application-controller-cristexhub-prod`;
-5. `argocd/Secret/argocd-cluster-cristexhub-prod`.
+1. `argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod`;
+2. `argoproj.io/v1alpha1|Application|argocd|cristexhub-prod`;
+3. `rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod`;
+4. `rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|argocd-application-controller-cristexhub-prod`;
+5. `v1|Secret|argocd|argocd-cluster-cristexhub-prod`.
 
 The cluster Secret is value-free registration metadata for the in-cluster API.
 It selects only `cristexhub-prod`, has `clusterResources=false`, and contains no
@@ -80,11 +81,13 @@ The role checks:
 - raw manifest hashes and exact object count;
 - absence of foreign objects, extra data, annotations, finalizers, metadata keys,
   or drifted fields at the five target identities;
-- exact five-object UID/resourceVersion prestate binding, immediate re-query, and
-  Kubernetes optimistic-concurrency preconditions for the bounded alias update;
+- exact five-object UID/resourceVersion/generation prestate binding with unique
+  identities, immediate re-query, and Kubernetes optimistic-concurrency preconditions;
+- exact changed identity/count results: either the two legacy alias objects or zero;
+- strict deletion/grace-period, owner/finalizer, and managedFields metadata policy;
 - the exact `cristexhub-prod-local` cluster-alias destination and automated non-pruning Application policy;
-- after live apply only, an Argo Application status of `Synced/Healthy`; check mode
-  remains source-only and does not require live status.
+- after live apply, a fresh post-wait query bound to the same UID/generation and pinned
+  sync revision, followed by `Synced/Healthy` assertions; check mode remains source-only.
 
 The action plugin accepts only the canonical role task, exact present-only
 objects, exact hashes, complete preflight binding, and wrapper attestation. It

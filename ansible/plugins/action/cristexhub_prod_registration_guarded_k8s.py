@@ -34,6 +34,13 @@ LEGACY_TRANSITION_MANIFEST_HASHES = {
     "AppProject": "4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2",
 }
 LEGACY_TRANSITION_METADATA_HASH = "a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30"
+EXPECTED_IDENTITIES = {
+    "argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod",
+    "argoproj.io/v1alpha1|Application|argocd|cristexhub-prod",
+    "rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod",
+    "rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|argocd-application-controller-cristexhub-prod",
+    "v1|Secret|argocd|argocd-cluster-cristexhub-prod",
+}
 EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-prod'): '113dcb263ec958430385b802e387658cd0f71b58751768b3a7ab5ffbb348b61b',
  ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-prod'): '107356ed772eec987ab8c4f19b05b2ebb5a84ddf21bd0f483044e434084a8c5a',
  ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'c40a189cdf4a3b864fae8bb64f06b0473aae2b47771f1c22ddf4a86f0f669fc4',
@@ -50,7 +57,9 @@ def canonical(value: dict[str, Any]) -> str:
 
 
 def object_identity(value: dict[str, Any]) -> tuple[str, str, str, str]:
-    metadata = value.get("metadata") or {}
+    metadata = value.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = value
     return (
         str(value.get("apiVersion", "")),
         str(value.get("kind", "")),
@@ -117,7 +126,9 @@ class ActionModule(KubernetesActionModule):
             and set(binding) == {
                 "attestation_sha256",
                 "manifest_names",
+                "manifest_identities",
                 "prestate_names",
+                "prestate_identities",
                 "object_count",
                 "namespace_contract",
                 "repository_contract",
@@ -135,7 +146,11 @@ class ActionModule(KubernetesActionModule):
             }
             and binding.get("attestation_sha256") == hashlib.sha256(token.encode()).hexdigest()
             and binding.get("manifest_names") == expected_names
+            and set(binding.get("manifest_identities", [])) == EXPECTED_IDENTITIES
+            and len(binding.get("manifest_identities", [])) == len(EXPECTED_IDENTITIES)
             and binding.get("prestate_names") == expected_names
+            and set(binding.get("prestate_identities", [])) == EXPECTED_IDENTITIES
+            and len(binding.get("prestate_identities", [])) == len(EXPECTED_IDENTITIES)
             and binding.get("object_count") in (5, "5")
             and strict_true(binding.get("namespace_contract"))
             and strict_true(binding.get("repository_contract"))
@@ -154,10 +169,12 @@ class ActionModule(KubernetesActionModule):
             and len({entry.get("uid") for entry in binding.get("prestate_bindings") if isinstance(entry, dict)}) == 5
             and all(
                 isinstance(entry, dict)
-                and set(entry) == {"apiVersion", "kind", "namespace", "name", "uid", "resourceVersion"}
+                and set(entry) == {"apiVersion", "kind", "namespace", "name", "identity", "uid", "resourceVersion", "generation"}
                 and object_identity(entry) in EXPECTED
+                and entry.get("identity") == "|".join(object_identity(entry))
                 and re.fullmatch(r"[0-9a-fA-F-]{36}", str(entry.get("uid", ""))) is not None
                 and re.fullmatch(r"[0-9]+", str(entry.get("resourceVersion", ""))) is not None
+                and re.fullmatch(r"[0-9]+", str(entry.get("generation", ""))) is not None
                 for entry in binding.get("prestate_bindings")
             )
             and str(binding.get("transition_change_count")) in ("0", "2")

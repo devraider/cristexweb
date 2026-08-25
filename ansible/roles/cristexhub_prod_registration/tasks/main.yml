@@ -14,6 +14,12 @@
     - cristexhub_prod_registration_internal_prestate_bindings
     - cristexhub_prod_registration_internal_prestate_recheck
     - cristexhub_prod_registration_internal_mutation_manifests
+    - cristexhub_prod_registration_internal_manifest_identities
+    - cristexhub_prod_registration_internal_prestate_identities
+    - cristexhub_prod_registration_internal_observed_prestate_identities
+    - cristexhub_prod_registration_internal_mutation_results
+    - cristexhub_prod_registration_internal_mutation_changed_identities
+    - cristexhub_prod_registration_internal_finalstate
   changed_when: false
 - name: Require the exact non-passthrough registration contract
   ansible.builtin.assert:
@@ -33,6 +39,22 @@
       - cristexhub_prod_registration_revision == '751885a42798d282e168131db147f13694a0a621'
       - cristexhub_prod_registration_path == 'infra/kubernetes/cristexhub-prod'
       - cristexhub_prod_registration_legacy_transition_object_count == 2
+      - >-
+        cristexhub_prod_registration_legacy_transition_specs.Application |
+        to_json(separators=(',', ':')) | hash('sha256') ==
+        'efcaa04cff588189490810ec3dc2d799e9d09d9deb2e6ce45475d61f75021c34'
+      - >-
+        cristexhub_prod_registration_legacy_transition_specs.AppProject |
+        to_json(separators=(',', ':')) | hash('sha256') ==
+        '7b51035757a7684cffb823339379e7fd3d80ada29a51a3bdc205b2f4b30027bf'
+      - >-
+        cristexhub_prod_registration_legacy_transition_spec_hashes.Application ==
+        (cristexhub_prod_registration_legacy_transition_specs.Application |
+        to_json(separators=(',', ':')) | hash('sha256'))
+      - >-
+        cristexhub_prod_registration_legacy_transition_spec_hashes.AppProject ==
+        (cristexhub_prod_registration_legacy_transition_specs.AppProject |
+        to_json(separators=(',', ':')) | hash('sha256'))
       - >-
         cristexhub_prod_registration_legacy_transition_uids ==
         {'Application': 'e2016a99-2c4f-4e2e-ac28-0640cafa2a8e',
@@ -103,6 +125,31 @@
   loop: '{{ cristexhub_prod_registration_manifest_paths }}'
   changed_when: false
   no_log: true
+- name: Record exact manifest identities
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_manifest_identities: >-
+      {{ (cristexhub_prod_registration_internal_manifest_identities | default([])) +
+      [item.apiVersion ~ '|' ~ item.kind ~ '|' ~ (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
+  loop: '{{ cristexhub_prod_registration_internal_manifests }}'
+  changed_when: false
+  no_log: true
+
+- name: Require unique exact manifest identity closure
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_registration_internal_manifest_identities | length == 5
+      - cristexhub_prod_registration_internal_manifest_identities | unique | list | length == 5
+      - >-
+        cristexhub_prod_registration_internal_manifest_identities | sort ==
+        ['argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod',
+        'argoproj.io/v1alpha1|Application|argocd|cristexhub-prod',
+        'rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod',
+        'rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|argocd-application-controller-cristexhub-prod',
+        'v1|Secret|argocd|argocd-cluster-cristexhub-prod']
+    fail_msg: Refusing duplicate, missing, or foreign PROD registration manifest identities.
+  changed_when: false
+  no_log: true
+
 - name: Query exact CristexHub PROD Namespace prerequisite
   kubernetes.core.k8s_info:
     api_version: v1
@@ -189,6 +236,39 @@
   changed_when: false
   no_log: true
 
+- name: Record exact prestate identities
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_prestate_identities: >-
+      {{ (cristexhub_prod_registration_internal_prestate_identities | default([])) +
+      [item.item.apiVersion ~ '|' ~ item.item.kind ~ '|' ~ (item.item.metadata.namespace | default('')) ~ '|' ~ item.item.metadata.name] }}
+  loop: '{{ cristexhub_prod_registration_internal_prestate.results }}'
+  changed_when: false
+  no_log: true
+
+- name: Record exact observed prestate identities
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_observed_prestate_identities: >-
+      {{ (cristexhub_prod_registration_internal_observed_prestate_identities | default([])) +
+      [item.resources[0].apiVersion ~ '|' ~ item.resources[0].kind ~ '|' ~
+      (item.resources[0].metadata.namespace | default('')) ~ '|' ~
+      item.resources[0].metadata.name] }}
+  loop: '{{ cristexhub_prod_registration_internal_prestate.results }}'
+  changed_when: false
+  no_log: true
+
+- name: Require unique exact prestate identity closure
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_registration_internal_prestate_identities | length == 5
+      - cristexhub_prod_registration_internal_prestate_identities | unique | list | length == 5
+      - cristexhub_prod_registration_internal_prestate_identities | sort == cristexhub_prod_registration_internal_manifest_identities | sort
+      - cristexhub_prod_registration_internal_observed_prestate_identities | length == 5
+      - cristexhub_prod_registration_internal_observed_prestate_identities | unique | list | length == 5
+      - cristexhub_prod_registration_internal_observed_prestate_identities | sort == cristexhub_prod_registration_internal_manifest_identities | sort
+    fail_msg: Refusing duplicate, missing, or mismatched PROD registration prestate identities.
+  changed_when: false
+  no_log: true
+
 - name: Bind exact prestate UID and resourceVersion for every registration object
   ansible.builtin.set_fact:
     cristexhub_prod_registration_internal_prestate_bindings: >-
@@ -198,8 +278,10 @@
         'kind': item.item.kind,
         'namespace': item.item.metadata.namespace | default(''),
         'name': item.item.metadata.name,
+        'identity': item.item.apiVersion ~ '|' ~ item.item.kind ~ '|' ~ (item.item.metadata.namespace | default('')) ~ '|' ~ item.item.metadata.name,
         'uid': item.resources[0].metadata.uid,
-        'resourceVersion': item.resources[0].metadata.resourceVersion
+        'resourceVersion': item.resources[0].metadata.resourceVersion,
+        'generation': item.resources[0].metadata.generation | default(0) | string
       }] }}
   loop: '{{ cristexhub_prod_registration_internal_prestate.results }}'
   changed_when: false
@@ -224,7 +306,10 @@
       - >-
         cristexhub_prod_registration_internal_prestate_bindings |
         map(attribute='uid') | unique | list | length == 5
-    fail_msg: Refusing registration without exact unique UID/resourceVersion preconditions for all five objects.
+      - >-
+        cristexhub_prod_registration_internal_prestate_bindings |
+        map(attribute='generation') | select('match', '^[0-9]+$') | list | length == 5
+    fail_msg: Refusing registration without exact unique UID/resourceVersion/generation preconditions for all five objects.
   changed_when: false
   no_log: true
 
@@ -268,6 +353,20 @@
       - >-
         item.resources | length == 0 or
         (item.resources[0].metadata.finalizers | default([]) | length) == 0
+      - >-
+        item.resources | length == 0 or
+        item.resources[0].metadata.get('deletionTimestamp') in [none, '']
+      - >-
+        item.resources | length == 0 or
+        item.resources[0].metadata.get('deletionGracePeriodSeconds') in [none, 0]
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.managedFields | default([])) is sequence
+      - >-
+        item.resources | length == 0 or
+        ((item.resources[0].metadata.managedFields | default([]) |
+        map(attribute='manager') | select('defined') | list | length) ==
+        (item.resources[0].metadata.managedFields | default([]) | length))
       - >-
         item.resources | length == 0 or
         (item.resources[0].metadata.keys() | list |
@@ -322,7 +421,9 @@
     cristexhub_prod_registration_internal_preflight_binding:
       attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TOKEN') | hash('sha256') }}"
       manifest_names: "{{ cristexhub_prod_registration_internal_manifests | map(attribute='metadata.name') | list | sort }}"
+      manifest_identities: "{{ cristexhub_prod_registration_internal_manifest_identities | sort }}"
       prestate_names: "{{ cristexhub_prod_registration_internal_prestate.results | map(attribute='item.metadata.name') | list | sort }}"
+      prestate_identities: "{{ cristexhub_prod_registration_internal_prestate_identities | sort }}"
       object_count: "{{ cristexhub_prod_registration_internal_manifests | length }}"
       namespace_contract: "{{ cristexhub_prod_registration_internal_namespace.resources | length == 1 }}"
       repository_contract: "{{ cristexhub_prod_registration_internal_repository_secret.resources | length == 1 }}"
@@ -366,6 +467,15 @@
         (item.resources[0].metadata.keys() | list |
         difference(['name', 'namespace', 'uid', 'resourceVersion', 'generation',
         'creationTimestamp', 'managedFields', 'labels', 'annotations']) | length) == 0
+      - item.resources[0].metadata.get('deletionTimestamp') in [none, '']
+      - item.resources[0].metadata.get('deletionGracePeriodSeconds') in [none, 0]
+      - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - (item.resources[0].metadata.finalizers | default([]) | length) == 0
+      - (item.resources[0].metadata.managedFields | default([])) is sequence
+      - >-
+        (item.resources[0].metadata.managedFields | default([]) |
+        map(attribute='manager') | select('defined') | list | length) ==
+        (item.resources[0].metadata.managedFields | default([]) | length)
     fail_msg: Refusing replacement, changed resourceVersion, or metadata drift before PROD registration mutation.
   loop: '{{ cristexhub_prod_registration_internal_prestate_recheck.results }}'
   loop_control:
@@ -399,8 +509,42 @@
   loop: >-
     {{ cristexhub_prod_registration_internal_mutation_manifests |
     default(cristexhub_prod_registration_internal_manifests | default([{}])) }}
+  register: cristexhub_prod_registration_internal_mutation_results
   no_log: true
-- name: Query exact live registration post-state
+
+- name: Record exact changed registration identities
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_mutation_changed_identities: >-
+      {{ (cristexhub_prod_registration_internal_mutation_changed_identities | default([])) +
+      ([item.item.apiVersion ~ '|' ~ item.item.kind ~ '|' ~ (item.item.metadata.namespace | default('')) ~ '|' ~ item.item.metadata.name]
+      if (item.changed | default(false) | bool) else []) }}
+  loop: '{{ cristexhub_prod_registration_internal_mutation_results.results }}'
+  changed_when: false
+  no_log: true
+
+- name: Require exact registration mutation result closure
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_registration_internal_mutation_results.results | length == 5
+      - >-
+        cristexhub_prod_registration_internal_mutation_changed_identities |
+        unique | list | length ==
+        cristexhub_prod_registration_internal_mutation_changed_identities | length
+      - >-
+        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 2 and
+        cristexhub_prod_registration_internal_mutation_changed_identities | sort ==
+        ['argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod',
+        'argoproj.io/v1alpha1|Application|argocd|cristexhub-prod']) or
+        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 0 and
+        cristexhub_prod_registration_internal_mutation_changed_identities | length == 0)
+      - >-
+        cristexhub_prod_registration_internal_mutation_changed_identities | length ==
+        cristexhub_prod_registration_internal_legacy_transition_candidates | length
+    fail_msg: Refusing registration mutation with an unexpected changed identity or count.
+  changed_when: false
+  no_log: true
+
+- name: Query exact live registration post-state before reconciliation wait
   kubernetes.core.k8s_info:
     api_version: '{{ item.apiVersion }}'
     kind: '{{ item.kind }}'
@@ -408,7 +552,7 @@
     name: '{{ item.metadata.name }}'
     kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
   loop: '{{ cristexhub_prod_registration_internal_manifests }}'
-  register: cristexhub_prod_registration_internal_poststate
+  register: cristexhub_prod_registration_internal_pre_wait_state
   changed_when: false
   no_log: true
   when: not ansible_check_mode
@@ -434,17 +578,46 @@
   delay: 10
   when: not ansible_check_mode
 
+- name: Query exact live registration post-state after reconciliation wait
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.metadata.namespace | default(omit) }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
+  loop: '{{ cristexhub_prod_registration_internal_manifests }}'
+  register: cristexhub_prod_registration_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Extract fresh final PROD Application state
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_finalstate: >-
+      {{ (cristexhub_prod_registration_internal_poststate.results |
+      selectattr('item.kind', 'equalto', 'Application') | first).resources[0] }}
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
 - name: Require live PROD Application Synced and Healthy
   ansible.builtin.assert:
     that:
-      - cristexhub_prod_registration_internal_application_status.resources | length == 1
-      - >-
-        cristexhub_prod_registration_internal_application_status.resources[0].status.sync.status |
+      - cristexhub_prod_registration_internal_finalstate | length > 0
+      - cristexhub_prod_registration_internal_finalstate.status.sync.status |
         default('') == 'Synced'
-      - >-
-        cristexhub_prod_registration_internal_application_status.resources[0].status.health.status |
+      - cristexhub_prod_registration_internal_finalstate.status.health.status |
         default('') == 'Healthy'
-    fail_msg: Refusing PROD registration while the live Argo Application is not Synced and Healthy.
+      - cristexhub_prod_registration_internal_finalstate.metadata.uid ==
+        (cristexhub_prod_registration_internal_prestate_bindings |
+        selectattr('kind', 'equalto', 'Application') | first).uid
+      - cristexhub_prod_registration_internal_finalstate.status.sync.revision |
+        default('') == cristexhub_prod_registration_revision
+      - cristexhub_prod_registration_internal_finalstate.metadata.generation >=
+        (cristexhub_prod_registration_internal_prestate_bindings |
+        selectattr('kind', 'equalto', 'Application') | first).generation
+    fail_msg: Refusing PROD registration while the fresh live Argo Application is not the waited-for Synced and Healthy revision.
+
   changed_when: false
   no_log: true
   when: not ansible_check_mode
@@ -457,13 +630,28 @@
       - item.resources[0].kind == item.item.kind
       - item.resources[0].metadata.name == item.item.metadata.name
       - item.resources[0].metadata.namespace == item.item.metadata.namespace
+      - item.resources[0].metadata.uid == cristexhub_prod_registration_internal_prestate_bindings[poststate_index].uid
+      - item.resources[0].metadata.generation | int >= cristexhub_prod_registration_internal_prestate_bindings[poststate_index].generation | int
       - item.resources[0].metadata.labels == item.item.metadata.labels
+      - >-
+        (item.resources[0].metadata.keys() | list |
+        difference(['name', 'namespace', 'uid', 'resourceVersion', 'generation',
+        'creationTimestamp', 'managedFields', 'labels', 'annotations']) | length) == 0
       - (item.resources[0].metadata.annotations | default({})) == (item.item.metadata.annotations | default({}))
       - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
       - (item.resources[0].metadata.finalizers | default([]) | length) == 0
+      - item.resources[0].metadata.get('deletionTimestamp') in [none, '']
+      - item.resources[0].metadata.get('deletionGracePeriodSeconds') in [none, 0]
+      - (item.resources[0].metadata.managedFields | default([])) is sequence
+      - >-
+        (item.resources[0].metadata.managedFields | default([]) |
+        map(attribute='manager') | select('defined') | list | length) ==
+        (item.resources[0].metadata.managedFields | default([]) | length)
       - item.item.kind != 'Secret' or item.resources[0].type == 'Opaque'
     fail_msg: Refusing drifted PROD registration identity, metadata, ownership, finalizer, or Secret type.
   loop: '{{ cristexhub_prod_registration_internal_poststate.results }}'
+  loop_control:
+    index_var: poststate_index
   changed_when: false
   no_log: true
   when: not ansible_check_mode
