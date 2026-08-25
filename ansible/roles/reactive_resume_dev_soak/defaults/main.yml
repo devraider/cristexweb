@@ -1,0 +1,34 @@
+---
+# Fixed source-only Reactive Resume DEV soak contract.
+reactive_resume_dev_soak_approved: false
+reactive_resume_dev_soak_kubeconfig: /etc/rancher/k3s/k3s.yaml
+reactive_resume_dev_soak_namespace: cristexhub-dev
+reactive_resume_dev_soak_prod_namespace: cristexhub-prod
+reactive_resume_dev_soak_hostname: resume-dev.cristex-soft.com
+reactive_resume_dev_soak_url: https://resume-dev.cristex-soft.com/
+reactive_resume_dev_soak_health_url: https://resume-dev.cristex-soft.com/api/health
+reactive_resume_dev_soak_oidc_discovery_url: https://auth.cristex-soft.com/realms/cristexhub/.well-known/openid-configuration
+reactive_resume_dev_soak_oidc_issuer: https://auth.cristex-soft.com/realms/cristexhub
+reactive_resume_dev_soak_deployment: reactive-resume-dev
+reactive_resume_dev_soak_service: reactive-resume-dev
+reactive_resume_dev_soak_ingress: reactive-resume-dev-private
+reactive_resume_dev_soak_tls_secret: reactive-resume-dev-tls
+reactive_resume_dev_soak_backup_timer: cristexweb-reactive-resume-dev-backup.timer
+reactive_resume_dev_soak_duration_seconds: 900
+reactive_resume_dev_soak_interval_seconds: 60
+reactive_resume_dev_soak_sample_count: 16
+reactive_resume_dev_soak_receipt_format: sanitized-v1
+reactive_resume_dev_soak_prod_label_selector: app.kubernetes.io/part-of=reactive-resume
+reactive_resume_dev_soak_prod_queries:
+  - {api_version: v1, kind: Secret}
+  - {api_version: apps/v1, kind: Deployment}
+  - {api_version: apps/v1, kind: StatefulSet}
+  - {api_version: batch/v1, kind: Job}
+  - {api_version: batch/v1, kind: CronJob}
+  - {api_version: v1, kind: Service}
+  - {api_version: networking.k8s.io/v1, kind: Ingress}
+  - {api_version: networking.k8s.io/v1, kind: NetworkPolicy}
+  - {api_version: v1, kind: PersistentVolumeClaim}
+  - {api_version: secrets.infisical.com/v1beta1, kind: InfisicalStaticSecret}
+reactive_resume_dev_soak_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+reactive_resume_dev_soak_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"

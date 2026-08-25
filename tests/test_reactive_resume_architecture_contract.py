@@ -788,6 +788,11 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             ROOT / "ansible/files/components/reactive-resume-dev-tls/renewal/validate-reactive-resume-dev-tls-material",
             ROOT / "ansible/files/components/reactive-resume-dev-tls/renewal/cristexweb-reactive-resume-dev-tls-renew.service",
             ROOT / "ansible/files/components/reactive-resume-dev-tls/renewal/cristexweb-reactive-resume-dev-tls-renew.timer",
+            ROOT / "ansible/bin/soak-reactive-resume-dev",
+            ROOT / "ansible/playbooks/soak_reactive_resume_dev.yml",
+            ROOT / "ansible/roles/reactive_resume_dev_soak/defaults/main.yml",
+            ROOT / "ansible/roles/reactive_resume_dev_soak/tasks/main.yml",
+            ROOT / "ansible/roles/reactive_resume_dev_soak/tasks/sample.yml",
         }
         for root in executable_roots:
             for path in root.rglob("*"):

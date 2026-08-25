@@ -1,0 +1,10 @@
+---
+- name: Run the source-only guarded Reactive Resume DEV soak
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+
+  roles:
+    - role: reactive_resume_dev_soak

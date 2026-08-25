@@ -1,0 +1,171 @@
+---
+- name: Reject externally supplied Reactive Resume DEV soak internals
+  ansible.builtin.assert:
+    that:
+      - >-
+        (vars.keys() | select('match', '^reactive_resume_dev_soak_internal_') |
+        list | length) == 0
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied Reactive Resume DEV
+      soak state.
+  changed_when: false
+
+- name: Require the exact source-only Reactive Resume DEV soak invocation
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_approved | bool
+      - ansible_check_mode
+      - ansible_diff_mode
+      - (ansible_limit | default('') | string) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - inventory_hostname == 'crtxweb'
+      - reactive_resume_dev_soak_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - reactive_resume_dev_soak_namespace == 'cristexhub-dev'
+      - reactive_resume_dev_soak_prod_namespace == 'cristexhub-prod'
+      - reactive_resume_dev_soak_hostname == 'resume-dev.cristex-soft.com'
+      - reactive_resume_dev_soak_url == 'https://resume-dev.cristex-soft.com/'
+      - reactive_resume_dev_soak_health_url == 'https://resume-dev.cristex-soft.com/api/health'
+      - reactive_resume_dev_soak_oidc_discovery_url == 'https://auth.cristex-soft.com/realms/cristexhub/.well-known/openid-configuration'
+      - reactive_resume_dev_soak_oidc_issuer == 'https://auth.cristex-soft.com/realms/cristexhub'
+      - reactive_resume_dev_soak_duration_seconds == 900
+      - reactive_resume_dev_soak_interval_seconds == 60
+      - reactive_resume_dev_soak_sample_count == 16
+      - reactive_resume_dev_soak_sample_count == (reactive_resume_dev_soak_duration_seconds // reactive_resume_dev_soak_interval_seconds) + 1
+      - reactive_resume_dev_soak_receipt_format == 'sanitized-v1'
+      - reactive_resume_dev_soak_prod_queries | length == 10
+    fail_msg: >-
+      The soak is a fixed 15-minute, 16-sample, check-only closure for the
+      selected private DEV hostname and shared cristexhub realm.
+  changed_when: false
+
+- name: Require the canonical guarded soak wrapper
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_ATTESTATION_FILE') | length > 0
+      - reactive_resume_dev_soak_controller_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - reactive_resume_dev_soak_controller_user == lookup('ansible.builtin.env', 'USER')
+    fail_msg: >-
+      ENTRYPOINT_GUARD: use only the canonical non-passthrough soak wrapper.
+  changed_when: false
+
+- name: Inspect the ephemeral soak attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: reactive_resume_dev_soak_internal_attestation_state
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run soak attestation
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_attestation_state.stat.isreg | default(false)
+      - not (reactive_resume_dev_soak_internal_attestation_state.stat.islnk | default(false))
+      - reactive_resume_dev_soak_internal_attestation_state.stat.pw_name == reactive_resume_dev_soak_controller_user
+      - reactive_resume_dev_soak_internal_attestation_state.stat.mode == '0600'
+      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_TOKEN') ~ ':entrypoint'
+    fail_msg: >-
+      ENTRYPOINT_GUARD: refusing a missing, reusable, foreign-owned, symlinked,
+      or invalid soak attestation.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Read the fixed backup timer state without mutation
+  ansible.builtin.service_facts:
+  register: reactive_resume_dev_soak_internal_services
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require an enabled and active Reactive Resume DEV backup timer
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_services.services[reactive_resume_dev_soak_backup_timer] is defined
+      - reactive_resume_dev_soak_internal_services.services[reactive_resume_dev_soak_backup_timer].state == 'running'
+      - reactive_resume_dev_soak_internal_services.services[reactive_resume_dev_soak_backup_timer].status == 'enabled'
+    fail_msg: >-
+      The weekly Reactive Resume DEV backup timer must already be active and
+      enabled; the soak has no enable or restart path.
+  changed_when: false
+  no_log: true
+
+- name: Require the existing DEV and PROD namespaces without adoption
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ item }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  loop:
+    - "{{ reactive_resume_dev_soak_namespace }}"
+    - "{{ reactive_resume_dev_soak_prod_namespace }}"
+  register: reactive_resume_dev_soak_internal_namespaces
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require exact existing namespace phases
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].status.phase == 'Active'
+  loop: "{{ reactive_resume_dev_soak_internal_namespaces.results }}"
+  loop_control:
+    label: fixed-namespace
+  changed_when: false
+  no_log: true
+
+- name: Run the fixed periodic private DEV acceptance samples
+  ansible.builtin.include_tasks: sample.yml
+  loop: "{{ range(0, reactive_resume_dev_soak_sample_count) | list }}"
+  loop_control:
+    loop_var: reactive_resume_dev_soak_sample_index
+    label: "sample-{{ reactive_resume_dev_soak_sample_index }}"
+
+- name: Require every soak sample to pass
+  ansible.builtin.assert:
+    that:
+      - (reactive_resume_dev_soak_internal_samples | default([])) | length == reactive_resume_dev_soak_sample_count
+      - >-
+        (reactive_resume_dev_soak_internal_samples |
+        selectattr('hostname_tls_http', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
+      - >-
+        (reactive_resume_dev_soak_internal_samples |
+        selectattr('oidc_issuer', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
+      - >-
+        (reactive_resume_dev_soak_internal_samples |
+        selectattr('app_ready', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
+      - >-
+        (reactive_resume_dev_soak_internal_samples |
+        selectattr('prod_activation_absent', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
+    fail_msg: >-
+      Every fixed soak sample must pass TLS/health, shared-realm OIDC issuer,
+      app readiness, and zero-PROD-activation checks.
+  changed_when: false
+  no_log: true
+
+- name: Emit the sanitized Reactive Resume DEV soak receipt
+  ansible.builtin.debug:
+    msg:
+      soak_receipt: reactive-resume-dev-soak
+      receipt_format: "{{ reactive_resume_dev_soak_receipt_format }}"
+      result: pass
+      hostname: "{{ reactive_resume_dev_soak_hostname }}"
+      duration_seconds: "{{ reactive_resume_dev_soak_duration_seconds }}"
+      interval_seconds: "{{ reactive_resume_dev_soak_interval_seconds }}"
+      samples: "{{ reactive_resume_dev_soak_sample_count }}"
+      checks:
+        hostname_tls_http: pass
+        oidc_issuer: pass
+        app_ready: pass
+        backup_timer_active_enabled: pass
+        prod_activation_absent: pass
+      values_output: false
+  changed_when: false

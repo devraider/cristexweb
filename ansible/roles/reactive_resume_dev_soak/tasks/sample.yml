@@ -1,0 +1,218 @@
+---
+- name: Wait between private hostname soak samples
+  ansible.builtin.pause:
+    seconds: "{{ reactive_resume_dev_soak_interval_seconds }}"
+  when: reactive_resume_dev_soak_sample_index | int > 0
+  check_mode: false
+  changed_when: false
+
+- name: Probe the private hostname over browser-trusted TLS
+  ansible.builtin.uri:
+    url: "{{ reactive_resume_dev_soak_health_url }}"
+    method: GET
+    headers:
+      Accept: application/json
+    status_code: [200]
+    timeout: 30
+    validate_certs: true
+    return_content: true
+  delegate_to: localhost
+  become: false
+  register: reactive_resume_dev_soak_internal_health
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Parse the private health response without output
+  ansible.builtin.set_fact:
+    reactive_resume_dev_soak_internal_health_payload: "{{ reactive_resume_dev_soak_internal_health.content | from_json }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require healthy private hostname response
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_health.status == 200
+      - reactive_resume_dev_soak_internal_health_payload.status == 'healthy'
+  fail_msg: >-
+    The private hostname must return HTTP 200 with the exact healthy application
+    status over validated TLS.
+  changed_when: false
+  no_log: true
+
+- name: Probe the shared CristexHub OIDC discovery document
+  ansible.builtin.uri:
+    url: "{{ reactive_resume_dev_soak_oidc_discovery_url }}"
+    method: GET
+    headers:
+      Accept: application/json
+    status_code: [200]
+    timeout: 30
+    validate_certs: true
+    return_content: true
+  delegate_to: localhost
+  become: false
+  register: reactive_resume_dev_soak_internal_oidc
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Parse the OIDC discovery response without output
+  ansible.builtin.set_fact:
+    reactive_resume_dev_soak_internal_oidc_payload: "{{ reactive_resume_dev_soak_internal_oidc.content | from_json }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the shared CristexHub OIDC issuer
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_oidc.status == 200
+      - reactive_resume_dev_soak_internal_oidc_payload.issuer == reactive_resume_dev_soak_oidc_issuer
+      - reactive_resume_dev_soak_internal_oidc_payload.jwks_uri is defined
+  fail_msg: >-
+    Reactive Resume must resolve OIDC discovery to the retained shared
+    cristexhub realm, not the retired successor realm.
+  changed_when: false
+  no_log: true
+
+- name: Query the DEV deployment readiness
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: "{{ reactive_resume_dev_soak_deployment }}"
+    namespace: "{{ reactive_resume_dev_soak_namespace }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  register: reactive_resume_dev_soak_internal_deployment
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require one ready DEV Reactive Resume deployment
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_deployment.resources | length == 1
+      - reactive_resume_dev_soak_internal_deployment.resources[0].spec.replicas == 1
+      - reactive_resume_dev_soak_internal_deployment.resources[0].status.observedGeneration >= reactive_resume_dev_soak_internal_deployment.resources[0].metadata.generation
+      - reactive_resume_dev_soak_internal_deployment.resources[0].status.replicas == 1
+      - reactive_resume_dev_soak_internal_deployment.resources[0].status.updatedReplicas == 1
+      - reactive_resume_dev_soak_internal_deployment.resources[0].status.readyReplicas == 1
+      - reactive_resume_dev_soak_internal_deployment.resources[0].status.availableReplicas == 1
+    fail_msg: The DEV Reactive Resume deployment must remain exactly one ready replica.
+  changed_when: false
+  no_log: true
+
+- name: Query the DEV ClusterIP service
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Service
+    name: "{{ reactive_resume_dev_soak_service }}"
+    namespace: "{{ reactive_resume_dev_soak_namespace }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  register: reactive_resume_dev_soak_internal_service
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require the private DEV service contract
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_service.resources | length == 1
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.type == 'ClusterIP'
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.ports | length == 1
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.ports[0].port == 3000
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.ports[0].targetPort == 'http'
+    fail_msg: The DEV application service must remain private ClusterIP port 3000.
+  changed_when: false
+  no_log: true
+
+- name: Query the DEV private Ingress
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: Ingress
+    name: "{{ reactive_resume_dev_soak_ingress }}"
+    namespace: "{{ reactive_resume_dev_soak_namespace }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  register: reactive_resume_dev_soak_internal_ingress
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require the exact private Traefik Ingress contract
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_ingress.resources | length == 1
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.ingressClassName == 'traefik'
+      - reactive_resume_dev_soak_internal_ingress.resources[0].metadata.annotations['traefik.ingress.kubernetes.io/router.entrypoints'] == 'websecure'
+      - reactive_resume_dev_soak_internal_ingress.resources[0].metadata.annotations['traefik.ingress.kubernetes.io/router.tls'] == 'true'
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules | length == 1
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules[0].host == reactive_resume_dev_soak_hostname
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.tls | length == 1
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.tls[0].secretName == reactive_resume_dev_soak_tls_secret
+    fail_msg: The private hostname must remain on the exact Traefik TLS Ingress.
+  changed_when: false
+  no_log: true
+
+- name: Query the precreated DEV TLS Secret metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: "{{ reactive_resume_dev_soak_tls_secret }}"
+    namespace: "{{ reactive_resume_dev_soak_namespace }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  register: reactive_resume_dev_soak_internal_tls_secret
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require exact TLS Secret metadata without reading values
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_tls_secret.resources | length == 1
+      - reactive_resume_dev_soak_internal_tls_secret.resources[0].type == 'kubernetes.io/tls'
+      - reactive_resume_dev_soak_internal_tls_secret.resources[0].data.keys() | list | sort == ['tls.crt', 'tls.key']
+    fail_msg: The browser-trusted TLS Secret must retain its exact two-key contract.
+  changed_when: false
+  no_log: true
+
+- name: Query every fixed Reactive Resume PROD resource class
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ reactive_resume_dev_soak_prod_namespace }}"
+    label_selectors:
+      - "{{ reactive_resume_dev_soak_prod_label_selector }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  loop: "{{ reactive_resume_dev_soak_prod_queries }}"
+  register: reactive_resume_dev_soak_internal_prod_results
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require zero labeled Reactive Resume PROD resources
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 0
+  loop: "{{ reactive_resume_dev_soak_internal_prod_results.results }}"
+  loop_control:
+    label: fixed-prod-resource-class
+  fail_msg: Reactive Resume PROD must remain completely inactive during the DEV soak.
+  changed_when: false
+  no_log: true
+
+- name: Record only sanitized pass booleans for this sample
+  ansible.builtin.set_fact:
+    reactive_resume_dev_soak_internal_samples: >-
+      {{ (reactive_resume_dev_soak_internal_samples | default([])) + [{
+        'sample': reactive_resume_dev_soak_sample_index | int,
+        'hostname_tls_http': true,
+        'oidc_issuer': true,
+        'app_ready': true,
+        'backup_timer_active_enabled': true,
+        'prod_activation_absent': true
+      }] }}
+  changed_when: false
+  no_log: true

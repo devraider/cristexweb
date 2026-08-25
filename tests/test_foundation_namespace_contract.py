@@ -255,6 +255,7 @@ metadata:
                 ANSIBLE / "bin/bootstrap-infisical-cloudflared-secrets",
                 ANSIBLE / "bin/configure-opentofu-github-state-backup",
                 ANSIBLE / "bin/configure-reactive-resume-dev-backup",
+                ANSIBLE / "bin/soak-reactive-resume-dev",
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()}, # includes separately guarded component entrypoints
         )

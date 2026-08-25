@@ -1,0 +1,55 @@
+#!/bin/sh
+set -eu
+
+usage='usage: ansible/bin/soak-reactive-resume-dev check'
+if [ "$#" -ne 1 ] || [ "$1" != check ]; then
+  printf '%s\n%s\n' "$usage" 'refusing mutation, passthrough arguments, --start-at-task, tags, or task selection' >&2
+  exit 64
+fi
+
+script_path=$0
+[ ! -L "$script_path" ] || {
+  printf '%s\n' 'refusing a symlinked soak entrypoint' >&2
+  exit 66
+}
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
+case "$repository_root" in
+  /Users/paul/Projects/cristexweb|/home/paul/projects/cristexweb) ;;
+  *) printf '%s\n' 'refusing a repository outside the pinned controller path' >&2; exit 78 ;;
+esac
+controller="$repository_root/.venv/bin/ansible-playbook"
+[ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || {
+  printf '%s\n' 'refusing an absent, non-executable, or symlinked pinned Ansible controller' >&2
+  exit 69
+}
+controller_user=$(/usr/bin/id -un)
+cd -- "$repository_root/ansible"
+umask 077
+attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-dev-soak.XXXXXX")"
+attestation_token="$(/usr/bin/openssl rand -hex 32)"
+printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+/bin/chmod 0600 "$attestation_file"
+cleanup() { /bin/rm -f -- "$attestation_file"; }
+trap cleanup EXIT HUP INT TERM
+
+set -- \
+  "$controller" \
+  -i .ansible/inventory.local.yml \
+  playbooks/soak_reactive_resume_dev.yml \
+  --check \
+  --diff \
+  --limit crtxweb \
+  --extra-vars '{"reactive_resume_dev_soak_approved":true}'
+
+/usr/bin/env -i \
+  HOME="${HOME:-/home/$controller_user}" \
+  USER="$controller_user" \
+  LOGNAME="$controller_user" \
+  PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+  LC_ALL=C.UTF-8 \
+  ANSIBLE_CONFIG="$PWD/ansible.cfg" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_ENTRYPOINT=v1 \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_TOKEN="$attestation_token" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_ATTESTATION_FILE="$attestation_file" \
+  "$@"
