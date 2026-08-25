@@ -43,9 +43,10 @@ class OidcConnectProxyContractTests(unittest.TestCase):
         self.assertIn("http_port 3128", config)
         self.assertIn("acl connect_method method CONNECT", config)
         self.assertIn(
-            "acl allowed_https_host dstdomain auth.cristex-soft.com api.deepseek.com fonts.gstatic.com",
+            "acl allowed_https_host dstdomain auth.cristex-soft.com api.deepseek.com",
             config,
         )
+        self.assertNotIn("fonts.gstatic.com", config)
         self.assertIn("acl tls_port port 443", config)
         self.assertIn("http_access deny !connect_method", config)
         self.assertIn("http_access deny !tls_port", config)
@@ -54,7 +55,7 @@ class OidcConnectProxyContractTests(unittest.TestCase):
         self.assertIn("access_log none", config)
         domain_lines = [line.strip() for line in config.splitlines() if " dstdomain " in line]
         self.assertEqual(
-            ["acl allowed_https_host dstdomain auth.cristex-soft.com api.deepseek.com fonts.gstatic.com"],
+            ["acl allowed_https_host dstdomain auth.cristex-soft.com api.deepseek.com"],
             domain_lines,
         )
 

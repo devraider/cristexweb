@@ -1,4 +1,4 @@
-c9520d793731728912a351f396725d0ee13bde634080322a966f9fcc3a487c8e  config/configmap-oidc-connect-proxy.yaml
+0b1de004a3dc5584f7b133b2c22512780fe49a6f479f9b24ca77b32f03569c5d  config/configmap-oidc-connect-proxy.yaml
 467ea68e497a257f21110ef8abb87be188d38f85e61c7dac31c85d1e43ff09cb  network/cristexhub-backend-allow-oidc-proxy.yaml
 867319685dbea57434ab9960ddcfdc2b215b2e898aa5d0bd51ad1c210d75ba05  network/oauth2-proxy-allow-oidc-proxy.yaml
 693fb12793b802c000104d5e54120eeb6f46628b5122710243ee3c329a9c3ef5  network/oidc-connect-proxy-allow-auth-egress.yaml
@@ -7,5 +7,5 @@ f7c9ec50a9c3ee4e9678618075fd0d07f3df67637cc81c49e840f23d560be1a3  network/oidc-c
 129ee4b054899fd6d1f13c5e58a1823d9434ab559eb354b63be53180566b87fb  network/oidc-connect-proxy-allow-reactive-resume-dev.yaml
 3c24bf4881a3a8e5dfd4bdd5a0ffd77db36013a1109195b9de52abda3bbd6462  network/oidc-connect-proxy-default-deny.yaml
 4df1006ab1777c3f3aa7e5ebe5eae09424798ed64e0a5ea8a5fcdae76be244e8  rbac/serviceaccount-oidc-connect-proxy.yaml
-5e7cf012d4ff95f70ab18ee43a50fd7203a62820b34802b2dc06713a306e781c  runtime/deployment-oidc-connect-proxy.yaml
+afab068cccd883912a68afeb0160280fe74838338114211840cbd5c2c58a0b9f  runtime/deployment-oidc-connect-proxy.yaml
 6a28fc9ba9a355be663a0cd8683221e0eb792dc096652cb4d54feb53666da6e4  runtime/service-oidc-connect-proxy.yaml

@@ -10,7 +10,7 @@ from pathlib import Path
 from ansible import context
 from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule as KubernetesActionModule
 
-_EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'oidc-connect-proxy'): '0a01060fc0b1646346207e3c3369e51dc05c02a72cfaa55a5d4a06393c2b106f',
+_EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'oidc-connect-proxy'): 'f5730a9451cf1a8e9ce7899853de341d50d9d6bf7de410c1f43af8c40c4e6537',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-reactive-resume-dev'): '4279fb9976ce6a7e0d3983fd34291c35bad1c5b46159e4ec86b761f28e5c4e42',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'cristexhub-backend-allow-oidc-proxy'): 'b71a698a978952c068220db0dfa842409baa4394b77672bd04c532ec81b73f05',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'oauth2-proxy-allow-oidc-proxy'): '6a15389649dfa29a25802071c7630b5576f8ff36b55075d00e64b3a0aa8afc15',
@@ -18,7 +18,7 @@ _EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'oidc-co
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-clients'): 'b8a40367df5814aa6df64079dee85a407b0f05f36368ad0ae85220b6be742f3c',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-dns'): '1c6e1b62e40ad388f5033ceb00e9f80ab62c4cbe87f7bcc23ff6ecbfe51e704b',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-default-deny'): '21a51a152e008488dbb90fac6c550833f63e74d47153b93abea66f9f348dc25f',
- ('v1', 'ConfigMap', 'shared-services', 'oidc-connect-proxy-config'): 'd85ba9b9b6432625f6be3d2fb7d2d000187f305252396b4fa685254a5a5c94e0',
+ ('v1', 'ConfigMap', 'shared-services', 'oidc-connect-proxy-config'): '9ec4de4949828f6c501223c13e8834cfb9f77c6e822518248b0784a750e42709',
  ('v1', 'Service', 'shared-services', 'oidc-connect-proxy'): '4ead3c00dd5ba42d341878904d36fd1d67ce25eb4dc2a3121a259b67a510d4e6',
  ('v1', 'ServiceAccount', 'shared-services', 'oidc-connect-proxy'): 'eb8a14e1f526d468fcd756b510af7d15f0600573dd0bd788aff99bbda16d6087'}
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}

@@ -19,7 +19,7 @@ oidc_connect_proxy_bootstrap_manifest_paths:
   - "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/runtime/service-oidc-connect-proxy.yaml"
 oidc_connect_proxy_bootstrap_object_count: 11
 oidc_connect_proxy_bootstrap_expected_hashes:
-  - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/config/configmap-oidc-connect-proxy.yaml", sha256: c9520d793731728912a351f396725d0ee13bde634080322a966f9fcc3a487c8e}
+  - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/config/configmap-oidc-connect-proxy.yaml", sha256: 0b1de004a3dc5584f7b133b2c22512780fe49a6f479f9b24ca77b32f03569c5d}
   - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/network/cristexhub-backend-allow-oidc-proxy.yaml", sha256: 467ea68e497a257f21110ef8abb87be188d38f85e61c7dac31c85d1e43ff09cb}
   - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/network/oauth2-proxy-allow-oidc-proxy.yaml", sha256: 867319685dbea57434ab9960ddcfdc2b215b2e898aa5d0bd51ad1c210d75ba05}
   - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-auth-egress.yaml", sha256: 693fb12793b802c000104d5e54120eeb6f46628b5122710243ee3c329a9c3ef5}
@@ -28,7 +28,7 @@ oidc_connect_proxy_bootstrap_expected_hashes:
   - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-dns.yaml", sha256: 5f3233460f58f23d18ed3939df388ec5528fe491533632da6efa52a05594afce}
   - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-default-deny.yaml", sha256: 3c24bf4881a3a8e5dfd4bdd5a0ffd77db36013a1109195b9de52abda3bbd6462}
   - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/rbac/serviceaccount-oidc-connect-proxy.yaml", sha256: 4df1006ab1777c3f3aa7e5ebe5eae09424798ed64e0a5ea8a5fcdae76be244e8}
-  - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/runtime/deployment-oidc-connect-proxy.yaml", sha256: 5e7cf012d4ff95f70ab18ee43a50fd7203a62820b34802b2dc06713a306e781c}
+  - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/runtime/deployment-oidc-connect-proxy.yaml", sha256: afab068cccd883912a68afeb0160280fe74838338114211840cbd5c2c58a0b9f}
   - {path: "{{ oidc_connect_proxy_bootstrap_repository_root }}/ansible/files/components/oidc-connect-proxy/runtime/service-oidc-connect-proxy.yaml", sha256: 6a28fc9ba9a355be663a0cd8683221e0eb792dc096652cb4d54feb53666da6e4}
 oidc_connect_proxy_bootstrap_identity_set_sha256: c456c66fc09873e9deb9ae3b1176e18a856db18f0c8d6b2fd23959709ee56863
 oidc_connect_proxy_bootstrap_namespace: shared-services

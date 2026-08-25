@@ -11,8 +11,10 @@ HTTP `200`, oauth2-proxy root/start redirects (`302`), backend startup completio
 and a ready Celery worker connected to the TLS RabbitMQ broker. This is not full
 OIDC/CONNECT validation: authenticated login/callback and positive/negative CONNECT
 tests remain outstanding. The committed Squid source confirms the exact HTTPS
-destination allowlist `auth.cristex-soft.com:443` and `api.deepseek.com:443`; arbitrary
-HTTPS destinations remain denied. A no-token DeepSeek `/models` `401` is transport
+destination allowlist `auth.cristex-soft.com:443` and `api.deepseek.com:443`; the
+runtime images bundle their fonts and have no `fonts.gstatic.com` dependency, so
+that browser CDN is intentionally not reachable through this server-side proxy.
+Arbitrary HTTPS destinations remain denied. A no-token DeepSeek `/models` `401` is transport
 smoke only, not API authorization. The proxy remains CONNECT-only; no public
 Keycloak administration, management, or direct-origin path is added. This evidence
 does not authorize the Cloudflare PROD route.
