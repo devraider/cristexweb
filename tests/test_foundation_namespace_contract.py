@@ -243,6 +243,7 @@ metadata:
                 ANSIBLE / "bin/bootstrap-argocd-route",
                 ANSIBLE / "bin/bootstrap-reactive-resume-dev-route",
                 ANSIBLE / "bin/bootstrap-reactive-resume-dev-argocd-registration",
+                ANSIBLE / "bin/bootstrap-keycloak-reactive-resume-dev-client",
                 ANSIBLE / "bin/configure-reactive-resume-dev-tls-renewal",
                 ANSIBLE / "bin/bootstrap-cristexhub-dev-registration",
                 ANSIBLE / "bin/bootstrap-cristexhub-prod-registration",

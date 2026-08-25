@@ -55,6 +55,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "reactive-resume-hosted-architecture.md",
                 "reactive-resume-dev-backup.md",
                 "reactive-resume-dev-private-route.md",
+                "reactive-resume-dev-shared-realm-client.md",
                 "reactive-resume-dev-argocd.md",
                 "reactive-resume-dev-argocd-registration.md",
                 "reactive-resume-dev-tls-renewal.md",

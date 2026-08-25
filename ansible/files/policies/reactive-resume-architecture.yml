@@ -134,7 +134,7 @@ identity:
   selected_web_origins:
     - https://resume-dev.cristex-soft.com
   selected_post_logout_redirects:
-    - https://resume-dev.cristex-soft.com/*
+    - https://resume-dev.cristex-soft.com/
   candidate_realms:
     retained_prod_compatible: cristexhub
     retired_successor_dev_source: cristexhub-dev
@@ -145,7 +145,9 @@ identity:
     dev:
       id: reactive-resume-dev
       namespace: cristexhub-dev
-      status: shared-realm-client-runtime-accepted
+      status: shared-realm-client-runtime-source-checkpointed
+      source_contract: ansible/files/components/keycloak-reactive-resume-dev-client/source/reactive-resume-dev-client.yaml
+      source_guard: ansible/plugins/action/keycloak_reactive_resume_dev_client_guarded.py
       realm: cristexhub
       callback: /api/auth/oauth2/callback/custom
       hostname: https://resume-dev.cristex-soft.com
@@ -157,9 +159,9 @@ identity:
   old_successor_client:
     id: reactive-resume-dev
     realm: cristexhub-dev
-    status: retained-for-rollback-pending-separate-disable-approval
+    status: disabled-rollback-only
     deletion: forbidden
-    disable_requires: shared-realm-private-acceptance-and-explicit-approval
+    disable_requires: separate-reviewed-rollback-only
     rollback:
       reenable_client: allowed-only-through-reviewed-recovery
       restore_issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
@@ -619,11 +621,11 @@ source_closure:
       web_origins:
         - https://resume-dev.cristex-soft.com
       post_logout_redirects:
-        - https://resume-dev.cristex-soft.com/*
+        - https://resume-dev.cristex-soft.com/
       shared_login_theme_and_sso: true
       pkce_s256: true
       client_secret_state: infisical-owned-materialized
-      old_successor_client_retirement: retained-for-rollback-pending-separate-disable-approval
+      old_successor_client_retirement: disabled-rollback-only-delete-forbidden
       cross_environment_identity: forbidden
     runtime_secret_contract:
       target_namespace: cristexhub-dev

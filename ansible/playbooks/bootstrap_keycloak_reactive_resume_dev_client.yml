@@ -1,0 +1,8 @@
+---
+- name: Validate the source-only Reactive Resume DEV shared-realm client
+  hosts: k3s_servers
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  roles:
+    - role: keycloak_reactive_resume_dev_client_bootstrap

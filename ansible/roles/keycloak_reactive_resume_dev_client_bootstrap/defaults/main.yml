@@ -1,0 +1,15 @@
+---
+keycloak_reactive_resume_dev_client_bootstrap_approved: false
+keycloak_reactive_resume_dev_client_bootstrap_state: present
+keycloak_reactive_resume_dev_client_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
+keycloak_reactive_resume_dev_client_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+keycloak_reactive_resume_dev_client_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+keycloak_reactive_resume_dev_client_bootstrap_component_root: "{{ keycloak_reactive_resume_dev_client_bootstrap_repository_root }}/ansible/files/components/keycloak-reactive-resume-dev-client"
+keycloak_reactive_resume_dev_client_bootstrap_manifest_paths:
+  - "{{ keycloak_reactive_resume_dev_client_bootstrap_component_root }}/source/reactive-resume-dev-client.yaml"
+keycloak_reactive_resume_dev_client_bootstrap_expected_hashes:
+  - path: "{{ keycloak_reactive_resume_dev_client_bootstrap_component_root }}/source/reactive-resume-dev-client.yaml"
+    sha256: 5a4476015875a5b8e8bb23bbf53dcb59bd9f37102921ed5255abbaac0e526c6a
+keycloak_reactive_resume_dev_client_bootstrap_object_count: 1
+keycloak_reactive_resume_dev_client_bootstrap_expected_identity_set_sha256: bbdf59674c3383c00ad8648c8707a17bba16f693c3377148f09898f521075cf5
+keycloak_reactive_resume_dev_client_bootstrap_expected_definition_sha256: 55f1f54d4ab9f0ec1e547da7f6d692e5d51840ad5cf4f01ecf8b7de5c0af97fd

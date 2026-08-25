@@ -1,0 +1,161 @@
+---
+- name: Reject externally supplied shared-realm client internals
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: Refusing externally supplied shared-realm client internals.
+  loop:
+    - keycloak_reactive_resume_dev_client_bootstrap_internal_attestation_state
+    - keycloak_reactive_resume_dev_client_bootstrap_internal_manifest_states
+    - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests
+    - keycloak_reactive_resume_dev_client_bootstrap_internal_identity_keys
+    - keycloak_reactive_resume_dev_client_bootstrap_internal_preflight_binding
+    - keycloak_reactive_resume_dev_client_bootstrap_internal_read_results
+  changed_when: false
+
+- name: Require exact source-only shared-realm client invocation
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_ATTESTATION_FILE') | length > 0
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_ADMIN_TOKEN_FILE') | length == 0
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_API_BASE_URL') | length == 0
+      - keycloak_reactive_resume_dev_client_bootstrap_approved | bool
+      - keycloak_reactive_resume_dev_client_bootstrap_state == 'present'
+      - ansible_check_mode
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - keycloak_reactive_resume_dev_client_bootstrap_manifest_paths | length == 1
+      - keycloak_reactive_resume_dev_client_bootstrap_expected_hashes | length == 1
+      - keycloak_reactive_resume_dev_client_bootstrap_object_count == 1
+    fail_msg: Shared-realm client requires the dedicated non-passthrough check-only wrapper.
+  changed_when: false
+
+- name: Inspect the ephemeral shared-realm client attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+  register: keycloak_reactive_resume_dev_client_bootstrap_internal_attestation_state
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run shared-realm client attestation
+  ansible.builtin.assert:
+    that:
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_attestation_state.stat.isreg | default(false)
+      - not (keycloak_reactive_resume_dev_client_bootstrap_internal_attestation_state.stat.islnk | default(false))
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_attestation_state.stat.pw_name == keycloak_reactive_resume_dev_client_bootstrap_controller_user
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_attestation_state.stat.mode == '0600'
+      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_TOKEN') ~ ':entrypoint'
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact value-free shared-realm client source
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ keycloak_reactive_resume_dev_client_bootstrap_manifest_paths }}"
+  register: keycloak_reactive_resume_dev_client_bootstrap_internal_manifest_states
+  changed_when: false
+
+- name: Require hash-bound shared-realm client source
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == keycloak_reactive_resume_dev_client_bootstrap_controller_user
+      - item.stat.mode == '0644'
+      - (item.item | ansible.builtin.realpath) == item.item
+      - item.stat.checksum == (keycloak_reactive_resume_dev_client_bootstrap_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - item.item.startswith(keycloak_reactive_resume_dev_client_bootstrap_component_root ~ '/')
+  loop: "{{ keycloak_reactive_resume_dev_client_bootstrap_internal_manifest_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  changed_when: false
+
+- name: Load exact value-free shared-realm client contract
+  ansible.builtin.set_fact:
+    keycloak_reactive_resume_dev_client_bootstrap_internal_manifests: >-
+      {{ (keycloak_reactive_resume_dev_client_bootstrap_internal_manifests | default([])) +
+      [lookup('ansible.builtin.file', item) | from_yaml] }}
+  loop: "{{ keycloak_reactive_resume_dev_client_bootstrap_manifest_paths }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact shared-realm client identity
+  ansible.builtin.set_fact:
+    keycloak_reactive_resume_dev_client_bootstrap_internal_identity_keys: >-
+      {{ (keycloak_reactive_resume_dev_client_bootstrap_internal_identity_keys | default([])) +
+      [item.apiVersion ~ '|' ~ item.kind ~ '|' ~ item.metadata.name] }}
+  loop: "{{ keycloak_reactive_resume_dev_client_bootstrap_internal_manifests }}"
+  changed_when: false
+  no_log: true
+
+- name: Require additive shared-realm client contract
+  ansible.builtin.assert:
+    that:
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests | length == 1
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_identity_keys | unique | length == 1
+      - (keycloak_reactive_resume_dev_client_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256')) == keycloak_reactive_resume_dev_client_bootstrap_expected_identity_set_sha256
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].kind == 'KeycloakClientContract'
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.realm == 'cristexhub'
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.additive is true
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.preserve_existing_clients is true
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.preserve_existing_users is true
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.client_deletion == 'forbidden'
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients | length == 1
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].clientId == 'reactive-resume-dev'
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].redirectUris == ['https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom']
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].webOrigins == ['https://resume-dev.cristex-soft.com']
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].attributes['pkce.code.challenge.method'] == 'S256'
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].attributes['post.logout.redirect.uris'] == 'https://resume-dev.cristex-soft.com/'
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].credentialContract.owner == 'infisical-cloud'
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].credentialContract.path == 'prod:/reactive-resume/dev/runtime'
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].credentialContract.key == 'OAUTH_CLIENT_SECRET'
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.rollback.oldClient.status == 'disabled-rollback-only'
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.rollback.oldClient.deletion == 'forbidden'
+  changed_when: false
+  no_log: true
+
+- name: Bind protected shared-realm client preflight
+  ansible.builtin.set_fact:
+    keycloak_reactive_resume_dev_client_bootstrap_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_TOKEN') | hash('sha256') }}"
+      object_count: 1
+      identity_set_sha256: "{{ keycloak_reactive_resume_dev_client_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
+      no_delete_path: true
+      offline_source_only: true
+      runtime_api_access: false
+      preserve_existing_clients: true
+      preserve_existing_users: true
+  changed_when: false
+  no_log: true
+
+- name: Validate only the approved shared-realm client source offline
+  keycloak_reactive_resume_dev_client_guarded:
+    state: present
+    definition: "{{ item }}"
+  loop: "{{ keycloak_reactive_resume_dev_client_bootstrap_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: keycloak_reactive_resume_dev_client_bootstrap_internal_read_results
+  no_log: true
+
+- name: Confirm shared-realm client validation remained offline
+  ansible.builtin.assert:
+    that:
+      - item.failed | default(false) | bool == false
+      - item.changed | default(false) | bool
+      - item.msg == 'shared cristexhub Reactive Resume client source validated offline; runtime state was not inspected'
+  loop: "{{ keycloak_reactive_resume_dev_client_bootstrap_internal_read_results.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true

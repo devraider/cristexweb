@@ -196,6 +196,10 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
                 "ansible/playbooks/bootstrap_keycloak_dev_identity_transition.yml",
                 "ansible/roles/keycloak_dev_identity_transition_bootstrap/defaults/main.yml",
                 "ansible/roles/keycloak_dev_identity_transition_bootstrap/tasks/main.yml",
+                "ansible/bin/bootstrap-keycloak-reactive-resume-dev-client",
+                "ansible/playbooks/bootstrap_keycloak_reactive_resume_dev_client.yml",
+                "ansible/roles/keycloak_reactive_resume_dev_client_bootstrap/defaults/main.yml",
+                "ansible/roles/keycloak_reactive_resume_dev_client_bootstrap/tasks/main.yml",
             },
             {
                 str(path.relative_to(ROOT))
@@ -255,6 +259,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "reactive-resume-dev-tls",
             "reactive-resume-dev-argocd-registration",
             "reactive-resume-dev-argocd",
+            "keycloak-reactive-resume-dev-client",
             "cristexhub-dev-registration",
             "cristexhub-prod-registration",
             "cristexhub-dev-sync-transition",

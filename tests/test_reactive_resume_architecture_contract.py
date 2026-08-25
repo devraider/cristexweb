@@ -398,7 +398,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("cristexhub", identity["candidate_realms"]["retained_prod_compatible"])
         self.assertEqual("cristexhub-dev", identity["candidate_realms"]["retired_successor_dev_source"])
         self.assertEqual(
-            "shared-realm-client-runtime-accepted",
+            "shared-realm-client-runtime-source-checkpointed",
             identity["clients"]["dev"]["status"],
         )
         self.assertEqual("cristexhub", identity["clients"]["dev"]["realm"])
@@ -413,7 +413,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         )
         self.assertTrue(self.policy["source_closure"]["dev"]["identity_scope"]["shared_login_theme_and_sso"])
         self.assertEqual(
-            "retained-for-rollback-pending-separate-disable-approval",
+            "disabled-rollback-only",
             identity["old_successor_client"]["status"],
         )
         self.assertEqual("forbidden", identity["old_successor_client"]["deletion"])
@@ -728,7 +728,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
     def test_runbook_records_all_blockers_without_claiming_completion(self) -> None:
         normalized = " ".join(self.runbook_text.split())
         for required in (
-            "SOURCE POLICY ONLY — RUNTIME BLOCKED / DEV CONTRACT INCOMPLETE",
+            "DEV PRIVATE RUNTIME CHECKPOINTED — CANONICAL HANDOFF AND SOAK REMAIN OPEN.",
             "executable_source_allowed` remains `false`",
             "candidate-only, **not selected and not deployable**",
             "docker.io/amruthpillai/reactive-resume",
@@ -811,6 +811,13 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             ROOT / "ansible/roles/reactive_resume_dev_soak/defaults/main.yml",
             ROOT / "ansible/roles/reactive_resume_dev_soak/tasks/main.yml",
             ROOT / "ansible/roles/reactive_resume_dev_soak/tasks/sample.yml",
+            ROOT / "ansible/files/components/keycloak-reactive-resume-dev-client/MANIFESTS.sha256",
+            ROOT / "ansible/files/components/keycloak-reactive-resume-dev-client/source/reactive-resume-dev-client.yaml",
+            ROOT / "ansible/plugins/action/keycloak_reactive_resume_dev_client_guarded.py",
+            ROOT / "ansible/roles/keycloak_reactive_resume_dev_client_bootstrap/defaults/main.yml",
+            ROOT / "ansible/roles/keycloak_reactive_resume_dev_client_bootstrap/tasks/main.yml",
+            ROOT / "ansible/bin/bootstrap-keycloak-reactive-resume-dev-client",
+            ROOT / "ansible/playbooks/bootstrap_keycloak_reactive_resume_dev_client.yml",
         }
         for approved_root in (
             ROOT / "ansible/files/components/reactive-resume-dev-argocd-registration",

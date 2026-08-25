@@ -60,8 +60,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/shared_mongodb_networkpolicy_guarded_k8s.py"),
             Path("ansible/plugins/action/keycloak_dev_identity_guarded.py"),
             Path("ansible/plugins/action/keycloak_dev_identity_transition_guarded.py"),
+            Path("ansible/plugins/action/keycloak_reactive_resume_dev_client_guarded.py"),
         }
-        self.assertEqual(34, len(allowed_action_plugins))
+        self.assertEqual(35, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -144,6 +145,11 @@ class AnsibleLayoutTests(unittest.TestCase):
             "plugins/action/keycloak_dev_identity_transition_guarded.py",
             "roles/keycloak_dev_identity_transition_bootstrap/defaults/main.yml",
             "roles/keycloak_dev_identity_transition_bootstrap/tasks/main.yml",
+            "bin/bootstrap-keycloak-reactive-resume-dev-client",
+            "playbooks/bootstrap_keycloak_reactive_resume_dev_client.yml",
+            "plugins/action/keycloak_reactive_resume_dev_client_guarded.py",
+            "roles/keycloak_reactive_resume_dev_client_bootstrap/defaults/main.yml",
+            "roles/keycloak_reactive_resume_dev_client_bootstrap/tasks/main.yml",
             "bin/bootstrap-cloudnative-pg",
             "bin/bootstrap-cloudnative-pg-cluster",
             "bin/install-backup-dependencies",
@@ -405,6 +411,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "reactive-resume-dev-route",
             "reactive-resume-dev-tls",
             "reactive-resume-dev-argocd",
+            "keycloak-reactive-resume-dev-client",
         ):
             required.extend(
                 str(path.relative_to(ANSIBLE))

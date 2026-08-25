@@ -1,0 +1,54 @@
+---
+apiVersion: cristex.io/v1alpha1
+kind: KeycloakClientContract
+metadata:
+  name: reactive-resume-dev-shared-client
+  labels:
+    cristex.io/component: keycloak-reactive-resume-dev-client
+    cristex.io/environment: dev
+    cristex.io/managed-by: ansible
+    cristex.io/value-owner: infisical-cloud
+spec:
+  realm: cristexhub
+  additive: true
+  preserve_existing_clients: true
+  preserve_existing_users: true
+  client_deletion: forbidden
+  clients:
+    - clientId: reactive-resume-dev
+      name: Reactive Resume DEV
+      protocol: openid-connect
+      enabled: true
+      publicClient: false
+      bearerOnly: false
+      standardFlowEnabled: true
+      implicitFlowEnabled: false
+      directAccessGrantsEnabled: false
+      serviceAccountsEnabled: false
+      authorizationServicesEnabled: false
+      redirectUris:
+        - https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom
+      webOrigins:
+        - https://resume-dev.cristex-soft.com
+      attributes:
+        pkce.code.challenge.method: S256
+        post.logout.redirect.uris: https://resume-dev.cristex-soft.com/
+      authorizationScopeContract:
+        required:
+          - openid
+          - profile
+          - email
+      credentialContract:
+        owner: infisical-cloud
+        path: prod:/reactive-resume/dev/runtime
+        key: OAUTH_CLIENT_SECRET
+        materialization: materialized-private-runtime
+  rollback:
+    oldClient:
+      clientId: reactive-resume-dev
+      realm: cristexhub-dev
+      status: disabled-rollback-only
+      deletion: forbidden
+      enable_requires: separate-reviewed-rollback
+      issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
+      discovery: https://auth.cristex-soft.com/realms/cristexhub-dev/.well-known/openid-configuration

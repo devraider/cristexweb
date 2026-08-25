@@ -2,19 +2,20 @@
 
 ## Status
 
-**SOURCE POLICY ONLY — RUNTIME BLOCKED / DEV CONTRACT INCOMPLETE.** Reactive Resume
-is a planned private DEV MVP in `cristexhub-dev`. A bounded read-only inventory on
-2026-08-21 found no matching application workload or Argo objects; this is
-point-in-time evidence, not reconciliation. A later safe metadata inventory found
-that the broad all-consumer lane had already materialized both DEV and unapproved
-PROD CloudNativePG Database/DatabaseRole CRs and Infisical-owned credential Secrets.
-Both CR pairs report applied, both roles retain `INHERIT`, and zero NetworkPolicies
-select the shared PostgreSQL cluster. This revision adds only a value-free blocker inventory
-and a candidate-only image provenance record; the recorded digest is not selected or
-deployable. It adds no deployable manifest, apply-capable wrapper, Secret, Namespace,
-database object, identity mutation, route, or runtime state. PROD remains a
-reservation/template only and
-cannot be activated from this policy.
+**DEV PRIVATE RUNTIME CHECKPOINTED — CANONICAL HANDOFF AND SOAK REMAIN OPEN.**
+Reactive Resume DEV runs in `cristexhub-dev` at the private hostname
+`https://resume-dev.cristex-soft.com`. The shared `cristexhub` Keycloak client is
+represented by an exact guarded value-free source contract; its secret remains
+Infisical/Kubernetes-owned and no client or user outside that additive contract is
+reconciled by the source. The former same-named `cristexhub-dev` client is disabled,
+retained only for rollback, and deletion is forbidden.
+
+Historical absence inventories remain historical and must not be read as current
+state. The canonical DEV workload source, private route, runtime Secret materialization,
+backup timer, and private validation are checkpointed. Remaining gates are the
+object-by-object Argo handoff/sync, measured non-empty recovery correlation, and
+DEV soak. Existing broad database drift remains unaccepted; PROD remains a
+reservation/template only and cannot be activated from this policy.
 
 The canonical contract is
 [`reactive-resume-architecture.yml`](../ansible/files/policies/reactive-resume-architecture.yml).
@@ -68,17 +69,15 @@ selection is:
 - browser hostname: `https://resume-dev.cristex-soft.com`;
 - exact callback: `https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom`;
 - exact web origin: `https://resume-dev.cristex-soft.com`;
-- RP-initiated post-logout redirect: `https://resume-dev.cristex-soft.com/*`;
+- exact RP-initiated post-logout redirect: `https://resume-dev.cristex-soft.com/`;
 - client: `reactive-resume-dev` in realm `cristexhub`, with PKCE S256.
 
-The former `reactive-resume-dev` client in `cristexhub-dev` is retained only as a
-rollback handle while shared-realm private acceptance is confirmed. It must not
-be deleted. Disabling it is a separate, explicitly approved operation after the
-shared-realm client has passed private login, session, callback, logout, and
-negative alternate-authentication tests. Rollback re-enables only that old
-client, restores the old issuer/discovery values, and reverts the application
-source/configuration; it does not delete identities or mutate the `cristexhub`
-CristexHub client. No disable or delete operation is authorized by this runbook.
+The former `reactive-resume-dev` client in `cristexhub-dev` is disabled and
+retained only as a rollback handle. It must not be deleted. Re-enabling it is a
+separate, explicitly reviewed rollback operation after recording the current
+shared-realm metadata; rollback restores the old issuer/discovery values and
+application configuration without deleting identities or mutating the `cristexhub`
+CristexHub client. This runbook authorizes no delete or implicit re-enable path.
 
 ## DEV placement and explicit blockers
 

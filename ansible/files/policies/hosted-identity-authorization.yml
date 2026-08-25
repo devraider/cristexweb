@@ -1,6 +1,6 @@
 ---
 policy_schema: cristex-hosted-identity-v3
-policy_status: runtime-checkpointed-dev-successor-source-only
+policy_status: runtime-checkpointed-shared-realm-client-source-enforced
 realm:
   name: cristexhub
   issuer: https://auth.cristex-soft.com/realms/cristexhub
@@ -146,8 +146,10 @@ clients:
       namespace: cristexhub-dev
       realm: cristexhub
       issuer: https://auth.cristex-soft.com/realms/cristexhub
+      source_contract: ansible/files/components/keycloak-reactive-resume-dev-client/source/reactive-resume-dev-client.yaml
+      source_guard: ansible/plugins/action/keycloak_reactive_resume_dev_client_guarded.py
       realm_runtime_state: accepted-private-validation
-      activation: private-runtime-active-shared-realm-acceptance-pending-soak
+      activation: private-runtime-active-shared-realm-client-source-checkpointed
       callback_selected: true
       client_type: confidential
       pkce_method: S256
@@ -161,7 +163,7 @@ clients:
       web_origins:
         - https://resume-dev.cristex-soft.com
       post_logout_redirect_uris:
-        - https://resume-dev.cristex-soft.com/*
+        - https://resume-dev.cristex-soft.com/
       client_secret_owner: infisical-cloud
       client_secret_path: prod:/reactive-resume/dev/runtime
       client_secret_key: OAUTH_CLIENT_SECRET
@@ -169,9 +171,9 @@ clients:
       old_successor_client:
         realm: cristexhub-dev
         id: reactive-resume-dev
-        status: retained-for-rollback-pending-separate-disable-approval
+        status: disabled-rollback-only
         deletion: forbidden
-        disable_requires: shared-realm-private-acceptance-and-explicit-approval
+        disable_requires: separate-reviewed-rollback-only
         rollback_issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
     - id: reactive-resume-prod
       namespace: cristexhub-prod

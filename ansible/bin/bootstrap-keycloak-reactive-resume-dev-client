@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+usage='usage: ansible/bin/bootstrap-keycloak-reactive-resume-dev-client check'
+[ "$#" -eq 1 ] && [ "$1" = check ] || { printf '%s\n' "$usage" >&2; exit 64; }
+[ ! -L "$0" ] || { printf '%s\n' 'refusing symlinked entrypoint' >&2; exit 66; }
+dir="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$0")" && pwd -P)"
+root="$(CDPATH= cd -- "$dir/../.." && pwd -P)"
+[ "$root" = /home/paul/projects/cristexweb ] || exit 78
+controller="$root/.venv/bin/ansible-playbook"
+[ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
+inventory="$root/ansible/.ansible/inventory.local.yml"
+[ -s "$inventory" ] && [ -f "$inventory" ] && [ ! -L "$inventory" ] || exit 78
+[ -z "${ANSIBLE_RUN_TAGS:-}${ANSIBLE_SKIP_TAGS:-}${ANSIBLE_START_AT_TASK:-}" ] || exit 78
+[ -z "${CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_ADMIN_TOKEN_FILE:-}" ] || exit 78
+[ -z "${CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_API_BASE_URL:-}" ] || exit 78
+user=$(/usr/bin/id -un)
+cd "$root/ansible"
+umask 077
+attestation="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-keycloak-reactive-resume-dev-client.XXXXXX")"
+token="$(/usr/bin/openssl rand -hex 32)"
+printf '%s:entrypoint\n' "$token" >"$attestation"
+chmod 0600 "$attestation"
+cleanup() { /bin/rm -f -- "$attestation"; }
+trap cleanup EXIT HUP INT TERM
+set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_keycloak_reactive_resume_dev_client.yml --diff --limit crtxweb --check --extra-vars '{"keycloak_reactive_resume_dev_client_bootstrap_approved":true}'
+/usr/bin/env -i HOME="${HOME:-/home/paul}" USER="$user" LOGNAME="$user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_REPOSITORY_ROOT="$root" CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_ENTRYPOINT=v1 CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_TOKEN="$token" CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_ATTESTATION_FILE="$attestation" "$@"
