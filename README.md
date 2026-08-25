@@ -26,6 +26,16 @@ the available OAuth credential lacks DNS-record permission; `hub.cristex-soft.co
 therefore remains unresolved. Historical source-only checkpoints below are retained
 as evidence and are explicitly not current-state claims.
 
+Reactive Resume DEV also has a live private runtime/Argo checkpoint: the exact seven
+Argo-managed resources (including default-deny), private Traefik route, materialized
+`reactive-resume-dev-runtime` Secret and DEV CA, shared-realm session/logout cycle,
+and successor PostgreSQL scope are observed at the private hostname. Argo revision
+`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` is `Synced/Healthy`; this is live
+checkpoint evidence, not full acceptance or source-reproducibility evidence. The
+selected immutable GHCR runtime and migration digests are live DEV inputs only, not
+image trust, provenance, vulnerability, off-node recovery, registry-equivalence, or
+promotion acceptance.
+
 ## Historical source-only/checkpoint evidence
 
 The repository's bounded Ansible implementation contains discovery, the executed
@@ -139,24 +149,33 @@ requires private authenticated catalog/retrieval, encrypted timestamped archives
 non-destructive off-node copy, integrity checks, and isolated restore. Both remain
 source-ready for PostgreSQL and standalone MongoDB but runtime-blocked; the RabbitMQ
 and backup implementations remain policy-only. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
-includes only a planned private DEV workload reservation. Broad-lane DEV and
-unapproved PROD PostgreSQL CRs plus Infisical-owned Secrets are already live but
-unaccepted; roles retain `INHERIT`, no NetworkPolicy selects shared PostgreSQL, and
-review-log exposure requires credential rotation/revocation. A dedicated source-only
-rotation contract now freezes exact scope/no-output/stop semantics but remains
-non-executable because Infisical documents no CAS. CNPG documents `basic-auth`,
-while its pinned controller accepts the live key-correct `Opaque` targets; that
-normalization drift is separate from rotation. Dedicated DEV-only Infisical/VAP/RBAC and PostgreSQL lanes, realm/issuer/callback/claims, accepted image,
-durable private object storage, application-key custody, disabled v5 Agent/Redis,
-patched OIDC, locked split-role migration, backup/restore, RPO/RTO,
-NetworkPolicy/TLS identity, and runtime remain blocked; PROD is reservation-only and
-public exposure is forbidden.
-PostgreSQL and standalone MongoDB now have hash-bound present-only source closures
+records a live private DEV runtime/Argo checkpoint, not merely a planned
+reservation. The checkpoint is live evidence, not full acceptance or
+source-reproducibility evidence: current main has no dedicated Reactive Resume
+Infisical StaticSecret/VAP/writer source or successor database provisioning
+wrapper, so the live runtime Secret and successor SQL objects are not reproducible
+from this checkout. The successor database/role observations remain accurate live
+SQL evidence, but their source check/apply/idempotence and ACL/cross-database
+acceptance are still pending. Broad-lane DEV and unapproved PROD PostgreSQL CRs
+plus Infisical-owned Secrets are already live but unaccepted; roles retain
+`INHERIT`, no NetworkPolicy selects shared PostgreSQL, and review-log exposure
+requires credential rotation/revocation. A dedicated source-only rotation contract
+now freezes exact scope/no-output/stop semantics but remains non-executable because
+Infisical documents no CAS. CNPG documents `basic-auth`, while its pinned
+controller accepts the live key-correct `Opaque` targets; that normalization drift
+is separate from rotation. Dedicated DEV-only Infisical/VAP/RBAC and PostgreSQL
+source closures, realm/issuer/callback/claims, image acceptance, durable private
+object storage, application-key custody, disabled v5 Agent/Redis, patched OIDC,
+locked split-role migration, backup/restore, RPO/RTO, NetworkPolicy/TLS identity,
+and full application acceptance remain blocked; PROD is reservation-only and public
+exposure is forbidden.
+PostgreSQL and standalone MongoDB have hash-bound present-only source closures
 with retained 40/80 GiB PVCs, bounded resources, private standard Services,
 mandatory TLS/authentication, exact cryptographic Secret validation, and guarded
-readiness. Image trust/pullability, Secret materialization, provisioning, logical
-authorization, backup/restore, recovery, check/apply/idempotence, and all runtime
-acceptance remain blocked. No workload, Secret, route, or runtime is approved.
+readiness. Those source closures do not authorize additional workload, Secret,
+route, or runtime mutation; image trust/pullability, Secret materialization,
+provisioning, logical authorization, backup/restore, recovery, check/apply/
+idempotence, and full acceptance remain blocked.
 A separate
 [source-only cloudflared provenance record](runbooks/cloudflared-candidate-provenance.md)
 binds the selected official release, unsigned source, immutable linux/amd64 image,

@@ -13,6 +13,10 @@ DATABASE_POLICY = ROOT / "ansible/files/policies/shared-database-architecture.ym
 IDENTITY_POLICY = ROOT / "ansible/files/policies/hosted-identity-authorization.yml"
 CNPG_CLUSTER = ROOT / "ansible/files/components/cloudnative-pg/cluster/shared-postgresql.yaml"
 RUNBOOK = ROOT / "runbooks/reactive-resume-hosted-architecture.md"
+README = ROOT / "README.md"
+ANSIBLE_README = ROOT / "ansible/README.md"
+AGENTS = ROOT / "AGENTS.md"
+TESTCASES = ROOT / "specs/k3s-iac-foundation/testcases.md"
 KUBERNETES = ROOT / "kubernetes"
 
 
@@ -24,6 +28,32 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         cls.database_policy = yaml.safe_load(DATABASE_POLICY.read_text())
         cls.identity_policy = yaml.safe_load(IDENTITY_POLICY.read_text())
         cls.runbook_text = RUNBOOK.read_text()
+        cls.status_docs = {
+            path: path.read_text()
+            for path in (README, ANSIBLE_README, AGENTS, TESTCASES)
+        }
+
+    def test_live_private_dev_checkpoint_docs_distinguish_source_and_acceptance(self) -> None:
+        revision = "dd7d4cedd902e68266d9713d1dbb8e90f0b529b1"
+        for path, text in self.status_docs.items():
+            with self.subTest(path=path):
+                self.assertIn(revision, text)
+                self.assertIn("reactive-resume-dev-runtime", text)
+                self.assertIn("not full acceptance", text.lower())
+                self.assertIn("source-reproducibility", text)
+                self.assertIn("live DEV inputs only", text)
+        combined = "\n".join(self.status_docs.values())
+        for stale in (
+            "includes only a planned private DEV workload reservation",
+            "Argo check is blocked on missing `argocd-repository-cristexweb` credential metadata",
+            "The DEV runtime remains blocked pending dedicated source lanes",
+        ):
+            self.assertNotIn(stale, combined)
+        self.assertIn(
+            "current main has no dedicated Reactive Resume Infisical StaticSecret/VAP/writer source",
+            combined,
+        )
+        self.assertIn("successor database provisioning wrapper", combined)
 
     def test_scope_is_source_only_and_prod_is_template(self) -> None:
         self.assertEqual("cristex-reactive-resume-v4", self.policy["policy_schema"])

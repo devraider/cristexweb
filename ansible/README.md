@@ -16,6 +16,16 @@ exact plan review, separate provider/DNS/public-cutover approvals, and post-vali
 Historical source-only paragraphs below retain their original checkpoint wording and
 are explicitly not current-state claims.
 
+Reactive Resume DEV has a live private runtime/Argo checkpoint: the exact seven
+Argo-managed resources (including default-deny), private Traefik route, materialized
+`reactive-resume-dev-runtime` Secret and DEV CA, shared-realm session/logout cycle,
+and successor PostgreSQL scope are observed at the private hostname. Argo revision
+`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` is `Synced/Healthy`; this is live
+checkpoint evidence, not full acceptance or source-reproducibility evidence. The
+selected immutable GHCR runtime and migration digests are live DEV inputs only, not
+image trust, provenance, vulnerability, off-node recovery, registry-equivalence, or
+promotion acceptance.
+
 This directory contains bounded read-only discovery plus separately approved,
 non-passthrough host, Namespace, controller, Secret-seam, datastore-preflight, and
 database source closures. Most new closures remain source-only and runtime-blocked;
@@ -558,19 +568,26 @@ admission; its runtime is live for PROD Celery, while least-privilege and recove
 remain open. The [shared backup policy](../runbooks/shared-stateful-backup-architecture.md)
 requires private authenticated operator retrieval, encrypted timestamped archives,
 non-destructive off-node copy, integrity checks, and isolated restore. RabbitMQ
-message/definitions recovery and residual credential rotations remain blocked. The separate [Reactive Resume policy](../runbooks/reactive-resume-hosted-architecture.md) includes
-an incomplete private-DEV workload blocker inventory with PROD reservation-only.
-Broad-lane DEV and unapproved PROD PostgreSQL CRs plus Infisical-owned credential
-Secrets are live but unaccepted; `INHERIT`, broad PUBLIC privileges, absent selecting
-NetworkPolicy, and exposed credentials block use. A dedicated source-only rotation
-contract freezes exact scope and no-output stop semantics but remains non-executable:
-Infisical documents no CAS. CNPG 1.30 documents `kubernetes.io/basic-auth`, but the
-pinned controller accepts the live key-correct `Opaque` targets; normalization is a
-separate source review. Successor identity, patched
-OIDC/local-auth/privacy behavior, dedicated Infisical/database lanes, private object
-storage, the mismatched candidate image, locked split-role migration, recovery,
-workload objects, and runtime remain blocked; Agent/Redis are disabled and no
-executable workload source exists. GitHub CI may run only syntax/lint and offline contracts from this
+message/definitions recovery and residual credential rotations remain blocked. The separate [Reactive Resume policy](../runbooks/reactive-resume-hosted-architecture.md)
+records a live private DEV runtime/Argo checkpoint, not merely an incomplete
+reservation. The checkpoint is live evidence, not full acceptance or
+source-reproducibility evidence: current main has no dedicated Reactive Resume
+Infisical StaticSecret/VAP/writer source or successor database provisioning
+wrapper, so the live runtime Secret and successor SQL objects are not reproducible
+from this checkout. The successor database/role observations remain accurate live
+SQL evidence, but their source check/apply/idempotence and ACL/cross-database
+acceptance are still pending. Broad-lane DEV and unapproved PROD PostgreSQL CRs
+plus Infisical-owned credential Secrets are live but unaccepted; `INHERIT`, broad
+PUBLIC privileges, absent selecting NetworkPolicy, and exposed credentials block
+use. A dedicated source-only rotation contract freezes exact scope and no-output
+stop semantics but remains non-executable: Infisical documents no CAS. CNPG 1.30
+documents `kubernetes.io/basic-auth`, but the pinned controller accepts the live
+key-correct `Opaque` targets; normalization is a separate source review.
+Successor identity, patched OIDC/local-auth/privacy behavior, dedicated
+Infisical/database source closures, private object storage, image trust and
+provenance, locked split-role migration, recovery, full application acceptance,
+and DEV soak remain blocked; Agent/Redis are disabled and no executable workload
+source exists. GitHub CI may run only syntax/lint and offline contracts from this
 source; it supplies no inventory and invokes no operational wrapper. The repository
 contains thirty-three exact-scope action plugins; these focused Python exceptions
 are source guards/validators only, not a general operational collector.

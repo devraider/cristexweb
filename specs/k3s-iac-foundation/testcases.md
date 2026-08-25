@@ -63,7 +63,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-MQ-01 | KIF-005, KIF-013, KIF-016, KIF-019–KIF-021, KIF-026–KIF-030 | Shared RabbitMQ source-only architecture | Exactly one future RabbitMQ engine belongs in `shared-services`; DEV/PROD have dedicated vhost/user/Infisical credential/permission/limit/recovery scopes, deny-first cross-vhost/admin/public-management rules, and future consumers require reviewed exact changes | HISTORICAL PASS SOURCE-ONLY — canonical value-free policy and fail-closed contracts pass at the pre-runtime checkpoint. Current broker/Celery evidence and least-privilege/recovery residuals are recorded below |
 | KIF-BKP-01 | KIF-005, KIF-013, KIF-017–KIF-020, KIF-026–KIF-030 | Shared stateful backup access architecture | PostgreSQL, MongoDB, and RabbitMQ use encrypted timestamped separate-purpose archives, private authenticated metadata/list/retrieve/verify access, non-destructive off-node copy, integrity and isolated restore; RabbitMQ definitions remain distinct from queued-message recovery | PASS SOURCE-ONLY — daily archives, 14-day local/off-node retention, RPO 24h, and RTO 4h are fixed; pinned host rclone `1.71.1` replaces the container direction and its install/idempotence pass, but identities, staging, credentials, dumps, jobs, schedules, deletion, restore, and runtime remain blocked |
 | KIF-GHA-01 | KIF-005, KIF-022–KIF-025, KIF-030 | GitHub-hosted infrastructure source CI | Exactly one workflow uses SHA-pinned actions, a fixed runner, read-only permission, bounded triggers/timeouts/concurrency, frozen controller dependencies, and exact offline tests without Secret/package/registry/provider/host/cluster/deploy access | PASS SOURCE AND HOSTED CI — focused/full contracts passed; run `31311995461` and job `93241094377` completed successfully for exact commit `e200efd8f294a04df8d3c5ea84fd90b8a24e01d1`; branch protection, GHCR publication, digest evidence, and deployment remain NOT RUN/BLOCKED |
-| KIF-RR-01 | KIF-012–KIF-017, KIF-019, KIF-021, KIF-023, KIF-026–KIF-030 | Reactive Resume private-MVP source architecture | Include environment-local Reactive Resume DEV in the private MVP, reserve separate PROD, bind exact OIDC clients and dedicated shared-PostgreSQL scopes, keep Infisical value ownership/private exposure, and gate image/callback/object/Secret/recovery/handoff/runtime promotion | PASS SOURCE AND PRIVATE DEV CHECKPOINT — value-free source, private hostname/runtime validation, shared-realm client source check, and private application cycle are checkpointed. A separate recorded private-runtime acceptance covered the active shared-realm OIDC/session/logout flow; that evidence is distinct from the source-only client check and does not claim the wrapper reconciled Keycloak. The prior schema-1 non-empty backup passed with a sanitized receipt, while hardened schema-2 install/backup/restore remains pending. Argo check is blocked on missing `argocd-repository-cristexweb` credential metadata; PROD/public promotion, soak, and final handoff remain pending |
+| KIF-RR-01 | KIF-012–KIF-017, KIF-019, KIF-021, KIF-023, KIF-026–KIF-030 | Reactive Resume private-MVP source architecture | Include environment-local Reactive Resume DEV in the private MVP, reserve separate PROD, bind exact OIDC clients and dedicated shared-PostgreSQL scopes, keep Infisical value ownership/private exposure, and distinguish live checkpoint evidence from source reproducibility, image trust, and full acceptance | PASS PRIVATE DEV RUNTIME/ARGO CHECKPOINT — exact seven Argo resources including default-deny, private hostname/Traefik route, materialized `reactive-resume-dev-runtime` Secret and DEV CA, shared-realm session/logout cycle, and successor PostgreSQL scope are checkpointed; Argo revision `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` is `Synced/Healthy`. This is live checkpoint evidence, not full acceptance or source-reproducibility evidence. Current main lacks dedicated Reactive Resume Infisical StaticSecret/VAP/writer source and a successor database provisioning wrapper; the live successor SQL objects remain accurate observations but source check/apply/idempotence and ACL/cross-database acceptance are pending. The selected immutable GHCR digests are live DEV inputs only, not image trust/provenance/vulnerability/off-node recovery or promotion acceptance. Hardened schema-2 backup/restore, measured RPO/RTO, TLS renewal, soak, PROD/public promotion, and final handoff remain pending |
 | KIF-CF-01 | KIF-005, KIF-011, KIF-013, KIF-015, KIF-021, KIF-023, KIF-030 | Historical source-only cloudflared candidate provenance | A secret-free record mutation-resistently binds exact official release/source/asset and architecture-specific image evidence while preserving the pre-import OpenTofu state/resource boundary | HISTORICAL PASS — 5 focused contracts enforce exact evidence associations, trust qualifications, token/health/network semantics, unchanged source sets, operational-command hygiene, and RFC1918/loopback sentinels; the candidate remains NOT DEPLOYABLE/NOT SELECTED. Current imported Cloudflare state and pending PROD route are recorded in the live checkpoint |
 | KIF-CF-02 | KIF-005, KIF-010, KIF-011, KIF-012, KIF-013, KIF-015, KIF-021, KIF-030 | Phased Cloudflare-to-Keycloak route contract | A value-free policy fixes Cloudflare -> cloudflared/platform-edge -> Traefik/kube-system -> Keycloak/shared-services, separates account/state, tunnel/token, connector, Traefik, DNS, validation, and production approvals, forbids token disclosure and direct origin exposure, requires positive flow plus negative admin/management/DEV/Argo/data reachability tests, and defines exact-route rollback while runtime remains blocked | PASS SOURCE-ONLY — focused contract validates path, ownership, token boundaries, separate approvals, deny-first public surfaces, negative reachability, rollback, and no runtime source |
 | KIF-INF-01 | KIF-005, KIF-013–KIF-015, KIF-021, KIF-023, KIF-030 | Source-only Infisical Operator provenance and selection boundary | Historical evidence distinguishes unselected `v0.11.8` distribution observations from the aligned `v0.11.7` set selected only as the offline baseline; trust, compatibility, scoped RBAC, Universal Auth recovery, traffic, and runtime remain blocked | PASS — focused contracts enforce exact evidence associations, qualified trust wording, immutable child direction, and no deployable controller source or Secret |
@@ -114,18 +114,22 @@ They are historical evidence, not current absence claims.
   Keycloak/DEV DNS, and private Argo DNS resources; encrypted backup/readback and
   isolated restore pass. The committed PROD Tunnel/DNS source remains unapplied
   pending a protected DNS-capable credential and exact plan.
-- **Reactive Resume DEV:** The source and private runtime/hostname checkpoint are
-  implemented, and the shared `cristexhub` client source check passed without
-  Keycloak/API or Kubernetes mutation. A separate recorded private-runtime
-  acceptance covered the active shared-realm OIDC/session/logout application flow;
-  it is distinct from the source-only check and does not claim that wrapper
-  reconciled Keycloak. The prior installed source produced the sanitized schema-1
-  non-empty receipt `run_id=20260825T065948Z object_count=1
+- **Reactive Resume DEV:** The private runtime/hostname checkpoint is live, with
+  exact seven-object Argo adoption at revision
+  `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` (`Synced/Healthy`), private
+  Traefik route, materialized `reactive-resume-dev-runtime` Secret and DEV CA,
+  successor PostgreSQL scope, and a separately recorded shared-realm
+  OIDC/session/logout cycle. This is live checkpoint evidence, not full acceptance
+  or source-reproducibility evidence. Current main lacks dedicated Reactive Resume
+  Infisical StaticSecret/VAP/writer source and a successor database provisioning
+  wrapper; the live successor SQL observations remain accurate but are not source
+  check/apply/idempotence evidence. The selected immutable GHCR digests are live
+  DEV inputs only, not image trust/provenance/vulnerability/off-node recovery or
+  promotion acceptance. The prior installed backup source produced the sanitized
+  schema-1 non-empty receipt `run_id=20260825T065948Z object_count=1
   total_object_bytes=50 readback=verified encrypted=true private_residue=none`.
   Hardened schema-2 install, fresh non-empty backup, isolated restore, measured
-  RPO/RTO, and final scheduler enable/idempotence are pending. The Argo
-  registration/adoption/sync checkpoint is recorded separately below; PROD and
-  public routing remain inactive.
+  RPO/RTO, TLS renewal, soak, PROD, and public routing remain pending.
 
 ## Historical Infisical Operator PROD watch source validation — 2026-08-18
 
@@ -2953,13 +2957,15 @@ Diff hygiene passed; bounded read-only Kubernetes inventory found
 reactive_resume_matching_application_or_argo_object_count=0; separate safe metadata discovery found the broad-lane DEV/PROD PostgreSQL Database/DatabaseRole CRs and credential Secrets live but unaccepted, with zero NetworkPolicies selecting shared PostgreSQL; no Reactive Resume or provider mutation occurred
 ```
 
-The DEV runtime remains blocked pending dedicated source lanes, a reproducibly bound
-and directly attested image, patched PKCE/token-validation/local-auth/account-linking/
-logout behavior, successor realm, canonical PostgreSQL owner/NOINHERIT/ACL and
-negative tests, CNPG-compatible TLS/NetworkPolicy, authenticated private object
-storage and backup/restore, application-key recovery, a locked migration Job with a
-DDL-free runtime role, measured RPO/RTO, private validation, and an explicit DEV
-soak. PROD cannot be generated or activated from its reservation.
+At this historical source-only checkpoint, the DEV runtime was blocked pending
+dedicated source lanes, a reproducibly bound and directly attested image, patched
+PKCE/token-validation/local-auth/account-linking/logout behavior, successor realm,
+canonical PostgreSQL owner/NOINHERIT/ACL and negative tests, CNPG-compatible
+TLS/NetworkPolicy, authenticated private object storage and backup/restore,
+application-key recovery, a locked migration Job with a DDL-free runtime role,
+measured RPO/RTO, private validation, and an explicit DEV soak. Those historical
+source-only blockers do not override the current private runtime/Argo checkpoint;
+PROD cannot be generated or activated from its reservation.
 
 ## GitHub source CI and Reactive Resume private-MVP policy — 2026-08-09
 
