@@ -465,7 +465,7 @@ ansible/                 # discovery plus guarded host/Kubernetes/database sourc
   playbooks/
   plugins/action/         # forty exact-scope mutation/validation guards
   plugins/strategy/       # one backup-only task-selection guard
-  library/                # one focused metadata helper
+  library/                # two focused metadata-only helpers
   roles/                  # bounded discovery, host, Namespace, controller, Secret, and database roles
   files/components/       # hash-bound Argo, Infisical, PostgreSQL, and MongoDB source
   files/vendor/           # hash-bound public chart/provenance/key inputs only

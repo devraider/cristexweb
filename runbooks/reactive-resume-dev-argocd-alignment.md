@@ -3,12 +3,12 @@
 ## Status
 
 **SUPERSEDED AFTER ARGO ADOPTION — DO NOT RERUN.** This lane was the one-shot,
-present-only alignment of the pinned revision's exactly seven
-`ansible/files/components/reactive-resume-dev-argocd` objects and the four
-reviewed destination NetworkPolicies listed in the role defaults. Current HEAD
-contains an additional `networkpolicy-allow-backend.yaml` manifest, but it was
-not part of that pinned alignment and is not claimed live, Argo-managed, or
-applied. This lane does not include the migration Job, any Secret, a Namespace,
+present-only alignment that historically applied the pinned revision's exactly
+seven `ansible/files/components/reactive-resume-dev-argocd` objects and four
+reviewed destination NetworkPolicies. The now-superseded role defaults at current
+HEAD enumerate an eighth `networkpolicy-allow-backend.yaml` source manifest, but
+that source expansion was not part of the pinned alignment and is not claimed
+live, Argo-managed, or applied. This lane does not include the migration Job, any Secret, a Namespace,
 PVC, RBAC object, delete, prune, Argo sync, or workload restart.
 
 ## Exact closure
@@ -23,8 +23,10 @@ shared-services destination policies are:
 - `oidc-connect-proxy-allow-reactive-resume-dev`
 - `reactive-resume-object-storage-allow-dev`
 
-The role loads only these eleven immutable source paths, validates raw file
-SHA-256 hashes and canonical object hashes, rejects Jobs and Secrets, and
+The historical execution loaded eleven immutable source paths. Current HEAD's
+superseded role source enumerates twelve paths (the historical eleven plus the
+unapplied backend NetworkPolicy), validates raw file SHA-256 hashes and canonical
+object hashes, rejects Jobs and Secrets, and
 refuses foreign ownership, Argo tracking annotations, Argo managed fields,
 owner references, or finalizers. The custom action guard accepts only the
 exact eleven identities, `state: present`, the k3s administrator kubeconfig,
