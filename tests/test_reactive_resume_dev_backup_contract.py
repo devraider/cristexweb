@@ -43,6 +43,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('os.unlink(path)', source)
         self.assertIn('current.st_ino == opened.st_ino', source)
         self.assertIn('approval_attestation_consume', source)
+        self.assertIn('object-storage-validated.tar.gz', source)
+        self.assertIn('/usr/bin/rm -f -- "$work/object-storage.tar.gz"', source)
+        self.assertNotIn('<"$work/object-storage.tar.gz" || fail object_restore_extract', source)
 
     def test_pg_table_count_excludes_table_data_and_attach_toc_entries(self):
         for source in (BACKUP.read_text(), RESTORE.read_text()):
@@ -59,7 +62,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             'not key.startswith("/")',
             '".." not in key.split("/")',
             '"\\\\" not in key',
-            '"\\x00" not in key',
+            '("\\t", "\\r", "\\n", "\\x00")',
             'os.path.commonpath((root, os.path.abspath(os.path.join(root, key)))) == root',
         ):
             self.assertIn(value, source)

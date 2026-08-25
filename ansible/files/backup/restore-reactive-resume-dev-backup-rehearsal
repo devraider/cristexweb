@@ -389,7 +389,8 @@ expected = {item["key"]: item for item in manifest["objects"]}
 allowed_prefixes = ("uploads/user-pictures/", "pictures/", "uploads/user-agent/")
 for key in expected:
     assert isinstance(key, str) and key and not key.startswith("/")
-    assert ".." not in key.split("/") and "\\" not in key and "\x00" not in key
+    assert not any(char in key for char in ("\t", "\r", "\n", "\x00"))
+    assert ".." not in key.split("/") and "\\" not in key
     assert key.startswith(allowed_prefixes)
     assert os.path.commonpath((root, os.path.abspath(os.path.join(root, key)))) == root
 actual = set()
@@ -412,6 +413,46 @@ for base, dirs, files in os.walk(root, followlinks=False):
         assert os.path.relpath(path, root) in expected
 assert actual == set(expected)
 PY
+
+# Rebuild a transport archive exclusively from the verified regular files.
+# The original downloaded archive is never extracted by the restore Pod.
+OBJECT_MANIFEST="$work/object-storage.manifest.json" OBJECT_ROOT="$work/object-verify/objects" VALIDATED_ARCHIVE="$work/object-storage-validated.tar.gz" /usr/bin/python3 - <<'PY' || fail object_validated_archive
+import json
+import os
+import stat
+import tarfile
+manifest = json.load(open(os.environ["OBJECT_MANIFEST"], encoding="utf-8"))
+root = os.path.abspath(os.environ["OBJECT_ROOT"])
+keys = sorted(item["key"] for item in manifest["objects"])
+directories = {"objects"}
+for key in keys:
+    parts = key.split("/")[:-1]
+    for index in range(1, len(parts) + 1):
+        directories.add("objects/" + "/".join(parts[:index]))
+with tarfile.open(os.environ["VALIDATED_ARCHIVE"], mode="w:gz") as archive:
+    for name in sorted(directories):
+        info = tarfile.TarInfo(name)
+        info.type = tarfile.DIRTYPE
+        info.mode = 0o700
+        info.uid = info.gid = info.mtime = 0
+        archive.addfile(info)
+    for key in keys:
+        path = os.path.join(root, key)
+        descriptor = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+        try:
+            state = os.fstat(descriptor)
+            assert stat.S_ISREG(state.st_mode)
+            info = tarfile.TarInfo("objects/" + key)
+            info.size = state.st_size
+            info.mode = 0o600
+            info.uid = info.gid = info.mtime = 0
+            with os.fdopen(os.dup(descriptor), "rb") as source:
+                archive.addfile(info, source)
+        finally:
+            os.close(descriptor)
+PY
+[ -s "$work/object-storage-validated.tar.gz" ] || fail object_validated_archive
+/usr/bin/rm -f -- "$work/object-storage.tar.gz"
 
 # Isolated PostgreSQL 17 restore. The pod has emptyDir only and listens on no network address.
 pg_pod=reactive-resume-dev-postgresql-restore-$pod_run_id
@@ -646,7 +687,7 @@ storage_policy_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$
 storage_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$storage_pod" -o jsonpath='{.metadata.uid}')
 [ -n "$storage_uid" ] || fail storage_restore_uid
 /usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$storage_pod" --timeout=300s >/dev/null
-/usr/local/bin/kubectl -n "$namespace" exec -i "$storage_pod" -c rclone -- tar -xzf - -C /restore <"$work/object-storage.tar.gz" || fail object_restore_extract
+/usr/local/bin/kubectl -n "$namespace" exec -i "$storage_pod" -c rclone -- tar -xzf - -C /restore <"$work/object-storage-validated.tar.gz" || fail object_restore_extract
 /usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone copy --s3-no-check-bucket /restore/objects "s3:$bucket" >/dev/null || fail object_restore_upload
 /usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone check --one-way --checksum /restore/objects "s3:$bucket" >/dev/null || fail object_restore_checksum
 /usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone lsjson --recursive --hash --metadata "s3:$bucket" >"$work/restored-object-list.json" || fail object_remote_manifest
