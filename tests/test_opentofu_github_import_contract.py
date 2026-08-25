@@ -199,7 +199,8 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
     def test_source_closure_is_revalidated_before_each_root_consumer(self) -> None:
         source = IMPORT.read_text()
         self.assertIn("revalidate_source_closure() {", source)
-        self.assertIn("same-user TOCTOU window", source)
+        self.assertIn("not a security boundary against a malicious", source)
+        self.assertIn("same operator UID", source)
         self.assertGreaterEqual(source.count("revalidate_source_closure"), 5)
         self.assertIn("run_quiet() {\n    revalidate_source_closure", source)
         self.assertIn("run_quiet_with_token() {\n    revalidate_source_closure", source)

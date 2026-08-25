@@ -60,12 +60,13 @@ Before the token prompt or any provider command, the entrypoint also verifies
 covers every tracked GitHub-root/source leaf, exact expected mode, and SHA-256
 content; the importer is checked through a canonical digest with its two
 embedded digest literals normalized. Missing, extra, symlinked, mode-drifted,
-or changed source fails closed. Because the worktree remains writable by the
-same local user, the importer repeats the complete manifest, mode, path, and
-content-hash closure immediately before every root consumer (`tofu`, the
-repository/API helper, and the plan validator). This explicit revalidation
-closes the post-validation same-user TOCTOU window without treating a mutable
-worktree snapshot as immutable. A protected first-genesis `flock` is acquired
+or changed source fails closed. The importer repeats the complete manifest, mode, path, and content-hash
+closure immediately before every root consumer (`tofu`, the repository/API
+helper, and the plan validator), detecting accidental or cooperative concurrent
+drift at each boundary. The trusted operator UID is the local security boundary:
+a malicious process already running as that UID could also inspect process
+memory or pipes and is therefore explicitly out of scope; revalidation is not
+misrepresented as protection from same-UID compromise. A protected first-genesis `flock` is acquired
 below the state parent before the absence check and held through initialization
 and all three imports. Absence is
 rechecked after the restore-absence gate and after initialization immediately

@@ -46,8 +46,8 @@ repo_root=$(CDPATH= cd -- "$dir/../../.." && pwd -P)
 # leaf except itself; the manifest and this entrypoint's canonical form are
 # independently pinned below so a partial source review cannot authorize import.
 source_manifest="$github_root/SOURCE.sha256"
-source_manifest_expected_sha256='fe1b78b162b008f3b635dbf6c5da72452ee8b6fa1294a2a8250f381faa33f82a'
-source_import_expected_canonical_sha256='bfa6f3ab1fea852255500b68dd94a36036ddf08d9c11cdcb76a5a2f9664f411b'
+source_manifest_expected_sha256='671c0359dc9e5a74a073218112ce14bf8c688eb3f1730d54dc5711f113c3bb95'
+source_import_expected_canonical_sha256='91008f590583392bfc6f0ca863e8885a7b55849b32f5fc82220bbc750f7d2dce'
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-github-source.XXXXXX)
 chmod 0700 "$source_work"
 trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM
@@ -73,9 +73,10 @@ providers.tf
 versions.tf
 EOF
 revalidate_source_closure() {
-    # Every command that consumes the mutable GitHub root calls this function
-    # immediately before execution. This closes the post-manifest-validation
-    # same-user TOCTOU window without trusting a mutable source path snapshot.
+    # Every command that consumes the trusted operator-owned GitHub root calls
+    # this immediately before execution. It detects accidental/concurrent source
+    # drift at each boundary; it is not a security boundary against a malicious
+    # process already running as the same operator UID.
     [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
     [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_manifest")" = 'paul:paul:644' ] || exit 78
     source_manifest_snapshot="$source_work/source-manifest.current"
