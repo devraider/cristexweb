@@ -130,6 +130,11 @@ class ReactiveResumeDevArgoAlignmentContractTests(unittest.TestCase):
         text = RUNBOOK.read_text()
         for value in ("SUPERSEDED AFTER ARGO ADOPTION", "seven", "four", "migration Job", "no delete", "no prune", "check", "apply", "Argo now owns"):
             self.assertIn(value, text)
+        self.assertIn("historical execution the custom action", text)
+        self.assertIn("accepted exactly eleven identities", text)
+        self.assertIn("Current superseded source accepts the", text)
+        self.assertIn("exact twelve identities", text)
+        self.assertIn("must not be", text)
         self.assertNotIn("NOT RUN LIVE", text)
         self.assertNotIn("cristexhub-prod", text)
 
