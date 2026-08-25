@@ -1,0 +1,11 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: reactive-resume-dev-egress
+  namespace: cristexhub-dev
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev
+    app.kubernetes.io/part-of: cristexhub
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd

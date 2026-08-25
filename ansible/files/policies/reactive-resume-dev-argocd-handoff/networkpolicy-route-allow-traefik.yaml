@@ -1,0 +1,12 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: reactive-resume-dev-route-allow-traefik
+  namespace: cristexhub-dev
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev
+    app.kubernetes.io/part-of: cristexhub
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/bootstrap-writer: ansible
+    cristex.io/component: reactive-resume-dev-route
+    cristex.io/desired-owner: argocd

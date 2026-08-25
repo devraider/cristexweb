@@ -1,0 +1,342 @@
+---
+- name: Reject externally supplied Reactive Resume DEV registration internals
+  ansible.builtin.assert:
+    that: item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied Reactive Resume DEV registration internal {{ item }}."
+  loop:
+    - reactive_resume_dev_argocd_registration_internal_attestation
+    - reactive_resume_dev_argocd_registration_internal_kubeconfig_state
+    - reactive_resume_dev_argocd_registration_internal_manifest_states
+    - reactive_resume_dev_argocd_registration_internal_manifests
+    - reactive_resume_dev_argocd_registration_internal_handoff_manifest_states
+    - reactive_resume_dev_argocd_registration_internal_handoff_manifests
+    - reactive_resume_dev_argocd_registration_internal_namespace
+    - reactive_resume_dev_argocd_registration_internal_argocd_namespace
+    - reactive_resume_dev_argocd_registration_internal_repository_secret
+    - reactive_resume_dev_argocd_registration_internal_prestate
+    - reactive_resume_dev_argocd_registration_internal_handoff_prestate
+    - reactive_resume_dev_argocd_registration_internal_preflight_binding
+    - reactive_resume_dev_argocd_registration_internal_poststate
+  changed_when: false
+
+- name: Require the exact non-passthrough Reactive Resume DEV registration contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_REGISTRATION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_REGISTRATION_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_REGISTRATION_ATTESTATION_FILE') | length > 0
+      - reactive_resume_dev_argocd_registration_approved | bool
+      - reactive_resume_dev_argocd_registration_state == 'present'
+      - reactive_resume_dev_argocd_registration_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - reactive_resume_dev_argocd_registration_manifest_paths | length == 5
+      - reactive_resume_dev_argocd_registration_expected_hashes | length == 5
+      - reactive_resume_dev_argocd_registration_object_count == 5
+      - reactive_resume_dev_argocd_registration_repository == 'ssh://git@ssh.github.com:443/devraider/cristexweb.git'
+      - reactive_resume_dev_argocd_registration_revision is match('^[0-9a-f]{40}$')
+      - reactive_resume_dev_argocd_registration_path == 'ansible/files/components/reactive-resume-dev-argocd'
+      - reactive_resume_dev_argocd_registration_handoff_manifest_paths | length == 8
+      - reactive_resume_dev_argocd_registration_handoff_expected_hashes | length == 8
+      - reactive_resume_dev_argocd_registration_handoff_object_count == 8
+      - reactive_resume_dev_argocd_registration_handoff_objects | length == 8
+      - reactive_resume_dev_argocd_registration_handoff_objects | selectattr('namespace', 'equalto', 'cristexhub-dev') | list | length == 8
+      - reactive_resume_dev_argocd_registration_handoff_objects | selectattr('namespace', 'equalto', 'cristexhub-prod') | list | length == 0
+    fail_msg: Refusing unapproved, mutable, dual-owner, or PROD Reactive Resume DEV registration.
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact protected k3s administrator kubeconfig boundary
+  ansible.builtin.stat:
+    path: '{{ reactive_resume_dev_argocd_registration_kubeconfig }}'
+    follow: false
+  register: reactive_resume_dev_argocd_registration_internal_kubeconfig_state
+  changed_when: false
+  no_log: true
+
+- name: Require protected regular k3s administrator kubeconfig
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_argocd_registration_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (reactive_resume_dev_argocd_registration_internal_kubeconfig_state.stat.islnk | default(false))
+      - reactive_resume_dev_argocd_registration_internal_kubeconfig_state.stat.mode == '0640'
+      - reactive_resume_dev_argocd_registration_internal_kubeconfig_state.stat.pw_name == 'root'
+      - reactive_resume_dev_argocd_registration_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+    fail_msg: Refusing an absent, symlinked, or permission-drifted k3s administrator kubeconfig.
+  changed_when: false
+  no_log: true
+
+- name: Inspect hash-bound Reactive Resume DEV registration source
+  ansible.builtin.stat:
+    path: '{{ item }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: '{{ reactive_resume_dev_argocd_registration_manifest_paths }}'
+  register: reactive_resume_dev_argocd_registration_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require immutable Reactive Resume DEV registration source
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - item.stat.checksum == (reactive_resume_dev_argocd_registration_expected_hashes | dict2items | selectattr('key', 'equalto', item.item | regex_replace('^' ~ reactive_resume_dev_argocd_registration_repository_root ~ '/ansible/files/components/reactive-resume-dev-argocd-registration/', '')) | map(attribute='value') | first)
+      - item.item.startswith(reactive_resume_dev_argocd_registration_repository_root ~ '/ansible/files/components/reactive-resume-dev-argocd-registration/')
+    fail_msg: Refusing hash-drifted Reactive Resume DEV registration source.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_manifest_states.results }}'
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect hash-bound Reactive Resume DEV handoff source
+  ansible.builtin.stat:
+    path: '{{ item }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: '{{ reactive_resume_dev_argocd_registration_handoff_manifest_paths }}'
+  register: reactive_resume_dev_argocd_registration_internal_handoff_manifest_states
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require immutable Reactive Resume DEV handoff source
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - item.stat.checksum == (reactive_resume_dev_argocd_registration_handoff_expected_hashes | dict2items | selectattr('key', 'equalto', item.item | regex_replace('^' ~ reactive_resume_dev_argocd_registration_repository_root ~ '/ansible/files/policies/reactive-resume-dev-argocd-handoff/', '')) | map(attribute='value') | first)
+      - item.item.startswith(reactive_resume_dev_argocd_registration_repository_root ~ '/ansible/files/policies/reactive-resume-dev-argocd-handoff/')
+    fail_msg: Refusing hash-drifted Reactive Resume DEV handoff source.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_manifest_states.results }}'
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Load exact Reactive Resume DEV registration objects
+  ansible.builtin.set_fact:
+    reactive_resume_dev_argocd_registration_internal_manifests: >-
+      {{ (reactive_resume_dev_argocd_registration_internal_manifests | default([])) +
+      [lookup('ansible.builtin.file', item) | from_yaml] }}
+  loop: '{{ reactive_resume_dev_argocd_registration_manifest_paths }}'
+  changed_when: false
+  no_log: true
+
+- name: Load exact Reactive Resume DEV handoff objects
+  ansible.builtin.set_fact:
+    reactive_resume_dev_argocd_registration_internal_handoff_manifests: >-
+      {{ (reactive_resume_dev_argocd_registration_internal_handoff_manifests | default([])) +
+      [lookup('ansible.builtin.file', item) | from_yaml] }}
+  loop: '{{ reactive_resume_dev_argocd_registration_handoff_manifest_paths }}'
+  changed_when: false
+  no_log: true
+
+- name: Require value-free exact handoff source and no PROD scope
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_argocd_registration_internal_manifests | length == 5
+      - reactive_resume_dev_argocd_registration_internal_handoff_manifests | length == 8
+      - reactive_resume_dev_argocd_registration_internal_handoff_manifests | map(attribute='metadata.namespace') | list | unique == ['cristexhub-dev']
+      - reactive_resume_dev_argocd_registration_internal_handoff_manifests | map(attribute='kind') | list | sort == ['Deployment', 'Ingress', 'Job', 'NetworkPolicy', 'NetworkPolicy', 'NetworkPolicy', 'Service', 'ServiceAccount']
+      - reactive_resume_dev_argocd_registration_internal_handoff_manifests | rejectattr('kind', 'in', ['Secret', 'Namespace', 'PersistentVolumeClaim', 'Role', 'RoleBinding', 'ClusterRole', 'ClusterRoleBinding']) | list | length == 8
+      - reactive_resume_dev_argocd_registration_internal_handoff_manifests | selectattr('metadata.namespace', 'equalto', 'cristexhub-prod') | list | length == 0
+      - reactive_resume_dev_argocd_registration_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 1
+      - reactive_resume_dev_argocd_registration_internal_manifests | selectattr('kind', 'equalto', 'Application') | list | length == 1
+      - reactive_resume_dev_argocd_registration_internal_manifests | selectattr('kind', 'equalto', 'AppProject') | list | length == 1
+      - reactive_resume_dev_argocd_registration_internal_manifests | selectattr('kind', 'equalto', 'Role') | list | length == 1
+      - reactive_resume_dev_argocd_registration_internal_manifests | selectattr('kind', 'equalto', 'RoleBinding') | list | length == 1
+    fail_msg: Refusing an incomplete, value-bearing, or PROD Reactive Resume DEV handoff source.
+  changed_when: false
+  no_log: true
+
+- name: Require exact Ansible-bootstrap and future-Argo ownership labels on handoff source
+  ansible.builtin.assert:
+    that:
+      - item.metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.metadata.labels.get('cristex.io/desired-owner') == 'argocd'
+      - >-
+        item.metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible' or
+        item.metadata.labels.get('app.kubernetes.io/bootstrap-writer') == 'ansible'
+    loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_manifests }}'
+    fail_msg: Refusing handoff source without explicit single-owner labels.
+  changed_when: false
+  no_log: true
+
+- name: Query exact Reactive Resume DEV and Argo namespaces
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: '{{ item }}'
+    kubeconfig: '{{ reactive_resume_dev_argocd_registration_kubeconfig }}'
+  loop: [cristexhub-dev, argocd]
+  register: reactive_resume_dev_argocd_registration_internal_namespaces
+  changed_when: false
+  no_log: true
+
+- name: Query Infisical-owned Argo repository credential metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: argocd
+    name: '{{ reactive_resume_dev_argocd_registration_repository_secret }}'
+    kubeconfig: '{{ reactive_resume_dev_argocd_registration_kubeconfig }}'
+  register: reactive_resume_dev_argocd_registration_internal_repository_secret
+  changed_when: false
+  no_log: true
+
+- name: Require exact Namespace and repository credential prerequisites
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_argocd_registration_internal_namespaces.results[0].resources | length == 1
+      - reactive_resume_dev_argocd_registration_internal_namespaces.results[0].resources[0].status.phase == 'Active'
+      - >-
+        reactive_resume_dev_argocd_registration_internal_namespaces.results[0].resources[0].metadata.labels ==
+        {'app.kubernetes.io/part-of': 'cristexhub', 'cristex.io/environment': 'dev',
+        'cristex.io/bootstrap-writer': 'ansible', 'cristex.io/desired-owner': 'argocd',
+        'kubernetes.io/metadata.name': 'cristexhub-dev'}
+      - reactive_resume_dev_argocd_registration_internal_namespaces.results[1].resources | length == 1
+      - reactive_resume_dev_argocd_registration_internal_namespaces.results[1].resources[0].status.phase == 'Active'
+      - reactive_resume_dev_argocd_registration_internal_namespaces.results[1].resources[0].metadata.labels.get('kubernetes.io/metadata.name') == 'argocd'
+      - reactive_resume_dev_argocd_registration_internal_repository_secret.resources | length == 1
+      - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].type == 'Opaque'
+      - (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].data | default({})).keys() | list | sort == ['sshPrivateKey', 'type', 'url']
+      - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].data.type | b64decode == 'git'
+      - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].data.url | b64decode == reactive_resume_dev_argocd_registration_repository
+      - (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].binaryData | default({})) | length == 0
+      - (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.ownerReferences | default([])) | length == 0
+      - (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.annotations | default({})).keys() | list == ['secrets.infisical.com/version']
+      - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.annotations['secrets.infisical.com/version'] | length > 0
+      - >-
+        reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.labels ==
+        {'app.kubernetes.io/managed-by': 'infisical', 'app.kubernetes.io/part-of': 'argocd',
+        'argocd.argoproj.io/secret-type': 'repository', 'cristex.io/value-owner': 'infisical-cloud'}
+    fail_msg: Refusing registration without the exact Namespace and Infisical-owned cristexweb repository credential.
+  changed_when: false
+  no_log: true
+
+- name: Query exact Reactive Resume DEV handoff pre-state
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.namespace }}'
+    name: '{{ item.name }}'
+    kubeconfig: '{{ reactive_resume_dev_argocd_registration_kubeconfig }}'
+  loop: '{{ reactive_resume_dev_argocd_registration_handoff_objects }}'
+  register: reactive_resume_dev_argocd_registration_internal_handoff_prestate
+  changed_when: false
+  no_log: true
+
+- name: Require exact live handoff objects and no dual reconciliation
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.namespace == 'cristexhub-dev'
+      - item.resources[0].metadata.labels == handoff_source.metadata.labels
+      - (item.resources[0].metadata.ownerReferences | default([])) | length == 0
+      - (item.resources[0].metadata.finalizers | default([])) | length == 0
+      - 'argocd.argoproj.io/tracking-id' not in (item.resources[0].metadata.annotations | default({}))
+      - (item.resources[0].metadata.managedFields | default([]) | map(attribute='manager') | list | select('search', 'argocd') | list | length) == 0
+    loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results }}'
+    loop_control:
+      index_var: handoff_index
+    vars:
+      handoff_source: '{{ reactive_resume_dev_argocd_registration_internal_handoff_manifests[handoff_index] }}'
+    fail_msg: Refusing a missing, foreign, Argo-managed, or dual-reconciled Reactive Resume DEV handoff object.
+  changed_when: false
+  no_log: true
+
+- name: Query exact Reactive Resume DEV registration pre-state
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.metadata.namespace | default(omit) }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ reactive_resume_dev_argocd_registration_kubeconfig }}'
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_manifests }}'
+  register: reactive_resume_dev_argocd_registration_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Reject foreign or drifted Reactive Resume DEV registration objects
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - item.resources | length == 0 or item.resources[0].metadata.labels == item.item.metadata.labels
+      - item.resources | length == 0 or (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - item.resources | length == 0 or (item.resources[0].metadata.finalizers | default([]) | length) == 0
+      - item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject', 'Role', 'RoleBinding'] or item.resources[0].spec == item.item.spec
+      - item.resources | length == 0 or item.item.kind != 'Secret' or ((item.resources[0].type == 'Opaque') and (item.resources[0].data | default({})).keys() | list | sort == ['clusterResources', 'config', 'name', 'namespaces', 'server'])
+    loop: '{{ reactive_resume_dev_argocd_registration_internal_prestate.results }}'
+    fail_msg: Refusing to overwrite a foreign or drifted Reactive Resume DEV registration object.
+  changed_when: false
+  no_log: true
+
+- name: Bind the complete Reactive Resume DEV handoff preflight to registration
+  ansible.builtin.set_fact:
+    reactive_resume_dev_argocd_registration_internal_preflight_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_REGISTRATION_TOKEN') | hash('sha256') }}"
+      manifest_names: "{{ reactive_resume_dev_argocd_registration_internal_manifests | map(attribute='metadata.name') | list | sort }}"
+      prestate_names: "{{ reactive_resume_dev_argocd_registration_internal_prestate.results | map(attribute='item.metadata.name') | list | sort }}"
+      handoff_names: "{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results | map(attribute='item.name') | list | sort }}"
+      object_count: "{{ reactive_resume_dev_argocd_registration_internal_manifests | length }}"
+      handoff_object_count: "{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results | length }}"
+      namespace_contract: true
+      repository_contract: true
+      revision: '{{ reactive_resume_dev_argocd_registration_revision }}'
+      no_dual_reconciliation: true
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Reconcile only Reactive Resume DEV Argo registration objects
+  reactive_resume_dev_argocd_registration_guarded_k8s:
+    state: present
+    definition: '{{ item }}'
+    kubeconfig: '{{ reactive_resume_dev_argocd_registration_kubeconfig }}'
+    wait: false
+    wait_timeout: 60
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_manifests }}'
+  no_log: true
+
+- name: Query exact Reactive Resume DEV registration post-state
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.metadata.namespace | default(omit) }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ reactive_resume_dev_argocd_registration_kubeconfig }}'
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_manifests }}'
+  register: reactive_resume_dev_argocd_registration_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact safe Reactive Resume DEV registration post-state
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.labels == item.item.metadata.labels
+      - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - (item.resources[0].metadata.finalizers | default([]) | length) == 0
+      - item.item.kind != 'Secret' or item.resources[0].type == 'Opaque'
+      - >-
+        item.item.kind != 'Application' or
+        item.resources[0].spec.syncPolicy.automated == {'prune': false, 'selfHeal': true, 'allowEmpty': false}
+      - item.item.kind != 'Application' or 'CreateNamespace=false' in item.resources[0].spec.syncPolicy.syncOptions
+      - item.item.kind != 'Application' or 'Prune=false' in item.resources[0].spec.syncPolicy.syncOptions
+      - item.item.kind != 'Application' or item.resources[0].spec.source.targetRevision == reactive_resume_dev_argocd_registration_revision
+      - >-
+        item.item.kind != 'AppProject' or
+        item.resources[0].spec.syncWindows == [{'kind': 'deny', 'schedule': '* * * * *',
+        'duration': '24h', 'applications': ['reactive-resume-dev'], 'manualSync': false}]
+    loop: '{{ reactive_resume_dev_argocd_registration_internal_poststate.results }}'
+    fail_msg: Refusing drifted or unsafe Reactive Resume DEV Argo registration state.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode

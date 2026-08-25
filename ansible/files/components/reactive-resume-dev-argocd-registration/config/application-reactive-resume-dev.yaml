@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: reactive-resume-dev
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev
+    app.kubernetes.io/part-of: cristexhub
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: reactive-resume-dev-argocd-registration
+spec:
+  project: reactive-resume-dev
+  source:
+    repoURL: ssh://git@ssh.github.com:443/devraider/cristexweb.git
+    targetRevision: 9a9b96c193e7021030dc36e631a08ca0146d5799
+    path: ansible/files/components/reactive-resume-dev-argocd
+  destination:
+    name: reactive-resume-dev-local
+    server: ''
+    namespace: cristexhub-dev
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=false
+      - Prune=false
+      - ServerSideApply=false
+      - Replace=false
+      - FailOnSharedResource=true
