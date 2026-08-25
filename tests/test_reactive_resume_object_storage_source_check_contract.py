@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 import yaml
+from jinja2 import Environment
 
 ROOT = Path(__file__).resolve().parents[1]
 HISTORY = ROOT / "ansible/files/components/reactive-resume-object-storage-history"
@@ -285,6 +286,17 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         live_statefulset = yaml.safe_load((HISTORY / "runtime/statefulset.yaml").read_text())
         live_statefulset["spec"]["revisionHistoryLimit"] = 10
         self.assertEqual(_normalized_pair(statefulset, live_statefulset)[0], _normalized_pair(statefulset, live_statefulset)[1])
+
+    def test_managed_field_operation_predicate_requires_observed_update(self) -> None:
+        tasks = (ROLE / "tasks/main.yml").read_text()
+        expression = "rejectattr('operation', 'equalto', 'Update') | list | length == 0"
+        self.assertEqual(2, tasks.count(expression))
+        template = Environment().from_string(
+            "{{ entries | rejectattr('operation', 'equalto', 'Update') | list | length }}"
+        )
+        self.assertEqual("0", template.render(entries=[{"operation": "Update"}]))
+        self.assertEqual("1", template.render(entries=[{"operation": "Apply"}]))
+        self.assertEqual("1", template.render(entries=[{"operation": "Create"}]))
 
     def test_metadata_request_never_returns_secret_body(self) -> None:
         class RecordingClient:

@@ -89,7 +89,8 @@ StatefulSet uses `kubectl-client-side-apply`, `kubectl-rollout`, and `k3s`;
 `OpenAPI-Generator`; the other runtime objects use `kubectl-client-side-apply`;
 and the live Secret metadata uses `kubectl-client-side-apply`. Every entry must
 have a non-empty structured `fieldsV1`, `fieldsType: FieldsV1`, a matching
-resource `apiVersion`, an allowed Apply operation, and no nonempty subresource.
+resource `apiVersion`, the observed client-side `Update` operation, and no
+nonempty subresource.
 No broad manager allowlist is accepted. Any unavailable producer API, foreign
 manager, owner, alternate producer targeting
 the exact object-storage Secret, or pending deletion fails closed. Secret values or PVC contents and Secret full-object responses are
