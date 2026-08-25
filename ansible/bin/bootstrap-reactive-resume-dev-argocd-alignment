@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+usage='usage: ansible/bin/bootstrap-reactive-resume-dev-argocd-alignment check|apply'
+[ "$#" -eq 1 ] && { [ "$1" = check ] || [ "$1" = apply ]; } || { printf '%s\n' "$usage" >&2; exit 64; }
+mode=$1
+[ ! -L "$0" ] || { printf '%s\n' 'Refusing symlinked entrypoint.' >&2; exit 66; }
+dir="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$0")" && pwd -P)"
+root="$(CDPATH= cd -- "$dir/../.." && pwd -P)"
+[ "$root" = /home/paul/projects/cristexweb ] || { printf '%s\n' 'Refusing non-canonical Linux repository root.' >&2; exit 78; }
+controller="$root/.venv/bin/ansible-playbook"
+[ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
+inventory="$root/ansible/.ansible/inventory.local.yml"
+[ -f "$inventory" ] && [ ! -L "$inventory" ] && [ -s "$inventory" ] || exit 78
+[ -z "${ANSIBLE_RUN_TAGS:-}${ANSIBLE_SKIP_TAGS:-}${ANSIBLE_START_AT_TASK:-}${ANSIBLE_STEP:-}" ] || exit 78
+user=$(/usr/bin/id -un)
+cd "$root/ansible"
+umask 077
+attestation="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-dev-argocd-alignment.XXXXXX")"
+token="$(/usr/bin/openssl rand -hex 32)"
+printf '%s:entrypoint\n' "$token" >"$attestation"
+chmod 0600 "$attestation"
+cleanup() { /bin/rm -f -- "$attestation"; }
+trap cleanup EXIT HUP INT TERM
+set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_reactive_resume_dev_argocd_alignment.yml --diff --limit crtxweb --extra-vars '{"reactive_resume_dev_argocd_alignment_approved":true}'
+[ "$mode" = apply ] || set -- "$@" --check
+/usr/bin/env -i HOME="${HOME:-/home/paul}" USER="$user" LOGNAME="$user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_REPOSITORY_ROOT="$root" CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_ENTRYPOINT=v1 CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_TOKEN="$token" CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_ATTESTATION_FILE="$attestation" "$@"

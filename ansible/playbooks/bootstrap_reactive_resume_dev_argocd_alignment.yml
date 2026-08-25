@@ -1,0 +1,9 @@
+---
+- name: Align the guarded Reactive Resume DEV Argo workload and destination policies
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: reactive_resume_dev_argocd_alignment

@@ -1,0 +1,174 @@
+---
+- name: Reject externally supplied Reactive Resume DEV alignment internals
+  ansible.builtin.assert:
+    that: item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied alignment internal {{ item }}."
+  loop:
+    - reactive_resume_dev_argocd_alignment_internal_attestation
+    - reactive_resume_dev_argocd_alignment_internal_kubeconfig
+    - reactive_resume_dev_argocd_alignment_internal_manifest_states
+    - reactive_resume_dev_argocd_alignment_internal_manifests
+    - reactive_resume_dev_argocd_alignment_internal_prestate
+    - reactive_resume_dev_argocd_alignment_internal_preflight_binding
+  changed_when: false
+
+- name: Require the exact guarded one-shot alignment contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_ATTESTATION_FILE') | length > 0
+      - reactive_resume_dev_argocd_alignment_approved | bool
+      - reactive_resume_dev_argocd_alignment_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - reactive_resume_dev_argocd_alignment_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - reactive_resume_dev_argocd_alignment_manifest_paths | length == 11
+      - reactive_resume_dev_argocd_alignment_expected_hashes | length == 11
+      - reactive_resume_dev_argocd_alignment_object_count == 11
+      - reactive_resume_dev_argocd_alignment_source_object_count == 7
+      - reactive_resume_dev_argocd_alignment_destination_policy_count == 4
+    fail_msg: Refusing an unapproved, widened, deleting, Job-bearing, or Secret-bearing Reactive Resume DEV alignment.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the private single-run alignment attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_ATTESTATION_FILE') }}"
+    follow: false
+  register: reactive_resume_dev_argocd_alignment_internal_attestation
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run alignment attestation
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_argocd_alignment_internal_attestation.stat.isreg | default(false)
+      - not (reactive_resume_dev_argocd_alignment_internal_attestation.stat.islnk | default(false))
+      - reactive_resume_dev_argocd_alignment_internal_attestation.stat.pw_name == reactive_resume_dev_argocd_alignment_controller_user
+      - reactive_resume_dev_argocd_alignment_internal_attestation.stat.mode == '0600'
+      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_TOKEN') ~ ':entrypoint'
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact hash-bound alignment sources
+  ansible.builtin.stat:
+    path: '{{ item }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: '{{ reactive_resume_dev_argocd_alignment_manifest_paths }}'
+  register: reactive_resume_dev_argocd_alignment_internal_manifest_states
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require regular exact alignment source hashes
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - item.stat.checksum == (reactive_resume_dev_argocd_alignment_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - item.item.startswith(reactive_resume_dev_argocd_alignment_repository_root ~ '/ansible/files/')
+  loop: '{{ reactive_resume_dev_argocd_alignment_internal_manifest_states.results }}'
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Load the exact value-free alignment objects
+  ansible.builtin.set_fact:
+    reactive_resume_dev_argocd_alignment_internal_manifests: >-
+      {{ (reactive_resume_dev_argocd_alignment_internal_manifests | default([])) +
+         [lookup('ansible.builtin.file', item) | from_yaml] }}
+  loop: '{{ reactive_resume_dev_argocd_alignment_manifest_paths }}'
+  changed_when: false
+  no_log: true
+
+- name: Require exactly seven DEV objects and four destination NetworkPolicies
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_argocd_alignment_internal_manifests | length == 11
+      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') | list | length == 7
+      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'shared-services') | list | length == 4
+      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('kind', 'equalto', 'Job') | list | length == 0
+      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 7
+      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'shared-services') | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 4
+      - (reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') | map(attribute='metadata.name') | list | sort) == ['reactive-resume-dev', 'reactive-resume-dev', 'reactive-resume-dev', 'reactive-resume-dev-default-deny', 'reactive-resume-dev-egress', 'reactive-resume-dev-private', 'reactive-resume-dev-route-allow-traefik']
+      - (reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'shared-services') | map(attribute='metadata.name') | list | sort) == ['keycloak-allow-reactive-resume-dev', 'oidc-connect-proxy-allow-reactive-resume-dev', 'reactive-resume-object-storage-allow-dev', 'shared-postgresql-ingress']
+      - reactive_resume_dev_argocd_alignment_internal_manifests | rejectattr('metadata.namespace', 'in', ['cristexhub-dev', 'shared-services']) | list | length == 0
+    fail_msg: Refusing any object outside the exact seven-object DEV and four destination NetworkPolicy alignment closure.
+  changed_when: false
+  no_log: true
+
+- name: Require canonical alignment ownership labels
+  ansible.builtin.assert:
+    that:
+      - item.metadata.labels['app.kubernetes.io/managed-by'] == 'ansible'
+      - item.metadata.labels.get('cristex.io/bootstrap-writer', item.metadata.labels.get('app.kubernetes.io/bootstrap-writer')) == 'ansible'
+    fail_msg: Refusing alignment source without the canonical Ansible bootstrap ownership labels.
+  loop: '{{ reactive_resume_dev_argocd_alignment_internal_manifests }}'
+  changed_when: false
+  no_log: true
+
+- name: Query exact alignment object pre-state
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.metadata.namespace }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ reactive_resume_dev_argocd_alignment_kubeconfig }}'
+  loop: '{{ reactive_resume_dev_argocd_alignment_internal_manifests }}'
+  register: reactive_resume_dev_argocd_alignment_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Reject foreign or Argo-owned alignment pre-state
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - item.resources | length == 0 or item.resources[0].apiVersion == item.item.apiVersion
+      - item.resources | length == 0 or item.resources[0].kind == item.item.kind
+      - item.resources | length == 0 or item.resources[0].metadata.namespace == item.item.metadata.namespace
+      - item.resources | length == 0 or item.resources[0].metadata.name == item.item.metadata.name
+      - item.resources | length == 0 or item.resources[0].metadata.labels == item.item.metadata.labels
+      - item.resources | length == 0 or (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - item.resources | length == 0 or (item.resources[0].metadata.finalizers | default([]) | length) == 0
+      - item.resources | length == 0 or 'argocd.argoproj.io/tracking-id' not in (item.resources[0].metadata.annotations | default({}))
+      - item.resources | length == 0 or (item.resources[0].metadata.managedFields | default([]) | map(attribute='manager') | select('search', 'argocd') | list | length) == 0
+    fail_msg: Refusing foreign, Argo-owned, or deleting alignment pre-state.
+  loop: '{{ reactive_resume_dev_argocd_alignment_internal_prestate.results }}'
+  changed_when: false
+  no_log: true
+
+- name: Bind the complete exact alignment preflight
+  ansible.builtin.set_fact:
+    reactive_resume_dev_argocd_alignment_internal_preflight_binding:
+      attestation_sha256: '{{ lookup("ansible.builtin.env", "CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_TOKEN") | hash("sha256") }}'
+      identity_set_sha256: '642635a4cbfe781731e55b8266c3c8611a615833e46325bc81376f32eb5d7b6f'
+      object_count: '{{ reactive_resume_dev_argocd_alignment_internal_manifests | length }}'
+      prestate_count: '{{ reactive_resume_dev_argocd_alignment_internal_prestate.results | length }}'
+      scope: reactive-resume-dev-7-plus-destination-networkpolicies-4
+      no_delete_path: true
+      no_job: true
+      no_secret: true
+  changed_when: false
+  no_log: true
+
+- name: Reconcile only the exact eleven alignment objects
+  reactive_resume_dev_argocd_alignment_guarded_k8s:
+    state: present
+    definition: '{{ item }}'
+    kubeconfig: '{{ reactive_resume_dev_argocd_alignment_kubeconfig }}'
+    wait: false
+    wait_timeout: 60
+  loop: '{{ reactive_resume_dev_argocd_alignment_internal_manifests }}'
+  loop_control:
+    label: '{{ item.kind }}/{{ item.metadata.namespace }}/{{ item.metadata.name }}'
+  no_log: true
