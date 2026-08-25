@@ -125,8 +125,11 @@ and application Secrets are never copied or exported.
 The backup verifies the private ClusterIP service, ready one-member StatefulSet,
 TLS Secret metadata, and authenticated S3 Secret metadata. It starts one exact,
 run-labelled, service-account-free rclone Pod with the pinned rclone `1.71.1`
-image, the object-storage CA, and Secret references. It reads the bucket through
-S3, not through `/data` or the PVC. Object keys are restricted to the reviewed
+image, the object-storage CA, and Secret references. Before the Pod is created,
+the scheduler checks only the TLS/auth Secret types and sorted data-key names
+through value-suppressing Kubernetes templates; it never writes Secret JSON or
+reads values into host staging. It reads the bucket through S3, not through
+`/data` or the PVC. Object keys are restricted to the reviewed
 DEV prefixes:
 
 - `uploads/user-pictures/`;

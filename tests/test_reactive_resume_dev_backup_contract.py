@@ -171,6 +171,11 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn("pg_restore --exit-on-error --no-owner --no-privileges", self.restore)
 
     def test_object_storage_is_s3_tls_authenticated_and_prefix_bound(self) -> None:
+        self.assertIn("-o go-template=", self.backup)
+        self.assertNotIn('get secret "$object_tls_secret" -o json', self.backup)
+        self.assertNotIn('get secret "$object_auth_secret" -o json', self.backup)
+        self.assertNotIn("metadata_work", self.backup)
+        self.assertIn("value-suppressing Kubernetes templates", self.runbook)
         for value in (
             "reactive-resume-object-storage",
             "reactive-resume-object-storage-tls",

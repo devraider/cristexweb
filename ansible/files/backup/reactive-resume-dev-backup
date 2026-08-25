@@ -69,31 +69,18 @@ object_ready=$(/usr/local/bin/kubectl -n "$namespace" get pod "$object_pod" -o j
 [ "$object_ready" = 'Running:true' ] || fail object_storage_readiness
 service_contract=$(/usr/local/bin/kubectl -n "$namespace" get service "$object_service" -o jsonpath='{.spec.type}:{.spec.ports[0].port}:{.spec.ports[0].name}')
 [ "$service_contract" = 'ClusterIP:8333:s3-https' ] || fail object_storage_service
-metadata_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-reactive-resume-dev-backup-metadata.XXXXXX)
-cleanup_metadata() { /usr/bin/rm -rf -- "$metadata_work"; }
-trap cleanup_metadata EXIT HUP INT TERM
-/usr/local/bin/kubectl -n "$namespace" get secret "$object_tls_secret" -o json >"$metadata_work/tls.json" || fail object_storage_tls_secret
-tls_contract=$(/usr/bin/python3 - "$metadata_work/tls.json" <<'PY'
-import json, sys
-with open(sys.argv[1], encoding="utf-8") as stream:
-    value = json.load(stream)
-assert value["type"] == "kubernetes.io/tls" and set(value.get("data", {})) == {"ca.crt", "tls.crt", "tls.key"}
-print("ok")
-PY
-)
+tls_type=$(/usr/local/bin/kubectl -n "$namespace" get secret "$object_tls_secret" -o go-template='{{.type}}') || fail object_storage_tls_secret
+tls_keys=$(/usr/local/bin/kubectl -n "$namespace" get secret "$object_tls_secret" -o go-template='{{range $key, $_ := .data}}{{printf "%s\n" $key}}{{end}}' | /usr/bin/sort) || fail object_storage_tls_secret
+expected_tls_keys=$(/usr/bin/printf 'ca.crt\ntls.crt\ntls.key')
+tls_contract=ok
+[ "$tls_type" = 'kubernetes.io/tls' ] && [ "$tls_keys" = "$expected_tls_keys" ] || tls_contract=invalid
 [ "$tls_contract" = ok ] || fail object_storage_tls_secret
-/usr/local/bin/kubectl -n "$namespace" get secret "$object_auth_secret" -o json >"$metadata_work/auth.json" || fail object_storage_auth_secret
-auth_contract=$(/usr/bin/python3 - "$metadata_work/auth.json" <<'PY'
-import json, sys
-with open(sys.argv[1], encoding="utf-8") as stream:
-    value = json.load(stream)
-assert value["type"] == "Opaque" and set(value.get("data", {})) == {"accessKey", "secretKey"}
-print("ok")
-PY
-)
+auth_type=$(/usr/local/bin/kubectl -n "$namespace" get secret "$object_auth_secret" -o go-template='{{.type}}') || fail object_storage_auth_secret
+auth_keys=$(/usr/local/bin/kubectl -n "$namespace" get secret "$object_auth_secret" -o go-template='{{range $key, $_ := .data}}{{printf "%s\n" $key}}{{end}}' | /usr/bin/sort) || fail object_storage_auth_secret
+expected_auth_keys=$(/usr/bin/printf 'accessKey\nsecretKey')
+auth_contract=ok
+[ "$auth_type" = Opaque ] && [ "$auth_keys" = "$expected_auth_keys" ] || auth_contract=invalid
 [ "$auth_contract" = ok ] || fail object_storage_auth_secret
-cleanup_metadata
-metadata_work=
 work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-reactive-resume-dev-backup.XXXXXX)
 start_epoch=$(/usr/bin/date +%s)
 timestamp=$(/usr/bin/date -u +%Y%m%dT%H%M%SZ)
@@ -136,9 +123,9 @@ cleanup_plaintext() {
   cleanup_helper || cleanup_status=1
   /usr/bin/rm -f -- "$run_directory/reactive-resume-dev.dump" "$work/raw-manifest.json" "$work/object-manifest.json" "$work/object-storage.tar.gz" "$work/postgresql.dump.gz" || cleanup_status=1
   if [ "$backup_success" = true ]; then
-    /usr/bin/rm -rf -- "$work" "$metadata_work" || cleanup_status=1
+    /usr/bin/rm -rf -- "$work" || cleanup_status=1
   else
-    /usr/bin/rm -rf -- "$run_directory" "$work" "$metadata_work" || cleanup_status=1
+    /usr/bin/rm -rf -- "$run_directory" "$work" || cleanup_status=1
   fi
   if [ "$cleanup_status" -ne 0 ]; then
     printf 'backup_status=failed stage=cleanup\n' >&2
