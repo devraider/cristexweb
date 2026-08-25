@@ -17,6 +17,16 @@ class CloudflaredRuntimeContractTests(unittest.TestCase):
         cls.paths = sorted(COMPONENT.rglob("*.yaml"))
         cls.objects = [yaml.safe_load(path.read_text()) for path in cls.paths]
 
+    def test_manifest_ledger_matches_all_yaml_leaves(self):
+        ledger = {}
+        for line in (COMPONENT / "MANIFESTS.sha256").read_text().splitlines():
+            digest, relative = line.split("  ", 1)
+            ledger[relative] = digest
+        leaves = sorted(path.relative_to(COMPONENT).as_posix() for path in COMPONENT.rglob("*.yaml"))
+        self.assertEqual(leaves, sorted(ledger))
+        for relative, digest in ledger.items():
+            self.assertEqual(digest, hashlib.sha256((COMPONENT / relative).read_bytes()).hexdigest())
+
     def test_exact_private_source_closure(self):
         self.assertEqual(5, len(self.objects))
         self.assertEqual({"NetworkPolicy": 3, "ServiceAccount": 1, "Deployment": 1}, {
