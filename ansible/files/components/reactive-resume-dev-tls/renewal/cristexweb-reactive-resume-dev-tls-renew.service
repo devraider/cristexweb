@@ -13,9 +13,10 @@ Environment=PATH=/home/paul/.nvm/versions/node/v24.19.0/bin:/usr/local/bin:/usr/
 SupplementaryGroups=k3s-admin
 UMask=0077
 ExecStart=/usr/local/libexec/cristexweb/reactive-resume-dev-tls-renew renew
-# InfisicalStaticSecret refreshInterval is contractually 1h; allow one hour
-# plus a 15-minute convergence margin before systemd aborts renewal.
-TimeoutStartSec=90min
+# The renewal command reserves 75 minutes for delayed Infisical convergence;
+# certificate issuance and provider preflight run before that window begins.
+# Keep 45 minutes of service-level headroom for those bounded prerequisites.
+TimeoutStartSec=2h
 NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=true

@@ -202,7 +202,12 @@
       - not (item.stat.islnk | default(false))
       - item.stat.pw_name == 'paul'
       - item.stat.mode == item.item.mode
-      - item.item.normalized_hash | default(false) or item.stat.checksum == item.item.sha256
+      - >-
+        (item.item.normalized_digest_name | default('') == '') or
+        item.item.normalized_digest_name == 'reactive_resume_dev_tls_renewal_defaults_self_hash'
+      - >-
+        (item.item.normalized_digest_name | default('') != '') or
+        item.stat.checksum == item.item.sha256
     fail_msg: Refusing TLS renewal install from an unreviewed, unsafe, or modified source closure.
   loop: '{{ reactive_resume_dev_tls_renewal_internal_source_states.results }}'
   delegate_to: localhost
@@ -213,7 +218,7 @@
 - name: Read normalized execution closure sources
   ansible.builtin.slurp:
     src: '{{ item.path }}'
-  loop: '{{ reactive_resume_dev_tls_renewal_execution_source_hashes | selectattr("normalized_hash", "defined") | list }}'
+  loop: '{{ reactive_resume_dev_tls_renewal_execution_source_hashes | selectattr("normalized_digest_name", "defined") | list }}'
   register: reactive_resume_dev_tls_renewal_internal_normalized_source_contents
   delegate_to: localhost
   become: false
@@ -223,9 +228,19 @@
 - name: Require normalized execution closure source hashes
   ansible.builtin.assert:
     that:
+      - item.item.normalized_digest_name == 'reactive_resume_dev_tls_renewal_defaults_self_hash'
       - >-
         item.content | b64decode |
-        regex_replace('[0-9a-f]{64}', '__HASH_LITERAL__', multiline=True) |
+        regex_replace(
+          '^reactive_resume_dev_tls_renewal_defaults_self_hash:[ ]+[0-9a-f]{64}$',
+          'reactive_resume_dev_tls_renewal_defaults_self_hash: __SELF_HASH__',
+          multiline=True
+        ) |
+        regex_replace(
+          '(?m)^    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: [0-9a-f]{64}$',
+          '    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: __SELF_HASH__',
+          multiline=True
+        ) |
         hash('sha256') == item.item.sha256
     fail_msg: Refusing TLS renewal execution closure with modified role defaults.
   loop: '{{ reactive_resume_dev_tls_renewal_internal_normalized_source_contents.results }}'

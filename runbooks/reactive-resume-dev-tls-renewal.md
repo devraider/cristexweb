@@ -36,11 +36,12 @@ Tunnel ingress, Kubernetes objects, or the reserved PROD hostname.
   API; its CLI exposes no conditional write operation, so renewal uses a fail-closed revision/readback
   protocol: exact two-key pre-state is exported, a pre-write export is re-read immediately before
   write, and compared by certificate/key digest; post-write readback must match
-  both new files. Conditional rollback is attempted only when a fresh read proves
-  the remote state still has the exact two-key set and equals this run's new
-  revision; rollback readback must again prove the exact two-key set and original
-  bytes. A changed remote key set or revision is never overwritten with stale
-  pre-state.
+  both new files. A read/check/write rollback has an unavoidable race without
+  CAS: a concurrent writer can change the remote state after the last read.
+  Therefore unattended rollback is not attempted; the helper performs a final
+  exact two-key set/revision read, emits `no_cas_fail_closed`, and leaves remote
+  state untouched when rollback would require a non-atomic stale write. Human
+  recovery must inspect the current remote revision before any replacement.
 
 ## Renewal behavior
 
@@ -52,14 +53,17 @@ Certbot DNS-01 only, validates the exact single SAN, 30-day validity, and
 certificate/key correspondence, then writes an exact two-key payload through the
 Infisical path. The Infisical pre-state must already contain exactly `TLS_CRT`
 and `TLS_KEY`; the no-CAS revision/readback protocol verifies pre-write stability,
-post-upload YAML key-set and byte readback, and conditional rollback without
-stale concurrent overwrite. Before success, the controller waits for the
+post-upload YAML key-set and byte readback. If a later stage fails, rollback
+fails closed because Infisical has no atomic CAS operation; no stale pre-state
+write is attempted. Before success, the controller waits for the
 InfisicalStaticSecret `LastReconcileStatus=True`, exact Kubernetes TLS Secret
 bytes, and the browser-served Traefik certificate public-key revision to converge;
 this runtime convergence is required before success. The source contract is
-`refreshInterval: 1h` with `instantUpdates: false`, so renewal waits one full
-hour plus a 15-minute safety margin (90-minute systemd start timeout) rather than
-failing normal delayed operator reconciliation.
+`refreshInterval: 1h` with `instantUpdates: false`, so renewal uses an elapsed
+75-minute convergence deadline (including bounded kubectl/TLS commands and a
+15-minute safety margin after the one-hour refresh interval), while
+the 2-hour systemd start timeout leaves 45 minutes for provider preflight and
+certificate issuance.
 Temporary workspace cleanup removes credentials, payload, and private material;
 protected Certbot account/lineage metadata remains under the mode-0700 state root
 to prevent duplicate issuance.
@@ -67,8 +71,9 @@ to prevent duplicate issuance.
 Install mode verifies the controller-side `MANIFESTS.sha256` closure and
 hash-binds every renewal source before copying it. It also hash-binds the
 canonical wrapper, playbook, role task file, and role defaults execution
-closure; role defaults are checked with hash-literal normalization to avoid a
-self-reference cycle. It then installs the pinned Debian packages
+closure; only the explicitly named `reactive_resume_dev_tls_renewal_defaults_self_hash`
+digest literal is normalized to avoid that self-reference cycle. All other
+source-pin digest literals remain covered by the closure. It then installs the pinned Debian packages
 `certbot=4.0.0-2+deb13u1` and
 `python3-certbot-dns-cloudflare=4.0.0-1` with `update_cache: false`, and verifies
 their architecture and executable provenance. The service uses the

@@ -75,10 +75,15 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "wait_for_runtime_convergence",
             "infisical_sync_interval_seconds=3600",
             "convergence_grace_seconds=900",
-            "convergence_attempts=$(( (infisical_sync_interval_seconds + convergence_grace_seconds + convergence_interval_seconds - 1) / convergence_interval_seconds ))",
+            "convergence_timeout_seconds=$((infisical_sync_interval_seconds + convergence_grace_seconds))",
+            "convergence_command_timeout_seconds=30",
+            "convergence_attempts=$(( (convergence_timeout_seconds + convergence_interval_seconds - 1) / convergence_interval_seconds ))",
+            "convergence_deadline",
+            "run_convergence_command",
+            "wait_for_convergence_interval",
+            "no_cas_fail_closed",
             "verify_infisical_key_set",
             "infisical-rollback-current-keys",
-            "infisical-rollback-readback-keys",
             "LastReconcileStatus",
             "convergence=verified",
             "kubeconfig=/etc/rancher/k3s/k3s.yaml",
@@ -106,6 +111,9 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
         self.assertNotIn("CLOUDFLARE_DNS_API_TOKEN=", text)
+        self.assertNotIn('secrets set --env "$environment" --projectId "$project_id" \\\n    --path "$infisical_path" --file "$infisical_before"', text)
+        self.assertNotIn('sleep "$convergence_interval_seconds"', text)
+        self.assertIn('/usr/bin/timeout "$command_timeout" "$@"', text)
 
     def test_validator_and_systemd_units_are_hardened(self) -> None:
         self.assertEqual(0o755, stat.S_IMODE(RENEW.stat().st_mode))
@@ -127,7 +135,7 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "ProtectHome=read-only",
             "ReadWritePaths=/var/lib/cristexweb/reactive-resume-dev-tls /run/lock",
             "RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6",
-            "TimeoutStartSec=90min",
+            "TimeoutStartSec=2h",
         ):
             self.assertIn(required, service)
         timer = TIMER.read_text()
@@ -162,11 +170,21 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "item.stat.mode == item.item.mode",
             "item.stat.pw_name == 'paul'",
             "normalized execution closure sources",
-            "regex_replace('[0-9a-f]{64}', '__HASH_LITERAL__'",
+            "normalized_digest_name",
+            "reactive_resume_dev_tls_renewal_defaults_self_hash",
+            "regex_replace(",
+
         ):
             self.assertIn(required, text)
         self.assertIn("role: reactive_resume_dev_tls_renewal", PLAYBOOK.read_text())
         defaults = DEFAULTS.read_text()
+        self.assertIn(
+            f"reactive_resume_dev_tls_renewal_manifest_sha256: "
+            f"{hashlib.sha256((COMPONENT / 'MANIFESTS.sha256').read_bytes()).hexdigest()}",
+            defaults,
+        )
+        self.assertIn("reactive_resume_dev_tls_renewal_defaults_self_hash:", defaults)
+        self.assertIn("normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash", defaults)
         self.assertIn("v24.19.0/lib/node_modules/@infisical/cli/bin/infisical", defaults)
         self.assertIn("reactive_resume_dev_tls_renewal_infisical_cli", defaults)
         self.assertIn("reactive_resume_dev_tls_renewal_manifest_path", defaults)
@@ -200,7 +218,9 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "DNS write/delete scope probe",
             "Infisical has no CAS/If-Match",
             "pre-write export",
-            "conditional rollback",
+            "unattended rollback",
+            "unavoidable race",
+            "no_cas_fail_closed",
             "exact two-key set",
             "all exact-name record IDs",
             "runtime convergence",
