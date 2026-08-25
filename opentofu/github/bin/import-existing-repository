@@ -46,8 +46,8 @@ repo_root=$(CDPATH= cd -- "$dir/../../.." && pwd -P)
 # leaf except itself; the manifest and this entrypoint's canonical form are
 # independently pinned below so a partial source review cannot authorize import.
 source_manifest="$github_root/SOURCE.sha256"
-source_manifest_expected_sha256='12bc83b777274d21ddc437675112197281f3a25a3da11965ebb76c38c57b284e'
-source_import_expected_canonical_sha256='e609b55154332d9cecd08804f1c24188daeb577a5b279c118a2342b7e33c60bb'
+source_manifest_expected_sha256='fe1b78b162b008f3b635dbf6c5da72452ee8b6fa1294a2a8250f381faa33f82a'
+source_import_expected_canonical_sha256='bfa6f3ab1fea852255500b68dd94a36036ddf08d9c11cdcb76a5a2f9664f411b'
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-github-source.XXXXXX)
 chmod 0700 "$source_work"
 trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM
@@ -72,43 +72,58 @@ github.tf
 providers.tf
 versions.tf
 EOF
-/usr/bin/awk '
-    NF != 2 || $1 !~ /^[0-9a-f]{64}$/ || $2 ~ /^\// || $2 ~ /(^|\/)\.\.($|\/)/ || $2 ~ /[[:space:]]/ { bad = 1; next }
-    { print $2 }
-    END { if (bad) exit 1 }
-' "$source_manifest" | /usr/bin/sort >"$source_actual_paths" || exit 78
-[ "$(/usr/bin/wc -l <"$source_actual_paths")" -eq 11 ] || exit 78
-[ "$(/usr/bin/sort -u "$source_actual_paths" | /usr/bin/wc -l)" -eq 11 ] || exit 78
-/usr/bin/cmp -s "$source_expected_paths" "$source_actual_paths" || {
-    printf '%s\n' 'Refusing incomplete or widened GitHub source closure.' >&2
-    exit 78
-}
-while IFS= read -r source_line; do
-    source_digest=${source_line%%  *}
-    source_path=${source_line#*  }
-    source_file="$github_root/$source_path"
-    [ -f "$source_file" ] && [ ! -L "$source_file" ] || exit 78
-    case "$source_path" in
-        bin/*) source_mode=755 ;;
-        *) source_mode=644 ;;
-    esac
-    [ "$(/usr/bin/stat -c '%a' "$source_file")" = "$source_mode" ] || exit 78
-    if [ "$source_path" = 'bin/import-existing-repository' ]; then
-        source_canonical="$source_work/import-existing-repository.canonical"
-        /usr/bin/sed -E \
-            -e "s/^source_manifest_expected_sha256='[0-9a-f]{64}'$/source_manifest_expected_sha256='__SOURCE_MANIFEST_SHA256__'/" \
-            -e "s/^source_import_expected_canonical_sha256='[0-9a-f]{64}'$/source_import_expected_canonical_sha256='__SOURCE_IMPORT_SHA256__'/" \
-            "$source_file" >"$source_canonical"
-        source_actual_digest=$(/usr/bin/sha256sum "$source_canonical" | /usr/bin/cut -d ' ' -f 1)
-        [ "$source_actual_digest" = "$source_import_expected_canonical_sha256" ] || exit 78
-    else
-        source_actual_digest=$(/usr/bin/sha256sum "$source_file" | /usr/bin/cut -d ' ' -f 1)
-    fi
-    [ "$source_actual_digest" = "$source_digest" ] || {
-        printf 'Refusing GitHub source drift: %s\n' "$source_path" >&2
+revalidate_source_closure() {
+    # Every command that consumes the mutable GitHub root calls this function
+    # immediately before execution. This closes the post-manifest-validation
+    # same-user TOCTOU window without trusting a mutable source path snapshot.
+    [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
+    [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_manifest")" = 'paul:paul:644' ] || exit 78
+    source_manifest_snapshot="$source_work/source-manifest.current"
+    /usr/bin/cat "$source_manifest" >"$source_manifest_snapshot" || exit 78
+    chmod 0600 "$source_manifest_snapshot"
+    [ "$(/usr/bin/sha256sum "$source_manifest_snapshot" | /usr/bin/cut -d ' ' -f 1)" = "$source_manifest_expected_sha256" ] || {
+        printf '%s\n' 'Refusing GitHub source-closure manifest drift.' >&2
         exit 78
     }
-done <"$source_manifest"
+    /usr/bin/awk '
+        NF != 2 || $1 !~ /^[0-9a-f]{64}$/ || $2 ~ /^\// || $2 ~ /(^|\/)\.\.($|\/)/ || $2 ~ /[[:space:]]/ { bad = 1; next }
+        { print $2 }
+        END { if (bad) exit 1 }
+    ' "$source_manifest_snapshot" | /usr/bin/sort >"$source_actual_paths" || exit 78
+    [ "$(/usr/bin/wc -l <"$source_actual_paths")" -eq 11 ] || exit 78
+    [ "$(/usr/bin/sort -u "$source_actual_paths" | /usr/bin/wc -l)" -eq 11 ] || exit 78
+    /usr/bin/cmp -s "$source_expected_paths" "$source_actual_paths" || {
+        printf '%s\n' 'Refusing incomplete or widened GitHub source closure.' >&2
+        exit 78
+    }
+    while IFS= read -r source_line; do
+        source_digest=${source_line%%  *}
+        source_path=${source_line#*  }
+        source_file="$github_root/$source_path"
+        [ -f "$source_file" ] && [ ! -L "$source_file" ] || exit 78
+        case "$source_path" in
+            bin/*) source_mode=755 ;;
+            *) source_mode=644 ;;
+        esac
+        [ "$(/usr/bin/stat -c '%a' "$source_file")" = "$source_mode" ] || exit 78
+        if [ "$source_path" = 'bin/import-existing-repository' ]; then
+            source_canonical="$source_work/import-existing-repository.canonical"
+            /usr/bin/sed -E \
+                -e "s/^source_manifest_expected_sha256='[0-9a-f]{64}'$/source_manifest_expected_sha256='__SOURCE_MANIFEST_SHA256__'/" \
+                -e "s/^source_import_expected_canonical_sha256='[0-9a-f]{64}'$/source_import_expected_canonical_sha256='__SOURCE_IMPORT_SHA256__'/" \
+                "$source_file" >"$source_canonical"
+            source_actual_digest=$(/usr/bin/sha256sum "$source_canonical" | /usr/bin/cut -d ' ' -f 1)
+            [ "$source_actual_digest" = "$source_import_expected_canonical_sha256" ] || exit 78
+        else
+            source_actual_digest=$(/usr/bin/sha256sum "$source_file" | /usr/bin/cut -d ' ' -f 1)
+        fi
+        [ "$source_actual_digest" = "$source_digest" ] || {
+            printf 'Refusing GitHub source drift: %s\n' "$source_path" >&2
+            exit 78
+        }
+    done <"$source_manifest_snapshot"
+}
+revalidate_source_closure
 
 # The fixed path and pinned CLI are checked only after source closure validation.
 tofu=/usr/local/bin/tofu
@@ -193,16 +208,19 @@ clean_exec_with_token() {
         ' import-child "$@"
 }
 run_quiet() {
+    revalidate_source_closure
     : >"$log"
     chmod 0600 "$log"
     clean_exec "$@" >"$log" 2>&1 || fail command
 }
 run_quiet_with_token() {
+    revalidate_source_closure
     : >"$log"
     chmod 0600 "$log"
     clean_exec_with_token "$@" >"$log" 2>&1 || fail command
 }
 run_capture() {
+    revalidate_source_closure
     capture_file=$1
     shift
     : >"$log"
@@ -216,6 +234,7 @@ run_capture() {
 # the operator can enter sudo credentials, while the backup source emits only
 # sanitized receipts and never receives GITHUB_TOKEN.
 run_backup_interactive() {
+    revalidate_source_closure
     printf 'import_stage=backup_%s sudo_prompt=interactive\n' "$1" >&2
     clean_exec "$backup_wrapper" "$1" || fail "backup_$1"
 }

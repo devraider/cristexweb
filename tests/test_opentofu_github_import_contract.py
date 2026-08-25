@@ -196,6 +196,16 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
         ):
             self.assertIn(value, source, value)
 
+    def test_source_closure_is_revalidated_before_each_root_consumer(self) -> None:
+        source = IMPORT.read_text()
+        self.assertIn("revalidate_source_closure() {", source)
+        self.assertIn("same-user TOCTOU window", source)
+        self.assertGreaterEqual(source.count("revalidate_source_closure"), 5)
+        self.assertIn("run_quiet() {\n    revalidate_source_closure", source)
+        self.assertIn("run_quiet_with_token() {\n    revalidate_source_closure", source)
+        self.assertIn("run_capture() {\n    revalidate_source_closure", source)
+        self.assertIn("revalidate_source_closure\n", source)
+
     def test_backend_environment_lock_and_final_gates_are_bound(self) -> None:
         source = IMPORT.read_text()
         backend = (GITHUB / "backend.tf").read_bytes()
