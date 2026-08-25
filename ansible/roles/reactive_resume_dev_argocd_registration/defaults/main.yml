@@ -17,9 +17,9 @@ reactive_resume_dev_argocd_registration_path: ansible/files/components/reactive-
 reactive_resume_dev_argocd_registration_repository_secret: argocd-repository-cristexweb
 reactive_resume_dev_argocd_registration_expected_hashes:
   config/application-reactive-resume-dev.yaml: 0166c87cb672544f27c2a6085c03bc49d95114cf5cc0caa3881332172e4ffd91
-  config/appproject-reactive-resume-dev.yaml: dad4f5231dd1229a51390f4b823be7c4da9d707771efe688bd36c9ab7b7b891b
+  config/appproject-reactive-resume-dev.yaml: cec72c6e3b116593693435af49603f4ce50126cb2fc7632675a5681062795de9
   config/secret-cluster-reactive-resume-dev.yaml: e2fbba0e829fbcd269a10ec3fabaa8205595d79fc78ee4ab089bc53357169915
-  rbac/role-argocd-application-controller-reactive-resume-dev.yaml: e0ba049a1f6c34cae3160b83e55dde986cef830c57232e9b97d69e51d21042d4
+  rbac/role-argocd-application-controller-reactive-resume-dev.yaml: ab0a14d48e3a22b158453dab9ad7ed06d0a63ff818a14e2e8ca94f48ecb8eba7
   rbac/rolebinding-argocd-application-controller-reactive-resume-dev.yaml: 4ccef642d0f30c0245abb162685da5727a9811fd7dabe89ce24762ad41204460
 reactive_resume_dev_argocd_registration_handoff_manifest_paths:
   - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff/deployment.yaml"

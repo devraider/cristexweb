@@ -16,13 +16,13 @@ REGISTRATION = ROOT / "ansible/files/components/reactive-resume-dev-argocd-regis
 EXPECTED_FILES = {
     "deployment.yaml",
     "ingress-private.yaml",
-    "migration-job.yaml",
     "networkpolicy-default-deny.yaml",
     "networkpolicy-egress.yaml",
     "networkpolicy-route-allow-traefik.yaml",
     "service.yaml",
     "serviceaccount.yaml",
 }
+HANDOFF = ROOT / "ansible/files/policies/reactive-resume-dev-argocd-handoff"
 RUNTIME_DIGEST = "sha256:720ff5a60a7f6b91a75535e230dbb664207fdf1bc5cb8732d584bae7ebdac13c"
 MIGRATION_DIGEST = "sha256:a4f0157e023c10c1c6ff163d34bf25c3343647247eddb1d4f9bfa9b46e1a3093"
 
@@ -36,12 +36,11 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         paths = {path.name for path in SOURCE.glob("*.yaml")}
         self.assertEqual(EXPECTED_FILES, paths)
         objects = load_objects()
-        self.assertEqual(8, len(objects))
+        self.assertEqual(7, len(objects))
         self.assertEqual(
             {
                 "Deployment",
                 "Ingress",
-                "Job",
                 "NetworkPolicy",
                 "Service",
                 "ServiceAccount",
@@ -58,7 +57,7 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
             "kind: PersistentVolumeClaim",
             "kind: Namespace",
             "stringData:",
-            "job/reactive-resume-dev-migration",
+            "kind: Job",
             "reactive-resume-prod",
             "cristexhub-prod",
         ):
@@ -66,10 +65,10 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         self.assertNotRegex(text, r"image:\s+[^\s@]+\s*$", re.MULTILINE)
         self.assertNotRegex(text, r"(?m)^\s{2,}data:\s*$")
         self.assertIn(RUNTIME_DIGEST, text)
-        self.assertIn(MIGRATION_DIGEST, text)
+        self.assertNotIn(MIGRATION_DIGEST, text)
 
-    def test_runtime_and_migration_contracts_are_exact(self) -> None:
-        objects = {obj["kind"]: obj for obj in load_objects() if obj["kind"] in {"Deployment", "Job", "Service", "ServiceAccount"}}
+    def test_runtime_contract_is_exact_and_migration_is_not_automated(self) -> None:
+        objects = {obj["kind"]: obj for obj in load_objects() if obj["kind"] in {"Deployment", "Service", "ServiceAccount"}}
         deployment = objects["Deployment"]
         self.assertEqual("reactive-resume-dev", deployment["metadata"]["name"])
         self.assertEqual(1, deployment["spec"]["replicas"])
@@ -82,15 +81,11 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         service = objects["Service"]
         self.assertEqual("ClusterIP", service["spec"]["type"])
         self.assertEqual([{"name": "http", "port": 3000, "protocol": "TCP", "targetPort": "http"}], service["spec"]["ports"])
-        job = objects["Job"]
-        self.assertEqual("reactive-resume-dev-migrate", job["metadata"]["name"])
-        self.assertEqual(
-            MIGRATION_DIGEST,
-            job["spec"]["template"]["spec"]["containers"][0]["image"].split("@", 1)[1],
-        )
-        self.assertEqual(["node"], job["spec"]["template"]["spec"]["containers"][0]["command"])
-        self.assertEqual(["apps/server/dist/migrate.mjs"], job["spec"]["template"]["spec"]["containers"][0]["args"])
-        self.assertEqual("Never", job["spec"]["template"]["spec"]["restartPolicy"])
+        handoff = [yaml.safe_load(path.read_text()) for path in sorted(HANDOFF.glob("*.yaml"))]
+        migration = next(obj for obj in handoff if obj["kind"] == "Job")
+        self.assertEqual("reactive-resume-dev-migrate", migration["metadata"]["name"])
+        self.assertEqual("Job", migration["kind"])
+        self.assertNotIn("migration-job.yaml", {path.name for path in SOURCE.glob("*.yaml")})
 
     def test_route_and_network_boundaries_are_private(self) -> None:
         objects = load_objects()
@@ -135,8 +130,11 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         runbook = RUNBOOK.read_text()
         self.assertIn("ansible/files/components/reactive-resume-dev-argocd/", runbook)
         self.assertIn("reactive-resume-dev-migrate", runbook)
-        self.assertIn("`job/reactive-resume-dev-migration`", runbook)
-        self.assertNotIn("job/reactive-resume-dev-migration` (the canonical", runbook)
+        self.assertIn(MIGRATION_DIGEST, runbook)
+        self.assertIn("excluded from the automated Argo desired-state", runbook)
+        self.assertIn("one-shot", runbook)
+        self.assertIn("migration-job.yaml", runbook)
+        self.assertNotIn("`job/reactive-resume-dev-migration`", runbook)
 
 
 if __name__ == "__main__":

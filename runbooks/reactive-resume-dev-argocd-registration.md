@@ -8,17 +8,17 @@ Argo, provider, DNS, Infisical, or PROD operation by itself.
 
 The registration Application uses the infrastructure repository
 `ssh://git@ssh.github.com:443/devraider/cristexweb.git`, immutable revision
-`9a9b96c193e7021030dc36e631a08ca0146d5799`, and the future desired-state
-path `ansible/files/components/reactive-resume-dev-argocd`. The checked-in
+`7d1c33c5abfbfe86d942bc3d887a95b5cdc2760c`, and the desired-state path
+`ansible/files/components/reactive-resume-dev-argocd`. The checked-in
 value-free handoff inventory under
 `ansible/files/policies/reactive-resume-dev-argocd-handoff` identifies exactly
 eight namespaced DEV workload objects: the Deployment, migration Job, Service,
 ServiceAccount, two workload NetworkPolicies, the Traefik-only route
 NetworkPolicy, and the private Ingress. Secret, Namespace, PVC, RBAC, shared
 service, Keycloak, Infisical, and PROD objects remain outside this handoff.
-The desired-state directory is intentionally not present in this source-only
-registration revision; a later source-reconciliation task must publish it
-before any sync/adoption approval.
+Only seven of those objects are automated Argo desired state: the migration
+Job remains inventory-only and is a separately guarded one-shot prerequisite.
+The migration Job is excluded from the automated Argo desired-state.
 
 An Infisical-owned, value-bearing-free repository Secret named
 `argocd-repository-cristexweb` must already exist in `argocd`; this closure only
@@ -30,10 +30,11 @@ is the existing `cristexhub-dev` Namespace through the namespace-limited
 
 The five registration objects are an AppProject, Application, Role,
 RoleBinding, and namespace-limited cluster Secret. The AppProject permits only
-Deployment, Job, Service, ServiceAccount, Ingress, and NetworkPolicy in
-`cristexhub-dev`; it permits no cluster-scoped resources or Secrets. The Role
-has only get/list/watch/create/patch and no delete. The cluster Secret sets
-`clusterResources=false` and `namespaces=cristexhub-dev`.
+Deployment, Service, ServiceAccount, Ingress, and NetworkPolicy in
+`cristexhub-dev`; it permits no Jobs, cluster-scoped resources, or Secrets. The
+Role has only get/list/watch/create/patch for those runtime object classes and
+no delete. The cluster Secret sets `clusterResources=false` and
+`namespaces=cristexhub-dev`.
 
 The Application is automated only with safe controls:
 `prune=false`, `selfHeal=true`, `allowEmpty=false`, `Prune=false`, and
@@ -51,6 +52,14 @@ source revision, sync once, and collect managed-field evidence.
 There is no PROD path in this closure. `cristexhub-prod`,
 `reactive-resume-prod`, public routing, and production promotion are rejected
 by source scope and remain separate approvals.
+
+The fixed-name migration Job is deliberately not an Argo resource. Before
+runtime handoff, a separately approved one-shot migration gate must verify the
+precreated migration Secret and PostgreSQL CA, apply or confirm only
+`job/reactive-resume-dev-migrate`, wait for successful completion, and record a
+sanitized receipt. It must never be placed back into the automated source,
+rerun through `selfHeal`, or updated in place; any new migration requires a
+new reviewed Job identity and separate approval.
 
 ## Guarded entrypoint
 

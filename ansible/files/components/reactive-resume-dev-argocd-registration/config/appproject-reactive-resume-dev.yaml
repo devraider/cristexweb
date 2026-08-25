@@ -18,8 +18,6 @@ spec:
   namespaceResourceWhitelist:
     - group: apps
       kind: Deployment
-    - group: batch
-      kind: Job
     - group: ""
       kind: Service
     - group: ""
