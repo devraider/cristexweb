@@ -44,8 +44,8 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
     exit 78
 }
 source_manifest="$root/bin/SOURCE.sha256"
-source_manifest_expected_sha256='8b9bda271abc7c942e92be3602143280cd49d28753d63d5c09f1d301283a174b'
-source_reconcile_expected_canonical_sha256='5f47cdf2d2ba5b492d1c230b72737a6a8610ea8eb42c768573414bf1d763ca93'
+source_manifest_expected_sha256='364f18059bad7efa9811557a29aadbbc62b657383361e50b39889ad332c3e8ab'
+source_reconcile_expected_canonical_sha256='c88ce3a98bad3b003e968af791423fa17d8edba67470bc78c0fed21177807b1f'
 validator="$root/bin/validate-foundation-state-scope"
 [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
 [ -x "$validator" ] && [ ! -L "$validator" ] || exit 78
@@ -69,24 +69,30 @@ EOF
 root_expected_files="$source_work/root-expected-files"
 root_actual_files="$source_work/root-actual-files"
 /usr/bin/cat >"$root_expected_files" <<'EOF'
-.terraform.lock.hcl
-README.md
-backend.tf
-cloudflare.tf
-outputs.tf
-providers.tf
-variables.tf
-versions.tf
+f .terraform.lock.hcl
+f README.md
+f backend.tf
+f cloudflare.tf
+d bin
+d github
+f outputs.tf
+f providers.tf
+f variables.tf
+f versions.tf
 EOF
+if [ -d "$root/.terraform" ] && [ ! -L "$root/.terraform" ]; then
+    printf '%s\n' 'd .terraform' >>"$root_expected_files"
+fi
+/usr/bin/sort -o "$root_expected_files" "$root_expected_files"
 revalidate_source_closure() {
     [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_manifest")" = 'paul:paul:644' ] || exit 78
     [ "$(/usr/bin/sha256sum "$source_manifest" | /usr/bin/cut -d ' ' -f 1)" = "$source_manifest_expected_sha256" ] || {
         printf '%s\n' 'Refusing OpenTofu foundation source manifest drift.' >&2
         exit 78
     }
-    /usr/bin/find "$root" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) -printf '%f\n' | /usr/bin/sort >"$root_actual_files"
+    /usr/bin/find "$root" -mindepth 1 -maxdepth 1 -printf '%y %f\n' | /usr/bin/sort >"$root_actual_files"
     /usr/bin/cmp -s "$root_expected_files" "$root_actual_files" || {
-        printf '%s\n' 'Refusing extra OpenTofu root .tf, .tf.json, auto-var, or override file.' >&2
+        printf '%s\n' 'Refusing extra or non-regular OpenTofu root .tf, .tf.json, auto-var, override, or directory entry.' >&2
         exit 78
     }
     source_manifest_snapshot="$source_work/source-manifest.current"

@@ -15,13 +15,19 @@ encrypted backup/readback, and isolated-restore gates.
 This module is initialized against protected host state. The protected local backend
 at `/var/lib/opentofu/cristexweb/foundation.tfstate` contains exactly five imported
 resource addresses: the Tunnel, its configuration, Keycloak DNS, DEV DNS, and the
-private Argo DNS record. The committed source defines six resource addresses; only
-`cloudflare_dns_record.cristexhub_prod` is absent from the imported state. The PROD
-change is therefore still pending: one Tunnel-config update adding the reviewed
-`hub.cristex-soft.com` ingress and one proxied DNS-record create. No apply has run
-for that pending change. The Argo CD record points to current Tailscale IPv4
-`100.122.139.32`; access remains restricted by the host/cluster Tailscale-only
-ingress boundary and is not routed through the Cloudflare proxy or Tunnel.
+private Argo DNS record. The older checkpoint described six resource addresses;
+the current committed source defines seven resource addresses.
+`cloudflare_dns_record.reactive_resume_dev_tailscale` is already live but remains a
+separate source-only import prerequisite, and `cloudflare_dns_record.cristexhub_prod`
+remains absent from state. The guarded reconciliation is documented in
+[`runbooks/opentofu-foundation-state-reconciliation.md`](../runbooks/opentofu-foundation-state-reconciliation.md)
+and must establish the exact six-address state closure before any PROD plan. The
+PROD change is therefore still pending: one Tunnel-config update adding the
+reviewed `hub.cristex-soft.com` ingress and one proxied DNS-record create. No
+provider/state operation has run for either pending change. The Argo CD and
+Reactive Resume DEV records point to current Tailscale IPv4 `100.122.139.32`;
+access remains restricted by the host/cluster Tailscale-only ingress boundary and
+is not routed through the Cloudflare proxy or Tunnel.
 
 ## State and secret boundary
 

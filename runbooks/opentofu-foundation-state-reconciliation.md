@@ -58,7 +58,9 @@ the state-parent directory inode is held from the first pre-state inspection
 through the import and final checks. The state-list helper validates exact
 membership, uniqueness, shape, owner, and mode without requesting provider
 state or secret values. The guarded source closure also rejects any extra root
-`.tf`, `.tf.json`, auto-variable, or override file before a state consumer runs.
+`.tf`, `.tf.json`, auto-variable, override, symlink, directory, or other
+non-regular entry (apart from the explicitly allowed `bin`, `github`, and
+OpenTofu-generated `.terraform` directories) before a state consumer runs.
 
 ## Required sequence and approvals
 
@@ -73,9 +75,13 @@ state or secret values. The guarded source closure also rejects any extra root
    restore manifest must carry the exact `source_closure_sha256` digest, and the isolated
    decrypted state must contain exactly the five-address pre-closure or six-address
    post-closure (with no duplicates or foreign addresses); its receipt emits
-   `address_scope=exact-five` or `address_scope=exact-six`. Their become prompt remains attached to the controlling terminal; passwords
-   are never piped, logged, or entered in chat. The pre-state closure is
-   rechecked after recovery.
+   `address_scope=exact-five` or `address_scope=exact-six`. Backup receipts use
+   `readback=verified`; restore receipts use `checksum=verified`, `non_mutating=true`,
+   an independent `run_id`, matching `source_run_id`/`source_timestamp`, the exact
+   address scope, and the current source-closure digest. Duplicate manifest or state
+   JSON keys fail closed. Their become prompt remains attached to the controlling
+   terminal; passwords are never piped, logged, or entered in chat. The pre-state
+   closure is rechecked after recovery.
 4. The operator enters the account ID, zone ID, existing DNS record ID, and
    Cloudflare API token through protected prompts. IDs are validated as fixed
    lowercase 32-hex identifiers. The token is transferred to the provider child

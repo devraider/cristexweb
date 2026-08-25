@@ -20,6 +20,41 @@ exec 9>"$lock_file"
 recipient=$(/usr/bin/tr -d '\n' <"$recipient_file")
 printf '%s\n' "$recipient" | /usr/bin/grep -Eq '^age1[0-9a-z]+$' || exit 1
 [ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] && [ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || { printf '%s\n' 'backup_status=failed stage=rclone_config_contract'; exit 1; }
+state_scope_file=$(/usr/bin/mktemp /dev/shm/cristexweb-opentofu-state-scope.XXXXXX)
+cleanup_state_scope() { /usr/bin/rm -f -- "$state_scope_file"; }
+trap cleanup_state_scope EXIT HUP INT TERM
+/usr/bin/timeout --foreground --kill-after=10s 60 /usr/local/bin/tofu state list -state="$state_file" >"$state_scope_file"
+address_scope=$(/usr/bin/python3 - "$state_scope_file" <<'PY'
+import sys
+from pathlib import Path
+actual = {line.strip() for line in Path(sys.argv[1]).read_text().splitlines() if line.strip()}
+expected = {
+    'exact-five': {
+        'cloudflare_dns_record.argocd_tailscale',
+        'cloudflare_dns_record.cristexhub_dev',
+        'cloudflare_dns_record.keycloak',
+        'cloudflare_zero_trust_tunnel_cloudflared.keycloak',
+        'cloudflare_zero_trust_tunnel_cloudflared_config.keycloak',
+    },
+    'exact-six': {
+        'cloudflare_dns_record.argocd_tailscale',
+        'cloudflare_dns_record.cristexhub_dev',
+        'cloudflare_dns_record.keycloak',
+        'cloudflare_dns_record.reactive_resume_dev_tailscale',
+        'cloudflare_zero_trust_tunnel_cloudflared.keycloak',
+        'cloudflare_zero_trust_tunnel_cloudflared_config.keycloak',
+    },
+}
+if len(actual) not in {5, 6} or any(actual == values for values in expected.values()) is False:
+    raise SystemExit('state address closure mismatch')
+for label, values in expected.items():
+    if actual == values:
+        print(label)
+        break
+PY
+)
+/usr/bin/rm -f -- "$state_scope_file"
+trap - EXIT HUP INT TERM
 timestamp=$(/usr/bin/date -u +%Y%m%dT%H%M%SZ)
 run_directory="$archive_root/$timestamp"
 remote_directory="$remote_root/$timestamp"
@@ -29,7 +64,7 @@ remote_directory="$remote_root/$timestamp"
 (cd "$run_directory" && /usr/bin/sha256sum foundation.tfstate.age >foundation.tfstate.age.sha256)
 archive_bytes=$(/usr/bin/stat -c %s "$run_directory/foundation.tfstate.age")
 archive_sha256=$(/usr/bin/cut -d ' ' -f1 "$run_directory/foundation.tfstate.age.sha256")
-/usr/bin/printf '{"schema":1,"service":"opentofu","state":"foundation.tfstate","created_at_utc":"%s","archive":"foundation.tfstate.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","backend":"local","state_path":"/var/lib/opentofu/cristexweb/foundation.tfstate","source_closure_sha256":"%s"}\n' "$timestamp" "$archive_bytes" "$archive_sha256" "$source_closure_sha256" >"$run_directory/manifest.json"
+/usr/bin/printf '{"schema":1,"service":"opentofu","state":"foundation.tfstate","run_id":"%s","created_at_utc":"%s","archive":"foundation.tfstate.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","backend":"local","state_path":"/var/lib/opentofu/cristexweb/foundation.tfstate","address_scope":"%s","source_closure_sha256":"%s"}\n' "$timestamp" "$timestamp" "$archive_bytes" "$archive_sha256" "$address_scope" "$source_closure_sha256" >"$run_directory/manifest.json"
 for leaf in foundation.tfstate.age foundation.tfstate.age.sha256 manifest.json; do /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/$leaf" "$remote_directory/$leaf"; done
 readback=$(/usr/bin/mktemp -d "$run_directory/.readback.XXXXXX")
 trap '/usr/bin/rm -rf -- "$readback"' EXIT HUP INT TERM
@@ -37,4 +72,4 @@ for leaf in foundation.tfstate.age foundation.tfstate.age.sha256 manifest.json; 
 /usr/bin/rm -rf -- "$readback"
 trap - EXIT HUP INT TERM
 /usr/bin/find "$archive_root" -mindepth 1 -maxdepth 1 -type d -mtime +14 -name '20[0-9][0-9][01][0-9][0-3][0-9]T[0-2][0-9][0-5][0-9][0-5][0-9]Z' -exec /usr/bin/rm -rf -- {} +
-printf 'backup_status=success service=opentofu state=foundation timestamp=%s archive_bytes=%s readback=verified private_residue=none source_closure_sha256=%s\n' "$timestamp" "$archive_bytes" "$source_closure_sha256"
+printf 'backup_status=success schema=1 service=opentofu state=foundation.tfstate run_id=%s archive_bytes=%s archive_sha256=%s readback=verified private_residue=none address_scope=%s source_closure_sha256=%s\n' "$timestamp" "$archive_bytes" "$archive_sha256" "$address_scope" "$source_closure_sha256"

@@ -10,6 +10,17 @@
     opentofu_state_backup_mode: install
     opentofu_state_backup_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
     opentofu_state_backup_source_closure_sha256: c9a04e04303b30148f410dd57c8c5c8cf69d0cbf58b88cbc70023c824e214fae
+    opentofu_state_backup_backup_receipt_pattern: >-
+      ^backup_status=success schema=1 service=opentofu state=foundation\.tfstate
+      run_id=20[0-9]{6}T[0-9]{6}Z archive_bytes=[1-9][0-9]*
+      archive_sha256=[0-9a-f]{64} readback=verified private_residue=none
+      address_scope=exact-(five|six) source_closure_sha256={{ opentofu_state_backup_source_closure_sha256 }}$
+    opentofu_state_backup_restore_receipt_pattern: >-
+      ^restore_status=success schema=1 run_id=20[0-9]{6}T[0-9]{6}Z
+      source_run_id=20[0-9]{6}T[0-9]{6}Z source_timestamp=20[0-9]{6}T[0-9]{6}Z
+      target=isolated-tmpfs checksum=verified private_residue=none
+      state_validation=tofu-state-list address_scope=exact-(five|six)
+      source_closure_sha256={{ opentofu_state_backup_source_closure_sha256 }} non_mutating=true$
   pre_tasks:
     - name: Require bounded OpenTofu state backup approval
       ansible.builtin.assert:
@@ -150,14 +161,7 @@
     - name: Require sanitized OpenTofu restore receipt
       ansible.builtin.assert:
         that:
-          - >-
-            opentofu_state_restore_result.stdout is match(
-            '^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z '
-            'target=isolated-tmpfs checksum=verified private_residue=none '
-            'state_validation=tofu-state-list address_scope=exact-(five|six) '
-            'source_closure_sha256=' ~ opentofu_state_backup_source_closure_sha256 ~
-            ' non_mutating=true$'
-            )
+          - opentofu_state_restore_result.stdout is match(opentofu_state_backup_restore_receipt_pattern)
       changed_when: false
       when:
         - opentofu_state_backup_mode == 'restore'
@@ -212,18 +216,49 @@
       changed_when: false
       no_log: true
 
-    - name: Require exact current-source-bound acceptance receipts
+    - name: Parse exact persisted backup and restore receipts without output
+      ansible.builtin.set_fact:
+        opentofu_state_backup_acceptance_backup_receipt: "{{ opentofu_state_backup_acceptance_contents.results[0].content | b64decode }}"
+        opentofu_state_backup_acceptance_restore_receipt: "{{ opentofu_state_backup_acceptance_contents.results[1].content | b64decode }}"
+      when:
+        - opentofu_state_backup_mode == 'enable'
+      changed_when: false
+      no_log: true
+
+    - name: Extract persisted backup and restore run identities without output
+      ansible.builtin.set_fact:
+        opentofu_state_backup_acceptance_backup_run_id: >-
+          {{ opentofu_state_backup_acceptance_backup_receipt | regex_findall('run_id=(20[0-9]{6}T[0-9]{6}Z)') | first | default('') }}
+        opentofu_state_backup_acceptance_restore_run_id: >-
+          {{ opentofu_state_backup_acceptance_restore_receipt | regex_findall('run_id=(20[0-9]{6}T[0-9]{6}Z)') | first | default('') }}
+        opentofu_state_backup_acceptance_restore_source_run_id: >-
+          {{ opentofu_state_backup_acceptance_restore_receipt | regex_findall('source_run_id=(20[0-9]{6}T[0-9]{6}Z)') | first | default('') }}
+        opentofu_state_backup_acceptance_restore_source_timestamp: >-
+          {{ opentofu_state_backup_acceptance_restore_receipt | regex_findall('source_timestamp=(20[0-9]{6}T[0-9]{6}Z)') | first | default('') }}
+        opentofu_state_backup_acceptance_backup_scope: >-
+          {{ opentofu_state_backup_acceptance_backup_receipt | regex_findall('address_scope=(exact-(?:five|six))') | first | default('') }}
+        opentofu_state_backup_acceptance_restore_scope: >-
+          {{ opentofu_state_backup_acceptance_restore_receipt | regex_findall('address_scope=(exact-(?:five|six))') | first | default('') }}
+      when:
+        - opentofu_state_backup_mode == 'enable'
+      changed_when: false
+      no_log: true
+
+    - name: Require exact full current-source-bound acceptance schema
       ansible.builtin.assert:
         that:
-          - >-
-            (item.item is search('/backup\.receipt$') and
-             item.content | b64decode is search('backup_status=success')) or
-            (item.item is search('/restore\.receipt$') and
-             item.content | b64decode is search('restore_status=success'))
-          - item.content | b64decode is search('source_closure_sha256=' ~ opentofu_state_backup_source_closure_sha256)
-          - item.content | b64decode is search('readback=verified')
-          - item.content | b64decode is search('private_residue=none')
-      loop: "{{ opentofu_state_backup_acceptance_contents.results | default([]) }}"
+          - opentofu_state_backup_acceptance_backup_receipt is match(opentofu_state_backup_backup_receipt_pattern)
+          - opentofu_state_backup_acceptance_restore_receipt is match(opentofu_state_backup_restore_receipt_pattern)
+          - opentofu_state_backup_acceptance_backup_run_id is match('^20[0-9]{6}T[0-9]{6}Z$')
+          - opentofu_state_backup_acceptance_restore_run_id is match('^20[0-9]{6}T[0-9]{6}Z$')
+          - opentofu_state_backup_acceptance_restore_source_run_id == opentofu_state_backup_acceptance_backup_run_id
+          - opentofu_state_backup_acceptance_restore_source_timestamp == opentofu_state_backup_acceptance_backup_run_id
+          - opentofu_state_backup_acceptance_restore_run_id != opentofu_state_backup_acceptance_backup_run_id
+          - opentofu_state_backup_acceptance_backup_scope in ['exact-five', 'exact-six']
+          - opentofu_state_backup_acceptance_restore_scope == opentofu_state_backup_acceptance_backup_scope
+          - opentofu_state_backup_acceptance_restore_receipt is search('checksum=verified')
+          - opentofu_state_backup_acceptance_backup_receipt is search('readback=verified')
+          - opentofu_state_backup_acceptance_restore_receipt is search('non_mutating=true$')
       when:
         - opentofu_state_backup_mode == 'enable'
       changed_when: false

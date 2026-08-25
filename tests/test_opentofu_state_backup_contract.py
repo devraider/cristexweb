@@ -19,8 +19,17 @@ class OpenTofuStateBackupContractTests(unittest.TestCase):
     def test_manifest_source_closure_is_expanded_and_schema_bound(self):
         self.assertIn('"source_closure_sha256":"%s"', self.backup)
         self.assertNotIn('"source_closure_sha256":"$source_closure_sha256"', self.backup)
-        self.assertIn("set(x)=={'schema','service','state','created_at_utc','archive','archive_bytes','archive_sha256','encryption','backend','state_path','source_closure_sha256'}", self.restore)
-        self.assertIn("x['source_closure_sha256']==os.environ['EXPECTED_SOURCE_CLOSURE_SHA256']", self.restore)
+        self.assertIn('"run_id":"%s"', self.backup)
+        self.assertIn('"address_scope":"%s"', self.backup)
+        for required in (
+            "object_pairs_hook=reject_duplicate_keys",
+            "'run_id', 'created_at_utc'",
+            "'address_scope', 'source_closure_sha256'",
+            "x['run_id'] == os.environ['TIMESTAMP']",
+            "manifest_scope == label",
+        ):
+            self.assertIn(required, self.restore)
+        self.assertIn("x['source_closure_sha256'] == os.environ['EXPECTED_SOURCE_CLOSURE_SHA256']", self.restore)
         self.assertIn("len(actual) == len(set(actual))", self.restore)
         self.assertIn("state address closure mismatch", self.restore)
 
@@ -54,10 +63,15 @@ class OpenTofuStateBackupContractTests(unittest.TestCase):
             "tofu state list",
             "target=isolated-tmpfs",
             "non_mutating=true",
-            "address_scope=%s source_closure_sha256=%s",
             "address_scope=exact-five",
             "address_scope=exact-six",
+            "schema=1 run_id=",
+            "source_run_id=",
             "source_closure_sha256=",
+            "non_mutating=true",
+            "restore_status=success schema=1 run_id=%s source_run_id=%s",
+            "checksum=verified",
+            "address_scope=%s source_closure_sha256=%s",
         ):
             self.assertIn(value, self.restore)
         self.assertNotIn("tofu apply", self.restore)
@@ -74,6 +88,14 @@ class OpenTofuStateBackupContractTests(unittest.TestCase):
             "opentofu_state_backup_mode == 'restore'",
             "opentofu_state_backup_mode == 'enable'",
             "fresh matching backup and restore acceptance evidence",
+            "exact full current-source-bound acceptance schema",
+            "opentofu_state_backup_restore_receipt_pattern",
+            "checksum=verified",
+            "readback=verified",
+            "opentofu_state_backup_acceptance_restore_source_run_id",
+            "opentofu_state_backup_acceptance_restore_source_timestamp",
+            "opentofu_state_backup_acceptance_restore_scope",
+            "opentofu_state_backup_acceptance_restore_run_id != opentofu_state_backup_acceptance_backup_run_id",
             "/usr/bin/timeout",
             "Roll back timer after failed post-enable validation",
         ):

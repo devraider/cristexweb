@@ -105,7 +105,11 @@ class OpenTofuFoundationStateReconciliationContractTests(unittest.TestCase):
             "token_output=false",
             "root_expected_files",
             "root_actual_files",
-            "Refusing extra OpenTofu root .tf, .tf.json, auto-var, or override file.",
+            "-printf '%y %f\\n'",
+            "d bin",
+            "d github",
+            "d .terraform",
+            "Refusing extra or non-regular OpenTofu root .tf, .tf.json, auto-var, override, or directory entry.",
         ):
             self.assertIn(required, text)
         for forbidden in (
