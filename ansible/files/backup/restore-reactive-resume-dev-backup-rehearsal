@@ -60,6 +60,8 @@ esac
 [ "${#token}" -eq 64 ] || fail approval_token
 [ "$(/usr/bin/stat -c '%U:%a' "$approval_file")" = "$(id -un):600" ] || fail approval_attestation
 [ "$(/usr/bin/cat "$approval_file")" = "$token:restore" ] || fail approval_attestation
+/usr/bin/rm -f -- "$approval_file" || fail approval_attestation_consume
+[ ! -e "$approval_file" ] || fail approval_attestation_consume
 
 exec 9>"$lock_file"
 /usr/bin/flock -n 9 || { printf '%s\n' 'restore_status=refused reason=concurrent_run'; exit 75; }
@@ -326,19 +328,39 @@ restored_pg_logical_table_count=${restored_pg_counts#*:}
 [ "$restored_pg_logical_entry_count" -gt 0 ] && [ "$restored_pg_logical_table_count" -gt 0 ] || fail restored_pg_logical_content
 [ -s "$work/object-storage.tar.gz" ] || fail object_archive_empty
 
-# Validate object archive paths before extraction.
-/usr/bin/tar -tzf "$work/object-storage.tar.gz" >"$work/tar-list" || fail object_archive_list
-TAR_LIST="$work/tar-list" /usr/bin/python3 - <<'PY' || fail object_archive_paths
-import os
-for raw in open(os.environ["TAR_LIST"], encoding="utf-8"):
-    path = raw.rstrip("\n")
-    if path.startswith("/") or ".." in path.split("/") or "\\" in path or "\x00" in path or not path.startswith("objects/"):
-        raise SystemExit(1)
-PY
-/usr/bin/rm -f -- "$work/tar-list"
+# Reject links/devices and extract only regular files/directories after exact
+# containment checks. Generic tar extraction is forbidden because a symlinked
+# intermediate member could redirect a later regular file outside the root.
 /usr/bin/install -d -m 0700 "$work/object-verify"
 shm_capacity_preflight 1 "$object_source_bytes" || fail shm_capacity
-/usr/bin/tar -xzf "$work/object-storage.tar.gz" -C "$work/object-verify" || fail object_archive_extract
+ARCHIVE="$work/object-storage.tar.gz" OBJECT_VERIFY="$work/object-verify" /usr/bin/python3 - <<'PY' || fail object_archive_extract
+import os
+import shutil
+import tarfile
+root = os.path.realpath(os.environ["OBJECT_VERIFY"])
+with tarfile.open(os.environ["ARCHIVE"], mode="r:gz") as archive:
+    members = archive.getmembers()
+    assert members
+    for member in members:
+        path = member.name.rstrip("/")
+        assert path and not path.startswith("/") and path.startswith("objects")
+        assert ".." not in path.split("/") and "\\" not in path and "\x00" not in path
+        target = os.path.realpath(os.path.join(root, path))
+        assert os.path.commonpath((root, target)) == root
+        assert member.isdir() or member.isfile()
+        if member.isdir():
+            os.makedirs(target, mode=0o700, exist_ok=True)
+            assert not os.path.islink(target)
+            continue
+        parent = os.path.dirname(target)
+        os.makedirs(parent, mode=0o700, exist_ok=True)
+        assert not os.path.islink(parent) and not os.path.lexists(target)
+        source = archive.extractfile(member)
+        assert source is not None
+        descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, "wb") as destination:
+            shutil.copyfileobj(source, destination, length=1024 * 1024)
+PY
 OBJECT_MANIFEST="$work/object-storage.manifest.json" OBJECT_ROOT="$work/object-verify/objects" TSV="$work/objects.tsv" /usr/bin/python3 - <<'PY' || fail object_archive_manifest
 import hashlib, json, os
 manifest = json.load(open(os.environ["OBJECT_MANIFEST"], encoding="utf-8"))

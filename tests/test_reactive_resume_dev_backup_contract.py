@@ -31,6 +31,14 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('os.environ["OBJECT_ROOT"]', source)
         self.assertNotIn('os.path.join("/work/objects", key)', source)
 
+    def test_restore_rejects_archive_links_and_consumes_one_use_attestation(self):
+        source = RESTORE.read_text()
+        self.assertIn('assert member.isdir() or member.isfile()', source)
+        self.assertIn('os.O_NOFOLLOW', source)
+        self.assertIn('not os.path.lexists(target)', source)
+        self.assertIn('/usr/bin/rm -f -- "$approval_file"', source)
+        self.assertIn('approval_attestation_consume', source)
+
     def test_pg_table_count_excludes_table_data_and_attach_toc_entries(self):
         for source in (BACKUP.read_text(), RESTORE.read_text()):
             self.assertIn('TABLE\\s+(?!DATA\\s|ATTACH\\s)', source)
@@ -223,8 +231,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "infisical_identity",
             "postgresql_decrypt",
             "object_decrypt",
-            "object_archive_list",
-            "object_archive_paths",
+            "object_archive_extract",
         ):
             self.assertIn(f"fail {stage}", self.restore)
         self.assertIn('obj["service"] == "seaweedfs"', self.restore)
