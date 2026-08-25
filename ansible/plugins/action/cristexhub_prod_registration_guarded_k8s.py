@@ -41,6 +41,26 @@ EXPECTED_IDENTITIES = {
     "rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|argocd-application-controller-cristexhub-prod",
     "v1|Secret|argocd|argocd-cluster-cristexhub-prod",
 }
+TRANSITION_KINDS = {"Application", "AppProject"}
+
+
+def _valid_transition_kinds(value: Any) -> bool:
+    return (
+        isinstance(value, list)
+        and len(value) <= 2
+        and len(value) == len(set(value))
+        and set(value) <= TRANSITION_KINDS
+    )
+
+
+def valid_transition_pair(legacy: Any, target: Any) -> bool:
+    if not _valid_transition_kinds(legacy) or not _valid_transition_kinds(target):
+        return False
+    if set(legacy) & set(target) or set(legacy) | set(target) != TRANSITION_KINDS:
+        return False
+    return (len(legacy), len(target)) in {(2, 0), (1, 1), (0, 2)}
+
+
 EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-prod'): '113dcb263ec958430385b802e387658cd0f71b58751768b3a7ab5ffbb348b61b',
  ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-prod'): '107356ed772eec987ab8c4f19b05b2ebb5a84ddf21bd0f483044e434084a8c5a',
  ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'c40a189cdf4a3b864fae8bb64f06b0473aae2b47771f1c22ddf4a86f0f669fc4',
@@ -134,6 +154,7 @@ class ActionModule(KubernetesActionModule):
                 "repository_contract",
                 "revision",
                 "legacy_transition_kinds",
+                "target_transition_kinds",
                 "legacy_transition_change_count",
                 "legacy_transition_uids",
                 "legacy_transition_spec_hashes",
@@ -155,8 +176,10 @@ class ActionModule(KubernetesActionModule):
             and strict_true(binding.get("namespace_contract"))
             and strict_true(binding.get("repository_contract"))
             and binding.get("revision") == "751885a42798d282e168131db147f13694a0a621"
-            and binding.get("legacy_transition_kinds") in ([], ["Application", "AppProject"])
-            and str(binding.get("legacy_transition_change_count")) in ("0", "2")
+            and valid_transition_pair(
+                binding.get("legacy_transition_kinds"),
+                binding.get("target_transition_kinds"),
+            )
             and str(binding.get("legacy_transition_change_count")) == str(len(binding.get("legacy_transition_kinds")))
             and binding.get("legacy_transition_uids") == LEGACY_TRANSITION_UIDS
             and binding.get("legacy_transition_spec_hashes") == LEGACY_TRANSITION_SPEC_HASHES

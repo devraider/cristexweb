@@ -24,22 +24,25 @@ ownership labels/empty owner and finalizer sets, and carry the pinned live UIDs
 `6c04c48c-7d71-46c3-b4d0-7fc9f437f5d6` (`AppProject`). The pinned legacy
 manifest hashes are `29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1`
 (Application) and `4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2`
-(AppProject). A changed UID, any extra ownership metadata, a partial pair, or
-any foreign/extra drift fails closed. The three other registration objects
-remain exact present-only objects and are never part of this transition.
+(AppProject). A changed UID, any extra ownership metadata, or any foreign/extra
+drift fails closed. A sequential apply conflict may leave exactly one object at
+the target alias and the other at the exact legacy spec; that one-object mixed
+pair is the only recovery exception and updates only the remaining legacy object.
+The three other registration objects remain exact present-only objects and are
+never part of this transition.
 
-Check mode must predict exactly those two alias updates for the current legacy
-state; apply is a separately approved mutation. Before either update, the role
-binds the exact UID and `metadata.resourceVersion` for all five existing
-registration objects, re-queries all five immediately before mutation, and passes
-each unchanged resourceVersion in the desired object as a Kubernetes
-resourceVersion optimistic-concurrency precondition. A replacement, changed resourceVersion, missing object,
-partial/mixed transition, or metadata key outside the exact server-generated set
-fails closed. Canonical desired hashes ignore only that one bound
-`metadata.resourceVersion` field; all other desired and metadata fields remain
-hash-bound. After the pair has converged, subsequent checks may be idempotent with
-zero transition candidates. No delete, prune, sync, Namespace, workload, or
-public-route operation is included.
+Check mode must predict exactly two alias updates for the all-legacy state; apply
+is a separately approved mutation. Before either update, the role binds the exact
+UID, generation, and `metadata.resourceVersion` for all five existing registration
+objects, re-queries all five immediately before mutation, and passes each unchanged
+resourceVersion in the desired object as a Kubernetes `resourceVersion
+optimistic-concurrency` precondition. This resourceVersion optimistic-concurrency gate is the only bound field omitted from the desired-object hash. A replacement, changed resourceVersion,
+missing object, pair state other than exact legacy/mixed/target, or metadata key
+outside the exact server-generated set fails closed. Canonical desired hashes
+ignore only that one bound `metadata.resourceVersion` field; all other desired and
+metadata fields remain hash-bound. After the pair has converged, subsequent checks
+are idempotent with zero transition candidates. No delete, prune, sync, Namespace,
+workload, or public-route operation is included.
 
 ## Exact source
 
@@ -83,8 +86,12 @@ The role checks:
   or drifted fields at the five target identities;
 - exact five-object UID/resourceVersion/generation prestate binding with unique
   identities, immediate re-query, and Kubernetes optimistic-concurrency preconditions;
-- exact changed identity/count results: either the two legacy alias objects or zero;
-- strict deletion/grace-period, owner/finalizer, and managedFields metadata policy;
+- exact changed identity/count results: both legacy alias objects for the all-legacy
+  check, only the remaining legacy object for the exact mixed recovery pair, or zero;
+- deletion/grace-period and owner/finalizer refusal;
+- managedFields are checked only structurally when the API returns them (a list
+  with non-empty manager fields), and no manager ownership/provenance claim is
+  made because this k3s API may omit managedFields;
 - the exact `cristexhub-prod-local` cluster-alias destination and automated non-pruning Application policy;
 - after live apply, a fresh post-wait query bound to the same UID/generation and pinned
   sync revision, followed by `Synced/Healthy` assertions; check mode remains source-only.

@@ -182,6 +182,56 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertIn("legacy_transition_manifest_hashes", PLUGIN.read_text())
         self.assertIn("resourceVersion", PLUGIN.read_text())
         self.assertIn("prestate_bindings", PLUGIN.read_text())
+        self.assertIn("sort_keys=True", TASKS.read_text())
+        self.assertIn("target_transition_candidates", TASKS.read_text())
+        self.assertIn("valid_transition_pair", PLUGIN.read_text())
+
+    def test_transition_fixtures_allow_only_legacy_mixed_or_target_pairs(self) -> None:
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        target_specs = {
+            kind: next(obj["spec"] for obj in objects() if obj["kind"] == kind)
+            for kind in ("Application", "AppProject")
+        }
+        legacy_specs = defaults["cristexhub_prod_registration_legacy_transition_specs"]
+
+        def classify(current_specs: dict[str, dict]) -> tuple[list[str], list[str]]:
+            legacy = sorted(kind for kind, spec in current_specs.items() if spec == legacy_specs[kind])
+            target = sorted(kind for kind, spec in current_specs.items() if spec == target_specs[kind])
+            self.assertEqual(["AppProject", "Application"], sorted(set(legacy) | set(target)))
+            self.assertEqual([], sorted(set(legacy) & set(target)))
+            self.assertIn((len(legacy), len(target)), {(2, 0), (1, 1), (0, 2)})
+            return legacy, target
+
+        self.assertEqual((["AppProject", "Application"], []), classify(legacy_specs))
+        mixed = dict(legacy_specs)
+        mixed["AppProject"] = target_specs["AppProject"]
+        self.assertEqual((["Application"], ["AppProject"]), classify(mixed))
+        self.assertEqual(([], ["AppProject", "Application"]), classify(target_specs))
+        forged = dict(mixed)
+        forged["Application"] = {**legacy_specs["Application"], "destination": {"server": "foreign"}}
+        with self.assertRaises(AssertionError):
+            classify(forged)
+
+    def test_action_transition_pair_guard_matches_role_modes(self) -> None:
+        import importlib.util
+        import sys
+
+        collection_root = ROOT / "ansible/.ansible/collections"
+        if not (collection_root / "ansible_collections").is_dir():
+            collection_root = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections")
+        if (collection_root / "ansible_collections").is_dir():
+            sys.path.insert(0, str(collection_root))
+        spec = importlib.util.spec_from_file_location("prod_registration_action_modes", PLUGIN)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertTrue(module.valid_transition_pair(["AppProject", "Application"], []))
+        self.assertTrue(module.valid_transition_pair(["Application"], ["AppProject"]))
+        self.assertTrue(module.valid_transition_pair([], ["AppProject", "Application"]))
+        self.assertFalse(module.valid_transition_pair(["Application"], []))
+        self.assertFalse(module.valid_transition_pair(["Application"], ["Application"]))
+        self.assertFalse(module.valid_transition_pair(["AppProject", "Application"], ["AppProject"]))
 
     def test_resource_version_is_the_only_ignored_bound_hash_field(self) -> None:
         import importlib.util
@@ -224,6 +274,9 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             "Query exact live registration post-state after reconciliation wait",
             "status.sync.revision",
             "metadata.generation",
+            "target_transition_candidates",
+            "managedFields",
+            "reject('equalto', '')",
         ):
             self.assertIn(needle, tasks)
         for needle in (
@@ -466,6 +519,8 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             "protected\nDNS-capable Cloudflare credential plus exact two-change plan/apply",
             "reject_cristexhub_prod_registration_resource_version.sh",
             "resourceVersion optimistic-concurrency",
+            "exact mixed recovery pair",
+            "managedFields are checked only structurally",
         ):
             self.assertIn(needle, runbook)
 

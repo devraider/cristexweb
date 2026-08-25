@@ -11,6 +11,7 @@
     - cristexhub_prod_registration_internal_kubeconfig_state
     - cristexhub_prod_registration_internal_preflight_binding
     - cristexhub_prod_registration_internal_legacy_transition_candidates
+    - cristexhub_prod_registration_internal_target_transition_candidates
     - cristexhub_prod_registration_internal_prestate_bindings
     - cristexhub_prod_registration_internal_prestate_recheck
     - cristexhub_prod_registration_internal_mutation_manifests
@@ -41,20 +42,20 @@
       - cristexhub_prod_registration_legacy_transition_object_count == 2
       - >-
         cristexhub_prod_registration_legacy_transition_specs.Application |
-        to_json(separators=(',', ':')) | hash('sha256') ==
+        to_json(sort_keys=True, separators=(',', ':')) | hash('sha256') ==
         'efcaa04cff588189490810ec3dc2d799e9d09d9deb2e6ce45475d61f75021c34'
       - >-
         cristexhub_prod_registration_legacy_transition_specs.AppProject |
-        to_json(separators=(',', ':')) | hash('sha256') ==
+        to_json(sort_keys=True, separators=(',', ':')) | hash('sha256') ==
         '7b51035757a7684cffb823339379e7fd3d80ada29a51a3bdc205b2f4b30027bf'
       - >-
         cristexhub_prod_registration_legacy_transition_spec_hashes.Application ==
         (cristexhub_prod_registration_legacy_transition_specs.Application |
-        to_json(separators=(',', ':')) | hash('sha256'))
+        to_json(sort_keys=True, separators=(',', ':')) | hash('sha256'))
       - >-
         cristexhub_prod_registration_legacy_transition_spec_hashes.AppProject ==
         (cristexhub_prod_registration_legacy_transition_specs.AppProject |
-        to_json(separators=(',', ':')) | hash('sha256'))
+        to_json(sort_keys=True, separators=(',', ':')) | hash('sha256'))
       - >-
         cristexhub_prod_registration_legacy_transition_uids ==
         {'Application': 'e2016a99-2c4f-4e2e-ac28-0640cafa2a8e',
@@ -327,13 +328,45 @@
   changed_when: false
   no_log: true
 
+- name: Record exact target transition candidates
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_target_transition_candidates: >-
+      {{ (cristexhub_prod_registration_internal_target_transition_candidates | default([])) +
+      ([item.item.kind] if
+      (item.resources | length == 1 and
+       item.item.kind in ['Application', 'AppProject'] and
+       item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids[item.item.kind] and
+       item.resources[0].spec == item.item.spec)
+      else []) }}
+  loop: '{{ cristexhub_prod_registration_internal_prestate.results }}'
+  changed_when: false
+  no_log: true
+
 - name: Reject partial or duplicate legacy-to-alias transitions
   ansible.builtin.assert:
     that:
       - cristexhub_prod_registration_legacy_transition_object_count == 2
-      - cristexhub_prod_registration_internal_legacy_transition_candidates | sort in [[], ['Application', 'AppProject']]
-      - cristexhub_prod_registration_internal_legacy_transition_candidates | length <= cristexhub_prod_registration_legacy_transition_object_count
-    fail_msg: Refusing a partial, duplicate, or unrecognized legacy-to-alias transition.
+      - >-
+        cristexhub_prod_registration_internal_legacy_transition_candidates | sort in
+        [[], ['AppProject'], ['Application'], ['Application', 'AppProject']]
+      - >-
+        cristexhub_prod_registration_internal_target_transition_candidates | sort in
+        [[], ['AppProject'], ['Application'], ['Application', 'AppProject']]
+      - >-
+        (cristexhub_prod_registration_internal_legacy_transition_candidates |
+        union(cristexhub_prod_registration_internal_target_transition_candidates) |
+        unique | sort) == ['Application', 'AppProject']
+      - >-
+        cristexhub_prod_registration_internal_legacy_transition_candidates | intersect(
+        cristexhub_prod_registration_internal_target_transition_candidates) | length == 0
+      - >-
+        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 2 and
+        cristexhub_prod_registration_internal_target_transition_candidates | length == 0) or
+        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 1 and
+        cristexhub_prod_registration_internal_target_transition_candidates | length == 1) or
+        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 0 and
+        cristexhub_prod_registration_internal_target_transition_candidates | length == 2)
+    fail_msg: Refusing a partial, foreign, or unrecognized legacy-to-alias transition; only an exact legacy pair, mixed recovery pair, or target pair is accepted.
   changed_when: false
   no_log: true
 
@@ -365,7 +398,7 @@
       - >-
         item.resources | length == 0 or
         ((item.resources[0].metadata.managedFields | default([]) |
-        map(attribute='manager') | select('defined') | list | length) ==
+        map(attribute='manager') | select('defined') | reject('equalto', '') | list | length) ==
         (item.resources[0].metadata.managedFields | default([]) | length))
       - >-
         item.resources | length == 0 or
@@ -392,8 +425,7 @@
         item.resources[0].spec == cristexhub_prod_registration_legacy_transition_specs[item.item.kind])
       - >-
         item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject'] or
-        item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids[item.item.kind] or
-        item.resources[0].spec != item.item.spec
+        item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids[item.item.kind]
       - >-
         item.resources | length == 0 or item.item.kind != 'Role' or
         item.resources[0].rules == item.item.rules
@@ -429,6 +461,7 @@
       repository_contract: "{{ cristexhub_prod_registration_internal_repository_secret.resources | length == 1 }}"
       revision: '{{ cristexhub_prod_registration_revision }}'
       legacy_transition_kinds: "{{ cristexhub_prod_registration_internal_legacy_transition_candidates | sort }}"
+      target_transition_kinds: "{{ cristexhub_prod_registration_internal_target_transition_candidates | sort }}"
       legacy_transition_change_count: "{{ cristexhub_prod_registration_internal_legacy_transition_candidates | length }}"
       legacy_transition_uids: "{{ cristexhub_prod_registration_legacy_transition_uids }}"
       legacy_transition_spec_hashes: "{{ cristexhub_prod_registration_legacy_transition_spec_hashes }}"
@@ -474,7 +507,7 @@
       - (item.resources[0].metadata.managedFields | default([])) is sequence
       - >-
         (item.resources[0].metadata.managedFields | default([]) |
-        map(attribute='manager') | select('defined') | list | length) ==
+        map(attribute='manager') | select('defined') | reject('equalto', '') | list | length) ==
         (item.resources[0].metadata.managedFields | default([]) | length)
     fail_msg: Refusing replacement, changed resourceVersion, or metadata drift before PROD registration mutation.
   loop: '{{ cristexhub_prod_registration_internal_prestate_recheck.results }}'
@@ -531,10 +564,19 @@
         unique | list | length ==
         cristexhub_prod_registration_internal_mutation_changed_identities | length
       - >-
-        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 2 and
+        (cristexhub_prod_registration_internal_legacy_transition_candidates | sort ==
+        ['Application', 'AppProject'] and
         cristexhub_prod_registration_internal_mutation_changed_identities | sort ==
         ['argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod',
         'argoproj.io/v1alpha1|Application|argocd|cristexhub-prod']) or
+        (cristexhub_prod_registration_internal_legacy_transition_candidates | sort ==
+        ['AppProject'] and
+        cristexhub_prod_registration_internal_mutation_changed_identities | sort ==
+        ['argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod']) or
+        (cristexhub_prod_registration_internal_legacy_transition_candidates | sort ==
+        ['Application'] and
+        cristexhub_prod_registration_internal_mutation_changed_identities | sort ==
+        ['argoproj.io/v1alpha1|Application|argocd|cristexhub-prod']) or
         (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 0 and
         cristexhub_prod_registration_internal_mutation_changed_identities | length == 0)
       - >-
@@ -613,9 +655,11 @@
         selectattr('kind', 'equalto', 'Application') | first).uid
       - cristexhub_prod_registration_internal_finalstate.status.sync.revision |
         default('') == cristexhub_prod_registration_revision
-      - cristexhub_prod_registration_internal_finalstate.metadata.generation >=
-        (cristexhub_prod_registration_internal_prestate_bindings |
-        selectattr('kind', 'equalto', 'Application') | first).generation
+      - >-
+        (cristexhub_prod_registration_internal_finalstate.metadata.generation | default(0) | int) ==
+        (((cristexhub_prod_registration_internal_prestate_bindings |
+        selectattr('kind', 'equalto', 'Application') | first).generation | int) +
+        (1 if 'Application' in cristexhub_prod_registration_internal_legacy_transition_candidates else 0))
     fail_msg: Refusing PROD registration while the fresh live Argo Application is not the waited-for Synced and Healthy revision.
 
   changed_when: false
@@ -631,7 +675,10 @@
       - item.resources[0].metadata.name == item.item.metadata.name
       - item.resources[0].metadata.namespace == item.item.metadata.namespace
       - item.resources[0].metadata.uid == cristexhub_prod_registration_internal_prestate_bindings[poststate_index].uid
-      - item.resources[0].metadata.generation | int >= cristexhub_prod_registration_internal_prestate_bindings[poststate_index].generation | int
+      - >-
+        (item.resources[0].metadata.generation | default(0) | int) ==
+        ((cristexhub_prod_registration_internal_prestate_bindings[poststate_index].generation | int) +
+        (1 if item.item.kind in cristexhub_prod_registration_internal_legacy_transition_candidates else 0))
       - item.resources[0].metadata.labels == item.item.metadata.labels
       - >-
         (item.resources[0].metadata.keys() | list |
@@ -645,7 +692,7 @@
       - (item.resources[0].metadata.managedFields | default([])) is sequence
       - >-
         (item.resources[0].metadata.managedFields | default([]) |
-        map(attribute='manager') | select('defined') | list | length) ==
+        map(attribute='manager') | select('defined') | reject('equalto', '') | list | length) ==
         (item.resources[0].metadata.managedFields | default([]) | length)
       - item.item.kind != 'Secret' or item.resources[0].type == 'Opaque'
     fail_msg: Refusing drifted PROD registration identity, metadata, ownership, finalizer, or Secret type.
