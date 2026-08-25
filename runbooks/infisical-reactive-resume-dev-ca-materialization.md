@@ -44,5 +44,14 @@ The existing DEV runtime admission boundary is deliberately narrowed to its
 own exact identities in source so this additive CA policy owns only the two
 reviewed CA target names. The old runtime closure remains otherwise unchanged.
 
-Status: source-only closure implemented; live check/apply intentionally **NOT
-RUN** in this change.
+Status: the guarded check predicted one closure change. The first approved apply
+created the seven-object closure, but the initial object-storage template referenced
+the nonexistent `CA_CRT` key and produced an invalid trust payload. Correcting it
+to `STORAGE_TLS_CA_CRT` restored storage. The initially selected broad
+`POSTGRESQL_TLS_CA_CRT` did not validate the live CloudNativePG endpoint, so a
+DEV-scoped `POSTGRESQL_CA_CRT` copy of the live public CNPG CA was uploaded without
+value output to the existing `prod:/reactive-resume/dev/object-storage-tls` custody
+path. Source was narrowed to that one DEV trust path, both target certificates
+validated, one exact ephemeral application Pod was restarted, and the Deployment
+returned to `1/1` Ready with healthy database and storage. Final guarded
+idempotence passed at `changed=0 failed=0`; zero private material was retained.
