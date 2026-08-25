@@ -31,7 +31,7 @@ controller="$repository_root/.venv/bin/ansible-playbook"
 }
 # The self hash replaces this literal with zeros before hashing, so changing
 # any wrapper logic or closure pin fails without creating a circular digest.
-reactive_resume_dev_backup_wrapper_sha256='134501dfbd7f2171f72adc6cc885f6d7b6baf57814c52ad28ae016c8e19edb30'
+reactive_resume_dev_backup_wrapper_sha256='dcb7c6851355054dc4a598fd1ab275a4535f572bfa0c0e1b23894a9c1d3a4e2f'
 canonical_sha256() {
   /usr/bin/python3 - "$1" <<'PY'
 import hashlib
@@ -80,14 +80,20 @@ verify_source() {
   [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_path")" = "paul:paul:$source_mode" ] || exit 69
   [ "$(/usr/bin/sha256sum "$source_path" | /usr/bin/cut -d ' ' -f 1)" = "$source_sha256" ] || exit 69
 }
-verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup" 755 95c62f7f0ff44e6d656cdc37207200b2b872615cc1a9abf4713c68c7b3582434
-verify_source "$repository_root/ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal" 755 425d5986e0ad42d6f5b072e9ffbc806c86ee64921e1d2de6c853c909b2773fd0
+verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup" 755 c7c8010551f2063ec688e9238aaecf6c1627ca7b0ac5c11c828ac98c7e45eb38
+verify_source "$repository_root/ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal" 755 203b2826c72bbc05a586c6e619544e92327c6144a49deaeb50c715dac8003ee3
 verify_source "$repository_root/ansible/files/backup/cristexweb-reactive-resume-dev-backup.service" 644 cd1a1cf09646d6675ebdefba085735755c00e229f1a21ae1d2a5ab2c196dbae2
 verify_source "$repository_root/ansible/files/backup/cristexweb-reactive-resume-dev-backup.timer" 644 c0b4d246b523e46a375e55eb0aa4bb70d344b9a7a1c4a5f5e1c05e37ac315461
 verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup-networkpolicy.yaml" 644 7469f12bbbfa80e4b53b3d04eed58d67694cb5bc304060095629e7a009f270d2
 
 cd -- "$repository_root/ansible"
 umask 077
+entrypoint_attestation=$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-dev-backup.XXXXXX")
+entrypoint_token=$(/usr/bin/openssl rand -hex 32)
+printf '%s:entrypoint\n' "$entrypoint_token" >"$entrypoint_attestation"
+/usr/bin/chmod 0600 "$entrypoint_attestation"
+cleanup_entrypoint_attestation() { /usr/bin/rm -f -- "$entrypoint_attestation"; }
+trap cleanup_entrypoint_attestation EXIT HUP INT TERM
 set -- "$controller" -i .ansible/inventory.local.yml \
   playbooks/configure_reactive_resume_dev_backup.yml --diff --limit crtxweb \
   --ask-become-pass \
@@ -98,14 +104,19 @@ if [ "$mode" = restore ]; then
     ANSIBLE_CONFIG="$PWD/ansible.cfg" \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT=v1 \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_REPOSITORY_ROOT="$repository_root" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_TOKEN="$entrypoint_token" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE="$entrypoint_attestation" \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ENTRYPOINT="${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ENTRYPOINT-}" \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_APPROVED="${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_APPROVED-}" \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ATTESTATION_FILE="${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ATTESTATION_FILE-}" \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_TOKEN="${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_TOKEN-}" \
     "$@"
+  exit $?
 fi
-exec /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 \
+/usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 \
   ANSIBLE_CONFIG="$PWD/ansible.cfg" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT=v1 \
   CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_REPOSITORY_ROOT="$repository_root" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_TOKEN="$entrypoint_token" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE="$entrypoint_attestation" \
   "$@"

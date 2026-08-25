@@ -39,7 +39,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('assert member.isdir() or member.isfile()', source)
         self.assertIn('os.O_NOFOLLOW', source)
         self.assertIn('not os.path.lexists(target)', source)
-        self.assertIn('fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)', source)
+        self.assertIn('os.O_NOFOLLOW | os.O_NONBLOCK', source)
         self.assertIn('os.unlink(path)', source)
         self.assertIn('current.st_ino == opened.st_ino', source)
         self.assertIn('approval_attestation_consume', source)
@@ -79,8 +79,44 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "reactive_resume_dev_backup_wrapper_sha256:",
             "reactive_resume_dev_backup_playbook_sha256:",
             "hash-bound backup source closure",
+            "wrapper-created single-run attestation",
         ):
             self.assertIn(value, PLAYBOOK.read_text())
+        self.assertIn("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_TOKEN", WRAPPER.read_text())
+        self.assertIn("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE", WRAPPER.read_text())
+
+    def test_wrapper_playbook_and_source_hash_pins_are_current(self):
+        wrapper = WRAPPER.read_text()
+        wrapper_declared = re.search(
+            r"^reactive_resume_dev_backup_wrapper_sha256='([0-9a-f]{64})'$",
+            wrapper,
+            re.MULTILINE,
+        ).group(1)
+        wrapper_canonical = re.sub(
+            r"(?m)^reactive_resume_dev_backup_wrapper_sha256='[0-9a-f]{64}'$",
+            "reactive_resume_dev_backup_wrapper_sha256='" + ("0" * 64) + "'",
+            wrapper,
+        )
+        self.assertEqual(wrapper_declared, hashlib.sha256(wrapper_canonical.encode()).hexdigest())
+
+        playbook = PLAYBOOK.read_text()
+        playbook_declared = re.search(
+            r"^    reactive_resume_dev_backup_playbook_sha256: ([0-9a-f]{64})$",
+            playbook,
+            re.MULTILINE,
+        ).group(1)
+        playbook_canonical = re.sub(
+            r"(?m)^(    reactive_resume_dev_backup_playbook_sha256: )[0-9a-f]{64}$",
+            lambda match: match.group(1) + ("0" * 64),
+            playbook,
+        )
+        self.assertEqual(playbook_declared, hashlib.sha256(playbook_canonical.encode()).hexdigest())
+        self.assertIn(f"reactive_resume_dev_backup_wrapper_sha256: {wrapper_declared}", playbook)
+        self.assertIn(f"sha256: {hashlib.sha256(WRAPPER.read_bytes()).hexdigest()}", playbook)
+        for source in (BACKUP, RESTORE):
+            digest = hashlib.sha256(source.read_bytes()).hexdigest()
+            self.assertIn(digest, wrapper)
+            self.assertIn(f"sha256: {digest}", playbook)
 
     @classmethod
     def setUpClass(cls) -> None:

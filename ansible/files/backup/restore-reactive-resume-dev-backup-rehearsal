@@ -66,7 +66,7 @@ import os
 import stat
 path = os.environ["APPROVAL_FILE"]
 expected = (os.environ["APPROVAL_TOKEN"] + ":restore").encode("ascii")
-fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK)
 try:
     opened = os.fstat(fd)
     assert stat.S_ISREG(opened.st_mode)
@@ -362,7 +362,8 @@ with tarfile.open(os.environ["ARCHIVE"], mode="r:gz") as archive:
     assert members
     for member in members:
         path = member.name.rstrip("/")
-        assert path and not path.startswith("/") and path.startswith("objects")
+        assert path and not path.startswith("/")
+        assert path == "objects" or path.startswith("objects/")
         assert ".." not in path.split("/") and "\\" not in path and "\x00" not in path
         target = os.path.realpath(os.path.join(root, path))
         assert os.path.commonpath((root, target)) == root
