@@ -4,8 +4,11 @@ import hashlib
 import importlib.util
 import stat
 import subprocess
+import sys
+import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import yaml
 from jinja2 import Environment
@@ -403,6 +406,20 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {"name": "push", "namespace": "shared-services", "uid": "uid-push", "resourceVersion": "1"},
             ),
         )
+        self.assertEqual(
+            [{"name": "dynamic-target", "namespace": "shared-services", "kind": "Secret"}],
+            _metadata_module._producer_targets(
+                {
+                    "apiVersion": "secrets.infisical.com/v1alpha1",
+                    "kind": "InfisicalDynamicSecret",
+                    "metadata": {"name": "dynamic", "namespace": "shared-services"},
+                    "spec": {"managedSecretReference": {"secretName": "dynamic-target", "secretNamespace": "shared-services"}},
+                },
+                "InfisicalDynamicSecret",
+                "secrets.infisical.com/v1alpha1",
+                {"name": "dynamic", "namespace": "shared-services"},
+            ),
+        )
         self.assertIsNone(
             _metadata_module._producer_targets(
                 {
@@ -430,6 +447,34 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {"name": "external", "namespace": "shared-services", "uid": "uid-external", "resourceVersion": "1"},
             ),
         )
+        self.assertEqual(
+            [{"name": "sealed-target", "namespace": "shared-services", "kind": "Secret"}],
+            _metadata_module._producer_targets(
+                {
+                    "apiVersion": "bitnami.com/v1alpha1",
+                    "kind": "SealedSecret",
+                    "metadata": {"name": "sealed", "namespace": "shared-services"},
+                    "spec": {"template": {"metadata": {"name": "sealed-target", "namespace": "shared-services"}}},
+                },
+                "SealedSecret",
+                "bitnami.com/v1alpha1",
+                {"name": "sealed", "namespace": "shared-services"},
+            ),
+        )
+        self.assertEqual(
+            [{"name": "csi-target", "namespace": "shared-services", "kind": "Secret"}],
+            _metadata_module._producer_targets(
+                {
+                    "apiVersion": "secrets-store.csi.x-k8s.io/v1",
+                    "kind": "SecretProviderClass",
+                    "metadata": {"name": "csi", "namespace": "shared-services"},
+                    "spec": {"secretObjects": [{"secretName": "csi-target"}]},
+                },
+                "SecretProviderClass",
+                "secrets-store.csi.x-k8s.io/v1",
+                {"name": "csi", "namespace": "shared-services"},
+            ),
+        )
         for invalid in (
             {**exact, "data": {"password": "must-not-be-accepted"}},
             {**exact, "metadata": {"name": "safe", "managedFields": [{**managed_field, "fieldsV1": {}}]}},
@@ -444,6 +489,150 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             {**exact, "metadata": {"name": "safe", "unexpected": "field"}},
         ):
             self.assertIsNone(_metadata_response(invalid))
+
+    def test_metadata_main_sanitizes_406_and_refuses_secret_collections(self) -> None:
+        class StopMain(Exception):
+            pass
+
+        class FakeModule:
+            def __init__(self, params):
+                self.params = params
+                self.calls = []
+                self.result = None
+
+            def fail_json(self, **payload):
+                self.result = payload
+                raise StopMain
+
+            def exit_json(self, **payload):
+                self.result = payload
+                raise StopMain
+
+        class ApiError(Exception):
+            status = 406
+
+            def __init__(self):
+                super().__init__("response body contains SECRET_VALUE")
+                self.body = '{"data":"SECRET_VALUE"}'
+
+        class RecordingClient:
+            def __init__(self, error=None):
+                self.error = error
+                self.calls = []
+
+            def call_api(self, *args, **kwargs):
+                self.calls.append((args, kwargs))
+                if self.error is not None:
+                    raise self.error
+                return {}
+
+        def run_main(params, api):
+            fake_module = FakeModule(params)
+            fake_kubernetes = types.ModuleType("kubernetes")
+            fake_kubernetes.client = types.SimpleNamespace(ApiClient=lambda: api)
+            fake_kubernetes.config = types.SimpleNamespace(load_kube_config=lambda **_: None)
+            with mock.patch.object(_metadata_module, "AnsibleModule", lambda **_: fake_module):
+                with mock.patch.dict(sys.modules, {"kubernetes": fake_kubernetes}):
+                    with self.assertRaises(StopMain):
+                        _metadata_module.main()
+            return fake_module
+
+        failed = run_main(
+            {
+                "kubeconfig": "/does/not/exist",
+                "api_path": "/apis/example/v1/widgets",
+                "collection": True,
+                "resource_kind": "Widget",
+                "resource_api_version": "example/v1",
+            },
+            RecordingClient(ApiError()),
+        )
+        self.assertIn("406", failed.result["msg"])
+        self.assertNotIn("SECRET_VALUE", failed.result["msg"])
+
+        class SequenceClient(RecordingClient):
+            def __init__(self):
+                super().__init__()
+                self.responses = [{
+                    "apiVersion": "meta.k8s.io/v1",
+                    "kind": "PartialObjectMetadataList",
+                    "metadata": {"resourceVersion": "safe"},
+                    "items": [{
+                        "apiVersion": "meta.k8s.io/v1",
+                        "kind": "PartialObjectMetadata",
+                        "metadata": {"name": "producer", "namespace": "shared-services"},
+                    }],
+                }, ApiError()]
+
+            def call_api(self, *args, **kwargs):
+                self.calls.append((args, kwargs))
+                response = self.responses.pop(0)
+                if isinstance(response, Exception):
+                    raise response
+                return response
+
+        producer_error_api = SequenceClient()
+        producer_failed = run_main(
+            {
+                "kubeconfig": "/does/not/exist",
+                "api_path": "/apis/example/v1/widgets",
+                "collection": True,
+                "resource_kind": "Widget",
+                "resource_api_version": "example/v1",
+            },
+            producer_error_api,
+        )
+        self.assertIn("406", producer_failed.result["msg"])
+        self.assertNotIn("SECRET_VALUE", producer_failed.result["msg"])
+
+        secret_api = RecordingClient()
+        refused = run_main(
+            {
+                "kubeconfig": "/does/not/exist",
+                "api_path": "/api/v1/namespaces/shared-services/secrets",
+                "collection": True,
+                "resource_kind": "Secret",
+                "resource_api_version": "v1",
+            },
+            secret_api,
+        )
+        self.assertIn("refusing collection target inspection for Secret resources", refused.result["msg"])
+        self.assertEqual([], secret_api.calls)
+
+    def test_malformed_managed_fields_fail_closed(self) -> None:
+        valid = {
+            "manager": "ansible",
+            "operation": "Update",
+            "apiVersion": "v1",
+            "fieldsType": "FieldsV1",
+            "fieldsV1": {"f:metadata": {"f:labels": {}}},
+        }
+        base = {
+            "apiVersion": "meta.k8s.io/v1",
+            "kind": "PartialObjectMetadata",
+            "metadata": {"name": "target", "managedFields": [valid]},
+        }
+        self.assertIsNotNone(_metadata_response(base))
+        malformed = [
+            {**valid, "operation": "Delete"},
+            {**valid, "manager": ""},
+            {**valid, "apiVersion": ""},
+            {**valid, "fieldsType": "Other"},
+            {**valid, "fieldsV1": {}},
+            {**valid, "fieldsV1": {"metadata": {}}},
+            {**valid, "subresource": "status"},
+            {**valid, "unexpected": True},
+            {key: value for key, value in valid.items() if key != "fieldsV1"},
+        ]
+        for entry in malformed:
+            with self.subTest(entry=entry):
+                candidate = {**base, "metadata": {"name": "target", "managedFields": [entry]}}
+                self.assertIsNone(_metadata_response(candidate))
+        for malformed_collection in (
+            {**base, "metadata": {"name": "target", "managedFields": []}},
+            {**base, "metadata": {"name": "target", "managedFields": [{**valid, "fieldsV1": {"f:metadata": []}}]}},
+        ):
+            self.assertIsNone(_metadata_response(malformed_collection))
 
     def test_role_is_read_only_and_ownership_guarded(self) -> None:
         for required in (
