@@ -24,10 +24,12 @@ any value from it. The materializer creates only these target Secret identities:
 | `argocd-redis` | `Opaque` | `auth` |
 | `argocd-server-tls` | `kubernetes.io/tls` | `ca.crt`, `tls.crt`, `tls.key` |
 | `argocd-repository-cristexhub` | `Opaque` | `type`, `url`, `sshPrivateKey` |
+| `argocd-repository-cristexweb` | `Opaque` | `type`, `url`, `sshPrivateKey` |
 
 All targets are explicitly templated, labelled `app.kubernetes.io/managed-by:
 infisical`, `app.kubernetes.io/part-of: argocd`, and
-`cristex.io/value-owner: infisical-cloud`, and use `creationPolicy: Orphan`.
+`cristex.io/value-owner: infisical-cloud`, and use `creationPolicy: Orphan`. Both repository targets
+use the `argocd.argoproj.io/secret-type: repository` label.
 The seam refuses existing foreign, wrong-type, wrong-key, wrong-label, or
 non-orphan targets before any mutation. It also refuses
 `argocd-initial-admin-secret`.
@@ -43,11 +45,12 @@ metadata, and source shape only; values remain outside Git and Ansible logs.
 - Infisical secret path: `/argocd`.
 - Kubernetes credential Secret: `argocd/argocd-infisical-universal-auth`.
 - Credential Secret type: `Opaque`; exact keys: `clientId`, `clientSecret`; exact labels `app.kubernetes.io/managed-by=ansible`, `app.kubernetes.io/part-of=infisical-operator`, `cristex.io/component=infisical-runtime-auth`, and `cristex.io/value-owner=infisical-cloud`; no owner references, binary data, or immutability.
-- The eight Infisical keys at `prod:/argocd`:
+- The nine Infisical keys at `prod:/argocd`:
   `ARGOCD_ADMIN_PASSWORD_BCRYPT`, `ARGOCD_ADMIN_PASSWORD_MTIME`,
   `ARGOCD_SERVER_SECRETKEY`, `ARGOCD_REDIS_AUTH`, `ARGOCD_TLS_CA_CRT`,
   `ARGOCD_TLS_CRT`, `ARGOCD_TLS_KEY`, and
-  `ARGOCD_CRISTEXHUB_REPOSITORY_SSH_PRIVATE_KEY`.
+  `ARGOCD_CRISTEXHUB_REPOSITORY_SSH_PRIVATE_KEY`, and
+  `ARGOCD_CRISTEXWEB_REPOSITORY_SSH_PRIVATE_KEY`.
 
 The credential Secret is one same-Namespace reference: both fields of
 `argocd/argocd-infisical-auth` point to that one Secret, using keys `clientId`
@@ -59,7 +62,7 @@ password, certificate, private key, project ID, or token is committed here.
 Admission is applied before the additive writer Role and its binding. The Secret
 policy matches CREATE/UPDATE (Kubernetes admission reports an API PATCH as UPDATE)
 only when the request namespace is `argocd` and the identity is the exact controller
-or the object name is one of the four reviewed targets. Validation then requires the
+or the object name is one of the five reviewed targets. Validation then requires the
 exact controller identity plus each exact type, key set, target labels, and orphan
 metadata without inspecting values. This scoped match condition blocks foreign
 writers to exact target names and the controller from unreviewed names without
@@ -69,7 +72,7 @@ policy matches the Operator identity or `argocd/argocd-infisical-secrets`, requi
 either the guarded `system:admin` bootstrap writer or an Operator update with an
 unchanged `spec`, and
 then enforces the same-Namespace Auth reference, explicit `recursive: false`, an
-explicit empty `tagSlugs` list, no `projectId`, fixed sync options, and exact four
+explicit empty `tagSlugs` list, no `projectId`, fixed sync options, and exact five
 target/template identity contracts. This blocks foreign spec mutation while allowing
 controller finalizer/status maintenance. The vendored CRD deliberately preserves
 `template.data` as unknown;
@@ -86,9 +89,9 @@ The additive Role grants the vendored v0.11.7 reconciler only:
   and same-Namespace Universal Auth lookup; this trusted value-handling controller
   already reads the credential and no workload receives this Role;
 - Secret `create` (the admission policy supplies the exact-name boundary);
-- Secret `update` with `resourceNames` limited to the four target names; and
+- Secret `update` with `resourceNames` limited to the five target names; and
 - Deployment/DaemonSet/StatefulSet `list` and `watch`, because every changed
-  StaticSecret target lists all four reviewed Secret identities before deciding whether a
+  StaticSecret target lists all five reviewed Secret identities before deciding whether a
   reload is needed.
 
 It grants no Secret `patch` or `delete` and no workload `get`, `create`,
@@ -115,7 +118,7 @@ policy readback, applies admission bindings and RBAC, and reconciles Connection,
 Auth, and StaticSecret in that order; waits for `IsReady=True` on the v0.11.7
 Connection/Auth and for current-generation `LastReconcileStatus=True` plus
 `LastSuccessfulReconcileAt=True` on the StaticSecret; and verifies the exact
-four target Secret metadata/type/key/label/orphan/non-immutable contracts without
+five target Secret metadata/type/key/label/orphan/non-immutable contracts without
 logging values. After target sync and that metadata readback, the same fixed-source,
 no-log `argocd_secret_contract` action validates the generated values: parseable
 cost-12 bcrypt, exact PEM residue/one-CA closure, RSA/EC key strength, permitted
@@ -138,7 +141,7 @@ source-only [Infisical Universal Auth/value lane](infisical-universal-auth-value
 `ansible/bin/upload-infisical-bootstrap-values apply` owns future generated-value
 uploads. Both are apply-only, no-diff/no-log, reject foreign/partial/rotation state,
 and remain **NOT RUN/BLOCKED**. The Argo seam does not create, read, or rotate its
-credential values and still requires the exact four runtime labels/metadata.
+credential values and still requires the exact five runtime labels/metadata.
 
 ## Offline validation
 

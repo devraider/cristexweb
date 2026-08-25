@@ -46,6 +46,10 @@ TARGETS = {
         "type": "Opaque",
         "keys": {"sshPrivateKey", "type", "url"},
     },
+    "argocd-repository-cristexweb": {
+        "type": "Opaque",
+        "keys": {"sshPrivateKey", "type", "url"},
+    },
 }
 TEMPLATES = {
     "argocd-secret": {
@@ -63,6 +67,11 @@ TEMPLATES = {
         "type": "git",
         "url": "ssh://git@ssh.github.com:443/devraider/cristexhub.git",
         "sshPrivateKey": "{{ .ARGOCD_CRISTEXHUB_REPOSITORY_SSH_PRIVATE_KEY.Value }}",
+    },
+    "argocd-repository-cristexweb": {
+        "type": "git",
+        "url": "ssh://git@ssh.github.com:443/devraider/cristexweb.git",
+        "sshPrivateKey": "{{ .ARGOCD_CRISTEXWEB_REPOSITORY_SSH_PRIVATE_KEY.Value }}",
     },
 }
 
@@ -230,7 +239,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             self.assertEqual(contract["type"], target["secretType"])
             self.assertEqual("Orphan", target["creationPolicy"])
             labels = dict(TARGET_LABELS)
-            if name == "argocd-repository-cristexhub":
+            if name in {"argocd-repository-cristexhub", "argocd-repository-cristexweb"}:
                 labels["argocd.argoproj.io/secret-type"] = "repository"
             self.assertEqual(labels, target["metadata"]["labels"])
             self.assertEqual({}, target["metadata"]["annotations"])
@@ -271,12 +280,14 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "argocd-secret",
             "argocd-redis",
             "argocd-server-tls",
+            "argocd-repository-cristexweb",
             "object.type == 'Opaque'",
             "object.type == 'kubernetes.io/tls'",
             "object.data['admin.password'] != null",
             "object.data['tls.key'] != null",
             "object.data['type'] == 'Z2l0'",
             "object.data['url'] == 'c3NoOi8vZ2l0QHNzaC5naXRodWIuY29tOjQ0My9kZXZyYWlkZXIvY3Jpc3RleGh1Yi5naXQ='",
+            "object.data['url'] == 'c3NoOi8vZ2l0QHNzaC5naXRodWIuY29tOjQ0My9kZXZyYWlkZXIvY3Jpc3RleHdlYi5naXQ='",
             "object.binaryData.size() == 0",
             "request.namespace == 'argocd'",
         ):
@@ -310,6 +321,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "argocd-redis",
             "argocd-server-tls",
             "argocd-repository-cristexhub",
+            "argocd-repository-cristexweb",
             "!has(object.spec.sources[0].projectSlug)",
             "has(object.spec.sources[0].recursive)",
             "object.spec.sources[0].recursive == false",
@@ -318,12 +330,13 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "object.spec.syncOptions.refreshInterval == '5m'",
             "has(object.spec.syncOptions.instantUpdates)",
             "object.spec.syncOptions.instantUpdates == false",
-            "object.spec.targets.size() == 4",
+            "object.spec.targets.size() == 5",
             "creationPolicy == 'Orphan'",
         ):
             self.assertIn(required, static_expression)
         self.assertIn("t.template.data['type'] == 'git'", static_expression)
         self.assertIn("t.template.data['url'] == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'", static_expression)
+        self.assertIn("t.template.data['url'] == 'ssh://git@ssh.github.com:443/devraider/cristexweb.git'", static_expression)
         self.assertIn("t.template.data['sshPrivateKey']", static_expression)
         self.assertNotIn("request.namespace !=", static_expression)
         self.assertNotIn("shared-postgresql-admin", secret_expression)
@@ -373,7 +386,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         )
         update = next(rule for rule in secret_rules if "resourceNames" in rule)
         self.assertEqual(
-            {"argocd-secret", "argocd-redis", "argocd-server-tls", "argocd-repository-cristexhub"},
+            {"argocd-secret", "argocd-redis", "argocd-server-tls", "argocd-repository-cristexhub", "argocd-repository-cristexweb"},
             set(update["resourceNames"]),
         )
         self.assertEqual(["update"], update["verbs"])
