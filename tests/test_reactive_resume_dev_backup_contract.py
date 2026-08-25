@@ -101,6 +101,8 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             self.assertIn(value, self.backup, value)
         self.assertIn("run_id=$selected", self.restore)
         self.assertIn("pod_run_id=", self.restore)
+        for text in (self.backup, self.restore):
+            self.assertIn("/usr/bin/tr '[:upper:]' '[:lower:]'", text)
         self.assertIn("run[\"run_id\"] == os.environ[\"RUN_ID\"]", self.restore)
         self.assertIn("reactive_resume_dev_successor", self.restore)
         self.assertIn("reactive-resume-dev", self.restore)
@@ -151,6 +153,13 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         ):
             self.assertIn(f"fail {stage}", self.restore)
         self.assertIn('obj["service"] == "seaweedfs"', self.restore)
+        for value in (
+            'pg["archive_sha256"] == os.environ["PG_ACTUAL_SHA256"]',
+            'obj["archive_sha256"] == os.environ["OBJECT_ACTUAL_SHA256"]',
+            'int(os.environ["PG_ACTUAL_BYTES"])',
+            'int(os.environ["OBJECT_ACTUAL_BYTES"])',
+        ):
+            self.assertIn(value, self.restore)
         self.assertIn("listen_addresses=", self.restore)
         self.assertIn("pg_restore --exit-on-error --no-owner --no-privileges", self.restore)
 
