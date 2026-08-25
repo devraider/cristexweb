@@ -253,8 +253,8 @@
       - item.resources[0].data is not defined
       - item.resources[0].stringData is not defined
       - item.resources[0].binaryData is not defined
-    loop: '{{ reactive_resume_dev_argocd_registration_internal_dependency_states.results }}'
     fail_msg: Refusing RR DEV registration until every exact Infisical-owned Secret/CA/pull/TLS dependency is ready and value payloads remain suppressed.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_dependency_states.results }}'
   changed_when: false
   no_log: true
 

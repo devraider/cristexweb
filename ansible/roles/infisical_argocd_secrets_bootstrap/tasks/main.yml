@@ -495,24 +495,42 @@
         (item.item.kind == 'ValidatingAdmissionPolicy' and
         item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and
         item.resources[0].spec.matchConstraints.resourceRules == item.item.spec.matchConstraints.resourceRules and
-        (item.resources[0].spec.matchConditions | default([])) ==
-        (item.item.spec.matchConditions | default([])) and
+        ((item.resources[0].spec.matchConditions | default([])) ==
+         (item.item.spec.matchConditions | default([])) or
+         (item.item.metadata.name == 'infisical-argocd-secret-write-boundary' and
+          item.resources[0].spec.matchConditions | length == 2 and
+          item.resources[0].spec.matchConditions[0] == item.item.spec.matchConditions[0] and
+          item.resources[0].spec.matchConditions[1].name == 'argocd-controller-or-target-name' and
+          "object.metadata.name in ['argocd-secret', 'argocd-redis', 'argocd-server-tls', 'argocd-repository-cristexhub']" in item.resources[0].spec.matchConditions[1].expression and
+          'argocd-repository-cristexweb' not in item.resources[0].spec.matchConditions[1].expression)) and
         (item.resources[0].spec.validations == item.item.spec.validations or
          (item.item.metadata.name == 'infisical-argocd-secret-write-boundary' and
           item.resources[0].spec.validations | length == 1 and
-          "object.data['type'] != null" in item.resources[0].spec.validations[0].expression and
-          "object.data['url'] != null" in item.resources[0].spec.validations[0].expression) or
+          "object.data['type'] == 'Z2l0'" in item.resources[0].spec.validations[0].expression and
+          "object.data['url'] == 'c3NoOi8vZ2l0QHNzaC5naXRodWIuY29tOjQ0My9kZXZyYWlkZXIvY3Jpc3RleGh1Yi5naXQ='" in item.resources[0].spec.validations[0].expression and
+          'argocd-repository-cristexweb' not in item.resources[0].spec.validations[0].expression) or
          (item.item.metadata.name == 'infisical-argocd-static-secret-boundary' and
           item.resources[0].spec.validations | length == 1 and
-          "object.spec.targets.size() == 5" in item.resources[0].spec.validations[0].expression and
+          "object.spec.targets.size() == 4" in item.resources[0].spec.validations[0].expression and
           "t.metadata.labels['argocd.argoproj.io/secret-type'] == 'repository'" in item.resources[0].spec.validations[0].expression and
-          "t.template.data['type'] == 'git'" not in item.resources[0].spec.validations[0].expression))) or
+          'argocd-repository-cristexhub' in item.resources[0].spec.validations[0].expression and
+          'argocd-repository-cristexweb' not in item.resources[0].spec.validations[0].expression))) or
         (item.item.kind == 'ValidatingAdmissionPolicyBinding' and
         item.resources[0].spec.policyName == item.item.spec.policyName and
         item.resources[0].spec.validationActions == item.item.spec.validationActions and
         (item.resources[0].spec.matchResources | default({})) ==
         (item.item.spec.matchResources | default({}))) or
-        (item.item.kind == 'Role' and item.resources[0].rules == item.item.rules) or
+        (item.item.kind == 'Role' and
+        (item.resources[0].rules == item.item.rules or
+         (item.item.metadata.name == 'infisical-argocd-secret-writer' and
+          item.resources[0].rules | length == 4 and
+          item.resources[0].rules[0] == item.item.rules[0] and
+          item.resources[0].rules[1].apiGroups == item.item.rules[1].apiGroups and
+          item.resources[0].rules[1].resources == item.item.rules[1].resources and
+          item.resources[0].rules[1].verbs == item.item.rules[1].verbs and
+          item.resources[0].rules[1].resourceNames == ['argocd-secret', 'argocd-redis', 'argocd-server-tls', 'argocd-repository-cristexhub'] and
+          item.resources[0].rules[2] == item.item.rules[2] and
+          item.resources[0].rules[3] == item.item.rules[3]))) or
         (item.item.kind == 'RoleBinding' and
         item.resources[0].roleRef == item.item.roleRef and
         item.resources[0].subjects == item.item.subjects)))
@@ -566,9 +584,18 @@
       - >-
         infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources | length == 0 or
         (infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].metadata.name == 'argocd-infisical-secrets' and
-         infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec ==
-           (infisical_argocd_secrets_bootstrap_internal_source_objects |
-            selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec)
+         (infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec ==
+            (infisical_argocd_secrets_bootstrap_internal_source_objects |
+             selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec or
+          (infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec.infisicalAuthRef ==
+             (infisical_argocd_secrets_bootstrap_internal_source_objects | selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec.infisicalAuthRef and
+           infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec.syncOptions ==
+             (infisical_argocd_secrets_bootstrap_internal_source_objects | selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec.syncOptions and
+           infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec.sources ==
+             (infisical_argocd_secrets_bootstrap_internal_source_objects | selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec.sources and
+           infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec.targets | length == 4 and
+           infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec.targets ==
+             ((infisical_argocd_secrets_bootstrap_internal_source_objects | selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec.targets[:4]))))
     fail_msg: >-
       Refusing a noncanonical or drifted InfisicalStaticSecret that could write an
       Argo CD Secret target before admission policy reconciliation.
@@ -768,17 +795,42 @@
   register: infisical_argocd_secrets_bootstrap_internal_rbac_apply
   no_log: true
 
-- name: Reconcile Infisical Connection then Auth then StaticSecret source closure
+- name: Reconcile Infisical Connection then Auth source closure
   infisical_argocd_secrets_guarded_k8s:
     state: present
     definition: "{{ item }}"
     kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
     wait: false
     wait_timeout: 60
-  loop: "{{ infisical_argocd_secrets_bootstrap_internal_source_objects }}"
+  loop: "{{ infisical_argocd_secrets_bootstrap_internal_source_objects | rejectattr('kind', 'equalto', 'InfisicalStaticSecret') | list }}"
   loop_control:
     label: "{{ item.kind }}/{{ item.metadata.namespace }}/{{ item.metadata.name }}"
   register: infisical_argocd_secrets_bootstrap_internal_source_apply
+  no_log: true
+
+# The predecessor VAP intentionally rejects the additive StaticSecret target.
+# In check mode its preceding replacement is only a server dry-run, so predict
+# this exact already-validated transition without submitting the later dry-run
+# against the still-live predecessor policy.
+- name: Predict the exact additive StaticSecret transition in check mode
+  ansible.builtin.debug:
+    msg: exact-additive-static-secret-transition
+  changed_when: >-
+    infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources | length == 0 or
+    infisical_argocd_secrets_bootstrap_internal_static_secret_inventory.resources[0].spec !=
+      (infisical_argocd_secrets_bootstrap_internal_source_objects |
+       selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first).spec
+  when: ansible_check_mode
+  no_log: true
+
+- name: Reconcile the exact StaticSecret after live admission upgrade
+  infisical_argocd_secrets_guarded_k8s:
+    state: present
+    definition: "{{ infisical_argocd_secrets_bootstrap_internal_source_objects | selectattr('kind', 'equalto', 'InfisicalStaticSecret') | first }}"
+    kubeconfig: "{{ infisical_argocd_secrets_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+  when: not ansible_check_mode
   no_log: true
 
 - name: Wait for the Infisical Connection, Auth, and StaticSecret to become ready

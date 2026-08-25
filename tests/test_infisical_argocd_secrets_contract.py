@@ -129,7 +129,7 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         expected = {identity: canonical_hash(obj) for identity, obj in self.by_identity.items()}
         self.assertEqual(expected, plugin_hashes)
         identity_keys = sorted("|".join(identity) for identity in self.by_identity)
-        expected_identity_digest = hashlib.sha256("\n".join(identity_keys).encode()).hexdigest()
+        expected_identity_digest = hashlib.sha256("\\n".join(identity_keys).encode()).hexdigest()
         self.assertIn(expected_identity_digest, PLUGIN.read_text())
 
     def test_source_closure_uses_one_same_namespace_ua_and_fixed_identifiers(self) -> None:
@@ -424,7 +424,8 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         alternate_recheck = task_names.index("Refuse alternate target races after admission")
         static_recheck = task_names.index("Refuse InfisicalStaticSecret identity races after admission")
         rbac = task_names.index("Reconcile exact Infisical Argo CD Secret seam RBAC after admission")
-        source = task_names.index("Reconcile Infisical Connection then Auth then StaticSecret source closure")
+        source = task_names.index("Reconcile Infisical Connection then Auth source closure")
+        static_source = task_names.index("Reconcile the exact StaticSecret after live admission upgrade")
         wait = task_names.index("Wait for the Infisical Connection, Auth, and StaticSecret to become ready")
         self.assertLess(preflight, admission)
         self.assertLess(admission, policy_wait)
@@ -435,7 +436,8 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         self.assertLess(alternate_recheck, static_recheck)
         self.assertLess(static_recheck, rbac)
         self.assertLess(rbac, source)
-        self.assertLess(source, wait)
+        self.assertLess(source, static_source)
+        self.assertLess(static_source, wait)
         wait_task = self.tasks[wait]
         self.assertEqual("not ansible_check_mode", wait_task["when"])
         wait_expression = " ".join(wait_task["until"])

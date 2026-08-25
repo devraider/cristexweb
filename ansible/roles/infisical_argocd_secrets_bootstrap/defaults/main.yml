@@ -33,7 +33,7 @@ infisical_argocd_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-alternate-target-boundary-binding.yaml'
     sha256: 79b2e4987a5f058281062a531007038bccae1b86f2151df4c32a13bed39357dd
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-static-secret-boundary.yaml'
-    sha256: dbac765eedb10b4fe1694de0911a7f439ce562a975dc1ea5ff6567ae4a48468e
+    sha256: 81638ca6f2a8bfa2a5343acac3272d8f88839c2c3dddd6c938ee5de76fcf9123
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-static-secret-boundary-binding.yaml'
     sha256: 6791c56baefd4d0b8f1d15580f29cb333ae9e3441e9d2883ff859de0030376a7
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-source-boundary.yaml'
