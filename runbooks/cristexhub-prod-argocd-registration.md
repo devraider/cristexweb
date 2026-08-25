@@ -32,8 +32,8 @@ Check mode must predict exactly those two alias updates for the current legacy
 state; apply is a separately approved mutation. Before either update, the role
 binds the exact UID and `metadata.resourceVersion` for all five existing
 registration objects, re-queries all five immediately before mutation, and passes
-each unchanged resourceVersion in the desired object as Kubernetes optimistic
-concurrency precondition. A replacement, changed resourceVersion, missing object,
+each unchanged resourceVersion in the desired object as a Kubernetes
+resourceVersion optimistic-concurrency precondition. A replacement, changed resourceVersion, missing object,
 partial/mixed transition, or metadata key outside the exact server-generated set
 fails closed. Canonical desired hashes ignore only that one bound
 `metadata.resourceVersion` field; all other desired and metadata fields remain

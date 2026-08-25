@@ -396,7 +396,9 @@
     kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
     wait: false
     wait_timeout: 60
-  loop: '{{ cristexhub_prod_registration_internal_mutation_manifests }}'
+  loop: >-
+    {{ cristexhub_prod_registration_internal_mutation_manifests |
+    default(cristexhub_prod_registration_internal_manifests | default([{}])) }}
   no_log: true
 - name: Query exact live registration post-state
   kubernetes.core.k8s_info:
