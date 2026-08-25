@@ -151,24 +151,33 @@ source-ready for PostgreSQL and standalone MongoDB but runtime-blocked; the Rabb
 and backup implementations remain policy-only. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
 records a live private DEV runtime/Argo checkpoint, not merely a planned
 reservation. The checkpoint is live evidence, not full acceptance or
-source-reproducibility evidence: current main has no dedicated Reactive Resume
-Infisical StaticSecret/VAP/writer source or successor database provisioning
-wrapper, so the live runtime Secret and successor SQL objects are not reproducible
-from this checkout. The successor database/role observations remain accurate live
-SQL evidence, but their source check/apply/idempotence and ACL/cross-database
-acceptance are still pending. Broad-lane DEV and unapproved PROD PostgreSQL CRs
-plus Infisical-owned Secrets are already live but unaccepted; roles retain
-`INHERIT`, no NetworkPolicy selects shared PostgreSQL, and review-log exposure
-requires credential rotation/revocation. A dedicated source-only rotation contract
-now freezes exact scope/no-output/stop semantics but remains non-executable because
-Infisical documents no CAS. CNPG documents `basic-auth`, while its pinned
-controller accepts the live key-correct `Opaque` targets; that normalization drift
-is separate from rotation. Dedicated DEV-only Infisical/VAP/RBAC and PostgreSQL
-source closures, realm/issuer/callback/claims, image acceptance, durable private
-object storage, application-key custody, disabled v5 Agent/Redis, patched OIDC,
-locked split-role migration, backup/restore, RPO/RTO, NetworkPolicy/TLS identity,
-and full application acceptance remain blocked; PROD is reservation-only and public
-exposure is forbidden.
+source-reproducibility evidence: current main includes a dedicated, value-free
+Infisical DEV CA StaticSecret/VAP/RBAC closure for the two CA projections, but not a
+complete Reactive Resume runtime/migration StaticSecret/VAP/writer source or
+successor database provisioning wrapper. The complete runtime/migration source
+representation and successor catalog/ACL reconciliation therefore remain
+unreproducible from this checkout. Read-only evidence records the SQL-created live
+successor database `reactive_resume_dev_successor` and separate `NOINHERIT` roles
+`reactive_resume_dev_runtime` and `reactive_resume_dev_migrator`, even though the
+successor Database/DatabaseRole CRs are absent; source check/apply/idempotence and
+ACL/cross-database acceptance remain pending. The seven-object private DEV Argo
+workload source is present and hash-bound, but does not close those remaining gates.
+Broad-lane DEV and unapproved PROD PostgreSQL CRs plus Infisical-owned Secrets are
+already live but unaccepted; the source-only `shared-postgresql-ingress` manifest is
+at `ansible/files/components/postgresql/network/postgresql-ingress.yaml`, while
+current read-only evidence records zero live NetworkPolicies selecting shared
+PostgreSQL. Exact Reactive Resume isolation is not accepted while broad all-consumer
+lanes/credentials and effective selector, ACL, cross-access, and NetworkPolicy
+identity tests remain pending. A
+dedicated source-only rotation contract now freezes exact scope/no-output/stop
+semantics but remains non-executable because Infisical documents no CAS. CNPG
+documents `basic-auth`, while its pinned controller accepts the live key-correct
+`Opaque` targets; that normalization drift is separate from rotation. Dedicated
+DEV-only Infisical/VAP/RBAC and PostgreSQL source closures, realm/issuer/callback/
+claims, image acceptance, durable private object storage, application-key custody,
+disabled v5 Agent/Redis, patched OIDC, locked split-role migration, backup/restore,
+RPO/RTO, NetworkPolicy/TLS identity, and full application acceptance remain blocked;
+PROD is reservation-only and public exposure is forbidden.
 PostgreSQL and standalone MongoDB have hash-bound present-only source closures
 with retained 40/80 GiB PVCs, bounded resources, private standard Services,
 mandatory TLS/authentication, exact cryptographic Secret validation, and guarded
@@ -238,20 +247,11 @@ evidence. Separate guarded [logical database provisioning](runbooks/shared-datab
 consumes precreated per-consumer Secrets through temporary UID-bound helper Pods;
 all empty reservations and PROD activation remain **NOT RUN/BLOCKED**. No general
 host baseline or deployment exists.
-Python is otherwise test-only; thirty-eight exact-scope Ansible action plugins are
-the reviewed focused exception—ten enforce canonical Namespace and
-Infisical/Argo/database/CristexHub DEV/PROD Secret/seam/Universal Auth mutation
-boundaries, two guard host rclone install/transfer, two perform no-log cryptographic
-validation of exact Argo and stateful-database Secret contracts, five guard the
-standalone MongoDB, PostgreSQL, Keycloak, RabbitMQ, and OIDC CONNECT proxy object
-closures, four guard cloudflared/route closures, four guard CoreDNS/DEV/PROD
-registration/sync boundaries, two guard fixed temporary logical-provisioning
-execution/Kubernetes objects, one guards the dedicated shared-MongoDB NetworkPolicy
-closure, and two guard the source-only Keycloak DEV successor identity and
-transport/actor/Infisical-CAS/API transition contracts. One additional exact-scope
-strategy plugin rejects backup task-selection controls before preflight can be
-skipped. No general-purpose operational Python or infrastructure collector exists.
-
+Python is otherwise test-only; the repository contains thirty-nine exact-scope
+Ansible action plugins, one exact-scope backup strategy plugin, and one focused
+Ansible library module. These reviewed focused guards cover the approved mutation,
+validation, cryptographic, and backup task-selection boundaries; no general-purpose
+operational Python or infrastructure collector exists.
 Approved non-elevated and extended elevated check/diff runs produced the ignored
 local report. The extended report confirms the unmounted 1 TB rotational disk,
 NVMe/root capacity, local-path behavior, and zero current PV/PVC objects without
@@ -458,7 +458,9 @@ ansible/                 # discovery plus guarded host/Kubernetes/database sourc
   bin/                    # non-passthrough operational entrypoints
   inventory/
   playbooks/
-  plugins/action/         # thirty-eight exact-scope mutation/validation guards
+  plugins/action/         # thirty-nine exact-scope mutation/validation guards
+  plugins/strategy/       # one backup-only task-selection guard
+  library/                # one focused metadata helper
   roles/                  # bounded discovery, host, Namespace, controller, Secret, and database roles
   files/components/       # hash-bound Argo, Infisical, PostgreSQL, and MongoDB source
   files/vendor/           # hash-bound public chart/provenance/key inputs only

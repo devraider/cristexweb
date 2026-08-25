@@ -51,15 +51,11 @@ note: |
   administrator-access, recovery, stateful-service, backup, Infisical, Cloudflare,
   Keycloak, and private Argo checkpoints. The latest approved checkpoint adds a
   read-only private CristexHub repository credential, manual-sync DEV registration,
-  bounded Argo cache RBAC, and exact-field CoreDNS external-forwarding recovery. Python is limited to offline tests plus thirty-three exact-scope
-  Ansible action plugins (Namespace, Infisical/Argo/database and CristexHub DEV/PROD
-  Secret, registration/sync, CoreDNS, proxy, Universal Auth, and related object-boundary
-  guards; two focused host-rclone boundary guards; two no-log Secret cryptographic
-  validators; five standalone MongoDB/PostgreSQL/Keycloak/RabbitMQ/OIDC object-closure
-  guards; four cloudflared/route closures; and two fixed logical-provisioning
-  execution/Kubernetes guards);
-  no general operational Python
-  or collector exists. One explicitly approved one-time Linux-host Infisical CLI
+  bounded Argo cache RBAC, and exact-field CoreDNS external-forwarding recovery. Python is limited to offline tests plus thirty-nine exact-scope
+  Ansible action plugins, one backup-only strategy plugin, and one focused library
+  module. These reviewed focused guards enforce approved mutation, validation,
+  cryptographic, and task-selection boundaries; no general operational Python or
+  collector exists. One explicitly approved one-time Linux-host Infisical CLI
   exception created `prod:/shared-services/postgresql` and uploaded exactly 15
   PostgreSQL administrator/TLS/reserved-consumer keys. Random 64-hex password,
   fixed-username, direct-CA TLS/SAN/key-pair, exact remote-key-closure, and zero

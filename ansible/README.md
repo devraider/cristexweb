@@ -571,28 +571,39 @@ non-destructive off-node copy, integrity checks, and isolated restore. RabbitMQ
 message/definitions recovery and residual credential rotations remain blocked. The separate [Reactive Resume policy](../runbooks/reactive-resume-hosted-architecture.md)
 records a live private DEV runtime/Argo checkpoint, not merely an incomplete
 reservation. The checkpoint is live evidence, not full acceptance or
-source-reproducibility evidence: current main has no dedicated Reactive Resume
-Infisical StaticSecret/VAP/writer source or successor database provisioning
-wrapper, so the live runtime Secret and successor SQL objects are not reproducible
-from this checkout. The successor database/role observations remain accurate live
-SQL evidence, but their source check/apply/idempotence and ACL/cross-database
-acceptance are still pending. Broad-lane DEV and unapproved PROD PostgreSQL CRs
-plus Infisical-owned credential Secrets are live but unaccepted; `INHERIT`, broad
-PUBLIC privileges, absent selecting NetworkPolicy, and exposed credentials block
-use. A dedicated source-only rotation contract freezes exact scope and no-output
-stop semantics but remains non-executable: Infisical documents no CAS. CNPG 1.30
+source-reproducibility evidence: current main includes a dedicated, value-free
+Infisical DEV CA StaticSecret/VAP/RBAC closure for the two CA projections, but not a
+complete Reactive Resume runtime/migration StaticSecret/VAP/writer source or
+successor database provisioning wrapper. The complete runtime/migration source
+representation and successor catalog/ACL reconciliation therefore remain
+unreproducible from this checkout. Read-only evidence records the SQL-created live
+successor database `reactive_resume_dev_successor` and separate `NOINHERIT` roles
+`reactive_resume_dev_runtime` and `reactive_resume_dev_migrator`, even though the
+successor Database/DatabaseRole CRs are absent; source check/apply/idempotence and
+ACL/cross-database acceptance remain pending. The seven-object private DEV Argo
+workload source is present and hash-bound, but does not close those remaining gates.
+Broad-lane DEV and unapproved PROD PostgreSQL CRs plus Infisical-owned credential
+Secrets are live but unaccepted; the source-only `shared-postgresql-ingress` manifest
+is at `ansible/files/components/postgresql/network/postgresql-ingress.yaml`, while
+current read-only evidence records zero live NetworkPolicies selecting shared
+PostgreSQL. Exact Reactive Resume isolation is not accepted while broad all-consumer
+lanes/credentials and effective selector, ACL, cross-access, and NetworkPolicy
+identity tests remain pending. A
+dedicated source-only rotation contract freezes exact scope and no-output stop
+semantics but remains non-executable: Infisical documents no CAS. CNPG 1.30
 documents `kubernetes.io/basic-auth`, but the pinned controller accepts the live
 key-correct `Opaque` targets; normalization is a separate source review.
 Successor identity, patched OIDC/local-auth/privacy behavior, dedicated
 Infisical/database source closures, private object storage, image trust and
 provenance, locked split-role migration, recovery, full application acceptance,
-and DEV soak remain blocked; Agent/Redis are disabled and no executable workload
-source exists. GitHub CI may run only syntax/lint and offline contracts from this
-source; it supplies no inventory and invokes no operational wrapper. The repository
-contains thirty-eight exact-scope action plugins plus one backup-only strategy
-plugin that rejects task selection before preflight can be skipped; these focused
-Python exceptions are source guards/validators only, not a general operational
-collector.
+and DEV soak remain blocked; Agent/Redis are disabled. The seven-object Argo
+workload source is present for the private DEV checkpoint, while the remaining
+runtime/migration and database source lanes are not complete. GitHub CI may run
+only syntax/lint and offline contracts from this source; it supplies no inventory
+and invokes no operational wrapper. The repository contains thirty-nine exact-scope
+action plugins, one backup-only strategy plugin that rejects task selection before
+preflight can be skipped, and one focused library module; these focused Python
+exceptions are source guards/validators only, not a general operational collector.
 
 Each component requires a dedicated non-passthrough entrypoint and frozen
 source/object closure with separate check, apply, and idempotence evidence. For the

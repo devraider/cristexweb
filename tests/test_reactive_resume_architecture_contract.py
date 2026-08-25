@@ -42,7 +42,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
                 self.assertIn("not full acceptance", text.lower())
                 self.assertIn("source-reproducibility", text)
                 self.assertIn("live DEV inputs only", text)
-        combined = "\n".join(self.status_docs.values())
+        combined = " ".join("\n".join(self.status_docs.values()).split())
         for stale in (
             "includes only a planned private DEV workload reservation",
             "Argo check is blocked on missing `argocd-repository-cristexweb` credential metadata",
@@ -50,10 +50,33 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         ):
             self.assertNotIn(stale, combined)
         self.assertIn(
-            "current main has no dedicated Reactive Resume Infisical StaticSecret/VAP/writer source",
+            "current main includes a dedicated, value-free Infisical DEV CA StaticSecret/VAP/RBAC closure",
             combined,
         )
+        for required in (
+            "dedicated, value-free Infisical DEV CA StaticSecret/VAP/RBAC closure",
+            "complete Reactive Resume runtime/migration StaticSecret/VAP/writer source",
+            "reactive_resume_dev_successor",
+            "reactive_resume_dev_runtime",
+            "reactive_resume_dev_migrator",
+            "successor Database/DatabaseRole CRs are absent",
+            "source-only `shared-postgresql-ingress` manifest",
+            "zero live NetworkPolicies selecting shared",
+            "PostgreSQL. Exact Reactive Resume isolation",
+            "Exact Reactive Resume isolation",
+            "seven-object private DEV Argo workload source",
+        ):
+            self.assertIn(required, combined)
         self.assertIn("successor database provisioning wrapper", combined)
+        self.assertIn(
+            "The source-only `shared-postgresql-ingress` manifest exists at",
+            AGENTS.read_text(),
+        )
+        self.assertIn(
+            "zero live NetworkPolicies selecting shared PostgreSQL or Reactive Resume",
+            AGENTS.read_text(),
+        )
+        self.assertNotIn("includes a Reactive Resume DEV selector", AGENTS.read_text())
 
     def test_scope_is_source_only_and_prod_is_template(self) -> None:
         self.assertEqual("cristex-reactive-resume-v4", self.policy["policy_schema"])
