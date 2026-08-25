@@ -19,6 +19,8 @@ _EXPECTED_TASK_SOURCE = str(
 )
 _EXPECTED_TASK_NAME = "Mark the complete guarded backup preflight"
 _EXPECTED_TASK_ACTION = "reactive_resume_dev_backup_entrypoint_guarded"
+_PLAYBOOK_SOURCE = _REPOSITORY_ROOT / "ansible/playbooks/configure_reactive_resume_dev_backup.yml"
+_PLAYBOOK_CANONICAL_SHA256 = "3a1aa67ed94e7e7f4831ff2c8a2734924663d5753ed77c952b5e29c0e981c942"
 _EXPECTED_SOURCE_REGISTER = "reactive_resume_dev_backup_source_states"
 _SELF_SOURCE_SHA256 = "__SELF_SOURCE_SHA256__"
 _WRAPPER_SOURCE_SHA256 = "__WRAPPER_SOURCE_SHA256__"
@@ -82,6 +84,42 @@ _EXPECTED_BINDING = {
     "source_contract_sha256": _SOURCE_CONTRACT_SHA256,
     "no_apply_path": True,
 }
+
+
+def _canonical_playbook_sha256() -> str:
+    try:
+        text = _PLAYBOOK_SOURCE.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return ""
+    text, self_count = re.subn(
+        r"(?m)^(    reactive_resume_dev_backup_playbook_sha256: )[0-9a-f]{64}$",
+        lambda match: match.group(1) + ("0" * 64),
+        text,
+    )
+    text, wrapper_variable_count = re.subn(
+        r"(?m)^(    reactive_resume_dev_backup_wrapper_sha256: )[0-9a-f]{64}$",
+        lambda match: match.group(1) + ("0" * 64),
+        text,
+    )
+    dynamic_count = 0
+    for source_path in (
+        "ansible/bin/configure-reactive-resume-dev-backup",
+        "ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py",
+    ):
+        pattern = (
+            r"(- path: "
+            + re.escape(source_path)
+            + r"\n\s+mode: '[0-9]{4}'\n\s+sha256: )[0-9a-f]{64}"
+        )
+        text, count = re.subn(
+            pattern,
+            lambda match: match.group(1) + ("0" * 64),
+            text,
+        )
+        dynamic_count += count
+    if self_count != 1 or wrapper_variable_count != 1 or dynamic_count != 2:
+        return ""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def _task_source(task: Any) -> str:
@@ -214,7 +252,10 @@ class ActionModule(ActionBase):
         )
         if (
             context.CLIARGS.get("start_at_task") is not None
-            or context.CLIARGS.get("step")
+            or (
+                context.CLIARGS.get("step") is not None
+                and context.CLIARGS.get("step") is not False
+            )
             or selection_argv
             or tags not in ([], ["all"])
             or skip_tags
@@ -230,6 +271,7 @@ class ActionModule(ActionBase):
             getattr(task, "action", None) != _EXPECTED_TASK_ACTION
             or getattr(task, "name", None) != _EXPECTED_TASK_NAME
             or _task_source(task) != _EXPECTED_TASK_SOURCE
+            or _canonical_playbook_sha256() != _PLAYBOOK_CANONICAL_SHA256
             or getattr(task, "args", None) != {}
         ):
             return {

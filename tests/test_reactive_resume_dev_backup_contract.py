@@ -140,6 +140,49 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         ):
             self.assertIn(value, guard)
 
+    def test_playbook_preflight_binding_matches_action_contract(self):
+        spec = importlib.util.spec_from_file_location("rr_backup_binding", ENTRYPOINT_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        play = yaml.safe_load(PLAYBOOK.read_text())[0]
+        binding_tasks = [
+            task
+            for task in play["pre_tasks"]
+            if task.get("name") == "Bind the canonical guarded backup preflight"
+        ]
+        self.assertEqual(1, len(binding_tasks))
+        binding = binding_tasks[0]["ansible.builtin.set_fact"]
+        self.assertEqual(
+            module._EXPECTED_BINDING,
+            binding["reactive_resume_dev_backup_internal_preflight_binding"],
+        )
+
+    def test_action_binds_canonical_playbook_content(self):
+        spec = importlib.util.spec_from_file_location("rr_backup_playbook", ENTRYPOINT_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(
+            module._PLAYBOOK_CANONICAL_SHA256,
+            module._canonical_playbook_sha256(),
+        )
+        drifted = PLAYBOOK.read_text().replace(
+            "reactive_resume_dev_backup_approved | bool",
+            "not (reactive_resume_dev_backup_approved | bool)",
+            1,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            candidate = Path(directory) / PLAYBOOK.name
+            candidate.write_text(drifted)
+            with mock.patch.object(module, "_PLAYBOOK_SOURCE", candidate):
+                self.assertNotEqual(
+                    module._PLAYBOOK_CANONICAL_SHA256,
+                    module._canonical_playbook_sha256(),
+                )
+
     def test_strategy_guard_rejects_start_at_task_before_iteration(self):
         spec = importlib.util.spec_from_file_location("rr_backup_strategy", STRATEGY_GUARD)
         self.assertIsNotNone(spec)
@@ -187,6 +230,16 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             get_path=lambda: f"{module._EXPECTED_TASK_SOURCE}:123",
         )
         cliargs = {"start_at_task": "", "step": False, "tags": [], "skip_tags": []}
+        with mock.patch.object(module.ActionBase, "run", return_value={}):
+            with mock.patch.object(
+                module.context,
+                "CLIARGS",
+                {"start_at_task": None, "step": "", "tags": [], "skip_tags": []},
+            ):
+                with mock.patch.object(module.sys, "argv", ["ansible-playbook"]):
+                    result = action.run(task_vars={})
+                    self.assertTrue(result["failed"])
+                    self.assertIn("TASK_SELECTION_GUARD", result["msg"])
         with mock.patch.object(module.ActionBase, "run", return_value={}):
             with mock.patch.object(module.context, "CLIARGS", cliargs):
                 for argv in (
