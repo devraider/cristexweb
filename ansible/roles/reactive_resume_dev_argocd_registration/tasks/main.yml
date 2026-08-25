@@ -636,8 +636,10 @@
          item.resources[0].spec.project == item.item.spec.project and
          item.resources[0].spec.source == item.item.spec.source and
          item.resources[0].spec.syncPolicy == item.item.spec.syncPolicy and
-         item.resources[0].spec.destination ==
-           {'name': 'reactive-resume-dev-local', 'server': '', 'namespace': 'cristexhub-dev'}) or
+         item.resources[0].spec.destination in
+           [{'name': 'reactive-resume-dev-local', 'server': '', 'namespace': 'cristexhub-dev'},
+            {'name': 'reactive-resume-dev-local', 'server': 'https://kubernetes.default.svc',
+             'namespace': 'cristexhub-dev'}]) or
         (item.item.kind == 'AppProject' and
          item.resources[0].spec.sourceRepos == item.item.spec.sourceRepos and
          item.resources[0].spec.clusterResourceWhitelist == item.item.spec.clusterResourceWhitelist and
@@ -741,7 +743,7 @@
       - >-
         item.item.kind != 'Application' or
         item.resources[0].spec.destination.server == 'https://kubernetes.default.svc'
-      - item.item.kind != 'Application' or item.resources[0].spec.destination.name is not defined
+      - item.item.kind != 'Application' or item.resources[0].spec.destination.name == ''
       - item.item.kind != 'Application' or 'argocd.argoproj.io/tracking-id' not in (item.resources[0].metadata.annotations | default({}))
       - >-
         item.item.kind != 'AppProject' or

@@ -46,7 +46,7 @@ EXPECTED_DEPENDENCY_DATA_KEYS = {
     "reactive-resume-dev-tls": ["tls.crt", "tls.key"],
 }
 EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {
-    ("argoproj.io/v1alpha1", "Application", "argocd", "reactive-resume-dev"): "3d6f4488f4ec57675d683d55174f14119859a1f1354cd02fbabe356ac57a20ab",
+    ("argoproj.io/v1alpha1", "Application", "argocd", "reactive-resume-dev"): "bd068ab20320ffd68de923f2887f5b9694e1f278317b7e865d30b8f6c6df6b57",
     ("argoproj.io/v1alpha1", "AppProject", "argocd", "reactive-resume-dev"): "bddbe2ce369277ec05dea95ac0d2ce5150205ac19c14fe13e45a4b92c664d7b1",
     ("v1", "Secret", "argocd", "argocd-cluster-reactive-resume-dev"): "7bc10653f97ab05c96f515b555a51b9f7a6f219722e694facff518f278da14ea",
     ("rbac.authorization.k8s.io/v1", "Role", "cristexhub-dev", "argocd-application-controller-reactive-resume-dev"): "223fd10d51f8aad55d28b40a0f1bd85c6a44fb809e9d276aff256a18450e3f8e",
