@@ -104,8 +104,8 @@ reboot recovery playbook, and the executed temporary NetworkPolicy probe under
 `ansible/`. Effective-user readability, warning-free
 fresh-session cluster listing, both idempotence checks, SSH/Tailscale return, Ready
 node, and kubeconfig recovery passed.
-Python is used for offline contract tests and thirty-nine exact-scope Ansible action
-plugins, one backup-only strategy plugin, and one focused library module. These
+Python is used for offline contract tests and forty exact-scope Ansible action
+plugins, one backup-only strategy plugin, and two focused library modules. These
 reviewed focused guards enforce approved mutation, validation, cryptographic, and
 task-selection boundaries; no general-purpose operational Python or infrastructure
 collector exists. One

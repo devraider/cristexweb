@@ -104,11 +104,6 @@ class AnsibleLayoutTests(unittest.TestCase):
             "files/policies/hosted-identity-authorization.yml",
             "files/policies/reactive-resume-architecture.yml",
             "files/policies/reactive-resume-postgresql-exposure-rotation.yml",
-<<<<<<< HEAD
-=======
-            "files/policies/reactive-resume-dev-postgresql-successor.yml",
-            "files/policies/reactive-resume-object-storage.yml",
->>>>>>> 42b5a4a (fix: harden object storage source metadata checks)
             "files/policies/shared-database-architecture.yml",
             "files/policies/shared-rabbitmq-architecture.yml",
             "files/policies/shared-stateful-backup-architecture.yml",

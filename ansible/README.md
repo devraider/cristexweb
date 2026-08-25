@@ -600,9 +600,9 @@ and DEV soak remain blocked; Agent/Redis are disabled. The seven-object Argo
 workload source is present for the private DEV checkpoint, while the remaining
 runtime/migration and database source lanes are not complete. GitHub CI may run
 only syntax/lint and offline contracts from this source; it supplies no inventory
-and invokes no operational wrapper. The repository contains thirty-nine exact-scope
+and invokes no operational wrapper. The repository contains forty exact-scope
 action plugins, one backup-only strategy plugin that rejects task selection before
-preflight can be skipped, and one focused library module; these focused Python
+preflight can be skipped, and two focused library modules; these focused Python
 exceptions are source guards/validators only, not a general operational collector.
 
 Each component requires a dedicated non-passthrough entrypoint and frozen
