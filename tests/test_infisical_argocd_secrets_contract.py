@@ -309,7 +309,6 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         )
         static_expression = static["spec"]["validations"][0]["expression"]
         for required in (
-            "request.userInfo.username == 'system:admin'",
             "system:serviceaccount:shared-services:infisical-operator-controller",
             "oldObject != null",
             "oldObject.spec == object.spec",
@@ -338,6 +337,8 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         self.assertIn("t.template.data['url'] == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'", static_expression)
         self.assertIn("t.template.data['url'] == 'ssh://git@ssh.github.com:443/devraider/cristexweb.git'", static_expression)
         self.assertIn("t.template.data['sshPrivateKey']", static_expression)
+        self.assertIn("request.userInfo.username == 'system:admin'", static_expression)
+        self.assertIn("oldObject.spec == object.spec)) &&", static_expression)
         self.assertNotIn("request.namespace !=", static_expression)
         self.assertNotIn("shared-postgresql-admin", secret_expression)
         self.assertNotIn("shared-postgresql-tls", secret_expression)
@@ -360,7 +361,6 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         ):
             self.assertIn(required, source_match + source_expression)
         for required in (
-            "request.userInfo.username == 'system:admin'",
             "oldObject != null",
             "oldObject.spec == object.spec",
             "https://app.infisical.com",
@@ -369,6 +369,8 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
             "clientSecret",
         ):
             self.assertIn(required, source_expression)
+        self.assertIn("request.userInfo.username == 'system:admin'", source_expression)
+        self.assertIn("oldObject.spec == object.spec)) &&", source_expression)
 
     def test_additive_rbac_is_exact_without_patch_delete_or_workload_update(self) -> None:
         role = self.by_identity[
@@ -466,8 +468,14 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         self.assertIn("Refuse existing alternate target-producing Infisical CRs", task_names)
         self.assertIn("Refuse any noncanonical or drifted existing InfisicalStaticSecret", task_names)
         self.assertIn("internal_alternate_target_crs", TASKS.read_text())
-        self.assertIn("internal_static_secret_inventory", TASKS.read_text())
-        self.assertIn("immutable", TASKS.read_text())
+        task_text = TASKS.read_text()
+        self.assertIn("internal_static_secret_inventory", task_text)
+        self.assertIn("immutable", task_text)
+        self.assertIn("predecessor_validation_hashes", task_text)
+        self.assertIn("predecessor_validation_messages", task_text)
+        self.assertIn("expression | hash('sha256')", task_text)
+        self.assertNotIn('object.spec.targets.size() == 4" in', task_text)
+        self.assertNotIn("'argocd-repository-cristexweb' not in item.resources", task_text)
         self.assertLess(
             task_names.index("Require the exact same-Namespace Universal Auth credential metadata"),
             preflight,
@@ -519,11 +527,33 @@ class InfisicalArgoCdSecretSeamContractTests(unittest.TestCase):
         self.assertIn("not (item.resources[0].immutable | default(false) | bool)", task_text)
         self.assertIn("Query every existing InfisicalStaticSecret in argocd", task_text)
         self.assertIn("internal_static_secret_inventory.resources[0].spec ==", task_text)
+        static_text = (COMPONENT / "admission/infisical-argocd-static-secret-boundary.yaml").read_text()
+        source_text = (COMPONENT / "admission/infisical-argocd-source-boundary.yaml").read_text()
+        self.assertIn("oldObject.spec == object.spec)) &&", static_text)
+        self.assertIn("oldObject.spec == object.spec)) &&", source_text)
         defaults = yaml.safe_load(DEFAULTS.read_text())
         self.assertEqual(
             ["InfisicalSecret", "InfisicalPushSecret", "InfisicalDynamicSecret"],
             [entry["kind"] for entry in defaults["infisical_argocd_secrets_bootstrap_alternate_target_crs"]],
         )
+
+    def test_predecessor_upgrade_is_exact_and_check_only(self) -> None:
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        self.assertEqual(
+            {
+                'infisical-argocd-static-secret-boundary':
+                '6cce187bd6ea9e3ae7f58bfedaa8f3bd6ac885c6cbd977287f7276066a84f93c',
+                'infisical-argocd-source-boundary':
+                '368b91f64a9eb39b2c6bf5a7056c791663b5a5021f5ca32feb51ced53523416b',
+            },
+            defaults['infisical_argocd_secrets_bootstrap_predecessor_validation_hashes'],
+        )
+        task_text = TASKS.read_text()
+        self.assertIn("expression | hash('sha256')", task_text)
+        self.assertIn('when: ansible_check_mode', task_text)
+        self.assertIn('exact-additive-static-secret-transition', task_text)
+        self.assertNotIn(" in item.resources[0].spec.validations[0].expression", task_text)
+        self.assertNotIn(" in item.resources[0].spec.matchConditions", task_text)
 
     def test_guarded_wrapper_role_and_fixtures_are_non_passthrough(self) -> None:
         self.assertEqual(

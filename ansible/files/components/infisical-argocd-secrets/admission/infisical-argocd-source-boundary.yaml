@@ -58,5 +58,5 @@ spec:
         'argocd-infisical-universal-auth' &&
         object.spec.universal.clientSecretRef.namespace == 'argocd' &&
         object.spec.universal.clientSecretRef.key == 'clientSecret'))
-      message: Only the guarded administrator or unchanged-spec Operator may write the exact Argo CD Connection and Auth sources.
+      message: Only the guarded exact administrator source or unchanged-spec Infisical Operator may write Argo CD Connection and Auth sources.
       reason: Forbidden

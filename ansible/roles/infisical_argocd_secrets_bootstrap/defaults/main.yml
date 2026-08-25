@@ -23,6 +23,15 @@ infisical_argocd_secrets_bootstrap_object_count: 13
 infisical_argocd_secrets_bootstrap_admission_count: 8
 infisical_argocd_secrets_bootstrap_rbac_count: 2
 infisical_argocd_secrets_bootstrap_source_count: 3
+# Exact predecessor contracts accepted only during the checked additive upgrade.
+# Hashes cover the complete canonical VAP validation expression; the role also
+# compares every structural VAP field and validation metadata below.
+infisical_argocd_secrets_bootstrap_predecessor_validation_hashes:
+  infisical-argocd-static-secret-boundary: 6cce187bd6ea9e3ae7f58bfedaa8f3bd6ac885c6cbd977287f7276066a84f93c
+  infisical-argocd-source-boundary: 368b91f64a9eb39b2c6bf5a7056c791663b5a5021f5ca32feb51ced53523416b
+infisical_argocd_secrets_bootstrap_predecessor_validation_messages:
+  infisical-argocd-static-secret-boundary: Only the guarded administrator or unchanged-spec Operator may write the exact Argo CD StaticSecret.
+  infisical-argocd-source-boundary: Only the guarded administrator or unchanged-spec Operator may write the exact Argo CD Connection and Auth sources.
 infisical_argocd_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-secret-write-boundary.yaml'
     sha256: 91d0da1161f3f29417a74209cadac93061c598797d9b9391c3285ff7edbb2a04
@@ -33,11 +42,11 @@ infisical_argocd_secrets_bootstrap_expected_hashes:
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-alternate-target-boundary-binding.yaml'
     sha256: 79b2e4987a5f058281062a531007038bccae1b86f2151df4c32a13bed39357dd
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-static-secret-boundary.yaml'
-    sha256: 81638ca6f2a8bfa2a5343acac3272d8f88839c2c3dddd6c938ee5de76fcf9123
+    sha256: fd86752536b90f75210de92c9b5f02264ac5a2123ba2fa162f85a00c9de71b83
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-static-secret-boundary-binding.yaml'
     sha256: 6791c56baefd4d0b8f1d15580f29cb333ae9e3441e9d2883ff859de0030376a7
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-source-boundary.yaml'
-    sha256: 80020bc523fe393a9ceae24b8f9ee14536274333a2d12d411b83ba9640b06876
+    sha256: e538cd0330d897d9d41801993fece93e12073dc394637ae1ed4ccdc72d9b5fb5
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/admission/infisical-argocd-source-boundary-binding.yaml'
     sha256: 524ac4de30e858639926c1743461d060732933c99d5880a1e18a0d445441d5a5
   - path: '{{ infisical_argocd_secrets_bootstrap_repository_root }}/ansible/files/components/infisical-argocd-secrets/rbac/argocd-secret-writer-role.yaml'
