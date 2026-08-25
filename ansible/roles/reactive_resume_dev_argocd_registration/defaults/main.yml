@@ -16,12 +16,64 @@ reactive_resume_dev_argocd_registration_revision: dd7d4cedd902e68266d9713d1dbb8e
 reactive_resume_dev_argocd_registration_path: ansible/files/components/reactive-resume-dev-argocd
 reactive_resume_dev_argocd_registration_repository_secret: argocd-repository-cristexweb
 reactive_resume_dev_argocd_registration_dependency_contracts:
-  - {kind: Secret, api_version: v1, namespace: cristexhub-dev, name: reactive-resume-dev-runtime, type: Opaque, labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: reactive-resume, cristex.io/value-owner: infisical-cloud}, annotation_keys: [secrets.infisical.com/version], hidden_fields: [data, stringData, binaryData]}
-  - {kind: Secret, api_version: v1, namespace: cristexhub-dev, name: reactive-resume-dev-migration, type: Opaque, labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: reactive-resume, cristex.io/value-owner: infisical-cloud}, annotation_keys: [secrets.infisical.com/version], hidden_fields: [data, stringData, binaryData]}
-  - {kind: ConfigMap, api_version: v1, namespace: cristexhub-dev, name: reactive-resume-dev-postgresql-ca, labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: reactive-resume, cristex.io/value-owner: infisical-cloud}, annotation_keys: [kubectl.kubernetes.io/last-applied-configuration, secrets.infisical.com/version], hidden_fields: [data, binaryData]}
-  - {kind: Secret, api_version: v1, namespace: cristexhub-dev, name: reactive-resume-dev-object-storage-ca, type: Opaque, labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: reactive-resume, cristex.io/value-owner: infisical-cloud}, annotation_keys: [kubectl.kubernetes.io/last-applied-configuration, secrets.infisical.com/version], hidden_fields: [data, stringData, binaryData]}
-  - {kind: Secret, api_version: v1, namespace: cristexhub-dev, name: cristexhub-ghcr-pull, type: kubernetes.io/dockerconfigjson, labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: cristexhub, cristex.io/value-owner: infisical-cloud}, annotation_keys: [secrets.infisical.com/version], hidden_fields: [data, stringData, binaryData]}
-  - {kind: Secret, api_version: v1, namespace: cristexhub-dev, name: reactive-resume-dev-tls, type: kubernetes.io/tls, labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: reactive-resume, cristex.io/value-owner: infisical-cloud}, annotation_keys: [secrets.infisical.com/version], hidden_fields: [data, stringData, binaryData]}
+  - kind: Secret
+    api_version: v1
+    namespace: cristexhub-dev
+    name: reactive-resume-dev-runtime
+    type: Opaque
+    data_keys: [APP_URL, AUTH_SECRET, DATABASE_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
+                OAUTH_DISCOVERY_URL, OAUTH_ISSUER, OAUTH_PROVIDER_NAME, OAUTH_SCOPES,
+                S3_ACCESS_KEY_ID, S3_BUCKET, S3_ENDPOINT, S3_FORCE_PATH_STYLE, S3_REGION,
+                S3_SECRET_ACCESS_KEY]
+    labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: reactive-resume,
+             cristex.io/value-owner: infisical-cloud}
+    annotation_keys: [secrets.infisical.com/version]
+  - kind: Secret
+    api_version: v1
+    namespace: cristexhub-dev
+    name: reactive-resume-dev-migration
+    type: Opaque
+    data_keys: [DATABASE_URL, MIGRATION_DATABASE_URL]
+    labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: reactive-resume,
+             cristex.io/value-owner: infisical-cloud}
+    annotation_keys: [secrets.infisical.com/version]
+  - kind: ConfigMap
+    api_version: v1
+    namespace: cristexhub-dev
+    name: reactive-resume-dev-postgresql-ca
+    data_keys: [ca.crt]
+    labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: reactive-resume,
+             cristex.io/value-owner: infisical-cloud}
+    annotation_keys: [kubectl.kubernetes.io/last-applied-configuration,
+                      secrets.infisical.com/version]
+  - kind: Secret
+    api_version: v1
+    namespace: cristexhub-dev
+    name: reactive-resume-dev-object-storage-ca
+    type: Opaque
+    data_keys: [ca.crt]
+    labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: reactive-resume,
+             cristex.io/value-owner: infisical-cloud}
+    annotation_keys: [kubectl.kubernetes.io/last-applied-configuration,
+                      secrets.infisical.com/version]
+  - kind: Secret
+    api_version: v1
+    namespace: cristexhub-dev
+    name: cristexhub-ghcr-pull
+    type: kubernetes.io/dockerconfigjson
+    data_keys: [.dockerconfigjson]
+    labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: cristexhub,
+             cristex.io/value-owner: infisical-cloud}
+    annotation_keys: [secrets.infisical.com/version]
+  - kind: Secret
+    api_version: v1
+    namespace: cristexhub-dev
+    name: reactive-resume-dev-tls
+    type: kubernetes.io/tls
+    data_keys: [tls.crt, tls.key]
+    labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: reactive-resume,
+             cristex.io/value-owner: infisical-cloud}
+    annotation_keys: [secrets.infisical.com/version]
 reactive_resume_dev_argocd_registration_expected_hashes:
   config/application-reactive-resume-dev.yaml: 41e597823b877da45fb5cc70e6e6019addfa01a3a7f3f3c20578512130cc3eb1
   config/appproject-reactive-resume-dev.yaml: cec72c6e3b116593693435af49603f4ce50126cb2fc7632675a5681062795de9

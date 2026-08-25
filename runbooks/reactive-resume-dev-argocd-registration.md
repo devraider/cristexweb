@@ -99,8 +99,14 @@ missing; this is not apply or handoff evidence.
 ## Remaining gates
 
 The repository credential `argocd-repository-cristexweb`, exact value-suppressed
-Secret/CA/pull/TLS dependency metadata, ready live RR workload set, and absence
-of Argo managed fields are required before a guarded check can pass; the latest
+Secret/CA/pull/TLS dependency metadata, and exact data-key closure are required:
+`reactive-resume-dev-runtime` has the reviewed 15 runtime keys,
+`reactive-resume-dev-migration` has `DATABASE_URL` and
+`MIGRATION_DATABASE_URL`, each CA target has only `ca.crt`, the pull Secret has
+only `.dockerconfigjson`, and TLS has only `tls.crt`/`tls.key`. Key names are
+checked under `no_log`; values are never emitted. The ready live RR workload
+set and absence of Argo managed fields are also required before a guarded check
+can pass; the latest
 check stopped on that repository-credential gate. A successful check, separately
 approved apply, idempotence retry, Argo sync/adoption evidence, and private
 hostname/backup/soak acceptance are still required. No source commit authorizes

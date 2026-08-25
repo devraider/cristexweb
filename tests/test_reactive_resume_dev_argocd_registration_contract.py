@@ -62,6 +62,15 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
             ['Opaque', 'Opaque', None, 'Opaque', 'kubernetes.io/dockerconfigjson', 'kubernetes.io/tls'],
             [item.get('type') for item in contracts],
         )
+        expected_keys = {
+            'reactive-resume-dev-runtime': ['APP_URL', 'AUTH_SECRET', 'DATABASE_URL', 'OAUTH_CLIENT_ID', 'OAUTH_CLIENT_SECRET', 'OAUTH_DISCOVERY_URL', 'OAUTH_ISSUER', 'OAUTH_PROVIDER_NAME', 'OAUTH_SCOPES', 'S3_ACCESS_KEY_ID', 'S3_BUCKET', 'S3_ENDPOINT', 'S3_FORCE_PATH_STYLE', 'S3_REGION', 'S3_SECRET_ACCESS_KEY'],
+            'reactive-resume-dev-migration': ['DATABASE_URL', 'MIGRATION_DATABASE_URL'],
+            'reactive-resume-dev-postgresql-ca': ['ca.crt'],
+            'reactive-resume-dev-object-storage-ca': ['ca.crt'],
+            'cristexhub-ghcr-pull': ['.dockerconfigjson'],
+            'reactive-resume-dev-tls': ['tls.crt', 'tls.key'],
+        }
+        self.assertEqual(expected_keys, {item['name']: item['data_keys'] for item in contracts})
         for item in contracts:
             self.assertEqual('cristexhub-dev', item['namespace'])
             expected_annotations = ['secrets.infisical.com/version']
@@ -71,8 +80,8 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
                     'secrets.infisical.com/version',
                 ]
             self.assertEqual(expected_annotations, item['annotation_keys'])
-            self.assertIn('data', item['hidden_fields'])
-            self.assertIn('binaryData', item['hidden_fields'])
+            self.assertTrue(item['data_keys'])
+            self.assertEqual(item['data_keys'], sorted(item['data_keys']))
             self.assertEqual(
                 {'app.kubernetes.io/managed-by': 'infisical',
                  'app.kubernetes.io/part-of': 'cristexhub' if item['name'] == 'cristexhub-ghcr-pull' else 'reactive-resume',
@@ -109,6 +118,11 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
         self.assertIn('cristexhub-ghcr-pull', defaults)
         self.assertIn('reactive-resume-dev-tls', defaults)
         self.assertIn('hidden_fields:', tasks)
+        self.assertIn('data_keys', defaults)
+        self.assertIn('dependency_data_keys', tasks)
+        self.assertIn("(item.resources[0].data | default({})).keys()", tasks)
+        self.assertIn('EXPECTED_DEPENDENCY_DATA_KEYS', plugin)
+        self.assertIn('no_log: true', tasks)
         self.assertIn('Require exact RR Secret, CA, pull, and TLS dependency metadata', tasks)
         self.assertIn('Require ready existing Reactive Resume DEV workload dependencies', tasks)
         self.assertIn('exact_application_source_contract', tasks)

@@ -31,6 +31,19 @@ EXPECTED_HANDOFF = {
 ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 TASK_SUFFIX = "/ansible/roles/reactive_resume_dev_argocd_registration/tasks/main.yml"
 EXPECTED_REVISION = "dd7d4cedd902e68266d9713d1dbb8e90f0b529b1"
+EXPECTED_DEPENDENCY_DATA_KEYS = {
+    "reactive-resume-dev-runtime": [
+        "APP_URL", "AUTH_SECRET", "DATABASE_URL", "OAUTH_CLIENT_ID",
+        "OAUTH_CLIENT_SECRET", "OAUTH_DISCOVERY_URL", "OAUTH_ISSUER",
+        "OAUTH_PROVIDER_NAME", "OAUTH_SCOPES", "S3_ACCESS_KEY_ID", "S3_BUCKET",
+        "S3_ENDPOINT", "S3_FORCE_PATH_STYLE", "S3_REGION", "S3_SECRET_ACCESS_KEY",
+    ],
+    "reactive-resume-dev-migration": ["DATABASE_URL", "MIGRATION_DATABASE_URL"],
+    "reactive-resume-dev-postgresql-ca": ["ca.crt"],
+    "reactive-resume-dev-object-storage-ca": ["ca.crt"],
+    "cristexhub-ghcr-pull": [".dockerconfigjson"],
+    "reactive-resume-dev-tls": ["tls.crt", "tls.key"],
+}
 EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {
     ("argoproj.io/v1alpha1", "Application", "argocd", "reactive-resume-dev"): "c3efab9afeb81cc28c5e7ee7142c9e1eaf7352d507e110d381c4810ac0578aaa",
     ("argoproj.io/v1alpha1", "AppProject", "argocd", "reactive-resume-dev"): "1a9abdaedca1ea155342087f85c255b2ed0545770379b2912352aac0997ace02",
@@ -84,7 +97,7 @@ class ActionModule(KubernetesActionModule):
             and set(binding) == {
                 "attestation_sha256", "manifest_names", "prestate_names", "handoff_names",
                 "object_count", "handoff_object_count", "namespace_contract", "repository_contract",
-                "dependency_count", "dependency_names", "workload_dependencies_ready",
+                "dependency_count", "dependency_names", "dependency_data_keys", "workload_dependencies_ready",
                 "exact_application_source_contract", "revision", "no_dual_reconciliation", "no_delete_path",
             }
             and binding.get("attestation_sha256") == hashlib.sha256(token.encode()).hexdigest()
@@ -96,10 +109,8 @@ class ActionModule(KubernetesActionModule):
             and _strict_true(binding.get("namespace_contract"))
             and _strict_true(binding.get("repository_contract"))
             and binding.get("dependency_count") in (6, "6")
-            and binding.get("dependency_names") == sorted((
-                "cristexhub-ghcr-pull", "reactive-resume-dev-migration", "reactive-resume-dev-object-storage-ca",
-                "reactive-resume-dev-postgresql-ca", "reactive-resume-dev-runtime", "reactive-resume-dev-tls",
-            ))
+            and binding.get("dependency_names") == sorted(EXPECTED_DEPENDENCY_DATA_KEYS)
+            and binding.get("dependency_data_keys") == EXPECTED_DEPENDENCY_DATA_KEYS
             and _strict_true(binding.get("workload_dependencies_ready"))
             and _strict_true(binding.get("exact_application_source_contract"))
             and binding.get("revision") == EXPECTED_REVISION

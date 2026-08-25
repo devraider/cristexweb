@@ -14,6 +14,7 @@
     - reactive_resume_dev_argocd_registration_internal_argocd_namespace
     - reactive_resume_dev_argocd_registration_internal_repository_secret
     - reactive_resume_dev_argocd_registration_internal_dependency_states
+    - reactive_resume_dev_argocd_registration_internal_dependency_data_keys
     - reactive_resume_dev_argocd_registration_internal_handoff_deployments
     - reactive_resume_dev_argocd_registration_internal_prestate
     - reactive_resume_dev_argocd_registration_internal_handoff_prestate
@@ -207,7 +208,6 @@
     namespace: '{{ item.namespace }}'
     name: '{{ item.name }}'
     kubeconfig: '{{ reactive_resume_dev_argocd_registration_kubeconfig }}'
-    hidden_fields: '{{ item.hidden_fields }}'
   loop: '{{ reactive_resume_dev_argocd_registration_dependency_contracts }}'
   register: reactive_resume_dev_argocd_registration_internal_dependency_states
   changed_when: false
@@ -254,11 +254,20 @@
       - (item.resources[0].metadata.annotations | default({})).keys() | list | sort == item.item.annotation_keys | sort
       - item.resources[0].metadata.annotations['secrets.infisical.com/version'] | length > 0
       - item.item.type is not defined or item.resources[0].type == item.item.type
-      - item.resources[0].data is not defined
+      - (item.resources[0].data | default({})).keys() | list | sort == item.item.data_keys | sort
       - item.resources[0].stringData is not defined
       - item.resources[0].binaryData is not defined
     fail_msg: Refusing RR DEV registration until every exact Infisical-owned Secret/CA/pull/TLS dependency is ready and value payloads remain suppressed.
   loop: '{{ reactive_resume_dev_argocd_registration_internal_dependency_states.results }}'
+  changed_when: false
+  no_log: true
+
+- name: Bind exact RR dependency data-key closure without values
+  ansible.builtin.set_fact:
+    reactive_resume_dev_argocd_registration_internal_dependency_data_keys: >-
+      {{ (reactive_resume_dev_argocd_registration_internal_dependency_data_keys | default({})) |
+         combine({item.name: item.data_keys}) }}
+  loop: '{{ reactive_resume_dev_argocd_registration_dependency_contracts }}'
   changed_when: false
   no_log: true
 
@@ -460,6 +469,7 @@
       repository_contract: true
       dependency_count: '{{ reactive_resume_dev_argocd_registration_internal_dependency_states.results | length }}'
       dependency_names: '{{ reactive_resume_dev_argocd_registration_internal_dependency_states.results | map(attribute="item.name") | list | sort }}'
+      dependency_data_keys: '{{ reactive_resume_dev_argocd_registration_internal_dependency_data_keys }}'
       workload_dependencies_ready: true
       exact_application_source_contract: true
       revision: '{{ reactive_resume_dev_argocd_registration_revision }}'
