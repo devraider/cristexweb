@@ -148,8 +148,38 @@
         item.resources | length == 0 or
         (item.item.kind == 'Role' and
          item.resources[0].rules == item.item.rules) or
-        (item.item.kind != 'Role' and item.item.kind != 'InfisicalStaticSecret' and
+        (item.item.kind == 'RoleBinding' and
+         item.resources[0].roleRef == item.item.roleRef and
+         item.resources[0].subjects == item.item.subjects) or
+        (item.item.kind not in ['Role', 'RoleBinding', 'ValidatingAdmissionPolicy', 'InfisicalStaticSecret'] and
          item.resources[0].spec == item.item.spec) or
+        (item.item.kind == 'ValidatingAdmissionPolicy' and
+         item.resources[0].spec.failurePolicy == item.item.spec.failurePolicy and
+         item.resources[0].spec.matchConstraints.resourceRules ==
+           item.item.spec.matchConstraints.resourceRules and
+         (item.resources[0].spec.matchConstraints.excludeResourceRules | default([])) ==
+           (item.item.spec.matchConstraints.excludeResourceRules | default([])) and
+         (item.resources[0].spec.matchConstraints.matchPolicy | default('Equivalent')) ==
+           (item.item.spec.matchConstraints.matchPolicy | default('Equivalent')) and
+         (item.resources[0].spec.matchConstraints.namespaceSelector | default({})) ==
+           (item.item.spec.matchConstraints.namespaceSelector | default({})) and
+         (item.resources[0].spec.matchConstraints.objectSelector | default({})) ==
+           (item.item.spec.matchConstraints.objectSelector | default({})) and
+         (item.resources[0].spec.matchConditions | default([])) ==
+           (item.item.spec.matchConditions | default([])) and
+         item.resources[0].spec.validations | length == 1 and
+         item.resources[0].spec.validations[0].reason == item.item.spec.validations[0].reason and
+         (item.resources[0].spec.validations == item.item.spec.validations or
+          (item.item.metadata.name == 'reactive-resume-dev-ca-source-boundary' and
+           item.resources[0].spec.validations[0].message ==
+             'Only the exact Reactive Resume DEV CA StaticSecret source is allowed.' and
+           (item.resources[0].spec.validations[0].expression | hash('sha256')) ==
+             '6c1138e599da62ca9fbbd50a4feef2b0008b987e40848cdccc836d3a41facc83') or
+          (item.item.metadata.name == 'reactive-resume-dev-ca-target-boundary' and
+           item.resources[0].spec.validations[0].message ==
+             'Only the Infisical controller may write the exact Reactive Resume DEV CA target contracts.' and
+           (item.resources[0].spec.validations[0].expression | hash('sha256')) ==
+             'f1dfc3ffe1e88045bba3db62c1a8aeb0f5f96398c777ac5d8065a75a5df6f7b0'))) or
         (item.item.kind == 'InfisicalStaticSecret' and
          (item.resources[0].spec == item.item.spec or
           (item.resources[0].spec | length == 4 and
