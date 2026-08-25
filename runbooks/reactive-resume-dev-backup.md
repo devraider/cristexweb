@@ -154,11 +154,13 @@ DEV prefixes:
 The helper produces a sorted value-free object manifest containing every key,
 size, and SHA-256 checksum (plus available MD5 values), verifies every copied
 object against that manifest before archiving, and then creates an encrypted
-`object-storage.tar.gz.age`. Its dedicated NetworkPolicy selects only the
-run-labelled backup helper and permits egress solely to kube-system CoreDNS on
-TCP/UDP 53, the shared-services CNPG primary on TCP 5432, and the shared-services
-Reactive Resume object-storage pods on TCP 8333; each destination uses exact
-namespace and pod selectors. Restore validates every manifest key before any
+`object-storage.tar.gz.age`. Its dedicated NetworkPolicies are created per run and select only the exact
+run-labelled backup helper; each policy UID is captured and used as a deletion
+precondition. Egress is permitted solely to kube-system CoreDNS on TCP/UDP 53,
+the shared-services CNPG primary on TCP 5432, and the shared-services Reactive
+Resume object-storage pods on TCP 8333; each destination uses exact namespace and
+pod selectors. The committed static policy is an inert `never-match` source
+placeholder, so it cannot widen access between runs. Restore validates every manifest key before any
 extracted-object filesystem read: only the three reviewed prefixes are allowed,
 with no absolute path, traversal component, backslash, NUL, or root escape.
 A successful acceptance backup refuses an empty bucket: both `object_count` and
@@ -200,11 +202,16 @@ bytes greater than zero, then deletes only the exact run-labelled Pods and
 NetworkPolicies using UID preconditions and `Orphan` propagation. Cleanup errors fail the operation rather than being suppressed. The production StatefulSet, PVC, bucket, and remote
 archive remain untouched.
 
-A successful rehearsal emits only:
+A successful rehearsal emits only the exact schema-2 sanitized receipt:
 
 ```text
-restore_status=success source_run_id=<timestamp> backup_duration_seconds=<n> restore_duration_seconds=<n> rpo_seconds=<n> postgres_catalog_table_count=<n> object_count=<n> object_bytes=<n> checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none
+restore_status=success schema=2 source_run_id=<timestamp> backup_completed_epoch=<n> backup_duration_seconds=<n> restore_duration_seconds=<n> rto_seconds=<n> rpo_seconds=<n> postgres_archive_sha256=<sha256> object_archive_sha256=<sha256> postgres_logical_entry_count=<n> postgres_logical_table_count=<n> postgres_logical_archive_bytes=<n> postgres_catalog_table_count=<n> object_count=<n> object_bytes=<n> checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none
 ```
+
+The receipt is persisted verbatim inside root-owned mode-`0600` machine evidence,
+with the source-contract, wrapper, and playbook hashes that were checked by the
+current guarded preflight. Restore has a fixed 14,400-second overall wall-clock
+cutoff; timeout or cleanup failure is a failed rehearsal.
 
 `rpo_seconds` is the measured age of the selected backup's completion timestamp
 at restore completion; `restore_duration_seconds` is the measured

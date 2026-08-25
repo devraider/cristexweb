@@ -521,10 +521,15 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         ):
             self.assertIn(value, self.restore, value)
         self.assertIn(
-            "backup_duration_seconds=[0-9]+ restore_duration_seconds=[0-9]+ rpo_seconds=[0-9]+",
+            "backup_completed_epoch=[0-9]+ backup_duration_seconds=[0-9]+ restore_duration_seconds=[0-9]+ rto_seconds=[0-9]+ rpo_seconds=[0-9]+",
             self.playbook_text,
         )
         self.assertIn("object_count=[1-9][0-9]* object_bytes=[1-9][0-9]*", self.playbook_text)
+        self.assertIn("--kill-after=30s", self.playbook_text)
+        self.assertIn('reactive_resume_dev_backup_restore_timeout_seconds: 14400', self.playbook_text)
+        self.assertIn("source_contract_sha256 == reactive_resume_dev_backup_source_contract_sha256", self.playbook_text)
+        self.assertIn("wrapper_sha256 == reactive_resume_dev_backup_wrapper_sha256", self.playbook_text)
+        self.assertIn("playbook_sha256 == reactive_resume_dev_backup_playbook_sha256", self.playbook_text)
 
     def test_combined_run_id_and_exact_sources(self) -> None:
         for value in (
@@ -657,6 +662,12 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "fail pg_restore_policy_uid",
             "fail storage_restore_policy_uid",
             "target=isolated-emptydir-postgresql-and-seaweedfs",
+            "restore_wall_clock_timeout_seconds=14400",
+            "backup_completed_epoch=",
+            "rto_seconds=",
+            "postgres_archive_sha256=",
+            "postgres_logical_entry_count=",
+            "stop_restore_watchdog",
             "seaweed_image",
             "emptyDir",
         ):
@@ -668,6 +679,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         policy = next(item for item in policies if item["metadata"]["name"] == "reactive-resume-object-storage-allow-backup")
         egress_policy = next(item for item in policies if item["metadata"]["name"] == "reactive-resume-dev-backup-egress")
         self.assertEqual("shared-services", policy["metadata"]["namespace"])
+        self.assertEqual("never-match", policy["spec"]["podSelector"]["matchLabels"]["cristex.io/run-id"])
+        self.assertEqual("never-match", policy["spec"]["ingress"][0]["from"][0]["podSelector"]["matchLabels"]["cristex.io/run-id"])
+        self.assertEqual("never-match", egress_policy["spec"]["podSelector"]["matchLabels"]["cristex.io/run-id"])
         self.assertEqual(
             {
                 "kubernetes.io/metadata.name": "shared-services",
@@ -678,6 +692,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             {
                 "app.kubernetes.io/name": "reactive-resume-dev-backup",
                 "cristex.io/object-storage-client": "backup",
+                "cristex.io/run-id": "never-match",
             },
             policy["spec"]["ingress"][0]["from"][0]["podSelector"]["matchLabels"],
         )
@@ -686,6 +701,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             {
                 "app.kubernetes.io/name": "reactive-resume-dev-backup",
                 "cristex.io/object-storage-client": "backup",
+                "cristex.io/run-id": "never-match",
             },
             egress_policy["spec"]["podSelector"]["matchLabels"],
         )
@@ -717,6 +733,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             egress_policy["spec"]["egress"],
         )
         self.assertIn("reactive-resume-dev-backup-networkpolicy.yaml", self.playbook_text)
+        self.assertIn("helper-networkpolicy.yaml", self.backup)
+        self.assertIn("helper_ingress_policy_uid", self.backup)
+        self.assertIn("helper_egress_policy_uid", self.backup)
         self.assertIn("reactive-resume-dev-postgresql-restore-$pod_run_id", self.restore)
         self.assertIn("reactive-resume-dev-storage-restore-$pod_run_id", self.restore)
         self.assertIn("ingress: []", self.restore)
@@ -799,9 +818,17 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "receipt': reactive_resume_dev_backup_test_receipt",
             "Record root-owned successful restore evidence",
             "source_run_id == reactive_resume_dev_backup_acceptance_backup.run_id",
+            "acceptance_restore.schema == 2",
+            "acceptance_restore.receipt is match(reactive_resume_dev_backup_restore_receipt_pattern)",
+            "acceptance_restore.source_contract_sha256 == reactive_resume_dev_backup_source_contract_sha256",
+            "source_contract_sha256",
             "acceptance_backup.receipt is match(reactive_resume_dev_backup_journal_pattern)",
             "reactive_resume_dev_backup_acceptance_max_age_seconds: 86400",
             "reactive_resume_dev_backup_mode == 'enable'",
+            "Roll back the timer after failed post-enable health",
+            "Roll back a partially enabled timer",
+            "Timer health acceptance failed; the timer was disabled and stopped.",
+            "Timer enable failed; the timer was disabled and stopped.",
             "not ansible_check_mode",
             "failed_when: false",
             "Extract only the allowlisted restore failure stage",

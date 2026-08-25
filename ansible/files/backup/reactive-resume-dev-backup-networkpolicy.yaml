@@ -13,6 +13,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: reactive-resume-object-storage
       app.kubernetes.io/part-of: reactive-resume
+      cristex.io/run-id: never-match
   policyTypes:
     - Ingress
   ingress:
@@ -24,6 +25,7 @@ spec:
             matchLabels:
               app.kubernetes.io/name: reactive-resume-dev-backup
               cristex.io/object-storage-client: backup
+              cristex.io/run-id: never-match
       ports:
         - protocol: TCP
           port: 8333
@@ -43,6 +45,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: reactive-resume-dev-backup
       cristex.io/object-storage-client: backup
+      cristex.io/run-id: never-match
   policyTypes:
     - Egress
   egress:

@@ -112,6 +112,25 @@ backup_success=false
 /usr/bin/install -d -m 0700 "$run_directory"
 helper_pod=reactive-resume-dev-backup-$pod_run_id
 helper_uid=
+helper_ingress_policy=reactive-resume-object-storage-allow-backup-$pod_run_id
+helper_egress_policy=reactive-resume-dev-backup-egress-$pod_run_id
+helper_ingress_policy_uid=
+helper_egress_policy_uid=
+cleanup_policy() {
+  name=$1
+  uid=$2
+  expected_component=$3
+  [ -n "$name" ] || return 0
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  [ -n "$current_uid" ] || return 0
+  current_component=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" -o jsonpath='{.metadata.labels.cristex\\.io/component}') || return 1
+  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" -o jsonpath='{.metadata.labels.cristex\\.io/run-id}') || return 1
+  [ "$current_uid" = "$uid" ] && [ "$current_component" = "$expected_component" ] && [ "$current_run_id" = "$pod_run_id" ] || return 1
+  /usr/bin/printf '{"kind":"DeleteOptions","apiVersion":"v1","preconditions":{"uid":"%s"}}\\n' "$uid" >"$work/delete-policy-$name.json"
+  /usr/local/bin/kubectl delete --raw "/apis/networking.k8s.io/v1/namespaces/$namespace/networkpolicies/$name" -f "$work/delete-policy-$name.json" >/dev/null || return 1
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  [ -z "$current_uid" ]
+}
 cleanup_helper() {
   [ -n "${helper_pod:-}" ] || return 0
   current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
@@ -140,6 +159,8 @@ cleanup_plaintext() {
   trap - EXIT HUP INT TERM
   cleanup_status=0
   cleanup_helper || cleanup_status=1
+  cleanup_policy "${helper_ingress_policy:-}" "${helper_ingress_policy_uid:-}" backup-networkpolicy || cleanup_status=1
+  cleanup_policy "${helper_egress_policy:-}" "${helper_egress_policy_uid:-}" backup-networkpolicy || cleanup_status=1
   /usr/bin/rm -f -- "$work/reactive-resume-dev.dump" "$work/postgresql-size.raw" "$work/raw-manifest.json" "$work/object-manifest.json" "$work/object-storage.tar.gz" "$work/postgresql.dump.gz" || cleanup_status=1
   if [ "$backup_success" = true ]; then
     /usr/bin/rm -rf -- "$work" || cleanup_status=1
@@ -155,6 +176,69 @@ trap cleanup_plaintext EXIT HUP INT TERM
 /usr/bin/chmod 0700 "$work"
 
 # Export objects through the S3 API using a temporary, service-account-free Pod.
+cat >"$work/helper-networkpolicy.yaml" <<EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: $helper_ingress_policy
+  namespace: $namespace
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev-backup
+    cristex.io/object-storage-client: backup
+    cristex.io/component: backup-networkpolicy
+    cristex.io/run-id: $pod_run_id
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: reactive-resume-object-storage
+      app.kubernetes.io/part-of: reactive-resume
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: shared-services}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: reactive-resume-dev-backup
+              cristex.io/object-storage-client: backup
+              cristex.io/run-id: $pod_run_id
+      ports: [{protocol: TCP, port: 8333}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: $helper_egress_policy
+  namespace: $namespace
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev-backup
+    cristex.io/object-storage-client: backup
+    cristex.io/component: backup-networkpolicy
+    cristex.io/run-id: $pod_run_id
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: reactive-resume-dev-backup
+      cristex.io/object-storage-client: backup
+      cristex.io/run-id: $pod_run_id
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+          podSelector: {matchLabels: {k8s-app: kube-dns}}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: shared-services}}
+          podSelector: {matchLabels: {cnpg.io/cluster: shared-postgresql, cnpg.io/instanceRole: primary}}
+      ports: [{protocol: TCP, port: 5432}]
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: shared-services}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: reactive-resume-object-storage, app.kubernetes.io/part-of: reactive-resume}}
+      ports: [{protocol: TCP, port: 8333}]
+EOF
+/usr/local/bin/kubectl apply -f "$work/helper-networkpolicy.yaml" >/dev/null
+helper_ingress_policy_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$helper_ingress_policy" -o jsonpath='{.metadata.uid}')
+helper_egress_policy_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$helper_egress_policy" -o jsonpath='{.metadata.uid}')
+[ -n "$helper_ingress_policy_uid" ] && [ -n "$helper_egress_policy_uid" ] || fail helper_networkpolicy_uid
 cat >"$work/helper.yaml" <<EOF
 apiVersion: v1
 kind: Pod

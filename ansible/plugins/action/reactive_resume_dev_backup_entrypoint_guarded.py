@@ -20,7 +20,7 @@ _EXPECTED_TASK_SOURCE = str(
 _EXPECTED_TASK_NAME = "Mark the complete guarded backup preflight"
 _EXPECTED_TASK_ACTION = "reactive_resume_dev_backup_entrypoint_guarded"
 _PLAYBOOK_SOURCE = _REPOSITORY_ROOT / "ansible/playbooks/configure_reactive_resume_dev_backup.yml"
-_PLAYBOOK_CANONICAL_SHA256 = "3a1aa67ed94e7e7f4831ff2c8a2734924663d5753ed77c952b5e29c0e981c942"
+_PLAYBOOK_CANONICAL_SHA256 = "a8ad42ff174da338b704c14eb27c33295088da230b3a70593fb48e8c1d7583c1"
 _EXPECTED_SOURCE_REGISTER = "reactive_resume_dev_backup_source_states"
 _SELF_SOURCE_SHA256 = "__SELF_SOURCE_SHA256__"
 _WRAPPER_SOURCE_SHA256 = "__WRAPPER_SOURCE_SHA256__"
@@ -48,12 +48,12 @@ _EXPECTED_SOURCE_RESULTS = (
     {
         "path": "ansible/files/backup/reactive-resume-dev-backup",
         "mode": "0755",
-        "sha256": "b92f0696f70550c14661a2e6cd0c899f4349ac4d0c6da0cc95ebc192a8e846b1",
+        "sha256": "5544f4ed635546edb294242f3b1feaa6b64358f8f5474a51ce2962fbb87a35c0",
     },
     {
         "path": "ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal",
         "mode": "0755",
-        "sha256": "23bb8842a5d609f15a64f011c69665b7a6b330bfcce34ee2dacc58af0b60a5a6",
+        "sha256": "e1f35dfa1b7f99410a1977c056d1ee8a676ce6263d0c363345d281275e8c125f",
     },
     {
         "path": "ansible/files/backup/cristexweb-reactive-resume-dev-backup.service",
@@ -68,12 +68,10 @@ _EXPECTED_SOURCE_RESULTS = (
     {
         "path": "ansible/files/backup/reactive-resume-dev-backup-networkpolicy.yaml",
         "mode": "0644",
-        "sha256": "7469f12bbbfa80e4b53b3d04eed58d67694cb5bc304060095629e7a009f270d2",
+        "sha256": "4bfdf41939c1a6f3312c3f703c235efe14959fb1062c5573f16e8d337e1d1ec6",
     },
 )
-_SOURCE_CONTRACT_SHA256 = hashlib.sha256(
-    json.dumps(_EXPECTED_SOURCE_RESULTS, sort_keys=True, separators=(",", ":")).encode()
-).hexdigest()
+_SOURCE_CONTRACT_SHA256 = "5f0ff89c31f2de764b9e9c6b526bb56c50f819516e05d6c080b65ff7c9ff5357"
 _EXPECTED_BINDING = {
     "schema": 1,
     "task_source": "ansible/playbooks/configure_reactive_resume_dev_backup.yml",

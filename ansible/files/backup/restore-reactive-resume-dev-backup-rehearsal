@@ -150,6 +150,7 @@ cleanup_policy() {
 }
 cleanup() {
   trap - EXIT HUP INT TERM
+  stop_restore_watchdog || true
   cleanup_status=0
   cleanup_pod "${pg_pod:-}" "${pg_uid:-}" reactive-resume-dev-postgresql-restore || cleanup_status=1
   cleanup_pod "${storage_pod:-}" "${storage_uid:-}" reactive-resume-dev-storage-restore || cleanup_status=1
@@ -164,7 +165,29 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 /usr/bin/chmod 0700 "$work"
 restore_start_epoch=$(/usr/bin/date +%s)
-
+restore_wall_clock_timeout_seconds=14400
+# The guarded Ansible command also applies this deadline externally. This local
+# deadline makes direct script execution fail closed rather than running without
+# an overall RTO bound.
+restore_deadline=$(( restore_start_epoch + restore_wall_clock_timeout_seconds ))
+restore_watchdog() {
+  while :; do
+    now=$(/usr/bin/date +%s) || exit 124
+    [ "$now" -lt "$restore_deadline" ] || {
+      kill -TERM "$$" 2>/dev/null || true
+      exit 124
+    }
+    /usr/bin/sleep 5 || exit 124
+  done
+}
+restore_watchdog &
+restore_watchdog_pid=$!
+stop_restore_watchdog() {
+  [ -n "${restore_watchdog_pid:-}" ] || return 0
+  /bin/kill "$restore_watchdog_pid" 2>/dev/null || true
+  /usr/bin/wait "$restore_watchdog_pid" 2>/dev/null || true
+  restore_watchdog_pid=
+}
 # Select only a complete timestamp directory; partial immutable uploads are ignored.
 /usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" >"$work/candidates.raw" || fail remote_catalog
 /usr/bin/python3 - "$work/candidates.raw" "$work/candidates" <<'PY'
@@ -823,6 +846,7 @@ case "$rpo_seconds" in
 esac
 [ "$rpo_seconds" -le "$declared_rpo_seconds" ] || fail rpo_exceeded
 [ "$restore_duration_seconds" -le "$declared_rto_seconds" ] || fail rto_exceeded
+rto_seconds=$restore_duration_seconds
 cleanup
 trap - EXIT HUP INT TERM
-printf 'restore_status=success source_run_id=%s backup_duration_seconds=%s restore_duration_seconds=%s rpo_seconds=%s postgres_catalog_table_count=%s object_count=%s object_bytes=%s checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none\n' "$run_id" "$backup_duration_seconds" "$restore_duration_seconds" "$rpo_seconds" "$pg_table_count" "$actual_count" "$actual_total"
+printf 'restore_status=success schema=2 source_run_id=%s backup_completed_epoch=%s backup_duration_seconds=%s restore_duration_seconds=%s rto_seconds=%s rpo_seconds=%s postgres_archive_sha256=%s object_archive_sha256=%s postgres_logical_entry_count=%s postgres_logical_table_count=%s postgres_logical_archive_bytes=%s postgres_catalog_table_count=%s object_count=%s object_bytes=%s checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none\n' "$run_id" "$backup_completed_epoch" "$backup_duration_seconds" "$restore_duration_seconds" "$rto_seconds" "$rpo_seconds" "$pg_actual_sha256" "$object_actual_sha256" "$restored_pg_logical_entry_count" "$restored_pg_logical_table_count" "$expected_pg_logical_bytes" "$pg_table_count" "$actual_count" "$actual_total"
