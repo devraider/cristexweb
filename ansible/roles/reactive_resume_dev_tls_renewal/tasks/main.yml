@@ -119,6 +119,8 @@
   ansible.builtin.stat:
     path: "{{ reactive_resume_dev_tls_renewal_infisical_cli }}"
     follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
   register: reactive_resume_dev_tls_renewal_internal_infisical_state
   changed_when: false
   no_log: true
@@ -130,8 +132,11 @@
       - not (reactive_resume_dev_tls_renewal_internal_infisical_state.stat.islnk | default(false))
       - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.pw_name == 'paul'
       - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.gr_name == 'paul'
-      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.mode == '0775'
-    fail_msg: Refusing a missing or unsafe pinned Infisical CLI.
+      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.mode == '0755'
+      - >-
+        reactive_resume_dev_tls_renewal_internal_infisical_state.stat.checksum ==
+        reactive_resume_dev_tls_renewal_infisical_cli_sha256
+    fail_msg: Refusing a missing, unsafe, or hash-drifted pinned Infisical CLI.
   changed_when: false
   no_log: true
 

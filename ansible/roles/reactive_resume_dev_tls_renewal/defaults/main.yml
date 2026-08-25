@@ -18,7 +18,7 @@ reactive_resume_dev_tls_renewal_manifest_path: >-
 reactive_resume_dev_tls_renewal_manifest_sha256: ab10fd5fc7d49917c0be070286ab316285b982d076ce7a8eaff8c4b1970d7766
 # This is the only digest literal normalized when hashing this self-referential
 # defaults file. Every other source pin remains part of the normalized digest.
-reactive_resume_dev_tls_renewal_defaults_self_hash: 19b1c1832415c17a299e254989a26ef8cabf634303919c7d255b58bb25f02928
+reactive_resume_dev_tls_renewal_defaults_self_hash: 92c08c09a59457015a05f65ffea2cf702f78bc2130681907c128a330ff27de34
 reactive_resume_dev_tls_renewal_source_hashes:
   - path: >-
       {{ reactive_resume_dev_tls_renewal_component_root }}/validate-reactive-resume-dev-tls-material
@@ -52,14 +52,15 @@ reactive_resume_dev_tls_renewal_execution_source_hashes:
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/roles/reactive_resume_dev_tls_renewal/tasks/main.yml
     mode: '0644'
-    sha256: aeaf48d59dddc0d88f8c8cf2689d8c2d9502a02c14c7b6722169147ead5beeb0
+    sha256: f708d13ce7a566b92a93114e7de1f61f779673bd44a8e0a14310205043efc76e
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml
     mode: '0644'
     normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash
-    sha256: 19b1c1832415c17a299e254989a26ef8cabf634303919c7d255b58bb25f02928
+    sha256: 92c08c09a59457015a05f65ffea2cf702f78bc2130681907c128a330ff27de34
 reactive_resume_dev_tls_renewal_certbot_package_version: '4.0.0-2+deb13u1'
 reactive_resume_dev_tls_renewal_dns_cloudflare_package_version: '4.0.0-1'
 reactive_resume_dev_tls_renewal_certbot_version: '4.0.0'
 reactive_resume_dev_tls_renewal_infisical_cli_version: '0.43.121'
+reactive_resume_dev_tls_renewal_infisical_cli_sha256: 21e24f040a09196fb1214873ef964ac74655b172575a78fd95e6c9f2ab1c8940
 reactive_resume_dev_tls_renewal_certbot_path: /usr/bin/certbot

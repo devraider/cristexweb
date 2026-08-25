@@ -160,6 +160,9 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "reactive_resume_dev_tls_renewal_certbot_package_version",
             "reactive_resume_dev_tls_renewal_dns_cloudflare_package_version",
             "reactive_resume_dev_tls_renewal_infisical_cli_version",
+            "reactive_resume_dev_tls_renewal_infisical_cli_sha256",
+            "checksum_algorithm: sha256",
+            "stat.mode == '0755'",
             "Verify pinned Certbot CLI provenance",
             "Verify pinned Infisical CLI provenance",
             "mode == '0600'",
@@ -195,6 +198,7 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         self.assertIn("4.0.0-2+deb13u1", defaults)
         self.assertIn("4.0.0-1", defaults)
         self.assertIn("0.43.121", defaults)
+        self.assertIn("21e24f040a09196fb1214873ef964ac74655b172575a78fd95e6c9f2ab1c8940", defaults)
 
     def test_manifest_hashes_and_runbook(self) -> None:
         manifest = (COMPONENT / "MANIFESTS.sha256").read_text().splitlines()
