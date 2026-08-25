@@ -17,11 +17,11 @@ infisical_reactive_resume_dev_ca_bootstrap_expected_hashes:
   - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-source-boundary-binding.yaml'
     sha256: f461bd188d03f1c9ced7ecd830e6dea14cbfd131d979f9426762b6e431e348f2
   - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-source-boundary.yaml'
-    sha256: 72546b4e67ecb56c13c027d6e7a62b792f1a3e01ebd44e7f125b4bd85c87be20
+    sha256: 8f25cf0211b5e5a329270ce360132982d603be0f290b228d0be34e41e5800646
   - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-target-boundary-binding.yaml'
     sha256: 8921ee01b9cf02a5b33eff2616b1aa15b68b4873503570f0aac608d189a093e5
   - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-target-boundary.yaml'
-    sha256: 6ad5d254748c45d5423ee6a69a7f2d49486c8571fbdb17565e10f645ad99c321
+    sha256: df8b3eced10261835102c46d1da81ceefc62104ec55881f260095f0a18bc3c49
   - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/rbac/reactive-resume-dev-ca-secret-writer-role.yaml'
     sha256: c23a7efe475aa791f20c5d6007fdcf87b8d64d02d585efc99656f2fd574237c2
   - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/rbac/reactive-resume-dev-ca-secret-writer-rolebinding.yaml'

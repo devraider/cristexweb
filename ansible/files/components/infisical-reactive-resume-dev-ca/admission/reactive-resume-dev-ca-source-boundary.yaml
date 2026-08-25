@@ -25,20 +25,23 @@ spec:
         object.metadata.name == 'reactive-resume-dev-ca' && object.metadata.labels.size() == 4 &&
         object.metadata.labels['app.kubernetes.io/managed-by'] == 'ansible' && object.metadata.labels['app.kubernetes.io/part-of'] == 'reactive-resume' &&
         object.metadata.labels['cristex.io/component'] == 'infisical-reactive-resume-dev-ca' && object.metadata.labels['cristex.io/environment'] == 'dev' &&
-        object.spec.infisicalAuthRef.name == 'cristexhub-dev-infisical-auth' && object.spec.infisicalAuthRef.namespace == 'cristexhub-dev' &&
-        object.spec.sources.size() == 1 &&
+        object.spec.size() == 4 &&
+        object.spec.infisicalAuthRef.size() == 2 && object.spec.infisicalAuthRef.name == 'cristexhub-dev-infisical-auth' && object.spec.infisicalAuthRef.namespace == 'cristexhub-dev' &&
+        object.spec.syncOptions.size() == 2 && object.spec.syncOptions.refreshInterval == '1h' && object.spec.syncOptions.instantUpdates == false &&
+        object.spec.sources.size() == 1 && object.spec.sources[0].size() == 5 &&
         object.spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326' &&
         object.spec.sources[0].environmentSlug == 'prod' &&
         object.spec.sources[0].secretPath == '/reactive-resume/dev/object-storage-tls' &&
         object.spec.sources[0].recursive == false && object.spec.sources[0].tagSlugs.size() == 0 &&
         object.spec.targets.size() == 2 &&
-        object.spec.targets[0].name == 'reactive-resume-dev-postgresql-ca' &&
-        object.spec.targets[0].kind == 'ConfigMap' &&
-        object.spec.targets[0].template.data.size() == 1 &&
-        object.spec.targets[0].template.data['ca.crt'] == '{{ .POSTGRESQL_CA_CRT.Value }}' &&
-        object.spec.targets[1].name == 'reactive-resume-dev-object-storage-ca' &&
-        object.spec.targets[1].kind == 'Secret' &&
-        object.spec.targets[1].template.data.size() == 1 &&
-        object.spec.targets[1].template.data['ca.crt'] == '{{ .STORAGE_TLS_CA_CRT.Value }}'
+        object.spec.targets[0].size() == 6 && object.spec.targets[0].name == 'reactive-resume-dev-postgresql-ca' &&
+        object.spec.targets[0].namespace == 'cristexhub-dev' && object.spec.targets[0].kind == 'ConfigMap' && object.spec.targets[0].creationPolicy == 'Orphan' &&
+        object.spec.targets[0].metadata.size() == 2 && object.spec.targets[0].metadata.annotations.size() == 0 && object.spec.targets[0].metadata.labels.size() == 3 &&
+        object.spec.targets[0].metadata.labels['app.kubernetes.io/managed-by'] == 'infisical' && object.spec.targets[0].metadata.labels['app.kubernetes.io/part-of'] == 'reactive-resume' && object.spec.targets[0].metadata.labels['cristex.io/value-owner'] == 'infisical-cloud' &&
+        object.spec.targets[0].template.size() == 2 && object.spec.targets[0].template.engineVersion == 'v1' && object.spec.targets[0].template.data.size() == 1 && object.spec.targets[0].template.data['ca.crt'] == '{{ .POSTGRESQL_CA_CRT.Value }}' &&
+        object.spec.targets[1].size() == 7 && object.spec.targets[1].name == 'reactive-resume-dev-object-storage-ca' && object.spec.targets[1].namespace == 'cristexhub-dev' && object.spec.targets[1].kind == 'Secret' && object.spec.targets[1].secretType == 'Opaque' && object.spec.targets[1].creationPolicy == 'Orphan' &&
+        object.spec.targets[1].metadata.size() == 2 && object.spec.targets[1].metadata.annotations.size() == 0 && object.spec.targets[1].metadata.labels.size() == 3 &&
+        object.spec.targets[1].metadata.labels['app.kubernetes.io/managed-by'] == 'infisical' && object.spec.targets[1].metadata.labels['app.kubernetes.io/part-of'] == 'reactive-resume' && object.spec.targets[1].metadata.labels['cristex.io/value-owner'] == 'infisical-cloud' &&
+        object.spec.targets[1].template.size() == 2 && object.spec.targets[1].template.engineVersion == 'v1' && object.spec.targets[1].template.data.size() == 1 && object.spec.targets[1].template.data['ca.crt'] == '{{ .STORAGE_TLS_CA_CRT.Value }}'
       message: Only the exact Reactive Resume DEV CA StaticSecret source is allowed.
       reason: Forbidden

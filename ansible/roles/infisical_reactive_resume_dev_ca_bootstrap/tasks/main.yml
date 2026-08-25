@@ -146,25 +146,43 @@
         (item.resources[0].metadata.labels | default({})) == (item.item.metadata.labels | default({}))
       - >-
         item.resources | length == 0 or
-        item.item.kind not in ['Role', 'RoleBinding', 'InfisicalStaticSecret'] or
-        item.resources[0].get('spec') == item.item.get('spec') or
-        item.resources[0].get('rules') == item.item.get('rules') or
+        (item.item.kind == 'Role' and
+         item.resources[0].rules == item.item.rules) or
+        (item.item.kind != 'Role' and item.item.kind != 'InfisicalStaticSecret' and
+         item.resources[0].spec == item.item.spec) or
         (item.item.kind == 'InfisicalStaticSecret' and
-         item.resources[0].spec.infisicalAuthRef == item.item.spec.infisicalAuthRef and
-         item.resources[0].spec.syncOptions == item.item.spec.syncOptions and
-         item.resources[0].spec.sources | length == 2 and
-         item.resources[0].spec.sources[0].secretPath == '/shared-services/postgresql' and
-         item.resources[0].spec.sources[1].secretPath == '/reactive-resume/dev/object-storage-tls' and
-         item.resources[0].spec.targets | length == 2 and
-         item.resources[0].spec.targets[0].name == item.item.spec.targets[0].name and
-         item.resources[0].spec.targets[0].namespace == item.item.spec.targets[0].namespace and
-         item.resources[0].spec.targets[0].kind == item.item.spec.targets[0].kind and
-         item.resources[0].spec.targets[0].creationPolicy == item.item.spec.targets[0].creationPolicy and
-         item.resources[0].spec.targets[0].metadata == item.item.spec.targets[0].metadata and
-         item.resources[0].spec.targets[0].template.engineVersion == 'v1' and
-         item.resources[0].spec.targets[0].template.data['ca.crt'] | b64encode ==
-           'e3sgLlBPU1RHUkVTUUxfVExTX0NBX0NSVC5WYWx1ZSB9fQ==' and
-         item.resources[0].spec.targets[1] == item.item.spec.targets[1])
+         (item.resources[0].spec == item.item.spec or
+          (item.resources[0].spec | length == 4 and
+           item.resources[0].spec.infisicalAuthRef | length == 2 and
+           item.resources[0].spec.infisicalAuthRef == item.item.spec.infisicalAuthRef and
+           item.resources[0].spec.syncOptions | length == 2 and
+           item.resources[0].spec.syncOptions.refreshInterval == '1h' and
+           item.resources[0].spec.syncOptions.instantUpdates == false and
+           item.resources[0].spec.sources | length == 2 and
+           item.resources[0].spec.sources[0] | length == 5 and
+           item.resources[0].spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326' and
+           item.resources[0].spec.sources[0].environmentSlug == 'prod' and
+           item.resources[0].spec.sources[0].secretPath == '/shared-services/postgresql' and
+           item.resources[0].spec.sources[0].recursive == false and
+           item.resources[0].spec.sources[0].tagSlugs | length == 0 and
+           item.resources[0].spec.sources[1] | length == 5 and
+           item.resources[0].spec.sources[1].projectId == '619656da-14f3-4872-857b-be103cdc5326' and
+           item.resources[0].spec.sources[1].environmentSlug == 'prod' and
+           item.resources[0].spec.sources[1].secretPath == '/reactive-resume/dev/object-storage-tls' and
+           item.resources[0].spec.sources[1].recursive == false and
+           item.resources[0].spec.sources[1].tagSlugs | length == 0 and
+           item.resources[0].spec.targets | length == 2 and
+           item.resources[0].spec.targets[0] | length == 6 and
+           item.resources[0].spec.targets[0].name == item.item.spec.targets[0].name and
+           item.resources[0].spec.targets[0].namespace == item.item.spec.targets[0].namespace and
+           item.resources[0].spec.targets[0].kind == item.item.spec.targets[0].kind and
+           item.resources[0].spec.targets[0].creationPolicy == item.item.spec.targets[0].creationPolicy and
+           item.resources[0].spec.targets[0].metadata == item.item.spec.targets[0].metadata and
+           item.resources[0].spec.targets[0].template | length == 2 and
+           item.resources[0].spec.targets[0].template.engineVersion == 'v1' and
+           item.resources[0].spec.targets[0].template.data | length == 1 and
+           item.resources[0].spec.targets[0].template.data['ca.crt'] | b64encode == 'e3sgLlBPU1RHUkVTUUxfVExTX0NBX0NSVC5WYWx1ZSB9fQ==' and
+           item.resources[0].spec.targets[1] == item.item.spec.targets[1])))
   loop: '{{ infisical_reactive_resume_dev_ca_bootstrap_internal_prestate.results }}'
   changed_when: false
   no_log: true
