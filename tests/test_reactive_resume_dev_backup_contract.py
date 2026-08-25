@@ -42,6 +42,38 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertNotIn("AGE-SECRET-KEY-", combined)
         self.assertNotRegex(combined, r"(?im)^\s*(?:password|clientsecret|token)\s*[:=]\s*[^$<\n]")
 
+    def test_nonempty_object_and_timing_acceptance_contract(self) -> None:
+        for value in (
+            "object_storage_empty",
+            '[ "$object_count" -gt 0 ] && [ "$total_object_bytes" -gt 0 ]',
+            "backup_duration_seconds=",
+            '"backup_duration_seconds": int(duration)',
+            '"created_at_utc": run_id',
+        ):
+            self.assertIn(value, self.backup, value)
+        for value in (
+            "declared_rpo_seconds=86400",
+            "declared_rto_seconds=14400",
+            "backup_duration_seconds",
+            "restore_duration_seconds",
+            "rpo_seconds",
+            "object_storage_empty",
+            "restored_object_empty",
+            "rpo_exceeded",
+            "rto_exceeded",
+            'run["created_at_utc"] == os.environ["RUN_ID"]',
+            'run["object_storage"]["object_count"] > 0',
+            'run["object_storage"]["total_object_bytes"] > 0',
+            'run["database"]["bytes"] == pg["archive_bytes"]',
+            'run["object_storage"]["bytes"] == obj["archive_bytes"]',
+        ):
+            self.assertIn(value, self.restore, value)
+        self.assertIn(
+            "backup_duration_seconds=[0-9]+ restore_duration_seconds=[0-9]+ rpo_seconds=[0-9]+",
+            self.playbook_text,
+        )
+        self.assertIn("object_count=[1-9][0-9]* object_bytes=[1-9][0-9]*", self.playbook_text)
+
     def test_combined_run_id_and_exact_sources(self) -> None:
         for value in (
             "database=reactive_resume_dev_successor",
@@ -260,6 +292,14 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "isolated SeaweedFS",
             "private_residue=none",
             "PROD has no source",
+            "backup_duration_seconds",
+            "restore_duration_seconds",
+            "rpo_seconds",
+            "non-empty backup",
+            "RPO `86400` seconds (24 hours)",
+            "RTO `14400` seconds (4 hours)",
+            "Exact approved acceptance run sequence",
+            "journalctl -u cristexweb-reactive-resume-dev-backup.service",
         ):
             self.assertIn(value, normalized, value)
         self.assertNotIn("runtime was applied", self.runbook.lower())

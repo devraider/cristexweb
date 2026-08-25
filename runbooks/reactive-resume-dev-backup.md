@@ -12,9 +12,10 @@ approved host apply.
 The scheduler is intentionally one combined service. Each run uses one UTC
 `YYYYmmddTHHMMSSZ` run ID and writes both the PostgreSQL and object-storage
 archives under that exact ID. A value-free `run-manifest.json` binds the two
-archive checksums, byte counts, database name, bucket, object count, and total
-object bytes. This prevents accepting a database archive from one run with
-objects from another.
+archive checksums, byte counts, database name, bucket, object count, total
+object bytes, UTC creation time, and backup duration. This prevents accepting a
+database archive from one run with objects from another and provides the source
+measurement for the restore RPO receipt.
 
 ## Scope and ownership
 
@@ -123,7 +124,9 @@ DEV prefixes:
 
 The helper produces a sorted value-free object manifest containing keys, sizes,
 and available MD5 values, then creates an encrypted `object-storage.tar.gz.age`.
-The raw object export and helper Pod are removed on every exit path. No bucket
+A successful acceptance backup refuses an empty bucket: both `object_count` and
+`total_object_bytes` must be greater than zero. The raw object export and helper
+Pod are removed on every exit path. No bucket
 creation, object deletion, PVC mutation, or raw volume copy is performed by the
 backup; there is no raw volume copy.
 
@@ -143,16 +146,21 @@ orphan cleanup.
 Objects are path-validated before extraction and restored into an isolated SeaweedFS
 Pod with emptyDir data, the pinned SeaweedFS image, the same TLS/auth
 contracts, and a temporary rclone sidecar. A loopback host alias is used only to
-match the service certificate. The restore checks object count and total bytes,
-then deletes only the exact run-labelled Pods using UID preconditions and
-`Orphan` propagation. The production StatefulSet, PVC, bucket, and remote
+match the service certificate. The restore checks object count and total bytes, requiring both to be greater
+than zero, then deletes only the exact run-labelled Pods using UID preconditions
+and `Orphan` propagation. The production StatefulSet, PVC, bucket, and remote
 archive remain untouched.
 
 A successful rehearsal emits only:
 
 ```text
-restore_status=success source_run_id=<timestamp> postgres_catalog_table_count=<n> object_count=<n> object_bytes=<n> checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none
+restore_status=success source_run_id=<timestamp> backup_duration_seconds=<n> restore_duration_seconds=<n> rpo_seconds=<n> postgres_catalog_table_count=<n> object_count=<n> object_bytes=<n> checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none
 ```
+
+`rpo_seconds` is the measured age of the selected UTC backup at restore
+completion; `restore_duration_seconds` is the measured isolated-rehearsal
+runtime. The checked targets are RPO `86400` seconds (24 hours) and RTO `14400`
+seconds (4 hours); the restore refuses a receipt outside either bound.
 
 No archive contents, Secret values, tokens, credentials, age identity, or
 Authorization headers are printed.
@@ -169,8 +177,54 @@ and evidence:
 4. one successful combined backup with immutable Drive readback;
 5. one successful combined isolated restore with zero private residue;
 6. private application S3 upload/read/delete and PostgreSQL login validation;
-7. measured RPO/RTO and at least one multi-run correlation check; and
-8. final idempotent scheduler apply.
+7. a successful non-empty backup and isolated restore with measured
+   `backup_duration_seconds`, `restore_duration_seconds`, and `rpo_seconds`;
+8. measured RPO/RTO within 24-hour/4-hour targets and at least one multi-run
+   correlation check; and
+9. final idempotent scheduler apply.
+
+## Exact approved acceptance run sequence (not executed by this source-only change)
+
+The operator must separately approve each wrapper invocation and must not paste
+or capture credentials. Run these in order from the canonical checkout:
+
+```text
+# source-only validation
+.venv/bin/python -m unittest tests.test_reactive_resume_dev_backup_contract
+sh -n ansible/files/backup/reactive-resume-dev-backup
+sh -n ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal
+
+# install/check, then separately approved apply and idempotence
+ansible/bin/configure-reactive-resume-dev-backup check
+ansible/bin/configure-reactive-resume-dev-backup apply
+ansible/bin/configure-reactive-resume-dev-backup apply
+
+# separately approved non-empty combined backup; retain only the sanitized receipt
+ansible/bin/configure-reactive-resume-dev-backup test
+journalctl -u cristexweb-reactive-resume-dev-backup.service -n 1 -o cat --no-pager
+
+# create a one-use mode-0600 attestation containing only <token>:restore,
+# export the wrapper's approved restore variables without displaying them,
+# then run the isolated combined restore
+ansible/bin/configure-reactive-resume-dev-backup restore
+
+# separately verify zero exact temporary Pods and no private staging residue;
+# record only the sanitized restore receipt and measured RPO/RTO.
+# Repeat test + restore once more only for multi-run correlation approval.
+
+# enable only after non-empty backup, restore, RPO/RTO, cleanup, and correlation pass
+ansible/bin/configure-reactive-resume-dev-backup enable-check
+ansible/bin/configure-reactive-resume-dev-backup enable-apply
+ansible/bin/configure-reactive-resume-dev-backup enable-check
+```
+
+The restore attestation file and token are operator inputs and must never appear
+in shell history, chat, plans, logs, or evidence. The `journalctl` receipt must
+be reviewed for only the allowlisted `backup_status=success` fields; never use
+`kubectl get secret`, `infisical secrets get`, `env`, or debug tracing that could
+print values. Capture wall-clock start/end separately if an external evidence
+record is required, while treating the script's sanitized duration and RPO
+fields as the canonical measurements.
 
 Remote retention, independent Google-account recovery, destructive restore,
 production activation, PROD backup scopes, and public exposure remain blocked.

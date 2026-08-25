@@ -18,6 +18,8 @@ rclone_image='rclone/rclone:1.71.1@sha256:e99b4361672a8e5b41b557979b780a85797aef
 remote_root=drive:cristexweb-recovery/reactive-resume/dev
 rclone_config=/home/paul/.config/rclone/rclone.conf
 lock_file=/run/lock/cristexweb-reactive-resume-dev-backup-restore.lock
+declared_rpo_seconds=86400
+declared_rto_seconds=14400
 
 fail() { printf 'restore_status=failed stage=%s\n' "$1" >&2; exit 1; }
 [ "$#" -eq 1 ] && [ "$1" = restore ] || {
@@ -69,6 +71,7 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 /usr/bin/chmod 0700 "$work"
+restore_start_epoch=$(/usr/bin/date +%s)
 
 # Select only a complete timestamp directory; partial immutable uploads are ignored.
 candidates=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sed 's#/$##' | /usr/bin/sort -r)
@@ -104,25 +107,40 @@ import json, os
 run = json.load(open(os.environ["RUN_MANIFEST"], encoding="utf-8"))
 pg = json.load(open(os.environ["PG_MANIFEST"], encoding="utf-8"))
 obj = json.load(open(os.environ["OBJECT_MANIFEST"], encoding="utf-8"))
-assert set(run) == {"schema", "service", "run_id", "encryption", "database", "object_storage"}
+assert set(run) == {"schema", "service", "run_id", "created_at_utc", "backup_duration_seconds", "encryption", "database", "object_storage"}
 assert run["schema"] == 1 and run["service"] == "reactive-resume-dev"
-assert run["run_id"] == os.environ["RUN_ID"] and run["encryption"] == "age-x25519"
+assert run["run_id"] == os.environ["RUN_ID"] and run["created_at_utc"] == os.environ["RUN_ID"] and run["encryption"] == "age-x25519"
+assert isinstance(run["backup_duration_seconds"], int) and run["backup_duration_seconds"] >= 0
 assert set(run["database"]) == {"name", "archive", "bytes", "sha256"}
 assert run["database"]["name"] == "reactive_resume_dev_successor"
 assert run["database"]["archive"] == "postgresql.dump.gz.age"
 assert set(run["object_storage"]) == {"bucket", "archive", "bytes", "sha256", "object_count", "total_object_bytes"}
 assert run["object_storage"]["bucket"] == "reactive-resume-dev"
 assert run["object_storage"]["archive"] == "object-storage.tar.gz.age"
+assert isinstance(run["object_storage"]["object_count"], int) and run["object_storage"]["object_count"] > 0
+assert isinstance(run["object_storage"]["total_object_bytes"], int) and run["object_storage"]["total_object_bytes"] > 0
 assert set(pg) == {"schema", "service", "database", "run_id", "archive", "archive_bytes", "archive_sha256", "encryption", "source_cluster"}
 assert pg["run_id"] == os.environ["RUN_ID"] and pg["database"] == "reactive_resume_dev_successor"
+assert pg["archive_bytes"] > 0 and run["database"]["bytes"] == pg["archive_bytes"]
 assert set(obj) == {"schema", "service", "bucket", "run_id", "archive", "archive_bytes", "archive_sha256", "encryption", "object_count", "total_object_bytes"}
 assert obj["service"] == "seaweedfs"
 assert obj["run_id"] == os.environ["RUN_ID"] and obj["bucket"] == "reactive-resume-dev"
-assert isinstance(obj["object_count"], int) and obj["object_count"] >= 0
-assert isinstance(obj["total_object_bytes"], int) and obj["total_object_bytes"] >= 0
+assert isinstance(obj["object_count"], int) and obj["object_count"] > 0
+assert isinstance(obj["total_object_bytes"], int) and obj["total_object_bytes"] > 0
+assert obj["archive_bytes"] > 0 and run["object_storage"]["bytes"] == obj["archive_bytes"]
+assert run["object_storage"]["object_count"] == obj["object_count"]
+assert run["object_storage"]["total_object_bytes"] == obj["total_object_bytes"]
 assert run["database"]["sha256"] == pg["archive_sha256"]
 assert run["object_storage"]["sha256"] == obj["archive_sha256"]
 PY
+backup_duration_seconds=$(/usr/bin/python3 - "$work/run-manifest.json" <<'PY'
+import json, sys
+value = json.load(open(sys.argv[1], encoding="utf-8"))["backup_duration_seconds"]
+assert isinstance(value, int) and value >= 0
+print(value)
+PY
+)
+printf '%s\n' "$backup_duration_seconds" | /usr/bin/grep -Eq '^[0-9]+$' || fail backup_duration_contract
 
 # Retrieve the age identity only for this explicitly approved restore.
 /home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY \
@@ -331,11 +349,26 @@ actual_count=$(/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rcl
 actual_total=$(/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone size --json "s3:$bucket" | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin)["bytes"])')
 expected_count=$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["object_count"])' "$work/object-storage.manifest.json")
 expected_total=$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["total_object_bytes"])' "$work/object-storage.manifest.json")
+[ "$expected_count" -gt 0 ] && [ "$expected_total" -gt 0 ] || fail object_storage_empty
+[ "$actual_count" -gt 0 ] && [ "$actual_total" -gt 0 ] || fail restored_object_empty
 [ "$actual_count" = "$expected_count" ] || fail object_count
 [ "$actual_total" = "$expected_total" ] || fail object_total
 cleanup_pod "$storage_pod" "$storage_uid" reactive-resume-dev-storage-restore || fail storage_restore_cleanup
 storage_uid=
 /usr/bin/rm -f -- "$work/object-storage.tar.gz"
-trap - EXIT HUP INT TERM
 /usr/bin/rm -rf -- "$work"
-printf 'restore_status=success source_run_id=%s postgres_catalog_table_count=%s object_count=%s object_bytes=%s checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none\n' "$run_id" "$pg_table_count" "$actual_count" "$actual_total"
+restore_end_epoch=$(/usr/bin/date +%s)
+restore_duration_seconds=$(( restore_end_epoch - restore_start_epoch ))
+rpo_seconds=$(/usr/bin/python3 - "$run_id" "$restore_end_epoch" <<'PY'
+from datetime import datetime, timezone
+import sys
+source = datetime.strptime(sys.argv[1], "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+now = int(sys.argv[2])
+print(max(0, now - int(source.timestamp())))
+PY
+)
+printf '%s\n' "$rpo_seconds" | /usr/bin/grep -Eq '^[0-9]+$' || fail rpo_measurement
+[ "$rpo_seconds" -le "$declared_rpo_seconds" ] || fail rpo_exceeded
+[ "$restore_duration_seconds" -le "$declared_rto_seconds" ] || fail rto_exceeded
+trap - EXIT HUP INT TERM
+printf 'restore_status=success source_run_id=%s backup_duration_seconds=%s restore_duration_seconds=%s rpo_seconds=%s postgres_catalog_table_count=%s object_count=%s object_bytes=%s checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none\n' "$run_id" "$backup_duration_seconds" "$restore_duration_seconds" "$rpo_seconds" "$pg_table_count" "$actual_count" "$actual_total"
