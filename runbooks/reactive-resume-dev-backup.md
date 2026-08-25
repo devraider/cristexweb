@@ -2,12 +2,18 @@
 
 ## Status
 
-**SOURCE-ONLY DESIGN / NOT RUN / RUNTIME UNINSTALLED.** This runbook defines a
-future host-managed twice-daily backup for the private Reactive Resume DEV logical
-PostgreSQL database and private SeaweedFS object storage. It has no Kubernetes
-CronJob, PVC copy, remote deletion, public endpoint, or live installation in this
-revision. The only permitted rollback is a Git revert before a separately
-approved host apply.
+**SOURCE IMPLEMENTED / PRIOR SCHEMA-1 NON-EMPTY BACKUP PASSED / HARDENED SCHEMA-2
+INSTALL, BACKUP, AND RESTORE PENDING.** The guarded twice-daily scheduler and
+schema-2 backup/restore source are implemented and remain value-free. A prior
+installed version produced the sanitized non-empty receipt
+`run_id=20260825T065948Z object_count=1 total_object_bytes=50 readback=verified
+encrypted=true private_residue=none`. That receipt is schema-1 evidence from the
+previous source and is not acceptable evidence for the hardened schema-2 restore.
+A hardened source install, fresh schema-2 non-empty backup, isolated restore,
+measured RPO/RTO, and final scheduler enable/idempotence remain pending. No
+hardened runtime installation or restore is claimed here. There is no Kubernetes
+CronJob, PVC copy, remote deletion, or public endpoint. The only permitted
+rollback is a Git revert before a separately approved host apply.
 
 The scheduler is one combined service. Each run uses one UTC
 `YYYYmmddTHHMMSSZ` run ID and writes both archives under that exact ID. A
@@ -196,10 +202,12 @@ and evidence:
    correlation check; and
 9. final idempotent scheduler apply.
 
-## Exact approved acceptance run sequence (not executed by this source-only change)
+## Remaining hardened acceptance sequence
 
-The operator must separately approve each wrapper invocation and must not paste
-or capture credentials. Run these in order from the canonical checkout:
+The prior schema-1 receipt is historical and cannot close the hardened schema-2
+gates. The operator must separately approve each wrapper invocation and must not
+paste or capture credentials. Run these remaining steps in order from the
+canonical checkout:
 
 ```text
 # source-only validation

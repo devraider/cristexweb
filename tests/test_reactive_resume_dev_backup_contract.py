@@ -321,10 +321,13 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn("raise SystemExit(\"clock_skew\")", self.restore)
         self.assertNotIn("max(0, now -", self.restore)
 
-    def test_runbook_records_not_run_scope_and_recovery_contract(self) -> None:
+    def test_runbook_records_current_checkpoint_and_recovery_contract(self) -> None:
         normalized = " ".join(self.runbook.split())
         for value in (
-            "SOURCE-ONLY DESIGN / NOT RUN / RUNTIME UNINSTALLED",
+            "SOURCE IMPLEMENTED / PRIOR SCHEMA-1 NON-EMPTY BACKUP PASSED / HARDENED SCHEMA-2 INSTALL, BACKUP, AND RESTORE PENDING",
+            "run_id=20260825T065948Z object_count=1 total_object_bytes=50 readback=verified encrypted=true private_residue=none",
+            "hardened schema-2",
+            "Remaining hardened acceptance sequence",
             "reactive_resume_dev_successor",
             "reactive-resume-dev",
             "one UTC `YYYYmmddTHHMMSSZ` run ID",
@@ -346,13 +349,13 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "twice-daily",
             "per-object checksum",
             "clock_skew",
-            "Exact approved acceptance run sequence",
             "journalctl -u cristexweb-reactive-resume-dev-backup.service",
             "--ask-become-pass",
             "controlling terminal",
             "do not pipe or redirect",
         ):
             self.assertIn(value, normalized, value)
+        self.assertNotIn("SOURCE-ONLY DESIGN / NOT RUN / RUNTIME UNINSTALLED", self.runbook)
         self.assertNotIn("runtime was applied", self.runbook.lower())
         self.assertNotIn("weekly backup", self.runbook.lower())
 

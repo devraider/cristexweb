@@ -2,6 +2,12 @@
 
 ## Status and ownership
 
+**SOURCE CHECK PASSED; RUNTIME VALUES REMAIN PRIVATE.** The exact value-free
+shared-realm client source and its non-passthrough check-only wrapper are
+implemented. The guarded source check passed without Keycloak/API/Kubernetes
+mutation. This pass validates only the committed contract; it does not assert a
+new runtime reconciliation or expose any client value.
+
 This is the exact value-free source contract for the already checkpointed private
 Reactive Resume DEV client. Ansible owns this bounded source-only validation;
 Keycloak runtime client values remain owned by Infisical Cloud and materialized

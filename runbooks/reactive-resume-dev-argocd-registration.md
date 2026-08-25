@@ -1,5 +1,17 @@
 # Reactive Resume DEV Argo CD registration and handoff
 
+## Status
+
+**SOURCE IMPLEMENTED / GUARDED CHECK BLOCKED ON REPOSITORY CREDENTIAL.** The
+five-object registration closure, eight-object value-free handoff inventory,
+seven-object Argo desired-state source, destination NetworkPolicies, and
+migration exclusion are implemented. The latest guarded `check` reached the
+live dependency preflight and stopped before registration reconciliation because
+the required Infisical-owned `argocd-repository-cristexweb` Secret metadata was
+not present. No registration apply, Argo sync, adoption, workload restart, or
+other mutation occurred. A passing check, separately approved apply/idempotence,
+and later handoff/sync evidence remain pending.
+
 This is a source-only, guarded registration closure for the private Reactive
 Resume DEV workload in `cristexhub-dev`. It does not perform a Kubernetes,
 Argo, provider, DNS, Infisical, or PROD operation by itself.
@@ -80,13 +92,16 @@ ansible/bin/bootstrap-reactive-resume-dev-argocd-registration apply
 The wrapper accepts exactly `check|apply`, uses the pinned controller and
 clean environment, binds a single-run 0600 attestation, forces `--diff` and
 `--limit crtxweb`, and refuses task-selection or passthrough controls. Check
-must pass before any separately approved apply. This source-only revision was
-not run against the live cluster.
+must pass before any separately approved apply. The latest guarded check reached the live cluster's metadata preflight but
+stopped before registration because the repository credential prerequisite was
+missing; this is not apply or handoff evidence.
 
 ## Remaining gates
 
 The repository credential `argocd-repository-cristexweb`, exact value-suppressed
 Secret/CA/pull/TLS dependency metadata, ready live RR workload set, and absence
-of Argo managed fields are required before a guarded check can pass. A successful check, separately approved apply, idempotence retry,
-Argo sync/adoption evidence, and private hostname/backup/soak acceptance are
-still required. No source commit authorizes Kubernetes mutation or PROD.
+of Argo managed fields are required before a guarded check can pass; the latest
+check stopped on that repository-credential gate. A successful check, separately
+approved apply, idempotence retry, Argo sync/adoption evidence, and private
+hostname/backup/soak acceptance are still required. No source commit authorizes
+Kubernetes mutation or PROD.

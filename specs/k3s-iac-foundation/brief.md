@@ -40,7 +40,17 @@ Argo DNS). The source defines six resource addresses; only the PROD DNS resource
 absent from state. The pending PROD route still requires one Tunnel-config update
 and one proxied `hub.cristex-soft.com` DNS create; no apply has run for those two
 changes. The provider lockfile is tracked, the cloudflared token handoff is complete,
-and the public route remains unapplied. The source-only paragraphs below preserve
+and the public route remains unapplied. Reactive Resume DEV has a private
+runtime/hostname checkpoint and the shared `cristexhub` client source check passed
+without Keycloak/API or Kubernetes mutation. The prior installed backup source
+produced the sanitized schema-1 non-empty receipt
+`run_id=20260825T065948Z object_count=1 total_object_bytes=50 readback=verified
+encrypted=true private_residue=none`; hardened schema-2 installation, fresh
+schema-2 backup, isolated restore, measured RPO/RTO, and final scheduler
+idempotence remain pending. The guarded Reactive Resume Argo check stopped before
+reconciliation on the missing Infisical-owned `argocd-repository-cristexweb`
+credential metadata; no Argo registration, sync, or handoff occurred. PROD and
+public routing remain inactive. The source-only paragraphs below preserve
 historical checkpoint evidence and are not current absence claims.
 
 ## Approved direction and historical checkpoint narrative

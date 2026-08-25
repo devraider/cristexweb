@@ -3,8 +3,25 @@
 state: agent:in-progress
 phase: implementing
 build: 452 offline contracts and all 47 playbook syntax checks pass; private PROD is Synced/Healthy and the public route remains unapplied
-date: 2026-08-21
+date: 2026-08-25
 deploy_required_after_acceptance: yes
+
+reactive_resume_checkpoint: |
+  Reactive Resume DEV source and the private runtime/hostname checkpoint are
+  implemented. The prior installed backup source produced the sanitized
+  schema-1 non-empty receipt `run_id=20260825T065948Z object_count=1
+  total_object_bytes=50 readback=verified encrypted=true private_residue=none`.
+  That receipt does not satisfy the hardened schema-2 contract: hardened source
+  installation, a fresh schema-2 non-empty backup, isolated restore, measured
+  RPO/RTO, and final scheduler enable/idempotence remain pending. The guarded
+  Reactive Resume Argo registration check reached live dependency metadata and
+  stopped before reconciliation because the Infisical-owned
+  `argocd-repository-cristexweb` repository credential prerequisite was absent;
+  no registration apply, sync, or handoff occurred. The shared `cristexhub`
+  Reactive Resume client source check passed offline without Keycloak/API or
+  Kubernetes mutation. PROD and public routing remain inactive. Older
+  source-only/NOT RUN wording below is historical and must not override this
+  checkpoint.
 
 current_checkpoint: |
   Private CristexHub PROD at revision `751885a42798d282e168131db147f13694a0a621`

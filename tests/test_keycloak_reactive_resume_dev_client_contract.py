@@ -104,6 +104,8 @@ class KeycloakReactiveResumeDevClientContractTests(unittest.TestCase):
         self.assertNotIn('exec "$@"', self.wrapper_text)
         for value in ("source-only", "cristexhub", "reactive-resume-dev", "exact callback", "post-logout", "never a wildcard", "disabled", "must never be deleted"):
             self.assertIn(value.lower(), self.runbook_text.lower())
+        self.assertIn("SOURCE CHECK PASSED; RUNTIME VALUES REMAIN PRIVATE", self.runbook_text)
+        self.assertIn("passed without Keycloak/API/Kubernetes", self.runbook_text)
 
     def test_policies_are_reconciled_to_exact_contract(self) -> None:
         rr = next(item for item in self.policy["clients"]["browser"] if item["id"] == "reactive-resume-dev")
