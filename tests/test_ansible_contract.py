@@ -63,8 +63,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/keycloak_reactive_resume_dev_client_guarded.py"),
             Path("ansible/plugins/action/infisical_reactive_resume_dev_ca_guarded_k8s.py"),
             Path("ansible/plugins/action/reactive_resume_dev_argocd_alignment_guarded_k8s.py"),
+            Path("ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py"),
         }
-        self.assertEqual(37, len(allowed_action_plugins))
+        self.assertEqual(38, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -435,6 +436,7 @@ class AnsibleLayoutTests(unittest.TestCase):
         required.extend(
             [
                 "bin/configure-reactive-resume-dev-backup",
+                "plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py",
                 "files/backup/reactive-resume-dev-backup",
                 "files/backup/restore-reactive-resume-dev-backup-rehearsal",
                 "files/backup/cristexweb-reactive-resume-dev-backup.service",
