@@ -149,9 +149,37 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "skip_tags": [],
         }
         with mock.patch.object(module.context, "CLIARGS", empty_selection):
-            with mock.patch.object(module.sys, "argv", ["ansible-playbook", "--start-at-task="]):
-                with self.assertRaisesRegex(Exception, "TASK_SELECTION_GUARD"):
-                    strategy.run(None, None)
+            for argv in (
+                ["ansible-playbook", "--start-at-task="],
+                ["ansible-playbook", "-t", "all"],
+                ["ansible-playbook", "-t=all"],
+                ["ansible-playbook", "-tall"],
+            ):
+                with self.subTest(argv=argv):
+                    with mock.patch.object(module.sys, "argv", argv):
+                        with self.assertRaisesRegex(Exception, "TASK_SELECTION_GUARD"):
+                            strategy.run(None, None)
+
+    def test_action_guard_rejects_empty_and_short_selection_controls(self):
+        spec = importlib.util.spec_from_file_location("rr_backup_action", ENTRYPOINT_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        action = module.ActionModule.__new__(module.ActionModule)
+        cliargs = {"start_at_task": "", "step": False, "tags": [], "skip_tags": []}
+        with mock.patch.object(module.ActionBase, "run", return_value={}):
+            with mock.patch.object(module.context, "CLIARGS", cliargs):
+                for argv in (
+                    ["ansible-playbook"],
+                    ["ansible-playbook", "-t", "all"],
+                    ["ansible-playbook", "-t=all"],
+                ):
+                    with self.subTest(argv=argv):
+                        with mock.patch.object(module.sys, "argv", argv):
+                            result = action.run(task_vars={})
+                            self.assertTrue(result["failed"])
+                            self.assertIn("TASK_SELECTION_GUARD", result["msg"])
 
     def test_wrapper_playbook_and_source_hash_pins_are_current(self):
         wrapper = WRAPPER.read_text()

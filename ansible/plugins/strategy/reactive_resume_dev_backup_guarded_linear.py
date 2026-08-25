@@ -14,8 +14,11 @@ class StrategyModule(LinearStrategyModule):
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
         selection_argv = any(
-            argument in {"--start-at-task", "--step", "--tags", "--skip-tags"}
-            or argument.startswith(("--start-at-task=", "--tags=", "--skip-tags="))
+            argument in {"--start-at-task", "--step", "--tags", "--skip-tags", "-t"}
+            or argument.startswith(
+                ("--start-at-task=", "--tags=", "--skip-tags=", "-t=")
+            )
+            or (argument.startswith("-t") and len(argument) > 2)
             for argument in sys.argv[1:]
         )
         if (

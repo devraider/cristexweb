@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import stat
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -23,9 +24,18 @@ class ActionModule(ActionBase):
         task_vars = task_vars or {}
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
+        selection_argv = any(
+            argument in {"--start-at-task", "--step", "--tags", "--skip-tags", "-t"}
+            or argument.startswith(
+                ("--start-at-task=", "--tags=", "--skip-tags=", "-t=")
+            )
+            or (argument.startswith("-t") and len(argument) > 2)
+            for argument in sys.argv[1:]
+        )
         if (
-            context.CLIARGS.get("start_at_task")
+            context.CLIARGS.get("start_at_task") is not None
             or context.CLIARGS.get("step")
+            or selection_argv
             or tags not in ([], ["all"])
             or skip_tags
         ):
