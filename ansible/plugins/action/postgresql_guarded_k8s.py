@@ -16,7 +16,7 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import (
 _EXPECTED_OBJECT_HASHES = {
     ("v1", "ConfigMap", "shared-services", "shared-postgresql-pg-hba"): "d2bac23760974c866422638a4d0a5eb43e9caf0b58cfbd8399ed8bc30e73c91f",
     ("networking.k8s.io/v1", "NetworkPolicy", "shared-services", "shared-postgresql-default-deny"): "4b6a28a3073740296a651d339facb282213caeb75a1d3ba202661ceea05b9a95",
-    ("networking.k8s.io/v1", "NetworkPolicy", "shared-services", "shared-postgresql-ingress"): "01d160abe56c40676728862453a155b97b26957f41ec41789cab71d3556ae9e4",
+    ("networking.k8s.io/v1", "NetworkPolicy", "shared-services", "shared-postgresql-ingress"): "159f9f00ee9758bf558e3c8da921491247830988f0eaa9fd029884e98cfced1e",
     ("v1", "ServiceAccount", "shared-services", "shared-postgresql"): "be24efea11ad657555d504a7d5591e5d77259c21bf4779839b0bc42fbb887d03",
     ("v1", "Service", "shared-services", "shared-postgresql"): "677078b36159313e0effe92897bcc21fd17b1917841e26ba0e820f37f58d3677",
     ("apps/v1", "StatefulSet", "shared-services", "shared-postgresql"): "5bb45cf3ed5db37ca01bd53444ee93ea7a0aefe7be43a151b1572e882dfd1b2f",

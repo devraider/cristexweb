@@ -11,6 +11,7 @@ from ansible import context
 from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule as KubernetesActionModule
 
 _EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'oidc-connect-proxy'): '0a01060fc0b1646346207e3c3369e51dc05c02a72cfaa55a5d4a06393c2b106f',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-reactive-resume-dev'): '4279fb9976ce6a7e0d3983fd34291c35bad1c5b46159e4ec86b761f28e5c4e42',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'cristexhub-backend-allow-oidc-proxy'): 'b71a698a978952c068220db0dfa842409baa4394b77672bd04c532ec81b73f05',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'oauth2-proxy-allow-oidc-proxy'): '6a15389649dfa29a25802071c7630b5576f8ff36b55075d00e64b3a0aa8afc15',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'oidc-connect-proxy-allow-auth-egress'): '6b03dd1081d31d8c128c64231eee309b3570938a3b9f9767a93da9f64ed3641f',
@@ -61,9 +62,9 @@ class ActionModule(KubernetesActionModule):
         valid = valid and (
             isinstance(binding, dict)
             and binding.get('attestation_sha256') == hashlib.sha256(token.encode()).hexdigest()
-            and int(binding.get('object_count', -1)) == 10
-            and int(binding.get('prestate_count', -1)) == 10
-            and binding.get('identity_set_sha256') == 'c748d703754d4a434775ca966a51130151ffcf019b26f7389953c2d4378bfa85'
+            and int(binding.get('object_count', -1)) == 11
+            and int(binding.get('prestate_count', -1)) == 11
+            and binding.get('identity_set_sha256') == 'c456c66fc09873e9deb9ae3b1176e18a856db18f0c8d6b2fd23959709ee56863'
             and binding.get('namespace_contract') is True
             and binding.get('no_delete_path') is True
         )

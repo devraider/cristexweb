@@ -33,6 +33,7 @@ spec:
         app.kubernetes.io/managed-by: ansible
         cristex.io/bootstrap-writer: ansible
         cristex.io/desired-owner: argocd
+        cristex.io/database-client: shared-postgresql
     spec:
       serviceAccountName: reactive-resume-dev
       automountServiceAccountToken: false
@@ -46,6 +47,40 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: merge-ca-bundle
+          image: ghcr.io/devraider/cristex-reactive-resume@sha256:720ff5a60a7f6b91a75535e230dbb664207fdf1bc5cb8732d584bae7ebdac13c
+          imagePullPolicy: IfNotPresent
+          command: [node]
+          args:
+            - -e
+            - >-
+              const fs = require('node:fs');
+              const bundle = fs.readFileSync('/etc/reactive-resume/postgresql/ca.crt') +
+              fs.readFileSync('/etc/reactive-resume/object-storage/ca.crt');
+              fs.writeFileSync('/etc/reactive-resume/ca-bundle/ca.crt', bundle, { mode: 0o444 });
+              fs.chmodSync('/etc/reactive-resume/ca-bundle/ca.crt', 0o444);
+          volumeMounts:
+            - name: postgresql-ca
+              mountPath: /etc/reactive-resume/postgresql
+              readOnly: true
+            - name: object-storage-ca
+              mountPath: /etc/reactive-resume/object-storage
+              readOnly: true
+            - name: ca-bundle
+              mountPath: /etc/reactive-resume/ca-bundle
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
       containers:
         - name: reactive-resume
           image: ghcr.io/devraider/cristex-reactive-resume@sha256:720ff5a60a7f6b91a75535e230dbb664207fdf1bc5cb8732d584bae7ebdac13c
@@ -62,7 +97,7 @@ spec:
             - name: SERVER_PORT
               value: "3001"
             - name: NODE_EXTRA_CA_CERTS
-              value: /etc/reactive-resume/object-storage/ca.crt
+              value: /etc/reactive-resume/ca-bundle/ca.crt
             - name: NODE_USE_ENV_PROXY
               value: "1"
             - name: HTTPS_PROXY
@@ -180,6 +215,9 @@ spec:
             - name: object-storage-ca
               mountPath: /etc/reactive-resume/object-storage
               readOnly: true
+            - name: ca-bundle
+              mountPath: /etc/reactive-resume/ca-bundle
+              readOnly: true
             - name: tmp
               mountPath: /tmp
           securityContext:
@@ -230,6 +268,10 @@ spec:
             items:
               - key: ca.crt
                 path: ca.crt
+        - name: ca-bundle
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
         - name: tmp
           emptyDir:
             medium: Memory

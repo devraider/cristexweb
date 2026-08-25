@@ -23,6 +23,7 @@ spec:
       labels:
         app.kubernetes.io/name: reactive-resume-dev-migrate
         app.kubernetes.io/part-of: cristexhub
+        cristex.io/database-client: shared-postgresql
     spec:
       restartPolicy: Never
       serviceAccountName: reactive-resume-dev

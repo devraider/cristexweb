@@ -1,0 +1,35 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keycloak-allow-reactive-resume-dev
+  namespace: shared-services
+  annotations:
+    cristex.io/source-service: reactive-resume-dev
+    cristex.io/source-service-port: "8443"
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/component: keycloak
+    cristex.io/desired-owner: argocd
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+      app.kubernetes.io/part-of: cristex-platform
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cristexhub-dev
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: reactive-resume-dev
+              app.kubernetes.io/part-of: cristexhub
+      ports:
+        - protocol: TCP
+          port: 8443

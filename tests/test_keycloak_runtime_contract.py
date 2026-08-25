@@ -16,7 +16,7 @@ EXPECTED_IMAGE = (
 )
 EXPECTED_HOSTNAME = "https://auth.cristex-soft.com"
 EXPECTED_NAMESPACE = "shared-services"
-EXPECTED_SOURCE_OBJECTS = 8
+EXPECTED_SOURCE_OBJECTS = 9
 
 
 def _yaml_objects() -> list[dict[str, Any]]:
@@ -38,12 +38,12 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
         for obj in cls.objects:
             cls.by_kind.setdefault(obj["kind"], []).append(obj)
 
-    def test_source_is_exactly_the_private_eight_object_closure(self) -> None:
+    def test_source_is_exactly_the_private_nine_object_closure(self) -> None:
         self.assertEqual(EXPECTED_SOURCE_OBJECTS, len(self.objects))
         self.assertEqual(1, len(self.by_kind.get("ServiceAccount", [])))
         self.assertEqual(1, len(self.by_kind.get("Service", [])))
         self.assertEqual(1, len(self.by_kind.get("Deployment", [])))
-        self.assertEqual(4, len(self.by_kind.get("NetworkPolicy", [])))
+        self.assertEqual(5, len(self.by_kind.get("NetworkPolicy", [])))
         self.assertEqual(1, len(self.by_kind.get("ConfigMap", [])))
         self.assertEqual(
             {"ServiceAccount", "Service", "Deployment", "NetworkPolicy", "ConfigMap"},

@@ -822,6 +822,9 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         for approved_root in (
             ROOT / "ansible/files/components/reactive-resume-dev-argocd-registration",
             ROOT / "ansible/files/components/reactive-resume-dev-argocd",
+            ROOT / "ansible/files/components/reactive-resume-dev-networkpolicy",
+            ROOT / "ansible/files/components/keycloak/network/keycloak-allow-reactive-resume-dev.yaml",
+            ROOT / "ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml",
             ROOT / "ansible/roles/reactive_resume_dev_argocd_registration",
         ):
             approved_backup_sources.update(
@@ -831,6 +834,8 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             {
                 ROOT / "ansible/bin/bootstrap-reactive-resume-dev-argocd-registration",
                 ROOT / "ansible/playbooks/bootstrap_reactive_resume_dev_argocd_registration.yml",
+                ROOT / "ansible/files/components/keycloak/network/keycloak-allow-reactive-resume-dev.yaml",
+                ROOT / "ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml",
             }
         )
         for root in executable_roots:

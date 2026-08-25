@@ -14,8 +14,8 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: shared-postgresql
-      app.kubernetes.io/part-of: cristex-platform
+      cnpg.io/cluster: shared-postgresql
+      cnpg.io/instanceRole: primary
   policyTypes:
     - Ingress
   ingress:
@@ -27,10 +27,16 @@ spec:
                 values:
                   - cristexhub-dev
                   - cristexhub-prod
-                  - reactive-resume-dev
-                  - reactive-resume-prod
           podSelector:
             matchLabels:
+              cristex.io/database-client: shared-postgresql
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cristexhub-dev
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: reactive-resume-dev
+              app.kubernetes.io/part-of: cristexhub
               cristex.io/database-client: shared-postgresql
         - podSelector:
             matchLabels:

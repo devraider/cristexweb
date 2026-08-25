@@ -18,6 +18,7 @@ spec:
         values: [reactive-resume-dev, reactive-resume-dev-migrate]
     matchLabels:
       app.kubernetes.io/part-of: cristexhub
+      cristex.io/database-client: shared-postgresql
   policyTypes:
     - Egress
   egress:
@@ -40,6 +41,7 @@ spec:
           podSelector:
             matchLabels:
               cnpg.io/cluster: shared-postgresql
+              cnpg.io/instanceRole: primary
       ports:
         - protocol: TCP
           port: 5432
@@ -50,6 +52,7 @@ spec:
           podSelector:
             matchLabels:
               app.kubernetes.io/name: reactive-resume-object-storage
+              app.kubernetes.io/part-of: reactive-resume
       ports:
         - protocol: TCP
           port: 8333

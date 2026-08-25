@@ -23,9 +23,9 @@
       - ansible_diff_mode
       - (ansible_limit | default('')) == 'crtxweb'
       - ansible_play_hosts_all | length == 1
-      - oidc_connect_proxy_bootstrap_manifest_paths | length == 10
-      - oidc_connect_proxy_bootstrap_expected_hashes | length == 10
-      - oidc_connect_proxy_bootstrap_object_count == 10
+      - oidc_connect_proxy_bootstrap_manifest_paths | length == 11
+      - oidc_connect_proxy_bootstrap_expected_hashes | length == 11
+      - oidc_connect_proxy_bootstrap_object_count == 11
       - oidc_connect_proxy_bootstrap_namespace == 'shared-services'
       - oidc_connect_proxy_bootstrap_service_name == 'oidc-connect-proxy'
       - oidc_connect_proxy_bootstrap_deployment_name == 'oidc-connect-proxy'
@@ -104,9 +104,9 @@
 - name: Require exact value-free OIDC proxy inventory
   ansible.builtin.assert:
     that:
-      - oidc_connect_proxy_bootstrap_internal_manifests | length == 10
-      - oidc_connect_proxy_bootstrap_internal_identity_keys | unique | length == 10
-      - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 6
+      - oidc_connect_proxy_bootstrap_internal_manifests | length == 11
+      - oidc_connect_proxy_bootstrap_internal_identity_keys | unique | length == 11
+      - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 7
       - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ServiceAccount') | list | length == 1
       - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ConfigMap') | list | length == 1
       - oidc_connect_proxy_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Service') | list | length == 1

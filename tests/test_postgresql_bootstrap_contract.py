@@ -176,18 +176,18 @@ class PostgreSQLBootstrapContractTests(unittest.TestCase):
             ("networking.k8s.io/v1", "NetworkPolicy", "shared-services", "shared-postgresql-ingress")
         ]["spec"]["ingress"][0]
         self.assertEqual(5432, ingress["ports"][0]["port"])
-        self.assertEqual(2, len(ingress["from"]))
-        namespaced, keycloak = ingress["from"]
+        self.assertEqual(3, len(ingress["from"]))
+        namespaced, reactive_resume, keycloak = ingress["from"]
         values = namespaced["namespaceSelector"]["matchExpressions"][0]["values"]
         self.assertEqual(
             {
                 "cristexhub-dev",
                 "cristexhub-prod",
-                "reactive-resume-dev",
-                "reactive-resume-prod",
             },
             set(values),
         )
+        self.assertEqual({"app.kubernetes.io/name": "reactive-resume-dev", "app.kubernetes.io/part-of": "cristexhub", "cristex.io/database-client": "shared-postgresql"}, reactive_resume["podSelector"]["matchLabels"])
+        self.assertEqual({"kubernetes.io/metadata.name": "cristexhub-dev"}, reactive_resume["namespaceSelector"]["matchLabels"])
         self.assertNotIn("namespaceSelector", keycloak)
         self.assertEqual(
             {

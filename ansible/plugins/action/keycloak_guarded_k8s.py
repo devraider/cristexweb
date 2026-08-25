@@ -12,6 +12,7 @@ from ansible import context
 from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule as KubernetesActionModule
 
 _EXPECTED_OBJECT_HASHES = {('apps/v1', 'Deployment', 'shared-services', 'keycloak'): 'b9197a985e2e307c6587ec1147175cfe2a77c230e44dcc698b937e5f921a953a',
+ ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-allow-reactive-resume-dev'): '3108c21cd11de7dba7f28957a09f63dbccf90523d28f5aec7a4c4d550699f562',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-allow-dns'): '46d30870622a3e117fb1f96917a6bd7eebdb78ca304f73462f90263e8918ace6',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-allow-postgresql'): '7063ee97ed33e6aff5c81b00c8f91da5cfbd2b56e129277763493b5c94f0e4d4',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'shared-services', 'keycloak-default-deny'): '0f8bea5dee6a64cd3e2bc79277c78bfa79fd589e4d794a333b7e112aabb7b729',
@@ -48,7 +49,7 @@ class ActionModule(KubernetesActionModule):
         except (OSError, ValueError):
             st, content = None, ''
         valid_attestation = (os.environ.get('CRISTEXWEB_KEYCLOAK_BOOTSTRAP_ENTRYPOINT') == 'v1' and re.fullmatch(r'[0-9a-f]{64}', token) is not None and st is not None and stat.S_ISREG(st.st_mode) and not stat.S_ISLNK(st.st_mode) and stat.S_IMODE(st.st_mode) == 0o600 and st.st_uid == os.getuid() and content == f'{token}:entrypoint')
-        valid_binding = (isinstance(binding, dict) and binding.get('attestation_sha256') == hashlib.sha256(token.encode()).hexdigest() and int(binding.get('object_count', -1)) == 8 and binding.get('identity_set_sha256') == 'f44c9e2b7bfff7d7b3365a1f82b3910fe4741969b428fcebd94cff80e53ed912' and int(binding.get('prestate_count', -1)) == 8 and int(binding.get('secret_count', -1)) == 3 and binding.get('namespace_contract') is True and binding.get('service_contract') is True and binding.get('no_delete_path') is True)
+        valid_binding = (isinstance(binding, dict) and binding.get('attestation_sha256') == hashlib.sha256(token.encode()).hexdigest() and int(binding.get('object_count', -1)) == 9 and binding.get('identity_set_sha256') == '46898fffc9cde87fb0f6b850f76d1a86c83ae4d34a56932ecd9cae3795d4924e' and int(binding.get('prestate_count', -1)) == 9 and int(binding.get('secret_count', -1)) == 3 and binding.get('namespace_contract') is True and binding.get('service_contract') is True and binding.get('no_delete_path') is True)
         if not valid_attestation or not valid_binding or task_vars.get('keycloak_bootstrap_approved') is not True or task_vars.get('keycloak_bootstrap_state') != 'present':
             return {'changed': False, 'failed': True, 'msg': 'ENTRYPOINT_GUARD: refusing Keycloak mutation without attestation and preflight binding'}
         if not isinstance(definition, dict) or set(args) != _EXPECTED_ARGUMENT_KEYS or args.get('state') != 'present' or args.get('kubeconfig') != '/etc/rancher/k3s/k3s.yaml' or args.get('wait') is not False or args.get('wait_timeout') != 60:

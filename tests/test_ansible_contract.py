@@ -412,6 +412,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "reactive-resume-dev-tls",
             "reactive-resume-dev-argocd",
             "keycloak-reactive-resume-dev-client",
+            "reactive-resume-dev-networkpolicy",
         ):
             required.extend(
                 str(path.relative_to(ANSIBLE))

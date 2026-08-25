@@ -24,9 +24,9 @@ class OidcConnectProxyContractTests(unittest.TestCase):
         cls.by_name = {obj["metadata"]["name"]: obj for obj in cls.objects}
 
     def test_exact_value_free_closure_and_hash_ledger(self):
-        self.assertEqual(10, len(self.objects))
+        self.assertEqual(11, len(self.objects))
         self.assertEqual(
-            {"ConfigMap": 1, "NetworkPolicy": 6, "ServiceAccount": 1, "Deployment": 1, "Service": 1},
+            {"ConfigMap": 1, "NetworkPolicy": 7, "ServiceAccount": 1, "Deployment": 1, "Service": 1},
             {kind: sum(obj["kind"] == kind for obj in self.objects) for kind in {obj["kind"] for obj in self.objects}},
         )
         self.assertFalse(any(obj["kind"] in {"Secret", "Ingress", "PersistentVolumeClaim"} for obj in self.objects))
@@ -65,6 +65,7 @@ class OidcConnectProxyContractTests(unittest.TestCase):
                 "oidc-connect-proxy-default-deny",
                 "oidc-connect-proxy-allow-clients",
                 "oidc-connect-proxy-allow-dns",
+                "oidc-connect-proxy-allow-reactive-resume-dev",
                 "oidc-connect-proxy-allow-auth-egress",
                 "cristexhub-backend-allow-oidc-proxy",
                 "oauth2-proxy-allow-oidc-proxy",
