@@ -614,6 +614,8 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "bootstrap_reactive_resume_dev_argocd_registration.yml",
                 "validate-argocd-ui-tls-material",
                 "main.yml",
+                "bootstrap-reactive-resume-dev-argocd-alignment",
+                "bootstrap_reactive_resume_dev_argocd_alignment.yml",
             },
             {path.name for path in operational if "argocd" in str(path).lower()},
         )
@@ -640,6 +642,8 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "bootstrap-infisical-cloudflared-secrets",
                 "bootstrap_infisical_cloudflared_secrets.yml",
                 "main.yml",
+                "bootstrap-infisical-reactive-resume-dev-ca",
+                "bootstrap_infisical_reactive_resume_dev_ca.yml",
             },
             {path.name for path in operational if "infisical" in str(path).lower()},
         )

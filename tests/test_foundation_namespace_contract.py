@@ -259,6 +259,8 @@ metadata:
                 ANSIBLE / "bin/configure-opentofu-github-state-backup",
                 ANSIBLE / "bin/configure-reactive-resume-dev-backup",
                 ANSIBLE / "bin/soak-reactive-resume-dev",
+                ANSIBLE / "bin/bootstrap-reactive-resume-dev-argocd-alignment",
+                ANSIBLE / "bin/bootstrap-infisical-reactive-resume-dev-ca",
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()}, # includes separately guarded component entrypoints
         )

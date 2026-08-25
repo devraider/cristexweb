@@ -298,6 +298,8 @@ class InfisicalPrivilegedPrerequisitesDesignContractTests(unittest.TestCase):
                 "bootstrap_infisical_cristexhub_prod_runtime.yml",
                 "bootstrap-infisical-cloudflared-secrets",
                 "bootstrap_infisical_cloudflared_secrets.yml",
+                "bootstrap-infisical-reactive-resume-dev-ca",
+                "bootstrap_infisical_reactive_resume_dev_ca.yml",
                 "main.yml",
             },
             {path.name for path in operational if "infisical" in str(path).lower()},

@@ -832,6 +832,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             ROOT / "ansible/files/components/keycloak/network/keycloak-allow-reactive-resume-dev.yaml",
             ROOT / "ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml",
             ROOT / "ansible/roles/reactive_resume_dev_argocd_registration",
+            ROOT / "ansible/roles/reactive_resume_dev_argocd_alignment",
         ):
             approved_backup_sources.update(
                 path for path in approved_root.rglob("*") if path.is_file()
@@ -840,6 +841,9 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             {
                 ROOT / "ansible/bin/bootstrap-reactive-resume-dev-argocd-registration",
                 ROOT / "ansible/playbooks/bootstrap_reactive_resume_dev_argocd_registration.yml",
+                ROOT / "ansible/bin/bootstrap-reactive-resume-dev-argocd-alignment",
+                ROOT / "ansible/playbooks/bootstrap_reactive_resume_dev_argocd_alignment.yml",
+                ROOT / "ansible/plugins/action/reactive_resume_dev_argocd_alignment_guarded_k8s.py",
                 ROOT / "ansible/files/components/keycloak/network/keycloak-allow-reactive-resume-dev.yaml",
                 ROOT / "ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml",
             }
