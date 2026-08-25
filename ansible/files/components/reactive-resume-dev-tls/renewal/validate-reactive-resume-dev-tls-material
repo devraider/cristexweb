@@ -20,10 +20,13 @@ san=$(
   printf '%s\n' 'Refusing certificate outside the exact single-host SAN set.' >&2
   exit 66
 }
+cert_pub=''
+key_pub=''
+cleanup() { rm -f -- "${cert_pub:-}" "${key_pub:-}"; }
+trap cleanup EXIT HUP INT TERM
 cert_pub=$(mktemp)
 key_pub=$(mktemp)
-cleanup() { rm -f -- "$cert_pub" "$key_pub"; }
-trap cleanup EXIT HUP INT TERM
+chmod 0600 "$cert_pub" "$key_pub"
 openssl x509 -in "$cert" -pubkey -noout | openssl pkey -pubin -outform DER | sha256sum >"$cert_pub"
 openssl pkey -in "$key" -pubout -outform DER | sha256sum >"$key_pub"
 cmp -s "$cert_pub" "$key_pub" || {

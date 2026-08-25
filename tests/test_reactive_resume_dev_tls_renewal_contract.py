@@ -65,8 +65,18 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "scope-probe.json",
             "cloudflare_dns_write_scope",
             "cleanup_challenge_records",
+            "record_owned_challenge_ids",
             "challenge_cleanup_armed=1",
             "upload_readback=verified",
+            "infisical_prewrite",
+            "infisical_concurrent_change",
+            "Infisical's documented CLI exposes no CAS/If-Match operation",
+            "rollback_owned_infisical_state",
+            "wait_for_runtime_convergence",
+            "LastReconcileStatus",
+            "convergence=verified",
+            "kubeconfig=/etc/rancher/k3s/k3s.yaml",
+            "PATH=/home/paul/.nvm/versions/node/v24.19.0/bin",
             "infisical_keys_expected",
             '"$infisical" export --env "$environment"',
             "--format yaml --silent",
@@ -81,7 +91,6 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
         for forbidden in (
-            "kubectl",
             "tls.crt:",
             "tls.key:",
             "printf '%s' \"$token\"",
@@ -103,6 +112,8 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "User=paul",
             "Group=paul",
             "Environment=HOME=/home/paul",
+            "Environment=PATH=/home/paul/.nvm/versions/node/v24.19.0/bin:/usr/local/bin:/usr/bin:/bin",
+            "SupplementaryGroups=k3s-admin",
             "UMask=0077",
             "NoNewPrivileges=true",
             "PrivateTmp=true",
@@ -137,12 +148,18 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "Keep renewal timer disabled during install mode",
             "Enable and start the guarded renewal timer",
             "not ansible_check_mode",
+            "Inspect the hash-bound renewal source closure on the controller",
+            "reactive_resume_dev_tls_renewal_manifest_sha256",
+            "reactive_resume_dev_tls_renewal_source_hashes",
+            "item.stat.checksum == item.item.sha256",
         ):
             self.assertIn(required, text)
         self.assertIn("role: reactive_resume_dev_tls_renewal", PLAYBOOK.read_text())
         defaults = DEFAULTS.read_text()
         self.assertIn("v24.19.0/lib/node_modules/@infisical/cli/bin/infisical", defaults)
         self.assertIn("reactive_resume_dev_tls_renewal_infisical_cli", defaults)
+        self.assertIn("reactive_resume_dev_tls_renewal_manifest_path", defaults)
+        self.assertIn("reactive_resume_dev_tls_renewal_source_hashes", defaults)
         self.assertIn("4.0.0-2+deb13u1", defaults)
         self.assertIn("4.0.0-1", defaults)
         self.assertIn("0.43.121", defaults)
@@ -170,6 +187,11 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "pinned Debian packages",
             "explicitly lists the exact name",
             "DNS write/delete scope probe",
+            "Infisical has no CAS/If-Match",
+            "pre-write export",
+            "conditional rollback",
+            "all exact-name record IDs",
+            "runtime convergence",
         ):
             self.assertIn(required, runbook)
         self.assertNotIn("*.cristex-soft.com", runbook)

@@ -9,6 +9,8 @@ Type=oneshot
 User=paul
 Group=paul
 Environment=HOME=/home/paul
+Environment=PATH=/home/paul/.nvm/versions/node/v24.19.0/bin:/usr/local/bin:/usr/bin:/bin
+SupplementaryGroups=k3s-admin
 UMask=0077
 ExecStart=/usr/local/libexec/cristexweb/reactive-resume-dev-tls-renew renew
 TimeoutStartSec=20min

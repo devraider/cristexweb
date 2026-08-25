@@ -2,7 +2,7 @@
 set -eu
 umask 077
 
-PATH=/usr/local/bin:/usr/bin:/bin
+PATH=/home/paul/.nvm/versions/node/v24.19.0/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
 
 usage='usage: reactive-resume-dev-tls-renew renew'
@@ -27,8 +27,12 @@ certbot=/usr/bin/certbot
 # Pinned user-owned Infisical standalone binary; the service runs as paul.
 infisical=/home/paul/.nvm/versions/node/v24.19.0/lib/node_modules/@infisical/cli/bin/infisical
 validator=/usr/local/libexec/cristexweb/validate-reactive-resume-dev-tls-material
+kubectl=/usr/local/bin/kubectl
+kubeconfig=/etc/rancher/k3s/k3s.yaml
 system_ca=/etc/ssl/certs/ca-certificates.crt
 minimum_remaining_seconds=2592000
+convergence_attempts=60
+convergence_interval_seconds=5
 certbot_package_version=4.0.0-2+deb13u1
 dns_cloudflare_package_version=4.0.0-1
 infisical_cli_version=0.43.121
@@ -66,11 +70,140 @@ flock -n 9 || {
   exit 0
 }
 
-work=$(/usr/bin/mktemp -d "$work_root.XXXXXX")
-challenge_cleanup_armed=0
+work=''
+cloudflare_config=''
+owned_challenge_ids=''
+infisical_before=''
+infisical_before_cert=''
+infisical_before_key=''
 infisical_rotation_armed=0
-owned_challenge_ids=$work/owned-challenge-ids
-: >"$owned_challenge_ids"
+infisical_new_revision=''
+
+extract_infisical_key() {
+  wanted=$1
+  input=$2
+  output=$3
+  awk -v wanted="$wanted" '
+    $0 ~ ("^" wanted ":") {section=1; next}
+    section && /^[^[:space:]][^:]*:/ {exit}
+    section && /^  / {sub(/^  /, ""); print}
+  ' "$input" >"$output"
+  chmod 0600 "$output"
+}
+
+material_revision() {
+  {
+    sha256sum "$1" | awk '{print $1}'
+    sha256sum "$2" | awk '{print $1}'
+  } | sha256sum | awk '{print $1}'
+}
+
+public_key_revision() {
+  openssl x509 -in "$1" -pubkey -noout |
+    openssl pkey -pubin -outform DER |
+    sha256sum | awk '{print $1}'
+}
+
+wait_for_runtime_convergence() {
+  materialized_cert=$work/materialized-tls.crt
+  materialized_key=$work/materialized-tls.key
+  materialized_type=$work/materialized-type
+  materialized_version=$work/materialized-version
+  reconcile_status=$work/infisical-reconcile-status
+  served_handshake=$work/convergence-handshake.pem
+  served_cert=$work/convergence-served.crt
+  for attempt in $(seq 1 "$convergence_attempts"); do
+    reconcile_status_value=$(
+      "$kubectl" --kubeconfig="$kubeconfig" -n cristexhub-dev \
+        get infisicalstaticsecret reactive-resume-dev-tls \
+        -o 'jsonpath={.status.conditions[?(@.type=="secrets.infisical.com/LastReconcileStatus")].status}' \
+        2>/dev/null || true
+    )
+    printf '%s' "$reconcile_status_value" >"$reconcile_status"
+    [ "$reconcile_status_value" = True ] || {
+      sleep "$convergence_interval_seconds"
+      continue
+    }
+    materialized_type_value=$(
+      "$kubectl" --kubeconfig="$kubeconfig" -n cristexhub-dev \
+        get secret reactive-resume-dev-tls -o jsonpath='{.type}' 2>/dev/null || true
+    )
+    [ "$materialized_type_value" = kubernetes.io/tls ] || {
+      sleep "$convergence_interval_seconds"
+      continue
+    }
+    materialized_version_value=$(
+      "$kubectl" --kubeconfig="$kubeconfig" -n cristexhub-dev \
+        get secret reactive-resume-dev-tls \
+        -o 'jsonpath={.metadata.annotations.secrets\.infisical\.com/version}' \
+        2>/dev/null || true
+    )
+    [ -n "$materialized_version_value" ] || {
+      sleep "$convergence_interval_seconds"
+      continue
+    }
+    if ! "$kubectl" --kubeconfig="$kubeconfig" -n cristexhub-dev \
+        get secret reactive-resume-dev-tls -o 'jsonpath={.data.tls\.crt}' 2>/dev/null |
+        /usr/bin/base64 --decode >"$materialized_cert"; then
+      sleep "$convergence_interval_seconds"
+      continue
+    fi
+    if ! "$kubectl" --kubeconfig="$kubeconfig" -n cristexhub-dev \
+        get secret reactive-resume-dev-tls -o 'jsonpath={.data.tls\.key}' 2>/dev/null |
+        /usr/bin/base64 --decode >"$materialized_key"; then
+      sleep "$convergence_interval_seconds"
+      continue
+    fi
+    chmod 0600 "$materialized_cert" "$materialized_key"
+    if ! cmp -s "$certificate" "$materialized_cert" ||
+       ! cmp -s "$private_key" "$materialized_key"; then
+      sleep "$convergence_interval_seconds"
+      continue
+    fi
+    if ! timeout 45 openssl s_client -connect "$hostname:443" -servername "$hostname" \
+        -verify_hostname "$hostname" -verify_return_error -CAfile "$system_ca" \
+        -showcerts </dev/null >"$served_handshake" 2>/dev/null; then
+      sleep "$convergence_interval_seconds"
+      continue
+    fi
+    /usr/bin/awk '/-----BEGIN CERTIFICATE-----/{capture=1} capture{print} /-----END CERTIFICATE-----/{exit}' \
+      "$served_handshake" >"$served_cert"
+    if [ -s "$served_cert" ] &&
+       openssl x509 -in "$served_cert" -noout -checkhost "$hostname" >/dev/null 2>&1 &&
+       [ "$(public_key_revision "$served_cert")" = "$(public_key_revision "$certificate")" ]; then
+      return 0
+    fi
+    sleep "$convergence_interval_seconds"
+  done
+  return 1
+}
+
+rollback_owned_infisical_state() {
+  current=$work/infisical-rollback-current.yaml
+  current_cert=$work/infisical-rollback-current.crt
+  current_key=$work/infisical-rollback-current.key
+  rollback_readback=$work/infisical-rollback-readback.yaml
+  rollback_cert=$work/infisical-rollback-readback.crt
+  rollback_key=$work/infisical-rollback-readback.key
+  [ -s "${infisical_before_cert:-}" ] && [ -s "${infisical_before_key:-}" ] || return 1
+  "$infisical" export --env "$environment" --projectId "$project_id" \
+    --path "$infisical_path" --format yaml --silent >"$current" 2>/dev/null || return 1
+  chmod 0600 "$current"
+  extract_infisical_key TLS_CRT "$current" "$current_cert"
+  extract_infisical_key TLS_KEY "$current" "$current_key"
+  [ "$(material_revision "$current_cert" "$current_key")" = "${infisical_new_revision:-}" ] || return 1
+  "$infisical" secrets set --env "$environment" --projectId "$project_id" \
+    --path "$infisical_path" --file "$infisical_before" --silent >/dev/null 2>&1 || return 1
+  "$infisical" export --env "$environment" --projectId "$project_id" \
+    --path "$infisical_path" --format yaml --silent >"$rollback_readback" 2>/dev/null || return 1
+  chmod 0600 "$rollback_readback"
+  extract_infisical_key TLS_CRT "$rollback_readback" "$rollback_cert"
+  extract_infisical_key TLS_KEY "$rollback_readback" "$rollback_key"
+  cmp -s "$infisical_before_cert" "$rollback_cert" &&
+    cmp -s "$infisical_before_key" "$rollback_key"
+}
+
+challenge_cleanup_armed=0
 cleanup() {
   status=$?
   trap - EXIT HUP INT TERM
@@ -80,22 +213,23 @@ cleanup() {
       status=1
     fi
   fi
-  if [ "$status" -ne 0 ] && [ "${infisical_rotation_armed:-0}" -eq 1 ] && [ -s "${infisical_before:-}" ]; then
-    rollback_readback=$work/infisical-rollback-readback.yaml
-    if ! "$infisical" secrets set --env "$environment" --projectId "$project_id" \
-        --path "$infisical_path" --file "$infisical_before" --silent >/dev/null 2>&1 ||
-       ! "$infisical" export --env "$environment" --projectId "$project_id" \
-        --path "$infisical_path" --format yaml --silent >"$rollback_readback" 2>/dev/null ||
-       ! /usr/bin/cmp -s "$infisical_before" "$rollback_readback"; then
+  if [ "$status" -ne 0 ] && [ "${infisical_rotation_armed:-0}" -eq 1 ] &&
+     [ -n "${infisical_new_revision:-}" ] && [ -s "${infisical_before:-}" ]; then
+    if ! rollback_owned_infisical_state; then
       printf '%s\n' 'tls_renewal_status=failed stage=infisical_rollback' >&2
       status=1
     fi
   fi
-  /usr/bin/rm -rf -- "$work"
+  if [ -n "${work:-}" ]; then
+    /usr/bin/rm -rf -- "$work"
+  fi
   exit "$status"
 }
 trap cleanup EXIT HUP INT TERM
+work=$(/usr/bin/mktemp -d "$work_root.XXXXXX")
 chmod 0700 "$work"
+owned_challenge_ids=$work/owned-challenge-ids
+: >"$owned_challenge_ids"
 
 cloudflare_config=$work/cloudflare.conf
 
@@ -127,8 +261,27 @@ cf_records_empty() {
   cf_json_compact "$1" | /usr/bin/grep -Fq '"result":[]'
 }
 
+record_ids_from_response() {
+  /usr/bin/grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' "$1" |
+    /usr/bin/sed -E 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)"/\1/'
+}
+
+record_owned_challenge_ids() {
+  response=$1
+  [ -f "$owned_challenge_ids" ] || return 1
+  record_ids_from_response "$response" >>"$owned_challenge_ids"
+  LC_ALL=C /usr/bin/sort -u -o "$owned_challenge_ids" "$owned_challenge_ids"
+}
+
 cleanup_challenge_records() {
   records=$work/challenge-cleanup.json
+  # The preflight requires an empty exact-name set. Therefore every exact-name
+  # record observed during this locked run is ours, including Certbot-created
+  # records whose IDs are not exposed by the plugin. Record all IDs before any
+  # delete and fail closed if the final exact-name set is not empty.
+  cf_api GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=TXT&name=$challenge_name&per_page=100" "$records" || return 1
+  cf_json_success "$records" || return 1
+  record_owned_challenge_ids "$records" || return 1
   while IFS= read -r record_id; do
     [ -n "$record_id" ] || continue
     deleted=$work/challenge-delete.json
@@ -136,8 +289,6 @@ cleanup_challenge_records() {
     cf_json_success "$deleted" || return 1
   done <"$owned_challenge_ids"
   : >"$owned_challenge_ids"
-  # Never delete an unrecorded concurrent actor's TXT record. Any remaining
-  # exact-name record is a fail-closed cleanup condition for manual review.
   cf_api GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=TXT&name=$challenge_name&per_page=100" "$records" || return 1
   cf_json_success "$records" && cf_records_empty "$records"
 }
@@ -169,6 +320,8 @@ fi
 [ -x "$certbot" ] || fail certbot_missing
 [ -x "$infisical" ] || fail infisical_cli_missing
 [ -x "$validator" ] || fail validator_missing
+[ -x "$kubectl" ] || fail kubectl_missing
+[ -r "$kubeconfig" ] || fail kubeconfig_missing
 [ -f "$cloudflare_token_file" ] && [ ! -L "$cloudflare_token_file" ] || fail cloudflare_token_metadata
 [ "$(stat -c '%U:%G:%a' "$cloudflare_token_file")" = 'paul:paul:600' ] || fail cloudflare_token_metadata
 [ "$(stat -c '%s' "$cloudflare_token_file")" -ge 20 ] || fail cloudflare_token_contract
@@ -291,6 +444,9 @@ infisical_readback_cert=$work/infisical-readback.crt
 infisical_readback_key=$work/infisical-readback.key
 infisical_keys=$work/infisical-keys
 infisical_keys_expected=$work/infisical-keys-expected
+infisical_prewrite=$work/infisical-prewrite-readback.yaml
+infisical_prewrite_cert=$work/infisical-prewrite-readback.crt
+infisical_prewrite_key=$work/infisical-prewrite-readback.key
 "$infisical" export --env "$environment" --projectId "$project_id" \
   --path "$infisical_path" --format yaml --silent >"$infisical_before" 2>/dev/null || fail infisical_preflight
 chmod 0600 "$infisical_before"
@@ -298,6 +454,22 @@ chmod 0600 "$infisical_before"
   LC_ALL=C /usr/bin/sort >"$infisical_keys"
 printf '%s\n' TLS_CRT TLS_KEY | LC_ALL=C /usr/bin/sort >"$infisical_keys_expected"
 /usr/bin/cmp -s "$infisical_keys" "$infisical_keys_expected" || fail infisical_key_closure
+infisical_before_cert=$work/infisical-before.crt
+infisical_before_key=$work/infisical-before.key
+extract_infisical_key TLS_CRT "$infisical_before" "$infisical_before_cert"
+extract_infisical_key TLS_KEY "$infisical_before" "$infisical_before_key"
+[ -s "$infisical_before_cert" ] && [ -s "$infisical_before_key" ] || fail infisical_prestate_unreadable
+"$validator" "$infisical_before_cert" "$infisical_before_key" >/dev/null 2>&1 || fail infisical_prestate_contract
+prestate_revision=$(material_revision "$infisical_before_cert" "$infisical_before_key")
+# Infisical's documented CLI exposes no CAS/If-Match operation. Treat the
+# digest of the exact two-key export as a revision token: require an identical
+# second read immediately before write, then verify every post-write readback.
+"$infisical" export --env "$environment" --projectId "$project_id" \
+  --path "$infisical_path" --format yaml --silent >"$infisical_prewrite" 2>/dev/null || fail infisical_prewrite_readback
+chmod 0600 "$infisical_prewrite"
+extract_infisical_key TLS_CRT "$infisical_prewrite" "$infisical_prewrite_cert"
+extract_infisical_key TLS_KEY "$infisical_prewrite" "$infisical_prewrite_key"
+[ "$(material_revision "$infisical_prewrite_cert" "$infisical_prewrite_key")" = "$prestate_revision" ] || fail infisical_concurrent_change
 
 payload=$work/infisical-upload.yaml
 {
@@ -307,8 +479,10 @@ payload=$work/infisical-upload.yaml
   sed 's/^/  /' "$private_key"
 } >"$payload"
 chmod 0600 "$payload"
-# Arm rollback before the first write so ambiguous transport failures restore
-# and verify the exact protected pre-state during the EXIT trap.
+# There is no Infisical CAS/If-Match operation. Arm conditional rollback before
+# the first write; rollback is permitted only if a fresh read proves that the
+# remote state is still exactly this run's uploaded revision.
+infisical_new_revision=$(material_revision "$certificate" "$private_key")
 infisical_rotation_armed=1
 "$infisical" secrets set --env "$environment" --projectId "$project_id" \
   --path "$infisical_path" --file "$payload" --silent >/dev/null 2>&1 || fail infisical_upload
@@ -318,40 +492,21 @@ infisical_rotation_armed=1
 chmod 0600 "$infisical_readback"
 /usr/bin/awk '/^[^[:space:]][^:]*:/{line=$0; sub(/:.*/, "", line); print line}' "$infisical_readback" |
   LC_ALL=C /usr/bin/sort >"$infisical_keys"
-/usr/bin/cmp -s "$infisical_keys" "$infisical_keys_expected" || {
-  "$infisical" secrets set --env "$environment" --projectId "$project_id" \
-    --path "$infisical_path" --file "$infisical_before" --silent >/dev/null 2>&1 || true
-  fail infisical_key_closure
-}
-extract_infisical_key() {
-  wanted=$1
-  input=$2
-  output=$3
-  awk -v wanted="$wanted" '
-    $0 ~ ("^" wanted ":") {section=1; next}
-    section && /^[^[:space:]][^:]*:/ {exit}
-    section && /^  / {sub(/^  /, ""); print}
-  ' "$input" >"$output"
-  chmod 0600 "$output"
-}
+/usr/bin/cmp -s "$infisical_keys" "$infisical_keys_expected" || fail infisical_key_closure
 extract_infisical_key TLS_CRT "$infisical_readback" "$infisical_readback_cert"
 extract_infisical_key TLS_KEY "$infisical_readback" "$infisical_readback_key"
 if ! cmp -s "$certificate" "$infisical_readback_cert" ||
    ! cmp -s "$private_key" "$infisical_readback_key"; then
-  "$infisical" secrets set --env "$environment" --projectId "$project_id" \
-    --path "$infisical_path" --file "$infisical_before" --silent >/dev/null 2>&1 || true
   fail infisical_readback_mismatch
 fi
-"$validator" "$infisical_readback_cert" "$infisical_readback_key" >/dev/null || {
-  "$infisical" secrets set --env "$environment" --projectId "$project_id" \
-    --path "$infisical_path" --file "$infisical_before" --silent >/dev/null 2>&1 || true
-  fail infisical_readback_contract
-}
+"$validator" "$infisical_readback_cert" "$infisical_readback_key" >/dev/null || fail infisical_readback_contract
 
 # The Certbot plugin must have removed its TXT record; independently remove
-# only exact-name records left by this locked run and verify an empty result.
+# every exact-name record observed during this locked run and verify an empty
+# readback before any success receipt.
 cleanup_challenge_records || fail challenge_cleanup
 challenge_cleanup_armed=0
+wait_for_runtime_convergence || fail runtime_convergence
 infisical_rotation_armed=0
-printf 'tls_renewal_status=success hostname=%s san=exact trust=verified validity=30d custody=infisical path=%s keys=exact-two upload_readback=verified challenge=%s cleanup=verified private_residue=none values_output=false\n' \
+printf 'tls_renewal_status=success hostname=%s san=exact trust=verified validity=30d custody=infisical path=%s keys=exact-two upload_readback=verified challenge=%s cleanup=verified convergence=verified private_residue=none values_output=false\n' \
   "$hostname" "$infisical_path" "$challenge_name"

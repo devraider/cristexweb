@@ -20,8 +20,9 @@ Tunnel ingress, Kubernetes objects, or the reserved PROD hostname.
 - Certbot's Cloudflare DNS plugin creates only the exact challenge TXT record.
   The controller explicitly lists the exact name before issuance, refuses
   pre-existing records, performs one exact-name DNS write/delete scope probe,
-  deletes any record left by the locked run through the exact zone API, and
-  verifies an empty readback on success and failure.
+  records all exact-name record IDs observed by the locked run (including IDs
+  created internally by Certbot), deletes those IDs through the exact zone
+  API, and verifies an empty readback on success and failure.
 - Newly generated working copies and upload payloads exist only in a
   mode-0700 temporary workspace with mode-0600 leaves. Certbot's persistent
   account/lineage (including its protected private key) remains only beneath
@@ -31,7 +32,13 @@ Tunnel ingress, Kubernetes objects, or the reserved PROD hostname.
 - Infisical owns `prod:/reactive-resume/dev/tls`, keys `TLS_CRT` and `TLS_KEY`.
   The existing InfisicalStaticSecret materializes
   `cristexhub-dev/reactive-resume-dev-tls` with `creationPolicy: Orphan`.
-  Direct `kubectl` Secret writes are forbidden.
+  Direct `kubectl` Secret writes are forbidden. Infisical has no CAS/If-Match
+  API; its CLI exposes no conditional write operation, so renewal uses a fail-closed revision/readback
+  protocol: exact two-key pre-state is exported, a pre-write export is re-read immediately before
+  write, and compared by certificate/key digest; post-write readback must match
+  both new files. Conditional rollback is attempted only when a fresh read proves
+  the remote state still equals this run's new revision; a changed remote state
+  is never overwritten with stale pre-state.
 
 ## Renewal behavior
 
@@ -42,19 +49,27 @@ sanitized `skipped` receipt. If it is within the threshold, it runs pinned
 Certbot DNS-01 only, validates the exact single SAN, 30-day validity, and
 certificate/key correspondence, then writes an exact two-key payload through the
 Infisical path. The Infisical pre-state must already contain exactly `TLS_CRT`
-and `TLS_KEY`; post-upload YAML key-set and byte readback are verified without
-value output, and a mismatch attempts to restore the pre-upload two-key payload
-before failing. Temporary workspace cleanup removes credentials, payload, and
-private material; protected Certbot account/lineage metadata remains under the
-mode-0700 state root to prevent duplicate issuance.
+and `TLS_KEY`; the no-CAS revision/readback protocol verifies pre-write stability,
+post-upload YAML key-set and byte readback, and conditional rollback without
+stale concurrent overwrite. Before success, the controller waits for the
+InfisicalStaticSecret `LastReconcileStatus=True`, exact Kubernetes TLS Secret
+bytes, and the browser-served Traefik certificate public-key revision to converge;
+this runtime convergence is required before success.
+Temporary workspace cleanup removes credentials, payload, and private material;
+protected Certbot account/lineage metadata remains under the mode-0700 state root
+to prevent duplicate issuance.
 
-Install mode installs the pinned Debian packages `certbot=4.0.0-2+deb13u1`
-and `python3-certbot-dns-cloudflare=4.0.0-1` with `update_cache: false`, then
-verifies their architecture and executable provenance. The service uses the
+Install mode verifies the controller-side `MANIFESTS.sha256` closure and
+hash-binds every renewal source before copying it, then installs the pinned Debian packages
+`certbot=4.0.0-2+deb13u1` and
+`python3-certbot-dns-cloudflare=4.0.0-1` with `update_cache: false`, and verifies
+their architecture and executable provenance. The service uses the
 pinned user-owned Infisical standalone binary version `0.43.121` at
 `/home/paul/.nvm/versions/node/v24.19.0/lib/node_modules/@infisical/cli/bin/infisical`;
-it does not assume a nonexistent `/usr/local/bin/infisical`. Package installation
-and renewal remain separate guarded operations.
+its systemd `PATH` includes the matching nvm bin directory and the service joins
+`k3s-admin` for read-only convergence checks. It does not assume a nonexistent
+`/usr/local/bin/infisical`. Package installation and renewal remain separate
+guarded operations.
 
 ## Safe systemd lifecycle
 
