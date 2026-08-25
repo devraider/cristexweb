@@ -302,6 +302,37 @@
   changed_when: false
   no_log: true
 
+- name: Inspect immutable workload and destination handoff inputs
+  ansible.builtin.stat:
+    path: '{{ item }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: >-
+    {{ reactive_resume_dev_argocd_registration_desired_state_paths +
+       reactive_resume_dev_argocd_registration_destination_policy_paths }}
+  register: reactive_resume_dev_argocd_registration_internal_alignment_sources
+  changed_when: false
+  no_log: true
+
+- name: Require hash-bound immutable handoff inputs before diff
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - item.stat.checksum == expected_alignment_hashes[alignment_index]
+    fail_msg: Refusing registration because an Argo or destination-policy diff input is not the reviewed immutable source.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_alignment_sources.results }}'
+  loop_control:
+    index_var: alignment_index
+  vars:
+    expected_alignment_hashes: >-
+      {{ reactive_resume_dev_argocd_registration_desired_state_sha256 +
+         reactive_resume_dev_argocd_registration_destination_policy_sha256 }}
+  changed_when: false
+  no_log: true
+
 - name: Diff live workload objects against the exact Argo desired source without mutation
   ansible.builtin.command:
     argv:
