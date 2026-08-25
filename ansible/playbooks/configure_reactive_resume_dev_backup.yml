@@ -20,7 +20,7 @@
       {{ lookup('ansible.builtin.env',
                 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE') | trim }}
     reactive_resume_dev_backup_wrapper_sha256: 6a79f4e259a37ec7192442a09a06b7b8c4163e12786a12a97faad1ba2c21f2e5
-    reactive_resume_dev_backup_playbook_sha256: b15e9a7e5743fb60179f33a78af3393b2eeb65bd5b4c2bf9abbf14b40d498c9d
+    reactive_resume_dev_backup_playbook_sha256: 1f7965163ddffb7f4a1538111162efa59e3a0bddf32dfe1c7c785f55051b87a7
     reactive_resume_dev_backup_service: cristexweb-reactive-resume-dev-backup.service
     reactive_resume_dev_backup_timer: cristexweb-reactive-resume-dev-backup.timer
     reactive_resume_dev_backup_acceptance_directory: /var/lib/cristexweb-backup/reactive-resume/dev/acceptance
@@ -33,6 +33,40 @@
       readback=verified encrypted=true private_residue=none)$
 
   pre_tasks:
+    - name: Reject externally supplied backup internal variables
+      ansible.builtin.assert:
+        that: item not in vars
+        fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied backup internal variable {{ item }}."
+      loop:
+        - reactive_resume_dev_backup_internal_preflight_complete
+        - reactive_resume_dev_backup_entrypoint_attestation_state
+        - reactive_resume_dev_backup_source_states
+        - reactive_resume_dev_backup_input_states
+        - reactive_resume_dev_backup_rclone_remotes
+        - reactive_resume_dev_backup_acceptance_states
+        - reactive_resume_dev_backup_acceptance_contents
+        - reactive_resume_dev_backup_acceptance_now
+        - reactive_resume_dev_backup_acceptance_backup
+        - reactive_resume_dev_backup_acceptance_restore
+        - reactive_resume_dev_backup_service_unit
+        - reactive_resume_dev_backup_timer_unit
+        - reactive_resume_dev_backup_test_start_epoch
+        - reactive_resume_dev_backup_test_result
+        - reactive_resume_dev_backup_test_status
+        - reactive_resume_dev_backup_test_journal
+        - reactive_resume_dev_backup_test_receipts
+        - reactive_resume_dev_backup_test_receipt
+        - reactive_resume_dev_backup_test_run_id
+        - reactive_resume_dev_backup_test_epoch
+        - reactive_resume_dev_backup_restore_result
+        - reactive_resume_dev_backup_restore_failure_stage
+        - reactive_resume_dev_backup_restore_source_run_id
+        - reactive_resume_dev_backup_restore_epoch
+        - reactive_resume_dev_backup_timer_active
+        - reactive_resume_dev_backup_timer_enabled
+      changed_when: false
+      no_log: true
+
     - name: Require the canonical twice-daily backup contract
       ansible.builtin.assert:
         that:
