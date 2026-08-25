@@ -31,7 +31,7 @@ controller="$repository_root/.venv/bin/ansible-playbook"
 }
 # The self hash replaces this literal with zeros before hashing, so changing
 # any wrapper logic or closure pin fails without creating a circular digest.
-reactive_resume_dev_backup_wrapper_sha256='e0deaf69699715b675666eee07798377f9b2662540be81f64b071835f7c4915f'
+reactive_resume_dev_backup_wrapper_sha256='47a4f6d7cedd62f1dbf4ba948cb8a86e5bde2f5a1b41e1389394e99f2651b0d1'
 canonical_sha256() {
   /usr/bin/python3 - "$1" <<'PY'
 import hashlib
@@ -80,7 +80,7 @@ verify_source() {
   [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_path")" = "paul:paul:$source_mode" ] || exit 69
   [ "$(/usr/bin/sha256sum "$source_path" | /usr/bin/cut -d ' ' -f 1)" = "$source_sha256" ] || exit 69
 }
-verify_source "$repository_root/ansible/ansible.cfg" 644 d4337935b79677170526abfd4b0ac211c30bb61f72d4e6ddb66e6848955c5ae2
+verify_source "$repository_root/ansible/ansible.cfg" 644 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9
 verify_source "$repository_root/ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py" 644 72e96085fa8fa1cfd6d660145df1c0af7aa4b3efa119144e136f0eb7a79c5b78
 verify_source "$repository_root/ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py" 644 35f45c4edcc5d5e8416a5b8ec39ea09afc0c3dc34fc527e4ee8bd81adcae32ba
 verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup" 755 b92f0696f70550c14661a2e6cd0c899f4349ac4d0c6da0cc95ebc192a8e846b1
