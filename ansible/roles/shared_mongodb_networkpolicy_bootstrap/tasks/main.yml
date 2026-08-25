@@ -21,6 +21,7 @@
     - shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies
     - shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state
     - shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding
+    - shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate
   changed_when: false
 
 - name: Require source-only shared MongoDB NetworkPolicy approval contract
@@ -31,8 +32,12 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE') | length > 0
       - shared_mongodb_networkpolicy_bootstrap_approved | bool
       - shared_mongodb_networkpolicy_bootstrap_state == 'present'
-      - ansible_check_mode | bool
+      - shared_mongodb_networkpolicy_bootstrap_mode in ['check', 'apply']
+      - (ansible_check_mode | bool) == (shared_mongodb_networkpolicy_bootstrap_mode == 'check')
       - ansible_diff_mode
+      - >-
+        (shared_mongodb_networkpolicy_bootstrap_mode == 'check') or
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED') == 'v1'
       - (ansible_limit | default('')) == 'crtxweb'
       - ansible_play_hosts_all | length == 1
       - shared_mongodb_networkpolicy_bootstrap_manifest_paths | length == 2
@@ -419,13 +424,36 @@
   changed_when: false
   no_log: true
 
-- name: Refuse foreign existing target NetworkPolicies
+- name: Refuse foreign or terminating existing target NetworkPolicies
   ansible.builtin.assert:
     that:
       - item.resources | length in [0, 1]
       - item.resources | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
       - item.resources | length == 0 or item.resources[0].metadata.labels.get('cristex.io/component') == 'shared-mongodb-networkpolicy'
-    fail_msg: Refusing a foreign existing shared MongoDB NetworkPolicy target.
+      - >-
+        item.resources | length == 0 or
+        (
+        item.resources[0].metadata.uid | default('') | length > 0 and
+        item.resources[0].metadata.resourceVersion | default('') | length > 0 and
+        'deletionTimestamp' not in item.resources[0].metadata and
+        'deletionGracePeriodSeconds' not in item.resources[0].metadata and
+        'deletionGracePeriod' not in item.resources[0].metadata and
+        'finalizers' not in item.resources[0].metadata and
+        'ownerReferences' not in item.resources[0].metadata
+        )
+    fail_msg: Refusing a foreign, terminating, or replacement shared MongoDB NetworkPolicy target.
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_prestate.results }}"
+  changed_when: false
+
+- name: Bind exact existing NetworkPolicy UID and resourceVersion ledger
+  ansible.builtin.set_fact:
+    shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate: >-
+      {{ (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate | default([])) +
+      ([{
+        'name': item.resources[0].metadata.name,
+        'uid': item.resources[0].metadata.uid,
+        'resource_version': item.resources[0].metadata.resourceVersion
+      }] if item.resources | length == 1 else []) }}
   loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_prestate.results }}"
   changed_when: false
   no_log: true
@@ -437,6 +465,7 @@
       object_count: 2
       identity_set_sha256: "{{ shared_mongodb_networkpolicy_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
       prestate_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_prestate.results | map(attribute='resources') | map('length') | sum }}"
+      networkpolicy_prestate: "{{ shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate | default([]) | sort(attribute='name') }}"
       mongodb_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources | length }}"
       statefulset_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources | length }}"
       statefulset_uid: "{{ shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].metadata.uid }}"
@@ -463,7 +492,7 @@
   changed_when: false
   no_log: true
 
-- name: Validate only the exact NetworkPolicy definitions in check mode
+- name: Reconcile only the exact NetworkPolicy definitions through the guarded lane
   shared_mongodb_networkpolicy_guarded_k8s:
     state: present
     definition: "{{ item }}"

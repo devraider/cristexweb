@@ -210,7 +210,7 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
             }
             result = action.run(task_vars={})
             self.assertTrue(result['failed'])
-            self.assertIn('SOURCE_ONLY_GUARD', result['msg'])
+            self.assertIn('MODE_GUARD', result['msg'])
             context.CLIARGS = {
                 'check': False,
                 'start_at_task': 'forged',
@@ -246,20 +246,54 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
             'target NetworkPolicy drift',
             self.plugin._networkpolicy_preflight_error(drifted, definitions, pod),
         )
+        live = copy.deepcopy(definitions)
+        for index, policy in enumerate(live):
+            policy['metadata']['uid'] = f'uid-{index}'
+            policy['metadata']['resourceVersion'] = str(index + 1)
+        ledger = [
+            {
+                'name': policy['metadata']['name'],
+                'uid': policy['metadata']['uid'],
+                'resource_version': policy['metadata']['resourceVersion'],
+            }
+            for policy in live
+        ]
+        self.assertIsNone(self.plugin._networkpolicy_preflight_error(live, definitions, pod, ledger))
+        for field, value in (
+            ('deletionTimestamp', '2026-08-25T00:00:00Z'),
+            ('deletionGracePeriodSeconds', 30),
+            ('deletionGracePeriod', 30),
+            ('finalizers', []),
+            ('ownerReferences', []),
+        ):
+            terminating = copy.deepcopy(live)
+            terminating[0]['metadata'][field] = value
+            self.assertIn(
+                'target NetworkPolicy drift',
+                self.plugin._networkpolicy_preflight_error(terminating, definitions, pod, ledger),
+            )
+        replacement = copy.deepcopy(live)
+        replacement[0]['metadata']['uid'] = 'replacement-uid'
+        self.assertIn(
+            'target NetworkPolicy replacement',
+            self.plugin._networkpolicy_preflight_error(replacement, definitions, pod, ledger),
+        )
 
-    def test_guarded_entrypoint_is_check_only_and_dedicated(self) -> None:
+    def test_guarded_entrypoint_has_separate_check_and_apply_modes(self) -> None:
         wrapper = WRAPPER.read_text()
-        self.assertIn("usage: ansible/bin/bootstrap-shared-mongodb-networkpolicy check", wrapper)
+        self.assertIn("usage: ansible/bin/bootstrap-shared-mongodb-networkpolicy check|apply", wrapper)
         self.assertIn('--check', wrapper)
+        self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED', wrapper)
+        self.assertIn('shared_mongodb_networkpolicy_bootstrap_mode', wrapper)
         self.assertNotIn('mongodb_bootstrap', wrapper)
         self.assertNotIn('bootstrap-mongodb', wrapper)
-        self.assertNotIn('apply ]', wrapper)
         self.assertIn('shared_mongodb_networkpolicy_bootstrap_approved', wrapper)
+        self.assertIn('shared_mongodb_networkpolicy_bootstrap_mode in [\'check\', \'apply\']', TASKS.read_text())
         self.assertIn('shared_mongodb_networkpolicy_bootstrap', TASKS.read_text())
         self.assertIn('shared_mongodb_networkpolicy_guarded_k8s:', TASKS.read_text())
         self.assertIn('source-only', TASKS.read_text())
-        self.assertIn("if not context.CLIARGS.get('check')", PLUGIN.read_text())
-        self.assertIn('SOURCE_ONLY_GUARD', PLUGIN.read_text())
+        self.assertIn("mode not in {'check', 'apply'}", PLUGIN.read_text())
+        self.assertIn('APPROVAL_GUARD', PLUGIN.read_text())
         self.assertIn('MUTATION_ARGUMENT_GUARD', PLUGIN.read_text())
         self.assertIn('TASK_SELECTION_GUARD', PLUGIN.read_text())
         self.assertIn('Enumerate every shared-services NetworkPolicy', TASKS.read_text())
@@ -277,9 +311,15 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         self.assertIn('root:k3s-admin', TASKS.read_text())
         self.assertIn("spec.hostNetwork | default(false) | bool == false", TASKS.read_text())
         self.assertIn('shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies', TASKS.read_text())
+        self.assertIn("'deletionTimestamp' not in item.resources[0].metadata", TASKS.read_text())
+        self.assertIn("'ownerReferences' not in item.resources[0].metadata", TASKS.read_text())
+        self.assertIn('networkpolicy_prestate', PLUGIN.read_text())
         runbook = (ROOT / 'runbooks/shared-mongodb-networkpolicy-bootstrap.md').read_text()
-        self.assertIn('ok=34 changed=1 unreachable=0 failed=0 skipped=0', runbook)
-        self.assertIn('check mode made no Kubernetes change', runbook)
+        self.assertIn('historical and predates the', runbook)
+        self.assertIn('lifecycle/pre-state hardening', runbook)
+        self.assertIn('fresh check is required', runbook)
+        self.assertIn('Apply remains a', runbook)
+        self.assertIn('no Kubernetes mutation', runbook)
         self.assertIn('shared_mongodb_networkpolicy_bootstrap', PLAYBOOK.read_text())
 
     def test_no_secret_workload_or_operator_exception_source(self) -> None:
@@ -289,9 +329,12 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         self.assertNotIn('cristex.io/database-client', source)
         self.assertNotIn('mongodb_bootstrap', TASKS.read_text() + DEFAULTS.read_text() + PLUGIN.read_text())
 
-    def test_wrapper_shell_syntax(self) -> None:
+    def test_wrapper_shell_syntax_and_apply_approval_gate(self) -> None:
         result = subprocess.run(['sh', '-n', str(WRAPPER)], capture_output=True, text=True)
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        result = subprocess.run([str(WRAPPER), 'apply'], env={}, capture_output=True, text=True)
+        self.assertEqual(77, result.returncode, result.stdout + result.stderr)
+        self.assertIn('APPLY_APPROVED=v1', result.stderr)
 
 
 if __name__ == '__main__':

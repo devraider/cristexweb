@@ -1,6 +1,7 @@
 ---
 # Source-only policy closure for live operator-managed shared MongoDB.
 shared_mongodb_networkpolicy_bootstrap_approved: false
+shared_mongodb_networkpolicy_bootstrap_mode: check
 shared_mongodb_networkpolicy_bootstrap_state: present
 shared_mongodb_networkpolicy_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
 shared_mongodb_networkpolicy_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"

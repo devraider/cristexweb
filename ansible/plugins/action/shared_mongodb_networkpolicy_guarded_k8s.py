@@ -94,17 +94,32 @@ def _policy_identity(policy: dict[str, Any]) -> tuple[str, str, str, str]:
 
 
 def _target_policy_matches_source(current: dict[str, Any], source: dict[str, Any]) -> bool:
+    """Require a live, nonterminating object rather than a replacement candidate."""
     current_metadata = current.get('metadata') or {}
     source_metadata = source.get('metadata') or {}
+    forbidden_lifecycle_fields = {
+        'deletionTimestamp',
+        'deletionGracePeriodSeconds',
+        'deletionGracePeriod',
+        'finalizers',
+        'ownerReferences',
+    }
+    # Kubernetes omits these fields for an ordinary object.  Their presence is
+    # deliberately rejected, including empty lists/nulls, so a terminating or
+    # controller-replaced target cannot satisfy the source-only closure.
+    if forbidden_lifecycle_fields.intersection(current_metadata):
+        return False
     return (
         current.get('apiVersion') == source.get('apiVersion')
         and current.get('kind') == source.get('kind')
         and current_metadata.get('namespace') == source_metadata.get('namespace')
         and current_metadata.get('name') == source_metadata.get('name')
+        and isinstance(current_metadata.get('uid'), str)
+        and bool(current_metadata.get('uid'))
+        and isinstance(current_metadata.get('resourceVersion'), str)
+        and bool(current_metadata.get('resourceVersion'))
         and current_metadata.get('labels', {}) == source_metadata.get('labels', {})
         and current.get('spec') == source.get('spec')
-        and not current_metadata.get('ownerReferences')
-        and not current_metadata.get('finalizers')
     )
 
 
@@ -123,6 +138,7 @@ def _networkpolicy_preflight_error(
     policies: list[dict[str, Any]],
     source_definitions: list[dict[str, Any]],
     pod: dict[str, Any],
+    expected_target_identities: list[dict[str, str]] | None = None,
 ) -> str | None:
     """Return a fail-closed reason for policy union or target drift."""
     if not isinstance(policies, list) or not isinstance(source_definitions, list):
@@ -137,6 +153,18 @@ def _networkpolicy_preflight_error(
         labels.get(key) != value for key, value in _MONGODB_POD_LABELS.items()
     ):
         return 'live MongoDB pod identity or selector drift'
+    ledger_provided = expected_target_identities is not None
+    expected_target_identities = expected_target_identities or []
+    expected_by_name = {item.get('name'): item for item in expected_target_identities}
+    if ledger_provided and any(
+        not isinstance(item, dict)
+        or set(item) != {'name', 'uid', 'resource_version'}
+        or item.get('name') not in {identity[-1] for identity in expected}
+        or not item.get('uid')
+        or not item.get('resource_version')
+        for item in expected_target_identities
+    ):
+        return 'malformed NetworkPolicy pre-state identity ledger'
     for policy in policies:
         if not isinstance(policy, dict):
             return 'malformed NetworkPolicy inventory'
@@ -144,13 +172,31 @@ def _networkpolicy_preflight_error(
         if identity in expected:
             if not _target_policy_matches_source(policy, expected[identity]):
                 return f'target NetworkPolicy drift: {identity[-1]}'
+            metadata = policy.get('metadata') or {}
+            if ledger_provided:
+                expected_identity = expected_by_name.get(metadata.get('name'))
+                if expected_identity is None:
+                    return f'target NetworkPolicy replacement: {identity[-1]}'
+                if (
+                    metadata.get('uid') != expected_identity['uid']
+                    or metadata.get('resourceVersion') != expected_identity['resource_version']
+                ):
+                    return f'target NetworkPolicy replacement: {identity[-1]}'
         elif _selector_can_match_labels((policy.get('spec') or {}).get('podSelector'), labels):
             return f'foreign NetworkPolicy selector overlaps live MongoDB: {identity[-1]}'
+    if ledger_provided:
+        present_target_names = {
+            policy.get('metadata', {}).get('name')
+            for policy in policies
+            if isinstance(policy, dict) and _policy_identity(policy) in expected
+        }
+        if present_target_names != set(expected_by_name):
+            return 'target NetworkPolicy replacement or disappearance'
     return None
 
 
 class ActionModule(KubernetesActionModule):
-    """Validate, but never apply, the exact live MongoDB policy closure."""
+    """Guard the exact MongoDB policy closure in separately gated check/apply modes."""
 
     def run(
         self,
@@ -167,11 +213,18 @@ class ActionModule(KubernetesActionModule):
                 'failed': True,
                 'msg': 'TASK_SELECTION_GUARD: refusing shared MongoDB NetworkPolicy check under task selection',
             }
-        if not context.CLIARGS.get('check'):
+        mode = task_vars.get('shared_mongodb_networkpolicy_bootstrap_mode', '') if task_vars else ''
+        if mode not in {'check', 'apply'} or bool(context.CLIARGS.get('check')) != (mode == 'check'):
             return {
                 'changed': False,
                 'failed': True,
-                'msg': 'SOURCE_ONLY_GUARD: shared MongoDB NetworkPolicy closure has no apply path',
+                'msg': 'MODE_GUARD: shared MongoDB NetworkPolicy mode does not match Ansible check mode',
+            }
+        if mode == 'apply' and os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED') != 'v1':
+            return {
+                'changed': False,
+                'failed': True,
+                'msg': 'APPROVAL_GUARD: shared MongoDB NetworkPolicy apply requires the separately gated wrapper',
             }
         task_source = str(self._task.get_path()).rsplit(':', 1)[0]
         if task_source not in _EXPECTED_TASK_SOURCES:
@@ -243,6 +296,7 @@ class ActionModule(KubernetesActionModule):
             and binding.get('kubeconfig_contract') is True
             and binding.get('namespace_contract') is True
             and binding.get('no_delete_path') is True
+            and isinstance(binding.get('networkpolicy_prestate'), list)
         )
         valid_attestation = (
             os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ENTRYPOINT') == 'v1'
@@ -262,6 +316,7 @@ class ActionModule(KubernetesActionModule):
             policy_resources,
             source_manifests,
             live_pods[0] if len(live_pods) == 1 else {},
+            binding.get('networkpolicy_prestate', []),
         )
         if (
             not valid_attestation

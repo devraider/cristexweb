@@ -1,5 +1,5 @@
 ---
-- name: Check the guarded live shared MongoDB NetworkPolicy closure
+- name: Reconcile the guarded live shared MongoDB NetworkPolicy closure
   hosts: crtxweb
   gather_facts: false
   become: false
