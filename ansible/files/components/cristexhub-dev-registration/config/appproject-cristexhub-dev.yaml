@@ -14,6 +14,10 @@ spec:
   destinations:
     - name: cristexhub-dev-local
       namespace: cristexhub-dev
+    # Both scoped Argo cluster aliases resolve to the same in-cluster API server.
+    # Allowing the RR alias only for this exact namespace avoids alias-order drift.
+    - name: reactive-resume-dev-local
+      namespace: cristexhub-dev
   clusterResourceWhitelist: []
   namespaceResourceWhitelist:
     - group: ""

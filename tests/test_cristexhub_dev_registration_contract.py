@@ -34,7 +34,10 @@ class RegistrationContractTests(unittest.TestCase):
 
     def test_project_is_least_privilege(self):
         self.assertEqual([], PROJECT['spec']['clusterResourceWhitelist'])
-        self.assertEqual([{'name':'cristexhub-dev-local','namespace':'cristexhub-dev'}], PROJECT['spec']['destinations'])
+        self.assertEqual([
+            {'name':'cristexhub-dev-local','namespace':'cristexhub-dev'},
+            {'name':'reactive-resume-dev-local','namespace':'cristexhub-dev'},
+        ], PROJECT['spec']['destinations'])
         kinds = {x['kind'] for x in PROJECT['spec']['namespaceResourceWhitelist']}
         self.assertNotIn('Secret', kinds)
         self.assertIn('Ingress', kinds)
