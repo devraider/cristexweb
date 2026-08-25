@@ -59,14 +59,20 @@ Before the token prompt or any provider command, the entrypoint also verifies
 `opentofu/github/SOURCE.sha256` and its pinned manifest digest. That manifest
 covers every tracked GitHub-root/source leaf, exact expected mode, and SHA-256
 content; the importer is checked through a canonical digest with its two
-embedded digest literals normalized. Missing, extra, symlinked, mode-drifted,
-or partially changed source fails closed. These embedded hashes are a reviewed
+embedded digest literals normalized. The direct OpenTofu root `.tf`/`.tf.json`
+loadable set is compared against the manifest and rejects every extra file.
+Missing, extra, symlinked, mode-drifted, or partially changed source fails
+closed. These embedded hashes are a reviewed
 consistency closure, not an external signature or immutable trust root: a
 coordinated rewrite of the importer, manifest, and pins is visible Git source
 change requiring review and is not claimed to resist a compromised operator UID. The importer repeats the complete manifest, mode, path, and content-hash
 closure immediately before every root consumer (`tofu`, the repository/API
 helper, and the plan validator), detecting accidental or cooperative concurrent
-drift at each boundary. The trusted operator UID is the local security boundary:
+drift at each boundary. Before each backup/restore-absence, backup-test, or
+restore gate it also hashes the exact Ansible wrapper, playbook, four installed
+backup/restore scripts, and their systemd units, then verifies the root-owned
+installed copies after the wrapper completes. The trusted operator UID is the
+local security boundary:
 a malicious process already running as that UID could also inspect process
 memory or pipes and is therefore explicitly out of scope; revalidation is not
 misrepresented as protection from same-UID compromise. A protected first-genesis `flock` is acquired
@@ -110,7 +116,9 @@ before the first import.
 8. Require a second no-op plan after backup/restore, validate its JSON against
    the same exact three-address guard, rerun the exact private-repository API
    postcheck, and compare `TOFU_DISABLE_CHECKPOINT=1 tofu state list` to the
-   three imported addresses before accepting the import. Source push, workflow enablement, GHCR publication,
+   three imported addresses before accepting the import. All OpenTofu child
+   commands, including the final state-list gate, run with
+   `TOFU_DISABLE_CHECKPOINT=1`. Source push, workflow enablement, GHCR publication,
    package visibility, collaborators, deployments, Kubernetes, Infisical, DNS,
    and public routing remain separate approvals.
 

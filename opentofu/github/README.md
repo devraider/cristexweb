@@ -33,7 +33,8 @@ application source; source remains owned by the external application repository.
 The GitHub provider is pinned to `integrations/github` `6.13.0`. Authentication is
 provider-native and must be supplied through the provider's protected environment
 mechanism (for example `GITHUB_TOKEN`); no token variable, secret, output, file,
-plan, or state value is declared here.
+plan, or state value is declared here. The importer rejects any direct-root
+`.tf` or `.tf.json` file outside the manifest's exact OpenTofu loadable set.
 
 The independent local backend is:
 
@@ -57,12 +58,15 @@ verifies the committed [`SOURCE.sha256`](SOURCE.sha256) manifest and the
 canonical form of the importer itself. The manifest enumerates the complete
 tracked root/source closure (OpenTofu files, lockfile, validators, repository
 preflight, and import entrypoint), including exact file modes and SHA-256
-content. Any missing, widened, symlinked, mode-drifted, or hash-drifted leaf
-fails closed. It is a separate guarded entrypoint that accepts only
+content. The runtime root's direct `.tf`/`.tf.json` loadable set is compared to
+that exact manifest; any missing, extra, symlinked, mode-drifted, or hash-drifted
+leaf fails closed. It is a separate guarded entrypoint that accepts only
 `check|import`, prompts for an ephemeral protected token, imports exactly the
 three existing-repository addresses, validates a protected no-op plan, and
 requires the independent encrypted backup/readback and isolated restore lane.
 It has no create, delete, destroy, apply, state-push, or state-removal path.
+Every OpenTofu child runs with `TOFU_DISABLE_CHECKPOINT=1`, including the final
+state-list gate.
 
 ## Apply gates
 

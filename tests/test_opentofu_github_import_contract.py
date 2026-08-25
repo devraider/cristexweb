@@ -116,6 +116,10 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
         entries = {relative: digest for digest, relative in (line.split("  ", 1) for line in closure)}
         self.assertEqual(expected_paths, set(entries))
         self.assertEqual(11, len(closure))
+        self.assertEqual(
+            ["backend.tf", "github.tf", "providers.tf", "versions.tf"],
+            sorted(path for path in expected_paths if path.endswith((".tf", ".tf.json"))),
+        )
         manifest_hash = re.search(r"source_manifest_expected_sha256='([0-9a-f]{64})'", source)
         self_hash = re.search(r"source_import_expected_canonical_sha256='([0-9a-f]{64})'", source)
         self.assertIsNotNone(manifest_hash)
@@ -150,6 +154,12 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "Refusing GitHub source drift:",
             "source_actual_paths",
             "source_mode=755",
+            "source_loadable_paths",
+            "source_expected_loadable_paths",
+            "/usr/bin/find",
+            "-name '*.tf'",
+            "-name '*.tf.json'",
+            "Refusing incomplete or widened OpenTofu-loadable file set.",
         ):
             self.assertIn(value, source, value)
 
@@ -176,6 +186,8 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "validate-import-plan",
             "restore",
             "run_backup_interactive()",
+            "backup_source_contract()",
+            "backup_installed_contract()",
             "sudo_prompt=interactive",
             "token_output=false",
         ):
@@ -201,6 +213,35 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
         ):
             self.assertIn(value, source, value)
 
+    def test_external_backup_execution_closure_is_hash_bound(self) -> None:
+        source = IMPORT.read_text()
+        files = (
+            "ansible/bin/configure-opentofu-github-state-backup",
+            "ansible/playbooks/configure_opentofu_github_state_backup.yml",
+            "ansible/files/backup/opentofu-github-state-backup",
+            "ansible/files/backup/restore-opentofu-github-state-rehearsal",
+            "ansible/files/backup/opentofu-github-state-absence-attestation",
+            "ansible/files/backup/restore-opentofu-github-state-absence-rehearsal",
+            "ansible/files/backup/cristexweb-opentofu-github-state-backup.service",
+            "ansible/files/backup/cristexweb-opentofu-github-state-backup.timer",
+        )
+        for relative in files:
+            path = ROOT / relative
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            self.assertIn(Path(relative).name, source, relative)
+            self.assertIn(digest, source, relative)
+        for installed in (
+            "/usr/local/libexec/cristexweb/opentofu-github-state-backup",
+            "/usr/local/libexec/cristexweb/restore-opentofu-github-state-rehearsal",
+            "/usr/local/libexec/cristexweb/opentofu-github-state-absence-attestation",
+            "/usr/local/libexec/cristexweb/restore-opentofu-github-state-absence-rehearsal",
+            "/etc/systemd/system/cristexweb-opentofu-github-state-backup.service",
+            "/etc/systemd/system/cristexweb-opentofu-github-state-backup.timer",
+        ):
+            self.assertIn(installed, source, installed)
+        self.assertIn("root:root:$backup_installed_expected_mode", source)
+        self.assertIn("realpath -e --", source)
+
     def test_source_closure_is_revalidated_before_each_root_consumer(self) -> None:
         source = IMPORT.read_text()
         self.assertIn("revalidate_source_closure() {", source)
@@ -216,7 +257,7 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             4,
         )
         self.assertIn('582ab4adde9e34f06c6ccc9535cb77594c5992ff3a1484d27420385dc5da89b5', source)
-        self.assertIn("stat -c '%U:%G:%a' \"$backup_wrapper\"", source)
+        self.assertIn("stat -c '%U:%G:%a' \"$backup_source_path\"", source)
 
     def test_backend_environment_lock_and_final_gates_are_bound(self) -> None:
         source = IMPORT.read_text()
@@ -246,6 +287,8 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "second_plan=no-op",
             "postcheck=private-exact",
             "state list -no-color",
+            "TOFU_DISABLE_CHECKPOINT=1",
+            "run_capture \"$state_list\" /usr/bin/env TOFU_DISABLE_CHECKPOINT=1",
         ):
             self.assertIn(value, source, value)
         self.assertIn("run_quiet_with_token \"$github_root/bin/check-repository-present\"", source)

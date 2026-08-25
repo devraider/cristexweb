@@ -54,8 +54,8 @@ repo_root=$(CDPATH= cd -- "$dir/../../.." && pwd -P)
 # leaf except itself; the manifest and this entrypoint's canonical form are
 # independently pinned below so a partial source review cannot authorize import.
 source_manifest="$github_root/SOURCE.sha256"
-source_manifest_expected_sha256='32f77eddb17313427f10811a8f7e4421a88c825d89dbc5721846e612026c6e6d'
-source_import_expected_canonical_sha256='f4916350ded133997cb77620dc3332e7b306f9b7abc20157663d4d8ce7fd47ba'
+source_manifest_expected_sha256='57fad123d6623950234a248d17f82aba629ec7299fe4a908aec21220677bf26e'
+source_import_expected_canonical_sha256='e0f81bc2d6943e8c52d454f4dfd5f2e1492b1cb044c44ac973fdde9112a03cd6'
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-github-source.XXXXXX)
 chmod 0700 "$source_work"
 trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM
@@ -103,6 +103,17 @@ revalidate_source_closure() {
     [ "$(/usr/bin/sort -u "$source_actual_paths" | /usr/bin/wc -l)" -eq 11 ] || exit 78
     /usr/bin/cmp -s "$source_expected_paths" "$source_actual_paths" || {
         printf '%s\n' 'Refusing incomplete or widened GitHub source closure.' >&2
+        exit 78
+    }
+    source_loadable_paths="$source_work/loadable-paths"
+    source_expected_loadable_paths="$source_work/expected-loadable-paths"
+    /usr/bin/grep -E '\.tf(\.json)?$' "$source_expected_paths" | /usr/bin/sort >"$source_expected_loadable_paths"
+    /usr/bin/find "$github_root" -mindepth 1 -maxdepth 1 \
+        \( -type f -o -type l \) \
+        \( -name '*.tf' -o -name '*.tf.json' \) \
+        -printf '%f\n' | /usr/bin/sort >"$source_loadable_paths"
+    /usr/bin/cmp -s "$source_expected_loadable_paths" "$source_loadable_paths" || {
+        printf '%s\n' 'Refusing incomplete or widened OpenTofu-loadable file set.' >&2
         exit 78
     }
     while IFS= read -r source_line; do
@@ -201,7 +212,7 @@ fail() {
 clean_exec() {
     /usr/bin/env -i \
         HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C.UTF-8 TF_CLI_CONFIG_FILE=/dev/null \
+        LC_ALL=C.UTF-8 TF_CLI_CONFIG_FILE=/dev/null TOFU_DISABLE_CHECKPOINT=1 \
         "$@"
 }
 clean_exec_with_token() {
@@ -209,7 +220,7 @@ clean_exec_with_token() {
     # as argv, a file, or a command-log value. pipefail preserves child errors.
     printf '%s\n' "$github_token" | /usr/bin/env -i \
         HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C.UTF-8 TF_CLI_CONFIG_FILE=/dev/null \
+        LC_ALL=C.UTF-8 TF_CLI_CONFIG_FILE=/dev/null TOFU_DISABLE_CHECKPOINT=1 \
         /bin/sh -c '
             IFS= read -r GITHUB_TOKEN || exit 74
             export GITHUB_TOKEN
@@ -242,14 +253,58 @@ run_capture() {
 # the provider log: nested backup calls must retain the controlling terminal so
 # the operator can enter sudo credentials, while the backup source emits only
 # sanitized receipts and never receives GITHUB_TOKEN.
+backup_source_contract() {
+    backup_source_path=$1
+    backup_source_expected_sha256=$2
+    backup_source_expected_mode=$3
+    [ -f "$backup_source_path" ] && [ ! -L "$backup_source_path" ] || fail backup_source
+    [ "$(/usr/bin/realpath -e -- "$backup_source_path")" = "$backup_source_path" ] || fail backup_source
+    [ "$(/usr/bin/stat -c '%U:%G:%a' "$backup_source_path")" = "paul:paul:$backup_source_expected_mode" ] || fail backup_source
+    [ "$(/usr/bin/sha256sum "$backup_source_path" | /usr/bin/cut -d ' ' -f 1)" = "$backup_source_expected_sha256" ] || fail backup_source
+}
+backup_installed_contract() {
+    backup_installed_path=$1
+    backup_installed_expected_sha256=$2
+    backup_installed_expected_mode=$3
+    [ -f "$backup_installed_path" ] && [ ! -L "$backup_installed_path" ] || fail backup_installed
+    [ "$(/usr/bin/realpath -e -- "$backup_installed_path")" = "$backup_installed_path" ] || fail backup_installed
+    [ "$(/usr/bin/stat -c '%U:%G:%a' "$backup_installed_path")" = "root:root:$backup_installed_expected_mode" ] || fail backup_installed
+    [ "$(/usr/bin/sha256sum "$backup_installed_path" | /usr/bin/cut -d ' ' -f 1)" = "$backup_installed_expected_sha256" ] || fail backup_installed
+}
 run_backup_interactive() {
     revalidate_source_closure
-    [ -f "$backup_wrapper" ] && [ ! -L "$backup_wrapper" ] || fail backup_wrapper
-    [ "$(/usr/bin/stat -c '%U:%G:%a' "$backup_wrapper")" = 'paul:paul:755' ] || fail backup_wrapper
-    [ "$(/usr/bin/sha256sum "$backup_wrapper" | /usr/bin/cut -d ' ' -f 1)" =
-      '582ab4adde9e34f06c6ccc9535cb77594c5992ff3a1484d27420385dc5da89b5' ] || fail backup_wrapper
+    [ -d "$repo_root/ansible" ] && [ ! -L "$repo_root/ansible" ] || fail backup_source
+    [ "$(/usr/bin/realpath -e -- "$repo_root/ansible")" = "$repo_root/ansible" ] || fail backup_source
+    backup_source_contract "$backup_wrapper" \
+        '582ab4adde9e34f06c6ccc9535cb77594c5992ff3a1484d27420385dc5da89b5' 755
+    backup_source_contract "$backup_playbook" \
+        'a1d6027cdb48a90bdb4ec6f0facd4b103c0695e451da1808f2ad9e56e47a2f0d' 644
+    backup_source_contract "$backup_source_dir/opentofu-github-state-backup" \
+        '8f8b531215112cb1b9e7725a4475c2f7bb8aebbf01db37f8f9d6e5caab5e1b60' 755
+    backup_source_contract "$backup_source_dir/restore-opentofu-github-state-rehearsal" \
+        '6f9681878c552241f9095615049ab09d0720eb5e84a5da20a92346122a316a83' 755
+    backup_source_contract "$backup_source_dir/opentofu-github-state-absence-attestation" \
+        '9199e29e0920b2aac152eadef2f2eb138528cc23fe51ddbe34f57cfb4eb78521' 755
+    backup_source_contract "$backup_source_dir/restore-opentofu-github-state-absence-rehearsal" \
+        '656818ae17a23378a0fd83a0265face85904ab4e6a18b50cfdc7e7c9a25efb9e' 755
+    backup_source_contract "$backup_source_dir/cristexweb-opentofu-github-state-backup.service" \
+        '43c425f50a0d3d3861c93ce440d5003121aee2f29ff9e23f31573faf733988a3' 644
+    backup_source_contract "$backup_source_dir/cristexweb-opentofu-github-state-backup.timer" \
+        'c2c4c1d3b18fdfb9ec151e7184af1e07a6a6c1f132d0b49bd3ff86fba27c3c2b' 644
     printf 'import_stage=backup_%s sudo_prompt=interactive\n' "$1" >&2
     clean_exec "$backup_wrapper" "$1" || fail "backup_$1"
+    backup_installed_contract /usr/local/libexec/cristexweb/opentofu-github-state-backup \
+        '8f8b531215112cb1b9e7725a4475c2f7bb8aebbf01db37f8f9d6e5caab5e1b60' 755
+    backup_installed_contract /usr/local/libexec/cristexweb/restore-opentofu-github-state-rehearsal \
+        '6f9681878c552241f9095615049ab09d0720eb5e84a5da20a92346122a316a83' 755
+    backup_installed_contract /usr/local/libexec/cristexweb/opentofu-github-state-absence-attestation \
+        '9199e29e0920b2aac152eadef2f2eb138528cc23fe51ddbe34f57cfb4eb78521' 755
+    backup_installed_contract /usr/local/libexec/cristexweb/restore-opentofu-github-state-absence-rehearsal \
+        '656818ae17a23378a0fd83a0265face85904ab4e6a18b50cfdc7e7c9a25efb9e' 755
+    backup_installed_contract /etc/systemd/system/cristexweb-opentofu-github-state-backup.service \
+        '43c425f50a0d3d3861c93ce440d5003121aee2f29ff9e23f31573faf733988a3' 644
+    backup_installed_contract /etc/systemd/system/cristexweb-opentofu-github-state-backup.timer \
+        'c2c4c1d3b18fdfb9ec151e7184af1e07a6a6c1f132d0b49bd3ff86fba27c3c2b' 644
 }
 
 printf '%s' 'GitHub token (input hidden): ' >&2
@@ -279,6 +334,8 @@ unset confirmation
 # The first-genesis absence attestation/readback is a required separate gate;
 # it never receives GITHUB_TOKEN and never writes the OpenTofu state.
 backup_wrapper="$repo_root/ansible/bin/configure-opentofu-github-state-backup"
+backup_playbook="$repo_root/ansible/playbooks/configure_opentofu_github_state_backup.yml"
+backup_source_dir="$repo_root/ansible/files/backup"
 [ -x "$backup_wrapper" ] || fail backup_wrapper
 run_backup_interactive restore-absence
 # The token remains only in this shell variable while the backup lane runs
@@ -317,7 +374,7 @@ run_quiet_with_token "$tofu" -chdir="$github_root" plan -input=false -lock=true 
 run_capture "$post_plan_json" "$tofu" -chdir="$github_root" show -json "$post_plan"
 run_quiet "$github_root/bin/validate-import-plan" "$post_plan_json"
 run_quiet_with_token "$github_root/bin/check-repository-present"
-run_capture "$state_list" "$tofu" -chdir="$github_root" state list -no-color
+run_capture "$state_list" /usr/bin/env TOFU_DISABLE_CHECKPOINT=1 "$tofu" -chdir="$github_root" state list -no-color
 expected_state_list="$work/expected-state-list.txt"
 printf '%s\n' \
     github_actions_repository_permissions.reactive_resume_mirror \
