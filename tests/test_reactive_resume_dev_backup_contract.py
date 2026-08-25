@@ -154,6 +154,10 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
                 ["ansible-playbook", "-t", "all"],
                 ["ansible-playbook", "-t=all"],
                 ["ansible-playbook", "-tall"],
+                ["ansible-playbook", "--ta", "all"],
+                ["ansible-playbook", "--ta=all"],
+                ["ansible-playbook", "--tag", "all"],
+                ["ansible-playbook", "--tag=all"],
             ):
                 with self.subTest(argv=argv):
                     with mock.patch.object(module.sys, "argv", argv):
@@ -174,6 +178,8 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
                     ["ansible-playbook"],
                     ["ansible-playbook", "-t", "all"],
                     ["ansible-playbook", "-t=all"],
+                    ["ansible-playbook", "--ta", "all"],
+                    ["ansible-playbook", "--tag=all"],
                 ):
                     with self.subTest(argv=argv):
                         with mock.patch.object(module.sys, "argv", argv):

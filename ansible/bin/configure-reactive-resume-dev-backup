@@ -31,7 +31,7 @@ controller="$repository_root/.venv/bin/ansible-playbook"
 }
 # The self hash replaces this literal with zeros before hashing, so changing
 # any wrapper logic or closure pin fails without creating a circular digest.
-reactive_resume_dev_backup_wrapper_sha256='58ae5f1112806cde75acf5dc91222dbbcb31a2d3ec17d4e82215f77db32e5f23'
+reactive_resume_dev_backup_wrapper_sha256='b58e17916ae465b3dd6681fb07c065f2517afea8b61174788a753ea2bdabc18c'
 canonical_sha256() {
   /usr/bin/python3 - "$1" <<'PY'
 import hashlib
@@ -81,8 +81,8 @@ verify_source() {
   [ "$(/usr/bin/sha256sum "$source_path" | /usr/bin/cut -d ' ' -f 1)" = "$source_sha256" ] || exit 69
 }
 verify_source "$repository_root/ansible/ansible.cfg" 644 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9
-verify_source "$repository_root/ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py" 644 31c53ca33e99587c158bcd0e6596d473eba788d84f50df7a1f65def932e16c57
-verify_source "$repository_root/ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py" 644 b83d0d04b738a85228f23d53f52941eaf295490a5f25bb2f91e07b7b4fce5661
+verify_source "$repository_root/ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py" 644 2878e72b0783deefcdb2fad49e518ff8b864d476d4ff6fa836c1a00fc17608e6
+verify_source "$repository_root/ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py" 644 5c5aeabbec7095468ac31cffb742c2752ce34ff7a4369d9440b5dece7d18ad04
 verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup" 755 b92f0696f70550c14661a2e6cd0c899f4349ac4d0c6da0cc95ebc192a8e846b1
 verify_source "$repository_root/ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal" 755 23bb8842a5d609f15a64f011c69665b7a6b330bfcce34ee2dacc58af0b60a5a6
 verify_source "$repository_root/ansible/files/backup/cristexweb-reactive-resume-dev-backup.service" 644 cd1a1cf09646d6675ebdefba085735755c00e229f1a21ae1d2a5ab2c196dbae2

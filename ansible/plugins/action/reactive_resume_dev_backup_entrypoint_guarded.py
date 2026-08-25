@@ -24,12 +24,23 @@ class ActionModule(ActionBase):
         task_vars = task_vars or {}
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
+        long_selection_options = (
+            "--start-at-task",
+            "--step",
+            "--tags",
+            "--skip-tags",
+        )
         selection_argv = any(
-            argument in {"--start-at-task", "--step", "--tags", "--skip-tags", "-t"}
-            or argument.startswith(
-                ("--start-at-task=", "--tags=", "--skip-tags=", "-t=")
-            )
+            argument == "-t"
+            or argument.startswith("-t=")
             or (argument.startswith("-t") and len(argument) > 2)
+            or (
+                argument.startswith("--")
+                and any(
+                    option.startswith(argument.split("=", 1)[0])
+                    for option in long_selection_options
+                )
+            )
             for argument in sys.argv[1:]
         )
         if (
