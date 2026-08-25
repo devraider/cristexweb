@@ -54,8 +54,8 @@ repo_root=$(CDPATH= cd -- "$dir/../../.." && pwd -P)
 # leaf except itself; the manifest and this entrypoint's canonical form are
 # independently pinned below so a partial source review cannot authorize import.
 source_manifest="$github_root/SOURCE.sha256"
-source_manifest_expected_sha256='43708216e6bfae1c857fd05f4114ad8c08ba69d0f34cb5ddb5d828b5cb57d678'
-source_import_expected_canonical_sha256='5a1592b6986743767268afcc23fc42318ce3f77babcc870d2e529a429fad68a7'
+source_manifest_expected_sha256='32f77eddb17313427f10811a8f7e4421a88c825d89dbc5721846e612026c6e6d'
+source_import_expected_canonical_sha256='f4916350ded133997cb77620dc3332e7b306f9b7abc20157663d4d8ce7fd47ba'
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-github-source.XXXXXX)
 chmod 0700 "$source_work"
 trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM
@@ -161,14 +161,10 @@ backend_expected_sha256='318f268e4f93ae5c7775b798a88db997f4e47d1e32374432cf5c438
 [ -d "$state_parent" ] && [ ! -L "$state_parent" ] || { printf '%s\n' 'Refusing state parent.' >&2; exit 65; }
 [ "$(/usr/bin/realpath -e -- "$state_parent")" = "$state_parent" ] || exit 65
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$state_parent")" = 'paul:root:700' ] || exit 65
-# Hold this lock from the first absence check through initialization and all
-# three imports. The lock lives below the protected state parent, not /tmp.
-lock_file="$state_parent/github-import.lock"
-[ ! -L "$lock_file" ] || exit 65
-[ ! -e "$lock_file" ] || [ -f "$lock_file" ] || exit 65
-exec 9>"$lock_file"
-chmod 0600 "$lock_file"
-[ "$(/usr/bin/stat -c '%U:%G:%a' "$lock_file")" = 'paul:paul:600' ] || exit 65
+# Hold one non-mutating lock on the protected state directory inode from the
+# first absence check through initialization and all three imports. Both check
+# and import lock the same inode; check creates or truncates no lock file.
+exec 9<"$state_parent"
 /usr/bin/flock -n 9 || {
     printf '%s\n' 'Refusing concurrent first-genesis import.' >&2
     exit 75

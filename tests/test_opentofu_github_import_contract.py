@@ -181,6 +181,7 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
         ):
             self.assertIn(value, source, value)
         for forbidden in (
+            "github-import.lock",
             "tofu apply",
             "tofu destroy",
             "tofu state rm",
@@ -229,8 +230,8 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "backend_expected_state_path='/var/lib/opentofu/cristexweb/github.tfstate'",
             "committed backend file is hash-bound",
             "grep -Fxq",
-            "lock_file=\"$state_parent/github-import.lock\"",
-            "paul:paul:600",
+            "exec 9<\"$state_parent\"",
+            "check creates or truncates no lock file",
             "/usr/bin/flock -n 9",
             "state_absence_recheck",
             "TF_CLI_ARGS_*",
