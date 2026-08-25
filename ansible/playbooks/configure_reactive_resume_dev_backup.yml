@@ -31,6 +31,49 @@
       changed_when: false
       no_log: true
 
+    - name: Inspect exact hash-bound backup source closure
+      ansible.builtin.stat:
+        path: '{{ reactive_resume_dev_backup_repository_root }}/{{ item.path }}'
+        follow: false
+        get_checksum: true
+        checksum_algorithm: sha256
+      loop:
+        - path: ansible/files/backup/reactive-resume-dev-backup
+          mode: '0755'
+          sha256: 0e0e284dc27d5264a5df892e00fd2e2cd9c23c6605796465eaa3e3f187196944
+        - path: ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal
+          mode: '0755'
+          sha256: b9600852e8373f79c189adc2d3309bd1053d0373c23e4c066b3f502f5d2d212b
+        - path: ansible/files/backup/cristexweb-reactive-resume-dev-backup.service
+          mode: '0644'
+          sha256: cd1a1cf09646d6675ebdefba085735755c00e229f1a21ae1d2a5ab2c196dbae2
+        - path: ansible/files/backup/cristexweb-reactive-resume-dev-backup.timer
+          mode: '0644'
+          sha256: 33de353a8ff2628e48fd0adadf5312472f26085581cf59fcc7ce4c580d4397d5
+        - path: ansible/files/backup/reactive-resume-dev-backup-networkpolicy.yaml
+          mode: '0644'
+          sha256: 60f3163038818523621000937a60ab68be81fcaf73a31e55a2aab199c01c640b
+      register: reactive_resume_dev_backup_source_states
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      no_log: true
+
+    - name: Require exact hash-bound backup source closure
+      ansible.builtin.assert:
+        that:
+          - item.stat.isreg | default(false)
+          - not (item.stat.islnk | default(false))
+          - item.stat.pw_name == 'paul'
+          - item.stat.mode == item.item.mode
+          - item.stat.checksum == item.item.sha256
+        fail_msg: Refusing missing, mode-drifted, symlinked, or hash-drifted backup source.
+      loop: '{{ reactive_resume_dev_backup_source_states.results }}'
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      no_log: true
+
     - name: Collect installed package facts
       ansible.builtin.package_facts:
         manager: apt

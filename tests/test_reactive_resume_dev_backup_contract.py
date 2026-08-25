@@ -21,6 +21,11 @@ RUNBOOK = ROOT / "runbooks/reactive-resume-dev-backup.md"
 
 
 class ReactiveResumeDevBackupContractTests(unittest.TestCase):
+    def test_pg_table_count_excludes_table_data_and_attach_toc_entries(self):
+        for source in (BACKUP.read_text(), RESTORE.read_text()):
+            self.assertIn('TABLE\\s+(?!DATA\\s|ATTACH\\s)', source)
+            self.assertNotIn('if " TABLE " in (" " + line + " ")', source)
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.backup = BACKUP.read_text()

@@ -265,10 +265,11 @@ PY
 [ -s "$run_directory/reactive-resume-dev.dump" ] || fail pg_dump_empty
 /usr/bin/pg_restore --list "$run_directory/reactive-resume-dev.dump" >"$work/postgresql.list" || fail pg_logical_list
 pg_logical_counts=$(/usr/bin/python3 - "$work/postgresql.list" <<'PY'
-import sys
+import re, sys
 with open(sys.argv[1], encoding="utf-8") as stream:
     entries = [line for line in stream if line.strip() and not line.startswith(";")]
-tables = [line for line in entries if " TABLE " in (" " + line + " ")]
+table_entry = re.compile(r"^\d+;\s+\d+\s+\d+\s+TABLE\s+(?!DATA\s|ATTACH\s)")
+tables = [line for line in entries if table_entry.match(line)]
 assert entries and tables
 print(f"{len(entries)}:{len(tables)}")
 PY
