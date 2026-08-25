@@ -19,14 +19,20 @@ spec:
         resources: [secrets]
         scope: Namespaced
   matchConditions:
-    - name: exact-target
-      expression: request.namespace == 'cristexhub-dev' && object.metadata.name in ['reactive-resume-dev-runtime', 'reactive-resume-dev-migration']
+    - name: exact-namespace
+      expression: request.namespace == 'cristexhub-dev'
   validations:
     - expression: >-
         request.userInfo.username == 'system:serviceaccount:shared-services:infisical-operator-controller' &&
+        (!has(object.metadata.ownerReferences) || object.metadata.ownerReferences.size() == 0) &&
+        (!has(object.metadata.finalizers) || object.metadata.finalizers.size() == 0) &&
+        object.metadata.namespace == 'cristexhub-dev' &&
+        object.metadata.name in ['reactive-resume-dev-runtime', 'reactive-resume-dev-migration'] &&
+        object.metadata.labels.size() == 3 &&
         object.metadata.labels['app.kubernetes.io/managed-by'] == 'infisical' &&
         object.metadata.labels['app.kubernetes.io/part-of'] == 'reactive-resume' &&
         object.metadata.labels['cristex.io/value-owner'] == 'infisical-cloud' &&
+        (!has(object.stringData) || object.stringData.size() == 0) &&
         object.type == 'Opaque' &&
         ((object.metadata.name == 'reactive-resume-dev-runtime' && object.data.size() == 15 &&
           object.data.exists(k, k == 'APP_URL') && object.data.exists(k, k == 'AUTH_SECRET') &&

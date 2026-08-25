@@ -1,3 +1,3 @@
-c97e2268dd37f18c1df544c1a918a8b0c104745ed36ef490d521c5be6573a9a0  source/admission-rbac.yaml
+e38c6d6e531e78013c74994006beaa50fea7195774e60e96379811bd47a7cb3f  source/admission-rbac.yaml
 587404c0f41e7920a6eb742c713e45b867c638e1b4ff1e306145ad7a281bfbdd  source/migration-static-secret.yaml
 e8b11b97146c98ed4a95e46009385b4883b2f533ffe50ea02b44415bf568177a  source/runtime-static-secret.yaml

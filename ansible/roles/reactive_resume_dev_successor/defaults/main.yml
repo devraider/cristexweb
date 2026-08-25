@@ -79,10 +79,11 @@ reactive_resume_dev_successor_auth_labels:
   cristex.io/component: infisical-cristexhub-dev-runtime
 reactive_resume_dev_successor_source_manifest: >-
   {{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256
-reactive_resume_dev_successor_source_manifest_sha256: 5944b58eee2298e043a95158500fde3eb72265c5ce1559f687bb78a8e7e80087
+reactive_resume_dev_successor_source_manifest_sha256: f02b444f16a5444cc3b4dba56cbcf4e9e94c72f6021e32375a2504afd3d5cce1
+reactive_resume_dev_successor_admission_expression_sha256: 7c0941ee1ab38cc139e7e94a8aeb5d0fa43204413d08bceebf9a2d3d0740a745
 reactive_resume_dev_successor_source_manifest_entries:
   - path: source/admission-rbac.yaml
-    sha256: 63361e692bae54a950c5156f92e83f61492079c5adf4ce1f8a4ec379a88a2bec
+    sha256: e38c6d6e531e78013c74994006beaa50fea7195774e60e96379811bd47a7cb3f
   - path: source/migration-static-secret.yaml
     sha256: 587404c0f41e7920a6eb742c713e45b867c638e1b4ff1e306145ad7a281bfbdd
   - path: source/runtime-static-secret.yaml
@@ -95,7 +96,7 @@ reactive_resume_dev_successor_ca_source_path: >-
   {{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml
 reactive_resume_dev_successor_check_directory: '{{ reactive_resume_dev_successor_repository_root }}/ansible/files/database-provisioning'
 reactive_resume_dev_successor_check_script: '{{ reactive_resume_dev_successor_check_directory }}/reactive-resume-dev-successor-check.sh'
-reactive_resume_dev_successor_script_sha256: cc130ab6e89860ddb08226972f11f10fe3e585d1f2444effc6d5f287a716140e
+reactive_resume_dev_successor_script_sha256: 86a9bb7fd973233aa52762eb66eaeb3e08990b63d8dcbe51226b0acddccacf7b
 reactive_resume_dev_successor_forbidden_secret_names:
   - shared-postgresql-reactive-resume-dev
   - shared-postgresql-reactive-resume-prod

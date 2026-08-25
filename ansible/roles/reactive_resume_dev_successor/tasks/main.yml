@@ -401,6 +401,7 @@
         else reactive_resume_dev_successor_migration_path)
       - item.resources[0].spec.targets | length == 1
       - item.resources[0].spec.targets[0].name == item.item
+      - item.resources[0].spec.targets[0].namespace == reactive_resume_dev_successor_application_namespace
       - item.resources[0].spec.targets[0].kind == 'Secret'
       - item.resources[0].spec.targets[0].secretType == 'Opaque'
       - item.resources[0].spec.targets[0].creationPolicy == 'Orphan'
@@ -545,18 +546,53 @@
   ansible.builtin.assert:
     that:
       - reactive_resume_dev_successor_internal_admission_policy.resources | length == 1
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.name == reactive_resume_dev_successor_admission_policy
+      - (reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.namespace | default('')) == ''
       - reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.labels == reactive_resume_dev_successor_source_labels
+      - (reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.annotations | default({})) == {}
+      - (reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - (reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.finalizers | default([]) | length) == 0
       - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.failurePolicy == 'Fail'
+      - (reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints | length) == 2
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints.matchPolicy == 'Equivalent'
       - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints.resourceRules | length == 1
       - >-
         reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints.resourceRules[0] ==
         {'apiGroups': [''], 'apiVersions': ['v1'], 'operations': ['CREATE', 'UPDATE'], 'resources': ['secrets'], 'scope': 'Namespaced'}
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConditions | length == 1
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConditions[0].name == 'exact-namespace'
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConditions[0].expression == "request.namespace == 'cristexhub-dev'"
       - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations | length == 1
-      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression is search('infisical-operator-controller')
+      - (reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0] | length) == 3
+      - >-
+        reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].message ==
+        'Only the Infisical controller may write the exact Reactive Resume DEV Secret contracts.'
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].reason == 'Forbidden'
+      - >-
+        (reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression | hash('sha256')) ==
+        reactive_resume_dev_successor_admission_expression_sha256
+      - >-
+        reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression |
+        search('infisical-operator-controller')
+      - >-
+        reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression |
+        search("object.metadata.namespace == 'cristexhub-dev'")
+      - >-
+        reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression |
+        search("object.metadata.name in ['reactive-resume-dev-runtime', 'reactive-resume-dev-migration']")
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression is search('object.metadata.labels.size() == 3')
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression is search('object.metadata.ownerReferences')
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression is search('object.metadata.finalizers')
       - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression is search('reactive-resume-dev-runtime')
       - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression is search('reactive-resume-dev-migration')
       - reactive_resume_dev_successor_internal_admission_binding.resources | length == 1
+      - reactive_resume_dev_successor_internal_admission_binding.resources[0].metadata.name == reactive_resume_dev_successor_admission_policy
+      - (reactive_resume_dev_successor_internal_admission_binding.resources[0].metadata.namespace | default('')) == ''
       - reactive_resume_dev_successor_internal_admission_binding.resources[0].metadata.labels == reactive_resume_dev_successor_source_labels
+      - (reactive_resume_dev_successor_internal_admission_binding.resources[0].metadata.annotations | default({})) == {}
+      - (reactive_resume_dev_successor_internal_admission_binding.resources[0].metadata.ownerReferences | default([]) | length) == 0
+      - (reactive_resume_dev_successor_internal_admission_binding.resources[0].metadata.finalizers | default([]) | length) == 0
+      - (reactive_resume_dev_successor_internal_admission_binding.resources[0].spec | length) == 2
       - reactive_resume_dev_successor_internal_admission_binding.resources[0].spec.policyName == reactive_resume_dev_successor_admission_policy
       - reactive_resume_dev_successor_internal_admission_binding.resources[0].spec.validationActions == ['Deny']
     fail_msg: Refusing successor Secret custody without exact fail-closed admission evidence.

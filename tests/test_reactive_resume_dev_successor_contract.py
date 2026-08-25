@@ -75,6 +75,7 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertEqual(MIGRATION_KEYS, set(migration["spec"]["targets"][0]["template"]["data"]))
         for item in (runtime, migration):
             target = item["spec"]["targets"][0]
+            self.assertEqual("cristexhub-dev", target["namespace"])
             self.assertEqual("Secret", target["kind"])
             self.assertEqual("Opaque", target["secretType"])
             self.assertEqual("Orphan", target["creationPolicy"])
@@ -97,9 +98,40 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             "migration_create_role", "crs_not_required=true",
         ):
             self.assertIn(required, self.checker, required)
+        self.assertIn("(g.rolname='$migration_role' AND a.privilege_type <> 'CONNECT')", self.checker)
+        self.assertNotIn("(g.rolname='$migration_role' AND a.privilege_type NOT IN ('CONNECT','CREATE','TEMPORARY'))", self.checker)
         for forbidden in ("/etc/postgresql/admin", "/tls/ca.crt", "PGPASSFILE", "PGPASSWORD", "PGSERVICE", "CREATE ROLE", "ALTER ROLE", "GRANT ", "REVOKE ", "DROP "):
             self.assertNotIn(forbidden, self.checker, forbidden)
         self.assertEqual(0, subprocess.run(["/bin/sh", "-n", str(CHECKER)], check=False).returncode)
+
+    def test_admission_is_namespace_scoped_and_exactly_validated(self) -> None:
+        policy = next(item for item in self.source_docs if item["kind"] == "ValidatingAdmissionPolicy")
+        self.assertEqual(
+            [{"name": "exact-namespace", "expression": "request.namespace == 'cristexhub-dev'"}],
+            policy["spec"]["matchConditions"],
+        )
+        expression = policy["spec"]["validations"][0]["expression"]
+        for required in (
+            "object.metadata.name in ['reactive-resume-dev-runtime', 'reactive-resume-dev-migration']",
+            "object.metadata.namespace == 'cristexhub-dev'",
+            "object.metadata.labels.size() == 3",
+            "object.metadata.ownerReferences",
+            "object.metadata.finalizers",
+            "object.stringData",
+            "object.data.size() == 15",
+            "object.data.size() == 2",
+        ):
+            self.assertIn(required, expression, required)
+        self.assertEqual(
+            self.defaults["reactive_resume_dev_successor_admission_expression_sha256"],
+            hashlib.sha256(expression.encode()).hexdigest(),
+        )
+        self.assertIn("object.metadata.name in", self.tasks)
+        self.assertIn("targets[0].namespace == reactive_resume_dev_successor_application_namespace", self.tasks)
+        self.assertIn("metadata.ownerReferences", self.tasks)
+        self.assertIn("metadata.finalizers", self.tasks)
+        self.assertIn("matchConditions[0].expression", self.tasks)
+        self.assertIn("admission_expression_sha256", self.tasks)
 
     def test_exact_static_secret_auth_and_writer_rbac_contracts(self) -> None:
         for item in self.source_docs:
