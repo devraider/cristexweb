@@ -12,7 +12,7 @@ from ansible import context
 from ansible.plugins.action import ActionBase
 
 _SCRIPT_NAME = "reactive-resume-dev-successor-check.sh"
-_SCRIPT_HASH = "86a9bb7fd973233aa52762eb66eaeb3e08990b63d8dcbe51226b0acddccacf7b"
+_SCRIPT_HASH = "f1891dc507d411d0c3bc91793c51cb640cc0ca8f71d7cd42f066a30ad7dbab66"
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 _MANIFEST_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256"
 _MANIFEST_HASH = "f02b444f16a5444cc3b4dba56cbcf4e9e94c72f6021e32375a2504afd3d5cce1"
@@ -25,10 +25,12 @@ _TASK_SOURCE = _REPOSITORY_ROOT / "ansible/roles/reactive_resume_dev_successor/t
 _DEFAULTS_SOURCE = _REPOSITORY_ROOT / "ansible/roles/reactive_resume_dev_successor/defaults/main.yml"
 _PLAYBOOK_SOURCE = _REPOSITORY_ROOT / "ansible/playbooks/check_reactive_resume_dev_successor.yml"
 _WRAPPER_SOURCE = _REPOSITORY_ROOT / "ansible/bin/check-reactive-resume-dev-successor"
-_TASK_HASH = "8a53aba639983fbaadc3b63ec52756a4f47e9a46ea770c78eef3c6f7831d8a0c"
-_DEFAULTS_HASH = "df3510b71cd102273f3fe002c479d95b80e551d1c962ae714cfe9bb77494ad8c"
+_POLICY_SOURCE = _REPOSITORY_ROOT / "ansible/files/policies/reactive-resume-dev-postgresql-successor.yml"
+_TASK_HASH = "da90f662cb75df346e350449112e65c076aa1ab41ef968ffb4cfde793d9093ce"
+_DEFAULTS_HASH = "a31d4646169f72c68c41186b83a2da422fcce1cd270a69e21e4a8471bc170d2b"
 _PLAYBOOK_HASH = "98c4ecc22ea6387d5c9f63ec3359573893223d93f562bf0e53de2a5a18d9c089"
 _WRAPPER_HASH = "146e8cf30f751f93eebe65673e93599242f9cc5224494c441a96d7a9508c98b3"
+_POLICY_HASH = "7bcd206f32db6f7a182feb618fd5595726e7cb4c63e1d34fe2641303ee7983a4"
 _ARGUMENT_KEYS = {"namespace", "pod", "container", "command", "kubeconfig", "script_name", "script_sha256"}
 
 
@@ -165,7 +167,12 @@ class ActionModule(ActionBase):
             return _reject("SOURCE_HASH_GUARD: successor checker source drift")
         if not _manifest_closure():
             return _reject("SOURCE_HASH_GUARD: successor MANIFESTS closure drift")
-        for path, expected in ((_TASK_SOURCE, _TASK_HASH), (_DEFAULTS_SOURCE, _DEFAULTS_HASH), (_PLAYBOOK_SOURCE, _PLAYBOOK_HASH)):
+        for path, expected in (
+            (_TASK_SOURCE, _TASK_HASH),
+            (_DEFAULTS_SOURCE, _DEFAULTS_HASH),
+            (_PLAYBOOK_SOURCE, _PLAYBOOK_HASH),
+            (_POLICY_SOURCE, _POLICY_HASH),
+        ):
             if _sha256(path) != expected:
                 return _reject(f"SOURCE_HASH_GUARD: source drift in {path.name}")
         try:

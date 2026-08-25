@@ -547,6 +547,24 @@
     that:
       - reactive_resume_dev_successor_internal_admission_policy.resources | length == 1
       - reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.name == reactive_resume_dev_successor_admission_policy
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.generation | int > 0
+      - >-
+        reactive_resume_dev_successor_internal_admission_policy.resources[0].status.observedGeneration | default(-1) | int ==
+        reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.generation | int
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].status.typeChecking is defined
+      - >-
+        reactive_resume_dev_successor_internal_admission_policy.resources[0].status.typeChecking.expressionWarnings |
+        default([]) | length == 0
+      - >-
+        reactive_resume_dev_successor_internal_admission_policy.resources[0].status.typeChecking.expressionErrors |
+        default([]) | length == 0
+      - >-
+        reactive_resume_dev_successor_internal_admission_policy.resources[0].status.conditions | default([]) | length == 0 or
+        (reactive_resume_dev_successor_internal_admission_policy.resources[0].status.conditions | default([]) |
+         selectattr('type', 'equalto', 'TypeChecking') |
+         selectattr('status', 'equalto', 'True') |
+         selectattr('observedGeneration', 'equalto', reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.generation) |
+         list | length == 1)
       - (reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.namespace | default('')) == ''
       - reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.labels == reactive_resume_dev_successor_source_labels
       - (reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.annotations | default({})) == {}

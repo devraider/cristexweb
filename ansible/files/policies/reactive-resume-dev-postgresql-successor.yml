@@ -68,7 +68,7 @@ acl:
   default_privileges_owner: reactive_resume_dev_migrator
   default_privileges:
     relations: [runtime=arwd]
-    sequences: [runtime=rwU]
+    sequences: [runtime=rU]
     functions: []
   cross_database_connect: deny
   role_memberships: []

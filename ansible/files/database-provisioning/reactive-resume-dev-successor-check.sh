@@ -34,7 +34,7 @@ psql_catalog() {
 failures=
 expected_relation_acl="{${migration_role}=arwdDxtm/${migration_role},${runtime_role}=arwd/${migration_role}}"
 expected_default_relation_acl="{${runtime_role}=arwd/${migration_role}}"
-expected_default_sequence_acl="{${runtime_role}=rwU/${migration_role}}"
+expected_default_sequence_acl="{${runtime_role}=rU/${migration_role}}"
 check_eq() {
   label=$1
   expected=$2

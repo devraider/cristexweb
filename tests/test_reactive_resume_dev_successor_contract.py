@@ -109,6 +109,18 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             self.assertNotIn(forbidden, self.checker, forbidden)
         self.assertEqual(0, subprocess.run(["/bin/sh", "-n", str(CHECKER)], check=False).returncode)
 
+    def test_sequence_acl_policy_and_checker_match_runtime_boundary(self) -> None:
+        self.assertEqual(["USAGE", "SELECT"], self.policy["acl"]["runtime_sequences"])
+        self.assertEqual(["runtime=rU"], self.policy["acl"]["default_privileges"]["sequences"])
+        self.assertNotIn("runtime=rwU", yaml.safe_dump(self.policy))
+        self.assertIn('expected_default_sequence_acl="{${runtime_role}=rU/${migration_role}}"', self.checker)
+        self.assertNotIn("runtime_role}=rwU", self.checker)
+        self.assertIn("has_sequence_privilege('$runtime_role',c.oid,'USAGE')", self.checker)
+        self.assertIn("has_sequence_privilege('$runtime_role',c.oid,'SELECT')", self.checker)
+        self.assertIn("has_sequence_privilege('$runtime_role',c.oid,'UPDATE')", self.checker)
+        self.assertIn("x.privilege_type NOT IN ('USAGE','SELECT')", self.checker)
+        self.assertIn("x.privilege_type NOT IN ('USAGE','SELECT','UPDATE')", self.checker)
+
     def test_admission_is_namespace_scoped_and_exactly_validated(self) -> None:
         policy = next(item for item in self.source_docs if item["kind"] == "ValidatingAdmissionPolicy")
         self.assertEqual(
@@ -137,6 +149,10 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertIn("metadata.finalizers", self.tasks)
         self.assertIn("matchConditions[0].expression", self.tasks)
         self.assertIn("admission_expression_sha256", self.tasks)
+        self.assertIn("status.observedGeneration", self.tasks)
+        self.assertIn("status.typeChecking", self.tasks)
+        self.assertIn("expressionWarnings", self.tasks)
+        self.assertIn("expressionErrors", self.tasks)
 
     def test_exact_static_secret_auth_and_writer_rbac_contracts(self) -> None:
         for item in self.source_docs:
@@ -163,6 +179,13 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertEqual(1, len(admission))
         self.assertEqual("Fail", admission[0]["spec"]["failurePolicy"])
         self.assertIn("infisical-operator-controller", admission[0]["spec"]["validations"][0]["expression"])
+        self.assertIn("'verbs': ['create']", self.tasks)
+        for required in ("status.observedGeneration", "status.typeChecking", "expressionWarnings", "expressionErrors"):
+            self.assertIn(required, self.tasks)
+        self.assertLess(
+            self.tasks.index("status.observedGeneration"),
+            self.tasks.index("Query the exact dedicated successor Secret writer Role"),
+        )
 
     def test_role_and_wrapper_are_check_only(self) -> None:
         self.assertIn("ansible_check_mode", self.tasks)
@@ -199,6 +222,7 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertIn("MANIFESTS.sha256", DEFAULTS.read_text())
         self.assertIn("source_manifest_sha256", DEFAULTS.read_text())
         self.assertIn("reactive_resume_dev_successor", PLAYBOOK.read_text())
+        self.assertIn("_POLICY_HASH", self.guard)
         self.assertEqual(0, subprocess.run(["python3", "-m", "py_compile", str(METADATA), str(GUARD)], check=False).returncode)
 
     def test_action_guard_hash_constants_match_every_current_source(self) -> None:
@@ -210,7 +234,7 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             target = node.targets[0]
             if isinstance(target, ast.Name) and target.id in {
                 "_SCRIPT_HASH", "_MANIFEST_HASH", "_TASK_HASH", "_DEFAULTS_HASH",
-                "_PLAYBOOK_HASH", "_WRAPPER_HASH", "_MANIFEST_ENTRIES",
+                "_PLAYBOOK_HASH", "_WRAPPER_HASH", "_POLICY_HASH", "_MANIFEST_ENTRIES",
             }:
                 constants[target.id] = ast.literal_eval(node.value)
         paths = {
@@ -220,6 +244,7 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             "_DEFAULTS_HASH": DEFAULTS,
             "_PLAYBOOK_HASH": PLAYBOOK,
             "_WRAPPER_HASH": WRAPPER,
+            "_POLICY_HASH": POLICY,
         }
         for symbol, path in paths.items():
             self.assertEqual(

@@ -96,7 +96,7 @@ reactive_resume_dev_successor_ca_source_path: >-
   {{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml
 reactive_resume_dev_successor_check_directory: '{{ reactive_resume_dev_successor_repository_root }}/ansible/files/database-provisioning'
 reactive_resume_dev_successor_check_script: '{{ reactive_resume_dev_successor_check_directory }}/reactive-resume-dev-successor-check.sh'
-reactive_resume_dev_successor_script_sha256: 86a9bb7fd973233aa52762eb66eaeb3e08990b63d8dcbe51226b0acddccacf7b
+reactive_resume_dev_successor_script_sha256: f1891dc507d411d0c3bc91793c51cb640cc0ca8f71d7cd42f066a30ad7dbab66
 reactive_resume_dev_successor_forbidden_secret_names:
   - shared-postgresql-reactive-resume-dev
   - shared-postgresql-reactive-resume-prod
