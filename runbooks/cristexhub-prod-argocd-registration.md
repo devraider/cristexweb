@@ -35,16 +35,21 @@ state and
 update only the remaining step. The three other registration objects remain exact
 present-only objects and are never part of this transition.
 
-Check mode must perform only read-only API GETs and predict the exact three-step
-plan for the all-legacy state; it must not invoke a Kubernetes writer even when
-Argo status updates its resourceVersion. Apply is a separately approved mutation.
-Each transition step performs an immediate GET, sends the unchanged UID and
-`metadata.resourceVersion` as a Kubernetes compare-and-swap precondition, and
-retries only API 409 conflicts up to three times. This is the resourceVersion optimistic-concurrency gate; a replacement, changed
-resourceVersion, missing object, pair state other than exact legacy/temporary/final,
-or metadata key outside the exact server-generated set fails closed. No temporary
-AppProject destination widens namespace or resource whitelists. No delete, prune,
-sync, Namespace, workload, or public-route operation is included.
+Check mode performs only read-only API GETs and predicts the exact three-step
+plan for the all-legacy state; it does not invoke a Kubernetes writer. Apply is a
+separately approved mutation. Each apply step dispatches only through the guarded
+`kubernetes.core.k8s_json_patch` action and sends an RFC 6902 patch containing:
+`test /metadata/uid`, `test /spec` against the complete exact prior spec, and one
+`replace` of `/spec/destination` or `/spec/destinations`. The patch contains no
+`metadata.resourceVersion`, status, retry, or blind-read/modify/write operation;
+status-only Argo churn therefore cannot create a false conflict. A UID/spec test
+failure is an API-level conflict and fails closed without retry. The next guarded
+run classifies the exact temporary or mixed state and executes only the remaining
+steps. A replacement, missing object, pair state other than exact
+legacy/temporary/final, or metadata key outside the exact server-generated set
+fails closed. No temporary AppProject destination widens namespace or resource
+whitelists. No delete, prune, sync, Namespace, workload, or public-route operation
+is included.
 
 ## Exact source
 
@@ -87,7 +92,8 @@ The role checks:
 - absence of foreign objects, extra data, annotations, finalizers, metadata keys,
   or drifted fields at the five target identities;
 - exact five-object UID/resourceVersion/generation prestate binding with unique
-  identities, immediate re-query, and Kubernetes optimistic-concurrency preconditions;
+  identities and immediate re-query; transition JSON patches independently test
+  UID and the complete prior spec, without sending resourceVersion/status fields;
 - exact non-transition mutation results for the three unchanged registration objects,
   plus the alias transition result: three bounded steps for all-legacy, only remaining
   steps for exact mixed recovery, or zero when already final;
@@ -97,7 +103,8 @@ The role checks:
   made because this k3s API may omit managedFields;
 - the exact `cristexhub-prod-local` cluster-alias destination and automated non-pruning Application policy;
 - after live apply, a fresh post-wait query bound to the same UID/generation and pinned
-  sync revision, followed by `Synced/Healthy` assertions; check mode remains source-only.
+  sync revision, followed by `Synced/Healthy` assertions; check mode remains
+  read-only and plans the patch steps without dispatching a writer.
 
 The action plugin accepts only the canonical role task, exact present-only
 objects, exact hashes, complete preflight binding, and wrapper attestation. It

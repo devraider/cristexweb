@@ -80,6 +80,29 @@ cristexhub_prod_registration_legacy_transition_specs:
         kind: Ingress
     orphanedResources:
       warn: true
+cristexhub_prod_registration_transition_specs:
+  AppProject:
+    sourceRepos:
+      - ssh://git@ssh.github.com:443/devraider/cristexhub.git
+    destinations:
+      - server: https://kubernetes.default.svc
+        namespace: cristexhub-prod
+      - name: cristexhub-prod-local
+        namespace: cristexhub-prod
+    clusterResourceWhitelist: []
+    namespaceResourceWhitelist:
+      - group: ''
+        kind: ConfigMap
+      - group: ''
+        kind: Service
+      - group: apps
+        kind: Deployment
+      - group: networking.k8s.io
+        kind: NetworkPolicy
+      - group: networking.k8s.io
+        kind: Ingress
+    orphanedResources:
+      warn: true
 cristexhub_prod_registration_expected_hashes:
   - path: >-
       {{ cristexhub_prod_registration_repository_root

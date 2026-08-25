@@ -12,6 +12,8 @@
     - cristexhub_prod_registration_internal_preflight_binding
     - cristexhub_prod_registration_internal_legacy_transition_candidates
     - cristexhub_prod_registration_internal_target_transition_candidates
+    - cristexhub_prod_registration_internal_transitional_transition_candidates
+    - cristexhub_prod_registration_internal_alias_transition_plan
     - cristexhub_prod_registration_internal_prestate_bindings
     - cristexhub_prod_registration_internal_prestate_recheck
     - cristexhub_prod_registration_internal_mutation_manifests
@@ -42,6 +44,10 @@
       - cristexhub_prod_registration_revision == '751885a42798d282e168131db147f13694a0a621'
       - cristexhub_prod_registration_path == 'infra/kubernetes/cristexhub-prod'
       - cristexhub_prod_registration_legacy_transition_object_count == 2
+      - >-
+        cristexhub_prod_registration_transition_specs.AppProject |
+        to_json(sort_keys=True, separators=(',', ':')) | hash('sha256') ==
+        '1a05a11396770bbf579d4c3efffb90dfef802bd6f64e5d3946f3992ce071b1f6'
       - >-
         cristexhub_prod_registration_legacy_transition_specs.Application |
         to_json(sort_keys=True, separators=(',', ':')) | hash('sha256') ==
@@ -352,6 +358,20 @@
   changed_when: false
   no_log: true
 
+- name: Record exact transitional alias candidates
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_transitional_transition_candidates: >-
+      {{ (cristexhub_prod_registration_internal_transitional_transition_candidates | default([])) +
+      ([item.item.kind] if
+      (item.resources | length == 1 and
+       item.item.kind == 'AppProject' and
+       item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids.AppProject and
+       item.resources[0].spec == cristexhub_prod_registration_transition_specs.AppProject)
+      else []) }}
+  loop: '{{ cristexhub_prod_registration_internal_prestate.results }}'
+  changed_when: false
+  no_log: true
+
 - name: Reject partial or duplicate legacy-to-alias transitions
   ansible.builtin.assert:
     that:
@@ -365,20 +385,46 @@
       - >-
         (cristexhub_prod_registration_internal_legacy_transition_candidates |
         union(cristexhub_prod_registration_internal_target_transition_candidates) |
+        union(cristexhub_prod_registration_internal_transitional_transition_candidates) |
         unique | sort) == ['Application', 'AppProject']
       - >-
         cristexhub_prod_registration_internal_legacy_transition_candidates | intersect(
         cristexhub_prod_registration_internal_target_transition_candidates) | length == 0
       - >-
+        cristexhub_prod_registration_internal_legacy_transition_candidates | intersect(
+        cristexhub_prod_registration_internal_transitional_transition_candidates) | length == 0
+      - >-
+        cristexhub_prod_registration_internal_target_transition_candidates | intersect(
+        cristexhub_prod_registration_internal_transitional_transition_candidates) | length == 0
+      - >-
         (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 2 and
-        cristexhub_prod_registration_internal_target_transition_candidates | length == 0) or
-        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 1 and
-        cristexhub_prod_registration_internal_target_transition_candidates | length == 1) or
+        cristexhub_prod_registration_internal_target_transition_candidates | length == 0 and
+        cristexhub_prod_registration_internal_transitional_transition_candidates | length == 0) or
+        (cristexhub_prod_registration_internal_legacy_transition_candidates | sort == ['Application'] and
+        cristexhub_prod_registration_internal_target_transition_candidates | length == 0 and
+        cristexhub_prod_registration_internal_transitional_transition_candidates == ['AppProject']) or
         (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 0 and
-        cristexhub_prod_registration_internal_target_transition_candidates | length == 2)
+        cristexhub_prod_registration_internal_target_transition_candidates == ['Application'] and
+        cristexhub_prod_registration_internal_transitional_transition_candidates == ['AppProject']) or
+        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 0 and
+        cristexhub_prod_registration_internal_target_transition_candidates | sort == ['Application', 'AppProject'] and
+        cristexhub_prod_registration_internal_transitional_transition_candidates | length == 0)
     fail_msg: >-
       Refusing a partial, foreign, or unrecognized legacy-to-alias transition;
-      only an exact legacy pair, mixed recovery pair, or target pair is accepted.
+      only the exact three-step plan or its bounded recovery states are accepted.
+  changed_when: false
+  no_log: true
+
+- name: Plan exact three-step alias transition
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_alias_transition_plan: >-
+      {{
+      (['AppProject:transition'] if 'AppProject' in cristexhub_prod_registration_internal_legacy_transition_candidates else []) +
+      (['Application:final'] if 'Application' in cristexhub_prod_registration_internal_legacy_transition_candidates else []) +
+      (['AppProject:final'] if
+      ('AppProject' in cristexhub_prod_registration_internal_legacy_transition_candidates or
+       'AppProject' in cristexhub_prod_registration_internal_transitional_transition_candidates) else [])
+      }}
   changed_when: false
   no_log: true
 
@@ -434,7 +480,10 @@
         item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject'] or
         item.resources[0].spec == item.item.spec or
         (item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids[item.item.kind] and
-        item.resources[0].spec == cristexhub_prod_registration_legacy_transition_specs[item.item.kind])
+        item.resources[0].spec == cristexhub_prod_registration_legacy_transition_specs[item.item.kind]) or
+        (item.item.kind == 'AppProject' and
+        item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids.AppProject and
+        item.resources[0].spec == cristexhub_prod_registration_transition_specs.AppProject)
       - >-
         item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject'] or
         item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids[item.item.kind]
@@ -474,6 +523,7 @@
       revision: '{{ cristexhub_prod_registration_revision }}'
       legacy_transition_kinds: "{{ cristexhub_prod_registration_internal_legacy_transition_candidates | sort }}"
       target_transition_kinds: "{{ cristexhub_prod_registration_internal_target_transition_candidates | sort }}"
+      transitional_transition_kinds: "{{ cristexhub_prod_registration_internal_transitional_transition_candidates | sort }}"
       legacy_transition_change_count: "{{ cristexhub_prod_registration_internal_legacy_transition_candidates | length }}"
       legacy_transition_uids: "{{ cristexhub_prod_registration_legacy_transition_uids }}"
       legacy_transition_spec_hashes: "{{ cristexhub_prod_registration_legacy_transition_spec_hashes }}"
@@ -482,7 +532,8 @@
       no_delete_path: true
       prestate_object_count: "{{ cristexhub_prod_registration_internal_prestate_bindings | length }}"
       prestate_bindings: "{{ cristexhub_prod_registration_internal_prestate_bindings }}"
-      transition_change_count: "{{ cristexhub_prod_registration_internal_legacy_transition_candidates | length }}"
+      transition_change_count: "{{ cristexhub_prod_registration_internal_alias_transition_plan | length }}"
+      transition_plan: "{{ cristexhub_prod_registration_internal_alias_transition_plan }}"
   changed_when: false
   no_log: true
 
@@ -508,7 +559,10 @@
       - item.resources[0].metadata.name == item.item.metadata.name
       - item.resources[0].metadata.namespace | default('') == item.item.metadata.namespace | default('')
       - item.resources[0].metadata.uid == cristexhub_prod_registration_internal_prestate_bindings[prestate_recheck_index].uid
-      - item.resources[0].metadata.resourceVersion == cristexhub_prod_registration_internal_prestate_bindings[prestate_recheck_index].resourceVersion
+      - >-
+        item.item.kind in ['Application', 'AppProject'] or
+        item.resources[0].metadata.resourceVersion ==
+        cristexhub_prod_registration_internal_prestate_bindings[prestate_recheck_index].resourceVersion
       - >-
         (item.resources[0].metadata.keys() | list |
         difference(['name', 'namespace', 'uid', 'resourceVersion', 'generation',

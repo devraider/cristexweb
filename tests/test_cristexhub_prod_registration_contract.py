@@ -185,7 +185,10 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertIn("sort_keys=True", TASKS.read_text())
         self.assertIn("target_transition_candidates", TASKS.read_text())
         self.assertIn("valid_transition_pair", PLUGIN.read_text())
-        self.assertIn('(\"0\", \"1\", \"2\")', PLUGIN.read_text())
+        self.assertIn("kubernetes.core.plugins.action.k8s_json_patch", PLUGIN.read_text())
+        self.assertIn('self._task.action = "kubernetes.core.k8s_json_patch"', PLUGIN.read_text())
+        self.assertNotIn("_transition_put", PLUGIN.read_text())
+        self.assertNotIn("call_api(", PLUGIN.read_text())
 
     def test_transition_fixtures_allow_only_legacy_mixed_or_target_pairs(self) -> None:
         defaults = yaml.safe_load(DEFAULTS.read_text())
@@ -233,8 +236,13 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertFalse(module.valid_transition_pair(["Application"], []))
         self.assertFalse(module.valid_transition_pair(["Application"], ["Application"]))
         self.assertFalse(module.valid_transition_pair(["AppProject", "Application"], ["AppProject"]))
+        self.assertTrue(module.valid_transition_state(["AppProject", "Application"], [], []))
+        self.assertTrue(module.valid_transition_state(["Application"], [], ["AppProject"]))
+        self.assertTrue(module.valid_transition_state([], ["Application"], ["AppProject"]))
+        self.assertTrue(module.valid_transition_state([], ["AppProject", "Application"], []))
+        self.assertFalse(module.valid_transition_state(["AppProject"], [], []))
 
-    def test_three_step_alias_plan_and_conflict_retry(self) -> None:
+    def test_three_step_alias_plan_and_json_patch_contract(self) -> None:
         import importlib.util
         import sys
 
@@ -252,77 +260,68 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             ["AppProject:transition", "Application:final", "AppProject:final"],
             module._transition_plan("legacy", "legacy"),
         )
-        self.assertEqual(
-            {"server": "https://kubernetes.default.svc", "namespace": "cristexhub-prod"},
-            module._TRANSITION_TEMP_PROJECT_SPEC["destinations"][0],
-        )
-        self.assertEqual(
-            {"name": "cristexhub-prod-local", "namespace": "cristexhub-prod"},
-            module._TRANSITION_TEMP_PROJECT_SPEC["destinations"][1],
-        )
-        self.assertEqual(
-            module._TRANSITION_FINAL_PROJECT_SPEC["namespaceResourceWhitelist"],
-            module._TRANSITION_TEMP_PROJECT_SPEC["namespaceResourceWhitelist"],
-        )
-        self.assertEqual([], module._TRANSITION_TEMP_PROJECT_SPEC["clusterResourceWhitelist"])
         self.assertEqual(["Application:final", "AppProject:final"], module._transition_plan("transition", "legacy"))
         self.assertEqual(["AppProject:final"], module._transition_plan("transition", "final"))
         with self.assertRaises(ValueError):
             module._transition_plan("final", "legacy")
 
-        class ConflictError(Exception):
-            status = 409
-
-        labels = dict(module._TRANSITION_LABELS)
-        current = {
+        project_transition = module._transition_patch("AppProject", "transition")
+        application_final = module._transition_patch("Application", "final")
+        project_final = module._transition_patch("AppProject", "final")
+        for patch in (project_transition, application_final, project_final):
+            self.assertEqual(["test", "test", "replace"], [entry["op"] for entry in patch])
+            self.assertEqual("/metadata/uid", patch[0]["path"])
+            self.assertEqual("/spec", patch[1]["path"])
+            self.assertIn(patch[2]["path"], {"/spec/destination", "/spec/destinations"})
+            self.assertNotIn("resourceVersion", json.dumps(patch))
+        self.assertEqual("/spec/destination", application_final[2]["path"])
+        self.assertEqual("/spec/destinations", project_transition[2]["path"])
+        self.assertEqual("/spec/destinations", project_final[2]["path"])
+        project = {
+            "apiVersion": module._TRANSITION_API_VERSION,
+            "kind": "AppProject",
+            "metadata": {"name": module._TRANSITION_NAME, "namespace": module._TRANSITION_ARGO_NAMESPACE, "uid": module._TRANSITION_UIDS["AppProject"], "labels": dict(module._TRANSITION_LABELS)},
+            "spec": module._TRANSITION_LEGACY_PROJECT_SPEC,
+        }
+        application = {
             "apiVersion": module._TRANSITION_API_VERSION,
             "kind": "Application",
-            "metadata": {
-                "name": module._TRANSITION_NAME,
-                "namespace": module._TRANSITION_ARGO_NAMESPACE,
-                "uid": module._TRANSITION_UIDS["Application"],
-                "resourceVersion": "7",
-                "labels": labels,
-            },
+            "metadata": {"name": module._TRANSITION_NAME, "namespace": module._TRANSITION_ARGO_NAMESPACE, "uid": module._TRANSITION_UIDS["Application"], "labels": dict(module._TRANSITION_LABELS)},
             "spec": module._TRANSITION_LEGACY_APPLICATION_SPEC,
         }
-
-        class ConflictOnceApi:
-            def __init__(self) -> None:
-                self.gets = 0
-                self.puts = 0
-                self.conflict = True
-
-            def call_api(self, path, method, **kwargs):
-                if method == "GET":
-                    self.gets += 1
-                    return json.loads(json.dumps(current))
-                self.puts += 1
-                if self.conflict:
-                    self.conflict = False
-                    raise ConflictError("conflict")
-                current["spec"] = json.loads(json.dumps(kwargs["body"]["spec"]))
-                current["metadata"]["resourceVersion"] = "8"
-                return json.loads(json.dumps(current))
-
-        api = ConflictOnceApi()
-        self.assertTrue(module._transition_cas_update(
-            api,
-            "Application",
-            module._TRANSITION_FINAL_APPLICATION_SPEC,
-            [module._TRANSITION_LEGACY_APPLICATION_SPEC],
-        ))
-        self.assertEqual(2, api.puts)
-        self.assertEqual(2, api.gets)
-        self.assertEqual(module._TRANSITION_FINAL_APPLICATION_SPEC, current["spec"])
-        current["spec"] = module._TRANSITION_FINAL_APPLICATION_SPEC
-        with self.assertRaises(ValueError):
-            module._transition_cas_update(
-                api,
-                "Application",
-                module._TRANSITION_LEGACY_APPLICATION_SPEC,
-                [module._TRANSITION_LEGACY_APPLICATION_SPEC],
-            )
+        prestate = {"results": [{"resources": [project]}, {"resources": [application]}]}
+        plan = module.run_alias_transition(
+            None,
+            None,
+            {
+                "cristexhub_prod_registration_internal_prestate": prestate,
+                "cristexhub_prod_registration_internal_preflight_binding": {
+                    "transition_plan": ["AppProject:transition", "Application:final", "AppProject:final"],
+                    "transition_change_count": 3,
+                },
+            },
+            {"apiVersion": module._TRANSITION_API_VERSION, "kind": "AppProject", "metadata": {"name": module._TRANSITION_NAME, "namespace": module._TRANSITION_ARGO_NAMESPACE}, "spec": module._TRANSITION_FINAL_PROJECT_SPEC},
+            {"apiVersion": module._TRANSITION_API_VERSION, "kind": "Application", "metadata": {"name": module._TRANSITION_NAME, "namespace": module._TRANSITION_ARGO_NAMESPACE}, "spec": module._TRANSITION_FINAL_APPLICATION_SPEC},
+            True,
+        )
+        self.assertEqual(["AppProject:transition", "Application:final", "AppProject:final"], plan["transition_steps"])
+        from types import SimpleNamespace
+        from unittest import mock
+        fake = SimpleNamespace(
+            _task=SimpleNamespace(action="guarded", args={"transition": True}),
+            _connection=object(),
+            _play_context=object(),
+            _loader=object(),
+            _templar=object(),
+            _shared_loader_obj=None,
+        )
+        with mock.patch.object(module.PatchActionModule, "run", return_value={"changed": True}) as dispatched:
+            self.assertEqual({"changed": True}, module._dispatch_transition_patch(
+                fake, None, {}, "Application", "final"
+            ))
+        dispatched.assert_called_once()
+        self.assertEqual("guarded", fake._task.action)
+        self.assertEqual({"transition": True}, fake._task.args)
         self.assertIn("Reconcile exact bounded PROD alias transition", TASKS.read_text())
         self.assertIn("transition: true", TASKS.read_text())
         self.assertIn("when: not ansible_check_mode", TASKS.read_text())
@@ -612,7 +611,9 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             "Cloudflare",
             "protected\nDNS-capable Cloudflare credential plus exact two-change plan/apply",
             "reject_cristexhub_prod_registration_resource_version.sh",
-            "resourceVersion optimistic-concurrency",
+            "RFC 6902",
+            "kubernetes.core.k8s_json_patch",
+            "fails closed without retry",
             "exact mixed recovery pair",
             "managedFields are checked only structurally",
         ):
