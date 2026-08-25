@@ -28,7 +28,7 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
         app = next(x for x in objects if x['kind'] == 'Application')
         self.assertEqual('reactive-resume-dev', app['metadata']['name'])
         self.assertEqual('ssh://git@ssh.github.com:443/devraider/cristexweb.git', app['spec']['source']['repoURL'])
-        self.assertEqual('9a9b96c193e7021030dc36e631a08ca0146d5799', app['spec']['source']['targetRevision'])
+        self.assertEqual('2be0d834a5a07b28961613a564dcf5a87f020c97', app['spec']['source']['targetRevision'])
         self.assertEqual('ansible/files/components/reactive-resume-dev-argocd', app['spec']['source']['path'])
         self.assertEqual({'prune': False, 'selfHeal': True, 'allowEmpty': False}, app['spec']['syncPolicy']['automated'])
         self.assertIn('CreateNamespace=false', app['spec']['syncPolicy']['syncOptions'])
