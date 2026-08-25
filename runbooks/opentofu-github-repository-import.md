@@ -60,7 +60,10 @@ Before the token prompt or any provider command, the entrypoint also verifies
 covers every tracked GitHub-root/source leaf, exact expected mode, and SHA-256
 content; the importer is checked through a canonical digest with its two
 embedded digest literals normalized. Missing, extra, symlinked, mode-drifted,
-or changed source fails closed. The importer repeats the complete manifest, mode, path, and content-hash
+or partially changed source fails closed. These embedded hashes are a reviewed
+consistency closure, not an external signature or immutable trust root: a
+coordinated rewrite of the importer, manifest, and pins is visible Git source
+change requiring review and is not claimed to resist a compromised operator UID. The importer repeats the complete manifest, mode, path, and content-hash
 closure immediately before every root consumer (`tofu`, the repository/API
 helper, and the plan validator), detecting accidental or cooperative concurrent
 drift at each boundary. The trusted operator UID is the local security boundary:
