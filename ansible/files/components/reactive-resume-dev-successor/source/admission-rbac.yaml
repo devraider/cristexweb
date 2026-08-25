@@ -1,0 +1,96 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: infisical-reactive-resume-dev-secret-write-boundary
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: reactive-resume
+    cristex.io/component: reactive-resume-dev-successor
+    cristex.io/environment: dev
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    matchPolicy: Equivalent
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [secrets]
+        scope: Namespaced
+  matchConditions:
+    - name: exact-target
+      expression: request.namespace == 'cristexhub-dev' && object.metadata.name in ['reactive-resume-dev-runtime', 'reactive-resume-dev-migration']
+  validations:
+    - expression: >-
+        request.userInfo.username == 'system:serviceaccount:shared-services:infisical-operator-controller' &&
+        object.metadata.labels['app.kubernetes.io/managed-by'] == 'infisical' &&
+        object.metadata.labels['app.kubernetes.io/part-of'] == 'reactive-resume' &&
+        object.metadata.labels['cristex.io/value-owner'] == 'infisical-cloud' &&
+        object.type == 'Opaque' &&
+        ((object.metadata.name == 'reactive-resume-dev-runtime' && object.data.size() == 15 &&
+          object.data.exists(k, k == 'APP_URL') && object.data.exists(k, k == 'AUTH_SECRET') &&
+          object.data.exists(k, k == 'DATABASE_URL') && object.data.exists(k, k == 'OAUTH_CLIENT_ID') &&
+          object.data.exists(k, k == 'OAUTH_CLIENT_SECRET') && object.data.exists(k, k == 'OAUTH_DISCOVERY_URL') &&
+          object.data.exists(k, k == 'OAUTH_ISSUER') && object.data.exists(k, k == 'OAUTH_PROVIDER_NAME') &&
+          object.data.exists(k, k == 'OAUTH_SCOPES') && object.data.exists(k, k == 'S3_ACCESS_KEY_ID') &&
+          object.data.exists(k, k == 'S3_BUCKET') && object.data.exists(k, k == 'S3_ENDPOINT') &&
+          object.data.exists(k, k == 'S3_FORCE_PATH_STYLE') && object.data.exists(k, k == 'S3_REGION') &&
+          object.data.exists(k, k == 'S3_SECRET_ACCESS_KEY')) ||
+         (object.metadata.name == 'reactive-resume-dev-migration' && object.data.size() == 2 &&
+          object.data.exists(k, k == 'DATABASE_URL') && object.data.exists(k, k == 'MIGRATION_DATABASE_URL')))
+      message: Only the Infisical controller may write the exact Reactive Resume DEV Secret contracts.
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: infisical-reactive-resume-dev-secret-write-boundary
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: reactive-resume
+    cristex.io/component: reactive-resume-dev-successor
+    cristex.io/environment: dev
+spec:
+  policyName: infisical-reactive-resume-dev-secret-write-boundary
+  validationActions: [Deny]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: infisical-reactive-resume-dev-successor-secret-writer
+  namespace: cristexhub-dev
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: reactive-resume
+    cristex.io/component: reactive-resume-dev-successor
+    cristex.io/environment: dev
+rules:
+  - apiGroups: ['']
+    resources: [secrets]
+    resourceNames:
+      - reactive-resume-dev-runtime
+      - reactive-resume-dev-migration
+    verbs: [get, update, patch]
+  - apiGroups: ['']
+    resources: [secrets]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: infisical-reactive-resume-dev-successor-secret-writer
+  namespace: cristexhub-dev
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: reactive-resume
+    cristex.io/component: reactive-resume-dev-successor
+    cristex.io/environment: dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: infisical-reactive-resume-dev-successor-secret-writer
+subjects:
+  - kind: ServiceAccount
+    name: infisical-operator-controller
+    namespace: shared-services

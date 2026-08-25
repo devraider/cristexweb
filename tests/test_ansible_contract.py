@@ -64,16 +64,21 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/infisical_reactive_resume_dev_ca_guarded_k8s.py"),
             Path("ansible/plugins/action/reactive_resume_dev_argocd_alignment_guarded_k8s.py"),
             Path("ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py"),
+            Path("ansible/plugins/action/reactive_resume_dev_successor_guarded.py"),
         }
-        self.assertEqual(38, len(allowed_action_plugins))
+        self.assertEqual(39, len(allowed_action_plugins))
         allowed_strategy_plugins = {
             Path("ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py"),
+        }
+        allowed_library_plugins = {
+            Path("ansible/library/reactive_resume_dev_secret_metadata.py"),
         }
         self.assertTrue(
             all(
                 path.parts[0] == "tests"
                 or path in allowed_action_plugins
                 or path in allowed_strategy_plugins
+                or path in allowed_library_plugins
                 for path in source_python
             ),
             source_python,
@@ -457,6 +462,18 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "roles/reactive_resume_dev_tls_renewal/defaults/main.yml",
                 "roles/reactive_resume_dev_tls_renewal/tasks/main.yml",
                 "files/policies/reactive-resume-dev-tls-renewal.yml",
+                "bin/check-reactive-resume-dev-successor",
+                "files/components/reactive-resume-dev-successor/MANIFESTS.sha256",
+                "files/components/reactive-resume-dev-successor/source/admission-rbac.yaml",
+                "files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml",
+                "files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml",
+                "files/database-provisioning/reactive-resume-dev-successor-check.sh",
+                "files/policies/reactive-resume-dev-postgresql-successor.yml",
+                "library/reactive_resume_dev_secret_metadata.py",
+                "playbooks/check_reactive_resume_dev_successor.yml",
+                "plugins/action/reactive_resume_dev_successor_guarded.py",
+                "roles/reactive_resume_dev_successor/defaults/main.yml",
+                "roles/reactive_resume_dev_successor/tasks/main.yml",
             ]
         )
         self.assertEqual([], [path for path in required if not (ANSIBLE / path).is_file()])

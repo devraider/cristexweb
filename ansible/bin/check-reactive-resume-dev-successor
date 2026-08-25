@@ -1,0 +1,67 @@
+#!/bin/sh
+set -eu
+usage='usage: ansible/bin/check-reactive-resume-dev-successor check'
+[ "$#" -eq 1 ] && [ "$1" = check ] || {
+  printf '%s\n' "$usage" >&2
+  printf '%s\n' 'refusing apply, passthrough, or task-selection arguments' >&2
+  exit 64
+}
+script_path=$0
+[ ! -L "$script_path" ] || { printf '%s\n' 'refusing a symlinked entrypoint' >&2; exit 66; }
+script_directory=$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)
+repository_root=$(CDPATH= cd -- "$script_directory/../.." && pwd -P)
+case "$repository_root" in
+  /home/paul/projects/cristexweb|/Users/paul/Projects/cristexweb) ;;
+  *) printf '%s\n' 'refusing an unpinned repository path' >&2; exit 78 ;;
+esac
+controller_user=$(/usr/bin/id -un)
+sha_tool=/usr/bin/sha256sum
+[ -x "$sha_tool" ] || sha_tool=/usr/bin/shasum
+openssl_tool=/usr/bin/openssl
+[ -x "$openssl_tool" ] || openssl_tool=/opt/homebrew/bin/openssl
+[ -x "$sha_tool" ] && [ -x "$openssl_tool" ] || {
+  printf '%s\n' 'refusing missing protected hashing or random source tool' >&2
+  exit 69
+}
+sha_file() {
+  case "$sha_tool" in
+    */shasum)
+    "$sha_tool" -a 256 "$1" | /usr/bin/cut -d' ' -f1
+    ;;
+  *)
+    "$sha_tool" "$1" | /usr/bin/cut -d' ' -f1
+    ;;
+  esac
+}
+controller="$repository_root/.venv/bin/ansible-playbook"
+[ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || {
+  printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2
+  exit 69
+}
+cd -- "$repository_root"
+[ -z "$(/usr/bin/git status --porcelain=v1 --untracked-files=all)" ] || {
+  printf '%s\n' 'refusing a dirty source tree' >&2
+  exit 77
+}
+wrapper_pid=$$
+wrapper_sha=$(sha_file "$script_path")
+attestation_file=$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-dev-successor.XXXXXX")
+token=$("$openssl_tool" rand -hex 32)
+printf '%s:entrypoint:%s:%s\n' "$token" "$wrapper_pid" "$wrapper_sha" >"$attestation_file"
+/bin/chmod 600 "$attestation_file"
+cleanup() { /bin/rm -f -- "$attestation_file"; }
+trap cleanup EXIT HUP INT TERM
+cd -- "$repository_root/ansible"
+set -- "$controller" -i .ansible/inventory.local.yml playbooks/check_reactive_resume_dev_successor.yml --check --diff --limit crtxweb --extra-vars '{"reactive_resume_dev_successor_approved":true}'
+/usr/bin/env -i \
+  HOME="$(CDPATH= cd -- "$repository_root/../.." && pwd -P)" \
+  USER="$controller_user" LOGNAME="$controller_user" \
+  PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 \
+  ANSIBLE_CONFIG="$PWD/ansible.cfg" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_ENTRYPOINT=v1 \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_TOKEN="$token" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_ATTESTATION_FILE="$attestation_file" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_PID="$wrapper_pid" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_PATH="$repository_root/ansible/bin/check-reactive-resume-dev-successor" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_SHA256="$wrapper_sha" \
+  "$@"

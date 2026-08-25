@@ -1,0 +1,153 @@
+---
+policy_schema: cristex-reactive-resume-dev-successor-v2
+policy_status: source-only-read-only-catalog-check-provenance-pending
+purpose: observe-the-existing-dev-successor-without-claiming-cnpg-or-sql-ownership
+runtime_mutation_allowed: false
+secret_values_in_source: false
+scope:
+  environment: dev
+  kubernetes_namespace: cristexhub-dev
+  database_namespace: shared-services
+  infisical_project_id: 619656da-14f3-4872-857b-be103cdc5326
+  infisical_environment_slug: prod
+  runtime_path: /reactive-resume/dev/runtime
+  migration_path: /reactive-resume/dev/migration
+  database: reactive_resume_dev_successor
+  database_provenance: observed-sql-created-no-cnpg-crs
+  prod_scope: forbidden
+  predecessor_reuse: forbidden
+  legacy_broad_lane_refusal: hard-block
+  legacy_broad_lane_paths:
+    - ansible/bin/upload-infisical-bootstrap-values
+    - ansible/bin/provision-shared-postgresql
+    - ansible/playbooks/bootstrap_cloudnative_pg_cluster.yml
+    - ansible/files/components/infisical-database-secrets/source/shared-postgresql-infisical-secrets.yaml
+    - ansible/files/components/cloudnative-pg/cluster/shared-postgresql.yaml
+  legacy_broad_lane_reuse: forbidden
+roles:
+  runtime:
+    name: reactive_resume_dev_runtime
+    provenance: observed-sql-created-no-cnpg-role-cr
+    login: true
+    superuser: false
+    createdb: false
+    createrole: false
+    inherit: false
+    replication: false
+    bypassrls: false
+    memberships: []
+  migration:
+    name: reactive_resume_dev_migrator
+    provenance: observed-sql-created-no-cnpg-role-cr
+    login: true
+    superuser: false
+    createdb: false
+    createrole: false
+    inherit: false
+    replication: false
+    bypassrls: false
+    memberships: []
+  owner: reactive_resume_dev_migrator
+  password_binding: separate-infisical-cnpg-custody-not-established-by-this-lane
+  cnpg_database_and_role_crs: forbidden-until-exact-provenance
+acl:
+  database:
+    public: []
+    runtime: [CONNECT]
+    migration: [CONNECT]
+  schema:
+    public: []
+    runtime: [USAGE]
+    migration: [USAGE, CREATE]
+  runtime_relations: [SELECT, INSERT, UPDATE, DELETE]
+  runtime_sequences: [USAGE, SELECT]
+  runtime_functions: [EXECUTE]
+  migration_relations: [ALL PRIVILEGES]
+  migration_sequences: [ALL PRIVILEGES]
+  migration_functions: [ALL PRIVILEGES]
+  default_privileges_owner: reactive_resume_dev_migrator
+  default_privileges:
+    relations: [runtime=arwd]
+    sequences: [runtime=rwU]
+    functions: []
+  cross_database_connect: deny
+  role_memberships: []
+  set_role_to_foreign_roles: deny
+  catalog_validation: full-noinherit-acl-default-privilege-projection
+materialization:
+  runtime_secret: reactive-resume-dev-runtime
+  runtime_keys:
+    - APP_URL
+    - AUTH_SECRET
+    - DATABASE_URL
+    - OAUTH_CLIENT_ID
+    - OAUTH_CLIENT_SECRET
+    - OAUTH_DISCOVERY_URL
+    - OAUTH_ISSUER
+    - OAUTH_PROVIDER_NAME
+    - OAUTH_SCOPES
+    - S3_ACCESS_KEY_ID
+    - S3_BUCKET
+    - S3_ENDPOINT
+    - S3_FORCE_PATH_STYLE
+    - S3_REGION
+    - S3_SECRET_ACCESS_KEY
+  migration_secret: reactive-resume-dev-migration
+  migration_keys:
+    - DATABASE_URL
+    - MIGRATION_DATABASE_URL
+  postgres_ca_configmap: reactive-resume-dev-postgresql-ca
+  postgres_ca_source_owner: existing-infisical-reactive-resume-dev-ca-lane
+  postgres_ca_static_secret: reactive-resume-dev-ca
+  postgres_ca_infisical_path: /reactive-resume/dev/object-storage-tls
+  competing_ca_static_secret_source: forbidden
+  source_owner: infisical-cloud
+  values_read_by_guard: false
+  exact_key_closure: required
+source:
+  component: ansible/files/components/reactive-resume-dev-successor
+  role: ansible/roles/reactive_resume_dev_successor
+  playbook: ansible/playbooks/check_reactive_resume_dev_successor.yml
+  wrapper: ansible/bin/check-reactive-resume-dev-successor
+  check_script: ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh
+  metadata_module: ansible/library/reactive_resume_dev_secret_metadata.py
+  action_guard: ansible/plugins/action/reactive_resume_dev_successor_guarded.py
+  check_mode_only: true
+  diff_mode_required: true
+  no_apply_path: true
+  no_delete_path: true
+  metadata_only_secret_queries: true
+  no_predecessor_secret_queries: true
+  no_plaintext_output: true
+  no_live_mutation: true
+  no_cnpg_database_or_role_source: true
+  no_competing_ca_static_secret_source: true
+source_objects:
+  - ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml
+  - ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml
+  - ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml
+acceptance_gates:
+  established_cnpg_cluster: required
+  existing_successor_sql_catalog: required
+  successor_cnpg_crs: absent-until-exact-provenance
+  runtime_secret_metadata_and_spec: required
+  migration_secret_metadata_and_spec: required
+  existing_ca_static_secret_provenance: required
+  exact_noinherit_roles: required
+  exact_relation_sequence_function_acl: required
+  exact_default_privilege_catalog: required
+  cross_database_connect_denial: required
+  password_binding_review: separate-gate
+  private_dev_validation: separate-gate
+  no_kubernetes_prod_scope: true
+observed_live_evidence:
+  source: read-only-kubernetes-exec-cnpg-primary-local-socket
+  database: present-owner-reactive_resume_dev_migrator
+  runtime_and_migration_roles: present-noinherit-login
+  cnpg_database_and_role_crs: absent
+  runtime_migration_ca_static_secrets: present
+  ca_source_path: /reactive-resume/dev/object-storage-tls
+  relation_acl: observed-exact-for-current-application-relations
+  default_privileges: observed-exact-for-current-migrator
+  cross_database_connect: blocked-by-public-platform-admin-and-postgres-defaults
+  mutation: none

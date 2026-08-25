@@ -870,6 +870,12 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             ROOT / "ansible/roles/infisical_reactive_resume_dev_ca_bootstrap/defaults/main.yml",
             ROOT / "ansible/roles/infisical_reactive_resume_dev_ca_bootstrap/tasks/main.yml",
             ROOT / "ansible/bin/bootstrap-infisical-reactive-resume-dev-ca",
+            ROOT / "ansible/bin/check-reactive-resume-dev-successor",
+            ROOT / "ansible/playbooks/check_reactive_resume_dev_successor.yml",
+            ROOT / "ansible/plugins/action/reactive_resume_dev_successor_guarded.py",
+            ROOT / "ansible/library/reactive_resume_dev_secret_metadata.py",
+            ROOT / "ansible/roles/reactive_resume_dev_successor/defaults/main.yml",
+            ROOT / "ansible/roles/reactive_resume_dev_successor/tasks/main.yml",
         }
         for approved_root in (
             ROOT / "ansible/files/components/reactive-resume-dev-argocd-registration",
@@ -880,6 +886,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             ROOT / "ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml",
             ROOT / "ansible/roles/reactive_resume_dev_argocd_registration",
             ROOT / "ansible/roles/reactive_resume_dev_argocd_alignment",
+            ROOT / "ansible/files/components/reactive-resume-dev-successor",
         ):
             approved_backup_sources.update(
                 path for path in approved_root.rglob("*") if path.is_file()

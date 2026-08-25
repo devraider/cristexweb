@@ -1,0 +1,169 @@
+from __future__ import annotations
+
+import hashlib
+import stat
+import subprocess
+import unittest
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[1]
+COMPONENT = ROOT / "ansible/files/components/reactive-resume-dev-successor"
+SOURCE = COMPONENT / "source"
+POLICY = ROOT / "ansible/files/policies/reactive-resume-dev-postgresql-successor.yml"
+DEFAULTS = ROOT / "ansible/roles/reactive_resume_dev_successor/defaults/main.yml"
+TASKS = ROOT / "ansible/roles/reactive_resume_dev_successor/tasks/main.yml"
+PLAYBOOK = ROOT / "ansible/playbooks/check_reactive_resume_dev_successor.yml"
+WRAPPER = ROOT / "ansible/bin/check-reactive-resume-dev-successor"
+CHECKER = ROOT / "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh"
+GUARD = ROOT / "ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
+METADATA = ROOT / "ansible/library/reactive_resume_dev_secret_metadata.py"
+
+RUNTIME_KEYS = {
+    "APP_URL", "AUTH_SECRET", "DATABASE_URL", "OAUTH_CLIENT_ID",
+    "OAUTH_CLIENT_SECRET", "OAUTH_DISCOVERY_URL", "OAUTH_ISSUER",
+    "OAUTH_PROVIDER_NAME", "OAUTH_SCOPES", "S3_ACCESS_KEY_ID", "S3_BUCKET",
+    "S3_ENDPOINT", "S3_FORCE_PATH_STYLE", "S3_REGION", "S3_SECRET_ACCESS_KEY",
+}
+MIGRATION_KEYS = {"DATABASE_URL", "MIGRATION_DATABASE_URL"}
+
+
+def docs(path: Path) -> list[dict]:
+    return [item for item in yaml.safe_load_all(path.read_text()) if item]
+
+
+class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.policy = yaml.safe_load(POLICY.read_text())
+        cls.defaults = yaml.safe_load(DEFAULTS.read_text())
+        cls.tasks = TASKS.read_text()
+        cls.checker = CHECKER.read_text()
+        cls.wrapper = WRAPPER.read_text()
+        cls.guard = GUARD.read_text()
+        cls.source_docs = [doc for path in sorted(SOURCE.glob("*.yaml")) for doc in docs(path)]
+
+    def test_scope_is_read_only_and_provenance_pending(self) -> None:
+        self.assertEqual("cristex-reactive-resume-dev-successor-v2", self.policy["policy_schema"])
+        self.assertEqual("source-only-read-only-catalog-check-provenance-pending", self.policy["policy_status"])
+        self.assertFalse(self.policy["runtime_mutation_allowed"])
+        self.assertTrue(self.policy["source"]["check_mode_only"])
+        self.assertTrue(self.policy["source"]["no_apply_path"])
+        self.assertTrue(self.policy["source"]["no_cnpg_database_or_role_source"])
+        self.assertTrue(self.policy["source"]["no_competing_ca_static_secret_source"])
+        self.assertEqual("observed-sql-created-no-cnpg-crs", self.policy["scope"]["database_provenance"])
+        self.assertEqual("absent-until-exact-provenance", self.policy["acceptance_gates"]["successor_cnpg_crs"])
+
+    def test_only_safe_value_free_source_objects_are_present(self) -> None:
+        self.assertEqual(
+            {"admission-rbac.yaml", "migration-static-secret.yaml", "runtime-static-secret.yaml"},
+            {path.name for path in SOURCE.glob("*.yaml")},
+        )
+        self.assertFalse((SOURCE / "successor-database.yaml").exists())
+        self.assertFalse((SOURCE / "postgresql-ca-static-secret.yaml").exists())
+        self.assertEqual(2, sum(item["kind"] == "InfisicalStaticSecret" for item in self.source_docs))
+        self.assertFalse(any(item.get("kind") in {"Database", "DatabaseRole"} for item in self.source_docs))
+        self.assertNotIn("reactive-resume-dev-postgresql-ca", "\n".join(path.read_text() for path in SOURCE.glob("*.yaml")))
+
+    def test_static_secret_contracts_have_exact_paths_and_keys(self) -> None:
+        runtime = next(item for item in self.source_docs if item["metadata"]["name"] == "reactive-resume-dev-runtime")
+        migration = next(item for item in self.source_docs if item["metadata"]["name"] == "reactive-resume-dev-migration")
+        self.assertEqual("/reactive-resume/dev/runtime", runtime["spec"]["sources"][0]["secretPath"])
+        self.assertEqual("/reactive-resume/dev/migration", migration["spec"]["sources"][0]["secretPath"])
+        self.assertEqual(RUNTIME_KEYS, set(runtime["spec"]["targets"][0]["template"]["data"]))
+        self.assertEqual(MIGRATION_KEYS, set(migration["spec"]["targets"][0]["template"]["data"]))
+        for item in (runtime, migration):
+            target = item["spec"]["targets"][0]
+            self.assertEqual("Secret", target["kind"])
+            self.assertEqual("Opaque", target["secretType"])
+            self.assertEqual("Orphan", target["creationPolicy"])
+
+    def test_ca_ownership_is_external_existing_lane(self) -> None:
+        ca = yaml.safe_load((ROOT / "ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml").read_text())
+        self.assertEqual("reactive-resume-dev-ca", ca["metadata"]["name"])
+        self.assertEqual("/reactive-resume/dev/object-storage-tls", ca["spec"]["sources"][0]["secretPath"])
+        self.assertIn("reactive-resume-dev-postgresql-ca", [item["name"] for item in ca["spec"]["targets"]])
+        self.assertNotIn("postgresql-ca-static-secret.yaml", "\n".join(self.defaults["reactive_resume_dev_successor_source_paths"]))
+        self.assertIn("reactive-resume-dev-ca", self.tasks)
+
+    def test_catalog_checker_uses_local_socket_and_full_acl_projection(self) -> None:
+        for required in (
+            "-U postgres", "-d \"$database_name\"", "PGHOST=\"$pg_socket\"", "env -i", "pg_roles", "rolinherit=false",
+            "pg_auth_members", "pg_database", "has_database_privilege",
+            "has_schema_privilege", "has_table_privilege", "has_sequence_privilege",
+            "has_function_privilege", "pg_default_acl", "defaclobjtype",
+            "foreign_database_connect", "runtime_create_database",
+            "migration_create_role", "crs_not_required=true",
+        ):
+            self.assertIn(required, self.checker, required)
+        for forbidden in ("/etc/postgresql/admin", "/tls/ca.crt", "PGPASSFILE", "PGPASSWORD", "PGSERVICE", "CREATE ROLE", "ALTER ROLE", "GRANT ", "REVOKE ", "DROP "):
+            self.assertNotIn(forbidden, self.checker, forbidden)
+        self.assertEqual(0, subprocess.run(["/bin/sh", "-n", str(CHECKER)], check=False).returncode)
+
+    def test_exact_static_secret_auth_and_writer_rbac_contracts(self) -> None:
+        for item in self.source_docs:
+            if item["kind"] == "InfisicalStaticSecret":
+                self.assertEqual(
+                    {"name": "cristexhub-dev-infisical-auth", "namespace": "cristexhub-dev"},
+                    item["spec"]["infisicalAuthRef"],
+                )
+                self.assertEqual({"refreshInterval": "1h", "instantUpdates": False}, item["spec"]["syncOptions"])
+                target = item["spec"]["targets"][0]
+                self.assertEqual({"annotations": {}, "labels": {
+                    "app.kubernetes.io/managed-by": "infisical",
+                    "app.kubernetes.io/part-of": "reactive-resume",
+                    "cristex.io/value-owner": "infisical-cloud",
+                }}, target["metadata"])
+                self.assertEqual("v1", target["template"]["engineVersion"])
+        role = next(item for item in self.source_docs if item["kind"] == "Role")
+        binding = next(item for item in self.source_docs if item["kind"] == "RoleBinding")
+        self.assertEqual("infisical-reactive-resume-dev-successor-secret-writer", role["metadata"]["name"])
+        self.assertEqual("infisical-reactive-resume-dev-successor-secret-writer", binding["roleRef"]["name"])
+        self.assertEqual("infisical-operator-controller", binding["subjects"][0]["name"])
+        self.assertEqual("shared-services", binding["subjects"][0]["namespace"])
+        admission = [item for item in self.source_docs if item["kind"] == "ValidatingAdmissionPolicy"]
+        self.assertEqual(1, len(admission))
+        self.assertEqual("Fail", admission[0]["spec"]["failurePolicy"])
+        self.assertIn("infisical-operator-controller", admission[0]["spec"]["validations"][0]["expression"])
+
+    def test_role_and_wrapper_are_check_only(self) -> None:
+        self.assertIn("ansible_check_mode", self.tasks)
+        self.assertIn("kubernetes.core.k8s_info", self.tasks)
+        self.assertIn("kubernetes.core.k8s_exec", self.guard)
+        self.assertIn("no competing successor CNPG CR ownership", self.tasks)
+        self.assertNotIn("state: present", self.tasks)
+        self.assertNotIn("kubernetes.core.k8s:", self.tasks)
+        self.assertNotIn("ansible.builtin.command:", self.tasks)
+        self.assertEqual(0o755, stat.S_IMODE(WRAPPER.stat().st_mode))
+        self.assertIn("usage: ansible/bin/check-reactive-resume-dev-successor check", self.wrapper)
+        self.assertIn("--check --diff --limit crtxweb", self.wrapper)
+        self.assertNotIn("apply'", self.wrapper)
+        self.assertEqual(0, subprocess.run(["/bin/sh", "-n", str(WRAPPER)], check=False).returncode)
+
+    def test_metadata_module_cannot_return_secret_payload(self) -> None:
+        text = METADATA.read_text()
+        self.assertIn("PartialObjectMetadata", text)
+        self.assertIn('"Accept"', text)
+        self.assertNotIn("read_namespaced_secret", text)
+        self.assertNotIn("binaryData", text)
+        self.assertNotIn(".data", text)
+
+    def test_manifest_and_checker_hash_are_current(self) -> None:
+        ledger = {}
+        for line in (COMPONENT / "MANIFESTS.sha256").read_text().splitlines():
+            digest, path = line.split("  ", 1)
+            ledger[path] = digest
+        self.assertEqual(
+            {str(path.relative_to(COMPONENT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(SOURCE.glob("*.yaml"))},
+            ledger,
+        )
+        self.assertIn(hashlib.sha256(CHECKER.read_bytes()).hexdigest(), DEFAULTS.read_text())
+        self.assertIn("MANIFESTS.sha256", DEFAULTS.read_text())
+        self.assertIn("source_manifest_sha256", DEFAULTS.read_text())
+        self.assertIn("reactive_resume_dev_successor", PLAYBOOK.read_text())
+        self.assertEqual(0, subprocess.run(["python3", "-m", "py_compile", str(METADATA), str(GUARD)], check=False).returncode)
+
+
+if __name__ == "__main__":
+    unittest.main()

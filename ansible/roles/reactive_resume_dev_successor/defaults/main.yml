@@ -1,0 +1,104 @@
+---
+# Source-only DEV successor preflight. No task in this role applies Kubernetes or
+# PostgreSQL state; the guarded wrapper always supplies --check and --diff.
+reactive_resume_dev_successor_approved: false
+reactive_resume_dev_successor_state: check
+reactive_resume_dev_successor_kubeconfig: /etc/rancher/k3s/k3s.yaml
+reactive_resume_dev_successor_repository_root: '{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}'
+reactive_resume_dev_successor_controller_user: '{{ lookup(''ansible.builtin.env'', ''USER'') }}'
+reactive_resume_dev_successor_database_namespace: shared-services
+reactive_resume_dev_successor_application_namespace: cristexhub-dev
+reactive_resume_dev_successor_cluster_name: shared-postgresql
+reactive_resume_dev_successor_pod_selector: cnpg.io/cluster=shared-postgresql
+reactive_resume_dev_successor_cluster_image: docker.io/library/postgres:17.10@sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b
+reactive_resume_dev_successor_container: postgres
+reactive_resume_dev_successor_database: reactive_resume_dev_successor
+reactive_resume_dev_successor_runtime_role: reactive_resume_dev_runtime
+reactive_resume_dev_successor_migration_role: reactive_resume_dev_migrator
+reactive_resume_dev_successor_runtime_secret: reactive-resume-dev-runtime
+reactive_resume_dev_successor_migration_secret: reactive-resume-dev-migration
+reactive_resume_dev_successor_ca_configmap: reactive-resume-dev-postgresql-ca
+reactive_resume_dev_successor_ca_static_secret: reactive-resume-dev-ca
+reactive_resume_dev_successor_infisical_auth: cristexhub-dev-infisical-auth
+reactive_resume_dev_successor_infisical_connection: infisical-cloud
+reactive_resume_dev_successor_infisical_operator_serviceaccount: infisical-operator-controller
+reactive_resume_dev_successor_project_id: 619656da-14f3-4872-857b-be103cdc5326
+reactive_resume_dev_successor_environment: prod
+reactive_resume_dev_successor_runtime_path: /reactive-resume/dev/runtime
+reactive_resume_dev_successor_migration_path: /reactive-resume/dev/migration
+reactive_resume_dev_successor_runtime_keys:
+  - APP_URL
+  - AUTH_SECRET
+  - DATABASE_URL
+  - OAUTH_CLIENT_ID
+  - OAUTH_CLIENT_SECRET
+  - OAUTH_DISCOVERY_URL
+  - OAUTH_ISSUER
+  - OAUTH_PROVIDER_NAME
+  - OAUTH_SCOPES
+  - S3_ACCESS_KEY_ID
+  - S3_BUCKET
+  - S3_ENDPOINT
+  - S3_FORCE_PATH_STYLE
+  - S3_REGION
+  - S3_SECRET_ACCESS_KEY
+reactive_resume_dev_successor_migration_keys:
+  - DATABASE_URL
+  - MIGRATION_DATABASE_URL
+reactive_resume_dev_successor_runtime_template_data:
+  APP_URL: '{{ .APP_URL.Value }}'
+  AUTH_SECRET: '{{ .AUTH_SECRET.Value }}'
+  DATABASE_URL: '{{ .DATABASE_URL.Value }}'
+  OAUTH_CLIENT_ID: '{{ .OAUTH_CLIENT_ID.Value }}'
+  OAUTH_CLIENT_SECRET: '{{ .OAUTH_CLIENT_SECRET.Value }}'
+  OAUTH_DISCOVERY_URL: '{{ .OAUTH_DISCOVERY_URL.Value }}'
+  OAUTH_ISSUER: '{{ .OAUTH_ISSUER.Value }}'
+  OAUTH_PROVIDER_NAME: '{{ .OAUTH_PROVIDER_NAME.Value }}'
+  OAUTH_SCOPES: '{{ .OAUTH_SCOPES.Value }}'
+  S3_ACCESS_KEY_ID: '{{ .S3_ACCESS_KEY_ID.Value }}'
+  S3_BUCKET: '{{ .S3_BUCKET.Value }}'
+  S3_ENDPOINT: '{{ .S3_ENDPOINT.Value }}'
+  S3_FORCE_PATH_STYLE: '{{ .S3_FORCE_PATH_STYLE.Value }}'
+  S3_REGION: '{{ .S3_REGION.Value }}'
+  S3_SECRET_ACCESS_KEY: '{{ .S3_SECRET_ACCESS_KEY.Value }}'
+reactive_resume_dev_successor_migration_template_data:
+  DATABASE_URL: '{{ .DATABASE_URL.Value }}'
+  MIGRATION_DATABASE_URL: '{{ .MIGRATION_DATABASE_URL.Value }}'
+reactive_resume_dev_successor_secret_labels:
+  app.kubernetes.io/managed-by: infisical
+  app.kubernetes.io/part-of: reactive-resume
+  cristex.io/value-owner: infisical-cloud
+reactive_resume_dev_successor_source_labels:
+  app.kubernetes.io/managed-by: ansible
+  app.kubernetes.io/part-of: reactive-resume
+  cristex.io/component: reactive-resume-dev-successor
+  cristex.io/environment: dev
+reactive_resume_dev_successor_auth_labels:
+  app.kubernetes.io/part-of: cristex-platform
+  app.kubernetes.io/managed-by: ansible
+  cristex.io/component: infisical-cristexhub-dev-runtime
+reactive_resume_dev_successor_source_manifest: >-
+  {{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256
+reactive_resume_dev_successor_source_manifest_sha256: 5944b58eee2298e043a95158500fde3eb72265c5ce1559f687bb78a8e7e80087
+reactive_resume_dev_successor_source_manifest_entries:
+  - path: source/admission-rbac.yaml
+    sha256: 63361e692bae54a950c5156f92e83f61492079c5adf4ce1f8a4ec379a88a2bec
+  - path: source/migration-static-secret.yaml
+    sha256: 587404c0f41e7920a6eb742c713e45b867c638e1b4ff1e306145ad7a281bfbdd
+  - path: source/runtime-static-secret.yaml
+    sha256: e8b11b97146c98ed4a95e46009385b4883b2f533ffe50ea02b44415bf568177a
+reactive_resume_dev_successor_source_paths:
+  - '{{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml'
+  - '{{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml'
+  - '{{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml'
+reactive_resume_dev_successor_ca_source_path: >-
+  {{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml
+reactive_resume_dev_successor_check_directory: '{{ reactive_resume_dev_successor_repository_root }}/ansible/files/database-provisioning'
+reactive_resume_dev_successor_check_script: '{{ reactive_resume_dev_successor_check_directory }}/reactive-resume-dev-successor-check.sh'
+reactive_resume_dev_successor_script_sha256: cc130ab6e89860ddb08226972f11f10fe3e585d1f2444effc6d5f287a716140e
+reactive_resume_dev_successor_forbidden_secret_names:
+  - shared-postgresql-reactive-resume-dev
+  - shared-postgresql-reactive-resume-prod
+reactive_resume_dev_successor_admission_policy: infisical-reactive-resume-dev-secret-write-boundary
+reactive_resume_dev_successor_writer_role: infisical-reactive-resume-dev-successor-secret-writer
+reactive_resume_dev_successor_writer_binding: infisical-reactive-resume-dev-successor-secret-writer

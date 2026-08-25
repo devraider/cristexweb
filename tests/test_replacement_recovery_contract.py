@@ -54,6 +54,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "postgresql-bootstrap.md",
                 "reactive-resume-hosted-architecture.md",
                 "reactive-resume-dev-backup.md",
+                "reactive-resume-dev-successor.md",
                 "reactive-resume-dev-private-route.md",
                 "reactive-resume-dev-shared-realm-client.md",
                 "reactive-resume-dev-argocd.md",

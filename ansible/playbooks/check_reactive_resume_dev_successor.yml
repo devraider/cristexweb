@@ -1,0 +1,8 @@
+---
+- name: Check the Reactive Resume DEV successor lane
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  roles:
+    - role: reactive_resume_dev_successor

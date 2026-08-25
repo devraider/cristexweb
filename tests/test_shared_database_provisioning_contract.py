@@ -124,7 +124,7 @@ class SharedDatabaseProvisioningContractTests(unittest.TestCase):
             self.assertEqual("infisical-cloud", defaults[contract_key]["labels"]["cristex.io/value-owner"])
 
     def test_scripts_are_hash_bound_and_no_secret_argv_or_destructive_reset(self) -> None:
-        scripts = sorted((ROOT / "ansible/files/database-provisioning").glob("*.sh"))
+        scripts = sorted(path for path in (ROOT / "ansible/files/database-provisioning").glob("*.sh") if path.name != "reactive-resume-dev-successor-check.sh")
         self.assertEqual(4, len(scripts))
         all_scripts = "\n".join(path.read_text() for path in scripts)
         for path in scripts:

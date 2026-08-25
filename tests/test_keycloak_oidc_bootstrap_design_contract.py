@@ -241,6 +241,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "policies/cristexhub-prod-runtime-materialization.yml",
             "policies/argocd-ui-tls-lifecycle.yml",
             "policies/reactive-resume-dev-tls-renewal.yml",
+            "policies/reactive-resume-dev-postgresql-successor.yml",
             "vendor/argocd/10.3.0/SHA256SUMS",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz.prov",
@@ -284,6 +285,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "cloudnative-pg",
             "keycloak",
             "shared-mongodb-networkpolicy",
+            "reactive-resume-dev-successor",
         ):
             expected_public_inputs.update(
                 str(path.relative_to(ROOT / "ansible/files"))

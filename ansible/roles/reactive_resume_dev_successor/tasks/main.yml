@@ -1,0 +1,665 @@
+---
+- name: Reject externally supplied successor internals
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied successor internal {{ item }}"
+  loop:
+    - reactive_resume_dev_successor_internal_attestation
+    - reactive_resume_dev_successor_internal_kubeconfig
+    - reactive_resume_dev_successor_internal_namespace
+    - reactive_resume_dev_successor_internal_cluster
+    - reactive_resume_dev_successor_internal_pods
+    - reactive_resume_dev_successor_internal_secrets
+    - reactive_resume_dev_successor_internal_ca
+    - reactive_resume_dev_successor_internal_ca_source
+    - reactive_resume_dev_successor_internal_database
+    - reactive_resume_dev_successor_internal_roles
+    - reactive_resume_dev_successor_internal_source
+    - reactive_resume_dev_successor_internal_source_states
+    - reactive_resume_dev_successor_internal_source_manifest
+    - reactive_resume_dev_successor_internal_source_manifest_lines
+    - reactive_resume_dev_successor_internal_auth
+    - reactive_resume_dev_successor_internal_ca_sources
+    - reactive_resume_dev_successor_internal_admission_policy
+    - reactive_resume_dev_successor_internal_admission_binding
+    - reactive_resume_dev_successor_internal_writer_role
+    - reactive_resume_dev_successor_internal_writer_binding
+    - reactive_resume_dev_successor_internal_binding
+    - reactive_resume_dev_successor_internal_check
+  changed_when: false
+
+- name: Require the source-only DEV successor wrapper contract
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_approved | bool
+      - reactive_resume_dev_successor_state == 'check'
+      - ansible_check_mode
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_ATTESTATION_FILE') | length > 0
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_PID') is match('^[1-9][0-9]*$')
+      - reactive_resume_dev_successor_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - reactive_resume_dev_successor_database_namespace == 'shared-services'
+      - reactive_resume_dev_successor_application_namespace == 'cristexhub-dev'
+      - reactive_resume_dev_successor_database == 'reactive_resume_dev_successor'
+      - reactive_resume_dev_successor_runtime_role == 'reactive_resume_dev_runtime'
+      - reactive_resume_dev_successor_migration_role == 'reactive_resume_dev_migrator'
+      - reactive_resume_dev_successor_source_paths | length == 3
+      - reactive_resume_dev_successor_source_manifest_entries | length == 3
+      - reactive_resume_dev_successor_ca_source_path.endswith('/ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml')
+      - reactive_resume_dev_successor_runtime_keys | length == 15
+      - reactive_resume_dev_successor_migration_keys | length == 2
+      - reactive_resume_dev_successor_runtime_keys | unique | length == 15
+      - reactive_resume_dev_successor_migration_keys | unique | length == 2
+      - reactive_resume_dev_successor_forbidden_secret_names | length == 2
+      - >-
+        reactive_resume_dev_successor_runtime_keys | sort ==
+        ['APP_URL', 'AUTH_SECRET', 'DATABASE_URL', 'OAUTH_CLIENT_ID',
+        'OAUTH_CLIENT_SECRET', 'OAUTH_DISCOVERY_URL', 'OAUTH_ISSUER',
+        'OAUTH_PROVIDER_NAME', 'OAUTH_SCOPES', 'S3_ACCESS_KEY_ID', 'S3_BUCKET',
+        'S3_ENDPOINT', 'S3_FORCE_PATH_STYLE', 'S3_REGION',
+        'S3_SECRET_ACCESS_KEY'] | sort
+      - >-
+        reactive_resume_dev_successor_migration_keys | sort ==
+        ['DATABASE_URL', 'MIGRATION_DATABASE_URL'] | sort
+    fail_msg: >-
+      The DEV successor lane requires the exact check-only wrapper, one host,
+      --diff, and the two fixed Infisical key closures.
+  changed_when: false
+
+- name: Inspect the single-run successor attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: reactive_resume_dev_successor_internal_attestation
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Require the private successor attestation
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_attestation.stat.exists | default(false)
+      - reactive_resume_dev_successor_internal_attestation.stat.isreg | default(false)
+      - not (reactive_resume_dev_successor_internal_attestation.stat.islnk | default(false))
+      - reactive_resume_dev_successor_internal_attestation.stat.mode == '0600'
+      - reactive_resume_dev_successor_internal_attestation.stat.pw_name == reactive_resume_dev_successor_controller_user
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_TOKEN')
+        ~ ':entrypoint:' ~ lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_PID') ~ ':' ~
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_SHA256')
+    fail_msg: Refusing a missing, reusable, or foreign successor attestation.
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Inspect the exact successor source leaves bound by MANIFESTS.sha256
+  ansible.builtin.stat:
+    path: '{{ reactive_resume_dev_successor_repository_root }}/ansible/files/components/reactive-resume-dev-successor/{{ item.path }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: '{{ reactive_resume_dev_successor_source_manifest_entries }}'
+  register: reactive_resume_dev_successor_internal_source_states
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require value-free source leaves with exact ownership mode and digest
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == reactive_resume_dev_successor_controller_user
+      - item.stat.mode == '0644'
+      - item.stat.checksum == item.item.sha256
+      - (item.stat.path | ansible.builtin.realpath) == item.stat.path
+    fail_msg: Refusing missing, symlinked, foreign, mode-drifted, or digest-drifted successor source.
+  loop: '{{ reactive_resume_dev_successor_internal_source_states.results }}'
+  loop_control:
+    label: successor-source
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect the canonical successor source manifest
+  ansible.builtin.stat:
+    path: '{{ reactive_resume_dev_successor_source_manifest }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  register: reactive_resume_dev_successor_internal_source_manifest
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the exact canonical source manifest
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_source_manifest.stat.exists | default(false)
+      - reactive_resume_dev_successor_internal_source_manifest.stat.isreg | default(false)
+      - not (reactive_resume_dev_successor_internal_source_manifest.stat.islnk | default(false))
+      - reactive_resume_dev_successor_internal_source_manifest.stat.pw_name == reactive_resume_dev_successor_controller_user
+      - reactive_resume_dev_successor_internal_source_manifest.stat.mode == '0644'
+      - reactive_resume_dev_successor_internal_source_manifest.stat.checksum == reactive_resume_dev_successor_source_manifest_sha256
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Read the canonical source manifest without execution
+  ansible.builtin.slurp:
+    src: '{{ reactive_resume_dev_successor_source_manifest }}'
+  register: reactive_resume_dev_successor_internal_source_manifest_content
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Parse the canonical source manifest lines
+  ansible.builtin.set_fact:
+    reactive_resume_dev_successor_internal_source_manifest_lines: >-
+      {{ (reactive_resume_dev_successor_internal_source_manifest_content.content | b64decode).splitlines() }}
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require every manifest entry exactly once
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_source_manifest_lines | length == reactive_resume_dev_successor_source_manifest_entries | length
+      - reactive_resume_dev_successor_internal_source_manifest_lines | unique | length == reactive_resume_dev_successor_source_manifest_entries | length
+      - item.sha256 ~ '  ' ~ item.path in reactive_resume_dev_successor_internal_source_manifest_lines
+    fail_msg: Refusing an incomplete, widened, duplicated, or digest-drifted successor MANIFESTS.sha256.
+  loop: '{{ reactive_resume_dev_successor_source_manifest_entries }}'
+  loop_control:
+    label: successor-manifest
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect the existing CA source leaf
+  ansible.builtin.stat:
+    path: '{{ reactive_resume_dev_successor_ca_source_path }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  register: reactive_resume_dev_successor_internal_ca_source_file
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the existing CA source leaf
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_ca_source_file.stat.exists | default(false)
+      - reactive_resume_dev_successor_internal_ca_source_file.stat.isreg | default(false)
+      - not (reactive_resume_dev_successor_internal_ca_source_file.stat.islnk | default(false))
+      - reactive_resume_dev_successor_internal_ca_source_file.stat.pw_name == reactive_resume_dev_successor_controller_user
+      - reactive_resume_dev_successor_internal_ca_source_file.stat.mode == '0644'
+      - (reactive_resume_dev_successor_internal_ca_source_file.stat.path | ansible.builtin.realpath) == reactive_resume_dev_successor_ca_source_path
+    fail_msg: Refusing a missing, symlinked, foreign, or mode-drifted canonical CA source.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect the protected kubeconfig metadata
+  ansible.builtin.stat:
+    path: "{{ reactive_resume_dev_successor_kubeconfig }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: reactive_resume_dev_successor_internal_kubeconfig
+  changed_when: false
+  no_log: true
+
+- name: Require the established k3s administrator kubeconfig
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_kubeconfig.stat.exists | default(false)
+      - reactive_resume_dev_successor_internal_kubeconfig.stat.isreg | default(false)
+      - not (reactive_resume_dev_successor_internal_kubeconfig.stat.islnk | default(false))
+      - reactive_resume_dev_successor_internal_kubeconfig.stat.pw_name == 'root'
+      - reactive_resume_dev_successor_internal_kubeconfig.stat.gr_name == 'k3s-admin'
+      - reactive_resume_dev_successor_internal_kubeconfig.stat.mode == '0640'
+    fail_msg: Refusing the successor check without root:k3s-admin kubeconfig access.
+  changed_when: false
+  no_log: true
+
+- name: Query the application Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ reactive_resume_dev_successor_application_namespace }}"
+    kubeconfig: "{{ reactive_resume_dev_successor_kubeconfig }}"
+  register: reactive_resume_dev_successor_internal_namespace
+  changed_when: false
+  no_log: true
+
+- name: Require the existing DEV Namespace
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_namespace.resources | length == 1
+      - reactive_resume_dev_successor_internal_namespace.resources[0].status.phase == 'Active'
+    fail_msg: Refusing successor materialization outside the established DEV Namespace.
+  changed_when: false
+  no_log: true
+
+- name: Query the established CNPG Cluster
+  kubernetes.core.k8s_info:
+    api_version: postgresql.cnpg.io/v1
+    kind: Cluster
+    name: "{{ reactive_resume_dev_successor_cluster_name }}"
+    namespace: "{{ reactive_resume_dev_successor_database_namespace }}"
+    kubeconfig: "{{ reactive_resume_dev_successor_kubeconfig }}"
+  register: reactive_resume_dev_successor_internal_cluster
+  changed_when: false
+  no_log: true
+
+- name: Query the established CNPG PostgreSQL Pods by selector
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ reactive_resume_dev_successor_database_namespace }}"
+    label_selectors:
+      - "{{ reactive_resume_dev_successor_pod_selector }}"
+    kubeconfig: "{{ reactive_resume_dev_successor_kubeconfig }}"
+  register: reactive_resume_dev_successor_internal_pods
+  changed_when: false
+  no_log: true
+
+- name: Require one Ready pinned CNPG PostgreSQL Pod
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_cluster.resources | length == 1
+      - reactive_resume_dev_successor_internal_cluster.resources[0].spec.instances == 1
+      - reactive_resume_dev_successor_internal_cluster.resources[0].spec.imageName == reactive_resume_dev_successor_cluster_image
+      - reactive_resume_dev_successor_internal_pods.resources | length == 1
+      - reactive_resume_dev_successor_internal_pods.resources[0].status.phase == 'Running'
+      - reactive_resume_dev_successor_internal_pods.resources[0].metadata.labels['cnpg.io/cluster'] == reactive_resume_dev_successor_cluster_name
+      - >-
+        reactive_resume_dev_successor_internal_pods.resources[0].status.containerStatuses |
+        selectattr('name', 'equalto', reactive_resume_dev_successor_container) |
+        selectattr('ready', 'equalto', true) | list | length == 1
+    fail_msg: Refusing successor materialization without the exact Ready CNPG engine.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact existing Infisical Auth reference without payloads
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1beta1
+    kind: InfisicalAuth
+    name: '{{ reactive_resume_dev_successor_infisical_auth }}'
+    namespace: '{{ reactive_resume_dev_successor_application_namespace }}'
+    kubeconfig: '{{ reactive_resume_dev_successor_kubeconfig }}'
+  register: reactive_resume_dev_successor_internal_auth
+  changed_when: false
+  no_log: true
+
+- name: Require the exact existing Infisical Auth contract
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_auth.resources | length == 1
+      - reactive_resume_dev_successor_internal_auth.resources[0].metadata.name == reactive_resume_dev_successor_infisical_auth
+      - reactive_resume_dev_successor_internal_auth.resources[0].metadata.namespace == reactive_resume_dev_successor_application_namespace
+      - reactive_resume_dev_successor_internal_auth.resources[0].metadata.labels == reactive_resume_dev_successor_auth_labels
+      - >-
+        reactive_resume_dev_successor_internal_auth.resources[0].spec.infisicalConnectionRef ==
+        {'name': reactive_resume_dev_successor_infisical_connection, 'namespace': reactive_resume_dev_successor_application_namespace}
+      - reactive_resume_dev_successor_internal_auth.resources[0].spec.method == 'universal'
+      - >-
+        reactive_resume_dev_successor_internal_auth.resources[0].spec.universal.clientIdRef ==
+        {'name': 'cristexhub-dev-infisical-universal-auth', 'namespace': reactive_resume_dev_successor_application_namespace, 'key': 'clientId'}
+      - >-
+        reactive_resume_dev_successor_internal_auth.resources[0].spec.universal.clientSecretRef ==
+        {'name': 'cristexhub-dev-infisical-universal-auth', 'namespace': reactive_resume_dev_successor_application_namespace, 'key': 'clientSecret'}
+    fail_msg: Refusing the successor lane without the exact existing Infisical Auth reference.
+  changed_when: false
+  no_log: true
+
+- name: Query runtime and migration Secret metadata without Secret payloads
+  reactive_resume_dev_secret_metadata:
+    kubeconfig: "{{ reactive_resume_dev_successor_kubeconfig }}"
+    namespace: "{{ reactive_resume_dev_successor_application_namespace }}"
+    name: "{{ item }}"
+  loop:
+    - "{{ reactive_resume_dev_successor_runtime_secret }}"
+    - "{{ reactive_resume_dev_successor_migration_secret }}"
+  register: reactive_resume_dev_successor_internal_secrets
+  changed_when: false
+  no_log: true
+
+- name: Require exact Infisical-owned application Secret metadata
+  ansible.builtin.assert:
+    that:
+      - item.found | bool
+      - item.metadata.namespace == reactive_resume_dev_successor_application_namespace
+      - item.metadata.name in [reactive_resume_dev_successor_runtime_secret, reactive_resume_dev_successor_migration_secret]
+      - item.metadata.labels == reactive_resume_dev_successor_secret_labels
+    fail_msg: Runtime or migration Secret metadata is absent or drifted.
+  loop: "{{ reactive_resume_dev_successor_internal_secrets.results }}"
+  loop_control:
+    label: successor-secret-metadata
+  changed_when: false
+  no_log: true
+
+- name: Query runtime and migration StaticSecret specs without Secret payloads
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1beta1
+    kind: InfisicalStaticSecret
+    name: '{{ item }}'
+    namespace: '{{ reactive_resume_dev_successor_application_namespace }}'
+    kubeconfig: '{{ reactive_resume_dev_successor_kubeconfig }}'
+  loop:
+    - '{{ reactive_resume_dev_successor_runtime_secret }}'
+    - '{{ reactive_resume_dev_successor_migration_secret }}'
+  register: reactive_resume_dev_successor_internal_source
+  changed_when: false
+  no_log: true
+
+- name: Require exact runtime and migration StaticSecret source contracts
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item
+      - item.resources[0].metadata.namespace == reactive_resume_dev_successor_application_namespace
+      - item.resources[0].metadata.labels == reactive_resume_dev_successor_source_labels
+      - >-
+        item.resources[0].spec.infisicalAuthRef ==
+        {'name': reactive_resume_dev_successor_infisical_auth, 'namespace': reactive_resume_dev_successor_application_namespace}
+      - >-
+        item.resources[0].spec.syncOptions == {'refreshInterval': '1h', 'instantUpdates': false}
+      - item.resources[0].spec.sources | length == 1
+      - item.resources[0].spec.sources[0].recursive is false
+      - item.resources[0].spec.sources[0].tagSlugs == []
+      - item.resources[0].spec.sources[0].projectId == reactive_resume_dev_successor_project_id
+      - item.resources[0].spec.sources[0].environmentSlug == reactive_resume_dev_successor_environment
+      - >-
+        item.resources[0].spec.sources[0].secretPath ==
+        (reactive_resume_dev_successor_runtime_path if item.item == reactive_resume_dev_successor_runtime_secret
+        else reactive_resume_dev_successor_migration_path)
+      - item.resources[0].spec.targets | length == 1
+      - item.resources[0].spec.targets[0].name == item.item
+      - item.resources[0].spec.targets[0].kind == 'Secret'
+      - item.resources[0].spec.targets[0].secretType == 'Opaque'
+      - item.resources[0].spec.targets[0].creationPolicy == 'Orphan'
+      - >-
+        item.resources[0].spec.targets[0].metadata == {'annotations': {}, 'labels': reactive_resume_dev_successor_secret_labels}
+      - item.resources[0].spec.targets[0].template.engineVersion == 'v1'
+      - >-
+        item.resources[0].spec.targets[0].template.data ==
+        (reactive_resume_dev_successor_runtime_template_data if item.item == reactive_resume_dev_successor_runtime_secret
+        else reactive_resume_dev_successor_migration_template_data)
+      - >-
+        item.resources[0].spec.targets[0].template.data.keys() | list | sort ==
+        ((reactive_resume_dev_successor_runtime_keys if item.item == reactive_resume_dev_successor_runtime_secret
+        else reactive_resume_dev_successor_migration_keys) | sort)
+    fail_msg: Runtime or migration StaticSecret source provenance is absent or drifted.
+  loop: '{{ reactive_resume_dev_successor_internal_source.results }}'
+  loop_control:
+    label: successor-static-secret
+  changed_when: false
+  no_log: true
+
+- name: Query PostgreSQL CA ConfigMap metadata without payloads
+  reactive_resume_dev_secret_metadata:
+    kubeconfig: "{{ reactive_resume_dev_successor_kubeconfig }}"
+    namespace: "{{ reactive_resume_dev_successor_application_namespace }}"
+    name: "{{ reactive_resume_dev_successor_ca_configmap }}"
+    kind: ConfigMap
+  register: reactive_resume_dev_successor_internal_ca
+  changed_when: false
+  no_log: true
+
+- name: Require Infisical-owned PostgreSQL CA ConfigMap metadata
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_ca.found | bool
+      - reactive_resume_dev_successor_internal_ca.metadata.namespace == reactive_resume_dev_successor_application_namespace
+      - reactive_resume_dev_successor_internal_ca.metadata.labels == reactive_resume_dev_successor_secret_labels
+    fail_msg: PostgreSQL CA ConfigMap metadata is absent or drifted.
+  changed_when: false
+  no_log: true
+
+- name: Query the existing CA StaticSecret source without creating a competing source
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1beta1
+    kind: InfisicalStaticSecret
+    name: '{{ reactive_resume_dev_successor_ca_static_secret }}'
+    namespace: '{{ reactive_resume_dev_successor_application_namespace }}'
+    kubeconfig: '{{ reactive_resume_dev_successor_kubeconfig }}'
+  register: reactive_resume_dev_successor_internal_ca_source
+  changed_when: false
+  no_log: true
+
+- name: Require the existing canonical CA StaticSecret source
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_ca_source.resources | length == 1
+      - reactive_resume_dev_successor_internal_ca_source.resources[0].metadata.name == reactive_resume_dev_successor_ca_static_secret
+      - reactive_resume_dev_successor_internal_ca_source.resources[0].metadata.namespace == reactive_resume_dev_successor_application_namespace
+      - >-
+        reactive_resume_dev_successor_internal_ca_source.resources[0].metadata.labels ==
+        reactive_resume_dev_successor_source_labels | combine({'cristex.io/component': 'infisical-reactive-resume-dev-ca'})
+      - >-
+        reactive_resume_dev_successor_internal_ca_source.resources[0].spec.infisicalAuthRef ==
+        {'name': reactive_resume_dev_successor_infisical_auth, 'namespace': reactive_resume_dev_successor_application_namespace}
+      - >-
+        reactive_resume_dev_successor_internal_ca_source.resources[0].spec.syncOptions == {'refreshInterval': '1h', 'instantUpdates': false}
+      - reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources | length == 1
+      - reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources[0].recursive is false
+      - reactive_resume_dev_successor_internal_ca_source.resources[0].spec.sources[0].tagSlugs == []
+      - >-
+        reactive_resume_dev_successor_internal_ca_source.resources[0].spec.targets |
+        map(attribute='name') | list | sort ==
+        [reactive_resume_dev_successor_ca_configmap, 'reactive-resume-dev-object-storage-ca'] | sort
+      - >-
+        reactive_resume_dev_successor_internal_ca_source.resources[0].spec.targets |
+        selectattr('name', 'equalto', reactive_resume_dev_successor_ca_configmap) |
+        map(attribute='namespace') | list == [reactive_resume_dev_successor_application_namespace]
+      - >-
+        reactive_resume_dev_successor_internal_ca_source.resources[0].spec.targets |
+        selectattr('name', 'equalto', reactive_resume_dev_successor_ca_configmap) |
+        map(attribute='kind') | list == ['ConfigMap']
+      - >-
+        reactive_resume_dev_successor_internal_ca_source.resources[0].spec.targets |
+        selectattr('name', 'equalto', reactive_resume_dev_successor_ca_configmap) |
+        map(attribute='creationPolicy') | list == ['Orphan']
+      - >-
+        (reactive_resume_dev_successor_internal_ca_source.resources[0].spec.targets |
+        selectattr('name', 'equalto', reactive_resume_dev_successor_ca_configmap) |
+        map(attribute='template') | map(attribute='data') | list | first | to_json)
+        is search('POSTGRESQL_CA_CRT')
+    fail_msg: Refusing a competing or drifted PostgreSQL CA StaticSecret source.
+  changed_when: false
+  no_log: true
+
+- name: Query every DEV Infisical StaticSecret to detect competing CA sources
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1beta1
+    kind: InfisicalStaticSecret
+    namespace: '{{ reactive_resume_dev_successor_application_namespace }}'
+    kubeconfig: '{{ reactive_resume_dev_successor_kubeconfig }}'
+  register: reactive_resume_dev_successor_internal_ca_sources
+  changed_when: false
+  no_log: true
+
+- name: Require no competing CA StaticSecret target
+  ansible.builtin.assert:
+    that:
+      - >-
+        reactive_resume_dev_successor_internal_ca_sources.resources |
+        selectattr('spec.targets', 'defined') | map(attribute='spec.targets') | flatten |
+        selectattr('name', 'equalto', reactive_resume_dev_successor_ca_configmap) |
+        list | length == 1
+      - >-
+        reactive_resume_dev_successor_internal_ca_sources.resources |
+        selectattr('metadata.name', 'equalto', reactive_resume_dev_successor_ca_static_secret) |
+        list | length == 1
+    fail_msg: Refusing a duplicate or competing DEV PostgreSQL CA StaticSecret source.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact admission policy and binding evidence
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicy
+    name: '{{ reactive_resume_dev_successor_admission_policy }}'
+    kubeconfig: '{{ reactive_resume_dev_successor_kubeconfig }}'
+  register: reactive_resume_dev_successor_internal_admission_policy
+  changed_when: false
+  no_log: true
+
+- name: Query the exact admission policy binding evidence
+  kubernetes.core.k8s_info:
+    api_version: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicyBinding
+    name: '{{ reactive_resume_dev_successor_admission_policy }}'
+    kubeconfig: '{{ reactive_resume_dev_successor_kubeconfig }}'
+  register: reactive_resume_dev_successor_internal_admission_binding
+  changed_when: false
+  no_log: true
+
+- name: Require fail-closed admission enforcement evidence
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_admission_policy.resources | length == 1
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.labels == reactive_resume_dev_successor_source_labels
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.failurePolicy == 'Fail'
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints.resourceRules | length == 1
+      - >-
+        reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints.resourceRules[0] ==
+        {'apiGroups': [''], 'apiVersions': ['v1'], 'operations': ['CREATE', 'UPDATE'], 'resources': ['secrets'], 'scope': 'Namespaced'}
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations | length == 1
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression is search('infisical-operator-controller')
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression is search('reactive-resume-dev-runtime')
+      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.validations[0].expression is search('reactive-resume-dev-migration')
+      - reactive_resume_dev_successor_internal_admission_binding.resources | length == 1
+      - reactive_resume_dev_successor_internal_admission_binding.resources[0].metadata.labels == reactive_resume_dev_successor_source_labels
+      - reactive_resume_dev_successor_internal_admission_binding.resources[0].spec.policyName == reactive_resume_dev_successor_admission_policy
+      - reactive_resume_dev_successor_internal_admission_binding.resources[0].spec.validationActions == ['Deny']
+    fail_msg: Refusing successor Secret custody without exact fail-closed admission evidence.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact dedicated successor Secret writer Role
+  kubernetes.core.k8s_info:
+    api_version: rbac.authorization.k8s.io/v1
+    kind: Role
+    name: '{{ reactive_resume_dev_successor_writer_role }}'
+    namespace: '{{ reactive_resume_dev_successor_application_namespace }}'
+    kubeconfig: '{{ reactive_resume_dev_successor_kubeconfig }}'
+  register: reactive_resume_dev_successor_internal_writer_role
+  changed_when: false
+  no_log: true
+
+- name: Query the exact dedicated successor Secret writer RoleBinding
+  kubernetes.core.k8s_info:
+    api_version: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    name: '{{ reactive_resume_dev_successor_writer_binding }}'
+    namespace: '{{ reactive_resume_dev_successor_application_namespace }}'
+    kubeconfig: '{{ reactive_resume_dev_successor_kubeconfig }}'
+  register: reactive_resume_dev_successor_internal_writer_binding
+  changed_when: false
+  no_log: true
+
+- name: Require least-privilege writer RBAC evidence
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_writer_role.resources | length == 1
+      - reactive_resume_dev_successor_internal_writer_role.resources[0].metadata.labels == reactive_resume_dev_successor_source_labels
+      - reactive_resume_dev_successor_internal_writer_role.resources[0].rules | length == 2
+      - >-
+        reactive_resume_dev_successor_internal_writer_role.resources[0].rules[0] == {
+        'apiGroups': [''], 'resources': ['secrets'],
+        'resourceNames': [reactive_resume_dev_successor_runtime_secret, reactive_resume_dev_successor_migration_secret],
+        'verbs': ['get', 'update', 'patch']}
+      - >-
+        reactive_resume_dev_successor_internal_writer_role.resources[0].rules[1] == {'apiGroups': [''], 'resources': ['secrets'], 'verbs': ['create']}
+      - reactive_resume_dev_successor_internal_writer_binding.resources | length == 1
+      - reactive_resume_dev_successor_internal_writer_binding.resources[0].metadata.labels == reactive_resume_dev_successor_source_labels
+      - >-
+        reactive_resume_dev_successor_internal_writer_binding.resources[0].roleRef ==
+        {'apiGroup': 'rbac.authorization.k8s.io', 'kind': 'Role', 'name': reactive_resume_dev_successor_writer_role}
+      - >-
+        reactive_resume_dev_successor_internal_writer_binding.resources[0].subjects ==
+        [{'kind': 'ServiceAccount', 'name': reactive_resume_dev_successor_infisical_operator_serviceaccount, 'namespace': 'shared-services'}]
+    fail_msg: Refusing successor Secret custody without exact dedicated writer RBAC evidence.
+  changed_when: false
+  no_log: true
+
+- name: Query successor CNPG Database and DatabaseRole objects without assuming CR ownership
+  kubernetes.core.k8s_info:
+    api_version: postgresql.cnpg.io/v1
+    kind: "{{ item.kind }}"
+    name: "{{ item.name }}"
+    namespace: "{{ reactive_resume_dev_successor_database_namespace }}"
+    kubeconfig: "{{ reactive_resume_dev_successor_kubeconfig }}"
+  loop:
+    - {kind: Database, name: reactive-resume-dev-successor}
+    - {kind: DatabaseRole, name: reactive-resume-dev-successor-runtime}
+    - {kind: DatabaseRole, name: reactive-resume-dev-successor-migrator}
+  register: reactive_resume_dev_successor_internal_database
+  changed_when: false
+  no_log: true
+
+- name: Require no competing successor CNPG CR ownership
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_successor_internal_database.results | map(attribute='resources') | map('length') | list == [0, 0, 0]
+    fail_msg: Refusing successor check because SQL-created successor state has an unexpected CNPG CR owner.
+  changed_when: false
+  no_log: true
+
+- name: Bind the metadata-only successor preflight
+  ansible.builtin.set_fact:
+    reactive_resume_dev_successor_internal_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_TOKEN') | hash('sha256') }}"
+      environment: dev
+      database: reactive_resume_dev_successor
+      runtime_role: reactive_resume_dev_runtime
+      migration_role: reactive_resume_dev_migrator
+      namespace: shared-services
+      pod_name: "{{ reactive_resume_dev_successor_internal_pods.resources[0].metadata.name }}"
+      metadata_only: true
+      no_apply_path: true
+  changed_when: false
+  no_log: true
+
+- name: Run the hash-bound read-only PostgreSQL successor check
+  reactive_resume_dev_successor_guarded:
+    namespace: "{{ reactive_resume_dev_successor_database_namespace }}"
+    pod: "{{ reactive_resume_dev_successor_internal_pods.resources[0].metadata.name }}"
+    container: "{{ reactive_resume_dev_successor_container }}"
+    command:
+      - /bin/sh
+      - -ec
+      - "{{ lookup('ansible.builtin.file', reactive_resume_dev_successor_check_script, rstrip=False) }}"
+    kubeconfig: "{{ reactive_resume_dev_successor_kubeconfig }}"
+    script_name: reactive-resume-dev-successor-check.sh
+    script_sha256: "{{ reactive_resume_dev_successor_script_sha256 }}"
+  register: reactive_resume_dev_successor_internal_check
+  changed_when: false
+  no_log: true
