@@ -42,7 +42,7 @@ def docs(path: Path) -> list[dict]:
 
 def canonical_digest(path: Path) -> str:
     source = path.read_text()
-    for symbol in ("_ACTION_CANONICAL_HASH", "_CLOSURE_MANIFEST_HASH", "_WRAPPER_HASH"):
+    for symbol in ("_ACTION_CANONICAL_HASH", "_CLOSURE_MANIFEST_HASH"):
         source, count = re.subn(
             rf'(?m)^({re.escape(symbol)}\s*=\s*")[0-9a-f]{{64}}("\s*)$',
             rf'\g<1>{"0" * 64}\g<2>',
@@ -50,6 +50,18 @@ def canonical_digest(path: Path) -> str:
         )
         if count != 1:
             raise AssertionError(f"canonical pin {symbol} count={count}")
+    return hashlib.sha256(source.encode()).hexdigest()
+
+
+def canonical_wrapper_digest(path: Path) -> str:
+    source = path.read_text()
+    source, count = re.subn(
+        r"(?m)^closure_manifest_expected='[0-9a-f]{64}'$",
+        "closure_manifest_expected='" + ("0" * 64) + "'",
+        source,
+    )
+    if count != 1:
+        raise AssertionError(f"canonical wrapper pin count={count}")
     return hashlib.sha256(source.encode()).hexdigest()
 
 
@@ -275,6 +287,7 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             {
                 "ansible/ansible.cfg": hashlib.sha256((ROOT / "ansible/ansible.cfg").read_bytes()).hexdigest(),
                 "ansible/library/reactive_resume_dev_secret_metadata.py": hashlib.sha256(METADATA.read_bytes()).hexdigest(),
+                "ansible/bin/check-reactive-resume-dev-successor": canonical_wrapper_digest(WRAPPER),
                 "ansible/plugins/action/reactive_resume_dev_successor_guarded.py": canonical_digest(GUARD),
             },
             closure,
@@ -282,13 +295,35 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         for required in (
             "SOURCE-CLOSURE.sha256",
             "closure_manifest_expected",
+            "canonical_wrapper_file",
             "canonical_action_file",
+            "ansible/bin/check-reactive-resume-dev-successor",
             "ansible/ansible.cfg",
             "ansible/library/reactive_resume_dev_secret_metadata.py",
         ):
             self.assertIn(required, self.wrapper)
         self.assertIn("_POLICY_HASH", self.guard)
         self.assertEqual(0, subprocess.run(["python3", "-m", "py_compile", str(METADATA), str(GUARD)], check=False).returncode)
+
+    def test_wrapper_alteration_with_updated_pin_changes_bound_action_digest(self) -> None:
+        altered_wrapper = WRAPPER.read_text() + "\n# simulated wrapper logic alteration\n"
+        with tempfile.TemporaryDirectory() as directory:
+            wrapper_path = Path(directory) / WRAPPER.name
+            wrapper_path.write_text(altered_wrapper)
+            altered_wrapper_digest = canonical_wrapper_digest(wrapper_path)
+            self.assertNotEqual(altered_wrapper_digest, canonical_wrapper_digest(WRAPPER))
+            altered_action = GUARD.read_text().replace(
+                re.search(r'(?m)^_WRAPPER_CANONICAL_HASH = "[0-9a-f]{64}"$', GUARD.read_text()).group(0),
+                f'_WRAPPER_CANONICAL_HASH = "{altered_wrapper_digest}"',
+                1,
+            )
+            action_path = Path(directory) / GUARD.name
+            action_path.write_text(altered_action)
+            closure = {
+                path: digest
+                for digest, path in (line.split("  ", 1) for line in CLOSURE.read_text().splitlines())
+            }
+            self.assertNotEqual(canonical_digest(action_path), closure["ansible/plugins/action/reactive_resume_dev_successor_guarded.py"])
 
     def test_action_guard_hash_constants_match_every_current_source(self) -> None:
         tree = ast.parse(self.guard)
@@ -299,8 +334,8 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             target = node.targets[0]
             if isinstance(target, ast.Name) and target.id in {
                 "_SCRIPT_HASH", "_MANIFEST_HASH", "_TASK_HASH", "_DEFAULTS_HASH",
-                "_PLAYBOOK_HASH", "_WRAPPER_HASH", "_POLICY_HASH", "_MANIFEST_ENTRIES",
-                "_ACTION_CANONICAL_HASH", "_CLOSURE_MANIFEST_HASH", "_CLOSURE_ENTRIES",
+                "_PLAYBOOK_HASH", "_POLICY_HASH", "_MANIFEST_ENTRIES",
+                "_ACTION_CANONICAL_HASH", "_WRAPPER_CANONICAL_HASH", "_CLOSURE_MANIFEST_HASH", "_CLOSURE_ENTRIES",
             }:
                 constants[target.id] = ast.literal_eval(node.value)
         paths = {
@@ -309,7 +344,6 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             "_TASK_HASH": TASKS,
             "_DEFAULTS_HASH": DEFAULTS,
             "_PLAYBOOK_HASH": PLAYBOOK,
-            "_WRAPPER_HASH": WRAPPER,
             "_POLICY_HASH": POLICY,
             "_CLOSURE_MANIFEST_HASH": CLOSURE,
         }
@@ -327,10 +361,12 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             constants["_MANIFEST_ENTRIES"],
         )
         self.assertEqual(canonical_digest(GUARD), constants["_ACTION_CANONICAL_HASH"])
+        self.assertEqual(canonical_wrapper_digest(WRAPPER), constants["_WRAPPER_CANONICAL_HASH"])
         self.assertEqual(
             {
                 "ansible/ansible.cfg": hashlib.sha256((ROOT / "ansible/ansible.cfg").read_bytes()).hexdigest(),
                 "ansible/library/reactive_resume_dev_secret_metadata.py": hashlib.sha256(METADATA.read_bytes()).hexdigest(),
+                "ansible/bin/check-reactive-resume-dev-successor": canonical_wrapper_digest(WRAPPER),
             },
             constants["_CLOSURE_ENTRIES"],
         )
@@ -376,7 +412,8 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         action._task = SyntheticTask(args)
         with tempfile.TemporaryDirectory() as directory:
             attestation = Path(directory) / "attestation"
-            attestation.write_text(f"{token}:entrypoint:{os.getpid()}:{guarded._WRAPPER_HASH}\n")
+            raw_wrapper_hash = hashlib.sha256(WRAPPER.read_bytes()).hexdigest()
+            attestation.write_text(f"{token}:entrypoint:{os.getpid()}:{raw_wrapper_hash}\n")
             attestation.chmod(0o600)
             cliargs = {
                 "tags": [],
@@ -394,7 +431,7 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_ATTESTATION_FILE": str(attestation),
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_PID": str(os.getpid()),
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_PATH": str(guarded._WRAPPER_SOURCE),
-                "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_SHA256": guarded._WRAPPER_HASH,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_SHA256": raw_wrapper_hash,
             }
             with patch.object(guarded.context, "CLIARGS", guarded.context.CLIARGS.__class__(cliargs)), patch.dict(os.environ, environment, clear=False), patch.object(guarded.ActionModule.__mro__[1], "run", return_value={}), patch.object(guarded.ActionModule, "_execute_module", return_value={"rc": 0}) as execute:
                 result = action.run(task_vars={

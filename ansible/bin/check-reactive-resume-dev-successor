@@ -34,7 +34,7 @@ sha_file() {
   esac
 }
 closure_manifest="$repository_root/ansible/files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256"
-closure_manifest_expected='043e29ed210afd1e7381979792a0c11f68bfc3007e415b934906e4e4e21b29f9'
+closure_manifest_expected='2270e3818cd380c14528631ac24eaa5f6ad0cf197556fd27447e9ddbbc71276f'
 action_source="$repository_root/ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
 config_source="$repository_root/ansible/ansible.cfg"
 library_source="$repository_root/ansible/library/reactive_resume_dev_secret_metadata.py"
@@ -54,14 +54,17 @@ closure_entry() {
 }
 config_expected=$(closure_entry ansible/ansible.cfg)
 library_expected=$(closure_entry ansible/library/reactive_resume_dev_secret_metadata.py)
+wrapper_expected=$(closure_entry ansible/bin/check-reactive-resume-dev-successor)
 action_expected=$(closure_entry ansible/plugins/action/reactive_resume_dev_successor_guarded.py)
-[ -n "$config_expected" ] && [ -n "$library_expected" ] && [ -n "$action_expected" ] || exit 69
+[ -n "$config_expected" ] && [ -n "$library_expected" ] && [ -n "$wrapper_expected" ] && [ -n "$action_expected" ] || exit 69
 [ "$(sha_file "$config_source")" = "$config_expected" ] || exit 69
 [ "$(sha_file "$library_source")" = "$library_expected" ] || exit 69
 canonical_action_file=''
+canonical_wrapper_file=''
 attestation_file=''
 cleanup() {
   [ -z "$canonical_action_file" ] || /bin/rm -f -- "$canonical_action_file"
+  [ -z "$canonical_wrapper_file" ] || /bin/rm -f -- "$canonical_wrapper_file"
   [ -z "$attestation_file" ] || /bin/rm -f -- "$attestation_file"
 }
 trap cleanup EXIT HUP INT TERM
@@ -69,10 +72,17 @@ canonical_action_file=$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-res
 /usr/bin/sed -E \
   -e 's/^_ACTION_CANONICAL_HASH = "[0-9a-f]{64}"$/_ACTION_CANONICAL_HASH = "0000000000000000000000000000000000000000000000000000000000000000"/' \
   -e 's/^_CLOSURE_MANIFEST_HASH = "[0-9a-f]{64}"$/_CLOSURE_MANIFEST_HASH = "0000000000000000000000000000000000000000000000000000000000000000"/' \
-  -e 's/^_WRAPPER_HASH = "[0-9a-f]{64}"$/_WRAPPER_HASH = "0000000000000000000000000000000000000000000000000000000000000000"/' \
   "$action_source" >"$canonical_action_file"
 [ "$(sha_file "$canonical_action_file")" = "$action_expected" ] || {
   printf '%s\n' 'refusing successor action-plugin source drift' >&2
+  exit 69
+}
+canonical_wrapper_file=$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-dev-successor-wrapper.XXXXXX")
+/usr/bin/sed -E \
+  -e "s/^closure_manifest_expected='[0-9a-f]{64}'$/closure_manifest_expected='0000000000000000000000000000000000000000000000000000000000000000'/" \
+  "$script_path" >"$canonical_wrapper_file"
+[ "$(sha_file "$canonical_wrapper_file")" = "$wrapper_expected" ] || {
+  printf '%s\n' 'refusing successor wrapper source drift' >&2
   exit 69
 }
 controller="$repository_root/.venv/bin/ansible-playbook"

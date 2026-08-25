@@ -29,15 +29,21 @@ _POLICY_SOURCE = _REPOSITORY_ROOT / "ansible/files/policies/reactive-resume-dev-
 _TASK_HASH = "585ab7c7d813fc6dedd2cc6cc3880b7191179057d66aa812617faaf070afb5fa"
 _DEFAULTS_HASH = "a31d4646169f72c68c41186b83a2da422fcce1cd270a69e21e4a8471bc170d2b"
 _PLAYBOOK_HASH = "98c4ecc22ea6387d5c9f63ec3359573893223d93f562bf0e53de2a5a18d9c089"
-_WRAPPER_HASH = "c8a7f69b803d99152d555905d9a32e2e66b479a1d2b145c411400b8bdd0ac3e2"
+_WRAPPER_CANONICAL_HASH = "c61339039cc157a47ad2d38c78a9f56078dc9baac02981af66bd17b06dfa6e39"
 _POLICY_HASH = "7bcd206f32db6f7a182feb618fd5595726e7cb4c63e1d34fe2641303ee7983a4"
 _ACTION_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
 _CLOSURE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256"
-_ACTION_CANONICAL_HASH = "2c01d1fe73d115d05dda72fc4219d61a4516df3ab686b707af1cc2c83c32905b"
-_CLOSURE_MANIFEST_HASH = "043e29ed210afd1e7381979792a0c11f68bfc3007e415b934906e4e4e21b29f9"
+_ACTION_CANONICAL_HASH = "b811fc9390a3009128559381dca7c2a3fe719a140ba6bb389b89b695d56e3978"
+_CLOSURE_MANIFEST_HASH = "2270e3818cd380c14528631ac24eaa5f6ad0cf197556fd27447e9ddbbc71276f"
 _CLOSURE_ENTRIES = {
     "ansible/ansible.cfg": "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9",
     "ansible/library/reactive_resume_dev_secret_metadata.py": "6762f3b7830a6c01977238fca7c3397b08702c3c9b303712cf050df9c85b02c7",
+    "ansible/bin/check-reactive-resume-dev-successor": "c61339039cc157a47ad2d38c78a9f56078dc9baac02981af66bd17b06dfa6e39",
+}
+_CLOSURE_MODES = {
+    "ansible/ansible.cfg": 0o644,
+    "ansible/library/reactive_resume_dev_secret_metadata.py": 0o644,
+    "ansible/bin/check-reactive-resume-dev-successor": 0o755,
 }
 _CLOSURE_ACTION_PATH = "ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
 _ARGUMENT_KEYS = {"namespace", "pod", "container", "command", "kubeconfig", "script_name", "script_sha256"}
@@ -53,7 +59,7 @@ def _sha256(path: Path) -> str:
 def _canonical_sha256(path: Path) -> str:
     try:
         source = path.read_text(encoding="utf-8")
-        for symbol in ("_ACTION_CANONICAL_HASH", "_CLOSURE_MANIFEST_HASH", "_WRAPPER_HASH"):
+        for symbol in ("_ACTION_CANONICAL_HASH", "_CLOSURE_MANIFEST_HASH"):
             source, count = re.subn(
                 rf'(?m)^({re.escape(symbol)}\s*=\s*")[0-9a-f]{{64}}("\s*)$',
                 rf'\g<1>{"0" * 64}\g<2>',
@@ -61,6 +67,21 @@ def _canonical_sha256(path: Path) -> str:
             )
             if count != 1:
                 return ""
+        return hashlib.sha256(source.encode("utf-8")).hexdigest()
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _canonical_wrapper_sha256(path: Path) -> str:
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, count = re.subn(
+            r"(?m)^closure_manifest_expected='[0-9a-f]{64}'$",
+            "closure_manifest_expected='" + ("0" * 64) + "'",
+            source,
+        )
+        if count != 1:
+            return ""
         return hashlib.sha256(source.encode("utf-8")).hexdigest()
     except (OSError, UnicodeError):
         return ""
@@ -88,9 +109,16 @@ def _source_closure() -> bool:
         if not leaf.is_file() or leaf.is_symlink():
             return False
         try:
-            if stat.S_IMODE(leaf.stat().st_mode) != 0o644 or _sha256(leaf) != digest:
+            if stat.S_IMODE(leaf.stat().st_mode) != _CLOSURE_MODES[relative]:
                 return False
-        except OSError:
+            actual = (
+                _canonical_wrapper_sha256(leaf)
+                if relative == "ansible/bin/check-reactive-resume-dev-successor"
+                else _sha256(leaf)
+            )
+            if actual != digest:
+                return False
+        except (KeyError, OSError):
             return False
     if not _ACTION_SOURCE.is_file() or _ACTION_SOURCE.is_symlink():
         return False
@@ -98,6 +126,7 @@ def _source_closure() -> bool:
         return (
             stat.S_IMODE(_ACTION_SOURCE.stat().st_mode) == 0o644
             and _canonical_sha256(_ACTION_SOURCE) == _ACTION_CANONICAL_HASH
+            and _canonical_wrapper_sha256(_WRAPPER_SOURCE) == _WRAPPER_CANONICAL_HASH
         )
     except OSError:
         return False
@@ -202,8 +231,8 @@ class ActionModule(ActionBase):
             and stat.S_IMODE(attestation_state.st_mode) == 0o600
             and attestation_state.st_uid == os.getuid()
             and Path(wrapper_path) == _WRAPPER_SOURCE
-            and wrapper_sha == _WRAPPER_HASH
-            and _sha256(_WRAPPER_SOURCE) == _WRAPPER_HASH
+            and wrapper_sha == _sha256(_WRAPPER_SOURCE)
+            and _canonical_wrapper_sha256(_WRAPPER_SOURCE) == _WRAPPER_CANONICAL_HASH
             and attestation == f"{token}:entrypoint:{pid}:{wrapper_sha}"
         )
         binding = task_vars.get("reactive_resume_dev_successor_internal_binding", {})
