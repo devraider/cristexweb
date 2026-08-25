@@ -34,8 +34,10 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('os.environ["OBJECT_ROOT"]', source)
         self.assertNotIn('os.path.join("/work/objects", key)', source)
         self.assertIn('member.size == expected[key]', source)
-        self.assertIn('assert files == set(expected)', source)
-        self.assertLess(source.index('assert files == set(expected)'), source.index('source = archive.extractfile(member)'))
+        self.assertIn('member_limit = len(expected) + len(allowed_directories)', source)
+        self.assertIn('assert len(members) <= member_limit', source)
+        self.assertIn('directories == allowed_directories', source)
+        self.assertLess(source.index('directories == allowed_directories'), source.index('source = archive.extractfile(member)'))
 
     def test_restore_rejects_archive_links_and_consumes_one_use_attestation(self):
         source = RESTORE.read_text()
@@ -50,8 +52,10 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('/usr/bin/rm -f -- "$work/object-storage.tar.gz"', source)
         self.assertNotIn('<"$work/object-storage.tar.gz" || fail object_restore_extract', source)
         self.assertIn('member.size == expected[key]', source)
-        self.assertIn('assert files == set(expected)', source)
-        self.assertLess(source.index('assert files == set(expected)'), source.index('source = archive.extractfile(member)'))
+        self.assertIn('member_limit = len(expected) + len(allowed_directories)', source)
+        self.assertIn('assert len(members) <= member_limit', source)
+        self.assertIn('directories == allowed_directories', source)
+        self.assertLess(source.index('directories == allowed_directories'), source.index('source = archive.extractfile(member)'))
 
     def test_pg_table_count_excludes_table_data_and_attach_toc_entries(self):
         for source in (BACKUP.read_text(), RESTORE.read_text()):
@@ -89,10 +93,15 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "reactive_resume_dev_backup_playbook_sha256:",
             "hash-bound backup source closure",
             "wrapper-created single-run attestation",
+            "Mark the complete guarded backup preflight",
+            "Execute backup operations only after the complete guarded preflight",
+            "Execute backup post-checks only after the complete guarded preflight",
+            "reactive_resume_dev_backup_internal_preflight_complete | default(false) | bool",
         ):
             self.assertIn(value, PLAYBOOK.read_text())
         self.assertIn("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_TOKEN", WRAPPER.read_text())
         self.assertIn("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE", WRAPPER.read_text())
+        self.assertIn('lambda match: match.group(1) + ("0" * 64)', WRAPPER.read_text())
 
     def test_wrapper_playbook_and_source_hash_pins_are_current(self):
         wrapper = WRAPPER.read_text()

@@ -367,22 +367,26 @@ for key in expected:
     for index in range(1, len(parts) + 1):
         allowed_directories.add("objects/" + "/".join(parts[:index]))
 with tarfile.open(os.environ["ARCHIVE"], mode="r:gz") as archive:
-    members = archive.getmembers()
-    assert members
+    members = []
     files = set()
-    for member in members:
+    directories = set()
+    member_limit = len(expected) + len(allowed_directories)
+    for member in archive:
+        members.append(member)
+        assert len(members) <= member_limit
         path = member.name.rstrip("/")
         assert path and not path.startswith("/")
         assert path == "objects" or path.startswith("objects/")
         assert ".." not in path.split("/") and "\\" not in path and "\x00" not in path
         assert member.isdir() or member.isfile()
         if member.isdir():
-            assert path in allowed_directories
+            assert path in allowed_directories and path not in directories
+            directories.add(path)
         else:
             key = path.removeprefix("objects/")
             assert key in expected and key not in files and member.size == expected[key]
             files.add(key)
-    assert files == set(expected)
+    assert files == set(expected) and directories == allowed_directories
     for member in members:
         path = member.name.rstrip("/")
         target = os.path.realpath(os.path.join(root, path))
