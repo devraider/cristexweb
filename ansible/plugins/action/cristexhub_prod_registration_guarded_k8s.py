@@ -200,7 +200,7 @@ class ActionModule(KubernetesActionModule):
                 and re.fullmatch(r"[0-9]+", str(entry.get("generation", ""))) is not None
                 for entry in binding.get("prestate_bindings")
             )
-            and str(binding.get("transition_change_count")) in ("0", "2")
+            and str(binding.get("transition_change_count")) in ("0", "1", "2")
             and str(binding.get("transition_change_count")) == str(binding.get("legacy_transition_change_count"))
             and strict_true(binding.get("no_delete_path"))
         )

@@ -185,6 +185,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertIn("sort_keys=True", TASKS.read_text())
         self.assertIn("target_transition_candidates", TASKS.read_text())
         self.assertIn("valid_transition_pair", PLUGIN.read_text())
+        self.assertIn('(\"0\", \"1\", \"2\")', PLUGIN.read_text())
 
     def test_transition_fixtures_allow_only_legacy_mixed_or_target_pairs(self) -> None:
         defaults = yaml.safe_load(DEFAULTS.read_text())
