@@ -170,7 +170,7 @@ identity:
   exact_web_origins_selected: true
   exact_post_logout_selected: true
   pkce_s256_selected: true
-  scopes_selected: false
+  scopes_selected: true
   audience_selected: false
   claims_selected: false
   group_authorization_selected: false

@@ -302,6 +302,58 @@
   changed_when: false
   no_log: true
 
+- name: Diff live workload objects against the exact Argo desired source without mutation
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/kubectl
+      - --kubeconfig={{ reactive_resume_dev_argocd_registration_kubeconfig }}
+      - diff
+      - --server-side=false
+      - --field-manager=reactive-resume-dev-handoff-preflight
+      - -f
+      - '{{ item }}'
+  loop: '{{ reactive_resume_dev_argocd_registration_desired_state_paths }}'
+  register: reactive_resume_dev_argocd_registration_internal_desired_diffs
+  check_mode: false
+  changed_when: false
+  failed_when: reactive_resume_dev_argocd_registration_internal_desired_diffs.rc not in [0, 1]
+  no_log: true
+
+- name: Require exact live workload equality before ending Ansible reconciliation
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+    fail_msg: Refusing registration until every live workload object equals the immutable Argo desired source.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_desired_diffs.results }}'
+  changed_when: false
+  no_log: true
+
+- name: Diff live destination NetworkPolicies against the exact dependency source without mutation
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/kubectl
+      - --kubeconfig={{ reactive_resume_dev_argocd_registration_kubeconfig }}
+      - diff
+      - --server-side=false
+      - --field-manager=reactive-resume-dev-handoff-preflight
+      - -f
+      - '{{ item }}'
+  loop: '{{ reactive_resume_dev_argocd_registration_destination_policy_paths }}'
+  register: reactive_resume_dev_argocd_registration_internal_destination_diffs
+  check_mode: false
+  changed_when: false
+  failed_when: reactive_resume_dev_argocd_registration_internal_destination_diffs.rc not in [0, 1]
+  no_log: true
+
+- name: Require exact live destination policy equality before registration
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+    fail_msg: Refusing registration until every required cross-Namespace destination NetworkPolicy is live and exact.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_destination_diffs.results }}'
+  changed_when: false
+  no_log: true
+
 - name: Query exact Reactive Resume DEV registration pre-state
   kubernetes.core.k8s_info:
     api_version: '{{ item.apiVersion }}'

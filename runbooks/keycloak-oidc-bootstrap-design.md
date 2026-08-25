@@ -105,12 +105,12 @@ confidential client in the shared `cristexhub` realm. Its exact value-free contr
 is recorded in `hosted-identity-authorization.yml`: hostname
 `https://resume-dev.cristex-soft.com`, callback
 `https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom`, web origin
-`https://resume-dev.cristex-soft.com`, post-logout redirect
-`https://resume-dev.cristex-soft.com/*`, and Infisical key
+`https://resume-dev.cristex-soft.com`, exact post-logout redirect
+`https://resume-dev.cristex-soft.com/`, and Infisical key
 `prod:/reactive-resume/dev/runtime#OAUTH_CLIENT_SECRET`. The former same-named
-client in `cristexhub-dev` is retained only for rollback, must not be deleted, and
-may be disabled only by a separately approved operation after private acceptance.
-Rollback re-enables it and restores the old issuer/discovery pair without touching
+client in `cristexhub-dev` is disabled and retained only for rollback; it must not
+be deleted or used while the shared-realm client is active. Rollback re-enables it
+only through the reviewed recovery lane and restores the old issuer/discovery pair without touching
 CristexHub's client. Argo CD browser clients remain inactive until their own exact
 private callbacks and origins are selected; no additional hostname or route is
 invented.

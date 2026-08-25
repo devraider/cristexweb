@@ -38,6 +38,19 @@ reactive_resume_dev_argocd_registration_handoff_manifest_paths:
   - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff/service.yaml"
   - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff/serviceaccount.yaml"
 reactive_resume_dev_argocd_registration_handoff_object_count: 8
+reactive_resume_dev_argocd_registration_desired_state_paths:
+  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/deployment.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/ingress-private.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/networkpolicy-default-deny.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/networkpolicy-egress.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/networkpolicy-route-allow-traefik.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/service.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/serviceaccount.yaml"
+reactive_resume_dev_argocd_registration_destination_policy_paths:
+  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/postgresql/network/postgresql-ingress.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/keycloak/network/keycloak-allow-reactive-resume-dev.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-networkpolicy/network/reactive-resume-object-storage-allow-dev.yaml"
 reactive_resume_dev_argocd_registration_handoff_expected_hashes:
   deployment.yaml: bc23d1f54b65872e39d1b33c147bd5dd222bb03fb2fa634d0ebcf984c83244fd
   ingress-private.yaml: 92fa5c2bb56e931812ba2cc04d236d48e2b5f2d017cc15e031f1bd30dc62f8d4
