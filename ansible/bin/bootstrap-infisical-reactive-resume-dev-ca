@@ -2,7 +2,7 @@
 set -eu
 [ "$#" -eq 1 ] && { [ "$1" = check ] || [ "$1" = apply ]; } || { echo 'usage: ansible/bin/bootstrap-infisical-reactive-resume-dev-ca check|apply' >&2; exit 64; }
 mode=$1; dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P); root=$(CDPATH= cd -- "$dir/../.." && pwd -P)
-case "$root" in /Users/paul/Projects/cristexweb|/home/paul/projects/cristexweb) ;; *) exit 78;; esac
+[ "$root" = /home/paul/projects/cristexweb ] || exit 78
 controller="$root/.venv/bin/ansible-playbook"; [ -x "$controller" ] || exit 69
 user=$(id -un); cd "$root/ansible"; umask 077
 a=$(mktemp "${TMPDIR:-/tmp}/cristexweb-infisical-reactive-resume-dev-ca.XXXXXX"); t=$(openssl rand -hex 32); printf '%s:entrypoint\n' "$t" >"$a"; chmod 0600 "$a"; trap 'rm -f -- "$a"' EXIT HUP INT TERM

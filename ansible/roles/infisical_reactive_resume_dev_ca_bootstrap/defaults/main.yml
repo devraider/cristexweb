@@ -3,28 +3,30 @@ infisical_reactive_resume_dev_ca_bootstrap_approved: false
 infisical_reactive_resume_dev_ca_bootstrap_state: present
 infisical_reactive_resume_dev_ca_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
 infisical_reactive_resume_dev_ca_bootstrap_repository_root: '{{ playbook_dir | dirname | dirname }}'
+infisical_reactive_resume_dev_ca_bootstrap_component_root: >-
+  {{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca
 infisical_reactive_resume_dev_ca_bootstrap_manifest_paths:
-  - '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/admission/reactive-resume-dev-ca-source-boundary.yaml'
-  - '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/admission/reactive-resume-dev-ca-source-boundary-binding.yaml'
-  - '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/admission/reactive-resume-dev-ca-target-boundary.yaml'
-  - '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/admission/reactive-resume-dev-ca-target-boundary-binding.yaml'
-  - '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/rbac/reactive-resume-dev-ca-secret-writer-role.yaml'
-  - '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/rbac/reactive-resume-dev-ca-secret-writer-rolebinding.yaml'
-  - '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml'
+  - '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-source-boundary.yaml'
+  - '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-source-boundary-binding.yaml'
+  - '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-target-boundary.yaml'
+  - '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-target-boundary-binding.yaml'
+  - '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/rbac/reactive-resume-dev-ca-secret-writer-role.yaml'
+  - '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/rbac/reactive-resume-dev-ca-secret-writer-rolebinding.yaml'
+  - '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/source/reactive-resume-dev-ca-static-secret.yaml'
 infisical_reactive_resume_dev_ca_bootstrap_expected_hashes:
-  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/admission/reactive-resume-dev-ca-source-boundary-binding.yaml'
+  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-source-boundary-binding.yaml'
     sha256: f461bd188d03f1c9ced7ecd830e6dea14cbfd131d979f9426762b6e431e348f2
-  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/admission/reactive-resume-dev-ca-source-boundary.yaml'
+  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-source-boundary.yaml'
     sha256: 53d053c25e96b6bc8f43ef338f63a7ae5273c1a129c01b6146ce6eac62382bab
-  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/admission/reactive-resume-dev-ca-target-boundary-binding.yaml'
+  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-target-boundary-binding.yaml'
     sha256: 8921ee01b9cf02a5b33eff2616b1aa15b68b4873503570f0aac608d189a093e5
-  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/admission/reactive-resume-dev-ca-target-boundary.yaml'
+  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/admission/reactive-resume-dev-ca-target-boundary.yaml'
     sha256: 6ad5d254748c45d5423ee6a69a7f2d49486c8571fbdb17565e10f645ad99c321
-  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/rbac/reactive-resume-dev-ca-secret-writer-role.yaml'
+  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/rbac/reactive-resume-dev-ca-secret-writer-role.yaml'
     sha256: c23a7efe475aa791f20c5d6007fdcf87b8d64d02d585efc99656f2fd574237c2
-  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/rbac/reactive-resume-dev-ca-secret-writer-rolebinding.yaml'
+  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/rbac/reactive-resume-dev-ca-secret-writer-rolebinding.yaml'
     sha256: 49985afed35008ece3c159af3490a9105359d14b23c6fdbd38aacbe7a7ae1d3c
-  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_repository_root }}/ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml'
+  - path: '{{ infisical_reactive_resume_dev_ca_bootstrap_component_root }}/source/reactive-resume-dev-ca-static-secret.yaml'
     sha256: 85a863cc9e08b8f37723473fb87b9ef0d5f748d7188ee237ef4add3ca4cb88a0
 
 infisical_reactive_resume_dev_ca_bootstrap_object_count: 7

@@ -42,7 +42,10 @@
       - infisical_reactive_resume_dev_ca_bootstrap_attestation.stat.isreg | default(false)
       - not (infisical_reactive_resume_dev_ca_bootstrap_attestation.stat.islnk | default(false))
       - infisical_reactive_resume_dev_ca_bootstrap_attestation.stat.mode == '0600'
-      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_TOKEN') ~ ':entrypoint'
+      - >-
+        lookup('ansible.builtin.file',
+          lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_TOKEN') ~ ':entrypoint'
   changed_when: false
   no_log: true
 
@@ -65,15 +68,21 @@
       - not (item.stat.islnk | default(false))
       - item.stat.mode == '0644'
       - item.item | realpath == item.item
-      - item.item.startswith(infisical_reactive_resume_dev_ca_bootstrap_repository_root ~ '/ansible/files/components/infisical-reactive-resume-dev-ca/')
-      - item.stat.checksum == (infisical_reactive_resume_dev_ca_bootstrap_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - >-
+        item.item.startswith(infisical_reactive_resume_dev_ca_bootstrap_repository_root ~
+          '/ansible/files/components/infisical-reactive-resume-dev-ca/')
+      - >-
+        item.stat.checksum == (infisical_reactive_resume_dev_ca_bootstrap_expected_hashes |
+          selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
   loop: '{{ infisical_reactive_resume_dev_ca_bootstrap_manifest_states.results }}'
   changed_when: false
   no_log: true
 
 - name: Load exact value-free CA closure objects
   ansible.builtin.set_fact:
-    infisical_reactive_resume_dev_ca_bootstrap_internal_manifests: '{{ (infisical_reactive_resume_dev_ca_bootstrap_internal_manifests | default([])) + [(lookup("ansible.builtin.file", item) | from_yaml)] }}'
+    infisical_reactive_resume_dev_ca_bootstrap_internal_manifests: >-
+      {{ (infisical_reactive_resume_dev_ca_bootstrap_internal_manifests | default([])) +
+         [lookup('ansible.builtin.file', item) | from_yaml] }}
   loop: '{{ infisical_reactive_resume_dev_ca_bootstrap_manifest_paths }}'
   changed_when: false
   no_log: true
@@ -111,7 +120,7 @@
       - infisical_reactive_resume_dev_ca_bootstrap_internal_auth.resources[0].spec.method == 'universal'
       - infisical_reactive_resume_dev_ca_bootstrap_internal_auth.resources[0].spec.infisicalConnectionRef.name == 'infisical-cloud'
       - infisical_reactive_resume_dev_ca_bootstrap_internal_auth.resources[0].spec.infisicalConnectionRef.namespace == 'cristexhub-dev'
-  fail_msg: 'BLOCKED: existing cristexhub-dev-infisical-auth is absent or drifted; no CA mutation was attempted.'
+    fail_msg: 'BLOCKED: existing cristexhub-dev-infisical-auth is absent or drifted; no CA mutation was attempted.'
   changed_when: false
   no_log: true
 
@@ -132,8 +141,14 @@
     that:
       - item.resources | length in [0, 1]
       - item.resources | length == 0 or item.resources[0].metadata.name == item.item.metadata.name
-      - item.resources | length == 0 or (item.resources[0].metadata.labels | default({})) == (item.item.metadata.labels | default({}))
-      - item.resources | length == 0 or item.item.kind not in ['Role', 'RoleBinding', 'InfisicalStaticSecret'] or item.resources[0].get('spec') == item.item.get('spec') or item.resources[0].get('rules') == item.item.get('rules')
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.labels | default({})) == (item.item.metadata.labels | default({}))
+      - >-
+        item.resources | length == 0 or
+        item.item.kind not in ['Role', 'RoleBinding', 'InfisicalStaticSecret'] or
+        item.resources[0].get('spec') == item.item.get('spec') or
+        item.resources[0].get('rules') == item.item.get('rules')
   loop: '{{ infisical_reactive_resume_dev_ca_bootstrap_internal_prestate.results }}'
   changed_when: false
   no_log: true
