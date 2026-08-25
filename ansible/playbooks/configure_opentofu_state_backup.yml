@@ -150,7 +150,14 @@
     - name: Require sanitized OpenTofu restore receipt
       ansible.builtin.assert:
         that:
-          - opentofu_state_restore_result.stdout is match('^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z target=isolated-tmpfs checksum=verified private_residue=none state_validation=tofu-state-list non_mutating=true$')
+          - >-
+            opentofu_state_restore_result.stdout is match(
+            '^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z '
+            'target=isolated-tmpfs checksum=verified private_residue=none '
+            'state_validation=tofu-state-list address_scope=exact-(five|six) '
+            'source_closure_sha256=' ~ opentofu_state_backup_source_closure_sha256 ~
+            ' non_mutating=true$'
+            )
       changed_when: false
       when:
         - opentofu_state_backup_mode == 'restore'

@@ -16,6 +16,14 @@ class OpenTofuStateBackupContractTests(unittest.TestCase):
         cls.wrapper = (ROOT / "ansible/bin/configure-opentofu-state-backup").read_text()
         yaml.safe_load(cls.play)
 
+    def test_manifest_source_closure_is_expanded_and_schema_bound(self):
+        self.assertIn('"source_closure_sha256":"%s"', self.backup)
+        self.assertNotIn('"source_closure_sha256":"$source_closure_sha256"', self.backup)
+        self.assertIn("set(x)=={'schema','service','state','created_at_utc','archive','archive_bytes','archive_sha256','encryption','backend','state_path','source_closure_sha256'}", self.restore)
+        self.assertIn("x['source_closure_sha256']==os.environ['EXPECTED_SOURCE_CLOSURE_SHA256']", self.restore)
+        self.assertIn("len(actual) == len(set(actual))", self.restore)
+        self.assertIn("state address closure mismatch", self.restore)
+
     def test_encrypted_immutable_readback_contract(self):
         for text in (
             self.backup,
@@ -31,6 +39,9 @@ class OpenTofuStateBackupContractTests(unittest.TestCase):
             "foundation.tfstate.age.sha256",
             "/usr/bin/cmp -s",
             'state_path":"/var/lib/opentofu/cristexweb/foundation.tfstate',
+            'source_closure_sha256":"%s"',
+            "source_closure_sha256=c9a04e04303b30148f410dd57c8c5c8cf69d0cbf58b88cbc70023c824e214fae",
+            "private_residue=none",
         ):
             self.assertIn(value, self.backup)
         for value in ("rclone sync", "rclone delete", "AGE-SECRET-KEY-", "password="):
@@ -43,6 +54,10 @@ class OpenTofuStateBackupContractTests(unittest.TestCase):
             "tofu state list",
             "target=isolated-tmpfs",
             "non_mutating=true",
+            "address_scope=%s source_closure_sha256=%s",
+            "address_scope=exact-five",
+            "address_scope=exact-six",
+            "source_closure_sha256=",
         ):
             self.assertIn(value, self.restore)
         self.assertNotIn("tofu apply", self.restore)
