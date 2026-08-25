@@ -26,6 +26,12 @@
     - reactive_resume_object_storage_source_check_internal_history_config_volume
     - reactive_resume_object_storage_source_check_internal_history_seaweed_container
     - reactive_resume_object_storage_source_check_internal_history_config_mount
+    - reactive_resume_object_storage_source_check_internal_manifest_ledger
+    - reactive_resume_object_storage_source_check_internal_history_files
+    - reactive_resume_object_storage_source_check_internal_history_directories
+    - reactive_resume_object_storage_source_check_internal_history_links
+    - reactive_resume_object_storage_source_check_internal_live_secret
+    - reactive_resume_object_storage_source_check_internal_live_infisical_source
   changed_when: false
 
 - name: Require the check-only object-storage source contract
@@ -114,6 +120,91 @@
   loop: "{{ reactive_resume_object_storage_source_check_internal_manifest_states.results }}"
   loop_control:
     label: "{{ item.item.relative }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect the historical manifest ledger
+  ansible.builtin.stat:
+    path: "{{ reactive_resume_object_storage_source_check_history_root }}/{{ reactive_resume_object_storage_source_check_manifest_ledger_relative }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  register: reactive_resume_object_storage_source_check_internal_manifest_ledger
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the exact historical manifest ledger
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_object_storage_source_check_internal_manifest_ledger.stat.exists | default(false)
+      - reactive_resume_object_storage_source_check_internal_manifest_ledger.stat.isreg | default(false)
+      - not (reactive_resume_object_storage_source_check_internal_manifest_ledger.stat.islnk | default(false))
+      - reactive_resume_object_storage_source_check_internal_manifest_ledger.stat.pw_name == reactive_resume_object_storage_source_check_controller_user
+      - reactive_resume_object_storage_source_check_internal_manifest_ledger.stat.mode == reactive_resume_object_storage_source_check_manifest_ledger_mode
+      - reactive_resume_object_storage_source_check_internal_manifest_ledger.stat.checksum == reactive_resume_object_storage_source_check_manifest_ledger_sha256
+    fail_msg: Refusing a missing, symlinked, mode-drifted, or hash-drifted manifest ledger.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect the complete historical source directory inventory
+  ansible.builtin.find:
+    paths: "{{ reactive_resume_object_storage_source_check_history_root }}"
+    recurse: true
+    file_type: file
+    hidden: true
+  register: reactive_resume_object_storage_source_check_internal_history_files
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect historical source directories and links
+  ansible.builtin.find:
+    paths: "{{ reactive_resume_object_storage_source_check_history_root }}"
+    recurse: true
+    file_type: directory
+    hidden: true
+  register: reactive_resume_object_storage_source_check_internal_history_directories
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect historical source links
+  ansible.builtin.find:
+    paths: "{{ reactive_resume_object_storage_source_check_history_root }}"
+    recurse: true
+    file_type: link
+    hidden: true
+  register: reactive_resume_object_storage_source_check_internal_history_links
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the exact historical source directory inventory
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_object_storage_source_check_internal_history_files.matched == reactive_resume_object_storage_source_check_object_count + 1
+      - >-
+        (reactive_resume_object_storage_source_check_internal_history_files.files
+        | map(attribute='path') | map('regex_replace', '^' ~ reactive_resume_object_storage_source_check_history_root ~ '/', '') | sort) ==
+        ((reactive_resume_object_storage_source_check_manifest_entries
+        | map(attribute='relative') | list +
+        [reactive_resume_object_storage_source_check_manifest_ledger_relative]) | sort)
+      - >-
+        (reactive_resume_object_storage_source_check_internal_history_directories.files
+        | map(attribute='path') | map('regex_replace', '^' ~ reactive_resume_object_storage_source_check_history_root ~ '/', '') | sort) ==
+        ['network', 'runtime', 'source']
+      - reactive_resume_object_storage_source_check_internal_history_links.matched == 0
+    fail_msg: Refusing a historical source tree with an unexpected or missing file, directory, or link.
   delegate_to: localhost
   become: false
   changed_when: false
@@ -314,7 +405,7 @@
     name: "{{ item.metadata.name }}"
     namespace: "{{ item.metadata.namespace | default(omit) }}"
     kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
-  loop: "{{ reactive_resume_object_storage_source_check_internal_manifests }}"
+  loop: "{{ reactive_resume_object_storage_source_check_internal_manifests | rejectattr('kind', 'equalto', 'InfisicalStaticSecret') | list }}"
   loop_control:
     label: "{{ item.kind }}/{{ item.metadata.name }}"
   register: reactive_resume_object_storage_source_check_internal_live_objects
@@ -323,15 +414,73 @@
   failed_when: false
   no_log: true
 
-- name: Require every historical object-storage identity to be live exactly once
+- name: Require every historical runtime object-storage identity to be live exactly once
   ansible.builtin.assert:
     that:
+      - >-
+        reactive_resume_object_storage_source_check_internal_live_objects.results | length ==
+        reactive_resume_object_storage_source_check_live_runtime_object_count
       - item.failed | default(false) | bool == false
       - item.resources | default([]) | length == 1
-    fail_msg: Refusing a partial or absent live object-storage closure; no apply path exists.
+    fail_msg: Refusing a partial or absent live object-storage runtime closure; no apply path exists.
   loop: "{{ reactive_resume_object_storage_source_check_internal_live_objects.results }}"
   loop_control:
     label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Inspect absent historical InfisicalStaticSecret source identity
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1beta1
+    kind: InfisicalStaticSecret
+    name: "{{ reactive_resume_object_storage_source_check_live_secret_name }}"
+    namespace: "{{ reactive_resume_object_storage_source_check_namespace }}"
+    kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
+  register: reactive_resume_object_storage_source_check_internal_live_infisical_source
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Require historical InfisicalStaticSecret source to remain absent
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_object_storage_source_check_internal_live_infisical_source.failed | default(false) | bool == false
+      - reactive_resume_object_storage_source_check_internal_live_infisical_source.resources | default([]) | length == 0
+    fail_msg: Refusing an applied historical InfisicalStaticSecret source object; this recovery record has no reconciliation path.
+  changed_when: false
+  no_log: true
+
+- name: Inspect live object-storage Secret custody metadata without reading values
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: "{{ reactive_resume_object_storage_source_check_live_secret_name }}"
+    namespace: "{{ reactive_resume_object_storage_source_check_namespace }}"
+    kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
+  register: reactive_resume_object_storage_source_check_internal_live_secret
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Require historical Infisical source absence and separate live Secret custody
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_object_storage_source_check_internal_live_secret.failed | default(false) | bool == false
+      - reactive_resume_object_storage_source_check_internal_live_secret.resources | default([]) | length == 1
+      - >-
+        reactive_resume_object_storage_source_check_internal_live_secret.resources[0].metadata.name ==
+        reactive_resume_object_storage_source_check_live_secret_name
+      - >-
+        reactive_resume_object_storage_source_check_internal_live_secret.resources[0].type ==
+        reactive_resume_object_storage_source_check_live_secret_type
+      - >-
+        reactive_resume_object_storage_source_check_internal_live_secret.resources[0].metadata.labels ==
+        reactive_resume_object_storage_source_check_live_secret_labels
+      - reactive_resume_object_storage_source_check_internal_live_secret.resources[0].metadata.annotations.get('argocd.argoproj.io/instance', '') == ''
+      - reactive_resume_object_storage_source_check_internal_live_secret.resources[0].metadata.annotations.get('argocd.argoproj.io/tracking-id', '') == ''
+    fail_msg: Refusing missing or foreign live Secret custody for an intentionally absent historical InfisicalStaticSecret.
   changed_when: false
   no_log: true
 
@@ -351,38 +500,13 @@
   changed_when: false
   no_log: true
 
-- name: Require exact current object identity and spec fidelity
-  ansible.builtin.assert:
-    that:
-      - item.resources[0].apiVersion == item.item.apiVersion
-      - item.resources[0].kind == item.item.kind
-      - item.resources[0].metadata.name == item.item.metadata.name
-      - item.resources[0].metadata.namespace | default('') == item.item.metadata.namespace | default('')
-      - item.resources[0].metadata.labels ==
-        (reactive_resume_object_storage_source_check_internal_current_leaf.metadata.labels
-        if item.item.metadata.name == 'reactive-resume-object-storage-allow-dev'
-        else item.item.metadata.labels)
-      - >-
-        ((item.resources[0].metadata.annotations | default({}) | dict2items
-        | rejectattr('key', 'equalto', 'kubectl.kubernetes.io/last-applied-configuration')
-        | list | items2dict) ==
-        (reactive_resume_object_storage_source_check_internal_current_leaf.metadata.annotations
-        if item.item.metadata.name == 'reactive-resume-object-storage-allow-dev'
-        else item.item.metadata.annotations | default({})))
-      - item.item.kind != 'ConfigMap' or item.resources[0].data == item.item.data
-      - item.item.kind != 'Service' or
-        (item.resources[0].spec.type == item.item.spec.type and
-        item.resources[0].spec.selector == item.item.spec.selector and
-        item.resources[0].spec.ports == item.item.spec.ports)
-      - item.item.kind != 'ServiceAccount' or
-        item.resources[0].automountServiceAccountToken == item.item.automountServiceAccountToken
-      - item.item.kind == 'ConfigMap' or item.item.kind == 'Service' or
-        item.item.kind == 'ServiceAccount' or
-        item.resources[0].spec ==
-        (reactive_resume_object_storage_source_check_internal_current_leaf.spec
-        if item.item.metadata.name == 'reactive-resume-object-storage-allow-dev'
-        else item.item.spec)
-    fail_msg: Refusing a live object-storage object with identity, ownership, metadata, or spec drift.
+- name: Require exact normalized current object full-spec fidelity
+  reactive_resume_object_storage_full_spec_guarded:
+    desired: >-
+      {{ reactive_resume_object_storage_source_check_internal_current_leaf
+         if item.item.metadata.name == 'reactive-resume-object-storage-allow-dev'
+         else item.item }}
+    live: "{{ item.resources[0] }}"
   loop: "{{ reactive_resume_object_storage_source_check_internal_live_objects.results }}"
   loop_control:
     label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
@@ -480,7 +604,7 @@
   ansible.builtin.assert:
     that:
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resource_identities ==
+        reactive_resume_object_storage_source_check_internal_argo_resource_identities | sort ==
         reactive_resume_object_storage_source_check_argo_resource_identities | sort
       - >-
         reactive_resume_object_storage_source_check_internal_argo_resources[0].status.resources |
@@ -492,8 +616,9 @@
 - name: Emit a sanitized read-only ownership result
   ansible.builtin.debug:
     msg: >-
-      object_storage_source_check=passed historical_objects=8 live_objects=8 current_leaf=bound
-      live_identity_query=metadata_and_nonsecret_spec secret_data_read=false pvc_data_read=false
+      object_storage_source_check=passed historical_objects=8 live_runtime_objects=7
+      historical_infisical_static_secret=absent live_secret_custody=present current_leaf=bound
+      live_identity_query=metadata_and_nonsecret_full_spec secret_values_read=false pvc_data_read=false
       argo_application=present argo_sync=Synced argo_health=Healthy argo_shared_services_resources=0
       argo_tracking=absent handoff=not_proven argo_apply=false pvc_apply=false delete=false
   changed_when: false

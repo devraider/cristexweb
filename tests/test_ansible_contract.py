@@ -65,8 +65,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/reactive_resume_dev_argocd_alignment_guarded_k8s.py"),
             Path("ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py"),
             Path("ansible/plugins/action/reactive_resume_dev_successor_guarded.py"),
+            Path("ansible/plugins/action/reactive_resume_object_storage_full_spec_guarded.py"),
         }
-        self.assertEqual(39, len(allowed_action_plugins))
+        self.assertEqual(40, len(allowed_action_plugins))
         allowed_strategy_plugins = {
             Path("ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py"),
         }
@@ -480,6 +481,7 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "playbooks/check_reactive_resume_object_storage_source.yml",
                 "roles/reactive_resume_object_storage_source_check/defaults/main.yml",
                 "roles/reactive_resume_object_storage_source_check/tasks/main.yml",
+                "plugins/action/reactive_resume_object_storage_full_spec_guarded.py",
             ]
         )
         self.assertEqual([], [path for path in required if not (ANSIBLE / path).is_file()])

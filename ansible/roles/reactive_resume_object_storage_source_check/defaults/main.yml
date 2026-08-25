@@ -10,6 +10,10 @@ reactive_resume_object_storage_source_check_current_allow_dev_relative: >-
   ansible/files/components/reactive-resume-dev-networkpolicy/network/reactive-resume-object-storage-allow-dev.yaml
 reactive_resume_object_storage_source_check_current_allow_dev_sha256: 79687232a2a98efaf10db9671ed98d67ed677db3a07729748fbc7df0e4010420
 reactive_resume_object_storage_source_check_object_count: 8
+reactive_resume_object_storage_source_check_live_runtime_object_count: 7
+reactive_resume_object_storage_source_check_manifest_ledger_relative: MANIFESTS.sha256
+reactive_resume_object_storage_source_check_manifest_ledger_mode: '0644'
+reactive_resume_object_storage_source_check_manifest_ledger_sha256: 5faa51443d5346e98586d67c5cfcdd94049098dfe61de87d194debd53fc4ac2e
 reactive_resume_object_storage_source_check_manifest_entries:
   - relative: source/reactive-resume-object-storage-auth.yaml
     mode: '0644'
@@ -56,6 +60,12 @@ reactive_resume_object_storage_source_check_argo_sync_options:
   - FailOnSharedResource=true
 reactive_resume_object_storage_source_check_argo_sync_status: Synced
 reactive_resume_object_storage_source_check_argo_health_status: Healthy
+reactive_resume_object_storage_source_check_live_secret_name: reactive-resume-object-storage-auth
+reactive_resume_object_storage_source_check_live_secret_type: Opaque
+reactive_resume_object_storage_source_check_live_secret_labels:
+  app.kubernetes.io/managed-by: infisical
+  app.kubernetes.io/part-of: reactive-resume
+  cristex.io/value-owner: infisical-cloud
 reactive_resume_object_storage_source_check_argo_resource_identities:
   - '|v1|Service|cristexhub-dev|reactive-resume-dev'
   - '|v1|ServiceAccount|cristexhub-dev|reactive-resume-dev'

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import stat
 import subprocess
 import unittest
@@ -15,6 +16,12 @@ CURRENT_ALLOW = ROOT / (
     "reactive-resume-object-storage-allow-dev.yaml"
 )
 ROLE = ROOT / "ansible/roles/reactive_resume_object_storage_source_check"
+FULL_SPEC_GUARD = ROOT / "ansible/plugins/action/reactive_resume_object_storage_full_spec_guarded.py"
+_spec = importlib.util.spec_from_file_location("reactive_resume_object_storage_full_spec_guarded", FULL_SPEC_GUARD)
+assert _spec and _spec.loader
+_full_spec_module = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_full_spec_module)
+_normalized = _full_spec_module._normalized
 TASKS = ROLE / "tasks/main.yml"
 DEFAULTS = ROLE / "defaults/main.yml"
 PLAYBOOK = ROOT / "ansible/playbooks/check_reactive_resume_object_storage_source.yml"
@@ -38,6 +45,7 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.manifest = (HISTORY / "MANIFESTS.sha256").read_text()
         cls.tasks = TASKS.read_text()
+        cls.full_spec_guard = FULL_SPEC_GUARD.read_text()
         cls.defaults = DEFAULTS.read_text()
         cls.wrapper = WRAPPER.read_text()
         cls.runbook = RUNBOOK.read_text()
@@ -134,8 +142,11 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
 
     def test_argo_handoff_contract_is_exactly_bound(self) -> None:
         defaults = yaml.safe_load(self.defaults)
-        self.assertEqual(
-            "ssh://git@ssh.github.com:443/devraider/cristexweb.git",
+        self.assertEqual(8, defaults["reactive_resume_object_storage_source_check_object_count"])
+        self.assertEqual(7, defaults["reactive_resume_object_storage_source_check_live_runtime_object_count"])
+        self.assertEqual("MANIFESTS.sha256", defaults["reactive_resume_object_storage_source_check_manifest_ledger_relative"])
+        self.assertEqual(64, len(defaults["reactive_resume_object_storage_source_check_manifest_ledger_sha256"]))
+        self.assertEqual("ssh://git@ssh.github.com:443/devraider/cristexweb.git",
             defaults["reactive_resume_object_storage_source_check_argo_repo_url"],
         )
         self.assertEqual(
@@ -163,21 +174,49 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             defaults["reactive_resume_object_storage_source_check_argo_sync_options"],
         )
 
+    def test_normalized_full_spec_guard_is_read_only_and_default_aware(self) -> None:
+        for required in (
+            "_METADATA_DROPS",
+            "_SERVICE_SPEC_DROPS",
+            "kubectl.kubernetes.io/last-applied-configuration",
+            "clusterIP",
+            "revisionHistoryLimit",
+            "TRANSFERS_FILES = False",
+            "normalized Kubernetes object drift",
+        ):
+            self.assertIn(required, self.full_spec_guard, required)
+        self.assertNotIn("kubernetes.core.k8s", self.full_spec_guard)
+        desired = yaml.safe_load((HISTORY / "runtime/service.yaml").read_text())
+        live = yaml.safe_load((HISTORY / "runtime/service.yaml").read_text())
+        live["metadata"].update({"uid": "generated", "resourceVersion": "generated"})
+        live["spec"].update({"clusterIP": "10.0.0.1", "clusterIPs": ["10.0.0.1"], "ipFamilies": ["IPv4"], "ipFamilyPolicy": "SingleStack", "sessionAffinity": "None"})
+        live["metadata"]["annotations"] = {"kubectl.kubernetes.io/last-applied-configuration": "generated"}
+        self.assertEqual(_normalized(desired), _normalized(live))
+
     def test_role_is_read_only_and_ownership_guarded(self) -> None:
         for required in (
             "ansible_check_mode",
             "kubernetes.core.k8s_info:",
             "check_mode: false",
-            "metadata_and_nonsecret_spec secret_data_read=false pvc_data_read=false",
+            "metadata_and_nonsecret_full_spec secret_values_read=false pvc_data_read=false",
+            "reactive_resume_object_storage_source_check_internal_manifest_ledger",
+            "reactive_resume_object_storage_source_check_internal_history_files",
+            "reactive_resume_object_storage_source_check_internal_history_directories",
+            "reactive_resume_object_storage_source_check_internal_history_links",
+            "Require the exact historical source directory inventory",
+            "historical Infisical source absence",
+            "Require historical InfisicalStaticSecret source to remain absent",
+            "live Secret custody",
+            "reactive_resume_object_storage_source_check_live_secret_name",
             "reactive_resume_object_storage_source_check_argo_revision",
             "reactive_resume_object_storage_source_check_internal_live_objects",
-            "Require every historical object-storage identity to be live exactly once",
+            "Require every historical runtime object-storage identity to be live exactly once",
             "Require current object ownership to remain Ansible pending Argo handoff",
             "argocd.argoproj.io/instance",
             "argocd.argoproj.io/tracking-id",
-            "Require exact current object identity and spec fidelity",
-            "metadata.labels ==",
-            "item.resources[0].spec ==",
+            "Require exact normalized current object full-spec fidelity",
+            "reactive_resume_object_storage_full_spec_guarded",
+            "reactive_resume_object_storage_source_check_live_secret_labels",
             "spec.source.repoURL",
             "spec.source.path",
             "spec.destination.server",
@@ -222,9 +261,10 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "historical/recovery source record",
             "No task in this lane creates",
             "dd7d4cedd902e68266d9713d1dbb8e90f0b529b1",
-            "Secret data or PVC contents",
+            "Secret values or PVC contents",
             "current leaf has component label",
-            "full specs and ConfigMap data",
+            "normalized non-secret full",
+            "complete history-tree file, directory, and symlink",
             "exactly once",
             "default-deny and DNS policies",
             "ansible/bin/check-reactive-resume-object-storage-source check",

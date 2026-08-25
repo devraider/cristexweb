@@ -12,10 +12,13 @@ Kubernetes object, PVC, Secret, or Argo Application.
 
 The current private DEV Argo Application is revision
 `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`, with pruning and empty applications
-disabled. The source check reads object metadata plus the non-secret full specs
-and ConfigMap data required for exact source comparison; it intentionally does
-not read Secret data or PVC contents. It requires all eight historical
-identities to be present exactly once. The live objects retain Ansible
+disabled. The source check reads object metadata plus normalized non-secret full
+specs and ConfigMap data required for exact source comparison; it never reads
+Secret values or PVC contents. It requires all eight historical source
+identities in repository custody, while only seven non-secret runtime
+identities are required live. The historical InfisicalStaticSecret source
+record is intentionally absent live; live Secret custody is checked separately
+by metadata only, without an InfisicalStaticSecret apply or adoption path. The live objects retain Ansible
 ownership labels, while exact Argo tracking markers are absent; this proves
 that handoff is not established rather than treating a desired-owner label as
 ownership. The current Argo Application is checked separately and must contain
@@ -41,10 +44,11 @@ manifest. TLS is referenced through the precreated
 InfisicalStaticSecret from `/reactive-resume/dev/runtime`. No secret values are
 present in this source record.
 
-The manifest ledger is `MANIFESTS.sha256`; every leaf is checked for exact bytes,
-regular-file status, owner, and mode by the read-only role. The StatefulSet's
-volume template is historical source only and is not a request to create or
-replace the live PVC.
+The manifest ledger is `MANIFESTS.sha256`; the read-only role verifies its exact
+bytes and verifies the complete history-tree file, directory, and symlink
+inventory at runtime. Every leaf is checked for exact bytes, regular-file
+status, owner, and mode. The StatefulSet's volume template is historical source
+only and is not a request to create or replace the live PVC.
 
 ## Bound current/source differences
 
@@ -65,12 +69,14 @@ source differences rather than silently normalizing them:
   that an Argo handoff has occurred.
 
 The check reads the current StatefulSet, Service, ServiceAccount, ConfigMap,
-NetworkPolicy, and InfisicalStaticSecret identities and requires every one to be
-present exactly once with the reviewed object-storage name, Ansible ownership
-labels, and no Argo tracking annotation/instance label. It compares the full specs and ConfigMap data (using the current DEV policy leaf
-where the source intentionally differs). Foreign, absent, duplicate, or
-Argo-tracked identities fail closed. Secret data, PVC data, and object contents
-are never queried.
+and NetworkPolicy identities and requires every runtime identity to be present
+exactly once with the reviewed object-storage name, Ansible ownership labels,
+and no Argo tracking annotation/instance label. It records the historical
+InfisicalStaticSecret identity as an absent source-only object and checks the
+separate live Secret custody metadata. It compares normalized full specs and
+ConfigMap data (using the current DEV policy leaf where the source intentionally
+differs). Foreign, absent, duplicate, or Argo-tracked identities fail closed.
+Secret values, PVC data, and object contents are never queried.
 
 ## Read-only entrypoint
 
