@@ -28,9 +28,11 @@ superseded role source enumerates twelve paths (the historical eleven plus the
 unapplied backend NetworkPolicy), validates raw file SHA-256 hashes and canonical
 object hashes, rejects Jobs and Secrets, and
 refuses foreign ownership, Argo tracking annotations, Argo managed fields,
-owner references, or finalizers. The custom action guard accepts only the
-exact eleven identities, `state: present`, the k3s administrator kubeconfig,
-`wait: false`, and `wait_timeout: 60`. It has no delete path and no prune path.
+owner references, or finalizers. At the historical execution the custom action
+guard accepted exactly eleven identities. Current superseded source accepts the
+exact twelve identities enumerated by its role binding, `state: present`, the k3s
+administrator kubeconfig, `wait: false`, and `wait_timeout: 60`; it must not be
+rerun. It has no delete path and no prune path.
 
 The migration Job remains a separately guarded one-shot prerequisite and is
 not part of this lane or automated Argo desired state.
