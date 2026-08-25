@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import os
 import re
 import stat
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import yaml
@@ -127,7 +130,12 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             'context.CLIARGS.get("start_at_task")',
             'context.CLIARGS.get("step")',
             'TASK_SELECTION_GUARD',
-            'len(source_results) == 9',
+            '_valid_source_states(source_states)',
+            '_resolved_source_item(expected)',
+            '_EXPECTED_SOURCE_RESULTS',
+            '_EXPECTED_BINDING',
+            '_EXPECTED_TASK_SOURCE',
+            'source_contract_sha256',
             'reactive_resume_dev_backup_internal_preflight_complete',
         ):
             self.assertIn(value, guard)
@@ -151,6 +159,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         with mock.patch.object(module.context, "CLIARGS", empty_selection):
             for argv in (
                 ["ansible-playbook", "--start-at-task="],
+                ["ansible-playbook", "--step="],
                 ["ansible-playbook", "-t", "all"],
                 ["ansible-playbook", "-t=all"],
                 ["ansible-playbook", "-tall"],
@@ -171,6 +180,12 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         action = module.ActionModule.__new__(module.ActionModule)
+        action._task = SimpleNamespace(
+            action=module._EXPECTED_TASK_ACTION,
+            name=module._EXPECTED_TASK_NAME,
+            args={},
+            get_path=lambda: f"{module._EXPECTED_TASK_SOURCE}:123",
+        )
         cliargs = {"start_at_task": "", "step": False, "tags": [], "skip_tags": []}
         with mock.patch.object(module.ActionBase, "run", return_value={}):
             with mock.patch.object(module.context, "CLIARGS", cliargs):
@@ -178,6 +193,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
                     ["ansible-playbook"],
                     ["ansible-playbook", "-t", "all"],
                     ["ansible-playbook", "-t=all"],
+                    ["ansible-playbook", "--step="],
                     ["ansible-playbook", "--ta", "all"],
                     ["ansible-playbook", "--tag=all"],
                 ):
@@ -186,6 +202,140 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
                             result = action.run(task_vars={})
                             self.assertTrue(result["failed"])
                             self.assertIn("TASK_SELECTION_GUARD", result["msg"])
+
+    def test_action_guard_requires_canonical_task_binding_and_source_results(self):
+        spec = importlib.util.spec_from_file_location("rr_backup_action_binding", ENTRYPOINT_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        token = "a" * 64
+        source_results = [
+            {
+                "changed": False,
+                "failed": False,
+                "unreachable": False,
+                "skipped": False,
+                "ansible_loop_var": "item",
+                "item": module._resolved_source_item(expected),
+                "stat": {
+                    "exists": True,
+                    "isreg": True,
+                    "islnk": False,
+                    "pw_name": "paul",
+                    "gr_name": "paul",
+                    "mode": expected["mode"],
+                    "checksum": module._resolved_source_item(expected)["sha256"],
+                },
+            }
+            for expected in module._EXPECTED_SOURCE_RESULTS
+        ]
+        task_vars = {
+            module._EXPECTED_SOURCE_REGISTER: {
+                "changed": False,
+                "failed": False,
+                "results": source_results,
+            },
+            "reactive_resume_dev_backup_internal_preflight_binding": dict(module._EXPECTED_BINDING),
+        }
+        with tempfile.NamedTemporaryFile(mode="w") as attestation:
+            attestation.write(f"{token}:entrypoint\n")
+            attestation.flush()
+            action = module.ActionModule.__new__(module.ActionModule)
+            action._task = SimpleNamespace(
+                action=module._EXPECTED_TASK_ACTION,
+                name=module._EXPECTED_TASK_NAME,
+                args={},
+                get_path=lambda: f"{module._EXPECTED_TASK_SOURCE}:123",
+            )
+            with mock.patch.object(module.ActionBase, "run", return_value={}):
+                with mock.patch.dict(
+                    os.environ,
+                    {
+                        "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_TOKEN": token,
+                        "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE": attestation.name,
+                    },
+                    clear=False,
+                ):
+                    result = action.run(task_vars=task_vars)
+                    self.assertFalse(result.get("failed"), result)
+                    self.assertTrue(result["ansible_facts"]["reactive_resume_dev_backup_internal_preflight_complete"])
+                    for mutation in (
+                        lambda: source_results[0]["item"].update(path="forged"),
+                        lambda: source_results.pop(),
+                        lambda: source_results[0]["stat"].pop("checksum"),
+                        lambda: task_vars["reactive_resume_dev_backup_internal_preflight_binding"].update(task_name="forged"),
+                    ):
+                        source_results = [dict(item) for item in source_results]
+                        task_vars[module._EXPECTED_SOURCE_REGISTER] = {
+                            "changed": False,
+                            "failed": False,
+                            "results": source_results,
+                        }
+                        mutation()
+                        rejected = action.run(task_vars=task_vars)
+                        self.assertTrue(rejected.get("failed"), rejected)
+                        source_results = [
+                            {
+                                "changed": False,
+                                "failed": False,
+                                "unreachable": False,
+                                "skipped": False,
+                                "ansible_loop_var": "item",
+                                "item": module._resolved_source_item(expected),
+                                "stat": {
+                                    "exists": True,
+                                    "isreg": True,
+                                    "islnk": False,
+                                    "pw_name": "paul",
+                                    "gr_name": "paul",
+                                    "mode": expected["mode"],
+                                    "checksum": module._resolved_source_item(expected)["sha256"],
+                                },
+                            }
+                            for expected in module._EXPECTED_SOURCE_RESULTS
+                        ]
+                        task_vars[module._EXPECTED_SOURCE_REGISTER] = {
+                            "changed": False,
+                            "failed": False,
+                            "results": source_results,
+                        }
+                        task_vars["reactive_resume_dev_backup_internal_preflight_binding"] = dict(module._EXPECTED_BINDING)
+
+    def test_action_guard_rejects_direct_canonical_action_without_preflight(self):
+        spec = importlib.util.spec_from_file_location("rr_backup_action_direct", ENTRYPOINT_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        token = "b" * 64
+        action = module.ActionModule.__new__(module.ActionModule)
+        action._task = SimpleNamespace(
+            action=module._EXPECTED_TASK_ACTION,
+            name=module._EXPECTED_TASK_NAME,
+            args={},
+            get_path=lambda: f"{module._EXPECTED_TASK_SOURCE}:123",
+        )
+        with tempfile.NamedTemporaryFile(mode="w") as attestation:
+            attestation.write(f"{token}:entrypoint\n")
+            attestation.flush()
+            with mock.patch.object(module.ActionBase, "run", return_value={}):
+                with mock.patch.object(
+                    module.context,
+                    "CLIARGS",
+                    {"start_at_task": None, "step": False, "tags": [], "skip_tags": []},
+                ):
+                    with mock.patch.dict(
+                        os.environ,
+                        {
+                            "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_TOKEN": token,
+                            "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE": attestation.name,
+                        },
+                        clear=False,
+                    ):
+                        result = action.run(task_vars={})
+        self.assertTrue(result.get("failed"), result)
+        self.assertIn("ENTRYPOINT_GUARD", result.get("msg", ""))
 
     def test_wrapper_playbook_and_source_hash_pins_are_current(self):
         wrapper = WRAPPER.read_text()

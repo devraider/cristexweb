@@ -19,8 +19,8 @@
     reactive_resume_dev_backup_entrypoint_attestation: >-
       {{ lookup('ansible.builtin.env',
                 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE') | trim }}
-    reactive_resume_dev_backup_wrapper_sha256: b58e17916ae465b3dd6681fb07c065f2517afea8b61174788a753ea2bdabc18c
-    reactive_resume_dev_backup_playbook_sha256: 5f8a0ec62ed44bf963c3d0e85808f7123d0c412a5240f67a58fd3f208e061151
+    reactive_resume_dev_backup_wrapper_sha256: 06ddc73b14e293864d6576e64854a09153d1b0c6b67eeef511f20b1bbe09c75f
+    reactive_resume_dev_backup_playbook_sha256: 180865fb9616f26c40ebaec4917774c71ab2fd32c7db1ae19c0cf96c3f7584b8
     reactive_resume_dev_backup_service: cristexweb-reactive-resume-dev-backup.service
     reactive_resume_dev_backup_timer: cristexweb-reactive-resume-dev-backup.timer
     reactive_resume_dev_backup_acceptance_directory: /var/lib/cristexweb-backup/reactive-resume/dev/acceptance
@@ -39,6 +39,7 @@
         fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied backup internal variable {{ item }}."
       loop:
         - reactive_resume_dev_backup_internal_preflight_complete
+        - reactive_resume_dev_backup_internal_preflight_binding
         - reactive_resume_dev_backup_entrypoint_attestation_state
         - reactive_resume_dev_backup_source_states
         - reactive_resume_dev_backup_input_states
@@ -117,7 +118,7 @@
       loop:
         - path: ansible/bin/configure-reactive-resume-dev-backup
           mode: '0755'
-          sha256: 5dc020b2063998ef6f2177e968207d61bb8fe0a0a0d396ee0212d6719b744b17
+          sha256: 290e94e69558f89b8111c0f6805225cd8cdd0227a670b0c75bbdd2b30544da09
         - path: ansible/ansible.cfg
           mode: '0644'
           sha256: 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9
@@ -126,7 +127,7 @@
           sha256: 2878e72b0783deefcdb2fad49e518ff8b864d476d4ff6fa836c1a00fc17608e6
         - path: ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py
           mode: '0644'
-          sha256: 5c5aeabbec7095468ac31cffb742c2752ce34ff7a4369d9440b5dece7d18ad04
+          sha256: daaf659f14c05e9e1067c42320476c99dd10ff7741e2ffedfb5496bd9b1c8705
         - path: ansible/files/backup/reactive-resume-dev-backup
           mode: '0755'
           sha256: b92f0696f70550c14661a2e6cd0c899f4349ac4d0c6da0cc95ebc192a8e846b1
@@ -319,6 +320,20 @@
         fail_msg: Refusing timer enablement without fresh successful backup and restore evidence.
       changed_when: false
       when: reactive_resume_dev_backup_mode == 'enable'
+      no_log: true
+
+    - name: Bind the canonical guarded backup preflight
+      ansible.builtin.set_fact:
+        reactive_resume_dev_backup_internal_preflight_binding:
+          schema: 1
+          task_source: ansible/playbooks/configure_reactive_resume_dev_backup.yml
+          task_name: Mark the complete guarded backup preflight
+          task_action: reactive_resume_dev_backup_entrypoint_guarded
+          source_register: reactive_resume_dev_backup_source_states
+          source_result_count: 9
+          source_contract_sha256: 6323ace658e1909fbb7dcff970ed7c36c65cfc6c284adf27e599687a533450d5
+          no_apply_path: true
+      changed_when: false
       no_log: true
 
     - name: Mark the complete guarded backup preflight
