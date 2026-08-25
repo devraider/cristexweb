@@ -53,11 +53,15 @@ remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long)
 
 primary=$(/usr/local/bin/kubectl -n "$namespace" get cluster "$cluster" -o jsonpath='{.status.currentPrimary}')
 case "$primary" in
-  shared-postgresql-[1-9]*) ;;
+  shared-postgresql-*) ;;
   *) fail postgresql_primary_contract ;;
 esac
-ready=$(/usr/local/bin/kubectl -n "$namespace" get pod "$primary" -o jsonpath='{.status.containerStatuses[?(@.name=="postgres")].ready}')
-[ "$ready" = true ] || fail postgresql_readiness
+primary_suffix=${primary#shared-postgresql-}
+case "$primary_suffix" in
+  ''|0*|*[!0-9]*) fail postgresql_primary_contract ;;
+esac
+primary_contract=$(/usr/local/bin/kubectl -n "$namespace" get pod "$primary" -o jsonpath='{.metadata.labels.cnpg\.io/cluster}:{.metadata.labels.cnpg\.io/instanceRole}:{.status.containerStatuses[?(@.name=="postgres")].ready}')
+[ "$primary_contract" = 'shared-postgresql:primary:true' ] || fail postgresql_readiness
 
 object_phase=$(/usr/local/bin/kubectl -n "$namespace" get statefulset "$object_statefulset" -o jsonpath='{.status.readyReplicas}:{.spec.replicas}')
 [ "$object_phase" = '1:1' ] || fail object_storage_statefulset

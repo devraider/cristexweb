@@ -138,6 +138,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "reactive_resume_dev_successor",
             "shared-postgresql",
             "reactive-resume-dev.dump",
+            "primary_suffix=${primary#shared-postgresql-}",
+            "*[!0-9]*) fail postgresql_primary_contract",
+            "shared-postgresql:primary:true",
         ):
             self.assertIn(value, self.backup, value)
         combined = self.backup + "\n" + self.restore
@@ -257,6 +260,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "PrivateTmp=true",
             "ReadWritePaths=/var/lib/cristexweb-backup /run/lock /home/paul/.config/rclone",
             "TimeoutStartSec=60min",
+            "TimeoutStopSec=180s",
         ):
             self.assertIn(value, self.service, value)
         for value in (

@@ -13,6 +13,7 @@ SupplementaryGroups=k3s-admin
 UMask=0077
 ExecStart=/usr/local/libexec/cristexweb/reactive-resume-dev-backup backup
 TimeoutStartSec=60min
+TimeoutStopSec=180s
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7

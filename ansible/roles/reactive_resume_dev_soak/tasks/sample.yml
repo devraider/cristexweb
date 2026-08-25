@@ -131,14 +131,14 @@
   ansible.builtin.assert:
     that:
       - reactive_resume_dev_soak_internal_jwks.status == 200
-      - reactive_resume_dev_soak_internal_jwks_payload.keys is defined
-      - reactive_resume_dev_soak_internal_jwks_payload.keys | length > 0
+      - reactive_resume_dev_soak_internal_jwks_payload['keys'] is defined
+      - reactive_resume_dev_soak_internal_jwks_payload['keys'] | length > 0
       - >-
-        (reactive_resume_dev_soak_internal_jwks_payload.keys |
-        selectattr('kid', 'defined') | list | length) == reactive_resume_dev_soak_internal_jwks_payload.keys | length
+        (reactive_resume_dev_soak_internal_jwks_payload['keys'] |
+        selectattr('kid', 'defined') | list | length) == reactive_resume_dev_soak_internal_jwks_payload['keys'] | length
       - >-
-        (reactive_resume_dev_soak_internal_jwks_payload.keys |
-        selectattr('kty', 'defined') | list | length) == reactive_resume_dev_soak_internal_jwks_payload.keys | length
+        (reactive_resume_dev_soak_internal_jwks_payload['keys'] |
+        selectattr('kty', 'defined') | list | length) == reactive_resume_dev_soak_internal_jwks_payload['keys'] | length
   fail_msg: The shared CristexHub JWKS endpoint must be reachable and contain keyed JSON Web Keys.
   changed_when: false
   no_log: true
@@ -249,7 +249,13 @@
       - reactive_resume_dev_soak_internal_ingress.resources[0].metadata.annotations['traefik.ingress.kubernetes.io/router.tls'] == 'true'
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules | length == 1
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules[0].host == reactive_resume_dev_soak_hostname
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules[0].http.paths | length == 1
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules[0].http.paths[0].path == '/'
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules[0].http.paths[0].pathType == 'Prefix'
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules[0].http.paths[0].backend.service.name == reactive_resume_dev_soak_service
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules[0].http.paths[0].backend.service.port.number == 3000
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.tls | length == 1
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.tls[0].hosts == [reactive_resume_dev_soak_hostname]
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.tls[0].secretName == reactive_resume_dev_soak_tls_secret
     fail_msg: The private hostname must remain on the exact Traefik TLS Ingress.
   changed_when: false
@@ -277,6 +283,7 @@
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from | length == 1
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from[0].namespaceSelector.matchLabels['kubernetes.io/metadata.name'] == 'kube-system'
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from[0].podSelector.matchLabels['app.kubernetes.io/name'] == 'traefik'
+      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports | length == 1
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports[0].protocol == 'TCP'
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports[0].port == 3000
   fail_msg: The DEV route must retain the exact Traefik-only ingress NetworkPolicy.
@@ -309,24 +316,41 @@
   changed_when: false
   no_log: true
 
+- name: Query all DEV NetworkPolicies for the application label
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    namespace: "{{ reactive_resume_dev_soak_namespace }}"
+    label_selectors:
+      - "{{ reactive_resume_dev_soak_app_label_selector }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  register: reactive_resume_dev_soak_internal_labeled_network_policies
+  check_mode: false
+  changed_when: false
+  no_log: true
+
 - name: Require no alternate labeled DEV exposure objects
   ansible.builtin.assert:
     that:
       - reactive_resume_dev_soak_internal_labeled_ingresses.resources | map(attribute='metadata.name') | list == [reactive_resume_dev_soak_ingress]
       - reactive_resume_dev_soak_internal_labeled_services.resources | map(attribute='metadata.name') | list == [reactive_resume_dev_soak_service]
       - reactive_resume_dev_soak_internal_labeled_services.resources | selectattr('spec.type', 'equalto', 'ClusterIP') | list | length == 1
+      - reactive_resume_dev_soak_internal_labeled_network_policies.resources | map(attribute='metadata.name') | list | sort == ['reactive-resume-dev-default-deny', 'reactive-resume-dev-egress', 'reactive-resume-dev-route-allow-traefik']
   fail_msg: The DEV app label may expose only the exact private Traefik Ingress and ClusterIP Service.
   changed_when: false
   no_log: true
 
-- name: Query the precreated DEV TLS Secret metadata
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Secret
-    name: "{{ reactive_resume_dev_soak_tls_secret }}"
-    namespace: "{{ reactive_resume_dev_soak_namespace }}"
-    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
-  register: reactive_resume_dev_soak_internal_tls_secret
+- name: Query only the precreated DEV TLS Secret type and key names
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/kubectl
+      - --kubeconfig={{ reactive_resume_dev_soak_kubeconfig }}
+      - --namespace={{ reactive_resume_dev_soak_namespace }}
+      - get
+      - secret
+      - "{{ reactive_resume_dev_soak_tls_secret }}"
+      - '-o=jsonpath={.type}{"\n"}{range $k,$v := .data}{$k}{"\n"}{end}'
+  register: reactive_resume_dev_soak_internal_tls_secret_metadata
   check_mode: false
   changed_when: false
   no_log: true
@@ -334,9 +358,10 @@
 - name: Require exact TLS Secret metadata without reading values
   ansible.builtin.assert:
     that:
-      - reactive_resume_dev_soak_internal_tls_secret.resources | length == 1
-      - reactive_resume_dev_soak_internal_tls_secret.resources[0].type == 'kubernetes.io/tls'
-      - reactive_resume_dev_soak_internal_tls_secret.resources[0].data.keys() | list | sort == ['tls.crt', 'tls.key']
+      - reactive_resume_dev_soak_internal_tls_secret_metadata.rc == 0
+      - reactive_resume_dev_soak_internal_tls_secret_metadata.stdout_lines | length == 3
+      - reactive_resume_dev_soak_internal_tls_secret_metadata.stdout_lines[0] == 'kubernetes.io/tls'
+      - reactive_resume_dev_soak_internal_tls_secret_metadata.stdout_lines[1:] | sort == ['tls.crt', 'tls.key']
     fail_msg: The browser-trusted TLS Secret must retain its exact two-key contract.
   changed_when: false
   no_log: true
@@ -434,8 +459,8 @@
   ansible.builtin.assert:
     that:
       - >-
-        (item.resources | map(attribute='metadata.name') |
-        select('search', reactive_resume_dev_soak_rr_name_pattern) | list | length) == 0
+        (item.resources | map(attribute='metadata') | list | to_json |
+        regex_findall(reactive_resume_dev_soak_rr_name_pattern) | length) == 0
   loop: "{{ reactive_resume_dev_soak_internal_prod_inventory_results.results + reactive_resume_dev_soak_internal_argocd_results.results + reactive_resume_dev_soak_internal_shared_results.results + reactive_resume_dev_soak_internal_argocd_labeled_results.results + reactive_resume_dev_soak_internal_shared_labeled_results.results }}"
   loop_control:
     label: fixed-rr-marker-inventory
