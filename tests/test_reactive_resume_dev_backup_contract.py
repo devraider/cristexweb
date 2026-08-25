@@ -38,7 +38,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('member.linkname == "" and not member.pax_headers', source)
         self.assertIn('not getattr(member, "sparse", None)', source)
         self.assertIn('member.uid == 1000 and member.gid == 1000', source)
-        self.assertIn('member.mode == (0o755 if member.isdir() else 0o644)', source)
+        self.assertIn('member.mode in ((0o755, 0o2755) if member.isdir() else (0o644,))', source)
         self.assertIn('member_limit = len(expected) + len(allowed_directories)', source)
         self.assertIn('assert len(members) <= member_limit', source)
         self.assertIn('directories == allowed_directories', source)
@@ -60,7 +60,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('member.linkname == "" and not member.pax_headers', source)
         self.assertIn('not getattr(member, "sparse", None)', source)
         self.assertIn('member.uid == 1000 and member.gid == 1000', source)
-        self.assertIn('member.mode == (0o755 if member.isdir() else 0o644)', source)
+        self.assertIn('member.mode in ((0o755, 0o2755) if member.isdir() else (0o644,))', source)
         self.assertIn('member_limit = len(expected) + len(allowed_directories)', source)
         self.assertIn('assert len(members) <= member_limit', source)
         self.assertIn('directories == allowed_directories', source)
@@ -216,6 +216,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             'md5 = hashes.get("md5")',
             'assert md5_digest.hexdigest() == md5',
             '"sha256": digest.hexdigest()',
+            "umask 022",
             "actual == seen",
             "pg_restore --list",
             "pg_logical_content",

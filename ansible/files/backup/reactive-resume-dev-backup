@@ -182,6 +182,7 @@ spec:
       args:
         - |
           set -eu
+          umask 022
           test -n "\$RCLONE_CONFIG_S3_ACCESS_KEY_ID"
           test -n "\$RCLONE_CONFIG_S3_SECRET_ACCESS_KEY"
           mkdir -p /work/objects
@@ -304,7 +305,7 @@ with tarfile.open(os.environ["ARCHIVE"], mode="r:gz") as archive:
         assert member.linkname == "" and not member.pax_headers
         assert not getattr(member, "sparse", None)
         assert member.uid == 1000 and member.gid == 1000
-        assert member.mode == (0o755 if member.isdir() else 0o644)
+        assert member.mode in ((0o755, 0o2755) if member.isdir() else (0o644,))
         if member.isdir():
             assert path in allowed_directories and path not in directories
             directories.add(path)
