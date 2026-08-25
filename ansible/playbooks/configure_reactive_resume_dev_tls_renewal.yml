@@ -1,0 +1,15 @@
+---
+- name: Configure guarded Reactive Resume DEV browser TLS renewal
+  hosts: crtxweb
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  serial: 1
+
+  vars:
+    reactive_resume_dev_tls_renewal_approved: false
+    reactive_resume_dev_tls_renewal_mode: install
+    reactive_resume_dev_tls_renewal_repository_root: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_REPOSITORY_ROOT') | trim }}"
+
+  roles:
+    - role: reactive_resume_dev_tls_renewal

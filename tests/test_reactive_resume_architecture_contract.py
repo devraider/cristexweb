@@ -343,10 +343,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             canonical = clients[scoped["client_id"]]
             self.assertEqual(canonical["realm"], scoped["realm"])
             self.assertEqual(canonical["issuer"], scoped["issuer"])
-            if scoped["client_id"] == "reactive-resume-dev":
-                self.assertTrue(canonical["callback_selected"])
-            else:
-                self.assertFalse(canonical["callback_selected"])
+            self.assertFalse(canonical["callback_selected"])
 
     def test_current_broad_cnpg_reactive_resume_roles_match_recorded_blocker(self) -> None:
         objects = list(yaml.safe_load_all(CNPG_CLUSTER.read_text()))
@@ -381,53 +378,38 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("forbidden", tls["broad_namespace_or_selector_allow"])
         self.assertEqual("forbidden", tls["direct_database_origin"])
 
-    def test_oidc_uses_shared_cristexhub_realm_and_exact_private_hostname(self) -> None:
+    def test_oidc_realm_callbacks_claims_and_negative_tests_are_unresolved(self) -> None:
         identity = self.policy["identity"]
         self.assertEqual(
-            "accepted-dev-private-shared-realm-with-rollback-safe-successor-retirement",
+            "blocked-successor-realm-runtime-unobserved-and-upstream-oidc-hardening-unaccepted",
             identity["status"],
         )
-        self.assertEqual("cristexhub", identity["realm"])
-        self.assertEqual("https://auth.cristex-soft.com/realms/cristexhub", identity["issuer"])
-        self.assertTrue(identity["shared_login_theme_and_sso"])
-        self.assertEqual("https://resume-dev.cristex-soft.com", identity["selected_hostname"])
+        self.assertEqual("cristexhub-dev", identity["realm"])
         self.assertEqual(
-            "https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom",
-            identity["selected_callback"],
+            "https://auth.cristex-soft.com/realms/cristexhub-dev", identity["issuer"]
         )
         self.assertEqual("cristexhub", identity["candidate_realms"]["retained_prod_compatible"])
-        self.assertEqual("cristexhub-dev", identity["candidate_realms"]["retired_successor_dev_source"])
+        self.assertEqual("cristexhub-dev", identity["candidate_realms"]["successor_dev_source"])
         self.assertEqual(
-            "shared-realm-client-runtime-accepted",
+            "source-only-successor-client-runtime-unobserved-blocker",
             identity["clients"]["dev"]["status"],
         )
-        self.assertEqual("cristexhub", identity["clients"]["dev"]["realm"])
-        self.assertEqual("/api/auth/oauth2/callback/custom", identity["clients"]["dev"]["callback"])
         self.assertEqual(
-            "accepted-private-validation",
+            "unobserved-blocker",
             self.policy["source_closure"]["dev"]["identity_scope"]["realm_runtime_state"],
-        )
-        self.assertEqual(
-            ["https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom"],
-            self.policy["source_closure"]["dev"]["identity_scope"]["callbacks"],
-        )
-        self.assertTrue(self.policy["source_closure"]["dev"]["identity_scope"]["shared_login_theme_and_sso"])
-        self.assertEqual(
-            "retained-for-rollback-pending-separate-disable-approval",
-            identity["old_successor_client"]["status"],
-        )
-        self.assertEqual("forbidden", identity["old_successor_client"]["deletion"])
-        self.assertEqual(
-            "https://auth.cristex-soft.com/realms/cristexhub-dev",
-            identity["old_successor_client"]["rollback"]["restore_issuer"],
         )
         for key in (
             "exact_callbacks_selected",
             "exact_web_origins_selected",
             "exact_post_logout_selected",
             "pkce_s256_selected",
+            "scopes_selected",
+            "audience_selected",
+            "claims_selected",
+            "group_authorization_selected",
+            "logout_and_account_linking_selected",
         ):
-            self.assertTrue(identity[key], key)
+            self.assertFalse(identity[key], key)
         self.assertEqual("unaccepted-blocker", identity["discovery_and_jwks_validation"])
         self.assertEqual("unaccepted-blocker", identity["positive_negative_oidc_tests"])
         hardening = identity["upstream_v5_hardening"]
@@ -758,27 +740,6 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             self.assertIn(required, normalized)
         self.assertNotIn("source-only DEV closure is complete", normalized)
 
-    def test_runbook_records_shared_realm_sso_and_rollback_safe_retirement(self) -> None:
-        normalized = " ".join(self.runbook_text.split())
-        for required in (
-            "Current DEV identity selection",
-            "https://auth.cristex-soft.com/realms/cristexhub",
-            "https://resume-dev.cristex-soft.com",
-            "https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom",
-            "shared login theme and SSO",
-            "reactive-resume-dev` client",
-            "PKCE S256",
-            "rollback-only handle",
-            "must not be deleted",
-            "disable requires a separate approval",
-            "re-enables the old client",
-            "restores the old issuer/discovery pair",
-            "without deleting users or touching the CristexHub client",
-            "No disable or delete operation is authorized by this runbook",
-        ):
-            self.assertIn(required, normalized)
-        self.assertNotIn("new DEV identity targets the successor `cristexhub-dev` realm", normalized)
-
     def test_no_executable_source_or_secret_value_is_added(self) -> None:
         self.assertEqual(
             {
@@ -817,8 +778,16 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             ROOT / "ansible/files/components/reactive-resume-dev-route/MANIFESTS.sha256",
             ROOT / "ansible/files/components/reactive-resume-dev-route/network/allow-traefik.yaml",
             ROOT / "ansible/files/components/reactive-resume-dev-route/route/ingress-reactive-resume-dev.yaml",
+            ROOT / "ansible/bin/configure-reactive-resume-dev-tls-renewal",
+            ROOT / "ansible/playbooks/configure_reactive_resume_dev_tls_renewal.yml",
+            ROOT / "ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml",
+            ROOT / "ansible/roles/reactive_resume_dev_tls_renewal/tasks/main.yml",
             ROOT / "ansible/files/components/reactive-resume-dev-tls/MANIFESTS.sha256",
             ROOT / "ansible/files/components/reactive-resume-dev-tls/source/reactive-resume-dev-tls.yaml",
+            ROOT / "ansible/files/components/reactive-resume-dev-tls/renewal/reactive-resume-dev-tls-renew",
+            ROOT / "ansible/files/components/reactive-resume-dev-tls/renewal/validate-reactive-resume-dev-tls-material",
+            ROOT / "ansible/files/components/reactive-resume-dev-tls/renewal/cristexweb-reactive-resume-dev-tls-renew.service",
+            ROOT / "ansible/files/components/reactive-resume-dev-tls/renewal/cristexweb-reactive-resume-dev-tls-renew.timer",
         }
         for root in executable_roots:
             for path in root.rglob("*"):

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+usage='usage: validate-reactive-resume-dev-tls-material CERT PEM KEY PEM'
+[ "$#" -eq 2 ] || { printf '%s\n' "$usage" >&2; exit 64; }
+cert=$1
+key=$2
+for path in "$cert" "$key"; do
+  [ -f "$path" ] && [ ! -L "$path" ] || { printf '%s\n' 'Refusing missing or symlinked TLS input.' >&2; exit 66; }
+  [ "$(stat -c '%a' -- "$path")" = 600 ] || { printf '%s\n' 'Refusing TLS input outside mode 0600.' >&2; exit 66; }
+done
+openssl x509 -in "$cert" -noout -checkhost resume-dev.cristex-soft.com >/dev/null
+openssl x509 -in "$cert" -noout -checkend 86400 >/dev/null
+san=$(
+  openssl x509 -in "$cert" -noout -ext subjectAltName |
+    sed -n '/Subject Alternative Name/{n;p;}' |
+    tr -d '[:space:]'
+)
+[ "$san" = 'DNS:resume-dev.cristex-soft.com' ] || {
+  printf '%s\n' 'Refusing certificate outside the exact single-host SAN set.' >&2
+  exit 66
+}
+cert_pub=$(mktemp)
+key_pub=$(mktemp)
+cleanup() { rm -f -- "$cert_pub" "$key_pub"; }
+trap cleanup EXIT HUP INT TERM
+openssl x509 -in "$cert" -pubkey -noout | openssl pkey -pubin -outform DER | sha256sum >"$cert_pub"
+openssl pkey -in "$key" -pubout -outform DER | sha256sum >"$key_pub"
+cmp -s "$cert_pub" "$key_pub" || {
+  printf '%s\n' 'Refusing certificate/key mismatch.' >&2
+  exit 66
+}
+printf '%s\n' 'reactive_resume_dev_tls_material=valid san=exact key_match=verified residue=none'

@@ -1,0 +1,11 @@
+---
+reactive_resume_dev_tls_renewal_approved: false
+reactive_resume_dev_tls_renewal_mode: install
+reactive_resume_dev_tls_renewal_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+reactive_resume_dev_tls_renewal_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+reactive_resume_dev_tls_renewal_token_file: /home/paul/.config/cristexweb/cloudflare-argo-dns-token
+reactive_resume_dev_tls_renewal_state_root: /var/lib/cristexweb/reactive-resume-dev-tls
+reactive_resume_dev_tls_renewal_libexec_root: /usr/local/libexec/cristexweb
+reactive_resume_dev_tls_renewal_service: cristexweb-reactive-resume-dev-tls-renew.service
+reactive_resume_dev_tls_renewal_timer: cristexweb-reactive-resume-dev-tls-renew.timer
+reactive_resume_dev_tls_renewal_component_root: "{{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/files/components/reactive-resume-dev-tls/renewal"

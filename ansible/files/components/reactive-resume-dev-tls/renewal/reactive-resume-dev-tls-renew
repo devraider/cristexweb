@@ -1,0 +1,136 @@
+#!/bin/sh
+set -eu
+umask 077
+
+PATH=/usr/local/bin:/usr/bin:/bin
+export PATH
+
+usage='usage: reactive-resume-dev-tls-renew renew'
+[ "$#" -eq 1 ] && [ "$1" = renew ] || {
+  printf '%s\n' "$usage" >&2
+  exit 64
+}
+
+hostname=resume-dev.cristex-soft.com
+challenge_name=_acme-challenge.resume-dev.cristex-soft.com
+zone_id=3cbee16e56d7656440f93e685807e779
+project_id=619656da-14f3-4872-857b-be103cdc5326
+environment=prod
+infisical_path=/reactive-resume/dev/tls
+cloudflare_token_file=/home/paul/.config/cristexweb/cloudflare-argo-dns-token
+state_root=/var/lib/cristexweb/reactive-resume-dev-tls
+work_root=$state_root/work
+lock_file=/run/lock/cristexweb-reactive-resume-dev-tls-renew.lock
+certbot=/usr/bin/certbot
+infisical=/usr/local/bin/infisical
+validator=/usr/local/libexec/cristexweb/validate-reactive-resume-dev-tls-material
+minimum_remaining_seconds=2592000
+
+fail() {
+  printf 'tls_renewal_status=failed stage=%s\n' "$1" >&2
+  exit 1
+}
+
+[ "$(id -u)" -ne 0 ] || fail non_root_operator_required
+[ -x "$certbot" ] || fail certbot_missing
+[ -x "$infisical" ] || fail infisical_cli_missing
+[ -x "$validator" ] || fail validator_missing
+[ -f "$cloudflare_token_file" ] && [ ! -L "$cloudflare_token_file" ] || fail cloudflare_token_metadata
+[ "$(stat -c '%U:%G:%a' "$cloudflare_token_file")" = 'paul:paul:600' ] || fail cloudflare_token_metadata
+[ "$(stat -c '%s' "$cloudflare_token_file")" -ge 20 ] || fail cloudflare_token_contract
+
+exec 9>"$lock_file"
+flock -n 9 || {
+  printf '%s\n' 'tls_renewal_status=skipped reason=concurrent_run'
+  exit 0
+}
+
+work=$(/usr/bin/mktemp -d "$work_root.XXXXXX")
+cleanup() {
+  /usr/bin/rm -rf -- "$work"
+}
+trap cleanup EXIT HUP INT TERM
+chmod 0700 "$work"
+
+# Refuse a renewal when the currently served certificate cannot be checked.
+# The endpoint certificate is public; no private material is read here.
+current_cert=$work/current.crt
+handshake=$work/handshake.pem
+if ! timeout 45 openssl s_client -connect "$hostname:443" -servername "$hostname" -showcerts </dev/null >"$handshake" 2>/dev/null; then
+  fail current_certificate_unreadable
+fi
+if ! openssl x509 -in "$handshake" -out "$current_cert" 2>/dev/null; then
+  fail current_certificate_unreadable
+fi
+if openssl x509 -in "$current_cert" -noout -checkend "$minimum_remaining_seconds" >/dev/null 2>&1; then
+  printf 'tls_renewal_status=skipped reason=certificate_valid remaining_threshold_seconds=%s\n' "$minimum_remaining_seconds"
+  exit 0
+fi
+
+credentials=$work/cloudflare.ini
+# Certbot's DNS-01 plugin consumes this protected, mode-0600 ephemeral file.
+# The token is never placed in argv, journal output, or evidence.
+{
+  printf 'dns_cloudflare_api_token = '
+  cat "$cloudflare_token_file"
+  printf '\n'
+} >"$credentials"
+chmod 0600 "$credentials"
+
+certbot_dir=$work/certbot
+certbot_work=$work/work
+certbot_logs=$work/logs
+mkdir -m 0700 "$certbot_dir" "$certbot_work" "$certbot_logs"
+
+# The Cloudflare DNS plugin creates and removes only its exact DNS-01 TXT
+# record. Certbot performs provider cleanup on success and every challenge
+# failure before this guarded process exits.
+"$certbot" certonly \
+  --non-interactive \
+  --agree-tos \
+  --email tls-renewal@cristex-soft.com \
+  --dns-cloudflare \
+  --dns-cloudflare-credentials "$credentials" \
+  --dns-cloudflare-propagation-seconds 30 \
+  --cert-name reactive-resume-dev \
+  --domains "$hostname" \
+  --config-dir "$certbot_dir" \
+  --work-dir "$certbot_work" \
+  --logs-dir "$certbot_logs" \
+  --keep-until-expiring \
+  --renew-by-default \
+  >/dev/null 2>&1
+
+certificate_link=$certbot_dir/live/reactive-resume-dev/fullchain.pem
+private_key_link=$certbot_dir/live/reactive-resume-dev/privkey.pem
+[ -f "$certificate_link" ] || fail certificate_missing
+[ -f "$private_key_link" ] || fail private_key_missing
+certificate=$work/fullchain.pem
+private_key=$work/privkey.pem
+/usr/bin/cp --dereference --no-preserve=mode "$certificate_link" "$certificate"
+/usr/bin/cp --dereference --no-preserve=mode "$private_key_link" "$private_key"
+chmod 0600 "$certificate" "$private_key"
+"$validator" "$certificate" "$private_key" >/dev/null || fail certificate_contract
+
+payload=$work/infisical.yaml
+{
+  printf 'TLS_CRT: |\n'
+  sed 's/^/  /' "$certificate"
+  printf 'TLS_KEY: |\n'
+  sed 's/^/  /' "$private_key"
+} >"$payload"
+chmod 0600 "$payload"
+
+# The host's pre-authenticated Infisical CLI session is the custody seam. No
+# token flag or secret-bearing environment variable is accepted here.
+"$infisical" secrets set \
+  --env "$environment" \
+  --projectId "$project_id" \
+  --path "$infisical_path" \
+  --file "$payload" \
+  --silent \
+  >/dev/null 2>&1
+
+# Do not retain certbot's private material or the Infisical upload payload.
+printf 'tls_renewal_status=success hostname=%s san=exact custody=infisical path=%s challenge=%s cleanup=certbot private_residue=none values_output=false\n' \
+  "$hostname" "$infisical_path" "$challenge_name"

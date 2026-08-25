@@ -1,0 +1,149 @@
+---
+- name: Reject externally supplied renewal internals
+  ansible.builtin.assert:
+    that: item not in vars
+  loop:
+    - reactive_resume_dev_tls_renewal_internal_token
+    - reactive_resume_dev_tls_renewal_internal_token_state
+    - reactive_resume_dev_tls_renewal_internal_infisical_state
+    - reactive_resume_dev_tls_renewal_internal_package_facts
+    - reactive_resume_dev_tls_renewal_internal_service_unit
+    - reactive_resume_dev_tls_renewal_internal_timer_unit
+  changed_when: false
+
+- name: Require the exact guarded TLS renewal wrapper
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_approved | bool
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ENTRYPOINT') == 'v1'
+      - (ansible_limit | default('') | string) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - inventory_hostname == 'crtxweb'
+      - reactive_resume_dev_tls_renewal_mode in ['install', 'enable']
+      - reactive_resume_dev_tls_renewal_repository_root == '/home/paul/projects/cristexweb'
+      - reactive_resume_dev_tls_renewal_token_file == '/home/paul/.config/cristexweb/cloudflare-argo-dns-token'
+      - reactive_resume_dev_tls_renewal_service == 'cristexweb-reactive-resume-dev-tls-renew.service'
+      - reactive_resume_dev_tls_renewal_timer == 'cristexweb-reactive-resume-dev-tls-renew.timer'
+    fail_msg: Refusing TLS renewal installation outside the fixed guarded wrapper.
+  changed_when: false
+  no_log: true
+
+- name: Collect package facts for renewal dependencies
+  ansible.builtin.package_facts:
+    manager: apt
+
+- name: Require the pinned renewal dependency names
+  ansible.builtin.assert:
+    that:
+      - "'certbot' in ansible_facts.packages"
+      - "'python3-certbot-dns-cloudflare' in ansible_facts.packages"
+    fail_msg: Refusing absent certbot DNS-01 dependencies.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the required Infisical CLI
+  ansible.builtin.stat:
+    path: /usr/local/bin/infisical
+    follow: false
+  register: reactive_resume_dev_tls_renewal_internal_infisical_state
+  changed_when: false
+  no_log: true
+
+- name: Require the protected Infisical CLI
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.isreg | default(false)
+      - not (reactive_resume_dev_tls_renewal_internal_infisical_state.stat.islnk | default(false))
+      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.pw_name == 'root'
+      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.mode == '0755'
+    fail_msg: Refusing a missing or unsafe Infisical CLI.
+  changed_when: false
+  no_log: true
+
+- name: Inspect protected Cloudflare token file
+  ansible.builtin.stat:
+    path: "{{ reactive_resume_dev_tls_renewal_token_file }}"
+    follow: false
+  register: reactive_resume_dev_tls_renewal_internal_token_state
+  changed_when: false
+  no_log: true
+
+- name: Require protected Cloudflare token metadata
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_token_state.stat.isreg | default(false)
+      - not (reactive_resume_dev_tls_renewal_internal_token_state.stat.islnk | default(false))
+      - reactive_resume_dev_tls_renewal_internal_token_state.stat.pw_name == 'paul'
+      - reactive_resume_dev_tls_renewal_internal_token_state.stat.gr_name == 'paul'
+      - reactive_resume_dev_tls_renewal_internal_token_state.stat.mode == '0600'
+      - reactive_resume_dev_tls_renewal_internal_token_state.stat.size >= 20
+  changed_when: false
+  no_log: true
+
+- name: Create protected renewal directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ reactive_resume_dev_tls_renewal_state_root }}", owner: paul, group: paul, mode: '0700'}
+    - {path: "{{ reactive_resume_dev_tls_renewal_libexec_root }}", owner: root, group: root, mode: '0755'}
+
+- name: Install the value-free TLS validator
+  ansible.builtin.copy:
+    src: "{{ reactive_resume_dev_tls_renewal_component_root }}/validate-reactive-resume-dev-tls-material"
+    dest: "{{ reactive_resume_dev_tls_renewal_libexec_root }}/validate-reactive-resume-dev-tls-material"
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install the guarded renewal executable
+  ansible.builtin.copy:
+    src: "{{ reactive_resume_dev_tls_renewal_component_root }}/reactive-resume-dev-tls-renew"
+    dest: "{{ reactive_resume_dev_tls_renewal_libexec_root }}/reactive-resume-dev-tls-renew"
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install the renewal service unit
+  ansible.builtin.copy:
+    src: "{{ reactive_resume_dev_tls_renewal_component_root }}/cristexweb-reactive-resume-dev-tls-renew.service"
+    dest: /etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.service
+    owner: root
+    group: root
+    mode: '0644'
+  register: reactive_resume_dev_tls_renewal_internal_service_unit
+
+- name: Install the renewal timer unit
+  ansible.builtin.copy:
+    src: "{{ reactive_resume_dev_tls_renewal_component_root }}/cristexweb-reactive-resume-dev-tls-renew.timer"
+    dest: /etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.timer
+    owner: root
+    group: root
+    mode: '0644'
+  register: reactive_resume_dev_tls_renewal_internal_timer_unit
+
+- name: Reload systemd after renewal unit changes
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: reactive_resume_dev_tls_renewal_internal_service_unit.changed or reactive_resume_dev_tls_renewal_internal_timer_unit.changed
+
+- name: Keep renewal timer disabled during install mode
+  ansible.builtin.systemd_service:
+    name: "{{ reactive_resume_dev_tls_renewal_timer }}"
+    enabled: false
+    state: stopped
+  when:
+    - reactive_resume_dev_tls_renewal_mode == 'install'
+    - not ansible_check_mode
+
+- name: Enable and start the guarded renewal timer
+  ansible.builtin.systemd_service:
+    name: "{{ reactive_resume_dev_tls_renewal_timer }}"
+    enabled: true
+    state: started
+  when:
+    - reactive_resume_dev_tls_renewal_mode == 'enable'
+    - not ansible_check_mode

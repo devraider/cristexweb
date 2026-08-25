@@ -1,0 +1,57 @@
+---
+policy_schema: cristex-reactive-resume-dev-tls-renewal-v1
+status: source-only-guarded-runtime-blocked
+hostname: resume-dev.cristex-soft.com
+certificate:
+  authority: browser-trusted-acme
+  challenge: dns-01
+  dns_provider: cloudflare
+  exact_challenge_name: _acme-challenge.resume-dev.cristex-soft.com
+  exact_san_set:
+    - resume-dev.cristex-soft.com
+  minimum_remaining_seconds: 2592000
+  private_key_never_in_git_argv_logs_or_opentofu_state: true
+  local_private_material: ephemeral_mode_0600_only
+cloudflare:
+  account_id: 8b0f511214c7a4a52ddfb62ca92c5e80
+  zone_id: 3cbee16e56d7656440f93e685807e779
+  token_file: ~/.config/cristexweb/cloudflare-argo-dns-token
+  token_file_contract: paul:paul:0600
+  mutation_scope:
+    - _acme-challenge.resume-dev.cristex-soft.com
+  proxied: false
+  tunnel: forbidden
+infisical:
+  project_id: 619656da-14f3-4872-857b-be103cdc5326
+  environment: prod
+  path: /reactive-resume/dev/tls
+  keys:
+    - TLS_CRT
+    - TLS_KEY
+  value_owner: infisical-cloud
+  upload: preauthenticated-cli-session-without-token-flag
+kubernetes:
+  target_namespace: cristexhub-dev
+  target_secret: reactive-resume-dev-tls
+  type: kubernetes.io/tls
+  keys:
+    - tls.crt
+    - tls.key
+  creation_policy: Orphan
+  writer: infisical-operator
+  direct_kubectl_write: forbidden
+host:
+  renewal_executable: /usr/local/libexec/cristexweb/reactive-resume-dev-tls-renew
+  validator: /usr/local/libexec/cristexweb/validate-reactive-resume-dev-tls-material
+  service: cristexweb-reactive-resume-dev-tls-renew.service
+  timer: cristexweb-reactive-resume-dev-tls-renew.timer
+  schedule: daily-check-0345-randomized-15m
+  enabled_by: separate-enable-apply-mode
+safety:
+  no_value_output: true
+  exact_challenge_cleanup: certbot_cloudflare_dns_plugin_cleanup
+  temporary_workspace: mode_0700
+  lock: flock
+  no_direct_kubernetes_secret_write: true
+  no_prod_or_public_route_mutation: true
+  rollback: leave_existing_infisical_values_and_secret_unchanged_on_failure

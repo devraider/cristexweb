@@ -414,6 +414,11 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "files/backup/cristexweb-reactive-resume-dev-backup.timer",
                 "playbooks/configure_reactive_resume_dev_backup.yml",
                 "files/backup/reactive-resume-dev-backup-networkpolicy.yaml",
+                "bin/configure-reactive-resume-dev-tls-renewal",
+                "playbooks/configure_reactive_resume_dev_tls_renewal.yml",
+                "roles/reactive_resume_dev_tls_renewal/defaults/main.yml",
+                "roles/reactive_resume_dev_tls_renewal/tasks/main.yml",
+                "files/policies/reactive-resume-dev-tls-renewal.yml",
             ]
         )
         self.assertEqual([], [path for path in required if not (ANSIBLE / path).is_file()])

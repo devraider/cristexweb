@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Reactive Resume DEV browser TLS renewal check
+
+[Timer]
+OnCalendar=*-*-* 03:45:00
+RandomizedDelaySec=15m
+Persistent=true
+AccuracySec=1m
+Unit=cristexweb-reactive-resume-dev-tls-renew.service
+
+[Install]
+WantedBy=timers.target

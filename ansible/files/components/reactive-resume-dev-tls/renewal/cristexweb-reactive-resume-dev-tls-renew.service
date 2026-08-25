@@ -1,0 +1,41 @@
+[Unit]
+Description=Guarded Reactive Resume DEV browser TLS renewal
+Documentation=file:///home/paul/projects/cristexweb/runbooks/reactive-resume-dev-tls-renewal.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=paul
+Group=paul
+UMask=0077
+ExecStart=/usr/local/libexec/cristexweb/reactive-resume-dev-tls-renew renew
+TimeoutStartSec=20min
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/cristexweb/reactive-resume-dev-tls /run/lock
+ProtectKernelTunables=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cristexweb-reactive-resume-dev-tls-renewal
+LogExtraFields=TLS_RENEWAL_SERVICE=reactive-resume-dev TLS_RENEWAL_PURPOSE=browser-trusted
+
+[Install]
+WantedBy=multi-user.target

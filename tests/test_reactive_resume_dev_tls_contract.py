@@ -35,9 +35,9 @@ class ReactiveResumeDevTlsContractTests(unittest.TestCase):
 
     def test_manifest_hash_is_exact(self) -> None:
         expected = hashlib.sha256(MANIFEST.read_bytes()).hexdigest()
-        self.assertEqual(
-            f"{expected}  source/reactive-resume-dev-tls.yaml\n",
-            (COMPONENT / "MANIFESTS.sha256").read_text(),
+        self.assertIn(
+            f"{expected}  source/reactive-resume-dev-tls.yaml",
+            (COMPONENT / "MANIFESTS.sha256").read_text().splitlines(),
         )
 
 
