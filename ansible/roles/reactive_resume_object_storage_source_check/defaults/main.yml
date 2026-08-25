@@ -54,3 +54,13 @@ reactive_resume_object_storage_source_check_argo_sync_options:
   - ServerSideApply=false
   - Replace=false
   - FailOnSharedResource=true
+reactive_resume_object_storage_source_check_argo_sync_status: Synced
+reactive_resume_object_storage_source_check_argo_health_status: Healthy
+reactive_resume_object_storage_source_check_argo_resource_identities:
+  - '|v1|Service|cristexhub-dev|reactive-resume-dev'
+  - '|v1|ServiceAccount|cristexhub-dev|reactive-resume-dev'
+  - 'apps|v1|Deployment|cristexhub-dev|reactive-resume-dev'
+  - 'networking.k8s.io|v1|Ingress|cristexhub-dev|reactive-resume-dev-private'
+  - 'networking.k8s.io|v1|NetworkPolicy|cristexhub-dev|reactive-resume-dev-default-deny'
+  - 'networking.k8s.io|v1|NetworkPolicy|cristexhub-dev|reactive-resume-dev-egress'
+  - 'networking.k8s.io|v1|NetworkPolicy|cristexhub-dev|reactive-resume-dev-route-allow-traefik'

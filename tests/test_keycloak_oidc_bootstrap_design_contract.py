@@ -262,6 +262,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "reactive-resume-dev-argocd",
             "keycloak-reactive-resume-dev-client",
             "reactive-resume-dev-networkpolicy",
+            "reactive-resume-object-storage-history",
             "infisical-reactive-resume-dev-ca",
             "cristexhub-dev-registration",
             "cristexhub-prod-registration",

@@ -19,6 +19,13 @@
     - reactive_resume_object_storage_source_check_internal_argo
     - reactive_resume_object_storage_source_check_internal_argo_resources
     - reactive_resume_object_storage_source_check_internal_identity_set
+    - reactive_resume_object_storage_source_check_internal_namespace
+    - reactive_resume_object_storage_source_check_internal_argo_resource_identities
+    - reactive_resume_object_storage_source_check_internal_history_configmap
+    - reactive_resume_object_storage_source_check_internal_history_statefulset
+    - reactive_resume_object_storage_source_check_internal_history_config_volume
+    - reactive_resume_object_storage_source_check_internal_history_seaweed_container
+    - reactive_resume_object_storage_source_check_internal_history_config_mount
   changed_when: false
 
 - name: Require the check-only object-storage source contract
@@ -155,34 +162,46 @@
   changed_when: false
   no_log: true
 
+- name: Bind the historical ConfigMap and StatefulSet source objects
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_history_configmap: >-
+      {{ reactive_resume_object_storage_source_check_internal_manifests |
+         selectattr('kind', 'equalto', 'ConfigMap') | list | first }}
+    reactive_resume_object_storage_source_check_internal_history_statefulset: >-
+      {{ reactive_resume_object_storage_source_check_internal_manifests |
+         selectattr('kind', 'equalto', 'StatefulSet') | list | first }}
+  changed_when: false
+  no_log: true
+
+- name: Bind the historical ConfigMap volume and SeaweedFS mount
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_history_config_volume: >-
+      {{ reactive_resume_object_storage_source_check_internal_history_statefulset.spec.template.spec.volumes |
+         selectattr('name', 'equalto', 'object-storage-config') | list | first }}
+    reactive_resume_object_storage_source_check_internal_history_seaweed_container: >-
+      {{ reactive_resume_object_storage_source_check_internal_history_statefulset.spec.template.spec.containers |
+         selectattr('name', 'equalto', 'seaweedfs') | list | first }}
+  changed_when: false
+  no_log: true
+
+- name: Bind the historical ConfigMap volume mount
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_history_config_mount: >-
+      {{ reactive_resume_object_storage_source_check_internal_history_seaweed_container.volumeMounts |
+         selectattr('name', 'equalto', 'object-storage-config') | list | first }}
+  changed_when: false
+  no_log: true
+
 - name: Require the historical StatefulSet to use its ConfigMap source
   ansible.builtin.assert:
     that:
-      - >-
-        (reactive_resume_object_storage_source_check_internal_manifests
-        | selectattr('kind', 'equalto', 'ConfigMap') | list | first).metadata.name ==
-        'reactive-resume-object-storage-config'
-      - >-
-        ((reactive_resume_object_storage_source_check_internal_manifests
-        | selectattr('kind', 'equalto', 'StatefulSet') | list | first).spec.template.spec.volumes
-        | selectattr('name', 'equalto', 'object-storage-config') | list | first).configMap.name ==
-        'reactive-resume-object-storage-config'
-      - >-
-        ((reactive_resume_object_storage_source_check_internal_manifests
-        | selectattr('kind', 'equalto', 'StatefulSet') | list | first).spec.template.spec.containers
-        | selectattr('name', 'equalto', 'seaweedfs') | list | first).volumeMounts
-        | selectattr('name', 'equalto', 'object-storage-config') | list | first).mountPath ==
-        '/etc/seaweedfs/s3.json'
-      - >-
-        ((reactive_resume_object_storage_source_check_internal_manifests
-        | selectattr('kind', 'equalto', 'StatefulSet') | list | first).spec.template.spec.containers
-        | selectattr('name', 'equalto', 'seaweedfs') | list | first).volumeMounts
-        | selectattr('name', 'equalto', 'object-storage-config') | list | first).subPath == 's3.json'
+      - reactive_resume_object_storage_source_check_internal_history_configmap.metadata.name == 'reactive-resume-object-storage-config'
+      - reactive_resume_object_storage_source_check_internal_history_config_volume.configMap.name == 'reactive-resume-object-storage-config'
+      - reactive_resume_object_storage_source_check_internal_history_config_mount.mountPath == '/etc/seaweedfs/s3.json'
+      - reactive_resume_object_storage_source_check_internal_history_config_mount.subPath == 's3.json'
       - >-
         '-s3.config=/etc/seaweedfs/s3.json' in
-        ((reactive_resume_object_storage_source_check_internal_manifests
-        | selectattr('kind', 'equalto', 'StatefulSet') | list | first).spec.template.spec.containers
-        | selectattr('name', 'equalto', 'seaweedfs') | list | first).args
+        reactive_resume_object_storage_source_check_internal_history_seaweed_container.args
     fail_msg: Refusing a historical StatefulSet that bypasses its recorded ConfigMap.
   changed_when: false
   no_log: true
@@ -304,65 +323,66 @@
   failed_when: false
   no_log: true
 
-- name: Refuse foreign current object-storage identities
+- name: Require every historical object-storage identity to be live exactly once
   ansible.builtin.assert:
     that:
       - item.failed | default(false) | bool == false
-      - item.resources | default([]) | length <= 1
-      - item.resources | default([]) | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/name') == 'reactive-resume-object-storage'
-      - item.resources | default([]) | length == 0 or item.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
-    fail_msg: Refusing a foreign current object-storage identity; no apply path exists.
+      - item.resources | default([]) | length == 1
+    fail_msg: Refusing a partial or absent live object-storage closure; no apply path exists.
   loop: "{{ reactive_resume_object_storage_source_check_internal_live_objects.results }}"
   loop_control:
     label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
   changed_when: false
   no_log: true
 
-- name: Require exact current object identity and spec fidelity when present
+- name: Require current object ownership to remain Ansible pending Argo handoff
   ansible.builtin.assert:
     that:
-      - >-
-        item.resources | default([]) | length == 0 or
-        item.resources[0].apiVersion == item.item.apiVersion
-      - >-
-        item.resources | default([]) | length == 0 or
-        item.resources[0].kind == item.item.kind
-      - >-
-        item.resources | default([]) | length == 0 or
-        item.resources[0].metadata.name == item.item.metadata.name
-      - >-
-        item.resources | default([]) | length == 0 or
-        item.resources[0].metadata.namespace | default('') == item.item.metadata.namespace | default('')
-      - >-
-        item.resources | default([]) | length == 0 or
-        (item.resources[0].metadata.labels ==
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/name') == 'reactive-resume-object-storage'
+      - item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
+      - item.resources[0].metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible'
+      - item.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
+      - item.resources[0].metadata.labels.get('argocd.argoproj.io/instance', '') == ''
+      - item.resources[0].metadata.annotations.get('argocd.argoproj.io/tracking-id', '') == ''
+    fail_msg: Refusing a live object-storage identity with unreviewed ownership or Argo tracking metadata.
+  loop: "{{ reactive_resume_object_storage_source_check_internal_live_objects.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Require exact current object identity and spec fidelity
+  ansible.builtin.assert:
+    that:
+      - item.resources[0].apiVersion == item.item.apiVersion
+      - item.resources[0].kind == item.item.kind
+      - item.resources[0].metadata.name == item.item.metadata.name
+      - item.resources[0].metadata.namespace | default('') == item.item.metadata.namespace | default('')
+      - item.resources[0].metadata.labels ==
         (reactive_resume_object_storage_source_check_internal_current_leaf.metadata.labels
         if item.item.metadata.name == 'reactive-resume-object-storage-allow-dev'
-        else item.item.metadata.labels))
+        else item.item.metadata.labels)
       - >-
-        item.resources | default([]) | length == 0 or
         ((item.resources[0].metadata.annotations | default({}) | dict2items
         | rejectattr('key', 'equalto', 'kubectl.kubernetes.io/last-applied-configuration')
-        | list | items2dict) == (item.item.metadata.annotations | default({})))
-      - >-
-        item.resources | default([]) | length == 0 or item.item.kind != 'ConfigMap' or
-        item.resources[0].data == item.item.data
-      - >-
-        item.resources | default([]) | length == 0 or item.item.kind != 'Service' or
+        | list | items2dict) ==
+        (reactive_resume_object_storage_source_check_internal_current_leaf.metadata.annotations
+        if item.item.metadata.name == 'reactive-resume-object-storage-allow-dev'
+        else item.item.metadata.annotations | default({})))
+      - item.item.kind != 'ConfigMap' or item.resources[0].data == item.item.data
+      - item.item.kind != 'Service' or
         (item.resources[0].spec.type == item.item.spec.type and
         item.resources[0].spec.selector == item.item.spec.selector and
         item.resources[0].spec.ports == item.item.spec.ports)
-      - >-
-        item.resources | default([]) | length == 0 or item.item.kind != 'ServiceAccount' or
+      - item.item.kind != 'ServiceAccount' or
         item.resources[0].automountServiceAccountToken == item.item.automountServiceAccountToken
-      - >-
-        item.resources | default([]) | length == 0 or item.item.kind == 'ConfigMap' or
-        item.item.kind == 'Service' or item.item.kind == 'ServiceAccount' or
+      - item.item.kind == 'ConfigMap' or item.item.kind == 'Service' or
+        item.item.kind == 'ServiceAccount' or
         item.resources[0].spec ==
         (reactive_resume_object_storage_source_check_internal_current_leaf.spec
         if item.item.metadata.name == 'reactive-resume-object-storage-allow-dev'
         else item.item.spec)
-    fail_msg: Refusing a present object-storage object with identity, metadata, or spec drift.
+    fail_msg: Refusing a live object-storage object with identity, ownership, metadata, or spec drift.
   loop: "{{ reactive_resume_object_storage_source_check_internal_live_objects.results }}"
   loop_control:
     label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
@@ -389,63 +409,91 @@
   changed_when: false
   no_log: true
 
-- name: Require the current Argo handoff identity when present
+- name: Require exactly one current Argo Application and exact handoff state
   ansible.builtin.assert:
     that:
       - reactive_resume_object_storage_source_check_internal_argo.failed | default(false) | bool == false
-      - reactive_resume_object_storage_source_check_internal_argo_resources | length <= 1
+      - reactive_resume_object_storage_source_check_internal_argo_resources | length == 1
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
+        reactive_resume_object_storage_source_check_internal_argo_resources[0].status.sync.status ==
+        reactive_resume_object_storage_source_check_argo_sync_status
+      - >-
+        reactive_resume_object_storage_source_check_internal_argo_resources[0].status.health.status ==
+        reactive_resume_object_storage_source_check_argo_health_status
+      - >-
         reactive_resume_object_storage_source_check_internal_argo_resources[0].status.sync.revision ==
         reactive_resume_object_storage_source_check_argo_revision
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
         reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.source.repoURL ==
         reactive_resume_object_storage_source_check_argo_repo_url
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
         reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.source.path ==
         reactive_resume_object_storage_source_check_argo_path
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
         reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.source.targetRevision ==
         reactive_resume_object_storage_source_check_argo_revision
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
         reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.destination.server ==
         reactive_resume_object_storage_source_check_argo_destination_server
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
         reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.destination.namespace ==
         reactive_resume_object_storage_source_check_argo_destination_namespace
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
         reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.project ==
         reactive_resume_object_storage_source_check_argo_project
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
         reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.syncPolicy.automated.selfHeal ==
         reactive_resume_object_storage_source_check_argo_self_heal
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
         reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.syncPolicy.automated.prune ==
         reactive_resume_object_storage_source_check_argo_prune
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
         reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.syncPolicy.automated.allowEmpty ==
         reactive_resume_object_storage_source_check_argo_allow_empty
       - >-
-        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
         reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.syncPolicy.syncOptions | sort ==
         reactive_resume_object_storage_source_check_argo_sync_options | sort
-    fail_msg: Refusing a source binding against unexpected Argo ownership metadata.
+      - >-
+        reactive_resume_object_storage_source_check_internal_argo_resources[0].status.resources | length ==
+        reactive_resume_object_storage_source_check_argo_resource_identities | length
+      - >-
+        reactive_resume_object_storage_source_check_internal_argo_resources[0].status.resources |
+        map(attribute='group') | list | length ==
+        reactive_resume_object_storage_source_check_argo_resource_identities | length
+    fail_msg: Refusing a missing, unhealthy, drifted, or unexpectedly reconciled Argo Application.
+  changed_when: false
+  no_log: true
+
+- name: Bind the exact current Argo resource inventory
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_argo_resource_identities: >-
+      {{ (reactive_resume_object_storage_source_check_internal_argo_resource_identities | default([])) +
+         [(item.group | default('')) ~ '|' ~ item.version ~ '|' ~ item.kind ~ '|' ~
+          item.namespace ~ '|' ~ item.name] }}
+  loop: "{{ reactive_resume_object_storage_source_check_internal_argo_resources[0].status.resources }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Require exact Argo resource inventory without shared-services handoff
+  ansible.builtin.assert:
+    that:
+      - >-
+        reactive_resume_object_storage_source_check_internal_argo_resource_identities ==
+        reactive_resume_object_storage_source_check_argo_resource_identities | sort
+      - >-
+        reactive_resume_object_storage_source_check_internal_argo_resources[0].status.resources |
+        selectattr('namespace', 'equalto', reactive_resume_object_storage_source_check_namespace) | list | length == 0
+    fail_msg: Refusing Argo ownership evidence that includes an unexpected or shared-services object.
   changed_when: false
   no_log: true
 
 - name: Emit a sanitized read-only ownership result
   ansible.builtin.debug:
     msg: >-
-      object_storage_source_check=passed historical_objects=8 current_leaf=bound
-      live_identity_query=metadata_only secret_data_read=false pvc_data_read=false
-      argo_apply=false pvc_apply=false delete=false
+      object_storage_source_check=passed historical_objects=8 live_objects=8 current_leaf=bound
+      live_identity_query=metadata_and_nonsecret_spec secret_data_read=false pvc_data_read=false
+      argo_application=present argo_sync=Synced argo_health=Healthy argo_shared_services_resources=0
+      argo_tracking=absent handoff=not_proven argo_apply=false pvc_apply=false delete=false
   changed_when: false

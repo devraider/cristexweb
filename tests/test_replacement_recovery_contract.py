@@ -74,6 +74,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "rclone-host-transfer.md",
                 "opentofu-github-state-backup.md",
                 "opentofu-github-repository-import.md",
+                "reactive-resume-object-storage-source-recovery.md",
             },
             {path.name for path in RUNBOOKS.iterdir() if path.is_file()},
         )

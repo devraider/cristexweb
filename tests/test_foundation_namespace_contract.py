@@ -262,6 +262,7 @@ metadata:
                 ANSIBLE / "bin/bootstrap-reactive-resume-dev-argocd-alignment",
                 ANSIBLE / "bin/bootstrap-infisical-reactive-resume-dev-ca",
                 ANSIBLE / "bin/check-reactive-resume-dev-successor",
+                ANSIBLE / "bin/check-reactive-resume-object-storage-source"
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()}, # includes separately guarded component entrypoints
         )

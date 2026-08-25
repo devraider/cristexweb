@@ -12,9 +12,16 @@ Kubernetes object, PVC, Secret, or Argo Application.
 
 The current private DEV Argo Application is revision
 `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`, with pruning and empty applications
-disabled. The source check reads only object metadata and intentionally does not
-read Secret data or PVC contents. A live Argo-tracked object is evidence of an
-ownership boundary, never permission to reopen an Ansible apply path.
+disabled. The source check reads object metadata plus the non-secret full specs
+and ConfigMap data required for exact source comparison; it intentionally does
+not read Secret data or PVC contents. It requires all eight historical
+identities to be present exactly once. The live objects retain Ansible
+ownership labels, while exact Argo tracking markers are absent; this proves
+that handoff is not established rather than treating a desired-owner label as
+ownership. The current Argo Application is checked separately and must contain
+exactly its seven `cristexhub-dev` resources, with no `shared-services`
+resource. A live Argo-tracked object is evidence of an ownership boundary,
+never permission to reopen an Ansible apply path.
 
 ## Exact historical source closure
 
@@ -41,7 +48,7 @@ replace the live PVC.
 
 ## Bound current/source differences
 
-The current repository previously contained only
+The current repository contains only
 `ansible/files/components/reactive-resume-dev-networkpolicy/network/reactive-resume-object-storage-allow-dev.yaml`.
 The check binds its exact current SHA-256 and records these intentional
 source differences rather than silently normalizing them:
@@ -54,14 +61,16 @@ source differences rather than silently normalizing them:
   cristexhub`, while the historical source intentionally carries only the app
   name selector;
 - the historical closure adds the missing default-deny and DNS policies plus
-  runtime/auth source; it does not claim those objects are absent or authorize
-  their creation.
+  runtime/auth source; this record does not authorize their creation or imply
+  that an Argo handoff has occurred.
 
-The check also reads current StatefulSet, Service, ServiceAccount, ConfigMap,
-NetworkPolicy, and InfisicalStaticSecret identities when available, and verifies
-that any existing object is either absent or carries the reviewed object-storage
-name and Argo desired-owner label. Foreign identities fail closed. Secret data,
-PVC data, and object contents are never queried.
+The check reads the current StatefulSet, Service, ServiceAccount, ConfigMap,
+NetworkPolicy, and InfisicalStaticSecret identities and requires every one to be
+present exactly once with the reviewed object-storage name, Ansible ownership
+labels, and no Argo tracking annotation/instance label. It compares the full specs and ConfigMap data (using the current DEV policy leaf
+where the source intentionally differs). Foreign, absent, duplicate, or
+Argo-tracked identities fail closed. Secret data, PVC data, and object contents
+are never queried.
 
 ## Read-only entrypoint
 
