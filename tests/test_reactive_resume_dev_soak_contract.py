@@ -110,6 +110,8 @@ class ReactiveResumeDevSoakContractTests(unittest.TestCase):
             "values_output: false",
             "from_json",
             "reactive_resume_dev_soak_internal_samples",
+            "spec.clusterIP != 'None'",
+            "spec.defaultBackend is not defined",
         ):
             self.assertIn(value, self.tasks + self.sample, value)
         for forbidden in (

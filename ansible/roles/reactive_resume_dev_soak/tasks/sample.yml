@@ -223,6 +223,8 @@
     that:
       - reactive_resume_dev_soak_internal_service.resources | length == 1
       - reactive_resume_dev_soak_internal_service.resources[0].spec.type == 'ClusterIP'
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.clusterIP != 'None'
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.clusterIP | length > 0
       - reactive_resume_dev_soak_internal_service.resources[0].spec.ports | length == 1
       - >-
         reactive_resume_dev_soak_internal_service.resources[0].spec.selector ==
@@ -259,6 +261,7 @@
     that:
       - reactive_resume_dev_soak_internal_ingress.resources | length == 1
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.ingressClassName == 'traefik'
+      - reactive_resume_dev_soak_internal_ingress.resources[0].spec.defaultBackend is not defined
       - >-
         reactive_resume_dev_soak_internal_ingress.resources[0].metadata.annotations ==
         {'traefik.ingress.kubernetes.io/router.entrypoints': 'websecure',
