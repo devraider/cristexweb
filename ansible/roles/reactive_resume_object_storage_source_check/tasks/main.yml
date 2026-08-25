@@ -33,11 +33,8 @@
     - reactive_resume_object_storage_source_check_internal_live_secret
     - reactive_resume_object_storage_source_check_internal_live_infisical_source
     - reactive_resume_object_storage_source_check_internal_secret_metadata
-    - reactive_resume_object_storage_source_check_internal_live_secret_type
     - reactive_resume_object_storage_source_check_internal_alternate_producers
     - reactive_resume_object_storage_source_check_internal_metadata_inventory
-    - reactive_resume_object_storage_source_check_internal_runtime_managed_fields
-    - reactive_resume_object_storage_source_check_internal_secret_managed_fields
   changed_when: false
 
 - name: Require the check-only object-storage source contract
@@ -54,9 +51,7 @@
       - reactive_resume_object_storage_source_check_repository_root == (playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname)
       - reactive_resume_object_storage_source_check_namespace == 'shared-services'
       - reactive_resume_object_storage_source_check_object_count == 8
-      - reactive_resume_object_storage_source_check_metadata_allowed_managers == ['ansible', 'argocd-controller', 'infisical']
-      - reactive_resume_object_storage_source_check_runtime_managed_field_managers == ['ansible']
-      - reactive_resume_object_storage_source_check_secret_managed_field_managers == ['infisical']
+      - reactive_resume_object_storage_source_check_managed_field_managers | length == 8
     fail_msg: >-
       Refusing object-storage source inspection outside the single-host,
       check-only, canonical repository boundary.
@@ -447,23 +442,7 @@
   changed_when: false
   no_log: true
 
-- name: Inspect live object-storage Secret type without reading Secret values
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Secret
-    namespace: "{{ reactive_resume_object_storage_source_check_secret_metadata_resource.namespace }}"
-    name: "{{ reactive_resume_object_storage_source_check_live_secret_name }}"
-    kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
-    hidden_fields:
-      - data
-      - stringData
-      - binaryData
-  register: reactive_resume_object_storage_source_check_internal_live_secret_type
-  check_mode: false
-  changed_when: false
-  no_log: true
-
-- name: Require the exact alternate producer names, API versions, and Secret targets
+- name: Require the exact alternate producer collection inventory
   ansible.builtin.assert:
     that:
       - >-
@@ -475,30 +454,34 @@
       - >-
         reactive_resume_object_storage_source_check_alternate_producers |
         map(attribute='api_version') | list ==
-        ['v1alpha1', 'v1beta1', 'v1alpha1', 'v1alpha1', 'v1beta1',
-        'v1alpha1', 'v1']
-      - >-
-        item.kind in ['InfisicalSecret', 'InfisicalStaticSecret',
+        ['secrets.infisical.com/v1alpha1', 'secrets.infisical.com/v1beta1',
+        'secrets.infisical.com/v1alpha1', 'secrets.infisical.com/v1alpha1',
+        'external-secrets.io/v1beta1', 'bitnami.com/v1alpha1',
+        'secrets-store.csi.x-k8s.io/v1']
+      - item.kind in ['InfisicalSecret', 'InfisicalStaticSecret',
         'InfisicalPushSecret', 'InfisicalDynamicSecret', 'ExternalSecret',
         'SealedSecret', 'SecretProviderClass']
-      - item.api_version in ['v1alpha1', 'v1beta1', 'v1']
+      - item.api_version is match('^[a-z0-9.-]+/v[0-9]')
       - item.target_namespace == reactive_resume_object_storage_source_check_secret_metadata_resource.namespace
       - item.target_name == reactive_resume_object_storage_source_check_live_secret_name
       - item.api_path is match('^/apis/.+/v')
     fail_msg: Refusing an incomplete or misbound alternate producer inventory.
   loop: "{{ reactive_resume_object_storage_source_check_alternate_producers }}"
   loop_control:
-    label: "{{ item.kind }}/{{ item.name }} -> {{ item.target_namespace }}/{{ item.target_name }}"
+    label: "{{ item.kind }} -> {{ item.target_namespace }}/{{ item.target_name }}"
   changed_when: false
   no_log: true
 
-- name: Inspect every alternate Secret producer name with exact PartialObjectMetadata closure without requesting object data
+- name: Inventory every alternate producer collection with PartialObjectMetadataList without requesting Secret data
   reactive_resume_object_storage_metadata:
     kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
     api_path: "{{ item.api_path }}"
+    collection: true
+    resource_kind: "{{ item.kind }}"
+    resource_api_version: "{{ item.api_version }}"
   loop: "{{ reactive_resume_object_storage_source_check_alternate_producers }}"
   loop_control:
-    label: "{{ item.kind }}/{{ item.name }} -> {{ item.target_namespace }}/{{ item.target_name }}"
+    label: "{{ item.kind }} -> {{ item.target_namespace }}/{{ item.target_name }}"
   register: reactive_resume_object_storage_source_check_internal_alternate_producers
   check_mode: false
   changed_when: false
@@ -518,23 +501,25 @@
     reactive_resume_object_storage_source_check_internal_metadata_inventory: >-
       {{ reactive_resume_object_storage_source_check_internal_metadata_inventory + [
         {
-          'identity': item.item.kind ~ '/' ~ item.item.name,
+          'identity': item.item.kind,
           'api_version': item.item.api_version,
           'target_namespace': item.item.target_namespace,
           'target_name': item.item.target_name,
           'found': item.found | default(false),
-          'metadata': item.metadata | default({})
+          'metadata': item.metadata | default({}),
+          'target_identities': item.targets | default([])
         }
       ] }}
   loop: "{{ reactive_resume_object_storage_source_check_internal_alternate_producers.results | default([]) }}"
   loop_control:
-    label: "{{ item.item.name }}"
+    label: "{{ item.item.kind }} collection"
   changed_when: false
   no_log: true
 
 - name: Require historical Infisical source absence and separate live Secret custody
   ansible.builtin.assert:
     that:
+      - reactive_resume_object_storage_source_check_internal_secret_metadata.api_available | default(false) | bool
       - reactive_resume_object_storage_source_check_internal_secret_metadata.found | default(false) | bool
       - reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.name == reactive_resume_object_storage_source_check_live_secret_name
       - reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.labels == reactive_resume_object_storage_source_check_live_secret_labels
@@ -548,19 +533,16 @@
       - reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields | length > 0
       - >-
         (reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields |
-        map(attribute='manager') | list | unique | sort) ==
-        (reactive_resume_object_storage_source_check_secret_managed_field_managers | unique | sort)
+        map(attribute='manager') | list | sort) ==
+        (reactive_resume_object_storage_source_check_managed_field_managers[
+        'v1|Secret|shared-services|' ~ reactive_resume_object_storage_source_check_live_secret_name] | sort)
       - >-
         reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields |
         rejectattr('manager', 'undefined') | list | length ==
         reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields | length
       - >-
         reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields |
-        rejectattr('manager', 'in', reactive_resume_object_storage_source_check_metadata_allowed_managers) |
-        list | length == 0
-      - >-
-        reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields |
-        rejectattr('operation', 'in', ['Apply', 'Update']) | list | length == 0
+        rejectattr('operation', 'equalto', 'Update') | list | length == 0
       - >-
         reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields |
         rejectattr('apiVersion', 'equalto', 'v1') | list | length == 0
@@ -571,40 +553,63 @@
         reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields |
         selectattr('fieldsV1', 'defined') | list | length ==
         reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields | length
+      - >-
+        reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields |
+        map(attribute='fieldsV1') | map('type_debug') | reject('equalto', 'dict') | list | length == 0
+      - >-
+        reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields |
+        map(attribute='fieldsV1') | map('length') | select('equalto', 0) | list | length == 0
+      - >-
+        reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.managedFields |
+        selectattr('subresource', 'defined') | map(attribute='subresource') |
+        reject('in', [None, '']) | list | length == 0
     fail_msg: Refusing missing, foreign, owned, terminating, or value-unverified live Secret custody.
   changed_when: false
   no_log: true
 
-- name: Require the live object-storage Secret type and metadata-only response
+- name: Require the historical object-storage target contract without requesting Secret data
   ansible.builtin.assert:
     that:
-      - reactive_resume_object_storage_source_check_internal_live_secret_type.failed | default(false) | bool == false
-      - reactive_resume_object_storage_source_check_internal_live_secret_type.resources | default([]) | length == 1
       - >-
-        reactive_resume_object_storage_source_check_internal_live_secret_type.resources[0].metadata.name ==
+        (reactive_resume_object_storage_source_check_internal_manifests |
+        selectattr('kind', 'equalto', 'InfisicalStaticSecret') | list | first).spec.targets | length == 1
+      - >-
+        (reactive_resume_object_storage_source_check_internal_manifests |
+        selectattr('kind', 'equalto', 'InfisicalStaticSecret') | list | first).spec.targets[0].name ==
         reactive_resume_object_storage_source_check_live_secret_name
-      - reactive_resume_object_storage_source_check_internal_live_secret_type.resources[0].type == reactive_resume_object_storage_source_check_live_secret_type
-      - reactive_resume_object_storage_source_check_internal_live_secret_type.resources[0].data is not defined
-      - reactive_resume_object_storage_source_check_internal_live_secret_type.resources[0].stringData is not defined
-      - reactive_resume_object_storage_source_check_internal_live_secret_type.resources[0].binaryData is not defined
-    fail_msg: Refusing a missing, non-Opaque, or value-bearing live object-storage Secret response.
+      - >-
+        (reactive_resume_object_storage_source_check_internal_manifests |
+        selectattr('kind', 'equalto', 'InfisicalStaticSecret') | list | first).spec.targets[0].namespace ==
+        reactive_resume_object_storage_source_check_secret_metadata_resource.namespace
+      - >-
+        (reactive_resume_object_storage_source_check_internal_manifests |
+        selectattr('kind', 'equalto', 'InfisicalStaticSecret') | list | first).spec.targets[0].kind == 'Secret'
+      - >-
+        (reactive_resume_object_storage_source_check_internal_manifests |
+        selectattr('kind', 'equalto', 'InfisicalStaticSecret') | list | first).spec.targets[0].secretType ==
+        reactive_resume_object_storage_source_check_live_secret_type
+    fail_msg: Refusing an object-storage target source without the exact Opaque Secret contract.
   changed_when: false
   no_log: true
 
-- name: Require every alternate producer inventory is exact and absent
+- name: Require alternate producers to omit only the exact object-storage Secret target
   ansible.builtin.assert:
     that:
+      - item.api_available | default(false) | bool
       - item.item.target_namespace == reactive_resume_object_storage_source_check_secret_metadata_resource.namespace
       - item.item.target_name == reactive_resume_object_storage_source_check_live_secret_name
-      - item.found | default(false) | bool == false
-      - item.metadata | default({}) == {}
+      - >-
+        (item.targets | default([]) |
+        selectattr('kind', 'equalto', 'Secret') |
+        selectattr('namespace', 'equalto', item.item.target_namespace) |
+        selectattr('name', 'equalto', item.item.target_name) | list | length) == 0
     fail_msg: >-
-      Refusing an alternate producer for the object-storage Secret target
+      Refusing an alternate Secret producer targeting the object-storage Secret
       {{ item.item.target_namespace }}/{{ item.item.target_name }}:
-      {{ item.item.kind }}/{{ item.item.name }}.
+      {{ item.item.kind }}.
   loop: "{{ reactive_resume_object_storage_source_check_internal_alternate_producers.results | default([]) }}"
   loop_control:
-    label: "{{ item.item.kind }}/{{ item.item.name }} -> {{ item.item.target_namespace }}/{{ item.item.target_name }}"
+    label: "{{ item.item.kind }} collection -> {{ item.item.target_namespace }}/{{ item.item.target_name }}"
   changed_when: false
   no_log: true
 
@@ -635,19 +640,17 @@
       - item.resources[0].metadata.managedFields | length > 0
       - >-
         (item.resources[0].metadata.managedFields |
-        map(attribute='manager') | list | unique | sort) ==
-        (reactive_resume_object_storage_source_check_runtime_managed_field_managers | unique | sort)
+        map(attribute='manager') | list | sort) ==
+        (reactive_resume_object_storage_source_check_managed_field_managers[
+        item.item.apiVersion ~ '|' ~ item.item.kind ~ '|' ~
+        item.item.metadata.namespace ~ '|' ~ item.item.metadata.name] | sort)
       - >-
         item.resources[0].metadata.managedFields |
         rejectattr('manager', 'undefined') | list | length ==
         item.resources[0].metadata.managedFields | length
       - >-
         item.resources[0].metadata.managedFields |
-        rejectattr('manager', 'in', reactive_resume_object_storage_source_check_metadata_allowed_managers) |
-        list | length == 0
-      - >-
-        item.resources[0].metadata.managedFields |
-        rejectattr('operation', 'in', ['Apply', 'Update']) | list | length == 0
+        rejectattr('operation', 'equalto', 'Update') | list | length == 0
       - >-
         item.resources[0].metadata.managedFields |
         rejectattr('apiVersion', 'equalto', item.item.apiVersion) | list | length == 0
@@ -658,6 +661,16 @@
         item.resources[0].metadata.managedFields |
         selectattr('fieldsV1', 'defined') | list | length ==
         item.resources[0].metadata.managedFields | length
+      - >-
+        item.resources[0].metadata.managedFields |
+        map(attribute='fieldsV1') | map('type_debug') | reject('equalto', 'dict') | list | length == 0
+      - >-
+        item.resources[0].metadata.managedFields |
+        map(attribute='fieldsV1') | map('length') | select('equalto', 0) | list | length == 0
+      - >-
+        item.resources[0].metadata.managedFields |
+        selectattr('subresource', 'defined') | map(attribute='subresource') |
+        reject('in', [None, '']) | list | length == 0
     fail_msg: Refusing a live object-storage identity with unreviewed ownership, managed-field provenance, or Argo tracking metadata.
   loop: "{{ reactive_resume_object_storage_source_check_internal_live_objects.results }}"
   loop_control:

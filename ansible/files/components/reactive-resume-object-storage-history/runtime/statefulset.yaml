@@ -208,11 +208,11 @@ spec:
         - name: object-storage-config
           configMap:
             name: reactive-resume-object-storage-config
-            defaultMode: '0440'
+            defaultMode: 288
         - name: object-storage-tls
           secret:
             secretName: reactive-resume-object-storage-tls
-            defaultMode: '0440'
+            defaultMode: 288
             items:
               - key: ca.crt
                 path: ca.crt

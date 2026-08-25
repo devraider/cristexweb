@@ -42,7 +42,7 @@ EXPECTED = {
     "runtime/configmap.yaml": "7cabd8c56001737adfd66f68932fa8811a754e506828ba23562f89f604975516",
     "runtime/service.yaml": "46fda04ad1b7ad2c3469c0c99d0f3a697084a6730b104df9227ff96a3cd75b38",
     "runtime/serviceaccount.yaml": "087cf2fbfe5f333cefd3367707a19f05e1b7bac4b48d75668a825834542f447a",
-    "runtime/statefulset.yaml": "482e1759cc2956a9d0297c497e5276dec7dc60429ab73851777d80d30b568ef8",
+    "runtime/statefulset.yaml": "ae0dd122924c798d9c0a9b86e64e40d2b81e8772641d334b7857f876e626cab4",
     "source/reactive-resume-object-storage-auth.yaml": "547626072d1ae6013d6513eed641fbb5f422c6f305ab641fe059873be4f905b2",
 }
 
@@ -98,9 +98,9 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             volume for volume in statefulset["spec"]["template"]["spec"]["volumes"]
             if volume["name"] == "object-storage-tls"
         )["secret"]["defaultMode"]
-        self.assertEqual("0440", config_volume_mode)
-        self.assertEqual("0440", tls_volume_mode)
-        self.assertEqual(2, (HISTORY / "runtime/statefulset.yaml").read_text().count("defaultMode: '0440'"))
+        self.assertEqual(288, config_volume_mode)
+        self.assertEqual(288, tls_volume_mode)
+        self.assertEqual(2, (HISTORY / "runtime/statefulset.yaml").read_text().count("defaultMode: 288"))
         config_volume = next(
             volume for volume in statefulset["spec"]["template"]["spec"]["volumes"]
             if volume["name"] == "object-storage-config"
@@ -164,6 +164,10 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         self.assertEqual(7, defaults["reactive_resume_object_storage_source_check_live_runtime_object_count"])
         self.assertEqual("MANIFESTS.sha256", defaults["reactive_resume_object_storage_source_check_manifest_ledger_relative"])
         self.assertEqual(64, len(defaults["reactive_resume_object_storage_source_check_manifest_ledger_sha256"]))
+        self.assertEqual(
+            hashlib.sha256((HISTORY / "MANIFESTS.sha256").read_bytes()).hexdigest(),
+            defaults["reactive_resume_object_storage_source_check_manifest_ledger_sha256"],
+        )
         self.assertEqual("shared-services", defaults["reactive_resume_object_storage_source_check_secret_metadata_resource"]["namespace"])
         self.assertEqual("reactive-resume-object-storage-auth", defaults["reactive_resume_object_storage_source_check_secret_metadata_resource"]["name"])
         producers = defaults["reactive_resume_object_storage_source_check_alternate_producers"]
@@ -172,9 +176,10 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             [item["kind"] for item in producers],
         )
         self.assertEqual(
-            ["v1alpha1", "v1beta1", "v1alpha1", "v1alpha1", "v1beta1", "v1alpha1", "v1"],
+            ["secrets.infisical.com/v1alpha1", "secrets.infisical.com/v1beta1", "secrets.infisical.com/v1alpha1", "secrets.infisical.com/v1alpha1", "external-secrets.io/v1beta1", "bitnami.com/v1alpha1", "secrets-store.csi.x-k8s.io/v1"],
             [item["api_version"] for item in producers],
         )
+        self.assertTrue(all("name" not in item for item in producers))
         self.assertTrue(all(item["target_namespace"] == "shared-services" for item in producers))
         self.assertTrue(all(item["target_name"] == "reactive-resume-object-storage-auth" for item in producers))
         self.assertTrue(all("/namespaces/shared-services/" in item["api_path"] and not item["api_path"].endswith("/reactive-resume-object-storage-auth") for item in producers))
@@ -194,17 +199,19 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             defaults["reactive_resume_object_storage_source_check_argo_destination_namespace"],
         )
         self.assertEqual("reactive-resume-dev", defaults["reactive_resume_object_storage_source_check_argo_project"])
+        managers = defaults["reactive_resume_object_storage_source_check_managed_field_managers"]
+        self.assertEqual(8, len(managers))
         self.assertEqual(
-            ["ansible", "argocd-controller", "infisical"],
-            defaults["reactive_resume_object_storage_source_check_metadata_allowed_managers"],
+            ["kubectl-client-side-apply", "kubectl-rollout", "k3s"],
+            managers["apps/v1|StatefulSet|shared-services|reactive-resume-object-storage"],
         )
         self.assertEqual(
-            ["ansible"],
-            defaults["reactive_resume_object_storage_source_check_runtime_managed_field_managers"],
+            ["kubectl-client-side-apply", "OpenAPI-Generator"],
+            managers["networking.k8s.io/v1|NetworkPolicy|shared-services|reactive-resume-object-storage-allow-dev"],
         )
         self.assertEqual(
-            ["infisical"],
-            defaults["reactive_resume_object_storage_source_check_secret_managed_field_managers"],
+            ["kubectl-client-side-apply"],
+            managers["v1|Secret|shared-services|reactive-resume-object-storage-auth"],
         )
         self.assertTrue(defaults["reactive_resume_object_storage_source_check_argo_self_heal"])
         self.assertEqual(
@@ -280,20 +287,43 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         self.assertEqual(_normalized_pair(statefulset, live_statefulset)[0], _normalized_pair(statefulset, live_statefulset)[1])
 
     def test_metadata_request_never_returns_secret_body(self) -> None:
+        class RecordingClient:
+            def __init__(self):
+                self.calls = []
+
+            def call_api(self, *args, **kwargs):
+                self.calls.append((args, kwargs))
+                return {"apiVersion": "meta.k8s.io/v1", "kind": "PartialObjectMetadataList", "metadata": {}, "items": None}
+
+        client = RecordingClient()
+        self.assertEqual([], _metadata_module._metadata_list(_metadata_module._call(client, "/apis/example/v1/widgets", _metadata_module._PARTIAL_METADATA_LIST_ACCEPT)))
+        self.assertEqual(
+            _metadata_module._PARTIAL_METADATA_LIST_ACCEPT,
+            client.calls[0][1]["header_params"]["Accept"],
+        )
         text = METADATA_MODULE.read_text()
         self.assertIn("PartialObjectMetadata", text)
+        self.assertIn("PartialObjectMetadataList", text)
         self.assertIn("_PARTIAL_METADATA_ACCEPT", text)
+        self.assertIn("_PARTIAL_METADATA_LIST_ACCEPT", text)
         self.assertIn("_PARTIAL_METADATA_TOP_LEVEL_KEYS", text)
         self.assertIn("_PARTIAL_METADATA_METADATA_KEYS", text)
         self.assertIn("module.fail_json", text)
         self.assertNotIn('"data"', text)
         self.assertNotIn('"stringData"', text)
+        managed_field = {
+            "manager": "infisical",
+            "operation": "Apply",
+            "apiVersion": "v1",
+            "fieldsType": "FieldsV1",
+            "fieldsV1": {"f:metadata": {"f:labels": {}}},
+        }
         exact = {
             "apiVersion": "meta.k8s.io/v1",
             "kind": "PartialObjectMetadata",
-            "metadata": {"name": "safe", "managedFields": []},
+            "metadata": {"name": "safe", "managedFields": [managed_field]},
         }
-        self.assertEqual({"name": "safe", "managedFields": []}, _metadata_response(exact))
+        self.assertEqual({"name": "safe", "managedFields": [managed_field]}, _metadata_response(exact))
         exact_list = {
             "apiVersion": "meta.k8s.io/v1",
             "kind": "PartialObjectMetadataList",
@@ -301,12 +331,47 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "items": [exact],
         }
         self.assertEqual(
-            [{"name": "safe", "managedFields": []}],
+            [{"name": "safe", "managedFields": [managed_field]}],
             _metadata_module._metadata_list(exact_list),
         )
         self.assertEqual([], _metadata_module._metadata_list({**exact_list, "items": []}))
+        self.assertEqual([], _metadata_module._metadata_list({**exact_list, "items": None}))
+        self.assertIsNone(_metadata_module._metadata_list({**exact_list, "items": None, "metadata": {"continue": "next"}}))
+        self.assertEqual(
+            [{"name": "safe-target", "namespace": "shared-services", "kind": "Secret"}],
+            _metadata_module._producer_targets(
+                {
+                    "apiVersion": "secrets.infisical.com/v1beta1",
+                    "kind": "InfisicalStaticSecret",
+                    "metadata": {"name": "shared-postgresql", "namespace": "shared-services"},
+                    "spec": {"targets": [{"name": "safe-target", "namespace": "shared-services", "kind": "Secret", "template": {"data": {"password": "not-returned"}}}]},
+                },
+                "InfisicalStaticSecret",
+                "secrets.infisical.com/v1beta1",
+                {"name": "shared-postgresql", "namespace": "shared-services"},
+            ),
+        )
+        self.assertEqual(
+            [{"name": "safe-target", "namespace": "shared-services", "kind": "Secret"}],
+            _metadata_module._producer_targets(
+                {
+                    "apiVersion": "secrets.infisical.com/v1alpha1",
+                    "kind": "InfisicalSecret",
+                    "metadata": {"name": "shared-postgresql", "namespace": "shared-services"},
+                    "spec": {"managedSecretReference": {"secretName": "safe-target", "secretNamespace": "shared-services"}},
+                },
+                "InfisicalSecret",
+                "secrets.infisical.com/v1alpha1",
+                {"name": "shared-postgresql", "namespace": "shared-services"},
+            ),
+        )
         for invalid in (
             {**exact, "data": {"password": "must-not-be-accepted"}},
+            {**exact, "metadata": {"name": "safe", "managedFields": [{**managed_field, "fieldsV1": {}}]}},
+            {**exact, "metadata": {"name": "safe", "managedFields": [{**managed_field, "fieldsV1": {"unexpected": {}}}]}},
+            {**exact, "metadata": {"name": "safe", "managedFields": [{**managed_field, "subresource": "status"}]}},
+            {**exact, "metadata": {"name": "safe", "managedFields": [{**managed_field, "fieldsType": "Other"}]}},
+
             {**exact_list, "items": [{**exact, "data": {"password": "must-not-be-accepted"}}]},
             {**exact_list, "kind": "SecretList"},
             {**exact, "kind": "Secret"},
@@ -343,9 +408,15 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "reactive_resume_object_storage_source_check_live_secret_name",
             "reactive_resume_object_storage_source_check_argo_revision",
             "reactive_resume_object_storage_source_check_internal_live_objects",
-            "reactive_resume_object_storage_source_check_metadata_allowed_managers == ['ansible', 'argocd-controller', 'infisical']",
-            "reactive_resume_object_storage_source_check_runtime_managed_field_managers == ['ansible']",
-            "reactive_resume_object_storage_source_check_secret_managed_field_managers == ['infisical']",
+            "reactive_resume_object_storage_source_check_managed_field_managers",
+            "PartialObjectMetadataList",
+            "collection: true",
+            "target_identities",
+            "api_available",
+            "selectattr('kind', 'equalto', 'Secret')",
+            "without requesting Secret data",
+            "source_check_live_secret_type",
+            "managedFields",
             "Require every historical runtime object-storage identity to be live exactly once",
             "Require current object ownership to remain Ansible pending Argo handoff",
             "argocd.argoproj.io/instance",
@@ -353,15 +424,10 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "Require exact normalized current object full-spec fidelity",
             "reactive_resume_object_storage_full_spec_guarded",
             "reactive_resume_object_storage_source_check_live_secret_labels",
-            "reactive_resume_object_storage_source_check_live_secret_type",
-            "hidden_fields:",
-            "type == reactive_resume_object_storage_source_check_live_secret_type",
-            "metadata_allowed_managers",
-            "managedFields",
-            "secret_managed_field_managers",
-            "runtime_managed_field_managers",
             "fieldsType",
             "fieldsV1",
+            "type_debug",
+            "subresource",
             "spec.source.repoURL",
             "spec.source.path",
             "spec.destination.server",
@@ -382,6 +448,10 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "ansible.builtin.shell:",
             "kubectl apply",
             "state: present",
+            "hidden_fields:",
+            "metadata_allowed_managers",
+            "runtime_managed_field_managers",
+            "secret_managed_field_managers",
         ):
             self.assertNotIn(forbidden, self.tasks, forbidden)
 

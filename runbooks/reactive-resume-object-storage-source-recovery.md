@@ -13,9 +13,13 @@ Kubernetes object, PVC, Secret, or Argo Application.
 The current private DEV Argo Application is revision
 `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`, with pruning and empty applications
 disabled. The source check reads object metadata plus normalized non-secret full
-specs and ConfigMap data required for exact source comparison. Secret custody
-and alternate-producer checks use the Kubernetes PartialObjectMetadata media
-type, so no Secret data or stringData is requested or returned; Secret values or PVC contents are never queried. It requires all eight historical source
+specs and ConfigMap data required for exact source comparison. Secret custody and
+alternate-producer collection checks use the Kubernetes `PartialObjectMetadata`
+and `PartialObjectMetadataList` media types, so no Secret data or stringData is
+requested or returned. Empty k3s collections serialized as `items: null` are
+accepted only with an exact empty-list closure; producer CR specifications are
+fetched only for non-Secret producer kinds to inspect target identities. Secret
+values or PVC contents are never queried. It requires all eight historical source
 identities in repository custody, while only seven non-secret runtime
 identities are required live. The historical InfisicalStaticSecret source
 record is intentionally absent live; live Secret custody is checked separately
@@ -78,16 +82,23 @@ separate live Secret custody metadata. It compares normalized full specs and
 ConfigMap data (using the current DEV policy leaf where the source intentionally
 differs). Foreign, absent, duplicate, or Argo-tracked identities fail closed.
 The metadata inventory records ownerReferences, managedFields provenance,
-finalizers, deletion timestamps, and alternate producer identities; runtime
-objects must have exactly the configured `ansible` managed-field manager and the
-live Infisical-owned Secret exactly the configured `infisical` manager, with every
-entry using a valid API version, operation, and FieldsV1 payload. Every manager
-must also belong to `metadata_allowed_managers`; any foreign manager, owner,
-producer, or pending deletion fails closed. Secret values, PVC data, and object
-contents are never queried. The metadata helper fails closed unless the response
-has exactly `apiVersion: meta.k8s.io/v1`, `kind: PartialObjectMetadata`, and only
-the top-level `apiVersion`, `kind`, and `metadata` keys; an ignored Accept header
-cannot turn a full Secret response into an accepted result.
+finalizers, deletion timestamps, and arbitrary producer identities. Managed-field
+provenance is an exact per-object map captured from the read-only k3s evidence:
+StatefulSet uses `kubectl-client-side-apply`, `kubectl-rollout`, and `k3s`;
+`reactive-resume-object-storage-allow-dev` uses `kubectl-client-side-apply` and
+`OpenAPI-Generator`; the other runtime objects use `kubectl-client-side-apply`;
+and the live Secret metadata uses `kubectl-client-side-apply`. Every entry must
+have a non-empty structured `fieldsV1`, `fieldsType: FieldsV1`, a matching
+resource `apiVersion`, an allowed Apply operation, and no nonempty subresource.
+No broad manager allowlist is accepted. Any unavailable producer API, foreign
+manager, owner, alternate producer targeting
+the exact object-storage Secret, or pending deletion fails closed. Secret values or PVC contents and Secret full-object responses are
+never queried. The metadata helper
+fails closed unless an object response has exactly `apiVersion: meta.k8s.io/v1`,
+`kind: PartialObjectMetadata`, and only the top-level `apiVersion`, `kind`, and
+`metadata` keys; collection responses have the exact `PartialObjectMetadataList`
+closure. An ignored Accept header cannot turn a full Secret response into an
+accepted result.
 
 ## Read-only entrypoint
 

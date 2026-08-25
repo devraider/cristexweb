@@ -13,7 +13,7 @@ reactive_resume_object_storage_source_check_object_count: 8
 reactive_resume_object_storage_source_check_live_runtime_object_count: 7
 reactive_resume_object_storage_source_check_manifest_ledger_relative: MANIFESTS.sha256
 reactive_resume_object_storage_source_check_manifest_ledger_mode: '0644'
-reactive_resume_object_storage_source_check_manifest_ledger_sha256: 69d17dda45e474804abd96ab84e351be67720d59a913bf1cb18ca2b00cac82de
+reactive_resume_object_storage_source_check_manifest_ledger_sha256: 30d2dff75686557cf1ab1cec6f5e3c01cf6631ed2fa54a72f916ead51843b381
 reactive_resume_object_storage_source_check_manifest_entries:
   - relative: source/reactive-resume-object-storage-auth.yaml
     mode: '0644'
@@ -38,7 +38,7 @@ reactive_resume_object_storage_source_check_manifest_entries:
     sha256: 46fda04ad1b7ad2c3469c0c99d0f3a697084a6730b104df9227ff96a3cd75b38
   - relative: runtime/statefulset.yaml
     mode: '0644'
-    sha256: 482e1759cc2956a9d0297c497e5276dec7dc60429ab73851777d80d30b568ef8
+    sha256: ae0dd122924c798d9c0a9b86e64e40d2b81e8772641d334b7857f876e626cab4
 reactive_resume_object_storage_source_check_current_allow_dev_component: reactive-resume-dev-networkpolicy
 reactive_resume_object_storage_source_check_history_allow_dev_component: object-storage
 reactive_resume_object_storage_source_check_argo_application: reactive-resume-dev
@@ -71,59 +71,64 @@ reactive_resume_object_storage_source_check_secret_metadata_resource:
   namespace: shared-services
   api_path: /api/v1/namespaces/shared-services/secrets/reactive-resume-object-storage-auth
 reactive_resume_object_storage_source_check_alternate_producers:
-  # Collection endpoints inventory every producer name in the namespace, not
-  # just the conventional target Secret name.  The target fields bind the
-  # exact Secret target that this check is permitted to inspect.
-  - name: infisical-secret
-    kind: InfisicalSecret
-    api_version: v1alpha1
+  # Each collection endpoint inventories every producer name in the namespace.
+  # The helper then reads only the non-Secret producer CR spec to extract target
+  # identities; unrelated shared-database producers are permitted.
+  - kind: InfisicalSecret
+    api_version: secrets.infisical.com/v1alpha1
     target_namespace: shared-services
     target_name: reactive-resume-object-storage-auth
     api_path: /apis/secrets.infisical.com/v1alpha1/namespaces/shared-services/infisicalsecrets
-  - name: infisical-static-secret
-    kind: InfisicalStaticSecret
-    api_version: v1beta1
+  - kind: InfisicalStaticSecret
+    api_version: secrets.infisical.com/v1beta1
     target_namespace: shared-services
     target_name: reactive-resume-object-storage-auth
     api_path: /apis/secrets.infisical.com/v1beta1/namespaces/shared-services/infisicalstaticsecrets
-  - name: infisical-push-secret
-    kind: InfisicalPushSecret
-    api_version: v1alpha1
+  - kind: InfisicalPushSecret
+    api_version: secrets.infisical.com/v1alpha1
     target_namespace: shared-services
     target_name: reactive-resume-object-storage-auth
     api_path: /apis/secrets.infisical.com/v1alpha1/namespaces/shared-services/infisicalpushsecrets
-  - name: infisical-dynamic-secret
-    kind: InfisicalDynamicSecret
-    api_version: v1alpha1
+  - kind: InfisicalDynamicSecret
+    api_version: secrets.infisical.com/v1alpha1
     target_namespace: shared-services
     target_name: reactive-resume-object-storage-auth
     api_path: /apis/secrets.infisical.com/v1alpha1/namespaces/shared-services/infisicaldynamicsecrets
-  - name: external-secret
-    kind: ExternalSecret
-    api_version: v1beta1
+  - kind: ExternalSecret
+    api_version: external-secrets.io/v1beta1
     target_namespace: shared-services
     target_name: reactive-resume-object-storage-auth
     api_path: /apis/external-secrets.io/v1beta1/namespaces/shared-services/externalsecrets
-  - name: sealed-secret
-    kind: SealedSecret
-    api_version: v1alpha1
+  - kind: SealedSecret
+    api_version: bitnami.com/v1alpha1
     target_namespace: shared-services
     target_name: reactive-resume-object-storage-auth
     api_path: /apis/sealedsecrets.bitnami.com/v1alpha1/namespaces/shared-services/sealedsecrets
-  - name: secret-provider-class
-    kind: SecretProviderClass
-    api_version: v1
+  - kind: SecretProviderClass
+    api_version: secrets-store.csi.x-k8s.io/v1
     target_namespace: shared-services
     target_name: reactive-resume-object-storage-auth
     api_path: /apis/secrets-store.csi.x-k8s.io/v1/namespaces/shared-services/secretproviderclasses
-reactive_resume_object_storage_source_check_metadata_allowed_managers:
-  - ansible
-  - argocd-controller
-  - infisical
-reactive_resume_object_storage_source_check_runtime_managed_field_managers:
-  - ansible
-reactive_resume_object_storage_source_check_secret_managed_field_managers:
-  - infisical
+reactive_resume_object_storage_source_check_managed_field_managers:
+  'apps/v1|StatefulSet|shared-services|reactive-resume-object-storage':
+    - kubectl-client-side-apply
+    - kubectl-rollout
+    - k3s
+  'v1|ConfigMap|shared-services|reactive-resume-object-storage-config':
+    - kubectl-client-side-apply
+  'v1|Service|shared-services|reactive-resume-object-storage':
+    - kubectl-client-side-apply
+  'v1|ServiceAccount|shared-services|reactive-resume-object-storage':
+    - kubectl-client-side-apply
+  'networking.k8s.io/v1|NetworkPolicy|shared-services|reactive-resume-object-storage-allow-dev':
+    - kubectl-client-side-apply
+    - OpenAPI-Generator
+  'networking.k8s.io/v1|NetworkPolicy|shared-services|reactive-resume-object-storage-allow-dns':
+    - kubectl-client-side-apply
+  'networking.k8s.io/v1|NetworkPolicy|shared-services|reactive-resume-object-storage-default-deny':
+    - kubectl-client-side-apply
+  'v1|Secret|shared-services|reactive-resume-object-storage-auth':
+    - kubectl-client-side-apply
 reactive_resume_object_storage_source_check_argo_resource_identities:
   - '|v1|Service|cristexhub-dev|reactive-resume-dev'
   - '|v1|ServiceAccount|cristexhub-dev|reactive-resume-dev'
