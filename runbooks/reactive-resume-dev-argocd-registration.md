@@ -105,9 +105,9 @@ ansible/bin/bootstrap-reactive-resume-dev-argocd-registration apply
 The wrapper accepts exactly `check|apply`, uses the pinned controller and
 clean environment, binds a single-run 0600 attestation, forces `--diff` and
 `--limit crtxweb`, and refuses task-selection or passthrough controls. Check
-must pass before any separately approved apply. The latest guarded check reached the live cluster's metadata preflight but
-stopped before registration because the repository credential prerequisite was
-missing; this is not apply or handoff evidence.
+must pass before any separately approved apply. The latest guarded `check` reached the live dependency preflight and live
+cluster metadata preflight; registration and handoff now pass with the
+repository credential present. This is apply and handoff evidence.
 
 ## Remaining gates
 
