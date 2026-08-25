@@ -38,14 +38,15 @@ ansible/bin/configure-mongodb-shared-backup check|apply|test|restore|enable-chec
 
 `check` and `apply` install source while keeping the timer disabled. `test` performs
 one separately approved backup through the systemd service. `enable-check` predicts
-timer activation, and `enable-apply` was executed only after the encrypted archive has
-been downloaded from Google Drive, checked, decrypted with the Infisical-held age
-identity in protected temporary storage, and restored into an isolated PostgreSQL 17
-test runtime without touching the source database.
+timer activation. For each active scheduler, `enable-apply` was executed only after
+its encrypted archive was downloaded from Google Drive, checked, decrypted with the
+Infisical-held age identity in protected temporary storage, and restored without
+touching the source database: PostgreSQL into an isolated PostgreSQL 17 runtime and
+MongoDB into an isolated MongoDB 8.0.12 runtime.
 
-The daily schedule is `03:15` host time with a bounded 15-minute randomized delay,
-`Persistent=true`, RPO direction `24h`, and local encrypted retention `14d`. Remote
-objects are never removed automatically. The service runs as the non-root operator,
+The PostgreSQL timer runs daily at `03:15` host time and the MongoDB timer at `03:45`;
+each has bounded 15-minute randomized delay, `Persistent=true`, RPO direction `24h`,
+and local encrypted retention `14d`. Remote objects are never removed automatically. The service runs as the non-root operator,
 uses the existing group-readable k3s kubeconfig and host-only rclone configuration,
 and has systemd hardening plus an exclusive lock.
 

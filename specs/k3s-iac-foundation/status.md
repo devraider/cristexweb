@@ -24,8 +24,8 @@ reactive_resume_checkpoint: |
   GitHub-state recovery remain pending. One source-review subagent inadvertently
   launched the canonical successor check-only wrapper; it exited `rc=2`, its output
   was removed, and exact task reach cannot be reconstructed. No mutation was intended
-  or evidenced, and that run is not acceptance evidence. PROD and public routing
-  remain inactive. Older source-only/NOT RUN wording below is historical and must not
+  or evidenced, and that run is not acceptance evidence. Reactive Resume PROD and
+  its public routing remain inactive. Older source-only/NOT RUN wording below is historical and must not
   override this
   checkpoint.
 

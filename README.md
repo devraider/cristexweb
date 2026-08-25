@@ -1,6 +1,6 @@
 # Cristex infrastructure
 
-## Current live checkpoint — 2026-08-21
+## Current live checkpoint — 2026-08-25
 
 Private CristexHub PROD activation is live at the pinned revision
 `751885a42798d282e168131db147f13694a0a621`: Argo reports `Synced/Healthy`,
