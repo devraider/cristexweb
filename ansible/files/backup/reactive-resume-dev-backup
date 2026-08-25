@@ -301,6 +301,10 @@ with tarfile.open(os.environ["ARCHIVE"], mode="r:gz") as archive:
         assert path == "objects" or path.startswith("objects/")
         assert ".." not in path.split("/") and "\\" not in path and "\x00" not in path
         assert member.isdir() or member.isfile()
+        assert member.linkname == "" and not member.pax_headers
+        assert not getattr(member, "sparse", None)
+        assert member.uid == 1000 and member.gid == 1000
+        assert member.mode == (0o755 if member.isdir() else 0o644)
         if member.isdir():
             assert path in allowed_directories and path not in directories
             directories.add(path)
@@ -361,7 +365,7 @@ for item in values:
             digest.update(chunk)
             md5_digest.update(chunk)
     hashes = item.get("Hashes") if isinstance(item.get("Hashes"), dict) else {}
-    md5 = hashes.get("md5", hashes.get("MD5"))
+    md5 = hashes.get("md5")
     assert isinstance(md5, str) and len(md5) == 32
     assert all(char in "0123456789abcdef" for char in md5)
     assert md5_digest.hexdigest() == md5

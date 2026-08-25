@@ -35,6 +35,10 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('os.environ["OBJECT_ROOT"]', source)
         self.assertNotIn('os.path.join("/work/objects", key)', source)
         self.assertIn('member.size == expected[key]', source)
+        self.assertIn('member.linkname == "" and not member.pax_headers', source)
+        self.assertIn('not getattr(member, "sparse", None)', source)
+        self.assertIn('member.uid == 1000 and member.gid == 1000', source)
+        self.assertIn('member.mode == (0o755 if member.isdir() else 0o644)', source)
         self.assertIn('member_limit = len(expected) + len(allowed_directories)', source)
         self.assertIn('assert len(members) <= member_limit', source)
         self.assertIn('directories == allowed_directories', source)
@@ -53,6 +57,10 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('/usr/bin/rm -f -- "$work/object-storage.tar.gz"', source)
         self.assertNotIn('<"$work/object-storage.tar.gz" || fail object_restore_extract', source)
         self.assertIn('member.size == expected[key]', source)
+        self.assertIn('member.linkname == "" and not member.pax_headers', source)
+        self.assertIn('not getattr(member, "sparse", None)', source)
+        self.assertIn('member.uid == 1000 and member.gid == 1000', source)
+        self.assertIn('member.mode == (0o755 if member.isdir() else 0o644)', source)
         self.assertIn('member_limit = len(expected) + len(allowed_directories)', source)
         self.assertIn('assert len(members) <= member_limit', source)
         self.assertIn('directories == allowed_directories', source)
@@ -205,7 +213,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             '"logical_entry_count": int(logical_entries)',
             '"logical_table_count": int(logical_tables)',
             '"logical_archive_bytes": int(logical_bytes)',
-            'hashes.get("md5", hashes.get("MD5"))',
+            'md5 = hashes.get("md5")',
             'assert md5_digest.hexdigest() == md5',
             '"sha256": digest.hexdigest()',
             "actual == seen",
