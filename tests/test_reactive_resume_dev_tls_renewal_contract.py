@@ -155,6 +155,29 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
 
     def test_role_is_separate_install_and_enable_boundary(self) -> None:
         text = ROLE.read_text()
+        tasks = yaml.safe_load(text)
+        task_names = [task.get('name', '') for task in tasks]
+        source_index = task_names.index('Inspect the hash-bound renewal source closure on the controller')
+        apt_index = task_names.index('Install exact renewal dependencies')
+        self.assertLess(source_index, apt_index)
+        install_condition = "reactive_resume_dev_tls_renewal_mode == 'install'"
+        for name in (
+            'Create protected renewal directories during install mode',
+            'Install the value-free TLS validator during install mode',
+            'Install the guarded renewal executable during install mode',
+            'Install the renewal service unit during install mode',
+            'Install the renewal timer unit during install mode',
+            'Reload systemd after install-mode renewal unit changes',
+            'Keep renewal timer disabled during install mode',
+        ):
+            task = next(task for task in tasks if task.get('name') == name)
+            when = task.get('when', [])
+            when = when if isinstance(when, list) else [when]
+            self.assertIn(install_condition, when)
+        installed = next(task for task in tasks if task.get('name') == 'Inspect exact installed TLS renewal files for enable mode')
+        self.assertEqual("reactive_resume_dev_tls_renewal_mode == 'enable'", installed['when'])
+        enable = next(task for task in tasks if task.get('name') == 'Enable and start the guarded renewal timer')
+        self.assertIn("reactive_resume_dev_tls_renewal_mode == 'enable'", enable['when'])
         for required in (
             "reactive_resume_dev_tls_renewal_mode in ['install', 'enable']",
             "Install exact renewal dependencies",
@@ -199,6 +222,12 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         self.assertIn("v24.19.0/lib/node_modules/@infisical/cli/bin/infisical", defaults)
         self.assertIn("reactive_resume_dev_tls_renewal_infisical_cli", defaults)
         self.assertIn("reactive_resume_dev_tls_renewal_manifest_path", defaults)
+        for name in (
+            'Inspect the pinned user-owned Infisical CLI as paul',
+            'Verify pinned Infisical CLI provenance as paul',
+        ):
+            task = next(task for task in yaml.safe_load(text) if task.get('name') == name)
+            self.assertFalse(task.get('become', True))
         self.assertIn("reactive_resume_dev_tls_renewal_source_hashes", defaults)
         self.assertIn("4.0.0-2+deb13u1", defaults)
         self.assertIn("4.0.0-1", defaults)
@@ -233,6 +262,9 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "unattended rollback",
             "unavoidable race",
             "no_cas_fail_closed",
+            "complete controller-local source/hash preflight runs before any package or",
+            "enable-check` and `enable-apply`\nnever install or repair",
+            "already-installed exact file hashes",
             "exact two-key set",
             "all exact-name record IDs",
             "runtime convergence",

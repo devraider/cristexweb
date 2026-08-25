@@ -15,6 +15,7 @@
     - reactive_resume_dev_tls_renewal_internal_source_states
     - reactive_resume_dev_tls_renewal_internal_execution_source_states
     - reactive_resume_dev_tls_renewal_internal_normalized_source_contents
+    - reactive_resume_dev_tls_renewal_internal_installed_files
   changed_when: false
 
 - name: Require the exact guarded TLS renewal wrapper
@@ -31,154 +32,6 @@
       - reactive_resume_dev_tls_renewal_service == 'cristexweb-reactive-resume-dev-tls-renew.service'
       - reactive_resume_dev_tls_renewal_timer == 'cristexweb-reactive-resume-dev-tls-renew.timer'
     fail_msg: Refusing TLS renewal installation outside the fixed guarded wrapper.
-  changed_when: false
-  no_log: true
-
-# Certbot and its Cloudflare DNS-01 plugin are host prerequisites. Installing
-# exactly these distro packages belongs to this explicitly approved install
-# mode; check mode predicts the package changes without requiring them to be
-# present already.
-- name: Install exact renewal dependencies
-  ansible.builtin.apt:
-    name:
-      - "certbot={{ reactive_resume_dev_tls_renewal_certbot_package_version }}"
-      - "python3-certbot-dns-cloudflare={{ reactive_resume_dev_tls_renewal_dns_cloudflare_package_version }}"
-    state: present
-    update_cache: false
-  when: reactive_resume_dev_tls_renewal_mode == 'install'
-
-- name: Collect package facts for renewal dependencies
-  ansible.builtin.package_facts:
-    manager: apt
-
-- name: Require the pinned renewal dependency versions and architecture after install
-  ansible.builtin.assert:
-    that:
-      - ansible_check_mode or 'certbot' in ansible_facts.packages
-      - ansible_check_mode or ansible_facts.packages['certbot'] | length == 1
-      - ansible_check_mode or ansible_facts.packages['certbot'][0].version == reactive_resume_dev_tls_renewal_certbot_package_version
-      - ansible_check_mode or ansible_facts.packages['certbot'][0].arch == 'all'
-      - ansible_check_mode or 'python3-certbot-dns-cloudflare' in ansible_facts.packages
-      - ansible_check_mode or ansible_facts.packages['python3-certbot-dns-cloudflare'] | length == 1
-      - >-
-        ansible_check_mode or
-        ansible_facts.packages['python3-certbot-dns-cloudflare'][0].version ==
-        reactive_resume_dev_tls_renewal_dns_cloudflare_package_version
-      - ansible_check_mode or ansible_facts.packages['python3-certbot-dns-cloudflare'][0].arch == 'all'
-    fail_msg: Refusing renewal dependencies outside the pinned Debian package provenance.
-  changed_when: false
-  no_log: true
-
-- name: Inspect the pinned Certbot executable
-  ansible.builtin.stat:
-    path: "{{ reactive_resume_dev_tls_renewal_certbot_path }}"
-    follow: false
-  register: reactive_resume_dev_tls_renewal_internal_certbot_state
-  changed_when: false
-  no_log: true
-  when: not ansible_check_mode
-
-- name: Require the pinned Certbot executable metadata
-  ansible.builtin.assert:
-    that:
-      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.isreg | default(false)
-      - not (reactive_resume_dev_tls_renewal_internal_certbot_state.stat.islnk | default(false))
-      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.pw_name == 'root'
-      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.gr_name == 'root'
-      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.mode == '0755'
-    fail_msg: Refusing a missing, symlinked, or unsafe pinned Certbot executable.
-  changed_when: false
-  no_log: true
-  when: not ansible_check_mode
-
-- name: Verify pinned Certbot CLI provenance
-  ansible.builtin.command:
-    argv:
-      - "{{ reactive_resume_dev_tls_renewal_certbot_path }}"
-      - --version
-  register: reactive_resume_dev_tls_renewal_internal_certbot_version
-  changed_when: false
-  check_mode: false
-  no_log: true
-  when: not ansible_check_mode
-
-- name: Require pinned Certbot CLI version
-  ansible.builtin.assert:
-    that:
-      - reactive_resume_dev_tls_renewal_internal_certbot_version.rc == 0
-      - >-
-        (reactive_resume_dev_tls_renewal_internal_certbot_version.stdout ~ '\n' ~
-         reactive_resume_dev_tls_renewal_internal_certbot_version.stderr) is
-        search('certbot ' ~ reactive_resume_dev_tls_renewal_certbot_version)
-    fail_msg: Refusing Certbot outside the pinned CLI version.
-  changed_when: false
-  no_log: true
-  when: not ansible_check_mode
-
-- name: Inspect the pinned user-owned Infisical CLI
-  ansible.builtin.stat:
-    path: "{{ reactive_resume_dev_tls_renewal_infisical_cli }}"
-    follow: false
-    get_checksum: true
-    checksum_algorithm: sha256
-  register: reactive_resume_dev_tls_renewal_internal_infisical_state
-  changed_when: false
-  no_log: true
-
-- name: Require the pinned user-owned Infisical CLI
-  ansible.builtin.assert:
-    that:
-      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.isreg | default(false)
-      - not (reactive_resume_dev_tls_renewal_internal_infisical_state.stat.islnk | default(false))
-      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.pw_name == 'paul'
-      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.gr_name == 'paul'
-      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.mode == '0755'
-      - >-
-        reactive_resume_dev_tls_renewal_internal_infisical_state.stat.checksum ==
-        reactive_resume_dev_tls_renewal_infisical_cli_sha256
-    fail_msg: Refusing a missing, unsafe, or hash-drifted pinned Infisical CLI.
-  changed_when: false
-  no_log: true
-
-- name: Verify pinned Infisical CLI provenance
-  ansible.builtin.command:
-    argv:
-      - "{{ reactive_resume_dev_tls_renewal_infisical_cli }}"
-      - --version
-  register: reactive_resume_dev_tls_renewal_internal_infisical_version
-  changed_when: false
-  check_mode: false
-  no_log: true
-
-- name: Require pinned Infisical CLI version
-  ansible.builtin.assert:
-    that:
-      - reactive_resume_dev_tls_renewal_internal_infisical_version.rc == 0
-      - >-
-        (reactive_resume_dev_tls_renewal_internal_infisical_version.stdout ~ '\n' ~
-         reactive_resume_dev_tls_renewal_internal_infisical_version.stderr) is
-        search(reactive_resume_dev_tls_renewal_infisical_cli_version)
-    fail_msg: Refusing Infisical CLI outside the pinned version.
-  changed_when: false
-  no_log: true
-
-- name: Inspect protected Cloudflare token file
-  ansible.builtin.stat:
-    path: "{{ reactive_resume_dev_tls_renewal_token_file }}"
-    follow: false
-  register: reactive_resume_dev_tls_renewal_internal_token_state
-  changed_when: false
-  no_log: true
-
-- name: Require protected Cloudflare token metadata
-  ansible.builtin.assert:
-    that:
-      - reactive_resume_dev_tls_renewal_internal_token_state.stat.isreg | default(false)
-      - not (reactive_resume_dev_tls_renewal_internal_token_state.stat.islnk | default(false))
-      - reactive_resume_dev_tls_renewal_internal_token_state.stat.pw_name == 'paul'
-      - reactive_resume_dev_tls_renewal_internal_token_state.stat.gr_name == 'paul'
-      - reactive_resume_dev_tls_renewal_internal_token_state.stat.mode == '0600'
-      - reactive_resume_dev_tls_renewal_internal_token_state.stat.size >= 20
   changed_when: false
   no_log: true
 
@@ -254,7 +107,188 @@
   changed_when: false
   no_log: true
 
-- name: Create protected renewal directories
+# Certbot and its Cloudflare DNS-01 plugin are host prerequisites. Installing
+# exactly these distro packages belongs to this explicitly approved install
+# mode; check mode predicts the package changes without requiring them to be
+# present already.
+- name: Install exact renewal dependencies
+  ansible.builtin.apt:
+    name:
+      - "certbot={{ reactive_resume_dev_tls_renewal_certbot_package_version }}"
+      - "python3-certbot-dns-cloudflare={{ reactive_resume_dev_tls_renewal_dns_cloudflare_package_version }}"
+    state: present
+    update_cache: false
+  when: reactive_resume_dev_tls_renewal_mode == 'install'
+
+- name: Collect package facts for renewal dependencies
+  ansible.builtin.package_facts:
+    manager: apt
+
+- name: Require the pinned renewal dependency versions and architecture after install
+  ansible.builtin.assert:
+    that:
+      - ansible_check_mode or 'certbot' in ansible_facts.packages
+      - ansible_check_mode or ansible_facts.packages['certbot'] | length == 1
+      - ansible_check_mode or ansible_facts.packages['certbot'][0].version == reactive_resume_dev_tls_renewal_certbot_package_version
+      - ansible_check_mode or ansible_facts.packages['certbot'][0].arch == 'all'
+      - ansible_check_mode or 'python3-certbot-dns-cloudflare' in ansible_facts.packages
+      - ansible_check_mode or ansible_facts.packages['python3-certbot-dns-cloudflare'] | length == 1
+      - >-
+        ansible_check_mode or
+        ansible_facts.packages['python3-certbot-dns-cloudflare'][0].version ==
+        reactive_resume_dev_tls_renewal_dns_cloudflare_package_version
+      - ansible_check_mode or ansible_facts.packages['python3-certbot-dns-cloudflare'][0].arch == 'all'
+    fail_msg: Refusing renewal dependencies outside the pinned Debian package provenance.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the pinned Certbot executable
+  ansible.builtin.stat:
+    path: "{{ reactive_resume_dev_tls_renewal_certbot_path }}"
+    follow: false
+  register: reactive_resume_dev_tls_renewal_internal_certbot_state
+  changed_when: false
+  no_log: true
+  when:
+    - not ansible_check_mode or reactive_resume_dev_tls_renewal_mode == 'enable'
+
+- name: Require the pinned Certbot executable metadata
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.isreg | default(false)
+      - not (reactive_resume_dev_tls_renewal_internal_certbot_state.stat.islnk | default(false))
+      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.pw_name == 'root'
+      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.gr_name == 'root'
+      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.mode == '0755'
+    fail_msg: Refusing a missing, symlinked, or unsafe pinned Certbot executable.
+  changed_when: false
+  no_log: true
+  when:
+    - not ansible_check_mode or reactive_resume_dev_tls_renewal_mode == 'enable'
+
+- name: Verify pinned Certbot CLI provenance
+  ansible.builtin.command:
+    argv:
+      - "{{ reactive_resume_dev_tls_renewal_certbot_path }}"
+      - --version
+  register: reactive_resume_dev_tls_renewal_internal_certbot_version
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when:
+    - not ansible_check_mode or reactive_resume_dev_tls_renewal_mode == 'enable'
+
+- name: Require pinned Certbot CLI version
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_certbot_version.rc == 0
+      - >-
+        (reactive_resume_dev_tls_renewal_internal_certbot_version.stdout ~ '\n' ~
+         reactive_resume_dev_tls_renewal_internal_certbot_version.stderr) is
+        search('certbot ' ~ reactive_resume_dev_tls_renewal_certbot_version)
+    fail_msg: Refusing Certbot outside the pinned CLI version.
+  changed_when: false
+  no_log: true
+  when:
+    - not ansible_check_mode or reactive_resume_dev_tls_renewal_mode == 'enable'
+
+- name: Inspect the pinned user-owned Infisical CLI as paul
+  ansible.builtin.stat:
+    path: "{{ reactive_resume_dev_tls_renewal_infisical_cli }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: reactive_resume_dev_tls_renewal_internal_infisical_state
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the pinned user-owned Infisical CLI
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.isreg | default(false)
+      - not (reactive_resume_dev_tls_renewal_internal_infisical_state.stat.islnk | default(false))
+      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.pw_name == 'paul'
+      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.gr_name == 'paul'
+      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.mode == '0755'
+      - >-
+        reactive_resume_dev_tls_renewal_internal_infisical_state.stat.checksum ==
+        reactive_resume_dev_tls_renewal_infisical_cli_sha256
+    fail_msg: Refusing a missing, unsafe, or hash-drifted pinned Infisical CLI.
+  changed_when: false
+  no_log: true
+
+- name: Verify pinned Infisical CLI provenance as paul
+  ansible.builtin.command:
+    argv:
+      - "{{ reactive_resume_dev_tls_renewal_infisical_cli }}"
+      - --version
+  register: reactive_resume_dev_tls_renewal_internal_infisical_version
+  become: false
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Require pinned Infisical CLI version
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_infisical_version.rc == 0
+      - >-
+        (reactive_resume_dev_tls_renewal_internal_infisical_version.stdout ~ '\n' ~
+         reactive_resume_dev_tls_renewal_internal_infisical_version.stderr) is
+        search(reactive_resume_dev_tls_renewal_infisical_cli_version)
+    fail_msg: Refusing Infisical CLI outside the pinned version.
+  changed_when: false
+  no_log: true
+
+- name: Inspect protected Cloudflare token file
+  ansible.builtin.stat:
+    path: "{{ reactive_resume_dev_tls_renewal_token_file }}"
+    follow: false
+  register: reactive_resume_dev_tls_renewal_internal_token_state
+  changed_when: false
+  no_log: true
+
+- name: Require protected Cloudflare token metadata
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_token_state.stat.isreg | default(false)
+      - not (reactive_resume_dev_tls_renewal_internal_token_state.stat.islnk | default(false))
+      - reactive_resume_dev_tls_renewal_internal_token_state.stat.pw_name == 'paul'
+      - reactive_resume_dev_tls_renewal_internal_token_state.stat.gr_name == 'paul'
+      - reactive_resume_dev_tls_renewal_internal_token_state.stat.mode == '0600'
+      - reactive_resume_dev_tls_renewal_internal_token_state.stat.size >= 20
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact installed TLS renewal files for enable mode
+  ansible.builtin.stat:
+    path: '{{ item.path }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: '{{ reactive_resume_dev_tls_renewal_installed_file_contract }}'
+  register: reactive_resume_dev_tls_renewal_internal_installed_files
+  when: reactive_resume_dev_tls_renewal_mode == 'enable'
+  changed_when: false
+  no_log: true
+
+- name: Require exact installed TLS renewal files for enable mode
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == 'root'
+      - item.stat.gr_name == 'root'
+      - item.stat.mode == item.item.mode
+      - item.stat.checksum == item.item.sha256
+    fail_msg: Refusing to enable TLS renewal with missing or drifted installed files.
+  loop: '{{ reactive_resume_dev_tls_renewal_internal_installed_files.results | default([]) }}'
+  when: reactive_resume_dev_tls_renewal_mode == 'enable'
+  changed_when: false
+  no_log: true
+
+- name: Create protected renewal directories during install mode
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: directory
@@ -264,24 +298,27 @@
   loop:
     - {path: "{{ reactive_resume_dev_tls_renewal_state_root }}", owner: paul, group: paul, mode: '0700'}
     - {path: "{{ reactive_resume_dev_tls_renewal_libexec_root }}", owner: root, group: root, mode: '0755'}
+  when: reactive_resume_dev_tls_renewal_mode == 'install'
 
-- name: Install the value-free TLS validator
+- name: Install the value-free TLS validator during install mode
   ansible.builtin.copy:
     src: "{{ reactive_resume_dev_tls_renewal_component_root }}/validate-reactive-resume-dev-tls-material"
     dest: "{{ reactive_resume_dev_tls_renewal_libexec_root }}/validate-reactive-resume-dev-tls-material"
     owner: root
     group: root
     mode: '0755'
+  when: reactive_resume_dev_tls_renewal_mode == 'install'
 
-- name: Install the guarded renewal executable
+- name: Install the guarded renewal executable during install mode
   ansible.builtin.copy:
     src: "{{ reactive_resume_dev_tls_renewal_component_root }}/reactive-resume-dev-tls-renew"
     dest: "{{ reactive_resume_dev_tls_renewal_libexec_root }}/reactive-resume-dev-tls-renew"
     owner: root
     group: root
     mode: '0755'
+  when: reactive_resume_dev_tls_renewal_mode == 'install'
 
-- name: Install the renewal service unit
+- name: Install the renewal service unit during install mode
   ansible.builtin.copy:
     src: "{{ reactive_resume_dev_tls_renewal_component_root }}/cristexweb-reactive-resume-dev-tls-renew.service"
     dest: /etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.service
@@ -289,8 +326,9 @@
     group: root
     mode: '0644'
   register: reactive_resume_dev_tls_renewal_internal_service_unit
+  when: reactive_resume_dev_tls_renewal_mode == 'install'
 
-- name: Install the renewal timer unit
+- name: Install the renewal timer unit during install mode
   ansible.builtin.copy:
     src: "{{ reactive_resume_dev_tls_renewal_component_root }}/cristexweb-reactive-resume-dev-tls-renew.timer"
     dest: /etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.timer
@@ -298,11 +336,14 @@
     group: root
     mode: '0644'
   register: reactive_resume_dev_tls_renewal_internal_timer_unit
+  when: reactive_resume_dev_tls_renewal_mode == 'install'
 
-- name: Reload systemd after renewal unit changes
+- name: Reload systemd after install-mode renewal unit changes
   ansible.builtin.systemd_service:
     daemon_reload: true
-  when: reactive_resume_dev_tls_renewal_internal_service_unit.changed or reactive_resume_dev_tls_renewal_internal_timer_unit.changed
+  when:
+    - reactive_resume_dev_tls_renewal_mode == 'install'
+    - reactive_resume_dev_tls_renewal_internal_service_unit.changed or reactive_resume_dev_tls_renewal_internal_timer_unit.changed
 
 - name: Keep renewal timer disabled during install mode
   ansible.builtin.systemd_service:

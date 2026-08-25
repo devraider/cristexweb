@@ -73,7 +73,8 @@ hash-binds every renewal source before copying it. It also hash-binds the
 canonical wrapper, playbook, role task file, and role defaults execution
 closure; only the explicitly named `reactive_resume_dev_tls_renewal_defaults_self_hash`
 digest literal is normalized to avoid that self-reference cycle. All other
-source-pin digest literals remain covered by the closure. It then installs the pinned Debian packages
+source-pin digest literals remain covered by the closure. The complete controller-local source/hash preflight runs before any package or
+host task. It then installs the pinned Debian packages
 `certbot=4.0.0-2+deb13u1` and
 `python3-certbot-dns-cloudflare=4.0.0-1` with `update_cache: false`, and verifies
 their architecture and executable provenance. The service uses the
@@ -98,8 +99,12 @@ ansible/bin/configure-reactive-resume-dev-tls-renewal enable-apply
 ```
 
 `apply` is a separate approved host-mutation boundary and installs the exact
-Certbot prerequisites while leaving the renewal timer disabled. `enable-apply`
-is a second approval boundary. The daily timer is persistent,
+Certbot prerequisites, protected directories, executable/unit files, and systemd
+reload while leaving the renewal timer disabled. `enable-check` and `enable-apply`
+never install or repair packages, directories, executables, units, or systemd
+state; they first validate the already-installed exact file hashes, modes, owners,
+package/CLI/token evidence, and units. `enable-apply` is then a second approval
+boundary that only enables and starts the validated timer. The daily timer is persistent,
 randomized by 15 minutes, locked against concurrent execution, non-root, and
 hardened with `ProtectSystem`, `ProtectHome=read-only`, `PrivateTmp`,
 `NoNewPrivileges`, restricted address families, and an explicit writable state
