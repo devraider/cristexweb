@@ -267,10 +267,13 @@
       - >-
         (reactive_resume_dev_soak_internal_samples |
         selectattr('prod_reactive_resume_markers_absent', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
+      - >-
+        (reactive_resume_dev_soak_internal_samples |
+        selectattr('exposure_pass', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
     fail_msg: >-
       Every fixed soak sample must pass the private root/health probes, shared-realm
-      OIDC discovery/JWKS, app readiness, exact timer state, and scoped zero-RR-PROD
-      inventory check; elapsed time must meet the fixed window.
+      OIDC discovery/JWKS, app readiness, exact timer state, API-wide exposure closure,
+      and scoped zero-RR-PROD inventory check; elapsed time must meet the fixed window.
   changed_when: false
   no_log: true
 
@@ -292,7 +295,9 @@
         oidc_jwks: pass
         app_ready: pass
         backup_timer_active_enabled: pass
+        exposure_pass: pass
         prod_reactive_resume_markers_absent: pass
+      exposure_pass: true
       scope_note: checked_exact_rr_markers_only_not_universal_prod_absence
       values_output: false
   changed_when: false

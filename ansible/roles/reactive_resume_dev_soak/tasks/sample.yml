@@ -321,63 +321,63 @@
   changed_when: false
   no_log: true
 
-- name: Query all DEV Ingress exposure objects for the application label
+- name: Query every DEV Ingress exposure object in the namespace
   kubernetes.core.k8s_info:
     api_version: networking.k8s.io/v1
     kind: Ingress
     namespace: "{{ reactive_resume_dev_soak_namespace }}"
-    label_selectors:
-      - "{{ reactive_resume_dev_soak_app_label_selector }}"
     kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
-  register: reactive_resume_dev_soak_internal_labeled_ingresses
+  register: reactive_resume_dev_soak_internal_namespace_ingresses
   check_mode: false
   changed_when: false
   no_log: true
 
-- name: Query all DEV Service exposure objects for the application label
+- name: Query every DEV Service exposure object in the namespace
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Service
     namespace: "{{ reactive_resume_dev_soak_namespace }}"
-    label_selectors:
-      - "{{ reactive_resume_dev_soak_app_label_selector }}"
     kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
-  register: reactive_resume_dev_soak_internal_labeled_services
+  register: reactive_resume_dev_soak_internal_namespace_services
   check_mode: false
   changed_when: false
   no_log: true
 
-- name: Query all DEV NetworkPolicies for the application label
+- name: Query every DEV NetworkPolicy exposure object in the namespace
   kubernetes.core.k8s_info:
     api_version: networking.k8s.io/v1
     kind: NetworkPolicy
     namespace: "{{ reactive_resume_dev_soak_namespace }}"
-    label_selectors:
-      - "{{ reactive_resume_dev_soak_app_label_selector }}"
     kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
-  register: reactive_resume_dev_soak_internal_labeled_network_policies
+  register: reactive_resume_dev_soak_internal_namespace_network_policies
   check_mode: false
   changed_when: false
   no_log: true
 
-- name: Require no alternate labeled DEV exposure objects
+- name: Require exact API-wide DEV exposure closure
   ansible.builtin.assert:
     that:
       - >-
-        reactive_resume_dev_soak_internal_labeled_ingresses.resources |
+        reactive_resume_dev_soak_internal_namespace_ingresses.resources |
         map(attribute='metadata.name') | list == [reactive_resume_dev_soak_ingress]
       - >-
-        reactive_resume_dev_soak_internal_labeled_services.resources |
+        reactive_resume_dev_soak_internal_namespace_services.resources |
         map(attribute='metadata.name') | list == [reactive_resume_dev_soak_service]
       - >-
-        reactive_resume_dev_soak_internal_labeled_services.resources |
+        reactive_resume_dev_soak_internal_namespace_services.resources |
         selectattr('spec.type', 'equalto', 'ClusterIP') | list | length == 1
       - >-
-        reactive_resume_dev_soak_internal_labeled_network_policies.resources |
+        reactive_resume_dev_soak_internal_namespace_services.resources[0].spec.selector ==
+        {'app.kubernetes.io/name': reactive_resume_dev_soak_deployment,
+         'app.kubernetes.io/part-of': 'cristexhub'}
+      - >-
+        reactive_resume_dev_soak_internal_namespace_network_policies.resources |
         map(attribute='metadata.name') | list | sort ==
         ['reactive-resume-dev-default-deny', 'reactive-resume-dev-egress',
          'reactive-resume-dev-route-allow-traefik']
-    fail_msg: The DEV app label may expose only the exact private Traefik Ingress and ClusterIP Service.
+    fail_msg: >-
+      The API-wide DEV exposure closure must contain only the exact Service, Ingress,
+      and NetworkPolicies; unlabeled selectors or routes are forbidden.
   changed_when: false
   no_log: true
 
@@ -527,6 +527,7 @@
         'oidc_jwks': true,
         'app_ready': true,
         'backup_timer_active_enabled': true,
+        'exposure_pass': true,
         'prod_reactive_resume_markers_absent': true
       }] }}
   changed_when: false

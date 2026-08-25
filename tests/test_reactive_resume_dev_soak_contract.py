@@ -72,6 +72,13 @@ class ReactiveResumeDevSoakContractTests(unittest.TestCase):
             'ports[0] ==',
             "'protocol': 'TCP', 'port': 3000",
             'ports[0].endPort is not defined',
+            'Query every DEV Ingress exposure object in the namespace',
+            'Query every DEV Service exposure object in the namespace',
+            'Query every DEV NetworkPolicy exposure object in the namespace',
+            'reactive_resume_dev_soak_internal_namespace_ingresses',
+            'reactive_resume_dev_soak_internal_namespace_services',
+            'reactive_resume_dev_soak_internal_namespace_network_policies',
+            'unlabeled selectors or routes are forbidden',
         ):
             self.assertIn(value, self.sample, value)
 
@@ -106,6 +113,7 @@ class ReactiveResumeDevSoakContractTests(unittest.TestCase):
             "reactive_resume_dev_soak_internal_shared_results",
             "reactive_resume_dev_soak_internal_jwks",
             "prod_reactive_resume_markers_absent",
+            "exposure_pass",
             "measured_elapsed_seconds",
             "values_output: false",
             "from_json",
@@ -133,6 +141,12 @@ class ReactiveResumeDevSoakContractTests(unittest.TestCase):
             "--check",
             "--diff",
             "--limit crtxweb",
+            "ANSIBLE_HOST_PATTERN_MISMATCH=error",
+            "inventory_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'",
+            "stat -c '%U:%G:%a'",
+            "ansible_connection: local",
+            "ansible_python_interpreter: /usr/bin/python3",
+            "ansible_user: paul",
             "CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_ENTRYPOINT=v1",
             "CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_TOKEN",
             "CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_ATTESTATION_FILE",
@@ -164,6 +178,7 @@ class ReactiveResumeDevSoakContractTests(unittest.TestCase):
             "shared-services",
             "tailnet",
             "values_output=false",
+            "exposure_pass: true",
             "no apply, delete, enable, restart",
         ):
             self.assertIn(value, " ".join(self.runbook.split()), value)

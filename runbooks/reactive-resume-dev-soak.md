@@ -56,8 +56,10 @@ Every sample verifies:
   `cristexhub-prod` inventory, Argo applications (`Application`/`ApplicationSet`) inventory,
   and shared-services common database/credential inventory. This is a scoped
   marker check, not a claim that all unrelated PROD resources are absent;
-- only the exact labeled DEV Ingress, ClusterIP Service, and route
-  NetworkPolicy exposure objects.
+- an API-wide exact DEV exposure closure containing only the named Ingress,
+  ClusterIP Service, and three expected NetworkPolicies; selectors and routes are
+  checked from metadata/spec only, so unlabeled alternate exposure objects fail;
+- the final receipt includes the explicit boolean `exposure_pass: true`.
 
 The exact backup timer checks run on the host at every sample. The soak never
 enables, starts, restarts, or mutates it. The measured controller-side elapsed
