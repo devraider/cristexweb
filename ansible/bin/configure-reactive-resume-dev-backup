@@ -31,7 +31,7 @@ controller="$repository_root/.venv/bin/ansible-playbook"
 }
 # The self hash replaces this literal with zeros before hashing, so changing
 # any wrapper logic or closure pin fails without creating a circular digest.
-reactive_resume_dev_backup_wrapper_sha256='34f1606c59121f63e99d9b0511cf21a9f0f916394d1e6acf80ec46fe2c3f7898'
+reactive_resume_dev_backup_wrapper_sha256='bf181012ff1445ed9398066e8ee97b4265cc39ce564fc79217044b12efb9b7e4'
 canonical_sha256() {
   /usr/bin/python3 - "$1" <<'PY'
 import hashlib
@@ -80,6 +80,7 @@ verify_source() {
   [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_path")" = "paul:paul:$source_mode" ] || exit 69
   [ "$(/usr/bin/sha256sum "$source_path" | /usr/bin/cut -d ' ' -f 1)" = "$source_sha256" ] || exit 69
 }
+verify_source "$repository_root/ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py" 644 5a03395a27315537a94c85979eb9e0c145665b7f39c31559ea125a9f32d102d4
 verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup" 755 3ee529af50594a2e470fa2a96bd03407f4cc23e3e82963d157f1ae0a19867ff5
 verify_source "$repository_root/ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal" 755 24a15d5eb1a98c0bc125d63833f2a0e6cfa8c78b1a6994f3a350874df62369a5
 verify_source "$repository_root/ansible/files/backup/cristexweb-reactive-resume-dev-backup.service" 644 cd1a1cf09646d6675ebdefba085735755c00e229f1a21ae1d2a5ab2c196dbae2
@@ -88,12 +89,15 @@ verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup-
 
 cd -- "$repository_root/ansible"
 umask 077
+entrypoint_attestation=
+cleanup_entrypoint_attestation() {
+  [ -z "$entrypoint_attestation" ] || /usr/bin/rm -f -- "$entrypoint_attestation"
+}
+trap cleanup_entrypoint_attestation EXIT HUP INT TERM
 entrypoint_attestation=$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-dev-backup.XXXXXX")
 entrypoint_token=$(/usr/bin/openssl rand -hex 32)
 printf '%s:entrypoint\n' "$entrypoint_token" >"$entrypoint_attestation"
 /usr/bin/chmod 0600 "$entrypoint_attestation"
-cleanup_entrypoint_attestation() { /usr/bin/rm -f -- "$entrypoint_attestation"; }
-trap cleanup_entrypoint_attestation EXIT HUP INT TERM
 set -- "$controller" -i .ansible/inventory.local.yml \
   playbooks/configure_reactive_resume_dev_backup.yml --diff --limit crtxweb \
   --ask-become-pass \

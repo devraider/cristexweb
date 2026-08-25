@@ -17,6 +17,7 @@ TIMER = ROOT / "ansible/files/backup/cristexweb-reactive-resume-dev-backup.timer
 NETWORK_POLICY = ROOT / "ansible/files/backup/reactive-resume-dev-backup-networkpolicy.yaml"
 PLAYBOOK = ROOT / "ansible/playbooks/configure_reactive_resume_dev_backup.yml"
 WRAPPER = ROOT / "ansible/bin/configure-reactive-resume-dev-backup"
+ENTRYPOINT_GUARD = ROOT / "ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py"
 RUNBOOK = ROOT / "runbooks/reactive-resume-dev-backup.md"
 
 
@@ -106,6 +107,15 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_TOKEN", WRAPPER.read_text())
         self.assertIn("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE", WRAPPER.read_text())
         self.assertIn('lambda match: match.group(1) + ("0" * 64)', WRAPPER.read_text())
+        guard = ENTRYPOINT_GUARD.read_text()
+        for value in (
+            'context.CLIARGS.get("start_at_task")',
+            'context.CLIARGS.get("step")',
+            'TASK_SELECTION_GUARD',
+            'len(source_results) == 7',
+            'reactive_resume_dev_backup_internal_preflight_complete',
+        ):
+            self.assertIn(value, guard)
 
     def test_wrapper_playbook_and_source_hash_pins_are_current(self):
         wrapper = WRAPPER.read_text()
@@ -135,6 +145,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertEqual(playbook_declared, hashlib.sha256(playbook_canonical.encode()).hexdigest())
         self.assertIn(f"reactive_resume_dev_backup_wrapper_sha256: {wrapper_declared}", playbook)
         self.assertIn(f"sha256: {hashlib.sha256(WRAPPER.read_bytes()).hexdigest()}", playbook)
+        guard_digest = hashlib.sha256(ENTRYPOINT_GUARD.read_bytes()).hexdigest()
+        self.assertIn(guard_digest, wrapper)
+        self.assertIn(f"sha256: {guard_digest}", playbook)
         for source in (BACKUP, RESTORE):
             digest = hashlib.sha256(source.read_bytes()).hexdigest()
             self.assertIn(digest, wrapper)

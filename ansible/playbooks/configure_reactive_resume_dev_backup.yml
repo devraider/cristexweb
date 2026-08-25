@@ -18,8 +18,8 @@
     reactive_resume_dev_backup_entrypoint_attestation: >-
       {{ lookup('ansible.builtin.env',
                 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE') | trim }}
-    reactive_resume_dev_backup_wrapper_sha256: 34f1606c59121f63e99d9b0511cf21a9f0f916394d1e6acf80ec46fe2c3f7898
-    reactive_resume_dev_backup_playbook_sha256: 36a6658202d385b0b1ad63e19e0b7dd596f388a9f0205f46ab1afeac3bd731a9
+    reactive_resume_dev_backup_wrapper_sha256: bf181012ff1445ed9398066e8ee97b4265cc39ce564fc79217044b12efb9b7e4
+    reactive_resume_dev_backup_playbook_sha256: 37e0db47dd17d992aa0345902558cf6f2d20589a9e155da4fcab3eeeb331f1ef
     reactive_resume_dev_backup_service: cristexweb-reactive-resume-dev-backup.service
     reactive_resume_dev_backup_timer: cristexweb-reactive-resume-dev-backup.timer
     reactive_resume_dev_backup_acceptance_directory: /var/lib/cristexweb-backup/reactive-resume/dev/acceptance
@@ -82,7 +82,10 @@
       loop:
         - path: ansible/bin/configure-reactive-resume-dev-backup
           mode: '0755'
-          sha256: 11173d618b919407def2c74a98e66cc9340d71dc8fea0a575680eee282c4c880
+          sha256: 3201fee21816e0f180119bafe33a5cb07fa1e29a93fbd50bb7f1eb28eb7194fc
+        - path: ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py
+          mode: '0644'
+          sha256: 5a03395a27315537a94c85979eb9e0c145665b7f39c31559ea125a9f32d102d4
         - path: ansible/files/backup/reactive-resume-dev-backup
           mode: '0755'
           sha256: 3ee529af50594a2e470fa2a96bd03407f4cc23e3e82963d157f1ae0a19867ff5
@@ -278,8 +281,7 @@
       no_log: true
 
     - name: Mark the complete guarded backup preflight
-      ansible.builtin.set_fact:
-        reactive_resume_dev_backup_internal_preflight_complete: true
+      reactive_resume_dev_backup_entrypoint_guarded: {}
       changed_when: false
       no_log: true
 
