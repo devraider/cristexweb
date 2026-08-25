@@ -13,10 +13,11 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule 
 
 ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 TASK_SUFFIX = "/ansible/roles/reactive_resume_dev_argocd_alignment/tasks/main.yml"
-EXPECTED_IDENTITY_SET_SHA256 = "642635a4cbfe781731e55b8266c3c8611a615833e46325bc81376f32eb5d7b6f"
+EXPECTED_IDENTITY_SET_SHA256 = "a1b576db27f865a2988f00420022303943c50ebf2422d172d147f7ddac03e712"
 EXPECTED = {
     ("apps/v1", "Deployment", "cristexhub-dev", "reactive-resume-dev"),
     ("networking.k8s.io/v1", "Ingress", "cristexhub-dev", "reactive-resume-dev-private"),
+    ("networking.k8s.io/v1", "NetworkPolicy", "cristexhub-dev", "reactive-resume-dev-allow-backend"),
     ("networking.k8s.io/v1", "NetworkPolicy", "cristexhub-dev", "reactive-resume-dev-default-deny"),
     ("networking.k8s.io/v1", "NetworkPolicy", "cristexhub-dev", "reactive-resume-dev-egress"),
     ("networking.k8s.io/v1", "NetworkPolicy", "cristexhub-dev", "reactive-resume-dev-route-allow-traefik"),
@@ -30,6 +31,7 @@ EXPECTED = {
 EXPECTED_HASHES = {
     ("apps/v1", "Deployment", "cristexhub-dev", "reactive-resume-dev"): "82f439133999c5f6bd888cfa0943d1ed5a22e68f5c54a6ca48cf19638d231599",
     ("networking.k8s.io/v1", "Ingress", "cristexhub-dev", "reactive-resume-dev-private"): "848258824deda62730db057d736759b0663cdb00007b7f5dc39a5e3fd9a9ce0a",
+    ("networking.k8s.io/v1", "NetworkPolicy", "cristexhub-dev", "reactive-resume-dev-allow-backend"): "60025e8937b19bcc418fc92ed2e54c65770c35a0132ba7736cd3d2bb4a0dea89",
     ("networking.k8s.io/v1", "NetworkPolicy", "cristexhub-dev", "reactive-resume-dev-default-deny"): "1b858a6e58228abc563072b4d1dee78042b05f20aeb9e522a2a37398fcc3ac6b",
     ("networking.k8s.io/v1", "NetworkPolicy", "cristexhub-dev", "reactive-resume-dev-egress"): "3b26ef586e526506dccd955675ccceb2776e294b8d710facbe3c73236ae7e178",
     ("networking.k8s.io/v1", "NetworkPolicy", "cristexhub-dev", "reactive-resume-dev-route-allow-traefik"): "26c970db8f44cfd3765af69e8b668e258b128c502f436f3d6882f83f300cdbd1",
@@ -51,7 +53,7 @@ def strict_true(value: Any) -> bool:
 
 
 class ActionModule(KubernetesActionModule):
-    """Permit only the exact present-only 11-object alignment lane."""
+    """Permit only the exact present-only 12-object alignment lane."""
 
     def run(self, tmp: str | None = None, task_vars: dict[str, Any] | None = None) -> dict[str, Any]:
         task_vars = task_vars or {}
@@ -85,12 +87,12 @@ class ActionModule(KubernetesActionModule):
             isinstance(binding, dict)
             and binding.get("attestation_sha256") == hashlib.sha256(token.encode()).hexdigest()
             and binding.get("identity_set_sha256") == EXPECTED_IDENTITY_SET_SHA256
-            and int(binding.get("object_count", -1)) == 11
-            and int(binding.get("prestate_count", -1)) == 11
+            and int(binding.get("object_count", -1)) == 12
+            and int(binding.get("prestate_count", -1)) == 12
             and strict_true(binding.get("no_delete_path"))
             and strict_true(binding.get("no_job"))
             and strict_true(binding.get("no_secret"))
-            and binding.get("scope") == "reactive-resume-dev-7-plus-destination-networkpolicies-4"
+            and binding.get("scope") == "reactive-resume-dev-8-plus-destination-networkpolicies-4"
         )
         valid = (
             valid_binding

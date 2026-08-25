@@ -16,6 +16,7 @@ REGISTRATION = ROOT / "ansible/files/components/reactive-resume-dev-argocd-regis
 EXPECTED_FILES = {
     "deployment.yaml",
     "ingress-private.yaml",
+    "networkpolicy-allow-backend.yaml",
     "networkpolicy-default-deny.yaml",
     "networkpolicy-egress.yaml",
     "networkpolicy-route-allow-traefik.yaml",
@@ -37,7 +38,7 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         paths = {path.name for path in SOURCE.glob("*.yaml")}
         self.assertEqual(EXPECTED_FILES, paths)
         objects = load_objects()
-        self.assertEqual(7, len(objects))
+        self.assertEqual(8, len(objects))
         self.assertEqual(
             {
                 "Deployment",
@@ -108,7 +109,7 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         self.assertEqual(3000, ingress["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["port"]["number"])
         policies = [obj for obj in objects if obj["kind"] == "NetworkPolicy"]
         self.assertEqual(
-            {"reactive-resume-dev-default-deny", "reactive-resume-dev-egress", "reactive-resume-dev-route-allow-traefik"},
+            {"reactive-resume-dev-allow-backend", "reactive-resume-dev-default-deny", "reactive-resume-dev-egress", "reactive-resume-dev-route-allow-traefik"},
             {obj["metadata"]["name"] for obj in policies},
         )
         deny = next(obj for obj in policies if obj["metadata"]["name"].endswith("default-deny"))
