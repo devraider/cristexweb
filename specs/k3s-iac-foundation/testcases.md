@@ -127,8 +127,12 @@ They are historical evidence, not current absence claims.
   wrapper; the live successor SQL observations remain accurate but are not source
   check/apply/idempotence evidence. The selected immutable GHCR digests are live
   DEV inputs only, not image trust/provenance/vulnerability/off-node recovery or
-  promotion acceptance. The prior installed backup source produced the sanitized
-  schema-1 non-empty receipt `run_id=20260825T065948Z object_count=1
+  promotion acceptance. During source review, one reviewer inadvertently launched
+  the canonical successor check-only wrapper against the configured controller; it
+  exited `rc=2`, its output was removed, and exact task reach cannot be reconstructed.
+  No mutation was intended or evidenced, but the run violated the review lane's
+  no-live constraint and is not acceptance or runtime evidence. The prior installed
+  backup source produced the sanitized schema-1 non-empty receipt `run_id=20260825T065948Z object_count=1
   total_object_bytes=50 readback=verified encrypted=true private_residue=none`.
   Hardened schema-2 install, fresh non-empty backup, isolated restore, measured
   RPO/RTO, TLS renewal, soak, PROD, and public routing remain pending.
