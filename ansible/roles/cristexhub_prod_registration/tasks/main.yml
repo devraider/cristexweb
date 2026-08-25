@@ -660,11 +660,11 @@
     state: present
     kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
     project_definition: >-
-      {{ cristexhub_prod_registration_internal_manifests |
-      selectattr('kind', 'equalto', 'AppProject') | first }}
+      {{ cristexhub_prod_registration_internal_manifests | default([]) |
+      selectattr('kind', 'equalto', 'AppProject') | first | default({}) }}
     application_definition: >-
-      {{ cristexhub_prod_registration_internal_manifests |
-      selectattr('kind', 'equalto', 'Application') | first }}
+      {{ cristexhub_prod_registration_internal_manifests | default([]) |
+      selectattr('kind', 'equalto', 'Application') | first | default({}) }}
   register: cristexhub_prod_registration_internal_alias_transition
   changed_when: cristexhub_prod_registration_internal_alias_transition.changed | default(false) | bool
   no_log: true
