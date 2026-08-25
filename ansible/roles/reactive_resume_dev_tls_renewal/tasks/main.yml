@@ -13,6 +13,8 @@
     - reactive_resume_dev_tls_renewal_internal_service_unit
     - reactive_resume_dev_tls_renewal_internal_timer_unit
     - reactive_resume_dev_tls_renewal_internal_source_states
+    - reactive_resume_dev_tls_renewal_internal_execution_source_states
+    - reactive_resume_dev_tls_renewal_internal_normalized_source_contents
   changed_when: false
 
 - name: Require the exact guarded TLS renewal wrapper
@@ -183,8 +185,10 @@
     checksum_algorithm: sha256
   loop: >-
     {{ [{'path': reactive_resume_dev_tls_renewal_manifest_path,
+         'mode': '0644',
          'sha256': reactive_resume_dev_tls_renewal_manifest_sha256}] +
-       reactive_resume_dev_tls_renewal_source_hashes }}
+       reactive_resume_dev_tls_renewal_source_hashes +
+       reactive_resume_dev_tls_renewal_execution_source_hashes }}
   register: reactive_resume_dev_tls_renewal_internal_source_states
   delegate_to: localhost
   become: false
@@ -196,9 +200,35 @@
     that:
       - item.stat.isreg | default(false)
       - not (item.stat.islnk | default(false))
-      - item.stat.checksum == item.item.sha256
-    fail_msg: Refusing TLS renewal install from an unreviewed or modified source closure.
+      - item.stat.pw_name == 'paul'
+      - item.stat.mode == item.item.mode
+      - item.item.normalized_hash | default(false) or item.stat.checksum == item.item.sha256
+    fail_msg: Refusing TLS renewal install from an unreviewed, unsafe, or modified source closure.
   loop: '{{ reactive_resume_dev_tls_renewal_internal_source_states.results }}'
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Read normalized execution closure sources
+  ansible.builtin.slurp:
+    src: '{{ item.path }}'
+  loop: '{{ reactive_resume_dev_tls_renewal_execution_source_hashes | selectattr("normalized_hash", "defined") | list }}'
+  register: reactive_resume_dev_tls_renewal_internal_normalized_source_contents
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require normalized execution closure source hashes
+  ansible.builtin.assert:
+    that:
+      - >-
+        item.content | b64decode |
+        regex_replace('[0-9a-f]{64}', '__HASH_LITERAL__', multiline=True) |
+        hash('sha256') == item.item.sha256
+    fail_msg: Refusing TLS renewal execution closure with modified role defaults.
+  loop: '{{ reactive_resume_dev_tls_renewal_internal_normalized_source_contents.results }}'
   delegate_to: localhost
   become: false
   changed_when: false

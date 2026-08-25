@@ -73,6 +73,12 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "Infisical's documented CLI exposes no CAS/If-Match operation",
             "rollback_owned_infisical_state",
             "wait_for_runtime_convergence",
+            "infisical_sync_interval_seconds=3600",
+            "convergence_grace_seconds=900",
+            "convergence_attempts=$(( (infisical_sync_interval_seconds + convergence_grace_seconds + convergence_interval_seconds - 1) / convergence_interval_seconds ))",
+            "verify_infisical_key_set",
+            "infisical-rollback-current-keys",
+            "infisical-rollback-readback-keys",
             "LastReconcileStatus",
             "convergence=verified",
             "kubeconfig=/etc/rancher/k3s/k3s.yaml",
@@ -121,6 +127,7 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "ProtectHome=read-only",
             "ReadWritePaths=/var/lib/cristexweb/reactive-resume-dev-tls /run/lock",
             "RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6",
+            "TimeoutStartSec=90min",
         ):
             self.assertIn(required, service)
         timer = TIMER.read_text()
@@ -151,7 +158,11 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "Inspect the hash-bound renewal source closure on the controller",
             "reactive_resume_dev_tls_renewal_manifest_sha256",
             "reactive_resume_dev_tls_renewal_source_hashes",
-            "item.stat.checksum == item.item.sha256",
+            "reactive_resume_dev_tls_renewal_execution_source_hashes",
+            "item.stat.mode == item.item.mode",
+            "item.stat.pw_name == 'paul'",
+            "normalized execution closure sources",
+            "regex_replace('[0-9a-f]{64}', '__HASH_LITERAL__'",
         ):
             self.assertIn(required, text)
         self.assertIn("role: reactive_resume_dev_tls_renewal", PLAYBOOK.read_text())
@@ -190,8 +201,13 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "Infisical has no CAS/If-Match",
             "pre-write export",
             "conditional rollback",
+            "exact two-key set",
             "all exact-name record IDs",
             "runtime convergence",
+            "refreshInterval: 1h",
+            "instantUpdates: false",
+            "15-minute safety margin",
+            "canonical wrapper, playbook, role task file, and role defaults",
         ):
             self.assertIn(required, runbook)
         self.assertNotIn("*.cristex-soft.com", runbook)

@@ -31,8 +31,13 @@ kubectl=/usr/local/bin/kubectl
 kubeconfig=/etc/rancher/k3s/k3s.yaml
 system_ca=/etc/ssl/certs/ca-certificates.crt
 minimum_remaining_seconds=2592000
-convergence_attempts=60
+# The InfisicalStaticSecret source is contractually refreshInterval=1h and
+# instantUpdates=false. Wait one full interval plus a 15-minute safety margin;
+# shortening this window would turn a normal delayed reconcile into rollback.
+infisical_sync_interval_seconds=3600
+convergence_grace_seconds=900
 convergence_interval_seconds=5
+convergence_attempts=$(( (infisical_sync_interval_seconds + convergence_grace_seconds + convergence_interval_seconds - 1) / convergence_interval_seconds ))
 certbot_package_version=4.0.0-2+deb13u1
 dns_cloudflare_package_version=4.0.0-1
 infisical_cli_version=0.43.121
@@ -96,6 +101,15 @@ material_revision() {
     sha256sum "$1" | awk '{print $1}'
     sha256sum "$2" | awk '{print $1}'
   } | sha256sum | awk '{print $1}'
+}
+
+verify_infisical_key_set() {
+  input=$1
+  output=$2
+  /usr/bin/awk '/^[^[:space:]][^:]*:/{line=$0; sub(/:.*/, "", line); print line}' "$input" |
+    LC_ALL=C /usr/bin/sort >"$output"
+  chmod 0600 "$output"
+  /usr/bin/cmp -s "$output" "$infisical_keys_expected"
 }
 
 public_key_revision() {
@@ -185,10 +199,13 @@ rollback_owned_infisical_state() {
   rollback_readback=$work/infisical-rollback-readback.yaml
   rollback_cert=$work/infisical-rollback-readback.crt
   rollback_key=$work/infisical-rollback-readback.key
+  current_keys=$work/infisical-rollback-current-keys
+  rollback_keys=$work/infisical-rollback-readback-keys
   [ -s "${infisical_before_cert:-}" ] && [ -s "${infisical_before_key:-}" ] || return 1
   "$infisical" export --env "$environment" --projectId "$project_id" \
     --path "$infisical_path" --format yaml --silent >"$current" 2>/dev/null || return 1
   chmod 0600 "$current"
+  verify_infisical_key_set "$current" "$current_keys" || return 1
   extract_infisical_key TLS_CRT "$current" "$current_cert"
   extract_infisical_key TLS_KEY "$current" "$current_key"
   [ "$(material_revision "$current_cert" "$current_key")" = "${infisical_new_revision:-}" ] || return 1
@@ -197,6 +214,7 @@ rollback_owned_infisical_state() {
   "$infisical" export --env "$environment" --projectId "$project_id" \
     --path "$infisical_path" --format yaml --silent >"$rollback_readback" 2>/dev/null || return 1
   chmod 0600 "$rollback_readback"
+  verify_infisical_key_set "$rollback_readback" "$rollback_keys" || return 1
   extract_infisical_key TLS_CRT "$rollback_readback" "$rollback_cert"
   extract_infisical_key TLS_KEY "$rollback_readback" "$rollback_key"
   cmp -s "$infisical_before_cert" "$rollback_cert" &&
@@ -447,13 +465,13 @@ infisical_keys_expected=$work/infisical-keys-expected
 infisical_prewrite=$work/infisical-prewrite-readback.yaml
 infisical_prewrite_cert=$work/infisical-prewrite-readback.crt
 infisical_prewrite_key=$work/infisical-prewrite-readback.key
+infisical_prewrite_keys=$work/infisical-prewrite-readback-keys
 "$infisical" export --env "$environment" --projectId "$project_id" \
   --path "$infisical_path" --format yaml --silent >"$infisical_before" 2>/dev/null || fail infisical_preflight
 chmod 0600 "$infisical_before"
-/usr/bin/awk '/^[^[:space:]][^:]*:/{line=$0; sub(/:.*/, "", line); print line}' "$infisical_before" |
-  LC_ALL=C /usr/bin/sort >"$infisical_keys"
 printf '%s\n' TLS_CRT TLS_KEY | LC_ALL=C /usr/bin/sort >"$infisical_keys_expected"
-/usr/bin/cmp -s "$infisical_keys" "$infisical_keys_expected" || fail infisical_key_closure
+chmod 0600 "$infisical_keys_expected"
+verify_infisical_key_set "$infisical_before" "$infisical_keys" || fail infisical_key_closure
 infisical_before_cert=$work/infisical-before.crt
 infisical_before_key=$work/infisical-before.key
 extract_infisical_key TLS_CRT "$infisical_before" "$infisical_before_cert"
@@ -467,6 +485,7 @@ prestate_revision=$(material_revision "$infisical_before_cert" "$infisical_befor
 "$infisical" export --env "$environment" --projectId "$project_id" \
   --path "$infisical_path" --format yaml --silent >"$infisical_prewrite" 2>/dev/null || fail infisical_prewrite_readback
 chmod 0600 "$infisical_prewrite"
+verify_infisical_key_set "$infisical_prewrite" "$infisical_prewrite_keys" || fail infisical_key_closure
 extract_infisical_key TLS_CRT "$infisical_prewrite" "$infisical_prewrite_cert"
 extract_infisical_key TLS_KEY "$infisical_prewrite" "$infisical_prewrite_key"
 [ "$(material_revision "$infisical_prewrite_cert" "$infisical_prewrite_key")" = "$prestate_revision" ] || fail infisical_concurrent_change
@@ -490,9 +509,7 @@ infisical_rotation_armed=1
 "$infisical" export --env "$environment" --projectId "$project_id" \
   --path "$infisical_path" --format yaml --silent >"$infisical_readback" 2>/dev/null || fail infisical_readback
 chmod 0600 "$infisical_readback"
-/usr/bin/awk '/^[^[:space:]][^:]*:/{line=$0; sub(/:.*/, "", line); print line}' "$infisical_readback" |
-  LC_ALL=C /usr/bin/sort >"$infisical_keys"
-/usr/bin/cmp -s "$infisical_keys" "$infisical_keys_expected" || fail infisical_key_closure
+verify_infisical_key_set "$infisical_readback" "$infisical_keys" || fail infisical_key_closure
 extract_infisical_key TLS_CRT "$infisical_readback" "$infisical_readback_cert"
 extract_infisical_key TLS_KEY "$infisical_readback" "$infisical_readback_key"
 if ! cmp -s "$certificate" "$infisical_readback_cert" ||

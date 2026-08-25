@@ -37,8 +37,10 @@ Tunnel ingress, Kubernetes objects, or the reserved PROD hostname.
   protocol: exact two-key pre-state is exported, a pre-write export is re-read immediately before
   write, and compared by certificate/key digest; post-write readback must match
   both new files. Conditional rollback is attempted only when a fresh read proves
-  the remote state still equals this run's new revision; a changed remote state
-  is never overwritten with stale pre-state.
+  the remote state still has the exact two-key set and equals this run's new
+  revision; rollback readback must again prove the exact two-key set and original
+  bytes. A changed remote key set or revision is never overwritten with stale
+  pre-state.
 
 ## Renewal behavior
 
@@ -54,13 +56,19 @@ post-upload YAML key-set and byte readback, and conditional rollback without
 stale concurrent overwrite. Before success, the controller waits for the
 InfisicalStaticSecret `LastReconcileStatus=True`, exact Kubernetes TLS Secret
 bytes, and the browser-served Traefik certificate public-key revision to converge;
-this runtime convergence is required before success.
+this runtime convergence is required before success. The source contract is
+`refreshInterval: 1h` with `instantUpdates: false`, so renewal waits one full
+hour plus a 15-minute safety margin (90-minute systemd start timeout) rather than
+failing normal delayed operator reconciliation.
 Temporary workspace cleanup removes credentials, payload, and private material;
 protected Certbot account/lineage metadata remains under the mode-0700 state root
 to prevent duplicate issuance.
 
 Install mode verifies the controller-side `MANIFESTS.sha256` closure and
-hash-binds every renewal source before copying it, then installs the pinned Debian packages
+hash-binds every renewal source before copying it. It also hash-binds the
+canonical wrapper, playbook, role task file, and role defaults execution
+closure; role defaults are checked with hash-literal normalization to avoid a
+self-reference cycle. It then installs the pinned Debian packages
 `certbot=4.0.0-2+deb13u1` and
 `python3-certbot-dns-cloudflare=4.0.0-1` with `update_cache: false`, and verifies
 their architecture and executable provenance. The service uses the
