@@ -16,6 +16,9 @@ object_tls_secret=reactive-resume-object-storage-tls
 object_auth_secret=reactive-resume-object-storage-auth
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
+shm_path=/dev/shm
+shm_reserve_bytes=268435456
+shm_min_free_bytes=67108864
 rclone_config=/home/paul/.config/rclone/rclone.conf
 archive_root=/var/lib/cristexweb-backup/reactive-resume/dev
 remote_root=drive:cristexweb-recovery/reactive-resume/dev
@@ -23,6 +26,21 @@ lock_file=/run/lock/cristexweb-reactive-resume-dev-backup.lock
 rclone_image='rclone/rclone:1.71.1@sha256:e99b4361672a8e5b41b557979b780a85797aef45a7da49629ad99cd39c59deae'
 
 fail() { printf 'backup_status=failed stage=%s\n' "$1" >&2; exit 1; }
+shm_capacity_preflight() {
+  /usr/bin/python3 - "$shm_path" "$shm_reserve_bytes" "$shm_min_free_bytes" "$@" <<'PY'
+import os
+import sys
+path, reserve, minimum, factor, *sizes = sys.argv[1:]
+reserve = int(reserve)
+minimum = int(minimum)
+factor = int(factor)
+required = max(minimum, reserve + factor * sum(int(value) for value in sizes))
+stat = os.statvfs(path)
+available = stat.f_bavail * stat.f_frsize
+if available < required:
+    raise SystemExit(1)
+PY
+}
 [ "$#" -eq 1 ] && [ "$1" = backup ] || {
   printf '%s\n' 'usage: reactive-resume-dev-backup backup' >&2
   exit 64
@@ -81,7 +99,8 @@ expected_auth_keys=$(/usr/bin/printf 'accessKey\nsecretKey')
 auth_contract=ok
 [ "$auth_type" = Opaque ] && [ "$auth_keys" = "$expected_auth_keys" ] || auth_contract=invalid
 [ "$auth_contract" = ok ] || fail object_storage_auth_secret
-work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-reactive-resume-dev-backup.XXXXXX)
+shm_capacity_preflight 4 0 0 || fail shm_capacity
+work=$(/usr/bin/mktemp -d "$shm_path/cristexweb-reactive-resume-dev-backup.XXXXXX")
 start_epoch=$(/usr/bin/date +%s)
 timestamp=$(/usr/bin/date -u +%Y%m%dT%H%M%SZ)
 run_id=$timestamp
@@ -121,7 +140,7 @@ cleanup_plaintext() {
   trap - EXIT HUP INT TERM
   cleanup_status=0
   cleanup_helper || cleanup_status=1
-  /usr/bin/rm -f -- "$run_directory/reactive-resume-dev.dump" "$work/raw-manifest.json" "$work/object-manifest.json" "$work/object-storage.tar.gz" "$work/postgresql.dump.gz" || cleanup_status=1
+  /usr/bin/rm -f -- "$work/reactive-resume-dev.dump" "$work/postgresql-size.raw" "$work/raw-manifest.json" "$work/object-manifest.json" "$work/object-storage.tar.gz" "$work/postgresql.dump.gz" || cleanup_status=1
   if [ "$backup_success" = true ]; then
     /usr/bin/rm -rf -- "$work" || cleanup_status=1
   else
@@ -210,6 +229,33 @@ helper_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" -o jso
 [ -n "$helper_uid" ] || fail helper_uid
 /usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$helper_pod" --timeout=1800s >/dev/null
 /usr/local/bin/kubectl -n "$namespace" cp "$helper_pod:/work/raw-manifest.json" "$work/raw-manifest.json" -c rclone >/dev/null
+object_source_bytes=$(/usr/bin/python3 - "$work/raw-manifest.json" <<'PY'
+import json, sys
+allowed = ("uploads/user-pictures/", "pictures/", "uploads/user-agent/")
+total = 0
+for item in json.load(open(sys.argv[1], encoding="utf-8")):
+    if item.get("IsDir"):
+        continue
+    key = item.get("Path") or item.get("Name")
+    size = item.get("Size")
+    assert isinstance(key, str) and key and key.startswith(allowed)
+    assert not key.startswith("/") and ".." not in key.split("/") and "\\" not in key and "\x00" not in key
+    assert isinstance(size, int) and size >= 0
+    total += size
+print(total)
+PY
+) || fail object_manifest_capacity
+case "$object_source_bytes" in
+  ''|*[!0-9]*) fail object_manifest_capacity ;;
+esac
+/usr/local/bin/kubectl -n "$namespace" exec "$primary" -c postgres -- \
+  /usr/bin/psql --no-psqlrc --tuples-only --no-align --dbname="$database" \
+  --command="SELECT pg_database_size('$database');" >"$work/postgresql-size.raw" || fail postgresql_size
+postgres_source_bytes=$(/usr/bin/tr -d '[:space:]' <"$work/postgresql-size.raw")
+case "$postgres_source_bytes" in
+  ''|*[!0-9]*) fail postgresql_size ;;
+esac
+shm_capacity_preflight 4 "$postgres_source_bytes" "$object_source_bytes" || fail shm_capacity
 RAW="$work/raw-manifest.json" OUT="$work/object-manifest.json" /usr/bin/python3 - <<'PY'
 import hashlib, json, os
 with open(os.environ["RAW"], encoding="utf-8") as stream:
@@ -261,9 +307,9 @@ PY
 # Dump only the successor logical database; no PostgreSQL PVC is copied.
 /usr/local/bin/kubectl -n "$namespace" exec "$primary" -c postgres -- \
   /usr/bin/pg_dump --format=custom --compress=0 --no-owner --no-privileges \
-  --dbname="$database" >"$run_directory/reactive-resume-dev.dump" || fail pg_dump
-[ -s "$run_directory/reactive-resume-dev.dump" ] || fail pg_dump_empty
-/usr/bin/pg_restore --list "$run_directory/reactive-resume-dev.dump" >"$work/postgresql.list" || fail pg_logical_list
+  --dbname="$database" >"$work/reactive-resume-dev.dump" || fail pg_dump
+[ -s "$work/reactive-resume-dev.dump" ] || fail pg_dump_empty
+/usr/bin/pg_restore --list "$work/reactive-resume-dev.dump" >"$work/postgresql.list" || fail pg_logical_list
 pg_logical_counts=$(/usr/bin/python3 - "$work/postgresql.list" <<'PY'
 import re, sys
 with open(sys.argv[1], encoding="utf-8") as stream:
@@ -277,9 +323,9 @@ PY
 pg_logical_entry_count=${pg_logical_counts%%:*}
 pg_logical_table_count=${pg_logical_counts#*:}
 [ "$pg_logical_entry_count" -gt 0 ] && [ "$pg_logical_table_count" -gt 0 ] || fail pg_logical_content
-/usr/bin/gzip -9 -c "$run_directory/reactive-resume-dev.dump" >"$work/postgresql.dump.gz" || fail pg_compress
+/usr/bin/gzip -9 -c "$work/reactive-resume-dev.dump" >"$work/postgresql.dump.gz" || fail pg_compress
 /usr/bin/age -r "$recipient" -o "$run_directory/postgresql.dump.gz.age" "$work/postgresql.dump.gz" || fail pg_encrypt
-/usr/bin/rm -f -- "$run_directory/reactive-resume-dev.dump" "$work/postgresql.dump.gz"
+/usr/bin/rm -f -- "$work/reactive-resume-dev.dump" "$work/postgresql.dump.gz"
 cleanup_helper
 helper_uid=
 

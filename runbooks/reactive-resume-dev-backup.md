@@ -20,7 +20,11 @@ The scheduler is one combined service. Each run uses one UTC
 value-free `run-manifest.json` binds checksums, byte counts, logical PostgreSQL
 entry/table counts, object keys, per-object sizes and SHA-256 checksums, the
 snapshot completion timestamp, and backup duration. RPO is measured from that
-completion timestamp, not from run start.
+completion timestamp, not from run start. Before large staging begins, both
+executables fail closed on `/dev/shm` free capacity using source/archive byte
+estimates, a 256 MiB reserve, and a 64 MiB minimum free threshold; the check is
+repeated before restore extraction. Plaintext remains only in `/dev/shm` and
+isolated Pod `emptyDir` volumes, never in the persistent backup directory.
 
 ## Scope and ownership
 
@@ -80,7 +84,7 @@ script are refused.
 
 The systemd timer runs twice daily:
 
-- `OnCalendar=*-*-* 00,12:15:00`;
+- `OnCalendar=*-*-* 00,12:15:00 UTC` (the timezone is explicit, independent of host local time);
 - `RandomizedDelaySec=0`;
 - `Persistent=true`; and
 - `AccuracySec=1m`.
@@ -115,9 +119,10 @@ private readback directory, and compared byte-for-byte before the run succeeds.
 
 The backup checks the current CNPG primary and ready `postgres` container, then
 runs PostgreSQL 17 `pg_dump --format=custom --no-owner --no-privileges` for only
-`reactive_resume_dev_successor`. The plaintext dump exists only in the trapped
-0700 local run directory, is gzip-compressed and encrypted to the public age
-recipient, and is removed before the final receipt. The checksum and manifest
+`reactive_resume_dev_successor`. The plaintext dump exists only in the trapped 0700 `/dev/shm` work directory,
+is gzip-compressed and encrypted to the public age recipient, and is removed
+before the final receipt. The persistent run directory contains encrypted
+archives and value-free manifests only. The checksum and manifest
 bind the archive to the same run ID as object storage.
 
 A PostgreSQL PVC, the shared engine PVC, other databases, roles, credentials,

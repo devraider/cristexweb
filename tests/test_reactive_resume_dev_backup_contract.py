@@ -80,6 +80,26 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertNotIn("AGE-SECRET-KEY-", combined)
         self.assertNotRegex(combined, r"(?im)^\s*(?:password|clientsecret|token)\s*[:=]\s*[^$<\n]")
 
+    def test_staging_capacity_is_fail_closed_and_plaintext_stays_ephemeral(self) -> None:
+        for text in (self.backup, self.restore):
+            for value in (
+                "shm_capacity_preflight",
+                "os.statvfs(path)",
+                "f_bavail * stat.f_frsize",
+                "shm_reserve_bytes=268435456",
+                "shm_min_free_bytes=67108864",
+                "fail shm_capacity",
+                "mktemp -d \"$shm_path/",
+            ):
+                self.assertIn(value, text, value)
+        self.assertIn('>"$work/reactive-resume-dev.dump"', self.backup)
+        self.assertNotIn('>"$run_directory/reactive-resume-dev.dump"', self.backup)
+        self.assertIn("postgres_source_bytes", self.backup)
+        self.assertIn("object_source_bytes", self.backup)
+        self.assertIn("rclone --config \"$rclone_config\" size --json", self.restore)
+        self.assertIn("object_source_bytes", self.restore)
+        self.assertIn("shm_capacity_preflight 1 \"$object_source_bytes\"", self.restore)
+
     def test_nonempty_object_and_timing_acceptance_contract(self) -> None:
         for value in (
             "object_storage_empty",
@@ -324,7 +344,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         ):
             self.assertIn(value, self.service, value)
         for value in (
-            "OnCalendar=*-*-* 00,12:15:00",
+            "OnCalendar=*-*-* 00,12:15:00 UTC",
             "RandomizedDelaySec=0",
             "Persistent=true",
             "AccuracySec=1m",
@@ -396,7 +416,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "reactive_resume_dev_successor",
             "reactive-resume-dev",
             "one UTC `YYYYmmddTHHMMSSZ` run ID",
-            "OnCalendar=*-*-* 00,12:15:00",
+            "OnCalendar=*-*-* 00,12:15:00 UTC",
             "14 days",
             "rclone copyto --immutable",
             "emptyDir",

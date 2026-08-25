@@ -24,8 +24,26 @@ infisical_binary_sha256='21e24f040a09196fb1214873ef964ac74655b172575a78fd95e6c9f
 lock_file=/run/lock/cristexweb-reactive-resume-dev-backup-restore.lock
 declared_rpo_seconds=86400
 declared_rto_seconds=14400
+shm_path=/dev/shm
+shm_reserve_bytes=268435456
+shm_min_free_bytes=67108864
 
 fail() { printf 'restore_status=failed stage=%s\n' "$1" >&2; exit 1; }
+shm_capacity_preflight() {
+  /usr/bin/python3 - "$shm_path" "$shm_reserve_bytes" "$shm_min_free_bytes" "$@" <<'PY'
+import os
+import sys
+path, reserve, minimum, factor, *sizes = sys.argv[1:]
+reserve = int(reserve)
+minimum = int(minimum)
+factor = int(factor)
+required = max(minimum, reserve + factor * sum(int(value) for value in sizes))
+stat = os.statvfs(path)
+available = stat.f_bavail * stat.f_frsize
+if available < required:
+    raise SystemExit(1)
+PY
+}
 [ "$#" -eq 1 ] && [ "$1" = restore ] || {
   printf '%s\n' 'usage: restore-reactive-resume-dev-backup-rehearsal restore' >&2
   exit 64
@@ -45,6 +63,7 @@ esac
 
 exec 9>"$lock_file"
 /usr/bin/flock -n 9 || { printf '%s\n' 'restore_status=refused reason=concurrent_run'; exit 75; }
+shm_capacity_preflight 8 0 0 || fail shm_capacity
 [ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] || fail rclone_config_metadata
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || fail rclone_config_metadata
 [ -L "$infisical_launcher" ] && [ "$(/usr/bin/readlink -f "$infisical_launcher")" = "$infisical_binary" ] || fail infisical_executable_metadata
@@ -56,7 +75,7 @@ infisical_version_output=$(/usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=pau
 remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long)
 [ "$remotes" = 'drive: drive' ] || fail rclone_remote_contract
 
-work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-reactive-resume-dev-restore.XXXXXX)
+work=$(/usr/bin/mktemp -d "$shm_path/cristexweb-reactive-resume-dev-restore.XXXXXX")
 pg_uid=
 pg_pod=
 storage_uid=
@@ -167,6 +186,23 @@ done <"$work/candidates"
 run_id=$selected
 pod_run_id=$(/usr/bin/printf '%s' "$run_id" | /usr/bin/tr '[:upper:]' '[:lower:]')
 remote="$remote_root/$run_id"
+/usr/local/bin/rclone --config "$rclone_config" size --json "$remote/postgresql.dump.gz.age" >"$work/postgresql-size.json" || fail remote_catalog
+/usr/local/bin/rclone --config "$rclone_config" size --json "$remote/object-storage.tar.gz.age" >"$work/object-size.json" || fail remote_catalog
+postgresql_remote_archive_bytes=$(/usr/bin/python3 - "$work/postgresql-size.json" <<'PY'
+import json, sys
+value = json.load(open(sys.argv[1], encoding="utf-8"))
+assert isinstance(value.get("bytes"), int) and value["bytes"] > 0
+print(value["bytes"])
+PY
+) || fail remote_catalog
+object_remote_archive_bytes=$(/usr/bin/python3 - "$work/object-size.json" <<'PY'
+import json, sys
+value = json.load(open(sys.argv[1], encoding="utf-8"))
+assert isinstance(value.get("bytes"), int) and value["bytes"] > 0
+print(value["bytes"])
+PY
+) || fail remote_catalog
+shm_capacity_preflight 8 "$postgresql_remote_archive_bytes" "$object_remote_archive_bytes" || fail shm_capacity
 for leaf in object-storage.manifest.json object-storage.tar.gz.age object-storage.tar.gz.age.sha256 postgresql.dump.gz.age postgresql.dump.gz.age.sha256 postgresql.manifest.json run-manifest.json; do
   /usr/local/bin/rclone --config "$rclone_config" copyto "$remote/$leaf" "$work/$leaf" || fail remote_download
 done
@@ -225,6 +261,14 @@ assert run["object_storage"]["total_object_bytes"] == obj["total_object_bytes"]
 assert run["database"]["sha256"] == pg["archive_sha256"]
 assert run["object_storage"]["sha256"] == obj["archive_sha256"]
 PY
+object_source_bytes=$(/usr/bin/python3 - "$work/object-storage.manifest.json" <<'PY'
+import json, sys
+value = json.load(open(sys.argv[1], encoding="utf-8"))
+assert isinstance(value.get("total_object_bytes"), int) and value["total_object_bytes"] > 0
+print(value["total_object_bytes"])
+PY
+) || fail object_manifest_capacity
+shm_capacity_preflight 8 "$postgresql_remote_archive_bytes" "$object_remote_archive_bytes" "$object_source_bytes" || fail shm_capacity
 backup_duration_seconds=$(/usr/bin/python3 - "$work/run-manifest.json" <<'PY'
 import json, sys
 value = json.load(open(sys.argv[1], encoding="utf-8"))["backup_duration_seconds"]
@@ -263,6 +307,9 @@ restore_reference_epoch=$(/usr/bin/date +%s)
 /usr/bin/age -d -i "$work/identity" "$work/object-storage.tar.gz.age" >"$work/object-storage.tar.gz" || fail object_decrypt
 /usr/bin/rm -f -- "$work/identity" "$work/postgresql.dump.gz.age" "$work/object-storage.tar.gz.age" "$work/postgresql.dump.gz.age.sha256" "$work/object-storage.tar.gz.age.sha256" "$work/postgresql.dump.gz"
 [ -s "$work/postgresql.dump" ] || fail pg_archive_empty
+pg_plain_bytes=$(/usr/bin/stat -c %s "$work/postgresql.dump")
+object_plain_bytes=$(/usr/bin/stat -c %s "$work/object-storage.tar.gz")
+shm_capacity_preflight 2 "$pg_plain_bytes" "$object_plain_bytes" "$object_source_bytes" || fail shm_capacity
 /usr/bin/pg_restore --list "$work/postgresql.dump" >"$work/restored-postgresql.list" || fail restored_pg_logical_list
 restored_pg_counts=$(/usr/bin/python3 - "$work/restored-postgresql.list" <<'PY'
 import re, sys
@@ -290,6 +337,7 @@ for raw in open(os.environ["TAR_LIST"], encoding="utf-8"):
 PY
 /usr/bin/rm -f -- "$work/tar-list"
 /usr/bin/install -d -m 0700 "$work/object-verify"
+shm_capacity_preflight 1 "$object_source_bytes" || fail shm_capacity
 /usr/bin/tar -xzf "$work/object-storage.tar.gz" -C "$work/object-verify" || fail object_archive_extract
 OBJECT_MANIFEST="$work/object-storage.manifest.json" OBJECT_ROOT="$work/object-verify/objects" TSV="$work/objects.tsv" /usr/bin/python3 - <<'PY' || fail object_archive_manifest
 import hashlib, json, os
