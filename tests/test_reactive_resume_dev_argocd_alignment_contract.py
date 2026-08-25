@@ -72,6 +72,7 @@ class ReactiveResumeDevArgoAlignmentContractTests(unittest.TestCase):
         tasks = TASKS.read_text()
         wrapper = WRAPPER.read_text()
         self.assertIn("exactly seven DEV objects and four destination NetworkPolicies", tasks)
+        self.assertIn("['Deployment', 'Ingress', 'NetworkPolicy', 'NetworkPolicy', 'NetworkPolicy', 'Service', 'ServiceAccount']", tasks)
         self.assertIn("Reconcile only the exact eleven alignment objects", tasks)
         self.assertIn("kind', 'equalto', 'Job') | list | length == 0", tasks)
         self.assertIn("kind', 'equalto', 'Secret') | list | length == 0", tasks)

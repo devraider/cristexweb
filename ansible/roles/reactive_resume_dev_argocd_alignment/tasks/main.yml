@@ -99,6 +99,7 @@
       - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('kind', 'equalto', 'Job') | list | length == 0
       - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
       - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 7
+      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') | map(attribute='kind') | list | sort == ['Deployment', 'Ingress', 'NetworkPolicy', 'NetworkPolicy', 'NetworkPolicy', 'Service', 'ServiceAccount']
       - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'shared-services') | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 4
       - (reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') | map(attribute='metadata.name') | list | sort) == ['reactive-resume-dev', 'reactive-resume-dev', 'reactive-resume-dev', 'reactive-resume-dev-default-deny', 'reactive-resume-dev-egress', 'reactive-resume-dev-private', 'reactive-resume-dev-route-allow-traefik']
       - (reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'shared-services') | map(attribute='metadata.name') | list | sort) == ['keycloak-allow-reactive-resume-dev', 'oidc-connect-proxy-allow-reactive-resume-dev', 'reactive-resume-object-storage-allow-dev', 'shared-postgresql-ingress']
@@ -137,7 +138,18 @@
       - item.resources | length == 0 or item.resources[0].kind == item.item.kind
       - item.resources | length == 0 or item.resources[0].metadata.namespace == item.item.metadata.namespace
       - item.resources | length == 0 or item.resources[0].metadata.name == item.item.metadata.name
-      - item.resources | length == 0 or item.resources[0].metadata.labels == item.item.metadata.labels
+      - >-
+        item.resources | length == 0 or
+        item.resources[0].metadata.labels == item.item.metadata.labels or
+        ((item.resources[0].metadata.labels |
+          combine({'cristex.io/component': item.item.metadata.labels['cristex.io/component']})) ==
+         item.item.metadata.labels and
+         ((item.item.metadata.name == 'keycloak-allow-reactive-resume-dev' and
+           item.resources[0].metadata.labels['cristex.io/component'] == 'reactive-resume-dev-networkpolicy') or
+          (item.item.metadata.name == 'oidc-connect-proxy-allow-reactive-resume-dev' and
+           item.resources[0].metadata.labels['cristex.io/component'] == 'reactive-resume-dev-networkpolicy') or
+          (item.item.metadata.name == 'reactive-resume-object-storage-allow-dev' and
+           item.resources[0].metadata.labels['cristex.io/component'] == 'object-storage')))
       - item.resources | length == 0 or (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
       - item.resources | length == 0 or (item.resources[0].metadata.finalizers | default([]) | length) == 0
       - item.resources | length == 0 or 'argocd.argoproj.io/tracking-id' not in (item.resources[0].metadata.annotations | default({}))
