@@ -36,7 +36,10 @@ repo_root=$(CDPATH= cd -- "$dir/../../.." && pwd -P)
 [ -x "$github_root/bin/validate-import-plan" ] || exit 78
 
 tofu=/usr/local/bin/tofu
-[ -x "$tofu" ] && [ ! -L "$tofu" ] || exit 69
+tofu_target=/opt/opentofu/1.12.5/tofu
+[ -L "$tofu" ] && [ "$(/usr/bin/readlink -f -- "$tofu")" = "$tofu_target" ] || exit 69
+[ -x "$tofu_target" ] && [ ! -L "$tofu_target" ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$tofu_target")" = 'root:root:755' ] || exit 69
 # Fixed backend state: /var/lib/opentofu/cristexweb/github.tfstate
 state_parent=/var/lib/opentofu/cristexweb
 state_file="$state_parent/github.tfstate"
