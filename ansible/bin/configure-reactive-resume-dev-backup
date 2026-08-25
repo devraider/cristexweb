@@ -31,7 +31,7 @@ controller="$repository_root/.venv/bin/ansible-playbook"
 }
 # The self hash replaces this literal with zeros before hashing, so changing
 # any wrapper logic or closure pin fails without creating a circular digest.
-reactive_resume_dev_backup_wrapper_sha256='bca37eb0e5f2342c29a37cd1bbb70983a57b02611afef86d3d90cc52a6dcf978'
+reactive_resume_dev_backup_wrapper_sha256='d7091832ada444a5a32116c4a3488cc24e54c24d9c6556b91390c3b897af1dd3'
 canonical_sha256() {
   /usr/bin/python3 - "$1" <<'PY'
 import hashlib
@@ -80,11 +80,11 @@ verify_source() {
   [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_path")" = "paul:paul:$source_mode" ] || exit 69
   [ "$(/usr/bin/sha256sum "$source_path" | /usr/bin/cut -d ' ' -f 1)" = "$source_sha256" ] || exit 69
 }
-verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup" 0755 0e0e284dc27d5264a5df892e00fd2e2cd9c23c6605796465eaa3e3f187196944
-verify_source "$repository_root/ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal" 0755 0000000000000000000000000000000000000000000000000000000000000000
-verify_source "$repository_root/ansible/files/backup/cristexweb-reactive-resume-dev-backup.service" 0644 cd1a1cf09646d6675ebdefba085735755c00e229f1a21ae1d2a5ab2c196dbae2
-verify_source "$repository_root/ansible/files/backup/cristexweb-reactive-resume-dev-backup.timer" 0644 33de353a8ff2628e48fd0adadf5312472f26085581cf59fcc7ce4c580d4397d5
-verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup-networkpolicy.yaml" 0644 60f3163038818523621000937a60ab68be81fcaf73a31e55a2aab199c01c640b
+verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup" 755 0e0e284dc27d5264a5df892e00fd2e2cd9c23c6605796465eaa3e3f187196944
+verify_source "$repository_root/ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal" 755 dab15c5944c174cc464821e496ed0158fb6eaa5234c912457dfed589c8fc8d52
+verify_source "$repository_root/ansible/files/backup/cristexweb-reactive-resume-dev-backup.service" 644 cd1a1cf09646d6675ebdefba085735755c00e229f1a21ae1d2a5ab2c196dbae2
+verify_source "$repository_root/ansible/files/backup/cristexweb-reactive-resume-dev-backup.timer" 644 33de353a8ff2628e48fd0adadf5312472f26085581cf59fcc7ce4c580d4397d5
+verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup-networkpolicy.yaml" 644 60f3163038818523621000937a60ab68be81fcaf73a31e55a2aab199c01c640b
 
 cd -- "$repository_root/ansible"
 umask 077
