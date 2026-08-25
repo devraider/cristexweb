@@ -77,8 +77,8 @@ reactive_resume_dev_argocd_registration_dependency_contracts:
              cristex.io/value-owner: infisical-cloud}
     annotation_keys: [secrets.infisical.com/version]
 reactive_resume_dev_argocd_registration_expected_hashes:
-  config/application-reactive-resume-dev.yaml: 41e597823b877da45fb5cc70e6e6019addfa01a3a7f3f3c20578512130cc3eb1
-  config/appproject-reactive-resume-dev.yaml: cec72c6e3b116593693435af49603f4ce50126cb2fc7632675a5681062795de9
+  config/application-reactive-resume-dev.yaml: 79d3fe80d78e811d76a67af307902c9331aadd8d7e0a73844ff0c0351164720d
+  config/appproject-reactive-resume-dev.yaml: 82b97d005e87ce2366d83adf49519985e7913e6f77c9b1b969e400343e642cf5
   config/secret-cluster-reactive-resume-dev.yaml: e2fbba0e829fbcd269a10ec3fabaa8205595d79fc78ee4ab089bc53357169915
   rbac/role-argocd-application-controller-reactive-resume-dev.yaml: ab0a14d48e3a22b158453dab9ad7ed06d0a63ff818a14e2e8ca94f48ecb8eba7
   rbac/rolebinding-argocd-application-controller-reactive-resume-dev.yaml: 4ccef642d0f30c0245abb162685da5727a9811fd7dabe89ce24762ad41204460

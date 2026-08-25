@@ -12,7 +12,7 @@ spec:
   sourceRepos:
     - ssh://git@ssh.github.com:443/devraider/cristexweb.git
   destinations:
-    - name: reactive-resume-dev-local
+    - server: https://kubernetes.default.svc
       namespace: cristexhub-dev
   clusterResourceWhitelist: []
   namespaceResourceWhitelist:

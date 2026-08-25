@@ -42,7 +42,7 @@ with their reviewed labels, version annotation, type, owner-reference, and
 resource-version contracts. The workload Deployment must be Available and the
 migration Job complete before registration proceeds. The destination is the
 existing `cristexhub-dev` Namespace through the namespace-limited
-`reactive-resume-dev-local` cluster registration.
+exact in-cluster server destination `https://kubernetes.default.svc`; the dedicated cluster credential remains separately registered.
 
 ## Safety and ownership boundary
 

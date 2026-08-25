@@ -15,8 +15,7 @@ spec:
     targetRevision: dd7d4cedd902e68266d9713d1dbb8e90f0b529b1
     path: ansible/files/components/reactive-resume-dev-argocd
   destination:
-    name: reactive-resume-dev-local
-    server: ''
+    server: https://kubernetes.default.svc
     namespace: cristexhub-dev
   syncPolicy:
     automated:

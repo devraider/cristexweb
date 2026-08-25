@@ -631,7 +631,21 @@
       - item.resources | length == 0 or (item.resources[0].metadata.finalizers | default([]) | length) == 0
       - >-
         item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject'] or
-        item.resources[0].spec == item.item.spec
+        item.resources[0].spec == item.item.spec or
+        (item.item.kind == 'Application' and
+         item.resources[0].spec.project == item.item.spec.project and
+         item.resources[0].spec.source == item.item.spec.source and
+         item.resources[0].spec.syncPolicy == item.item.spec.syncPolicy and
+         item.resources[0].spec.destination ==
+           {'name': 'reactive-resume-dev-local', 'server': '', 'namespace': 'cristexhub-dev'}) or
+        (item.item.kind == 'AppProject' and
+         item.resources[0].spec.sourceRepos == item.item.spec.sourceRepos and
+         item.resources[0].spec.clusterResourceWhitelist == item.item.spec.clusterResourceWhitelist and
+         item.resources[0].spec.namespaceResourceWhitelist == item.item.spec.namespaceResourceWhitelist and
+         item.resources[0].spec.orphanedResources == item.item.spec.orphanedResources and
+         item.resources[0].spec.syncWindows == item.item.spec.syncWindows and
+         item.resources[0].spec.destinations ==
+           [{'name': 'reactive-resume-dev-local', 'namespace': 'cristexhub-dev'}])
       - >-
         item.resources | length == 0 or item.item.kind != 'Role' or
         item.resources[0].rules == item.item.rules
@@ -724,8 +738,10 @@
       - item.item.kind != 'Application' or item.resources[0].spec.source.targetRevision == reactive_resume_dev_argocd_registration_revision
       - item.item.kind != 'Application' or item.resources[0].spec.source.path == reactive_resume_dev_argocd_registration_path
       - item.item.kind != 'Application' or item.resources[0].spec.destination.namespace == 'cristexhub-dev'
-      - item.item.kind != 'Application' or item.resources[0].spec.destination.name == 'reactive-resume-dev-local'
-      - item.item.kind != 'Application' or item.resources[0].spec.destination.server == ''
+      - >-
+        item.item.kind != 'Application' or
+        item.resources[0].spec.destination.server == 'https://kubernetes.default.svc'
+      - item.item.kind != 'Application' or item.resources[0].spec.destination.name is not defined
       - item.item.kind != 'Application' or 'argocd.argoproj.io/tracking-id' not in (item.resources[0].metadata.annotations | default({}))
       - >-
         item.item.kind != 'AppProject' or

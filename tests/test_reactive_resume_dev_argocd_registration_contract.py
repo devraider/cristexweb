@@ -38,7 +38,7 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
     def test_project_and_rbac_are_least_privilege(self):
         project = next(x for x in docs(REG) if x['kind'] == 'AppProject')
         self.assertEqual([], project['spec']['clusterResourceWhitelist'])
-        self.assertEqual([{'name': 'reactive-resume-dev-local', 'namespace': 'cristexhub-dev'}], project['spec']['destinations'])
+        self.assertEqual([{'server': 'https://kubernetes.default.svc', 'namespace': 'cristexhub-dev'}], project['spec']['destinations'])
         self.assertEqual({'Deployment', 'Service', 'ServiceAccount', 'Ingress', 'NetworkPolicy'}, {x['kind'] for x in project['spec']['namespaceResourceWhitelist']})
         self.assertEqual([{'kind': 'deny', 'schedule': '* * * * *', 'duration': '24h', 'applications': ['reactive-resume-dev'], 'manualSync': False}], project['spec']['syncWindows'])
         role = next(x for x in docs(REG) if x['kind'] == 'Role')
