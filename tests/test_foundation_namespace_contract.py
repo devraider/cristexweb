@@ -242,6 +242,8 @@ metadata:
                 ANSIBLE / "bin/materialize-infisical-cristexhub-dev-runtime",
                 ANSIBLE / "bin/bootstrap-argocd-route",
                 ANSIBLE / "bin/bootstrap-reactive-resume-dev-route",
+                ANSIBLE / "bin/bootstrap-reactive-resume-dev-argocd-registration",
+                ANSIBLE / "bin/configure-reactive-resume-dev-tls-renewal",
                 ANSIBLE / "bin/bootstrap-cristexhub-dev-registration",
                 ANSIBLE / "bin/bootstrap-cristexhub-prod-registration",
                 ANSIBLE / "bin/bootstrap-cristexhub-dev-sync-transition",

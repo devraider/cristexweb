@@ -606,6 +606,8 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "bootstrap_infisical_argocd_secrets.yml",
                 "bootstrap-argocd-route",
                 "bootstrap_argocd_route.yml",
+                "bootstrap-reactive-resume-dev-argocd-registration",
+                "bootstrap_reactive_resume_dev_argocd_registration.yml",
                 "validate-argocd-ui-tls-material",
                 "main.yml",
             },
