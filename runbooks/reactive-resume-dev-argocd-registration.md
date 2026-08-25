@@ -11,8 +11,10 @@ in-cluster destination correction, Argo reconciled revision
 `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` to `Synced/Healthy` with a successful
 operation. All seven objects have Argo tracking annotations; this k3s API omits
 `metadata.managedFields`, so manager-field evidence is unavailable rather than
-claimed. The superseded alignment wrapper now fails closed on the Argo tracking
-markers, proving that its Ansible reconciliation lane cannot be reopened.
+claimed. Argo reports 15 intentionally out-of-scope namespace resources as
+orphans; this is a warning only and `prune=false` must remain in force. The
+superseded alignment wrapper now fails closed on the Argo tracking markers,
+proving that its Ansible reconciliation lane cannot be reopened.
 
 This is a source-only, guarded registration closure for the private Reactive
 Resume DEV workload in `cristexhub-dev`. It does not perform a Kubernetes,

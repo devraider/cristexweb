@@ -14,12 +14,14 @@ reactive_resume_checkpoint: |
   That receipt does not satisfy the hardened schema-2 contract: hardened source
   installation, a fresh schema-2 non-empty backup, isolated restore, measured
   RPO/RTO, and final scheduler enable/idempotence remain pending. The guarded
-  Reactive Resume Argo registration check reached live dependency metadata and
-  stopped before reconciliation because the Infisical-owned
-  `argocd-repository-cristexweb` repository credential prerequisite was absent;
-  no registration apply, sync, or handoff occurred. The shared `cristexhub`
-  Reactive Resume client source check passed offline without Keycloak/API or
-  Kubernetes mutation. PROD and public routing remain inactive. Older
+  Reactive Resume Argo registration, exact migration/key/dependency gates,
+  alignment, destination correction, and adoption now pass. Application revision
+  `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` is `Synced/Healthy`; all seven
+  resources are Synced and carry tracking annotations. This k3s API omits
+  `metadata.managedFields`, so manager-field evidence is unavailable. The
+  superseded Ansible alignment lane refuses the tracked objects. Hardened backup
+  installation/schema-2 restore, TLS renewal installation/enablement, soak, and
+  GitHub-state recovery remain pending. PROD and public routing remain inactive. Older
   source-only/NOT RUN wording below is historical and must not override this
   checkpoint.
 
