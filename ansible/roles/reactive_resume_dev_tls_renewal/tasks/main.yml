@@ -54,7 +54,7 @@
       - ansible_check_mode or 'certbot' in ansible_facts.packages
       - ansible_check_mode or ansible_facts.packages['certbot'] | length == 1
       - ansible_check_mode or ansible_facts.packages['certbot'][0].version == reactive_resume_dev_tls_renewal_certbot_package_version
-      - ansible_check_mode or ansible_facts.packages['certbot'][0].arch == 'amd64'
+      - ansible_check_mode or ansible_facts.packages['certbot'][0].arch == 'all'
       - ansible_check_mode or 'python3-certbot-dns-cloudflare' in ansible_facts.packages
       - ansible_check_mode or ansible_facts.packages['python3-certbot-dns-cloudflare'] | length == 1
       - ansible_check_mode or ansible_facts.packages['python3-certbot-dns-cloudflare'][0].version == reactive_resume_dev_tls_renewal_dns_cloudflare_package_version
