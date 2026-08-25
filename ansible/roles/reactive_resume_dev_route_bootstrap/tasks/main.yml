@@ -50,7 +50,11 @@
       - not (reactive_resume_dev_route_bootstrap_internal_attestation_state.stat.islnk | default(false))
       - reactive_resume_dev_route_bootstrap_internal_attestation_state.stat.pw_name == reactive_resume_dev_route_bootstrap_controller_user
       - reactive_resume_dev_route_bootstrap_internal_attestation_state.stat.mode == '0600'
-      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_TOKEN') ~ ':entrypoint'
   delegate_to: localhost
   changed_when: false
   no_log: true
@@ -71,20 +75,29 @@
       - not (item.stat.islnk | default(false))
       - item.stat.mode == '0644'
       - (item.item | ansible.builtin.realpath) == item.item
-      - item.stat.checksum == reactive_resume_dev_route_bootstrap_expected_hashes[item.item | replace(reactive_resume_dev_route_bootstrap_repository_root ~ '/ansible/files/components/reactive-resume-dev-route/', '')]
+      - >-
+        item.stat.checksum ==
+        reactive_resume_dev_route_bootstrap_expected_hashes[item.item | replace(
+        reactive_resume_dev_route_bootstrap_repository_root ~
+        '/ansible/files/components/reactive-resume-dev-route/', '')]
       - item.item.startswith(reactive_resume_dev_route_bootstrap_repository_root ~ '/ansible/files/components/reactive-resume-dev-route/')
   loop: "{{ reactive_resume_dev_route_bootstrap_internal_manifest_states.results }}"
   delegate_to: localhost
   changed_when: false
 - name: Load exact route objects
   ansible.builtin.set_fact:
-    reactive_resume_dev_route_bootstrap_internal_manifests: "{{ (reactive_resume_dev_route_bootstrap_internal_manifests | default([])) + [lookup('ansible.builtin.file', item) | from_yaml] }}"
+    reactive_resume_dev_route_bootstrap_internal_manifests: >-
+      {{ (reactive_resume_dev_route_bootstrap_internal_manifests | default([])) +
+      [lookup('ansible.builtin.file', item) | from_yaml] }}
   loop: "{{ reactive_resume_dev_route_bootstrap_manifest_paths }}"
   changed_when: false
   no_log: true
 - name: Bind exact route identities
   ansible.builtin.set_fact:
-    reactive_resume_dev_route_bootstrap_internal_identity_keys: "{{ (reactive_resume_dev_route_bootstrap_internal_identity_keys | default([])) + [item.apiVersion ~ '|' ~ item.kind ~ '|' ~ (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}"
+    reactive_resume_dev_route_bootstrap_internal_identity_keys: >-
+      {{ (reactive_resume_dev_route_bootstrap_internal_identity_keys | default([])) +
+      [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+      (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
   loop: "{{ reactive_resume_dev_route_bootstrap_internal_manifests }}"
   changed_when: false
   no_log: true

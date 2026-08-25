@@ -47,7 +47,10 @@
       - not (keycloak_route_bootstrap_internal_attestation_state.stat.islnk | default(false))
       - keycloak_route_bootstrap_internal_attestation_state.stat.pw_name == keycloak_route_bootstrap_controller_user
       - keycloak_route_bootstrap_internal_attestation_state.stat.mode == '0600'
-      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_ROUTE_BOOTSTRAP_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_ROUTE_BOOTSTRAP_TOKEN') ~ ':entrypoint'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_KEYCLOAK_ROUTE_BOOTSTRAP_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_ROUTE_BOOTSTRAP_TOKEN') ~ ':entrypoint'
   delegate_to: localhost
   changed_when: false
   no_log: true
@@ -68,20 +71,28 @@
       - not (item.stat.islnk | default(false))
       - item.stat.mode == '0644'
       - (item.item | ansible.builtin.realpath) == item.item
-      - item.stat.checksum == keycloak_route_bootstrap_expected_hashes[item.item | replace(keycloak_route_bootstrap_repository_root ~ '/ansible/files/components/keycloak-route/', '')]
+      - >-
+        item.stat.checksum ==
+        keycloak_route_bootstrap_expected_hashes[item.item | replace(
+        keycloak_route_bootstrap_repository_root ~ '/ansible/files/components/keycloak-route/', '')]
       - item.item.startswith(keycloak_route_bootstrap_repository_root ~ '/ansible/files/components/keycloak-route/')
   loop: "{{ keycloak_route_bootstrap_internal_manifest_states.results }}"
   delegate_to: localhost
   changed_when: false
 - name: Load exact route objects
   ansible.builtin.set_fact:
-    keycloak_route_bootstrap_internal_manifests: "{{ (keycloak_route_bootstrap_internal_manifests | default([])) + [lookup('ansible.builtin.file', item) | from_yaml] }}"
+    keycloak_route_bootstrap_internal_manifests: >-
+      {{ (keycloak_route_bootstrap_internal_manifests | default([])) +
+      [lookup('ansible.builtin.file', item) | from_yaml] }}
   loop: "{{ keycloak_route_bootstrap_manifest_paths }}"
   changed_when: false
   no_log: true
 - name: Bind exact route identities
   ansible.builtin.set_fact:
-    keycloak_route_bootstrap_internal_identity_keys: "{{ (keycloak_route_bootstrap_internal_identity_keys | default([])) + [item.apiVersion ~ '|' ~ item.kind ~ '|' ~ (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}"
+    keycloak_route_bootstrap_internal_identity_keys: >-
+      {{ (keycloak_route_bootstrap_internal_identity_keys | default([])) +
+      [item.apiVersion ~ '|' ~ item.kind ~ '|' ~
+      (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
   loop: "{{ keycloak_route_bootstrap_internal_manifests }}"
   changed_when: false
   no_log: true
