@@ -442,8 +442,8 @@
       - item.resources | length == 0 or (item.resources[0].metadata.finalizers | default([]) | length) == 0
       - item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject', 'Role', 'RoleBinding'] or item.resources[0].spec == item.item.spec
       - item.resources | length == 0 or item.item.kind != 'Secret' or ((item.resources[0].type == 'Opaque') and (item.resources[0].data | default({})).keys() | list | sort == ['clusterResources', 'config', 'name', 'namespaces', 'server'])
-    loop: '{{ reactive_resume_dev_argocd_registration_internal_prestate.results }}'
     fail_msg: Refusing to overwrite a foreign or drifted Reactive Resume DEV registration object.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_prestate.results }}'
   changed_when: false
   no_log: true
 
