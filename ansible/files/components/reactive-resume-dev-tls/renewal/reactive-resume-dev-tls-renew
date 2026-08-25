@@ -84,8 +84,8 @@ cleanup() {
     rollback_readback=$work/infisical-rollback-readback.yaml
     if ! "$infisical" secrets set --env "$environment" --projectId "$project_id" \
         --path "$infisical_path" --file "$infisical_before" --silent >/dev/null 2>&1 ||
-       ! "$infisical" secrets get --env "$environment" --projectId "$project_id" \
-        --path "$infisical_path" --output yaml --silent >"$rollback_readback" 2>/dev/null ||
+       ! "$infisical" export --env "$environment" --projectId "$project_id" \
+        --path "$infisical_path" --format yaml --silent >"$rollback_readback" 2>/dev/null ||
        ! /usr/bin/cmp -s "$infisical_before" "$rollback_readback"; then
       printf '%s\n' 'tls_renewal_status=failed stage=infisical_rollback' >&2
       status=1
@@ -291,8 +291,8 @@ infisical_readback_cert=$work/infisical-readback.crt
 infisical_readback_key=$work/infisical-readback.key
 infisical_keys=$work/infisical-keys
 infisical_keys_expected=$work/infisical-keys-expected
-"$infisical" secrets get --env "$environment" --projectId "$project_id" \
-  --path "$infisical_path" --output yaml --silent >"$infisical_before" 2>/dev/null || fail infisical_preflight
+"$infisical" export --env "$environment" --projectId "$project_id" \
+  --path "$infisical_path" --format yaml --silent >"$infisical_before" 2>/dev/null || fail infisical_preflight
 chmod 0600 "$infisical_before"
 /usr/bin/awk '/^[^[:space:]][^:]*:/{line=$0; sub(/:.*/, "", line); print line}' "$infisical_before" |
   LC_ALL=C /usr/bin/sort >"$infisical_keys"
@@ -313,8 +313,8 @@ infisical_rotation_armed=1
 "$infisical" secrets set --env "$environment" --projectId "$project_id" \
   --path "$infisical_path" --file "$payload" --silent >/dev/null 2>&1 || fail infisical_upload
 
-"$infisical" secrets get --env "$environment" --projectId "$project_id" \
-  --path "$infisical_path" --output yaml --silent >"$infisical_readback" 2>/dev/null || fail infisical_readback
+"$infisical" export --env "$environment" --projectId "$project_id" \
+  --path "$infisical_path" --format yaml --silent >"$infisical_readback" 2>/dev/null || fail infisical_readback
 chmod 0600 "$infisical_readback"
 /usr/bin/awk '/^[^[:space:]][^:]*:/{line=$0; sub(/:.*/, "", line); print line}' "$infisical_readback" |
   LC_ALL=C /usr/bin/sort >"$infisical_keys"

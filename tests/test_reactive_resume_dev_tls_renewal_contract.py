@@ -68,6 +68,8 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "challenge_cleanup_armed=1",
             "upload_readback=verified",
             "infisical_keys_expected",
+            '"$infisical" export --env "$environment"',
+            "--format yaml --silent",
             "infisical_readback_mismatch",
             "chmod 0600 \"$credentials\"",
             "values_output=false",
