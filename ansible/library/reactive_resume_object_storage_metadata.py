@@ -12,6 +12,7 @@ _PARTIAL_METADATA_ACCEPT = (
     "application/json;as=PartialObjectMetadata;g=meta.k8s.io;v=v1"
 )
 _PARTIAL_METADATA_TOP_LEVEL_KEYS = {"apiVersion", "kind", "metadata"}
+_PARTIAL_METADATA_LIST_TOP_LEVEL_KEYS = {"apiVersion", "kind", "metadata", "items"}
 _PARTIAL_METADATA_METADATA_KEYS = {
     "annotations",
     "clusterName",
@@ -29,6 +30,8 @@ _PARTIAL_METADATA_METADATA_KEYS = {
     "resourceVersion",
     "selfLink",
     "uid",
+    "continue",
+    "remainingItemCount",
 }
 _NOT_FOUND = {404, 410}
 
@@ -57,6 +60,27 @@ def _metadata(value):
         for key in _PARTIAL_METADATA_METADATA_KEYS
         if key in metadata
     }
+
+
+def _metadata_list(value):
+    """Return metadata for every item in an exact partial-metadata list."""
+    if not isinstance(value, dict) or set(value) != _PARTIAL_METADATA_LIST_TOP_LEVEL_KEYS:
+        return None
+    if (
+        value.get("apiVersion") != _PARTIAL_METADATA_API_VERSION
+        or value.get("kind") != "PartialObjectMetadataList"
+        or not isinstance(value.get("metadata"), dict)
+        or not set(value["metadata"]).issubset(_PARTIAL_METADATA_METADATA_KEYS)
+        or not isinstance(value.get("items"), list)
+    ):
+        return None
+    items = []
+    for item in value["items"]:
+        metadata = _metadata(item)
+        if metadata is None:
+            return None
+        items.append(metadata)
+    return items
 
 
 def main():
@@ -98,12 +122,23 @@ def main():
             module.exit_json(changed=False, found=False, api_available=False, metadata={})
         module.fail_json(msg="METADATA_API: metadata-only request failed: %s" % exc)
 
+    metadata_list = _metadata_list(value)
+    if metadata_list is not None:
+        if not metadata_list:
+            module.exit_json(changed=False, found=False, api_available=True, metadata={})
+        module.exit_json(
+            changed=False,
+            found=True,
+            api_available=True,
+            metadata={"items": metadata_list},
+        )
     metadata = _metadata(value)
     if metadata is None:
         module.fail_json(
             msg=(
                 "METADATA_API: response was not the exact "
-                "meta.k8s.io/v1 PartialObjectMetadata closure"
+                "meta.k8s.io/v1 PartialObjectMetadata or "
+                "PartialObjectMetadataList closure"
             )
         )
     module.exit_json(changed=False, found=True, api_available=True, metadata=metadata)

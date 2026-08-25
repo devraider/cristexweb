@@ -42,7 +42,7 @@ EXPECTED = {
     "runtime/configmap.yaml": "7cabd8c56001737adfd66f68932fa8811a754e506828ba23562f89f604975516",
     "runtime/service.yaml": "46fda04ad1b7ad2c3469c0c99d0f3a697084a6730b104df9227ff96a3cd75b38",
     "runtime/serviceaccount.yaml": "087cf2fbfe5f333cefd3367707a19f05e1b7bac4b48d75668a825834542f447a",
-    "runtime/statefulset.yaml": "6fc45699aed501eddab2f5321eb61f525f8da74076b32121e4aaa08126821adc",
+    "runtime/statefulset.yaml": "482e1759cc2956a9d0297c497e5276dec7dc60429ab73851777d80d30b568ef8",
     "source/reactive-resume-object-storage-auth.yaml": "547626072d1ae6013d6513eed641fbb5f422c6f305ab641fe059873be4f905b2",
 }
 
@@ -90,6 +90,17 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         self.assertEqual("20Gi", statefulset["spec"]["volumeClaimTemplates"][0]["spec"]["resources"]["requests"]["storage"])
         self.assertEqual("Retain", statefulset["spec"]["persistentVolumeClaimRetentionPolicy"]["whenDeleted"])
         self.assertEqual("Retain", statefulset["spec"]["persistentVolumeClaimRetentionPolicy"]["whenScaled"])
+        config_volume_mode = next(
+            volume for volume in statefulset["spec"]["template"]["spec"]["volumes"]
+            if volume["name"] == "object-storage-config"
+        )["configMap"]["defaultMode"]
+        tls_volume_mode = next(
+            volume for volume in statefulset["spec"]["template"]["spec"]["volumes"]
+            if volume["name"] == "object-storage-tls"
+        )["secret"]["defaultMode"]
+        self.assertEqual("0440", config_volume_mode)
+        self.assertEqual("0440", tls_volume_mode)
+        self.assertEqual(2, (HISTORY / "runtime/statefulset.yaml").read_text().count("defaultMode: '0440'"))
         config_volume = next(
             volume for volume in statefulset["spec"]["template"]["spec"]["volumes"]
             if volume["name"] == "object-storage-config"
@@ -153,6 +164,20 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         self.assertEqual(7, defaults["reactive_resume_object_storage_source_check_live_runtime_object_count"])
         self.assertEqual("MANIFESTS.sha256", defaults["reactive_resume_object_storage_source_check_manifest_ledger_relative"])
         self.assertEqual(64, len(defaults["reactive_resume_object_storage_source_check_manifest_ledger_sha256"]))
+        self.assertEqual("shared-services", defaults["reactive_resume_object_storage_source_check_secret_metadata_resource"]["namespace"])
+        self.assertEqual("reactive-resume-object-storage-auth", defaults["reactive_resume_object_storage_source_check_secret_metadata_resource"]["name"])
+        producers = defaults["reactive_resume_object_storage_source_check_alternate_producers"]
+        self.assertEqual(
+            ["InfisicalSecret", "InfisicalStaticSecret", "InfisicalPushSecret", "InfisicalDynamicSecret", "ExternalSecret", "SealedSecret", "SecretProviderClass"],
+            [item["kind"] for item in producers],
+        )
+        self.assertEqual(
+            ["v1alpha1", "v1beta1", "v1alpha1", "v1alpha1", "v1beta1", "v1alpha1", "v1"],
+            [item["api_version"] for item in producers],
+        )
+        self.assertTrue(all(item["target_namespace"] == "shared-services" for item in producers))
+        self.assertTrue(all(item["target_name"] == "reactive-resume-object-storage-auth" for item in producers))
+        self.assertTrue(all("/namespaces/shared-services/" in item["api_path"] and not item["api_path"].endswith("/reactive-resume-object-storage-auth") for item in producers))
         self.assertEqual("ssh://git@ssh.github.com:443/devraider/cristexweb.git",
             defaults["reactive_resume_object_storage_source_check_argo_repo_url"],
         )
@@ -269,8 +294,21 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "metadata": {"name": "safe", "managedFields": []},
         }
         self.assertEqual({"name": "safe", "managedFields": []}, _metadata_response(exact))
+        exact_list = {
+            "apiVersion": "meta.k8s.io/v1",
+            "kind": "PartialObjectMetadataList",
+            "metadata": {"resourceVersion": "safe"},
+            "items": [exact],
+        }
+        self.assertEqual(
+            [{"name": "safe", "managedFields": []}],
+            _metadata_module._metadata_list(exact_list),
+        )
+        self.assertEqual([], _metadata_module._metadata_list({**exact_list, "items": []}))
         for invalid in (
             {**exact, "data": {"password": "must-not-be-accepted"}},
+            {**exact_list, "items": [{**exact, "data": {"password": "must-not-be-accepted"}}]},
+            {**exact_list, "kind": "SecretList"},
             {**exact, "kind": "Secret"},
             {**exact, "apiVersion": "v1"},
             {**exact, "metadata": {"name": "safe", "unexpected": "field"}},
@@ -289,11 +327,17 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "reactive_resume_object_storage_source_check_internal_history_links",
             "Require the exact historical source directory inventory",
             "historical Infisical source absence",
-            "Require historical InfisicalStaticSecret source to remain absent",
             "reactive_resume_object_storage_metadata:",
             "without requesting Secret data",
             "exact PartialObjectMetadata closure",
             "alternate Secret producer",
+            "InfisicalSecret",
+            "InfisicalStaticSecret",
+            "InfisicalPushSecret",
+            "InfisicalDynamicSecret",
+            "v1alpha1",
+            "target_namespace",
+            "target_name",
             "owner provenance and deletion metadata",
             "live Secret custody",
             "reactive_resume_object_storage_source_check_live_secret_name",
@@ -309,6 +353,9 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "Require exact normalized current object full-spec fidelity",
             "reactive_resume_object_storage_full_spec_guarded",
             "reactive_resume_object_storage_source_check_live_secret_labels",
+            "reactive_resume_object_storage_source_check_live_secret_type",
+            "hidden_fields:",
+            "type == reactive_resume_object_storage_source_check_live_secret_type",
             "metadata_allowed_managers",
             "managedFields",
             "secret_managed_field_managers",

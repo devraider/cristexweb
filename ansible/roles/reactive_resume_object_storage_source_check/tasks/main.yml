@@ -33,6 +33,7 @@
     - reactive_resume_object_storage_source_check_internal_live_secret
     - reactive_resume_object_storage_source_check_internal_live_infisical_source
     - reactive_resume_object_storage_source_check_internal_secret_metadata
+    - reactive_resume_object_storage_source_check_internal_live_secret_type
     - reactive_resume_object_storage_source_check_internal_alternate_producers
     - reactive_resume_object_storage_source_check_internal_metadata_inventory
     - reactive_resume_object_storage_source_check_internal_runtime_managed_fields
@@ -446,13 +447,58 @@
   changed_when: false
   no_log: true
 
-- name: Inspect alternate Secret producer metadata with exact PartialObjectMetadata closure without requesting object data
+- name: Inspect live object-storage Secret type without reading Secret values
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: "{{ reactive_resume_object_storage_source_check_secret_metadata_resource.namespace }}"
+    name: "{{ reactive_resume_object_storage_source_check_live_secret_name }}"
+    kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
+    hidden_fields:
+      - data
+      - stringData
+      - binaryData
+  register: reactive_resume_object_storage_source_check_internal_live_secret_type
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require the exact alternate producer names, API versions, and Secret targets
+  ansible.builtin.assert:
+    that:
+      - >-
+        reactive_resume_object_storage_source_check_alternate_producers |
+        map(attribute='kind') | list ==
+        ['InfisicalSecret', 'InfisicalStaticSecret', 'InfisicalPushSecret',
+        'InfisicalDynamicSecret', 'ExternalSecret', 'SealedSecret',
+        'SecretProviderClass']
+      - >-
+        reactive_resume_object_storage_source_check_alternate_producers |
+        map(attribute='api_version') | list ==
+        ['v1alpha1', 'v1beta1', 'v1alpha1', 'v1alpha1', 'v1beta1',
+        'v1alpha1', 'v1']
+      - >-
+        item.kind in ['InfisicalSecret', 'InfisicalStaticSecret',
+        'InfisicalPushSecret', 'InfisicalDynamicSecret', 'ExternalSecret',
+        'SealedSecret', 'SecretProviderClass']
+      - item.api_version in ['v1alpha1', 'v1beta1', 'v1']
+      - item.target_namespace == reactive_resume_object_storage_source_check_secret_metadata_resource.namespace
+      - item.target_name == reactive_resume_object_storage_source_check_live_secret_name
+      - item.api_path is match('^/apis/.+/v')
+    fail_msg: Refusing an incomplete or misbound alternate producer inventory.
+  loop: "{{ reactive_resume_object_storage_source_check_alternate_producers }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.name }} -> {{ item.target_namespace }}/{{ item.target_name }}"
+  changed_when: false
+  no_log: true
+
+- name: Inspect every alternate Secret producer name with exact PartialObjectMetadata closure without requesting object data
   reactive_resume_object_storage_metadata:
     kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
     api_path: "{{ item.api_path }}"
   loop: "{{ reactive_resume_object_storage_source_check_alternate_producers }}"
   loop_control:
-    label: "{{ item.name }}"
+    label: "{{ item.kind }}/{{ item.name }} -> {{ item.target_namespace }}/{{ item.target_name }}"
   register: reactive_resume_object_storage_source_check_internal_alternate_producers
   check_mode: false
   changed_when: false
@@ -472,7 +518,10 @@
     reactive_resume_object_storage_source_check_internal_metadata_inventory: >-
       {{ reactive_resume_object_storage_source_check_internal_metadata_inventory + [
         {
-          'identity': item.item.name,
+          'identity': item.item.kind ~ '/' ~ item.item.name,
+          'api_version': item.item.api_version,
+          'target_namespace': item.item.target_namespace,
+          'target_name': item.item.target_name,
           'found': item.found | default(false),
           'metadata': item.metadata | default({})
         }
@@ -526,25 +575,36 @@
   changed_when: false
   no_log: true
 
-- name: Require historical InfisicalStaticSecret source to remain absent
+- name: Require the live object-storage Secret type and metadata-only response
   ansible.builtin.assert:
     that:
-      - reactive_resume_object_storage_source_check_internal_alternate_producers.results[0].item.name == 'infisical-static-secret'
-      - reactive_resume_object_storage_source_check_internal_alternate_producers.results[0].found | default(false) | bool == false
-      - reactive_resume_object_storage_source_check_internal_alternate_producers.results[0].metadata | default({}) == {}
-    fail_msg: Refusing an applied historical InfisicalStaticSecret source object; this recovery record has no reconciliation path.
+      - reactive_resume_object_storage_source_check_internal_live_secret_type.failed | default(false) | bool == false
+      - reactive_resume_object_storage_source_check_internal_live_secret_type.resources | default([]) | length == 1
+      - >-
+        reactive_resume_object_storage_source_check_internal_live_secret_type.resources[0].metadata.name ==
+        reactive_resume_object_storage_source_check_live_secret_name
+      - reactive_resume_object_storage_source_check_internal_live_secret_type.resources[0].type == reactive_resume_object_storage_source_check_live_secret_type
+      - reactive_resume_object_storage_source_check_internal_live_secret_type.resources[0].data is not defined
+      - reactive_resume_object_storage_source_check_internal_live_secret_type.resources[0].stringData is not defined
+      - reactive_resume_object_storage_source_check_internal_live_secret_type.resources[0].binaryData is not defined
+    fail_msg: Refusing a missing, non-Opaque, or value-bearing live object-storage Secret response.
   changed_when: false
   no_log: true
 
-- name: Require no alternate Secret producer and inventory its provenance metadata
+- name: Require every alternate producer inventory is exact and absent
   ansible.builtin.assert:
     that:
+      - item.item.target_namespace == reactive_resume_object_storage_source_check_secret_metadata_resource.namespace
+      - item.item.target_name == reactive_resume_object_storage_source_check_live_secret_name
       - item.found | default(false) | bool == false
       - item.metadata | default({}) == {}
-    fail_msg: "Refusing an alternate producer for the object-storage Secret target: {{ item.item.name }}."
+    fail_msg: >-
+      Refusing an alternate producer for the object-storage Secret target
+      {{ item.item.target_namespace }}/{{ item.item.target_name }}:
+      {{ item.item.kind }}/{{ item.item.name }}.
   loop: "{{ reactive_resume_object_storage_source_check_internal_alternate_producers.results | default([]) }}"
   loop_control:
-    label: "{{ item.item.name }}"
+    label: "{{ item.item.kind }}/{{ item.item.name }} -> {{ item.item.target_namespace }}/{{ item.item.target_name }}"
   changed_when: false
   no_log: true
 
