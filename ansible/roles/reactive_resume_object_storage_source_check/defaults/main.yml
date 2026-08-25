@@ -34,11 +34,23 @@ reactive_resume_object_storage_source_check_manifest_entries:
     sha256: 46fda04ad1b7ad2c3469c0c99d0f3a697084a6730b104df9227ff96a3cd75b38
   - relative: runtime/statefulset.yaml
     mode: '0644'
-    sha256: 275ec75e893d3b18b3f48fc30e5216f5a74d1664319981229f91e8c55ecf23c6
+    sha256: 6fc45699aed501eddab2f5321eb61f525f8da74076b32121e4aaa08126821adc
 reactive_resume_object_storage_source_check_current_allow_dev_component: reactive-resume-dev-networkpolicy
 reactive_resume_object_storage_source_check_history_allow_dev_component: object-storage
 reactive_resume_object_storage_source_check_argo_application: reactive-resume-dev
 reactive_resume_object_storage_source_check_argo_namespace: argocd
 reactive_resume_object_storage_source_check_argo_revision: dd7d4cedd902e68266d9713d1dbb8e90f0b529b1
+reactive_resume_object_storage_source_check_argo_repo_url: ssh://git@ssh.github.com:443/devraider/cristexweb.git
+reactive_resume_object_storage_source_check_argo_path: ansible/files/components/reactive-resume-dev-argocd
+reactive_resume_object_storage_source_check_argo_destination_server: https://kubernetes.default.svc
+reactive_resume_object_storage_source_check_argo_destination_namespace: cristexhub-dev
+reactive_resume_object_storage_source_check_argo_project: reactive-resume-dev
+reactive_resume_object_storage_source_check_argo_self_heal: true
 reactive_resume_object_storage_source_check_argo_prune: false
 reactive_resume_object_storage_source_check_argo_allow_empty: false
+reactive_resume_object_storage_source_check_argo_sync_options:
+  - CreateNamespace=false
+  - Prune=false
+  - ServerSideApply=false
+  - Replace=false
+  - FailOnSharedResource=true

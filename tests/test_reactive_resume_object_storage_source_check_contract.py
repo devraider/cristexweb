@@ -28,7 +28,7 @@ EXPECTED = {
     "runtime/configmap.yaml": "7cabd8c56001737adfd66f68932fa8811a754e506828ba23562f89f604975516",
     "runtime/service.yaml": "46fda04ad1b7ad2c3469c0c99d0f3a697084a6730b104df9227ff96a3cd75b38",
     "runtime/serviceaccount.yaml": "087cf2fbfe5f333cefd3367707a19f05e1b7bac4b48d75668a825834542f447a",
-    "runtime/statefulset.yaml": "275ec75e893d3b18b3f48fc30e5216f5a74d1664319981229f91e8c55ecf23c6",
+    "runtime/statefulset.yaml": "6fc45699aed501eddab2f5321eb61f525f8da74076b32121e4aaa08126821adc",
     "source/reactive-resume-object-storage-auth.yaml": "547626072d1ae6013d6513eed641fbb5f422c6f305ab641fe059873be4f905b2",
 }
 
@@ -75,6 +75,25 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         self.assertEqual("20Gi", statefulset["spec"]["volumeClaimTemplates"][0]["spec"]["resources"]["requests"]["storage"])
         self.assertEqual("Retain", statefulset["spec"]["persistentVolumeClaimRetentionPolicy"]["whenDeleted"])
         self.assertEqual("Retain", statefulset["spec"]["persistentVolumeClaimRetentionPolicy"]["whenScaled"])
+        config_volume = next(
+            volume for volume in statefulset["spec"]["template"]["spec"]["volumes"]
+            if volume["name"] == "object-storage-config"
+        )
+        self.assertEqual(
+            "reactive-resume-object-storage-config",
+            config_volume["configMap"]["name"],
+        )
+        seaweed = next(
+            container for container in statefulset["spec"]["template"]["spec"]["containers"]
+            if container["name"] == "seaweedfs"
+        )
+        config_mount = next(
+            mount for mount in seaweed["volumeMounts"]
+            if mount["name"] == "object-storage-config"
+        )
+        self.assertEqual("/etc/seaweedfs/s3.json", config_mount["mountPath"])
+        self.assertEqual("s3.json", config_mount["subPath"])
+        self.assertIn("-s3.config=/etc/seaweedfs/s3.json", seaweed["args"])
         images = {
             container["image"]
             for container in statefulset["spec"]["template"]["spec"]["containers"]
@@ -82,9 +101,9 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         }
         self.assertEqual(
             {
-                "chrislusf/seaweedfs:4.44@sha256:c927ea0755b1d7dd5a3101081e4717126d00e75e89d3142e21df374b0a90acad"
+                "sha256:c927ea0755b1d7dd5a3101081e4717126d00e75e89d3142e21df374b0a90acad"
             },
-            images,
+            {image.split("@", 1)[1] for image in images},
         )
         service = next(obj for obj in self.objects if obj["kind"] == "Service")
         self.assertEqual("ClusterIP", service["spec"]["type"])
@@ -113,6 +132,37 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         self.assertEqual("cristexhub", current["spec"]["ingress"][0]["from"][0]["podSelector"]["matchLabels"]["app.kubernetes.io/part-of"])
         self.assertEqual(0, CURRENT_ALLOW.stat().st_mode & 0o022)
 
+    def test_argo_handoff_contract_is_exactly_bound(self) -> None:
+        defaults = yaml.safe_load(self.defaults)
+        self.assertEqual(
+            "ssh://git@ssh.github.com:443/devraider/cristexweb.git",
+            defaults["reactive_resume_object_storage_source_check_argo_repo_url"],
+        )
+        self.assertEqual(
+            "ansible/files/components/reactive-resume-dev-argocd",
+            defaults["reactive_resume_object_storage_source_check_argo_path"],
+        )
+        self.assertEqual(
+            "https://kubernetes.default.svc",
+            defaults["reactive_resume_object_storage_source_check_argo_destination_server"],
+        )
+        self.assertEqual(
+            "cristexhub-dev",
+            defaults["reactive_resume_object_storage_source_check_argo_destination_namespace"],
+        )
+        self.assertEqual("reactive-resume-dev", defaults["reactive_resume_object_storage_source_check_argo_project"])
+        self.assertTrue(defaults["reactive_resume_object_storage_source_check_argo_self_heal"])
+        self.assertEqual(
+            [
+                "CreateNamespace=false",
+                "Prune=false",
+                "ServerSideApply=false",
+                "Replace=false",
+                "FailOnSharedResource=true",
+            ],
+            defaults["reactive_resume_object_storage_source_check_argo_sync_options"],
+        )
+
     def test_role_is_read_only_and_ownership_guarded(self) -> None:
         for required in (
             "ansible_check_mode",
@@ -122,6 +172,16 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "reactive_resume_object_storage_source_check_argo_revision",
             "reactive_resume_object_storage_source_check_internal_live_objects",
             "Refusing a foreign current object-storage identity",
+            "Require exact current object identity and spec fidelity",
+            "metadata.labels ==",
+            "item.resources[0].spec ==",
+            "spec.source.repoURL",
+            "spec.source.path",
+            "spec.destination.server",
+            "spec.destination.namespace",
+            "spec.project",
+            "automated.selfHeal",
+            "syncPolicy.syncOptions",
         ):
             self.assertIn(required, self.tasks, required)
         for forbidden in (
