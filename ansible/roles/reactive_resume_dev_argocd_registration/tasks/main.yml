@@ -629,7 +629,15 @@
       - item.resources | length == 0 or item.resources[0].metadata.labels == item.item.metadata.labels
       - item.resources | length == 0 or (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
       - item.resources | length == 0 or (item.resources[0].metadata.finalizers | default([]) | length) == 0
-      - item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject', 'Role', 'RoleBinding'] or item.resources[0].spec == item.item.spec
+      - >-
+        item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject'] or
+        item.resources[0].spec == item.item.spec
+      - >-
+        item.resources | length == 0 or item.item.kind != 'Role' or
+        item.resources[0].rules == item.item.rules
+      - >-
+        item.resources | length == 0 or item.item.kind != 'RoleBinding' or
+        (item.resources[0].roleRef == item.item.roleRef and item.resources[0].subjects == item.item.subjects)
       - >-
         item.resources | length == 0 or item.item.kind != 'Secret' or
         ((item.resources[0].type == 'Opaque') and
@@ -723,8 +731,8 @@
         item.item.kind != 'AppProject' or
         item.resources[0].spec.syncWindows == [{'kind': 'deny', 'schedule': '* * * * *',
         'duration': '24h', 'applications': ['reactive-resume-dev'], 'manualSync': false}]
-    loop: '{{ reactive_resume_dev_argocd_registration_internal_poststate.results }}'
     fail_msg: Refusing drifted or unsafe Reactive Resume DEV Argo registration state.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_poststate.results }}'
   changed_when: false
   no_log: true
   when: not ansible_check_mode
