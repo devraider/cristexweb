@@ -12,6 +12,7 @@
     postgresql_keycloak_backup_age_version: 1.2.1-1+b5
     postgresql_keycloak_backup_recipient_sha256: ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
     postgresql_keycloak_backup_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+    postgresql_keycloak_backup_source_closure_sha256: cf58b66c536fcf079e87ed7b3c2cf986eb893edb7588d7ddb31a737c184d9526
 
   pre_tasks:
     - name: Require the canonical backup scheduler contract
@@ -180,6 +181,9 @@
     - name: Execute the separately approved isolated restore rehearsal
       ansible.builtin.command:
         argv:
+          - /usr/bin/timeout
+          - --preserve-status
+          - 3600
           - /usr/local/libexec/cristexweb/restore-postgresql-keycloak-rehearsal
       become: false
       register: postgresql_keycloak_backup_restore_result
@@ -202,12 +206,122 @@
         - postgresql_keycloak_backup_mode == 'restore'
         - not ansible_check_mode
 
-    - name: Enable the accepted daily timer
-      ansible.builtin.systemd_service:
-        name: cristexweb-postgresql-keycloak-backup.timer
-        enabled: true
-        state: started
-      when: postgresql_keycloak_backup_mode == 'enable'
+    - name: Inspect persisted fresh backup and restore acceptance evidence
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+      loop:
+        - /var/lib/cristexweb-backup/acceptance/postgresql/keycloak/backup.receipt
+        - /var/lib/cristexweb-backup/acceptance/postgresql/keycloak/restore.receipt
+      register: postgresql_keycloak_backup_acceptance_states
+      when:
+        - postgresql_keycloak_backup_mode == 'enable'
+      changed_when: false
+      no_log: true
+
+    - name: Capture acceptance freshness reference epoch
+      ansible.builtin.command:
+        argv: [/usr/bin/date, +%s]
+      register: postgresql_keycloak_backup_acceptance_now
+      check_mode: false
+      changed_when: false
+      when:
+        - postgresql_keycloak_backup_mode == 'enable'
+      no_log: true
+
+    - name: Require persisted fresh matching backup and restore acceptance evidence
+      ansible.builtin.assert:
+        that:
+          - item.stat.isreg | default(false)
+          - not (item.stat.islnk | default(false))
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == '0600'
+          - item.stat.mtime is defined
+          - item.stat.mtime | int > (postgresql_keycloak_backup_acceptance_now.stdout | int - 86400)
+      loop: "{{ postgresql_keycloak_backup_acceptance_states.results | default([]) }}"
+      when:
+        - postgresql_keycloak_backup_mode == 'enable'
+      changed_when: false
+      no_log: true
+
+    - name: Read persisted acceptance receipts
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - /var/lib/cristexweb-backup/acceptance/postgresql/keycloak/backup.receipt
+        - /var/lib/cristexweb-backup/acceptance/postgresql/keycloak/restore.receipt
+      register: postgresql_keycloak_backup_acceptance_contents
+      when:
+        - postgresql_keycloak_backup_mode == 'enable'
+      changed_when: false
+      no_log: true
+
+    - name: Require exact current-source-bound acceptance receipts
+      ansible.builtin.assert:
+        that:
+          - >-
+            (item.item is search('/backup\.receipt$') and
+             item.content | b64decode is search('backup_status=success')) or
+            (item.item is search('/restore\.receipt$') and
+             item.content | b64decode is search('restore_status=success'))
+          - item.content | b64decode is search('source_closure_sha256=' ~ postgresql_keycloak_backup_source_closure_sha256)
+          - item.content | b64decode is search('readback=verified')
+          - item.content | b64decode is search('private_residue=none')
+      loop: "{{ postgresql_keycloak_backup_acceptance_contents.results | default([]) }}"
+      when:
+        - postgresql_keycloak_backup_mode == 'enable'
+      changed_when: false
+      no_log: true
+
+    - name: Enable and validate the accepted timer with rollback
+      block:
+        - name: Enable the accepted daily timer
+          ansible.builtin.systemd_service:
+            name: cristexweb-postgresql-keycloak-backup.timer
+            enabled: true
+            state: started
+          when: postgresql_keycloak_backup_mode == 'enable'
+        - name: Verify timer active after enable
+          ansible.builtin.command:
+            argv: [/usr/bin/systemctl, is-active, cristexweb-postgresql-keycloak-backup.timer]
+          register: postgresql_keycloak_backup_enable_active
+          changed_when: false
+          check_mode: false
+          when:
+            - postgresql_keycloak_backup_mode == 'enable'
+            - not ansible_check_mode
+        - name: Verify timer enabled after enable
+          ansible.builtin.command:
+            argv: [/usr/bin/systemctl, is-enabled, cristexweb-postgresql-keycloak-backup.timer]
+          register: postgresql_keycloak_backup_enable_enabled
+          changed_when: false
+          check_mode: false
+          when:
+            - postgresql_keycloak_backup_mode == 'enable'
+            - not ansible_check_mode
+        - name: Require timer health after enable
+          ansible.builtin.assert:
+            that:
+              - postgresql_keycloak_backup_enable_active.rc == 0
+              - postgresql_keycloak_backup_enable_active.stdout == 'active'
+              - postgresql_keycloak_backup_enable_enabled.rc == 0
+              - postgresql_keycloak_backup_enable_enabled.stdout == 'enabled'
+            fail_msg: Timer failed post-enable validation.
+          when:
+            - postgresql_keycloak_backup_mode == 'enable'
+            - not ansible_check_mode
+      rescue:
+        - name: Roll back timer after failed post-enable validation
+          ansible.builtin.systemd_service:
+            name: cristexweb-postgresql-keycloak-backup.timer
+            enabled: false
+            state: stopped
+          when:
+            - postgresql_keycloak_backup_mode == 'enable'
+            - not ansible_check_mode
+        - name: Refuse timer acceptance after rollback
+          ansible.builtin.fail:
+            msg: Timer enablement rolled back after failed validation.
 
   post_tasks:
     - name: Collect final service facts

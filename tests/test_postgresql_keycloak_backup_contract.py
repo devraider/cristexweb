@@ -34,6 +34,8 @@ class PostgreSQLKeycloakBackupContractTests(unittest.TestCase):
             "/usr/bin/age -r",
             "copyto --immutable",
             "readback=verified",
+            "gzip -9 -c \"$run_directory/keycloak.dump\" >\"$run_directory/keycloak.dump.gz\"",
+            "source_closure_sha256=",
         ):
             self.assertIn(value, self.script)
         self.assertNotRegex(self.script, r"rclone[^\n]*(sync|move|purge|delete)")
@@ -81,6 +83,8 @@ class PostgreSQLKeycloakBackupContractTests(unittest.TestCase):
         self.assertIn("postgresql_keycloak_backup_timer_active.stdout == 'active'", text)
         self.assertIn("postgresql_keycloak_backup_timer_enabled.stdout == 'enabled'", text)
         self.assertIn("not ansible_check_mode", text)
+        self.assertIn("/usr/bin/timeout", text)
+        self.assertIn("Roll back timer after failed post-enable validation", text)
         self.assertRegex(
             text,
             r"Verify the sole configured rclone remote[\s\S]*?check_mode: false[\s\S]*?no_log: true",

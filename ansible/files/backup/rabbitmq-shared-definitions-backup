@@ -10,6 +10,7 @@ admin_secret=shared-rabbitmq-admin
 tls_secret=shared-rabbitmq-tls
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
+source_closure_sha256=fb9f21b338e11e7a39c664cb9a97a804c24802c453f4e6b174e6af51725ccb62
 rclone_config=/home/paul/.config/rclone/rclone.conf
 archive_root=/var/lib/cristexweb-backup/rabbitmq/definitions
 remote_root=drive:cristexweb-recovery/rabbitmq/definitions
@@ -69,14 +70,16 @@ assert isinstance(x,dict) and isinstance(x.get('vhosts'),list)
 assert isinstance(x.get('permissions',[]),list) and isinstance(x.get('queues',[]),list)
 PY
 start_epoch=$(/usr/bin/date +%s)
-/usr/bin/gzip -9 -c "$work/definitions.json" | /usr/bin/age -r "$recipient" -o "$run_directory/rabbitmq-definitions.json.gz.age"
+/usr/bin/gzip -9 -c "$work/definitions.json" >"$run_directory/rabbitmq-definitions.json.gz"
+/usr/bin/age -r "$recipient" -o "$run_directory/rabbitmq-definitions.json.gz.age" "$run_directory/rabbitmq-definitions.json.gz"
+/usr/bin/rm -f -- "$run_directory/rabbitmq-definitions.json.gz"
 /usr/bin/rm -rf -- "$work"
 trap - EXIT HUP INT TERM
 (cd "$run_directory" && /usr/bin/sha256sum rabbitmq-definitions.json.gz.age >rabbitmq-definitions.json.gz.age.sha256)
 archive_bytes=$(/usr/bin/stat -c %s "$run_directory/rabbitmq-definitions.json.gz.age")
 archive_sha256=$(/usr/bin/cut -d ' ' -f 1 "$run_directory/rabbitmq-definitions.json.gz.age.sha256")
 duration_seconds=$(( $(/usr/bin/date +%s) - start_epoch ))
-/usr/bin/printf '{"schema":1,"service":"rabbitmq","purpose":"definitions","created_at_utc":"%s","archive":"rabbitmq-definitions.json.gz.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","source_version":"4.3.4","consistency":"definitions-and-policies"}\n' "$timestamp" "$archive_bytes" "$archive_sha256" >"$run_directory/manifest.json"
+/usr/bin/printf '{"schema":1,"service":"rabbitmq","purpose":"definitions","created_at_utc":"%s","archive":"rabbitmq-definitions.json.gz.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","source_version":"4.3.4","consistency":"definitions-and-policies","source_closure_sha256":"$source_closure_sha256"}\n' "$timestamp" "$archive_bytes" "$archive_sha256" >"$run_directory/manifest.json"
 for leaf in rabbitmq-definitions.json.gz.age rabbitmq-definitions.json.gz.age.sha256 manifest.json; do
   /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/$leaf" "$remote_directory/$leaf"
 done
@@ -89,4 +92,4 @@ done
 /usr/bin/rm -rf -- "$readback"
 trap - EXIT HUP INT TERM
 /usr/bin/find "$archive_root" -mindepth 1 -maxdepth 1 -type d -mtime +14 -name '20[0-9][0-9][01][0-9][0-3][0-9]T[0-2][0-9][0-5][0-9][0-5][0-9]Z' -exec /usr/bin/rm -rf -- {} +
-printf 'backup_status=success service=rabbitmq purpose=definitions timestamp=%s archive_bytes=%s duration_seconds=%s readback=verified\n' "$timestamp" "$archive_bytes" "$duration_seconds"
+printf 'backup_status=success service=rabbitmq purpose=definitions timestamp=%s archive_bytes=%s duration_seconds=%s readback=verified source_closure_sha256=%s\n' "$timestamp" "$archive_bytes" "$duration_seconds" "$source_closure_sha256"

@@ -49,6 +49,8 @@ class MongoDBSharedBackupContractTests(unittest.TestCase):
             "trap cleanup EXIT HUP INT TERM",
             "-mtime +14",
             "readback=verified",
+            "gzip -9 -c \"$run_directory/shared-mongodb.archive\" >\"$run_directory/shared-mongodb.archive.gz\"",
+            "source_closure_sha256=",
         ):
             self.assertIn(value, self.backup)
         for forbidden in ("rclone sync", "rclone move", "rclone purge", "rclone delete"):
@@ -91,6 +93,11 @@ class MongoDBSharedBackupContractTests(unittest.TestCase):
         self.assertIn("RandomizedDelaySec=15m", self.timer)
         self.assertIn("Persistent=true", self.timer)
         self.assertNotIn("postgresql-keycloak", self.service + self.timer)
+        self.assertIn("/var/lib/cristexweb-backup/mongodb", self.playbook)
+        self.assertIn("/var/lib/cristexweb-backup/mongodb/shared-mongodb", self.playbook)
+        self.assertNotIn("/var/lib/cristexweb-backup/postgresql/keycloak", self.playbook)
+        self.assertIn("/usr/bin/timeout", self.playbook)
+        self.assertIn("Roll back timer after failed post-enable validation", self.playbook)
 
     def test_ansible_modes_keep_timer_gated_and_check_mode_safe(self) -> None:
         for value in (

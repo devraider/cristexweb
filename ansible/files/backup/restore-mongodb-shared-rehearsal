@@ -1,5 +1,10 @@
 #!/bin/sh
 set -eu
+
+if [ "${CRISTEXWEB_RESTORE_TIMEOUT_GUARD:-}" != 1 ]; then
+  export CRISTEXWEB_RESTORE_TIMEOUT_GUARD=1
+  exec /usr/bin/timeout --foreground --kill-after=30s 3600 "$0" "$@"
+fi
 umask 077
 PATH=/usr/local/bin:/usr/bin:/bin
 export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null

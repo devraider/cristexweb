@@ -58,6 +58,9 @@ class OpenTofuStateBackupContractTests(unittest.TestCase):
             "Keep timer disabled until restore acceptance",
             "opentofu_state_backup_mode == 'restore'",
             "opentofu_state_backup_mode == 'enable'",
+            "fresh matching backup and restore acceptance evidence",
+            "/usr/bin/timeout",
+            "Roll back timer after failed post-enable validation",
         ):
             self.assertIn(value, self.play)
         self.assertIn("check|apply|test|restore|enable-check|enable-apply", self.wrapper)
