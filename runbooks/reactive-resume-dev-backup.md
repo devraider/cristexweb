@@ -53,6 +53,7 @@ ansible/files/backup/cristexweb-reactive-resume-dev-backup.service
 ansible/files/backup/cristexweb-reactive-resume-dev-backup.timer
 ansible/playbooks/configure_reactive_resume_dev_backup.yml
 ansible/bin/configure-reactive-resume-dev-backup
+ansible/files/backup/reactive-resume-dev-backup-networkpolicy.yaml
 ```
 
 The only wrapper modes are. The wrapper and playbook perform a canonical
@@ -73,12 +74,14 @@ ansible/bin/configure-reactive-resume-dev-backup enable-apply
 ```
 
 `check` and `apply` install source while leaving the timer disabled. `test`
-runs one separately approved backup. `restore` requires a separately created
-mode-`0600` attestation and token and restores both datasets into isolated
-emptyDir runtimes. `enable-check` predicts activation and `enable-apply` is only
-permitted after a verified backup and isolated restore. Direct playbook
-invocation, extra arguments, task selection, and root execution of the backup
-script are refused.
+runs one separately approved backup, captures exactly one allowlisted successful
+journal receipt, and writes its sanitized receipt and `run_id` to root-owned
+mode-`0600` evidence. `restore` requires a separately created mode-`0600`
+attestation and token and restores both datasets into isolated emptyDir
+runtimes. `enable-check` predicts activation and `enable-apply` is only
+permitted after a verified backup and isolated restore whose `source_run_id`
+exactly equals the captured backup `run_id`. Direct playbook invocation, extra
+arguments, task selection, and root execution of the backup script are refused.
 
 ## Twice-daily schedule and retention
 
@@ -147,7 +150,11 @@ DEV prefixes:
 The helper produces a sorted value-free object manifest containing every key,
 size, and SHA-256 checksum (plus available MD5 values), verifies every copied
 object against that manifest before archiving, and then creates an encrypted
-`object-storage.tar.gz.age`. Restore validates every manifest key before any
+`object-storage.tar.gz.age`. Its dedicated NetworkPolicy selects only the
+run-labelled backup helper and permits egress solely to kube-system CoreDNS on
+TCP/UDP 53, the shared-services CNPG primary on TCP 5432, and the shared-services
+Reactive Resume object-storage pods on TCP 8333; each destination uses exact
+namespace and pod selectors. Restore validates every manifest key before any
 extracted-object filesystem read: only the three reviewed prefixes are allowed,
 with no absolute path, traversal component, backslash, NUL, or root escape.
 A successful acceptance backup refuses an empty bucket: both `object_count` and
@@ -240,7 +247,8 @@ ansible/bin/configure-reactive-resume-dev-backup check
 ansible/bin/configure-reactive-resume-dev-backup apply
 ansible/bin/configure-reactive-resume-dev-backup apply
 
-# separately approved non-empty combined backup; retain only the sanitized receipt
+# Capture the exact sanitized successful backup journal receipt. The playbook
+# captures exactly one allowlisted line and stores its run_id/receipt root-owned
 ansible/bin/configure-reactive-resume-dev-backup test
 journalctl -u cristexweb-reactive-resume-dev-backup.service -n 1 -o cat --no-pager
 
@@ -255,7 +263,8 @@ ansible/bin/configure-reactive-resume-dev-backup restore
 
 # enable only after non-empty backup, restore, RPO/RTO, cleanup, and correlation pass;
 # the playbook writes root-owned mode-0600 machine evidence and enforces its
-# success, ordering, and 24-hour freshness before enable-apply
+# success, ordering, exact restore source_run_id == backup run_id, and 24-hour
+# freshness before enable-apply
 ansible/bin/configure-reactive-resume-dev-backup enable-check
 ansible/bin/configure-reactive-resume-dev-backup enable-apply
 ansible/bin/configure-reactive-resume-dev-backup enable-check

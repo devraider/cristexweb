@@ -17,10 +17,66 @@ spec:
     - Ingress
   ingress:
     - from:
-        - podSelector:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: shared-services
+          podSelector:
             matchLabels:
               app.kubernetes.io/name: reactive-resume-dev-backup
               cristex.io/object-storage-client: backup
+      ports:
+        - protocol: TCP
+          port: 8333
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: reactive-resume-dev-backup-egress
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/name: reactive-resume-dev-backup
+    app.kubernetes.io/part-of: reactive-resume
+    cristex.io/component: backup
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: reactive-resume-dev-backup
+      cristex.io/object-storage-client: backup
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: shared-services
+          podSelector:
+            matchLabels:
+              cnpg.io/cluster: shared-postgresql
+              cnpg.io/instanceRole: primary
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: shared-services
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: reactive-resume-object-storage
+              app.kubernetes.io/part-of: reactive-resume
       ports:
         - protocol: TCP
           port: 8333

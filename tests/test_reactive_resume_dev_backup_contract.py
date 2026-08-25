@@ -281,9 +281,17 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             self.assertIn(value, self.restore, value)
         self.assertNotIn("/data" + " ", self.backup)
         self.assertNotIn("PersistentVolume", self.restore)
-        policy = yaml.safe_load(NETWORK_POLICY.read_text())
-        self.assertEqual("reactive-resume-object-storage-allow-backup", policy["metadata"]["name"])
+        policies = list(yaml.safe_load_all(NETWORK_POLICY.read_text()))
+        self.assertEqual(2, len(policies))
+        policy = next(item for item in policies if item["metadata"]["name"] == "reactive-resume-object-storage-allow-backup")
+        egress_policy = next(item for item in policies if item["metadata"]["name"] == "reactive-resume-dev-backup-egress")
         self.assertEqual("shared-services", policy["metadata"]["namespace"])
+        self.assertEqual(
+            {
+                "kubernetes.io/metadata.name": "shared-services",
+            },
+            policy["spec"]["ingress"][0]["from"][0]["namespaceSelector"]["matchLabels"],
+        )
         self.assertEqual(
             {
                 "app.kubernetes.io/name": "reactive-resume-dev-backup",
@@ -292,6 +300,40 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             policy["spec"]["ingress"][0]["from"][0]["podSelector"]["matchLabels"],
         )
         self.assertEqual([{"protocol": "TCP", "port": 8333}], policy["spec"]["ingress"][0]["ports"])
+        self.assertEqual(
+            {
+                "app.kubernetes.io/name": "reactive-resume-dev-backup",
+                "cristex.io/object-storage-client": "backup",
+            },
+            egress_policy["spec"]["podSelector"]["matchLabels"],
+        )
+        self.assertEqual(["Egress"], egress_policy["spec"]["policyTypes"])
+        self.assertEqual(
+            [
+                {
+                    "to": [{
+                        "namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "kube-system"}},
+                        "podSelector": {"matchLabels": {"k8s-app": "kube-dns"}},
+                    }],
+                    "ports": [{"protocol": "UDP", "port": 53}, {"protocol": "TCP", "port": 53}],
+                },
+                {
+                    "to": [{
+                        "namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "shared-services"}},
+                        "podSelector": {"matchLabels": {"cnpg.io/cluster": "shared-postgresql", "cnpg.io/instanceRole": "primary"}},
+                    }],
+                    "ports": [{"protocol": "TCP", "port": 5432}],
+                },
+                {
+                    "to": [{
+                        "namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "shared-services"}},
+                        "podSelector": {"matchLabels": {"app.kubernetes.io/name": "reactive-resume-object-storage", "app.kubernetes.io/part-of": "reactive-resume"}},
+                    }],
+                    "ports": [{"protocol": "TCP", "port": 8333}],
+                },
+            ],
+            egress_policy["spec"]["egress"],
+        )
         self.assertIn("reactive-resume-dev-backup-networkpolicy.yaml", self.playbook_text)
         self.assertIn("reactive-resume-dev-postgresql-restore-$pod_run_id", self.restore)
         self.assertIn("reactive-resume-dev-storage-restore-$pod_run_id", self.restore)
@@ -367,7 +409,15 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "Inspect machine acceptance evidence before timer enablement",
             "Require successful current backup and restore evidence",
             "Record root-owned successful backup evidence",
+            "reactive_resume_dev_backup_test_receipt",
+            "reactive_resume_dev_backup_test_run_id",
+            "Capture the exact sanitized successful backup journal receipt",
+            "reactive_resume_dev_backup_journal_pattern",
+            "run_id=20[0-9]{6}T[0-9]{6}Z",
+            "receipt': reactive_resume_dev_backup_test_receipt",
             "Record root-owned successful restore evidence",
+            "source_run_id == reactive_resume_dev_backup_acceptance_backup.run_id",
+            "acceptance_backup.receipt is match(reactive_resume_dev_backup_journal_pattern)",
             "reactive_resume_dev_backup_acceptance_max_age_seconds: 86400",
             "reactive_resume_dev_backup_mode == 'enable'",
             "not ansible_check_mode",
@@ -435,6 +485,8 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "per-object checksum",
             "clock_skew",
             "journalctl -u cristexweb-reactive-resume-dev-backup.service",
+            "Capture the exact sanitized successful backup journal receipt",
+            "source_run_id",
             "--ask-become-pass",
             "controlling terminal",
             "do not pipe or redirect",
