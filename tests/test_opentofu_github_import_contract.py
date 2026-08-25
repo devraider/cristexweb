@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import stat
@@ -100,7 +101,7 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "/var/lib/opentofu/cristexweb/github.tfstate",
             "GitHub token (input hidden)",
             "read -r -s github_token",
-            "GITHUB_TOKEN=",
+            "GITHUB_TOKEN",
             "check-repository-present",
             "restore-absence",
             "tofu",
@@ -134,6 +135,39 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "stat -c '%U:%G:%a' \"$tofu_target\"",
         ):
             self.assertIn(value, source, value)
+
+    def test_backend_environment_lock_and_final_gates_are_bound(self) -> None:
+        source = IMPORT.read_text()
+        backend = (GITHUB / "backend.tf").read_bytes()
+        self.assertEqual(
+            "318f268e4f93ae5c7775b798a88db997f4e47d1e32374432cf5c438f63a8e487",
+            hashlib.sha256(backend).hexdigest(),
+        )
+        for value in (
+            "backend_expected_sha256=",
+            "backend_expected_state_path='/var/lib/opentofu/cristexweb/github.tfstate'",
+            "committed backend file is hash-bound",
+            "grep -Fxq",
+            "lock_file=\"$state_parent/github-import.lock\"",
+            "/usr/bin/flock -n 9",
+            "state_absence_recheck",
+            "TF_CLI_ARGS_*",
+            "TF_LOG_PATH",
+            "TF_CLI_CONFIG_FILE",
+            "TF_DATA_DIR",
+            "http_proxy",
+            "clean_exec_with_token",
+            "TF_CLI_CONFIG_FILE=/dev/null",
+            "anonymous pipe",
+            "post_plan=",
+            "second_plan=no-op",
+            "postcheck=private-exact",
+            "state list -no-color",
+        ):
+            self.assertIn(value, source, value)
+        self.assertIn("run_quiet_with_token \"$github_root/bin/check-repository-present\"", source)
+        self.assertIn("run_quiet_with_token \"$tofu\" -chdir=\"$github_root\" plan", source)
+        self.assertIn("run_capture \"$post_plan_json\"", source)
 
     def test_import_plan_validator_accepts_only_noop_exact_scope(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -183,6 +217,13 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "distribution symlink itself is intentional",
             "--ask-become-pass",
             "controlling terminal",
+            "318f268e4f93ae5c7775b798a88db997f4e47d1e32374432cf5c438f63a8e487",
+            "anonymous pipe",
+            "TF_CLI_ARGS*",
+            "first-genesis `flock`",
+            "second no-op plan",
+            "exact private-repository API postcheck",
+            "tofu state list",
         ):
             self.assertIn(value, text, value)
         self.assertIn("tofu apply", text)

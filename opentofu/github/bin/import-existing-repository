@@ -1,6 +1,7 @@
 #!/bin/bash
 # Guarded import only: this workflow never creates, deletes, or applies GitHub resources.
 set -eu
+set -o pipefail
 umask 077
 PATH=/usr/local/bin:/usr/bin:/bin
 export PATH
@@ -13,14 +14,19 @@ case "$1" in
     *) printf '%s\n' "$usage" >&2; exit 64 ;;
 esac
 
-# A caller must not preload or override the protected GitHub transport.
-[ -z "${GITHUB_TOKEN+x}" ] || { printf '%s\n' 'Refusing preloaded GITHUB_TOKEN.' >&2; exit 65; }
-[ -z "${GITHUB_BASE_URL:-}" ] || { printf '%s\n' 'Refusing GitHub endpoint override.' >&2; exit 65; }
-[ -z "${GITHUB_API_URL:-}" ] || { printf '%s\n' 'Refusing GitHub API endpoint override.' >&2; exit 65; }
-[ -z "${HTTPS_PROXY:-}" ] && [ -z "${HTTP_PROXY:-}" ] && [ -z "${ALL_PROXY:-}" ] || {
-    printf '%s\n' 'Refusing proxy override.' >&2
-    exit 65
-}
+# A caller must not preload or override the protected GitHub/OpenTofu transport.
+# Reject set variables (including empty values) rather than only non-empty values;
+# provider commands below are then launched from an explicit clean environment.
+while IFS='=' read -r inherited_name _; do
+    case "$inherited_name" in
+        GITHUB_TOKEN|GITHUB_BASE_URL|GITHUB_API_URL|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|http_proxy|https_proxy|all_proxy|no_proxy|TF_CLI_ARGS|TF_CLI_ARGS_*|TF_LOG|TF_LOG_PATH|TF_CLI_CONFIG_FILE|TF_DATA_DIR|TF_WORKSPACE|TF_VAR_*|TERRAFORM_CONFIG|TERRAFORM_CONFIG_DIR|TOFU_CLI_CONFIG_FILE|TOFU_CLI_ARGS|TOFU_LOG|TOFU_LOG_PATH)
+            printf 'Refusing inherited environment override: %s\n' "$inherited_name" >&2
+            exit 65
+            ;;
+    esac
+done <<EOF
+$(/usr/bin/env | /usr/bin/sed 's/=.*//')
+EOF
 
 script=$0
 [ ! -L "$script" ] || { printf '%s\n' 'Refusing symlinked entrypoint.' >&2; exit 66; }
@@ -40,16 +46,46 @@ tofu_target=/opt/opentofu/1.12.5/tofu
 [ -L "$tofu" ] && [ "$(/usr/bin/readlink -f -- "$tofu")" = "$tofu_target" ] || exit 69
 [ -x "$tofu_target" ] && [ ! -L "$tofu_target" ] || exit 69
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$tofu_target")" = 'root:root:755' ] || exit 69
-# Fixed backend state: /var/lib/opentofu/cristexweb/github.tfstate
+# Fixed backend state: /var/lib/opentofu/cristexweb/github.tfstate. The
+# committed backend file is hash-bound so a caller cannot redirect imports to a
+# different local state path by editing backend.tf in the working tree.
 state_parent=/var/lib/opentofu/cristexweb
 state_file="$state_parent/github.tfstate"
+backend_file="$github_root/backend.tf"
+backend_expected_state_path='/var/lib/opentofu/cristexweb/github.tfstate'
+backend_expected_sha256='318f268e4f93ae5c7775b798a88db997f4e47d1e32374432cf5c438f63a8e487'
+[ -f "$backend_file" ] && [ ! -L "$backend_file" ] || { printf '%s\n' 'Refusing backend file.' >&2; exit 78; }
+[ "$(/usr/bin/sha256sum "$backend_file" | /usr/bin/cut -d ' ' -f 1)" = "$backend_expected_sha256" ] || {
+    printf '%s\n' 'Refusing backend content drift.' >&2
+    exit 78
+}
+/usr/bin/grep -Fxq "    path = \"$backend_expected_state_path\"" "$backend_file" || {
+    printf '%s\n' 'Refusing backend state path drift.' >&2
+    exit 78
+}
+[ "$state_file" = "$backend_expected_state_path" ] || exit 78
 [ -d "$state_parent" ] && [ ! -L "$state_parent" ] || { printf '%s\n' 'Refusing state parent.' >&2; exit 65; }
 [ "$(/usr/bin/realpath -e -- "$state_parent")" = "$state_parent" ] || exit 65
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$state_parent")" = 'paul:root:700' ] || exit 65
-[ ! -e "$state_file" ] && [ ! -L "$state_file" ] || {
-    printf '%s\n' 'Refusing existing state; import is first-genesis only.' >&2
-    exit 73
+# Hold this lock from the first absence check through initialization and all
+# three imports. The lock lives below the protected state parent, not /tmp.
+lock_file="$state_parent/github-import.lock"
+[ ! -L "$lock_file" ] || exit 65
+[ ! -e "$lock_file" ] || [ -f "$lock_file" ] || exit 65
+exec 9>"$lock_file"
+chmod 0600 "$lock_file"
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$lock_file")" = 'paul:root:600' ] || exit 65
+/usr/bin/flock -n 9 || {
+    printf '%s\n' 'Refusing concurrent first-genesis import.' >&2
+    exit 75
 }
+state_absence_recheck() {
+    [ ! -e "$state_file" ] && [ ! -L "$state_file" ] || {
+        printf '%s\n' 'Refusing existing state during first-genesis import.' >&2
+        exit 73
+    }
+}
+state_absence_recheck
 
 # Every provider command is captured in a private temporary log and only a
 # sanitized receipt is emitted. The token is never an argument or a file.
@@ -68,10 +104,42 @@ fail() {
     printf 'import_status=failed stage=%s\n' "$1" >&2
     exit 1
 }
+clean_exec() {
+    /usr/bin/env -i \
+        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
+        LC_ALL=C.UTF-8 TF_CLI_CONFIG_FILE=/dev/null \
+        "$@"
+}
+clean_exec_with_token() {
+    # The token crosses the process boundary through an anonymous pipe, never
+    # as argv, a file, or a command-log value. pipefail preserves child errors.
+    printf '%s\n' "$github_token" | /usr/bin/env -i \
+        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
+        LC_ALL=C.UTF-8 TF_CLI_CONFIG_FILE=/dev/null \
+        /bin/sh -c '
+            IFS= read -r GITHUB_TOKEN || exit 74
+            export GITHUB_TOKEN
+            exec "$@"
+        ' import-child "$@"
+}
 run_quiet() {
     : >"$log"
     chmod 0600 "$log"
-    "$@" >"$log" 2>&1 || fail command
+    clean_exec "$@" >"$log" 2>&1 || fail command
+}
+run_quiet_with_token() {
+    : >"$log"
+    chmod 0600 "$log"
+    clean_exec_with_token "$@" >"$log" 2>&1 || fail command
+}
+run_capture() {
+    capture_file=$1
+    shift
+    : >"$log"
+    chmod 0600 "$log"
+    : >"$capture_file"
+    chmod 0600 "$capture_file"
+    clean_exec "$@" >"$capture_file" 2>"$log" || fail command
 }
 # Ansible backup modes use --ask-become-pass. Do not redirect their prompt to
 # the provider log: nested backup calls must retain the controlling terminal so
@@ -79,7 +147,7 @@ run_quiet() {
 # sanitized receipts and never receives GITHUB_TOKEN.
 run_backup_interactive() {
     printf 'import_stage=backup_%s sudo_prompt=interactive\n' "$1" >&2
-    "$backup_wrapper" "$1" || fail "backup_$1"
+    clean_exec "$backup_wrapper" "$1" || fail "backup_$1"
 }
 
 printf '%s' 'GitHub token (input hidden): ' >&2
@@ -89,10 +157,8 @@ printf '\n' >&2
 case "$github_token" in
     *[[:space:]]*) fail protected_token_contract ;;
 esac
-export GITHUB_TOKEN="$github_token"
-
 # Read-only identity and exact private repository preflight.
-run_quiet "$github_root/bin/check-repository-present"
+run_quiet_with_token "$github_root/bin/check-repository-present"
 
 if [ "$mode" = check ]; then
     printf '%s\n' 'import_status=check_passed repository=devraider/cristex-reactive-resume state_absent=true mutation=none token_output=false'
@@ -108,29 +174,46 @@ unset confirmation
 # it never receives GITHUB_TOKEN and never writes the OpenTofu state.
 backup_wrapper="$repo_root/ansible/bin/configure-opentofu-github-state-backup"
 [ -x "$backup_wrapper" ] || fail backup_wrapper
-unset GITHUB_TOKEN
 run_backup_interactive restore-absence
 # The token remains only in this shell variable while the backup lane runs
-# without GITHUB_TOKEN; it is re-exported immediately before provider calls.
-export GITHUB_TOKEN="$github_token"
-
+# without GITHUB_TOKEN. Recheck absence under the same lock immediately before
+# initialization and again after init, before any import can create state.
+state_absence_recheck
 run_quiet "$tofu" -chdir="$github_root" init -input=false -no-color
+state_absence_recheck
 # These are the only import addresses and IDs. No create/delete/apply path exists.
-run_quiet "$tofu" -chdir="$github_root" import -input=false -lock=true -no-color \
+run_quiet_with_token "$tofu" -chdir="$github_root" import -input=false -lock=true -no-color \
     github_repository.reactive_resume_mirror devraider/cristex-reactive-resume
-run_quiet "$tofu" -chdir="$github_root" import -input=false -lock=true -no-color \
+[ -f "$state_file" ] && [ ! -L "$state_file" ] || fail first_import_state
+run_quiet_with_token "$tofu" -chdir="$github_root" import -input=false -lock=true -no-color \
     github_repository_vulnerability_alerts.reactive_resume_mirror cristex-reactive-resume
-run_quiet "$tofu" -chdir="$github_root" import -input=false -lock=true -no-color \
+run_quiet_with_token "$tofu" -chdir="$github_root" import -input=false -lock=true -no-color \
     github_actions_repository_permissions.reactive_resume_mirror cristex-reactive-resume
 
-run_quiet "$tofu" -chdir="$github_root" plan -input=false -lock=true -no-color -out="$plan"
-: >"$plan_json"
-chmod 0600 "$plan_json"
-"$tofu" -chdir="$github_root" show -json "$plan" >"$plan_json" 2>"$log" || fail plan_render
+run_quiet_with_token "$tofu" -chdir="$github_root" plan -input=false -lock=true -no-color -out="$plan"
+run_capture "$plan_json" "$tofu" -chdir="$github_root" show -json "$plan"
 run_quiet "$github_root/bin/validate-import-plan" "$plan_json"
 
 # Backup, immutable readback, and isolated restore are mandatory after genesis.
-unset GITHUB_TOKEN
 run_backup_interactive test
 run_backup_interactive restore
-printf '%s\n' 'import_status=success repository=devraider/cristex-reactive-resume addresses=3 plan=no-op backup=immutable-readback restore=isolated token_output=false'
+
+# The documented final gate repeats both the no-op plan and the exact private
+# repository postcheck after recovery operations have completed.
+post_plan="$work/github-post-import.tfplan"
+post_plan_json="$work/github-post-import-plan.json"
+state_list="$work/github-state-list.txt"
+run_quiet_with_token "$tofu" -chdir="$github_root" plan -input=false -lock=true -no-color -out="$post_plan"
+run_capture "$post_plan_json" "$tofu" -chdir="$github_root" show -json "$post_plan"
+run_quiet "$github_root/bin/validate-import-plan" "$post_plan_json"
+run_quiet_with_token "$github_root/bin/check-repository-present"
+run_capture "$state_list" "$tofu" -chdir="$github_root" state list -no-color
+expected_state_list="$work/expected-state-list.txt"
+printf '%s\n' \
+    github_actions_repository_permissions.reactive_resume_mirror \
+    github_repository.reactive_resume_mirror \
+    github_repository_vulnerability_alerts.reactive_resume_mirror | /usr/bin/sort >"$expected_state_list"
+if /usr/bin/sort "$state_list" | /usr/bin/comm -3 - "$expected_state_list" | /usr/bin/grep -q .; then
+    fail post_state_scope
+fi
+printf '%s\n' 'import_status=success repository=devraider/cristex-reactive-resume addresses=3 plan=no-op second_plan=no-op postcheck=private-exact backup=immutable-readback restore=isolated token_output=false'
