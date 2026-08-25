@@ -9,12 +9,12 @@ for path in "$cert" "$key"; do
   [ -f "$path" ] && [ ! -L "$path" ] || { printf '%s\n' 'Refusing missing or symlinked TLS input.' >&2; exit 66; }
   [ "$(stat -c '%a' -- "$path")" = 600 ] || { printf '%s\n' 'Refusing TLS input outside mode 0600.' >&2; exit 66; }
 done
+[ -r /etc/ssl/certs/ca-certificates.crt ] || { printf '%s\n' 'Refusing missing system trust store.' >&2; exit 66; }
 openssl x509 -in "$cert" -noout -checkhost resume-dev.cristex-soft.com >/dev/null
-openssl x509 -in "$cert" -noout -checkend 86400 >/dev/null
+openssl x509 -in "$cert" -noout -checkend 2592000 >/dev/null
 san=$(
   openssl x509 -in "$cert" -noout -ext subjectAltName |
-    sed -n '/Subject Alternative Name/{n;p;}' |
-    tr -d '[:space:]'
+    awk '/Subject Alternative Name/{capture=1; next} capture && /^[^[:space:]]/{exit} capture{gsub(/[[:space:]]/, ""); printf "%s", $0} END{print ""}'
 )
 [ "$san" = 'DNS:resume-dev.cristex-soft.com' ] || {
   printf '%s\n' 'Refusing certificate outside the exact single-host SAN set.' >&2
@@ -30,4 +30,4 @@ cmp -s "$cert_pub" "$key_pub" || {
   printf '%s\n' 'Refusing certificate/key mismatch.' >&2
   exit 66
 }
-printf '%s\n' 'reactive_resume_dev_tls_material=valid san=exact key_match=verified residue=none'
+printf '%s\n' 'reactive_resume_dev_tls_material=valid san=exact validity=30d key_match=verified residue=none'

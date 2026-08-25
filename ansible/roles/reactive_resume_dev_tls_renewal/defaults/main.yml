@@ -13,3 +13,9 @@ reactive_resume_dev_tls_renewal_infisical_cli: /home/paul/.nvm/versions/node/v24
 reactive_resume_dev_tls_renewal_service: cristexweb-reactive-resume-dev-tls-renew.service
 reactive_resume_dev_tls_renewal_timer: cristexweb-reactive-resume-dev-tls-renew.timer
 reactive_resume_dev_tls_renewal_component_root: "{{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/files/components/reactive-resume-dev-tls/renewal"
+reactive_resume_dev_tls_renewal_certbot_package_version: '4.0.0-2+deb13u1'
+reactive_resume_dev_tls_renewal_dns_cloudflare_package_version: '4.0.0-1'
+reactive_resume_dev_tls_renewal_certbot_version: '4.0.0'
+reactive_resume_dev_tls_renewal_infisical_cli_version: '0.43.121'
+reactive_resume_dev_tls_renewal_certbot_path: /usr/bin/certbot
+reactive_resume_dev_tls_renewal_infisical_path: /usr/local/bin/infisical

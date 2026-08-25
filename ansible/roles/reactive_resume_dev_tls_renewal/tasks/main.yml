@@ -6,6 +6,9 @@
     - reactive_resume_dev_tls_renewal_internal_token
     - reactive_resume_dev_tls_renewal_internal_token_state
     - reactive_resume_dev_tls_renewal_internal_infisical_state
+    - reactive_resume_dev_tls_renewal_internal_certbot_state
+    - reactive_resume_dev_tls_renewal_internal_certbot_version
+    - reactive_resume_dev_tls_renewal_internal_infisical_version
     - reactive_resume_dev_tls_renewal_internal_package_facts
     - reactive_resume_dev_tls_renewal_internal_service_unit
     - reactive_resume_dev_tls_renewal_internal_timer_unit
@@ -45,12 +48,63 @@
   ansible.builtin.package_facts:
     manager: apt
 
-- name: Require the pinned renewal dependency names after install
+- name: Require the pinned renewal dependency versions and architecture after install
   ansible.builtin.assert:
     that:
       - ansible_check_mode or 'certbot' in ansible_facts.packages
+      - ansible_check_mode or ansible_facts.packages['certbot'] | length == 1
+      - ansible_check_mode or ansible_facts.packages['certbot'][0].version == reactive_resume_dev_tls_renewal_certbot_package_version
+      - ansible_check_mode or ansible_facts.packages['certbot'][0].arch == 'amd64'
       - ansible_check_mode or 'python3-certbot-dns-cloudflare' in ansible_facts.packages
-    fail_msg: Refusing absent certbot DNS-01 dependencies after the approved install.
+      - ansible_check_mode or ansible_facts.packages['python3-certbot-dns-cloudflare'] | length == 1
+      - ansible_check_mode or ansible_facts.packages['python3-certbot-dns-cloudflare'][0].version == reactive_resume_dev_tls_renewal_dns_cloudflare_package_version
+      - ansible_check_mode or ansible_facts.packages['python3-certbot-dns-cloudflare'][0].arch == 'all'
+    fail_msg: Refusing renewal dependencies outside the pinned Debian package provenance.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the pinned Certbot executable
+  ansible.builtin.stat:
+    path: "{{ reactive_resume_dev_tls_renewal_certbot_path }}"
+    follow: false
+  register: reactive_resume_dev_tls_renewal_internal_certbot_state
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require the pinned Certbot executable metadata
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.isreg | default(false)
+      - not (reactive_resume_dev_tls_renewal_internal_certbot_state.stat.islnk | default(false))
+      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.pw_name == 'root'
+      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.gr_name == 'root'
+      - reactive_resume_dev_tls_renewal_internal_certbot_state.stat.mode == '0755'
+    fail_msg: Refusing a missing, symlinked, or unsafe pinned Certbot executable.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Verify pinned Certbot CLI provenance
+  ansible.builtin.command:
+    argv:
+      - "{{ reactive_resume_dev_tls_renewal_certbot_path }}"
+      - --version
+  register: reactive_resume_dev_tls_renewal_internal_certbot_version
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require pinned Certbot CLI version
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_certbot_version.rc == 0
+      - (reactive_resume_dev_tls_renewal_internal_certbot_version.stdout ~ '\n' ~ reactive_resume_dev_tls_renewal_internal_certbot_version.stderr) is search('certbot ' ~ reactive_resume_dev_tls_renewal_certbot_version)
+    fail_msg: Refusing Certbot outside the pinned CLI version.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
   changed_when: false
   no_log: true
 
@@ -71,6 +125,25 @@
       - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.gr_name == 'paul'
       - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.mode == '0775'
     fail_msg: Refusing a missing or unsafe pinned Infisical CLI.
+  changed_when: false
+  no_log: true
+
+- name: Verify pinned Infisical CLI provenance
+  ansible.builtin.command:
+    argv:
+      - "{{ reactive_resume_dev_tls_renewal_infisical_cli }}"
+      - --version
+  register: reactive_resume_dev_tls_renewal_internal_infisical_version
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Require pinned Infisical CLI version
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_infisical_version.rc == 0
+      - (reactive_resume_dev_tls_renewal_internal_infisical_version.stdout ~ '\n' ~ reactive_resume_dev_tls_renewal_internal_infisical_version.stderr) is search(reactive_resume_dev_tls_renewal_infisical_cli_version)
+    fail_msg: Refusing Infisical CLI outside the pinned version.
   changed_when: false
   no_log: true
 

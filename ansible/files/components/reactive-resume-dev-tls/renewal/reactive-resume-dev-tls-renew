@@ -14,18 +14,24 @@ usage='usage: reactive-resume-dev-tls-renew renew'
 hostname=resume-dev.cristex-soft.com
 challenge_name=_acme-challenge.resume-dev.cristex-soft.com
 zone_id=3cbee16e56d7656440f93e685807e779
+account_id=8b0f511214c7a4a52ddfb62ca92c5e80
 project_id=619656da-14f3-4872-857b-be103cdc5326
 environment=prod
 infisical_path=/reactive-resume/dev/tls
 cloudflare_token_file=/home/paul/.config/cristexweb/cloudflare-argo-dns-token
 state_root=/var/lib/cristexweb/reactive-resume-dev-tls
 work_root=$state_root/work
+certbot_dir=$state_root/certbot
 lock_file=/run/lock/cristexweb-reactive-resume-dev-tls-renew.lock
 certbot=/usr/bin/certbot
 # Pinned user-owned Infisical standalone binary; the service runs as paul.
 infisical=/home/paul/.nvm/versions/node/v24.19.0/lib/node_modules/@infisical/cli/bin/infisical
 validator=/usr/local/libexec/cristexweb/validate-reactive-resume-dev-tls-material
+system_ca=/etc/ssl/certs/ca-certificates.crt
 minimum_remaining_seconds=2592000
+certbot_package_version=4.0.0-2+deb13u1
+dns_cloudflare_package_version=4.0.0-1
+infisical_cli_version=0.43.121
 
 fail() {
   printf 'tls_renewal_status=failed stage=%s\n' "$1" >&2
@@ -36,9 +42,36 @@ fail() {
 [ -x "$certbot" ] || fail certbot_missing
 [ -x "$infisical" ] || fail infisical_cli_missing
 [ -x "$validator" ] || fail validator_missing
+[ -r "$system_ca" ] || fail system_ca_missing
 [ -f "$cloudflare_token_file" ] && [ ! -L "$cloudflare_token_file" ] || fail cloudflare_token_metadata
 [ "$(stat -c '%U:%G:%a' "$cloudflare_token_file")" = 'paul:paul:600' ] || fail cloudflare_token_metadata
 [ "$(stat -c '%s' "$cloudflare_token_file")" -ge 20 ] || fail cloudflare_token_contract
+! grep -q '[[:space:]]' "$cloudflare_token_file" || fail cloudflare_token_contract
+[ -z "${INFISICAL_TOKEN+x}" ] || fail secret_environment_forbidden
+[ -z "${INFISICAL_SERVICE_TOKEN+x}" ] || fail secret_environment_forbidden
+[ -z "${INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET+x}" ] || fail secret_environment_forbidden
+[ "$(/usr/bin/dpkg-query -W -f='${Version}' certbot 2>/dev/null)" = "$certbot_package_version" ] || fail certbot_provenance
+[ "$(/usr/bin/dpkg-query -W -f='${Version}' python3-certbot-dns-cloudflare 2>/dev/null)" = "$dns_cloudflare_package_version" ] || fail dns_cloudflare_provenance
+certbot_version=$($certbot --version 2>&1) || fail certbot_version
+printf '%s\n' "$certbot_version" | grep -Fq "certbot 4.0.0" || fail certbot_version
+infisical_version=$($infisical --version 2>&1) || fail infisical_version
+printf '%s\n' "$infisical_version" | grep -Fq "$infisical_cli_version" || fail infisical_version
+
+[ -d "$state_root" ] && [ ! -L "$state_root" ] || fail state_root_metadata
+[ "$(stat -c '%U:%G:%a' "$state_root")" = 'paul:paul:700' ] || fail state_root_metadata
+if [ -e "$work_root" ] || [ -L "$work_root" ]; then
+  [ -d "$work_root" ] && [ ! -L "$work_root" ] || fail work_root_metadata
+  [ "$(stat -c '%U:%G:%a' "$work_root")" = 'paul:paul:700' ] || fail work_root_metadata
+else
+  mkdir -m 0700 "$work_root"
+fi
+if [ -e "$certbot_dir" ] || [ -L "$certbot_dir" ]; then
+  [ -d "$certbot_dir" ] && [ ! -L "$certbot_dir" ] || fail certbot_state_metadata
+  [ "$(stat -c '%U:%G:%a' "$certbot_dir")" = 'paul:paul:700' ] || fail certbot_state_metadata
+else
+  mkdir -m 0700 "$certbot_dir"
+fi
+chmod 0700 "$work_root" "$certbot_dir"
 
 exec 9>"$lock_file"
 flock -n 9 || {
@@ -47,63 +80,186 @@ flock -n 9 || {
 }
 
 work=$(/usr/bin/mktemp -d "$work_root.XXXXXX")
+challenge_cleanup_armed=0
 cleanup() {
+  status=$?
+  trap - EXIT HUP INT TERM
+  if [ "${challenge_cleanup_armed:-0}" -eq 1 ] && [ -f "${cloudflare_config:-}" ]; then
+    if ! cleanup_challenge_records; then
+      printf '%s\n' 'tls_renewal_status=failed stage=challenge_cleanup' >&2
+      status=1
+    fi
+  fi
   /usr/bin/rm -rf -- "$work"
+  exit "$status"
 }
 trap cleanup EXIT HUP INT TERM
 chmod 0700 "$work"
 
-# Refuse a renewal when the currently served certificate cannot be checked.
-# The endpoint certificate is public; no private material is read here.
-current_cert=$work/current.crt
+cloudflare_config=$work/cloudflare.conf
+# curl reads the token from this mode-0600 config file; the token is never an
+# argument, environment value, journal field, or evidence value.
+{
+  printf 'header = "Authorization: Bearer '
+  cat "$cloudflare_token_file"
+  printf '"\nheader = "Content-Type: application/json"\n'
+} >"$cloudflare_config"
+chmod 0600 "$cloudflare_config"
+
+cf_api() {
+  method=$1
+  url=$2
+  output=$3
+  if [ "$#" -eq 4 ]; then
+    body=$4
+    /usr/bin/curl --silent --show-error --fail --proto '=https' --tlsv1.2 \
+      --config "$cloudflare_config" --request "$method" --url "$url" \
+      --data-binary "@$body" --output "$output" >/dev/null 2>&1
+  else
+    /usr/bin/curl --silent --show-error --fail --proto '=https' --tlsv1.2 \
+      --config "$cloudflare_config" --request "$method" --url "$url" \
+      --output "$output" >/dev/null 2>&1
+  fi
+}
+
+cf_json_success() {
+  /usr/bin/grep -Eq '"success"[[:space:]]*:[[:space:]]*true' "$1"
+}
+
+cf_json_compact() {
+  /usr/bin/tr -d '[:space:]' <"$1"
+}
+
+cf_records_empty() {
+  cf_json_compact "$1" | /usr/bin/grep -Fq '"result":[]'
+}
+
+cleanup_challenge_records() {
+  records=$work/challenge-cleanup.json
+  ids=$work/challenge-ids
+  cf_api GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=TXT&name=$challenge_name&per_page=100" "$records" || return 1
+  cf_json_success "$records" || return 1
+  if cf_records_empty "$records"; then
+    : >"$ids"
+  else
+    /usr/bin/grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' "$records" |
+      /usr/bin/sed -E 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' >"$ids" || return 1
+  fi
+  while IFS= read -r record_id; do
+    [ -n "$record_id" ] || continue
+    deleted=$work/challenge-delete.json
+    cf_api DELETE "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" "$deleted" || return 1
+    cf_json_success "$deleted" || return 1
+  done <"$ids"
+  cf_api GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=TXT&name=$challenge_name&per_page=100" "$records" || return 1
+  cf_json_success "$records" && cf_records_empty "$records"
+}
+
+# Refuse renewal unless the currently served certificate is browser-trusted,
+# has exactly the private hostname SAN, and can be inspected safely.
 handshake=$work/handshake.pem
-if ! timeout 45 openssl s_client -connect "$hostname:443" -servername "$hostname" -showcerts </dev/null >"$handshake" 2>/dev/null; then
-  fail current_certificate_unreadable
+current_cert=$work/current.crt
+if ! timeout 45 openssl s_client -connect "$hostname:443" -servername "$hostname" \
+    -verify_hostname "$hostname" -verify_return_error -CAfile "$system_ca" \
+    -showcerts </dev/null >"$handshake" 2>/dev/null; then
+  fail current_certificate_untrusted
 fi
-if ! openssl x509 -in "$handshake" -out "$current_cert" 2>/dev/null; then
-  fail current_certificate_unreadable
-fi
+/usr/bin/awk '/-----BEGIN CERTIFICATE-----/{capture=1} capture{print} /-----END CERTIFICATE-----/{exit}' \
+  "$handshake" >"$current_cert"
+[ -s "$current_cert" ] || fail current_certificate_unreadable
+openssl x509 -in "$current_cert" -noout -checkhost "$hostname" >/dev/null 2>&1 || fail current_certificate_hostname
+current_san=$(openssl x509 -in "$current_cert" -noout -ext subjectAltName |
+  awk '/Subject Alternative Name/{capture=1; next} capture && /^[^[:space:]]/{exit} capture{gsub(/[[:space:]]/, ""); printf "%s", $0} END{print ""}')
+[ "$current_san" = "DNS:$hostname" ] || fail current_certificate_san
 if openssl x509 -in "$current_cert" -noout -checkend "$minimum_remaining_seconds" >/dev/null 2>&1; then
-  printf 'tls_renewal_status=skipped reason=certificate_valid remaining_threshold_seconds=%s\n' "$minimum_remaining_seconds"
+  printf 'tls_renewal_status=skipped reason=certificate_valid san=exact trust=verified remaining_threshold_seconds=%s\n' "$minimum_remaining_seconds"
   exit 0
 fi
 
+# Validate token activity, account, zone identity, and read access to only the
+# exact challenge name before arming the cleanup boundary.
+token_verify=$work/token-verify.json
+zone_response=$work/zone.json
+zone_compact=$work/zone-compact.json
+challenge_preflight=$work/challenge-preflight.json
+cf_api GET https://api.cloudflare.com/client/v4/user/tokens/verify "$token_verify" || fail cloudflare_token_verify
+cf_json_success "$token_verify" || fail cloudflare_token_verify
+cf_json_compact "$token_verify" | /usr/bin/grep -Fq '"status":"active"' || fail cloudflare_token_inactive
+cf_api GET "https://api.cloudflare.com/client/v4/zones/$zone_id" "$zone_response" || fail cloudflare_zone_verify
+cf_json_success "$zone_response" || fail cloudflare_zone_verify
+cf_json_compact "$zone_response" >"$zone_compact"
+/usr/bin/grep -Fq "\"id\":\"$zone_id\"" "$zone_compact" || fail cloudflare_zone_verify
+/usr/bin/grep -Fq '"name":"cristex-soft.com"' "$zone_compact" || fail cloudflare_zone_verify
+/usr/bin/grep -Fq "\"account\":{\"id\":\"$account_id\"" "$zone_compact" || fail cloudflare_account_verify
+cf_api GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=TXT&name=$challenge_name&per_page=100" "$challenge_preflight" || fail cloudflare_dns_scope
+cf_json_success "$challenge_preflight" || fail cloudflare_dns_scope
+cf_records_empty "$challenge_preflight" || fail challenge_record_preexisting
+challenge_cleanup_armed=1
+
+# Exercise the exact DNS write/delete permission before Certbot. This probe
+# uses the same challenge name and is independently removed and read back.
+scope_probe_body=$work/scope-probe.json
+scope_probe_response=$work/scope-probe-response.json
+scope_probe_delete=$work/scope-probe-delete.json
+scope_probe_content=cristexweb-renewal-scope-$(openssl rand -hex 8)
+printf '{"type":"TXT","name":"%s","content":"%s","ttl":60}\n' \
+  "$challenge_name" "$scope_probe_content" >"$scope_probe_body"
+chmod 0600 "$scope_probe_body"
+cf_api POST "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records" \
+  "$scope_probe_response" "$scope_probe_body" || fail cloudflare_dns_write_scope
+cf_json_success "$scope_probe_response" || fail cloudflare_dns_write_scope
+scope_probe_id=$(/usr/bin/grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' "$scope_probe_response" |
+  /usr/bin/sed -E 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' | head -n 1)
+[ -n "$scope_probe_id" ] || fail cloudflare_dns_write_scope
+cf_api DELETE "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$scope_probe_id" \
+  "$scope_probe_delete" || fail cloudflare_dns_write_scope
+cf_json_success "$scope_probe_delete" || fail cloudflare_dns_write_scope
+cf_api GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=TXT&name=$challenge_name&per_page=100" \
+  "$challenge_preflight" || fail cloudflare_dns_cleanup
+cf_json_success "$challenge_preflight" && cf_records_empty "$challenge_preflight" || fail cloudflare_dns_cleanup
+
 credentials=$work/cloudflare.ini
-# Certbot's DNS-01 plugin consumes this protected, mode-0600 ephemeral file.
-# The token is never placed in argv, journal output, or evidence.
 {
   printf 'dns_cloudflare_api_token = '
   cat "$cloudflare_token_file"
   printf '\n'
 } >"$credentials"
 chmod 0600 "$credentials"
-
-certbot_dir=$work/certbot
-certbot_work=$work/work
+certbot_work=$work/certbot-work
 certbot_logs=$work/logs
-mkdir -m 0700 "$certbot_dir" "$certbot_work" "$certbot_logs"
-
-# The Cloudflare DNS plugin creates and removes only its exact DNS-01 TXT
-# record. Certbot performs provider cleanup on success and every challenge
-# failure before this guarded process exits.
-"$certbot" certonly \
-  --non-interactive \
-  --agree-tos \
-  --email tls-renewal@cristex-soft.com \
-  --dns-cloudflare \
-  --dns-cloudflare-credentials "$credentials" \
-  --dns-cloudflare-propagation-seconds 30 \
-  --cert-name reactive-resume-dev \
-  --domains "$hostname" \
-  --config-dir "$certbot_dir" \
-  --work-dir "$certbot_work" \
-  --logs-dir "$certbot_logs" \
-  --keep-until-expiring \
-  --renew-by-default \
-  >/dev/null 2>&1
+mkdir -m 0700 "$certbot_work" "$certbot_logs"
 
 certificate_link=$certbot_dir/live/reactive-resume-dev/fullchain.pem
 private_key_link=$certbot_dir/live/reactive-resume-dev/privkey.pem
+local_certificate=$work/local-lineage.crt
+local_private_key=$work/local-lineage.key
+# A previously issued, validated local lineage is resumed instead of issuing a
+# duplicate certificate after an interrupted Infisical upload.
+use_local_lineage=0
+if [ -f "$certificate_link" ] && [ -f "$private_key_link" ]; then
+  /usr/bin/cp --dereference --no-preserve=mode "$certificate_link" "$local_certificate"
+  /usr/bin/cp --dereference --no-preserve=mode "$private_key_link" "$local_private_key"
+  chmod 0600 "$local_certificate" "$local_private_key"
+  if "$validator" "$local_certificate" "$local_private_key" >/dev/null 2>&1; then
+    use_local_lineage=1
+  fi
+fi
+if [ "$use_local_lineage" -ne 1 ]; then
+  "$certbot" certonly \
+    --non-interactive \
+    --agree-tos \
+    --email tls-renewal@cristex-soft.com \
+    --dns-cloudflare \
+    --dns-cloudflare-credentials "$credentials" \
+    --dns-cloudflare-propagation-seconds 30 \
+    --cert-name reactive-resume-dev \
+    --domains "$hostname" \
+    --config-dir "$certbot_dir" \
+    --work-dir "$certbot_work" \
+    --logs-dir "$certbot_logs" \
+    --keep-until-expiring \
+    >/dev/null 2>&1 || fail certificate_issuance
+fi
 [ -f "$certificate_link" ] || fail certificate_missing
 [ -f "$private_key_link" ] || fail private_key_missing
 certificate=$work/fullchain.pem
@@ -113,7 +269,23 @@ private_key=$work/privkey.pem
 chmod 0600 "$certificate" "$private_key"
 "$validator" "$certificate" "$private_key" >/dev/null || fail certificate_contract
 
-payload=$work/infisical.yaml
+# Infisical's exact two-key state is read before mutation. Extra keys or a
+# missing key refuse the rotation; the pre-state is retained for rollback.
+infisical_before=$work/infisical-before.yaml
+infisical_readback=$work/infisical-readback.yaml
+infisical_readback_cert=$work/infisical-readback.crt
+infisical_readback_key=$work/infisical-readback.key
+infisical_keys=$work/infisical-keys
+infisical_keys_expected=$work/infisical-keys-expected
+"$infisical" secrets get --env "$environment" --projectId "$project_id" \
+  --path "$infisical_path" --output yaml --silent >"$infisical_before" 2>/dev/null || fail infisical_preflight
+chmod 0600 "$infisical_before"
+/usr/bin/awk '/^[^[:space:]][^:]*:/{line=$0; sub(/:.*/, "", line); print line}' "$infisical_before" |
+  LC_ALL=C /usr/bin/sort >"$infisical_keys"
+printf '%s\n' TLS_CRT TLS_KEY | LC_ALL=C /usr/bin/sort >"$infisical_keys_expected"
+/usr/bin/cmp -s "$infisical_keys" "$infisical_keys_expected" || fail infisical_key_closure
+
+payload=$work/infisical-upload.yaml
 {
   printf 'TLS_CRT: |\n'
   sed 's/^/  /' "$certificate"
@@ -121,17 +293,47 @@ payload=$work/infisical.yaml
   sed 's/^/  /' "$private_key"
 } >"$payload"
 chmod 0600 "$payload"
+"$infisical" secrets set --env "$environment" --projectId "$project_id" \
+  --path "$infisical_path" --file "$payload" --silent >/dev/null 2>&1 || fail infisical_upload
 
-# The host's pre-authenticated Infisical CLI session is the custody seam. No
-# token flag or secret-bearing environment variable is accepted here.
-"$infisical" secrets set \
-  --env "$environment" \
-  --projectId "$project_id" \
-  --path "$infisical_path" \
-  --file "$payload" \
-  --silent \
-  >/dev/null 2>&1
+"$infisical" secrets get --env "$environment" --projectId "$project_id" \
+  --path "$infisical_path" --output yaml --silent >"$infisical_readback" 2>/dev/null || fail infisical_readback
+chmod 0600 "$infisical_readback"
+/usr/bin/awk '/^[^[:space:]][^:]*:/{line=$0; sub(/:.*/, "", line); print line}' "$infisical_readback" |
+  LC_ALL=C /usr/bin/sort >"$infisical_keys"
+/usr/bin/cmp -s "$infisical_keys" "$infisical_keys_expected" || {
+  "$infisical" secrets set --env "$environment" --projectId "$project_id" \
+    --path "$infisical_path" --file "$infisical_before" --silent >/dev/null 2>&1 || true
+  fail infisical_key_closure
+}
+extract_infisical_key() {
+  wanted=$1
+  input=$2
+  output=$3
+  awk -v wanted="$wanted" '
+    $0 ~ ("^" wanted ":") {section=1; next}
+    section && /^[^[:space:]][^:]*:/ {exit}
+    section && /^  / {sub(/^  /, ""); print}
+  ' "$input" >"$output"
+  chmod 0600 "$output"
+}
+extract_infisical_key TLS_CRT "$infisical_readback" "$infisical_readback_cert"
+extract_infisical_key TLS_KEY "$infisical_readback" "$infisical_readback_key"
+if ! cmp -s "$certificate" "$infisical_readback_cert" ||
+   ! cmp -s "$private_key" "$infisical_readback_key"; then
+  "$infisical" secrets set --env "$environment" --projectId "$project_id" \
+    --path "$infisical_path" --file "$infisical_before" --silent >/dev/null 2>&1 || true
+  fail infisical_readback_mismatch
+fi
+"$validator" "$infisical_readback_cert" "$infisical_readback_key" >/dev/null || {
+  "$infisical" secrets set --env "$environment" --projectId "$project_id" \
+    --path "$infisical_path" --file "$infisical_before" --silent >/dev/null 2>&1 || true
+  fail infisical_readback_contract
+}
 
-# Do not retain certbot's private material or the Infisical upload payload.
-printf 'tls_renewal_status=success hostname=%s san=exact custody=infisical path=%s challenge=%s cleanup=certbot private_residue=none values_output=false\n' \
+# The Certbot plugin must have removed its TXT record; independently remove
+# only exact-name records left by this locked run and verify an empty result.
+cleanup_challenge_records || fail challenge_cleanup
+challenge_cleanup_armed=0
+printf 'tls_renewal_status=success hostname=%s san=exact trust=verified validity=30d custody=infisical path=%s keys=exact-two upload_readback=verified challenge=%s cleanup=verified private_residue=none values_output=false\n' \
   "$hostname" "$infisical_path" "$challenge_name"

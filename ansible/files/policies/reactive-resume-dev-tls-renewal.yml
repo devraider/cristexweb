@@ -10,8 +10,13 @@ certificate:
   exact_san_set:
     - resume-dev.cristex-soft.com
   minimum_remaining_seconds: 2592000
+  endpoint_preflight:
+    exact_hostname_check: true
+    exact_san_set_check: true
+    system_trust_store_check: true
+    refuses_untrusted_or_wrong_hostname_before_issuance: true
   private_key_never_in_git_argv_logs_or_opentofu_state: true
-  local_private_material: ephemeral_mode_0600_only
+  local_private_material: protected_certbot_lineage_mode_0700_and_work_mode_0600
 cloudflare:
   account_id: 8b0f511214c7a4a52ddfb62ca92c5e80
   zone_id: 3cbee16e56d7656440f93e685807e779
@@ -19,6 +24,13 @@ cloudflare:
   token_file_contract: paul:paul:0600
   mutation_scope:
     - _acme-challenge.resume-dev.cristex-soft.com
+  token_validation:
+    verify_endpoint: https://api.cloudflare.com/client/v4/user/tokens/verify
+    exact_account_id: 8b0f511214c7a4a52ddfb62ca92c5e80
+    exact_zone_id: 3cbee16e56d7656440f93e685807e779
+    exact_zone_name: cristex-soft.com
+    dns_read_scope_preflight: exact_challenge_name_only
+    dns_write_scope: exact_challenge_probe_delete_then_certbot_dns01_then_explicit_delete_and_empty_readback
   proxied: false
   tunnel: forbidden
 infisical:
@@ -30,6 +42,9 @@ infisical:
     - TLS_KEY
   value_owner: infisical-cloud
   upload: preauthenticated-cli-session-without-token-flag
+  exact_key_closure: [TLS_CRT, TLS_KEY]
+  readback: yaml_key_set_and_byte_equality_verified
+  mismatch_recovery: restore_preupload_two_key_payload_then_fail
 kubernetes:
   target_namespace: cristexhub-dev
   target_secret: reactive-resume-dev-tls
@@ -49,9 +64,15 @@ host:
   enabled_by: separate-enable-apply-mode
 safety:
   no_value_output: true
-  exact_challenge_cleanup: certbot_cloudflare_dns_plugin_cleanup
+  exact_challenge_cleanup: explicit_cloudflare_api_delete_then_empty_readback
+  certbot_issuance: persistent_lineage_keep_until_expiring_without_renew_by_default
+  dependency_provenance:
+    certbot_package: 4.0.0-2+deb13u1
+    dns_cloudflare_package: 4.0.0-1
+    infisical_cli: 0.43.121
   temporary_workspace: mode_0700
   lock: flock
   no_direct_kubernetes_secret_write: true
   no_prod_or_public_route_mutation: true
   rollback: leave_existing_infisical_values_and_secret_unchanged_on_failure
+  endpoint_tls_trust_store: /etc/ssl/certs/ca-certificates.crt
