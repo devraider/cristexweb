@@ -29,26 +29,34 @@ _POLICY_SOURCE = _REPOSITORY_ROOT / "ansible/files/policies/reactive-resume-dev-
 _TASK_HASH = "585ab7c7d813fc6dedd2cc6cc3880b7191179057d66aa812617faaf070afb5fa"
 _DEFAULTS_HASH = "a31d4646169f72c68c41186b83a2da422fcce1cd270a69e21e4a8471bc170d2b"
 _PLAYBOOK_HASH = "98c4ecc22ea6387d5c9f63ec3359573893223d93f562bf0e53de2a5a18d9c089"
-_WRAPPER_CANONICAL_HASH = "2d75048b3ae92803d4288b461a5fd9f7bce8056745290d58a88cca5877ed521d"
+_WRAPPER_CANONICAL_HASH = "cbbcab24fb57379bcc0b586421acffbad335725e53758f58c8669935f0141fda"
 _POLICY_HASH = "7bcd206f32db6f7a182feb618fd5595726e7cb4c63e1d34fe2641303ee7983a4"
 _ACTION_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
 _CLOSURE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256"
-_ACTION_CANONICAL_HASH = "4cd78ca080648bf6767dcc5eef772a0dee9efab12abfdfb7e3a9b8ac54bbf860"
-_CLOSURE_MANIFEST_HASH = "6a57fcb37cc073b376301b8ff422806235ebc876fc5f2dda2f853251d428c8a4"
+_ACTION_CANONICAL_HASH = "85c355696dc804077ba4ac23ed99643aa52fe357d6e6e20aae5b4ecae083ae5d"
+_CLOSURE_MANIFEST_HASH = "2101b9da4f658fddeeaa8ec34676e6b686e786502d7d11c1e50c5d0ad0b56424"
 _CLOSURE_ENTRIES = {
     "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh": "f1891dc507d411d0c3bc91793c51cb640cc0ca8f71d7cd42f066a30ad7dbab66",
     "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256": "f02b444f16a5444cc3b4dba56cbcf4e9e94c72f6021e32375a2504afd3d5cce1",
+    "ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml": "e38c6d6e531e78013c74994006beaa50fea7195774e60e96379811bd47a7cb3f",
+    "ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml": "587404c0f41e7920a6eb742c713e45b867c638e1b4ff1e306145ad7a281bfbdd",
+    "ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml": "e8b11b97146c98ed4a95e46009385b4883b2f533ffe50ea02b44415bf568177a",
+    "ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml": "56bd408e67d7a7b9346e1dc493a4ec10cd61f0adcf6082d47e4657803412c296",
     "ansible/roles/reactive_resume_dev_successor/tasks/main.yml": "585ab7c7d813fc6dedd2cc6cc3880b7191179057d66aa812617faaf070afb5fa",
     "ansible/roles/reactive_resume_dev_successor/defaults/main.yml": "a31d4646169f72c68c41186b83a2da422fcce1cd270a69e21e4a8471bc170d2b",
     "ansible/playbooks/check_reactive_resume_dev_successor.yml": "98c4ecc22ea6387d5c9f63ec3359573893223d93f562bf0e53de2a5a18d9c089",
     "ansible/files/policies/reactive-resume-dev-postgresql-successor.yml": "7bcd206f32db6f7a182feb618fd5595726e7cb4c63e1d34fe2641303ee7983a4",
     "ansible/ansible.cfg": "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9",
     "ansible/library/reactive_resume_dev_secret_metadata.py": "25190b477772d1d7ae7b275a48af68576c640e0bde0d661aac292cd445e6f061",
-    "ansible/bin/check-reactive-resume-dev-successor": "2d75048b3ae92803d4288b461a5fd9f7bce8056745290d58a88cca5877ed521d",
+    "ansible/bin/check-reactive-resume-dev-successor": "cbbcab24fb57379bcc0b586421acffbad335725e53758f58c8669935f0141fda",
 }
 _CLOSURE_MODES = {
     "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh": 0o755,
     "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256": 0o644,
+    "ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml": 0o644,
+    "ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml": 0o644,
+    "ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml": 0o644,
+    "ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml": 0o644,
     "ansible/roles/reactive_resume_dev_successor/tasks/main.yml": 0o644,
     "ansible/roles/reactive_resume_dev_successor/defaults/main.yml": 0o644,
     "ansible/playbooks/check_reactive_resume_dev_successor.yml": 0o644,

@@ -5,6 +5,8 @@ import hashlib
 import importlib.util
 import os
 import re
+import shutil
+import shlex
 import stat
 import subprocess
 import tempfile
@@ -299,6 +301,87 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             self.assertLess(self.wrapper.index(value), controller, value)
         self.assertLess(controller, self.wrapper.index("/usr/bin/env -i"))
 
+    def test_wrapper_rejects_every_nested_source_leaf_before_fake_controller(self) -> None:
+        closure_paths = [
+            "ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml",
+            "ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml",
+            "ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml",
+            "ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml",
+        ]
+
+        def run_copy(mutated: str | None) -> tuple[int, bool]:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                for relative in (
+                    "ansible/bin/check-reactive-resume-dev-successor",
+                    "ansible/plugins/action/reactive_resume_dev_successor_guarded.py",
+                    "ansible/files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256",
+                    "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256",
+                    "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh",
+                    "ansible/roles/reactive_resume_dev_successor/tasks/main.yml",
+                    "ansible/roles/reactive_resume_dev_successor/defaults/main.yml",
+                    "ansible/playbooks/check_reactive_resume_dev_successor.yml",
+                    "ansible/files/policies/reactive-resume-dev-postgresql-successor.yml",
+                    "ansible/ansible.cfg",
+                    "ansible/library/reactive_resume_dev_secret_metadata.py",
+                    *closure_paths,
+                ):
+                    source = ROOT / relative
+                    destination = root / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(source, destination)
+                wrapper = root / "ansible/bin/check-reactive-resume-dev-successor"
+                wrapper_text = wrapper.read_text()
+                wrapper_text = wrapper_text.replace(
+                    "  /home/paul/projects/cristexweb|/Users/paul/Projects/cristexweb) ;;",
+                    f"  {root}) ;;",
+                    1,
+                )
+                wrapper.write_text(wrapper_text)
+                wrapper.chmod(0o755)
+                if mutated is not None:
+                    target = root / mutated
+                    target.write_text(target.read_text() + "\n# committed mutation\n")
+                closure = root / "ansible/files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256"
+                closure_lines = closure.read_text().splitlines()
+                wrapper_digest = canonical_wrapper_digest(wrapper)
+                closure_lines = [
+                    f"{wrapper_digest}  {path}" if path == "ansible/bin/check-reactive-resume-dev-successor" else line
+                    for line in closure_lines
+                    for digest, path in [line.split("  ", 1)]
+                ]
+                closure.write_text("\n".join(closure_lines) + "\n")
+                manifest_digest = hashlib.sha256(closure.read_bytes()).hexdigest()
+                wrapper_text = wrapper.read_text()
+                wrapper_text = re.sub(
+                    r"(?m)^closure_manifest_expected='[0-9a-f]{64}'$",
+                    f"closure_manifest_expected='{manifest_digest}'",
+                    wrapper_text,
+                )
+                wrapper.write_text(wrapper_text)
+                wrapper.chmod(0o755)
+                controller = root / ".venv/bin/ansible-playbook"
+                controller.parent.mkdir(parents=True, exist_ok=True)
+                marker = root / "fake-controller-marker"
+                controller.write_text(f"#!/bin/sh\nprintf started > {shlex.quote(str(marker))}\n")
+                controller.chmod(0o755)
+                subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+                subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
+                subprocess.run(["git", "config", "user.name", "test"], cwd=root, check=True)
+                subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+                subprocess.run(["git", "commit", "-qm", "fixture"], cwd=root, check=True)
+                result = subprocess.run([str(wrapper), "check"], cwd=root, text=True, capture_output=True, check=False)
+                return result.returncode, marker.exists()
+
+        baseline_rc, baseline_started = run_copy(None)
+        self.assertEqual(0, baseline_rc)
+        self.assertTrue(baseline_started)
+        for relative in closure_paths:
+            with self.subTest(relative=relative):
+                rc, started = run_copy(relative)
+                self.assertNotEqual(0, rc)
+                self.assertFalse(started)
+
     def test_direct_role_invocation_requires_wrapper_boundary(self) -> None:
         self.assertLess(
             self.tasks.index("Reject externally supplied successor internals"),
@@ -329,6 +412,10 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             {
                 "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh": hashlib.sha256(CHECKER.read_bytes()).hexdigest(),
                 "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256": hashlib.sha256((COMPONENT / "MANIFESTS.sha256").read_bytes()).hexdigest(),
+                "ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml": hashlib.sha256((SOURCE / "admission-rbac.yaml").read_bytes()).hexdigest(),
+                "ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml": hashlib.sha256((SOURCE / "migration-static-secret.yaml").read_bytes()).hexdigest(),
+                "ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml": hashlib.sha256((SOURCE / "runtime-static-secret.yaml").read_bytes()).hexdigest(),
+                "ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml": hashlib.sha256((ROOT / "ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml").read_bytes()).hexdigest(),
                 "ansible/roles/reactive_resume_dev_successor/tasks/main.yml": hashlib.sha256(TASKS.read_bytes()).hexdigest(),
                 "ansible/roles/reactive_resume_dev_successor/defaults/main.yml": hashlib.sha256(DEFAULTS.read_bytes()).hexdigest(),
                 "ansible/playbooks/check_reactive_resume_dev_successor.yml": hashlib.sha256(PLAYBOOK.read_bytes()).hexdigest(),
@@ -350,6 +437,10 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             "ansible/library/reactive_resume_dev_secret_metadata.py",
             "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh",
             "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256",
+            "ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml",
+            "ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml",
+            "ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml",
+            "ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml",
             "ansible/roles/reactive_resume_dev_successor/tasks/main.yml",
             "ansible/roles/reactive_resume_dev_successor/defaults/main.yml",
             "ansible/playbooks/check_reactive_resume_dev_successor.yml",
@@ -420,6 +511,10 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             {
                 "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh": hashlib.sha256(CHECKER.read_bytes()).hexdigest(),
                 "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256": hashlib.sha256((COMPONENT / "MANIFESTS.sha256").read_bytes()).hexdigest(),
+                "ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml": hashlib.sha256((SOURCE / "admission-rbac.yaml").read_bytes()).hexdigest(),
+                "ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml": hashlib.sha256((SOURCE / "migration-static-secret.yaml").read_bytes()).hexdigest(),
+                "ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml": hashlib.sha256((SOURCE / "runtime-static-secret.yaml").read_bytes()).hexdigest(),
+                "ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml": hashlib.sha256((ROOT / "ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml").read_bytes()).hexdigest(),
                 "ansible/roles/reactive_resume_dev_successor/tasks/main.yml": hashlib.sha256(TASKS.read_bytes()).hexdigest(),
                 "ansible/roles/reactive_resume_dev_successor/defaults/main.yml": hashlib.sha256(DEFAULTS.read_bytes()).hexdigest(),
                 "ansible/playbooks/check_reactive_resume_dev_successor.yml": hashlib.sha256(PLAYBOOK.read_bytes()).hexdigest(),

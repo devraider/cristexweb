@@ -36,7 +36,7 @@ sha_file() {
 # The self hash replaces this literal with zeros before hashing, avoiding a
 # circular digest while still binding every other wrapper byte.
 closure_manifest="$repository_root/ansible/files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256"
-closure_manifest_expected='6a57fcb37cc073b376301b8ff422806235ebc876fc5f2dda2f853251d428c8a4'
+closure_manifest_expected='2101b9da4f658fddeeaa8ec34676e6b686e786502d7d11c1e50c5d0ad0b56424'
 action_source="$repository_root/ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
 config_source="$repository_root/ansible/ansible.cfg"
 library_source="$repository_root/ansible/library/reactive_resume_dev_secret_metadata.py"
@@ -46,7 +46,7 @@ task_source="$repository_root/ansible/roles/reactive_resume_dev_successor/tasks/
 defaults_source="$repository_root/ansible/roles/reactive_resume_dev_successor/defaults/main.yml"
 playbook_source="$repository_root/ansible/playbooks/check_reactive_resume_dev_successor.yml"
 policy_source="$repository_root/ansible/files/policies/reactive-resume-dev-postgresql-successor.yml"
-closure_paths='ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256 ansible/roles/reactive_resume_dev_successor/tasks/main.yml ansible/roles/reactive_resume_dev_successor/defaults/main.yml ansible/playbooks/check_reactive_resume_dev_successor.yml ansible/files/policies/reactive-resume-dev-postgresql-successor.yml ansible/ansible.cfg ansible/library/reactive_resume_dev_secret_metadata.py ansible/bin/check-reactive-resume-dev-successor ansible/plugins/action/reactive_resume_dev_successor_guarded.py'
+closure_paths='ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256 ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml ansible/roles/reactive_resume_dev_successor/tasks/main.yml ansible/roles/reactive_resume_dev_successor/defaults/main.yml ansible/playbooks/check_reactive_resume_dev_successor.yml ansible/files/policies/reactive-resume-dev-postgresql-successor.yml ansible/ansible.cfg ansible/library/reactive_resume_dev_secret_metadata.py ansible/bin/check-reactive-resume-dev-successor ansible/plugins/action/reactive_resume_dev_successor_guarded.py'
 [ -f "$closure_manifest" ] && [ ! -L "$closure_manifest" ] || {
   printf '%s\n' 'refusing a missing or symlinked successor source closure' >&2
   exit 69
@@ -82,6 +82,10 @@ verify_source() {
 }
 verify_source ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh "$checker_source" 755
 verify_source ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256 "$manifest_source" 644
+verify_source ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml "$repository_root/ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml" 644
+verify_source ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml "$repository_root/ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml" 644
+verify_source ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml "$repository_root/ansible/files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml" 644
+verify_source ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml "$repository_root/ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml" 644
 verify_source ansible/roles/reactive_resume_dev_successor/tasks/main.yml "$task_source" 644
 verify_source ansible/roles/reactive_resume_dev_successor/defaults/main.yml "$defaults_source" 644
 verify_source ansible/playbooks/check_reactive_resume_dev_successor.yml "$playbook_source" 644

@@ -53,8 +53,10 @@ ansible/bin/check-reactive-resume-dev-successor check
 The non-passthrough wrapper supplies `--check --diff --limit crtxweb`, a
 single-use attestation, an allowlisted environment, and the pinned controller.
 Before invoking Ansible it verifies the fixed `SOURCE-CLOSURE.sha256` for the
-checker, source manifest, role task/defaults, playbook, policy, `ansible.cfg`,
-metadata-only library, wrapper, and action plugin. It validates every leaf's
+checker, source manifest, all three nested successor YAML leaves, the existing
+`ansible/files/components/infisical-reactive-resume-dev-ca/source/reactive-resume-dev-ca-static-secret.yaml`
+CA source leaf, role task/defaults, playbook, policy, `ansible.cfg`, metadata-only
+library, wrapper, and action plugin. It validates every leaf's
 mode and digest, and canonicalizes only the wrapper closure-manifest pin and
 action self/closure-manifest pins; no source leaf is omitted or normalized away.
 The complete closure is checked before the pinned Ansible controller starts, so
