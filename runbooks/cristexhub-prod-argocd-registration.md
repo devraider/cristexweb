@@ -13,6 +13,26 @@ Application remains `Unknown`. This source change does not create the Namespace,
 own application Secret values, publish images, change databases, or add the
 Cloudflare route.
 
+## One-time legacy destination transition
+
+The first alias correction is deliberately a one-time, two-object transition.
+The guarded role permits only the existing `Application` and `AppProject` when
+both live objects still match the previously committed server-destination
+manifests byte-for-byte at the canonical spec level, retain the exact Ansible
+ownership labels/empty owner and finalizer sets, and carry the pinned live UIDs
+`e2016a99-2c4f-4e2e-ac28-0640cafa2a8e` (`Application`) and
+`6c04c48c-7d71-46c3-b4d0-7fc9f437f5d6` (`AppProject`). The pinned legacy
+manifest hashes are `29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1`
+(Application) and `4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2`
+(AppProject). A changed UID, any extra ownership metadata, a partial pair, or
+any foreign/extra drift fails closed. The three other registration objects
+remain exact present-only objects and are never part of this transition.
+
+Check mode must predict exactly those two alias updates for the current legacy
+state; apply is a separately approved mutation. After the pair has converged,
+subsequent checks may be idempotent with zero transition candidates. No delete,
+prune, sync, Namespace, workload, or public-route operation is included.
+
 ## Exact source
 
 The Argo `Application` is pinned to the reviewed protected-main CristexHub

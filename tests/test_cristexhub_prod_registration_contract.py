@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+import uuid
 
 import yaml
 
@@ -145,6 +146,54 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         for manifest in objects():
             self.assertIn(canonical(manifest), plugin)
         self.assertIn(REVISION, defaults["cristexhub_prod_registration_revision"])
+
+    def test_legacy_alias_transition_is_exactly_two_object_scoped_and_hash_bound(self) -> None:
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        self.assertEqual(2, defaults["cristexhub_prod_registration_legacy_transition_object_count"])
+        self.assertEqual({"Application", "AppProject"}, set(defaults["cristexhub_prod_registration_legacy_transition_uids"]))
+        for kind, uid in defaults["cristexhub_prod_registration_legacy_transition_uids"].items():
+            uuid.UUID(uid)
+            spec = defaults["cristexhub_prod_registration_legacy_transition_specs"][kind]
+            digest = hashlib.sha256(json.dumps(spec, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            self.assertEqual(defaults["cristexhub_prod_registration_legacy_transition_spec_hashes"][kind], digest)
+            metadata = {
+                "name": "cristexhub-prod",
+                "namespace": "argocd",
+                "labels": {
+                    "app.kubernetes.io/name": "cristexhub-prod",
+                    "app.kubernetes.io/part-of": "cristexhub",
+                    "app.kubernetes.io/managed-by": "ansible",
+                    "cristex.io/component": "cristexhub-prod-registration",
+                },
+            }
+            manifest = {"apiVersion": "argoproj.io/v1alpha1", "kind": kind, "metadata": metadata, "spec": spec}
+            manifest_digest = hashlib.sha256(json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            self.assertEqual(defaults["cristexhub_prod_registration_legacy_transition_manifest_hashes"][kind], manifest_digest)
+        self.assertEqual(
+            "a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30",
+            defaults["cristexhub_prod_registration_legacy_transition_metadata_hash"],
+        )
+        self.assertIn("Record exact legacy-to-alias transition candidates", TASKS.read_text())
+        self.assertIn("Reject partial or duplicate legacy-to-alias transitions", TASKS.read_text())
+        self.assertIn("legacy_transition_uids", PLUGIN.read_text())
+        self.assertIn("legacy_transition_change_count", PLUGIN.read_text())
+        self.assertIn("legacy_transition_spec_hashes", PLUGIN.read_text())
+        self.assertIn("legacy_transition_manifest_hashes", PLUGIN.read_text())
+
+    def test_legacy_alias_transition_rejects_foreign_uid_or_spec(self) -> None:
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        kind = "Application"
+        expected_uid = defaults["cristexhub_prod_registration_legacy_transition_uids"][kind]
+        expected_spec = defaults["cristexhub_prod_registration_legacy_transition_specs"][kind]
+
+        def candidate(uid: str, spec: dict) -> bool:
+            return uid == expected_uid and spec == expected_spec
+
+        self.assertTrue(candidate(expected_uid, expected_spec))
+        self.assertFalse(candidate(str(uuid.uuid4()), expected_spec))
+        forged = json.loads(json.dumps(expected_spec))
+        forged["destination"]["namespace"] = "cristexhub-dev"
+        self.assertFalse(candidate(expected_uid, forged))
 
     def test_preflight_order_and_foreign_object_refusal(self) -> None:
         tasks = TASKS.read_text()

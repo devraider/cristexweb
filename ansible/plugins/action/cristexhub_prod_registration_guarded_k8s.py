@@ -21,6 +21,19 @@ EXPECTED = {
 ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 EXPECTED_REPOSITORY_ROOT = "/home/paul/projects/cristexweb"
 TASK_SUFFIX = "/ansible/roles/cristexhub_prod_registration/tasks/main.yml"
+LEGACY_TRANSITION_UIDS = {
+    "Application": "e2016a99-2c4f-4e2e-ac28-0640cafa2a8e",
+    "AppProject": "6c04c48c-7d71-46c3-b4d0-7fc9f437f5d6",
+}
+LEGACY_TRANSITION_SPEC_HASHES = {
+    "Application": "efcaa04cff588189490810ec3dc2d799e9d09d9deb2e6ce45475d61f75021c34",
+    "AppProject": "7b51035757a7684cffb823339379e7fd3d80ada29a51a3bdc205b2f4b30027bf",
+}
+LEGACY_TRANSITION_MANIFEST_HASHES = {
+    "Application": "29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1",
+    "AppProject": "4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2",
+}
+LEGACY_TRANSITION_METADATA_HASH = "a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30"
 EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-prod'): '113dcb263ec958430385b802e387658cd0f71b58751768b3a7ab5ffbb348b61b',
  ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-prod'): '107356ed772eec987ab8c4f19b05b2ebb5a84ddf21bd0f483044e434084a8c5a',
  ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'c40a189cdf4a3b864fae8bb64f06b0473aae2b47771f1c22ddf4a86f0f669fc4',
@@ -78,6 +91,12 @@ class ActionModule(KubernetesActionModule):
                 "namespace_contract",
                 "repository_contract",
                 "revision",
+                "legacy_transition_kinds",
+                "legacy_transition_change_count",
+                "legacy_transition_uids",
+                "legacy_transition_spec_hashes",
+                "legacy_transition_manifest_hashes",
+                "legacy_transition_metadata_hash",
                 "no_delete_path",
             }
             and binding.get("attestation_sha256") == hashlib.sha256(token.encode()).hexdigest()
@@ -87,6 +106,13 @@ class ActionModule(KubernetesActionModule):
             and strict_true(binding.get("namespace_contract"))
             and strict_true(binding.get("repository_contract"))
             and binding.get("revision") == "751885a42798d282e168131db147f13694a0a621"
+            and binding.get("legacy_transition_kinds") in ([], ["Application", "AppProject"])
+            and str(binding.get("legacy_transition_change_count")) in ("0", "2")
+            and str(binding.get("legacy_transition_change_count")) == str(len(binding.get("legacy_transition_kinds")))
+            and binding.get("legacy_transition_uids") == LEGACY_TRANSITION_UIDS
+            and binding.get("legacy_transition_spec_hashes") == LEGACY_TRANSITION_SPEC_HASHES
+            and binding.get("legacy_transition_manifest_hashes") == LEGACY_TRANSITION_MANIFEST_HASHES
+            and binding.get("legacy_transition_metadata_hash") == LEGACY_TRANSITION_METADATA_HASH
             and strict_true(binding.get("no_delete_path"))
         )
         valid = (

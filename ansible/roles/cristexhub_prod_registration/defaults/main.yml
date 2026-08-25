@@ -25,6 +25,61 @@ cristexhub_prod_registration_object_count: 5
 cristexhub_prod_registration_repository: ssh://git@ssh.github.com:443/devraider/cristexhub.git
 cristexhub_prod_registration_revision: 751885a42798d282e168131db147f13694a0a621
 cristexhub_prod_registration_path: infra/kubernetes/cristexhub-prod
+# The first alias correction is a bounded compatibility transition. These
+# immutable values describe only the previously committed server-destination
+# Application/AppProject and the exact live UIDs that may be updated once.
+cristexhub_prod_registration_legacy_transition_object_count: 2
+cristexhub_prod_registration_legacy_transition_uids:
+  Application: e2016a99-2c4f-4e2e-ac28-0640cafa2a8e
+  AppProject: 6c04c48c-7d71-46c3-b4d0-7fc9f437f5d6
+cristexhub_prod_registration_legacy_transition_spec_hashes:
+  Application: efcaa04cff588189490810ec3dc2d799e9d09d9deb2e6ce45475d61f75021c34
+  AppProject: 7b51035757a7684cffb823339379e7fd3d80ada29a51a3bdc205b2f4b30027bf
+cristexhub_prod_registration_legacy_transition_manifest_hashes:
+  Application: 29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1
+  AppProject: 4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2
+cristexhub_prod_registration_legacy_transition_metadata_hash: a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30
+cristexhub_prod_registration_legacy_transition_specs:
+  Application:
+    project: cristexhub-prod
+    source:
+      repoURL: ssh://git@ssh.github.com:443/devraider/cristexhub.git
+      targetRevision: 751885a42798d282e168131db147f13694a0a621
+      path: infra/kubernetes/cristexhub-prod
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: cristexhub-prod
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+        allowEmpty: false
+      syncOptions:
+        - CreateNamespace=false
+        - Prune=false
+        - ServerSideApply=false
+        - Replace=false
+        - FailOnSharedResource=true
+  AppProject:
+    sourceRepos:
+      - ssh://git@ssh.github.com:443/devraider/cristexhub.git
+    destinations:
+      - server: https://kubernetes.default.svc
+        namespace: cristexhub-prod
+    clusterResourceWhitelist: []
+    namespaceResourceWhitelist:
+      - group: ''
+        kind: ConfigMap
+      - group: ''
+        kind: Service
+      - group: apps
+        kind: Deployment
+      - group: networking.k8s.io
+        kind: NetworkPolicy
+      - group: networking.k8s.io
+        kind: Ingress
+    orphanedResources:
+      warn: true
 cristexhub_prod_registration_expected_hashes:
   - path: >-
       {{ cristexhub_prod_registration_repository_root
