@@ -12,7 +12,7 @@ reactive_resume_dev_argocd_registration_manifest_paths:
   - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd-registration/config/secret-cluster-reactive-resume-dev.yaml"
 reactive_resume_dev_argocd_registration_object_count: 5
 reactive_resume_dev_argocd_registration_repository: ssh://git@ssh.github.com:443/devraider/cristexweb.git
-reactive_resume_dev_argocd_registration_revision: 7d1c33c5abfbfe86d942bc3d887a95b5cdc2760c
+reactive_resume_dev_argocd_registration_revision: dd7d4cedd902e68266d9713d1dbb8e90f0b529b1
 reactive_resume_dev_argocd_registration_path: ansible/files/components/reactive-resume-dev-argocd
 reactive_resume_dev_argocd_registration_repository_secret: argocd-repository-cristexweb
 reactive_resume_dev_argocd_registration_dependency_contracts:
@@ -23,7 +23,7 @@ reactive_resume_dev_argocd_registration_dependency_contracts:
   - {kind: Secret, api_version: v1, namespace: cristexhub-dev, name: cristexhub-ghcr-pull, type: kubernetes.io/dockerconfigjson, labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: cristexhub, cristex.io/value-owner: infisical-cloud}, annotation_key: secrets.infisical.com/version, hidden_fields: [data, stringData, binaryData]}
   - {kind: Secret, api_version: v1, namespace: cristexhub-dev, name: reactive-resume-dev-tls, type: kubernetes.io/tls, labels: {app.kubernetes.io/managed-by: infisical, app.kubernetes.io/part-of: reactive-resume, cristex.io/value-owner: infisical-cloud}, annotation_key: secrets.infisical.com/version, hidden_fields: [data, stringData, binaryData]}
 reactive_resume_dev_argocd_registration_expected_hashes:
-  config/application-reactive-resume-dev.yaml: 0166c87cb672544f27c2a6085c03bc49d95114cf5cc0caa3881332172e4ffd91
+  config/application-reactive-resume-dev.yaml: 41e597823b877da45fb5cc70e6e6019addfa01a3a7f3f3c20578512130cc3eb1
   config/appproject-reactive-resume-dev.yaml: cec72c6e3b116593693435af49603f4ce50126cb2fc7632675a5681062795de9
   config/secret-cluster-reactive-resume-dev.yaml: e2fbba0e829fbcd269a10ec3fabaa8205595d79fc78ee4ab089bc53357169915
   rbac/role-argocd-application-controller-reactive-resume-dev.yaml: ab0a14d48e3a22b158453dab9ad7ed06d0a63ff818a14e2e8ca94f48ecb8eba7

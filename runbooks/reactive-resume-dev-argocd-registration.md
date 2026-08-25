@@ -8,7 +8,7 @@ Argo, provider, DNS, Infisical, or PROD operation by itself.
 
 The registration Application uses the infrastructure repository
 `ssh://git@ssh.github.com:443/devraider/cristexweb.git`, immutable revision
-`7d1c33c5abfbfe86d942bc3d887a95b5cdc2760c`, and the desired-state path
+`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`, and the desired-state path
 `ansible/files/components/reactive-resume-dev-argocd`. The checked-in
 value-free handoff inventory under
 `ansible/files/policies/reactive-resume-dev-argocd-handoff` identifies exactly

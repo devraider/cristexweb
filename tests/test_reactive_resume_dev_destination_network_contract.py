@@ -25,7 +25,7 @@ class ReactiveResumeDevDestinationNetworkContractTests(unittest.TestCase):
         self.assertEqual("shared-postgresql", labels["cristex.io/database-client"])
         self.assertEqual("/etc/reactive-resume/ca-bundle/ca.crt", next(x["value"] for x in deployment["spec"]["template"]["spec"]["containers"][0]["env"] if x["name"] == "NODE_EXTRA_CA_CERTS"))
         self.assertEqual("merge-ca-bundle", deployment["spec"]["template"]["spec"]["initContainers"][0]["name"])
-        self.assertEqual("shared-postgresql", load(RR / "migration-job.yaml")["spec"]["template"]["metadata"]["labels"]["cristex.io/database-client"])
+        self.assertFalse((RR / "migration-job.yaml").exists())
         policy = load(RR / "networkpolicy-egress.yaml")
         pod = policy["spec"]["podSelector"]
         self.assertEqual("shared-postgresql", pod["matchLabels"]["cristex.io/database-client"])
