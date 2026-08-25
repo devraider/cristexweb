@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
@@ -19,6 +20,7 @@ EXPECTED = {
     ("v1", "Secret", "argocd", "argocd-cluster-cristexhub-prod"),
 }
 ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
+TRANSITION_ARGS = {"transition", "state", "kubeconfig", "project_definition", "application_definition"}
 EXPECTED_REPOSITORY_ROOT = "/home/paul/projects/cristexweb"
 TASK_SUFFIX = "/ansible/roles/cristexhub_prod_registration/tasks/main.yml"
 LEGACY_TRANSITION_UIDS = {
@@ -104,13 +106,224 @@ def bound_prestate(bindings: Any, object_identity: tuple[str, str, str, str]) ->
     return matches[0] if len(matches) == 1 else None
 
 
+_TRANSITION_LABELS = {
+    "app.kubernetes.io/name": "cristexhub-prod",
+    "app.kubernetes.io/part-of": "cristexhub",
+    "app.kubernetes.io/managed-by": "ansible",
+    "cristex.io/component": "cristexhub-prod-registration",
+}
+_TRANSITION_PROJECT_WHITELIST = [
+    {"group": "", "kind": "ConfigMap"},
+    {"group": "", "kind": "Service"},
+    {"group": "apps", "kind": "Deployment"},
+    {"group": "networking.k8s.io", "kind": "NetworkPolicy"},
+    {"group": "networking.k8s.io", "kind": "Ingress"},
+]
+_TRANSITION_REPOSITORY = "ssh://git@ssh.github.com:443/devraider/cristexhub.git"
+_TRANSITION_REVISION = "751885a42798d282e168131db147f13694a0a621"
+_TRANSITION_OLD_SERVER = "https://kubernetes.default.svc"
+_TRANSITION_ALIAS = "cristexhub-prod-local"
+_TRANSITION_NAMESPACE = "cristexhub-prod"
+_TRANSITION_API_VERSION = "argoproj.io/v1alpha1"
+_TRANSITION_ARGO_NAMESPACE = "argocd"
+_TRANSITION_NAME = "cristexhub-prod"
+_TRANSITION_MAX_CONFLICT_RETRIES = 3
+
+
+def _transition_project_spec(destinations: list[dict[str, str]]) -> dict[str, Any]:
+    return {
+        "sourceRepos": [_TRANSITION_REPOSITORY],
+        "destinations": copy.deepcopy(destinations),
+        "clusterResourceWhitelist": [],
+        "namespaceResourceWhitelist": copy.deepcopy(_TRANSITION_PROJECT_WHITELIST),
+        "orphanedResources": {"warn": True},
+    }
+
+
+def _transition_application_spec() -> dict[str, Any]:
+    return {
+        "project": _TRANSITION_NAME,
+        "source": {
+            "repoURL": _TRANSITION_REPOSITORY,
+            "targetRevision": _TRANSITION_REVISION,
+            "path": "infra/kubernetes/cristexhub-prod",
+        },
+        "destination": {"name": _TRANSITION_ALIAS, "server": "", "namespace": _TRANSITION_NAMESPACE},
+        "syncPolicy": {
+            "automated": {"prune": False, "selfHeal": True, "allowEmpty": False},
+            "syncOptions": [
+                "CreateNamespace=false",
+                "Prune=false",
+                "ServerSideApply=false",
+                "Replace=false",
+                "FailOnSharedResource=true",
+            ],
+        },
+    }
+
+
+_TRANSITION_FINAL_PROJECT_SPEC = _transition_project_spec([{"name": _TRANSITION_ALIAS, "namespace": _TRANSITION_NAMESPACE}])
+_TRANSITION_TEMP_PROJECT_SPEC = _transition_project_spec([
+    {"server": _TRANSITION_OLD_SERVER, "namespace": _TRANSITION_NAMESPACE},
+    {"name": _TRANSITION_ALIAS, "namespace": _TRANSITION_NAMESPACE},
+])
+_TRANSITION_LEGACY_PROJECT_SPEC = _transition_project_spec([{"server": _TRANSITION_OLD_SERVER, "namespace": _TRANSITION_NAMESPACE}])
+_TRANSITION_FINAL_APPLICATION_SPEC = _transition_application_spec()
+_TRANSITION_LEGACY_APPLICATION_SPEC = copy.deepcopy(_TRANSITION_FINAL_APPLICATION_SPEC)
+_TRANSITION_LEGACY_APPLICATION_SPEC["destination"] = {"server": _TRANSITION_OLD_SERVER, "namespace": _TRANSITION_NAMESPACE}
+_TRANSITION_UIDS = {
+    "AppProject": LEGACY_TRANSITION_UIDS["AppProject"],
+    "Application": LEGACY_TRANSITION_UIDS["Application"],
+}
+
+
+def _transition_identity(kind: str) -> tuple[str, str, str, str]:
+    return (_TRANSITION_API_VERSION, kind, _TRANSITION_ARGO_NAMESPACE, _TRANSITION_NAME)
+
+
+def _transition_metadata_safe(obj: dict[str, Any], kind: str) -> bool:
+    metadata = obj.get("metadata") if isinstance(obj.get("metadata"), dict) else {}
+    if object_identity(obj) != _transition_identity(kind) or metadata.get("labels") != _TRANSITION_LABELS:
+        return False
+    if metadata.get("ownerReferences", []) or metadata.get("finalizers", []):
+        return False
+    if metadata.get("deletionTimestamp") not in (None, "") or metadata.get("deletionGracePeriodSeconds") not in (None, 0):
+        return False
+    allowed = {"name", "namespace", "uid", "resourceVersion", "generation", "creationTimestamp", "managedFields", "labels", "annotations"}
+    return not (set(metadata) - allowed)
+
+
+def _transition_classify(project: dict[str, Any], application: dict[str, Any]) -> tuple[str, str]:
+    if not _transition_metadata_safe(project, "AppProject") or not _transition_metadata_safe(application, "Application"):
+        raise ValueError("foreign, terminating, or metadata-drifted transition object")
+    project_spec = project.get("spec")
+    application_spec = application.get("spec")
+    project_state = (
+        "final" if project_spec == _TRANSITION_FINAL_PROJECT_SPEC else
+        "transition" if project_spec == _TRANSITION_TEMP_PROJECT_SPEC else
+        "legacy" if project_spec == _TRANSITION_LEGACY_PROJECT_SPEC else None
+    )
+    application_state = (
+        "final" if application_spec == _TRANSITION_FINAL_APPLICATION_SPEC else
+        "legacy" if application_spec == _TRANSITION_LEGACY_APPLICATION_SPEC else None
+    )
+    if project_state is None or application_state is None:
+        raise ValueError("transition object scope is not an exact legacy, transitional, or final form")
+    if (project_state, application_state) in {("legacy", "final"), ("final", "legacy")}:
+        raise ValueError("unsafe mixed transition state")
+    return project_state, application_state
+
+
+def _transition_plan(project_state: str, application_state: str) -> list[str]:
+    states = (project_state, application_state)
+    if states == ("final", "final"):
+        return []
+    if states == ("legacy", "legacy"):
+        return ["AppProject:transition", "Application:final", "AppProject:final"]
+    if states == ("transition", "legacy"):
+        return ["Application:final", "AppProject:final"]
+    if states == ("transition", "final"):
+        return ["AppProject:final"]
+    raise ValueError("unsupported transition state")
+
+
+def _transition_api_path(kind: str) -> str:
+    resource = "appprojects" if kind == "AppProject" else "applications"
+    return f"/apis/{_TRANSITION_API_VERSION}/namespaces/{_TRANSITION_ARGO_NAMESPACE}/{resource}/{_TRANSITION_NAME}"
+
+
+def _transition_get(api: Any, kind: str) -> dict[str, Any]:
+    result = api.call_api(_transition_api_path(kind), "GET", path_params={}, query_params=[], header_params={"Accept": "application/json"}, body=None, post_params=[], files={}, response_type="object", auth_settings=["BearerToken"], async_req=False, _return_http_data_only=True, collection_formats={}, _request_timeout=30)
+    if not isinstance(result, dict):
+        raise ValueError("transition GET did not return an object")
+    return result
+
+
+def _transition_put(api: Any, kind: str, body: dict[str, Any]) -> Any:
+    return api.call_api(_transition_api_path(kind), "PUT", path_params={}, query_params=[], header_params={"Accept": "application/json", "Content-Type": "application/json"}, body=body, post_params=[], files={}, response_type="object", auth_settings=["BearerToken"], async_req=False, _return_http_data_only=True, collection_formats={}, _request_timeout=30)
+
+
+def _transition_cas_update(
+    api: Any,
+    kind: str,
+    desired_spec: dict[str, Any],
+    allowed_current_specs: list[dict[str, Any]],
+    retries: int = _TRANSITION_MAX_CONFLICT_RETRIES,
+) -> bool:
+    try:
+        from kubernetes.client.rest import ApiException
+    except ImportError:  # pragma: no cover
+        ApiException = Exception  # type: ignore[assignment,misc]
+    for _attempt in range(retries):
+        current = _transition_get(api, kind)
+        expected_uid = _TRANSITION_UIDS[kind]
+        if not _transition_metadata_safe(current, kind) or current.get("metadata", {}).get("uid") != expected_uid:
+            raise ValueError(f"{kind} identity changed during transition")
+        if current.get("spec") == desired_spec:
+            return False
+        if current.get("spec") not in allowed_current_specs:
+            raise ValueError(f"{kind} changed to an unsafe transition state")
+        resource_version = current.get("metadata", {}).get("resourceVersion")
+        if not isinstance(resource_version, str) or not resource_version.isdigit():
+            raise ValueError(f"{kind} has no numeric resourceVersion")
+        body = {
+            "apiVersion": _TRANSITION_API_VERSION,
+            "kind": kind,
+            "metadata": {"name": _TRANSITION_NAME, "namespace": _TRANSITION_ARGO_NAMESPACE, "uid": expected_uid, "resourceVersion": resource_version, "labels": copy.deepcopy(_TRANSITION_LABELS)},
+            "spec": copy.deepcopy(desired_spec),
+        }
+        try:
+            _transition_put(api, kind, body)
+            return True
+        except ApiException as exc:
+            if getattr(exc, "status", None) == 409:
+                continue
+            raise
+    raise RuntimeError(f"{kind} resourceVersion conflict did not converge after {retries} retries")
+
+
+def run_alias_transition(kubeconfig: str, project_definition: dict[str, Any], application_definition: dict[str, Any], check_mode: bool) -> dict[str, Any]:
+    if object_identity(project_definition) != _transition_identity("AppProject") or object_identity(application_definition) != _transition_identity("Application"):
+        raise ValueError("exact AppProject/Application identities required")
+    if project_definition.get("spec") != _TRANSITION_FINAL_PROJECT_SPEC or application_definition.get("spec") != _TRANSITION_FINAL_APPLICATION_SPEC:
+        raise ValueError("final transition definitions drifted")
+    from kubernetes import client, config
+    config.load_kube_config(config_file=kubeconfig)
+    api = client.ApiClient()
+    project = _transition_get(api, "AppProject")
+    application = _transition_get(api, "Application")
+    project_state, application_state = _transition_classify(project, application)
+    plan = _transition_plan(project_state, application_state)
+    if check_mode:
+        return {"changed": bool(plan), "transition_steps": plan, "transition_change_count": len(plan)}
+    changed: list[str] = []
+    for step in plan:
+        kind, target = step.split(":", 1)
+        desired = _TRANSITION_TEMP_PROJECT_SPEC if (kind, target) == ("AppProject", "transition") else _TRANSITION_FINAL_PROJECT_SPEC if kind == "AppProject" else _TRANSITION_FINAL_APPLICATION_SPEC
+        allowed = (
+            [_TRANSITION_LEGACY_PROJECT_SPEC]
+            if (kind, target) == ("AppProject", "transition")
+            else [_TRANSITION_LEGACY_APPLICATION_SPEC]
+            if kind == "Application"
+            else [_TRANSITION_TEMP_PROJECT_SPEC]
+        )
+        if _transition_cas_update(api, kind, desired, allowed):
+            changed.append(step)
+    final_project = _transition_get(api, "AppProject")
+    final_application = _transition_get(api, "Application")
+    if _transition_classify(final_project, final_application) != ("final", "final"):
+        raise RuntimeError("alias transition did not converge to final state")
+    return {"changed": bool(changed), "transition_steps": changed, "transition_change_count": len(changed)}
+
+
 class ActionModule(KubernetesActionModule):
     """Permit only the five-object, guarded CristexHub PROD registration."""
 
     def run(self, tmp: str | None = None, task_vars: dict[str, Any] | None = None) -> dict[str, Any]:
         source = str(Path(re.sub(r":\d+(?::\d+)?$", "", str(self._task.get_path()))).resolve())
         args = self._task.args
-        definition = args.get("definition")
+        transition_mode = args.get("transition") is True
+        definition = args.get("definition") if not transition_mode else args.get("project_definition")
         task_vars = task_vars or {}
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
@@ -119,10 +332,21 @@ class ActionModule(KubernetesActionModule):
         repository_root = str(Path(os.environ.get("CRISTEXWEB_REPOSITORY_ROOT", "")).resolve())
         if repository_root != EXPECTED_REPOSITORY_ROOT or source != EXPECTED_REPOSITORY_ROOT + TASK_SUFFIX:
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: non-canonical registration task source"}
-        if not isinstance(definition, dict) or set(args) != ARGS or args.get("state") != "present" or args.get("kubeconfig") != "/etc/rancher/k3s/k3s.yaml" or args.get("wait") is not False or args.get("wait_timeout") != 60:
-            return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: refusing registration arguments"}
+        if transition_mode:
+            if set(args) != TRANSITION_ARGS or args.get("state") != "present" or args.get("kubeconfig") != "/etc/rancher/k3s/k3s.yaml":
+                return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: refusing alias transition arguments"}
+            application_definition = args.get("application_definition")
+            if not isinstance(definition, dict) or not isinstance(application_definition, dict):
+                return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: alias transition definitions are required"}
+            if canonical(definition) != EXPECTED_HASHES[("argoproj.io/v1alpha1", "AppProject", "argocd", "cristexhub-prod")]:
+                return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: drifted AppProject transition definition"}
+            if canonical(application_definition) != EXPECTED_HASHES[("argoproj.io/v1alpha1", "Application", "argocd", "cristexhub-prod")]:
+                return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: drifted Application transition definition"}
+        else:
+            if not isinstance(definition, dict) or set(args) != ARGS or args.get("state") != "present" or args.get("kubeconfig") != "/etc/rancher/k3s/k3s.yaml" or args.get("wait") is not False or args.get("wait_timeout") != 60:
+                return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: refusing registration arguments"}
         meta = definition.get("metadata") or {}
-        identity = (definition.get("apiVersion"), definition.get("kind"), meta.get("namespace", ""), meta.get("name"))
+        identity = (definition.get("apiVersion"), definition.get("kind"), meta.get("namespace", ""), meta.get("name", ""))
         if identity not in EXPECTED or canonical(definition) != EXPECTED_HASHES.get(identity):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: unknown or drifted registration object"}
         if meta.get("labels", {}).get("cristex.io/component") != "cristexhub-prod-registration" or meta.get("labels", {}).get("app.kubernetes.io/managed-by") != "ansible":
@@ -206,7 +430,7 @@ class ActionModule(KubernetesActionModule):
         )
         prestate = bound_prestate(binding.get("prestate_bindings"), identity)
         resource_version = meta.get("resourceVersion")
-        if not valid_binding or prestate is None or resource_version != prestate.get("resourceVersion"):
+        if not valid_binding or (not transition_mode and (prestate is None or resource_version != prestate.get("resourceVersion"))):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: missing or changed UID/resourceVersion precondition"}
         valid = (
             valid_binding
@@ -220,5 +444,15 @@ class ActionModule(KubernetesActionModule):
         )
         if not valid:
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: registration requires the guarded attestation and complete preflight binding"}
+        if transition_mode:
+            try:
+                return run_alias_transition(
+                    args["kubeconfig"],
+                    definition,
+                    application_definition,
+                    bool(context.CLIARGS.get("check") or getattr(self._task, "check_mode", False)),
+                )
+            except Exception as exc:
+                return {"changed": False, "failed": True, "msg": f"PROD_ALIAS_TRANSITION_GUARD: {type(exc).__name__}"}
         self._task.action = "kubernetes.core.k8s"
         return super().run(tmp=tmp, task_vars=task_vars)

@@ -234,6 +234,99 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertFalse(module.valid_transition_pair(["Application"], ["Application"]))
         self.assertFalse(module.valid_transition_pair(["AppProject", "Application"], ["AppProject"]))
 
+    def test_three_step_alias_plan_and_conflict_retry(self) -> None:
+        import importlib.util
+        import sys
+
+        collection_root = ROOT / "ansible/.ansible/collections"
+        if not (collection_root / "ansible_collections").is_dir():
+            collection_root = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections")
+        if (collection_root / "ansible_collections").is_dir():
+            sys.path.insert(0, str(collection_root))
+        spec = importlib.util.spec_from_file_location("prod_registration_transition", PLUGIN)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(
+            ["AppProject:transition", "Application:final", "AppProject:final"],
+            module._transition_plan("legacy", "legacy"),
+        )
+        self.assertEqual(
+            {"server": "https://kubernetes.default.svc", "namespace": "cristexhub-prod"},
+            module._TRANSITION_TEMP_PROJECT_SPEC["destinations"][0],
+        )
+        self.assertEqual(
+            {"name": "cristexhub-prod-local", "namespace": "cristexhub-prod"},
+            module._TRANSITION_TEMP_PROJECT_SPEC["destinations"][1],
+        )
+        self.assertEqual(
+            module._TRANSITION_FINAL_PROJECT_SPEC["namespaceResourceWhitelist"],
+            module._TRANSITION_TEMP_PROJECT_SPEC["namespaceResourceWhitelist"],
+        )
+        self.assertEqual([], module._TRANSITION_TEMP_PROJECT_SPEC["clusterResourceWhitelist"])
+        self.assertEqual(["Application:final", "AppProject:final"], module._transition_plan("transition", "legacy"))
+        self.assertEqual(["AppProject:final"], module._transition_plan("transition", "final"))
+        with self.assertRaises(ValueError):
+            module._transition_plan("final", "legacy")
+
+        class ConflictError(Exception):
+            status = 409
+
+        labels = dict(module._TRANSITION_LABELS)
+        current = {
+            "apiVersion": module._TRANSITION_API_VERSION,
+            "kind": "Application",
+            "metadata": {
+                "name": module._TRANSITION_NAME,
+                "namespace": module._TRANSITION_ARGO_NAMESPACE,
+                "uid": module._TRANSITION_UIDS["Application"],
+                "resourceVersion": "7",
+                "labels": labels,
+            },
+            "spec": module._TRANSITION_LEGACY_APPLICATION_SPEC,
+        }
+
+        class ConflictOnceApi:
+            def __init__(self) -> None:
+                self.gets = 0
+                self.puts = 0
+                self.conflict = True
+
+            def call_api(self, path, method, **kwargs):
+                if method == "GET":
+                    self.gets += 1
+                    return json.loads(json.dumps(current))
+                self.puts += 1
+                if self.conflict:
+                    self.conflict = False
+                    raise ConflictError("conflict")
+                current["spec"] = json.loads(json.dumps(kwargs["body"]["spec"]))
+                current["metadata"]["resourceVersion"] = "8"
+                return json.loads(json.dumps(current))
+
+        api = ConflictOnceApi()
+        self.assertTrue(module._transition_cas_update(
+            api,
+            "Application",
+            module._TRANSITION_FINAL_APPLICATION_SPEC,
+            [module._TRANSITION_LEGACY_APPLICATION_SPEC],
+        ))
+        self.assertEqual(2, api.puts)
+        self.assertEqual(2, api.gets)
+        self.assertEqual(module._TRANSITION_FINAL_APPLICATION_SPEC, current["spec"])
+        current["spec"] = module._TRANSITION_FINAL_APPLICATION_SPEC
+        with self.assertRaises(ValueError):
+            module._transition_cas_update(
+                api,
+                "Application",
+                module._TRANSITION_LEGACY_APPLICATION_SPEC,
+                [module._TRANSITION_LEGACY_APPLICATION_SPEC],
+            )
+        self.assertIn("Reconcile exact bounded PROD alias transition", TASKS.read_text())
+        self.assertIn("transition: true", TASKS.read_text())
+        self.assertIn("when: not ansible_check_mode", TASKS.read_text())
+
     def test_resource_version_is_the_only_ignored_bound_hash_field(self) -> None:
         import importlib.util
 

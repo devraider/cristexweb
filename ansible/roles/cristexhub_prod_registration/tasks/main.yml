@@ -21,6 +21,8 @@
     - cristexhub_prod_registration_internal_mutation_results
     - cristexhub_prod_registration_internal_mutation_changed_identities
     - cristexhub_prod_registration_internal_finalstate
+    - cristexhub_prod_registration_internal_alias_transition
+    - cristexhub_prod_registration_internal_expected_changed_identities
   changed_when: false
 - name: Require the exact non-passthrough registration contract
   ansible.builtin.assert:
@@ -374,7 +376,9 @@
         cristexhub_prod_registration_internal_target_transition_candidates | length == 1) or
         (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 0 and
         cristexhub_prod_registration_internal_target_transition_candidates | length == 2)
-    fail_msg: Refusing a partial, foreign, or unrecognized legacy-to-alias transition; only an exact legacy pair, mixed recovery pair, or target pair is accepted.
+    fail_msg: >-
+      Refusing a partial, foreign, or unrecognized legacy-to-alias transition;
+      only an exact legacy pair, mixed recovery pair, or target pair is accepted.
   changed_when: false
   no_log: true
 
@@ -493,6 +497,7 @@
   register: cristexhub_prod_registration_internal_prestate_recheck
   changed_when: false
   no_log: true
+  when: not ansible_check_mode
 
 - name: Require unchanged UID and resourceVersion immediately before mutation
   ansible.builtin.assert:
@@ -523,6 +528,7 @@
     index_var: prestate_recheck_index
   changed_when: false
   no_log: true
+  when: not ansible_check_mode
 
 - name: Add exact resourceVersion optimistic-concurrency preconditions
   ansible.builtin.set_fact:
@@ -539,6 +545,7 @@
     loop_var: mutation_manifest_index
   changed_when: false
   no_log: true
+  when: not ansible_check_mode
 
 - name: Reconcile registration source without synchronization
   cristexhub_prod_registration_guarded_k8s:
@@ -548,10 +555,12 @@
     wait: false
     wait_timeout: 60
   loop: >-
-    {{ cristexhub_prod_registration_internal_mutation_manifests |
-    default(cristexhub_prod_registration_internal_manifests | default([{}])) }}
+    {{ (cristexhub_prod_registration_internal_mutation_manifests |
+    default(cristexhub_prod_registration_internal_manifests | default([]))) |
+    rejectattr('kind', 'in', ['AppProject', 'Application']) | list }}
   register: cristexhub_prod_registration_internal_mutation_results
   no_log: true
+  when: not ansible_check_mode
 
 - name: Record exact changed registration identities
   ansible.builtin.set_fact:
@@ -559,9 +568,10 @@
       {{ (cristexhub_prod_registration_internal_mutation_changed_identities | default([])) +
       ([item.item.apiVersion ~ '|' ~ item.item.kind ~ '|' ~ (item.item.metadata.namespace | default('')) ~ '|' ~ item.item.metadata.name]
       if (item.changed | default(false) | bool) else []) }}
-  loop: '{{ cristexhub_prod_registration_internal_mutation_results.results }}'
+  loop: '{{ cristexhub_prod_registration_internal_mutation_results.results | default([]) }}'
   changed_when: false
   no_log: true
+  when: not ansible_check_mode
 
 - name: Derive exact expected changed registration identities
   ansible.builtin.set_fact:
@@ -574,27 +584,44 @@
       }}
   changed_when: false
   no_log: true
+  when: not ansible_check_mode
 
 - name: Require exact registration mutation result closure
   ansible.builtin.assert:
     that:
-      - cristexhub_prod_registration_internal_mutation_results.results | length == 5
+      - cristexhub_prod_registration_internal_mutation_results.results | length == 3
       - >-
         cristexhub_prod_registration_internal_mutation_changed_identities |
         unique | list | length ==
         cristexhub_prod_registration_internal_mutation_changed_identities | length
-      - >-
-        cristexhub_prod_registration_internal_mutation_changed_identities |
-        difference(cristexhub_prod_registration_internal_expected_changed_identities) |
-        length == 0
-      - >-
-        cristexhub_prod_registration_internal_expected_changed_identities |
-        difference(cristexhub_prod_registration_internal_mutation_changed_identities) |
-        length == 0
-      - >-
-        cristexhub_prod_registration_internal_mutation_changed_identities | length ==
-        cristexhub_prod_registration_internal_legacy_transition_candidates | length
-    fail_msg: Refusing registration mutation with an unexpected changed identity or count.
+      - cristexhub_prod_registration_internal_mutation_changed_identities | length == 0
+    fail_msg: Refusing registration mutation with an unexpected non-transition changed identity or count.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Reconcile exact bounded PROD alias transition
+  cristexhub_prod_registration_guarded_k8s:
+    transition: true
+    state: present
+    kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
+    project_definition: >-
+      {{ cristexhub_prod_registration_internal_manifests |
+      selectattr('kind', 'equalto', 'AppProject') | first }}
+    application_definition: >-
+      {{ cristexhub_prod_registration_internal_manifests |
+      selectattr('kind', 'equalto', 'Application') | first }}
+  register: cristexhub_prod_registration_internal_alias_transition
+  changed_when: cristexhub_prod_registration_internal_alias_transition.changed | default(false) | bool
+  no_log: true
+
+- name: Require exact bounded PROD alias transition result
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_registration_internal_alias_transition.failed | default(false) | bool == false
+      - cristexhub_prod_registration_internal_alias_transition.transition_change_count | int in [0, 1, 2, 3]
+      - cristexhub_prod_registration_internal_alias_transition.transition_steps is sequence
+    fail_msg: Refusing an unbounded or incomplete PROD alias transition result.
   changed_when: false
   no_log: true
 

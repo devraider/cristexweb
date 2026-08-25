@@ -15,34 +15,36 @@ Cloudflare route.
 
 ## One-time legacy destination transition
 
-The first alias correction is deliberately a one-time, two-object transition.
-The guarded role permits only the existing `Application` and `AppProject` when
-both live objects still match the previously committed server-destination
-manifests byte-for-byte at the canonical spec level, retain the exact Ansible
-ownership labels/empty owner and finalizer sets, and carry the pinned live UIDs
-`e2016a99-2c4f-4e2e-ac28-0640cafa2a8e` (`Application`) and
-`6c04c48c-7d71-46c3-b4d0-7fc9f437f5d6` (`AppProject`). The pinned legacy
-manifest hashes are `29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1`
+The first alias correction is deliberately a one-time, two-object, three-step
+transition. The guarded role permits only the existing `Application` and
+`AppProject` when both live objects still match the previously committed
+server-destination manifests byte-for-byte at the canonical spec level, retain
+the exact Ansible ownership labels/empty owner and finalizer sets, and carry the
+pinned live UIDs `e2016a99-2c4f-4e2e-ac28-0640cafa2a8e` (`Application`) and
+`6c04c48c-7d71-46c3-b4d0-7fc9f437f5d6` (`AppProject`). The pinned legacy manifest
+hashes are `29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1`
 (Application) and `4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2`
 (AppProject). A changed UID, any extra ownership metadata, or any foreign/extra
-drift fails closed. A sequential apply conflict may leave exactly one object at
-the target alias and the other at the exact legacy spec; that one-object mixed
-pair is the only recovery exception and updates only the remaining legacy object.
-The three other registration objects remain exact present-only objects and are
-never part of this transition.
+drift fails closed. The exact all-legacy sequence is: (1) update only the
+AppProject to a temporary destination set containing exactly the old server and
+`cristexhub-prod-local`, (2) update only the Application to the alias, and (3)
+tighten the AppProject to the alias-only destination. A sequential apply conflict
+may leave exactly one object at the target alias and the other at the exact
+legacy or temporary spec; that exact mixed recovery pair is the only recovery
+state and
+update only the remaining step. The three other registration objects remain exact
+present-only objects and are never part of this transition.
 
-Check mode must predict exactly two alias updates for the all-legacy state; apply
-is a separately approved mutation. Before either update, the role binds the exact
-UID, generation, and `metadata.resourceVersion` for all five existing registration
-objects, re-queries all five immediately before mutation, and passes each unchanged
-resourceVersion in the desired object as a Kubernetes `resourceVersion
-optimistic-concurrency` precondition. This resourceVersion optimistic-concurrency gate is the only bound field omitted from the desired-object hash. A replacement, changed resourceVersion,
-missing object, pair state other than exact legacy/mixed/target, or metadata key
-outside the exact server-generated set fails closed. Canonical desired hashes
-ignore only that one bound `metadata.resourceVersion` field; all other desired and
-metadata fields remain hash-bound. After the pair has converged, subsequent checks
-are idempotent with zero transition candidates. No delete, prune, sync, Namespace,
-workload, or public-route operation is included.
+Check mode must perform only read-only API GETs and predict the exact three-step
+plan for the all-legacy state; it must not invoke a Kubernetes writer even when
+Argo status updates its resourceVersion. Apply is a separately approved mutation.
+Each transition step performs an immediate GET, sends the unchanged UID and
+`metadata.resourceVersion` as a Kubernetes compare-and-swap precondition, and
+retries only API 409 conflicts up to three times. This is the resourceVersion optimistic-concurrency gate; a replacement, changed
+resourceVersion, missing object, pair state other than exact legacy/temporary/final,
+or metadata key outside the exact server-generated set fails closed. No temporary
+AppProject destination widens namespace or resource whitelists. No delete, prune,
+sync, Namespace, workload, or public-route operation is included.
 
 ## Exact source
 
@@ -86,8 +88,9 @@ The role checks:
   or drifted fields at the five target identities;
 - exact five-object UID/resourceVersion/generation prestate binding with unique
   identities, immediate re-query, and Kubernetes optimistic-concurrency preconditions;
-- exact changed identity/count results: both legacy alias objects for the all-legacy
-  check, only the remaining legacy object for the exact mixed recovery pair, or zero;
+- exact non-transition mutation results for the three unchanged registration objects,
+  plus the alias transition result: three bounded steps for all-legacy, only remaining
+  steps for exact mixed recovery, or zero when already final;
 - deletion/grace-period and owner/finalizer refusal;
 - managedFields are checked only structurally when the API returns them (a list
   with non-empty manager fields), and no manager ownership/provenance claim is
