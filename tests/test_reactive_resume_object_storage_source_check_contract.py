@@ -309,6 +309,10 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         self.assertIn("_PARTIAL_METADATA_TOP_LEVEL_KEYS", text)
         self.assertIn("_PARTIAL_METADATA_METADATA_KEYS", text)
         self.assertIn("module.fail_json", text)
+        self.assertIn('resource_kind"] == "Secret"', text)
+        self.assertIn("refusing collection target inspection for Secret resources", text)
+        self.assertNotIn("request failed: %s", text)
+        self.assertNotIn("inspection failed: %s", text)
         self.assertNotIn('"data"', text)
         self.assertNotIn('"stringData"', text)
         managed_field = {
@@ -337,6 +341,8 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         self.assertEqual([], _metadata_module._metadata_list({**exact_list, "items": []}))
         self.assertEqual([], _metadata_module._metadata_list({**exact_list, "items": None}))
         self.assertIsNone(_metadata_module._metadata_list({**exact_list, "items": None, "metadata": {"continue": "next"}}))
+        self.assertIsNone(_metadata_module._metadata_list({**exact_list, "items": [], "metadata": {"continue": "next"}}))
+        self.assertIsNone(_metadata_module._metadata_list({**exact_list, "items": [], "metadata": {"remainingItemCount": 1}}))
         self.assertEqual(
             [{"name": "safe-target", "namespace": "shared-services", "kind": "Secret"}],
             _metadata_module._producer_targets(

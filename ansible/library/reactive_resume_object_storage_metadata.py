@@ -143,10 +143,10 @@ def _metadata_list(value):
         or not set(value["metadata"]).issubset(_PARTIAL_METADATA_LIST_METADATA_KEYS)
     ):
         return None
+    if not _empty_partial_metadata_list(value["metadata"]):
+        return None
     raw_items = value.get("items")
     if raw_items is None:
-        if not _empty_partial_metadata_list(value["metadata"]):
-            return None
         raw_items = []
     if not isinstance(raw_items, list):
         return None
@@ -342,6 +342,11 @@ def main():
     except ImportError as exc:
         module.fail_json(msg="METADATA_API: kubernetes client dependency unavailable: %s" % exc)
 
+    if module.params["collection"] and module.params["resource_kind"] == "Secret":
+        module.fail_json(
+            msg="METADATA_API: refusing collection target inspection for Secret resources"
+        )
+
     try:
         config.load_kube_config(config_file=module.params["kubeconfig"])
         api_client = client.ApiClient()
@@ -355,7 +360,10 @@ def main():
         status = _status(exc)
         if status in _NOT_FOUND:
             module.exit_json(changed=False, found=False, api_available=False, metadata={})
-        module.fail_json(msg="METADATA_API: metadata-only request failed: %s" % exc)
+        module.fail_json(
+            msg="METADATA_API: metadata-only request failed with sanitized status %s"
+            % (status if status is not None else "unknown")
+        )
 
     if collection:
         metadata_list = _metadata_list(value)
@@ -388,7 +396,10 @@ def main():
                 module.fail_json(msg="METADATA_API: producer disappeared during inventory")
             if isinstance(exc, SystemExit):
                 raise
-            module.fail_json(msg="METADATA_API: producer target inspection failed: %s" % exc)
+            module.fail_json(
+                msg="METADATA_API: producer target inspection failed with sanitized status %s"
+                % (status if status is not None else "unknown")
+            )
         module.exit_json(
             changed=False,
             found=bool(metadata_list),
