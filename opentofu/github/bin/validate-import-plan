@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""Validate the exact no-op plan produced after importing the existing repository."""
+
+from __future__ import annotations
+
+import json
+import os
+import stat
+import sys
+from pathlib import Path
+
+EXPECTED = {
+    "github_repository.reactive_resume_mirror": {
+        "type": "github_repository",
+        "after": {
+            "name": "cristex-reactive-resume",
+            "description": "Private standalone Reactive Resume source mirror",
+            "visibility": "private",
+            "auto_init": False,
+            "has_issues": False,
+            "has_projects": False,
+            "has_wiki": False,
+        },
+    },
+    "github_repository_vulnerability_alerts.reactive_resume_mirror": {
+        "type": "github_repository_vulnerability_alerts",
+        "after": {
+            "repository": "cristex-reactive-resume",
+            "enabled": True,
+        },
+    },
+    "github_actions_repository_permissions.reactive_resume_mirror": {
+        "type": "github_actions_repository_permissions",
+        "after": {
+            "repository": "cristex-reactive-resume",
+            "enabled": False,
+        },
+    },
+}
+PROVIDER = "registry.opentofu.org/integrations/github"
+
+
+def fail(reason: str) -> None:
+    print(f"plan_status=refused reason={reason}")
+    raise SystemExit(1)
+
+
+if len(sys.argv) != 2:
+    fail("usage")
+path = Path(sys.argv[1])
+try:
+    info = path.lstat()
+except OSError:
+    fail("plan_json_absent")
+if not stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode):
+    fail("plan_json_type")
+if stat.S_IMODE(info.st_mode) != 0o600 or info.st_uid != os.getuid():
+    fail("plan_json_permissions")
+try:
+    plan = json.loads(path.read_text(encoding="utf-8"))
+except (OSError, UnicodeError, json.JSONDecodeError):
+    fail("plan_json_parse")
+if not isinstance(plan, dict):
+    fail("plan_json_shape")
+if plan.get("output_changes") not in ({}, None):
+    fail("outputs_present")
+if plan.get("resource_drift") not in ([], None):
+    fail("resource_drift")
+changes = plan.get("resource_changes")
+if not isinstance(changes, list):
+    fail("resource_changes")
+by_address = {item.get("address"): item for item in changes if isinstance(item, dict)}
+if set(by_address) != set(EXPECTED) or len(changes) != len(EXPECTED):
+    fail("resource_closure")
+for address, contract in EXPECTED.items():
+    item = by_address[address]
+    if item.get("mode") != "managed" or item.get("type") != contract["type"]:
+        fail("resource_identity")
+    if item.get("provider_name") != PROVIDER:
+        fail("provider_scope")
+    change = item.get("change")
+    if not isinstance(change, dict) or change.get("actions") != []:
+        fail("non_noop_action")
+    if change.get("before") is None or change.get("after") is None:
+        fail("missing_imported_state")
+    after = change.get("after")
+    if not isinstance(after, dict):
+        fail("after_shape")
+    for key, expected in contract["after"].items():
+        if after.get(key) != expected:
+            fail(f"after_contract_{contract['type']}_{key}")
+    if contract["type"] == "github_repository":
+        for key in ("archived", "allow_auto_merge", "allow_forking", "has_discussions", "has_downloads", "is_template"):
+            if after.get(key) not in (None, False):
+                fail("repository_permissive_feature")
+        if after.get("fork") not in (None, False, True):
+            fail("repository_fork_shape")
+        # The imported repository is an existing private upstream fork. Preserve
+        # its provenance without allowing a different fork source or configuring
+        # a fork/create operation in this root.
+        if after.get("fork") is True:
+            if after.get("source_owner") not in (None, "", "amruthpillai"):
+                fail("repository_fork_source_present")
+            if after.get("source_repo") not in (None, "", "reactive-resume"):
+                fail("repository_fork_source_present")
+        elif after.get("source_owner") not in (None, "") or after.get("source_repo") not in (None, ""):
+            fail("repository_fork_source_present")
+        if after.get("pages") not in (None, [], {}):
+            fail("repository_pages_present")
+        if after.get("template") not in (None, [], {}):
+            fail("repository_template_present")
+    if contract["type"] == "github_actions_repository_permissions":
+        if after.get("allowed_actions") not in (None, "all"):
+            fail("actions_policy_present")
+        if after.get("allowed_actions_config") not in (None, [], {}):
+            fail("actions_selected_config_present")
+    sensitive = change.get("after_sensitive")
+    if sensitive not in ({}, None, False):
+        fail("sensitive_values")
+print("plan_status=accepted resources=3 actions=no-op provider=github cloudflare=absent secrets=absent")

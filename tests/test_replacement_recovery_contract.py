@@ -65,6 +65,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "replacement-host-recovery.md",
                 "rclone-host-transfer.md",
                 "opentofu-github-state-backup.md",
+                "opentofu-github-repository-import.md",
             },
             {path.name for path in RUNBOOKS.iterdir() if path.is_file()},
         )

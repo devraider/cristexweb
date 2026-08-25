@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Fail-closed, value-free inventory of the exact existing GitHub repository."""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+
+OWNER = "devraider"
+REPOSITORY = "cristex-reactive-resume"
+API_ROOT = "https://api.github.com"
+
+
+def fail(reason: str) -> None:
+    print(f"repository_status=failed reason={reason}")
+    raise SystemExit(1)
+
+
+token = os.environ.get("GITHUB_TOKEN", "")
+if not token or any(char.isspace() for char in token):
+    fail("protected_token_absent")
+if os.environ.get("GITHUB_BASE_URL") or os.environ.get("GITHUB_API_URL"):
+    fail("github_endpoint_override")
+if any(os.environ.get(name) for name in ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY")):
+    fail("proxy_override")
+
+opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def get_json(path: str) -> object:
+    request = urllib.request.Request(
+        f"{API_ROOT}{path}",
+        method="GET",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "cristexweb-opentofu-import",
+        },
+    )
+    try:
+        with opener.open(request, timeout=20) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as error:
+        fail(f"github_http_{error.code}")
+    except (OSError, ValueError, json.JSONDecodeError):
+        fail("github_request")
+
+
+identity = get_json("/user")
+if not isinstance(identity, dict) or str(identity.get("login", "")).casefold() != OWNER.casefold():
+    fail("canonical_owner_identity")
+
+repository = get_json(f"/repos/{OWNER}/{REPOSITORY}")
+if not isinstance(repository, dict):
+    fail("repository_shape")
+if str(repository.get("full_name", "")).casefold() != f"{OWNER}/{REPOSITORY}".casefold():
+    fail("canonical_repository_identity")
+if repository.get("private") is not True or repository.get("visibility") != "private":
+    fail("repository_not_private")
+if repository.get("archived") is True:
+    fail("repository_archived")
+if repository.get("disabled") is True:
+    fail("repository_disabled")
+owner = repository.get("owner")
+if not isinstance(owner, dict) or str(owner.get("login", "")).casefold() != OWNER.casefold():
+    fail("repository_owner_identity")
+
+print(
+    "repository_status=present "
+    f"owner={OWNER} repository={REPOSITORY} visibility=private private=true"
+)

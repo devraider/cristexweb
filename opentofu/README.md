@@ -6,7 +6,11 @@ Cloudflare Tunnel and DNS resource boundaries described below.
 The private standalone GitHub repository boundary is intentionally a separate
 source root at [`opentofu/github`](github/README.md), with independent state
 `/var/lib/opentofu/cristexweb/github.tfstate`. Never combine that root with this
-Cloudflare root or reuse this root's state.
+Cloudflare root or reuse this root's state. The existing private repository import
+workflow is documented at
+[`runbooks/opentofu-github-repository-import.md`](../runbooks/opentofu-github-repository-import.md);
+it imports only the exact existing addresses and requires protected no-op-plan,
+encrypted backup/readback, and isolated-restore gates.
 
 This module is initialized against protected host state. The protected local backend
 at `/var/lib/opentofu/cristexweb/foundation.tfstate` contains exactly five imported

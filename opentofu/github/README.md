@@ -50,26 +50,36 @@ foundation timer or state. Controller-only provider/backend initialization and
 warning-free `tofu validate` passed with the state path still absent. No `tofu plan`,
 `tofu apply`, import, state mutation, or GitHub API call was performed.
 
+The existing repository import workflow is documented in
+[`runbooks/opentofu-github-repository-import.md`](../../runbooks/opentofu-github-repository-import.md).
+It is a separate guarded entrypoint that accepts only `check|import`, prompts for
+an ephemeral protected token, imports exactly the three existing-repository
+addresses, validates a protected no-op plan, and requires the independent
+encrypted backup/readback and isolated restore lane. It has no create, delete,
+destroy, apply, state-push, or state-removal path.
+
 ## Apply gates
 
 Before a future separately approved check/plan/apply:
 
 1. confirm the canonical Git worktree and this root's exact file/resource closure;
-2. with `GITHUB_TOKEN` supplied only by the protected process environment, run
-   `bin/check-repository-absence`; it pins `api.github.com`, verifies the authenticated
-   identity is exactly `devraider`, paginates every repository owned by that identity,
-   and succeeds only when the case-insensitive slug is absent. Import an existing
-   matching repository instead of creating a duplicate;
+2. with the token entered by the guarded import entrypoint, run its read-only
+   exact-repository preflight; it pins `api.github.com`, verifies the authenticated
+   identity is exactly `devraider`, and requires the existing repository to be
+   private. The separate `bin/check-repository-absence` remains the create-path
+   guard and must not be used for this existing-repository import;
 3. before genesis, run the separate absence attestation/readback/restore rehearsal;
    after genesis, back up and rehearse recovery of `github.tfstate`;
 4. write the binary plan and `tofu show -json` rendering to protected mode-`0600`
    files, then run `bin/validate-create-plan PLAN.json`;
-5. accept only the three exact GitHub create actions; reject replacement, destroy,
-   source-file, secret, webhook, deploy-key, permissive Actions, package,
-   collaborator, team, provider drift, output, or Cloudflare address;
-6. apply only the previously validated binary plan after explicit GitHub provider
-   and repository approval, then require a second no-op plan and private repository
-   post-state verification.
+5. for an existing repository, run only the three exact imports and accept only
+   the protected no-op plan; reject replacement, create, destroy, source-file,
+   secret, webhook, deploy-key, permissive Actions, package, collaborator, team,
+   provider drift, output, or Cloudflare address;
+6. after import, require immutable encrypted state backup/readback, isolated restore,
+   a second no-op plan, and private repository post-state verification. A separate
+   create-path may accept only the validated three-create plan; it is not part of
+   this import operation.
 
 Creating this repository does not authorize a source push, image build, GHCR package,
 workflow, Kubernetes object, Infisical value, PostgreSQL role/Secret, deployment, or
