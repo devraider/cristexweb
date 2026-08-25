@@ -15,14 +15,14 @@ Installation, one encrypted immutable backup with exact readback, Infisical-held
 recovery, isolated PostgreSQL 17 restore, cleanup, timer enablement, and idempotence
 all passed. The timer is enabled and active (`waiting`) for the daily schedule.
 
-The active scheduled slice covers PostgreSQL database `keycloak`. A separate guarded
-MongoDB source closure is now ready but runtime-uninstalled: it targets the complete
+The active scheduled PostgreSQL slice covers database `keycloak`. The separate
+shared-MongoDB scheduler is also installed and active: it targets the complete
 `shared-mongodb` replica set, uses authenticated CA-validated TLS and
 `mongodump --archive --oplog`, encrypts to the same public age recipient, uploads to
 `drive:cristexweb-recovery/mongodb/shared-mongodb/<timestamp>/`, and schedules at
-`03:45` host time plus bounded jitter. Its installation, oplog-consistent backup, immutable readback, Infisical-key decrypt,
-isolated MongoDB `8.0.12` restore, and cleanup now pass; its timer is enabled and active (`waiting`), and the final repeated apply converged
-at `changed=0`.
+`03:45` host time plus bounded jitter. Its oplog-consistent backup, immutable
+readback, Infisical-key decrypt, isolated MongoDB `8.0.12` restore, cleanup, timer
+enablement, and final `changed=0` repeated apply all pass.
 Other PostgreSQL consumers, RabbitMQ, remote deletion/retention, and production
 acceptance require separate reviewed extensions. The canonical contract is
 [`shared-stateful-backup-architecture.yml`](../ansible/files/policies/shared-stateful-backup-architecture.yml).

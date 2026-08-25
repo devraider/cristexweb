@@ -21,8 +21,12 @@ reactive_resume_checkpoint: |
   `metadata.managedFields`, so manager-field evidence is unavailable. The
   superseded Ansible alignment lane refuses the tracked objects. Hardened backup
   installation/schema-2 restore, TLS renewal installation/enablement, soak, and
-  GitHub-state recovery remain pending. PROD and public routing remain inactive. Older
-  source-only/NOT RUN wording below is historical and must not override this
+  GitHub-state recovery remain pending. One source-review subagent inadvertently
+  launched the canonical successor check-only wrapper; it exited `rc=2`, its output
+  was removed, and exact task reach cannot be reconstructed. No mutation was intended
+  or evidenced, and that run is not acceptance evidence. PROD and public routing
+  remain inactive. Older source-only/NOT RUN wording below is historical and must not
+  override this
   checkpoint.
 
 current_checkpoint: |

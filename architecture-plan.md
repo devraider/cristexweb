@@ -36,9 +36,11 @@ action plugins, one backup-only strategy plugin, and two focused library modules
 that enforce reviewed mutation, cryptographic, and task-selection boundaries; it is
 not a general operational implementation. Source-only guarded closures now exist for Argo,
 Infisical, PostgreSQL, standalone MongoDB, Secret materialization, and empty logical
-reservations, but no hosted orchestration, DNS, tunnel, deployed GitOps runtime,
-credential-bearing Secret write, live database, backup/restore, or operational
-replacement-host recovery is complete. The first replacement increment is a secret-free,
+reservations. That no-runtime statement described the original planning baseline;
+current repository status instead records live private Argo, DNS/Tunnel, databases,
+credential seams, and the Keycloak PostgreSQL/shared-MongoDB backup and restore
+checkpoints. Replacement-host recovery and the separately hardened Reactive Resume
+schema-2 backup remain incomplete. The first replacement increment is a secret-free,
 decision-first runbook and artifact register only; it does not resolve or automate
 the unknown k3s datastore/version/token, storage, RPO/RTO, or off-node recovery
 prerequisites. CristexHub local Compose assets remain an external

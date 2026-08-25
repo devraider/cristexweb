@@ -129,9 +129,10 @@ hooks, and Secret objects are absent. The source requires exact precreated
 Infisical-owned `argocd-secret`, `argocd-redis`, and `argocd-server-tls` metadata and
 cryptographic contracts and refuses `argocd-initial-admin-secret`. Its non-passthrough
 `check|apply` wrapper validates an empty-API check without resolving the absent
-AppProject GVK and waits for Established CRDs on apply. It is source-ready but no live check/apply/idempotence or runtime proof has occurred.
-Admission, node pulls, private TLS/login, NetworkPolicy positives/negatives, recovery,
-and later Git reconciliation remain blocked. The companion
+AppProject GVK and waits for Established CRDs on apply. The private Argo core is
+live and idempotent; this supersedes the historical pre-runtime source-only status.
+Public exposure remains absent, and recovery plus later object-by-object Git
+handoffs retain their separate acceptance gates. The companion
 [Keycloak OIDC bootstrap design](runbooks/keycloak-oidc-bootstrap-design.md) and
 [release selection](runbooks/keycloak-release-selection.md) retain the private
 Keycloak `26.7.1` workload, PostgreSQL `17.10`, PROD-compatibility realm
@@ -149,9 +150,11 @@ exposure is private-only, and promotion gates remain closed. The
 future broker with exact isolated DEV/PROD scopes and reviewed future-consumer
 admission. The [shared backup architecture](runbooks/shared-stateful-backup-architecture.md)
 requires private authenticated catalog/retrieval, encrypted timestamped archives,
-non-destructive off-node copy, integrity checks, and isolated restore. Both remain
-source-ready for PostgreSQL and standalone MongoDB but runtime-blocked; the RabbitMQ
-and backup implementations remain policy-only. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
+non-destructive off-node copy, integrity checks, and isolated restore. The host-managed Keycloak PostgreSQL and shared-MongoDB encrypted backup, readback,
+isolated-restore, cleanup, timer-enable, and idempotence checkpoints are active.
+Other PostgreSQL consumers, RabbitMQ recovery, and the hardened Reactive Resume
+schema-2 backup remain separately blocked; those pending scopes must not override
+the two active scheduler checkpoints. The separate [Reactive Resume hosted architecture](runbooks/reactive-resume-hosted-architecture.md)
 records a live private DEV runtime/Argo checkpoint, not merely a planned
 reservation. The checkpoint is live evidence, not full acceptance or
 source-reproducibility evidence: current main includes a dedicated, value-free
