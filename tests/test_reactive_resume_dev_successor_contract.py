@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import ast
 import hashlib
+import importlib.util
+import os
 import stat
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import yaml
 
@@ -195,6 +200,111 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertIn("source_manifest_sha256", DEFAULTS.read_text())
         self.assertIn("reactive_resume_dev_successor", PLAYBOOK.read_text())
         self.assertEqual(0, subprocess.run(["python3", "-m", "py_compile", str(METADATA), str(GUARD)], check=False).returncode)
+
+    def test_action_guard_hash_constants_match_every_current_source(self) -> None:
+        tree = ast.parse(self.guard)
+        constants = {}
+        for node in tree.body:
+            if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+                continue
+            target = node.targets[0]
+            if isinstance(target, ast.Name) and target.id in {
+                "_SCRIPT_HASH", "_MANIFEST_HASH", "_TASK_HASH", "_DEFAULTS_HASH",
+                "_PLAYBOOK_HASH", "_WRAPPER_HASH", "_MANIFEST_ENTRIES",
+            }:
+                constants[target.id] = ast.literal_eval(node.value)
+        paths = {
+            "_SCRIPT_HASH": CHECKER,
+            "_MANIFEST_HASH": COMPONENT / "MANIFESTS.sha256",
+            "_TASK_HASH": TASKS,
+            "_DEFAULTS_HASH": DEFAULTS,
+            "_PLAYBOOK_HASH": PLAYBOOK,
+            "_WRAPPER_HASH": WRAPPER,
+        }
+        for symbol, path in paths.items():
+            self.assertEqual(
+                hashlib.sha256(path.read_bytes()).hexdigest(),
+                constants[symbol],
+                symbol,
+            )
+        self.assertEqual(
+            {
+                str(path.relative_to(COMPONENT)): hashlib.sha256(path.read_bytes()).hexdigest()
+                for path in sorted(SOURCE.glob("*.yaml"))
+            },
+            constants["_MANIFEST_ENTRIES"],
+        )
+
+    def test_action_guard_reaches_read_only_exec_boundary_with_synthetic_attestation(self) -> None:
+        spec = importlib.util.spec_from_file_location("reactive_resume_dev_successor_guarded_test", GUARD)
+        self.assertIsNotNone(spec and spec.loader)
+        guarded = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(guarded)
+
+        token = "a" * 64
+        pod_name = "shared-postgresql-primary"
+        command = ["/bin/sh", "-ec", CHECKER.read_text()]
+        args = {
+            "namespace": "shared-services",
+            "pod": pod_name,
+            "container": "postgres",
+            "command": command,
+            "kubeconfig": "/etc/rancher/k3s/k3s.yaml",
+            "script_name": CHECKER.name,
+            "script_sha256": hashlib.sha256(CHECKER.read_bytes()).hexdigest(),
+        }
+        binding = {
+            "attestation_sha256": hashlib.sha256(token.encode()).hexdigest(),
+            "environment": "dev",
+            "database": "reactive_resume_dev_successor",
+            "runtime_role": "reactive_resume_dev_runtime",
+            "migration_role": "reactive_resume_dev_migrator",
+            "namespace": "shared-services",
+            "pod_name": pod_name,
+            "metadata_only": True,
+            "no_apply_path": True,
+        }
+
+        class SyntheticTask:
+            def __init__(self, task_args):
+                self.args = task_args
+
+            def get_path(self):
+                return str(guarded._TASK_SOURCE)
+
+        action = object.__new__(guarded.ActionModule)
+        action._task = SyntheticTask(args)
+        with tempfile.TemporaryDirectory() as directory:
+            attestation = Path(directory) / "attestation"
+            attestation.write_text(f"{token}:entrypoint:{os.getpid()}:{guarded._WRAPPER_HASH}\n")
+            attestation.chmod(0o600)
+            cliargs = {
+                "tags": [],
+                "start_at_task": None,
+                "step": None,
+                "skip_tags": [],
+                "subset": "crtxweb",
+                "diff": True,
+                "check": True,
+                "inventory": ["/synthetic/.ansible/inventory.local.yml"],
+            }
+            environment = {
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_ENTRYPOINT": "v1",
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_TOKEN": token,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_ATTESTATION_FILE": str(attestation),
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_PID": str(os.getpid()),
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_PATH": str(guarded._WRAPPER_SOURCE),
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_SUCCESSOR_WRAPPER_SHA256": guarded._WRAPPER_HASH,
+            }
+            with patch.object(guarded.context, "CLIARGS", guarded.context.CLIARGS.__class__(cliargs)), patch.dict(os.environ, environment, clear=False), patch.object(guarded.ActionModule.__mro__[1], "run", return_value={}), patch.object(guarded.ActionModule, "_execute_module", return_value={"rc": 0}) as execute:
+                result = action.run(task_vars={
+                    "reactive_resume_dev_successor_approved": True,
+                    "reactive_resume_dev_successor_internal_binding": binding,
+                })
+        self.assertFalse(result["failed"], result)
+        self.assertFalse(result["changed"])
+        execute.assert_called_once()
+        self.assertEqual("kubernetes.core.k8s_exec", execute.call_args.kwargs["module_name"])
 
 
 if __name__ == "__main__":
