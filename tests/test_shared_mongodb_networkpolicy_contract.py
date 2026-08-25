@@ -140,21 +140,33 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         self.assertEqual(1, len(allow['ingress']))
         ingress = allow['ingress'][0]
         self.assertEqual([{'protocol': 'TCP', 'port': 27017}], ingress['ports'])
-        self.assertEqual(3, len(ingress['from']))
-        namespace_names = []
-        for source in ingress['from'][:2]:
-            namespace_names.append(source['namespaceSelector']['matchLabels']['kubernetes.io/metadata.name'])
-            self.assertEqual({'app.kubernetes.io/part-of': 'cristexhub'}, source['podSelector']['matchLabels'])
+        self.assertEqual(5, len(ingress['from']))
+        self.assertEqual(
+            [
+                ('cristexhub-dev', 'backend'),
+                ('cristexhub-dev', 'celery-worker'),
+                ('cristexhub-prod', 'backend'),
+                ('cristexhub-prod', 'celery-worker'),
+            ],
+            [
+                (
+                    source['namespaceSelector']['matchLabels']['kubernetes.io/metadata.name'],
+                    source['podSelector']['matchLabels']['app.kubernetes.io/name'],
+                )
+                for source in ingress['from'][:4]
+            ],
+        )
+        for source in ingress['from'][:4]:
             self.assertEqual(
-                [{
-                    'key': 'app.kubernetes.io/name',
-                    'operator': 'In',
-                    'values': ['backend', 'celery-worker'],
-                }],
-                source['podSelector']['matchExpressions'],
+                {'app.kubernetes.io/part-of': 'cristexhub'},
+                {
+                    key: value
+                    for key, value in source['podSelector']['matchLabels'].items()
+                    if key == 'app.kubernetes.io/part-of'
+                },
             )
-        self.assertEqual(['cristexhub-dev', 'cristexhub-prod'], namespace_names)
-        self.assertEqual(selector, ingress['from'][2]['podSelector']['matchLabels'])
+            self.assertNotIn('matchExpressions', source['podSelector'])
+        self.assertEqual(selector, ingress['from'][4]['podSelector']['matchLabels'])
         self.assertNotIn('mongodb-system', json.dumps(allow))
         self.assertEqual(2, len(allow['egress']))
         same_set, dns = allow['egress']

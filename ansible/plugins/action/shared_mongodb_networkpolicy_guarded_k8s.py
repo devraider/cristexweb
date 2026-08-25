@@ -19,7 +19,7 @@ _EXPECTED_OBJECT_HASHES = {
         'NetworkPolicy',
         'shared-services',
         'shared-mongodb-networkpolicy-allow',
-    ): 'ab2df6d138e231c0b35181927e4f1c9daa0076fee5f55d5fa0198db712f91382',
+    ): 'c7b4348046fb6afd97b1ce7fdf2aacc5b649a83af6c45158f3f864f82dc3d1b8',
     (
         'networking.k8s.io/v1',
         'NetworkPolicy',

@@ -26,8 +26,9 @@ cristex.io/component: mongodb
 The default policy declares both `Ingress` and `Egress` policy types and has no
 allow rules. The allow policy permits only:
 
-- ingress TCP `27017` from `backend` and `celery-worker` pods in the exact
-  `cristexhub-dev` and `cristexhub-prod` namespaces;
+- ingress TCP `27017` from exactly four client selectors: `backend` and
+  `celery-worker` (each requiring `app.kubernetes.io/part-of=cristexhub`) in
+  each of the exact `cristexhub-dev` and `cristexhub-prod` namespaces;
 - ingress TCP `27017` from the same MongoDB pod selector for replica-set traffic;
 - egress TCP `27017` to that same MongoDB pod selector;
 - egress TCP and UDP `53` only to CoreDNS pods (`k8s-app=kube-dns`) in

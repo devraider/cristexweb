@@ -16,7 +16,7 @@ shared_mongodb_networkpolicy_bootstrap_target_names:
   - shared-mongodb-networkpolicy-default-deny
 shared_mongodb_networkpolicy_bootstrap_expected_hashes:
   - path: "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-allow.yaml"
-    sha256: e8ffcf4d91ef589185d0da0ea9774210ca770d69acd0fc1abd1c188e8042806b
+    sha256: b3f492e663a99f2264fa64bbf3accdb12a42767f67b5e2819c4fb24246cd3bfd
   - path: "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-default-deny.yaml"
     sha256: 531923114cb79b0c73adc64014422a0b8ded8d39550ffe0d5adb1e7c361843fc
 shared_mongodb_networkpolicy_bootstrap_identity_set_sha256: 11352b9439d10f2ffdfad385ee31f524885fead8d74d38937101614f742ab575
