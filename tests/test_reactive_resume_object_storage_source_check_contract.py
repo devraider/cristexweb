@@ -412,12 +412,12 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {
                     "apiVersion": "secrets.infisical.com/v1alpha1",
                     "kind": "InfisicalDynamicSecret",
-                    "metadata": {"name": "dynamic", "namespace": "shared-services"},
+                    "metadata": {"name": "dynamic", "namespace": "shared-services", "uid": "uid-dynamic", "resourceVersion": "1"},
                     "spec": {"managedSecretReference": {"secretName": "dynamic-target", "secretNamespace": "shared-services"}},
                 },
                 "InfisicalDynamicSecret",
                 "secrets.infisical.com/v1alpha1",
-                {"name": "dynamic", "namespace": "shared-services"},
+                {"name": "dynamic", "namespace": "shared-services", "uid": "uid-dynamic", "resourceVersion": "1"},
             ),
         )
         self.assertIsNone(
@@ -453,12 +453,12 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {
                     "apiVersion": "bitnami.com/v1alpha1",
                     "kind": "SealedSecret",
-                    "metadata": {"name": "sealed", "namespace": "shared-services"},
+                    "metadata": {"name": "sealed", "namespace": "shared-services", "uid": "uid-sealed", "resourceVersion": "1"},
                     "spec": {"template": {"metadata": {"name": "sealed-target", "namespace": "shared-services"}}},
                 },
                 "SealedSecret",
                 "bitnami.com/v1alpha1",
-                {"name": "sealed", "namespace": "shared-services"},
+                {"name": "sealed", "namespace": "shared-services", "uid": "uid-sealed", "resourceVersion": "1"},
             ),
         )
         self.assertEqual(
@@ -467,12 +467,12 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {
                     "apiVersion": "secrets-store.csi.x-k8s.io/v1",
                     "kind": "SecretProviderClass",
-                    "metadata": {"name": "csi", "namespace": "shared-services"},
+                    "metadata": {"name": "csi", "namespace": "shared-services", "uid": "uid-csi", "resourceVersion": "1"},
                     "spec": {"secretObjects": [{"secretName": "csi-target"}]},
                 },
                 "SecretProviderClass",
                 "secrets-store.csi.x-k8s.io/v1",
-                {"name": "csi", "namespace": "shared-services"},
+                {"name": "csi", "namespace": "shared-services", "uid": "uid-csi", "resourceVersion": "1"},
             ),
         )
         for invalid in (
