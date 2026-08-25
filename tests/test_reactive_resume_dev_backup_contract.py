@@ -241,6 +241,19 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "object_remote_checksum",
             "reactive-resume-object-storage-tls",
             "reactive-resume-object-storage-auth",
+            "infisical_launcher=",
+            "infisical_binary=",
+            "infisical_version='0.43.121'",
+            "infisical_binary_sha256=",
+            "infisical_executable_hash",
+            "infisical_version_output",
+            "restore-networkpolicy",
+            "policyTypes: [Ingress, Egress]",
+            "cleanup_policy",
+            "pg_policy_uid=",
+            "storage_policy_uid=",
+            "fail pg_restore_policy_uid",
+            "fail storage_restore_policy_uid",
             "target=isolated-emptydir-postgresql-and-seaweedfs",
             "seaweed_image",
             "emptyDir",
@@ -260,6 +273,10 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         )
         self.assertEqual([{"protocol": "TCP", "port": 8333}], policy["spec"]["ingress"][0]["ports"])
         self.assertIn("reactive-resume-dev-backup-networkpolicy.yaml", self.playbook_text)
+        self.assertIn("reactive-resume-dev-postgresql-restore-$pod_run_id", self.restore)
+        self.assertIn("reactive-resume-dev-storage-restore-$pod_run_id", self.restore)
+        self.assertIn("ingress: []", self.restore)
+        self.assertIn("egress: []", self.restore)
 
     def test_uid_bound_helper_cleanup_and_no_service_account(self) -> None:
         for text in (self.backup, self.restore):
@@ -327,6 +344,11 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "Execute the separately approved one-time combined backup test",
             "Execute the separately approved isolated combined restore rehearsal",
             "Enable the accepted twice-daily timer",
+            "Inspect machine acceptance evidence before timer enablement",
+            "Require successful current backup and restore evidence",
+            "Record root-owned successful backup evidence",
+            "Record root-owned successful restore evidence",
+            "reactive_resume_dev_backup_acceptance_max_age_seconds: 86400",
             "reactive_resume_dev_backup_mode == 'enable'",
             "not ansible_check_mode",
             "failed_when: false",

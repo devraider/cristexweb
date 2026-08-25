@@ -12,10 +12,12 @@
     reactive_resume_dev_backup_age_version: 1.2.1-1+b5
     reactive_resume_dev_backup_recipient_sha256: ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
     reactive_resume_dev_backup_repository_root: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_REPOSITORY_ROOT') | trim }}"
-    reactive_resume_dev_backup_wrapper_sha256: f88507a5fad5ba1f8bdf1679ff07fd33165cf387f1b166bb7bdf22d9bd0ba15f
-    reactive_resume_dev_backup_playbook_sha256: 959b70f666c0058f4e7a4f234cc3da4db6dd95e655e84f43e42c8aa7d9492536
+    reactive_resume_dev_backup_wrapper_sha256: 489005388653608e35966fadbd8b745ae5ca1e53ebfb5d4aeb67b74ce8e9b0c6
+    reactive_resume_dev_backup_playbook_sha256: 8a97520cf26b0760aa1843eba59d438dbc694c38805fee748157ccf925f7f8c6
     reactive_resume_dev_backup_service: cristexweb-reactive-resume-dev-backup.service
     reactive_resume_dev_backup_timer: cristexweb-reactive-resume-dev-backup.timer
+    reactive_resume_dev_backup_acceptance_directory: /var/lib/cristexweb-backup/reactive-resume/dev/acceptance
+    reactive_resume_dev_backup_acceptance_max_age_seconds: 86400
 
   pre_tasks:
     - name: Require the canonical twice-daily backup contract
@@ -42,13 +44,13 @@
       loop:
         - path: ansible/bin/configure-reactive-resume-dev-backup
           mode: '0755'
-          sha256: f88507a5fad5ba1f8bdf1679ff07fd33165cf387f1b166bb7bdf22d9bd0ba15f
+          sha256: 489005388653608e35966fadbd8b745ae5ca1e53ebfb5d4aeb67b74ce8e9b0c6
         - path: ansible/files/backup/reactive-resume-dev-backup
           mode: '0755'
           sha256: 0e0e284dc27d5264a5df892e00fd2e2cd9c23c6605796465eaa3e3f187196944
         - path: ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal
           mode: '0755'
-          sha256: dab15c5944c174cc464821e496ed0158fb6eaa5234c912457dfed589c8fc8d52
+          sha256: 14f91f10b6a7a5cafda495b4de5b51d813d47d8bf7124c84397b2c423ca90cc1
         - path: ansible/files/backup/cristexweb-reactive-resume-dev-backup.service
           mode: '0644'
           sha256: cd1a1cf09646d6675ebdefba085735755c00e229f1a21ae1d2a5ab2c196dbae2
@@ -154,6 +156,86 @@
       changed_when: false
       no_log: true
 
+    - name: Inspect machine acceptance evidence before timer enablement
+      ansible.builtin.stat:
+        path: "{{ reactive_resume_dev_backup_acceptance_directory }}/{{ item }}"
+        follow: false
+      loop:
+        - backup-test.json
+        - restore.json
+      register: reactive_resume_dev_backup_acceptance_states
+      changed_when: false
+      when: reactive_resume_dev_backup_mode == 'enable'
+      no_log: true
+
+    - name: Require root-owned machine acceptance evidence files
+      ansible.builtin.assert:
+        that:
+          - item.stat.isreg | default(false)
+          - not (item.stat.islnk | default(false))
+          - item.stat.pw_name == 'root'
+          - item.stat.gr_name == 'root'
+          - item.stat.mode == '0600'
+        fail_msg: Refusing timer enablement without exact root-owned acceptance evidence.
+      loop: "{{ reactive_resume_dev_backup_acceptance_states.results | default([]) }}"
+      changed_when: false
+      when: reactive_resume_dev_backup_mode == 'enable'
+      no_log: true
+
+    - name: Read machine acceptance evidence without output
+      ansible.builtin.slurp:
+        src: "{{ reactive_resume_dev_backup_acceptance_directory }}/{{ item }}"
+      loop:
+        - backup-test.json
+        - restore.json
+      register: reactive_resume_dev_backup_acceptance_contents
+      failed_when: false
+      changed_when: false
+      when: reactive_resume_dev_backup_mode == 'enable'
+      no_log: true
+
+    - name: Read current epoch for acceptance freshness
+      ansible.builtin.command:
+        argv: [/usr/bin/date, +%s]
+      register: reactive_resume_dev_backup_acceptance_now
+      changed_when: false
+      check_mode: false
+      when: reactive_resume_dev_backup_mode == 'enable'
+      no_log: true
+
+    - name: Parse machine acceptance evidence
+      ansible.builtin.set_fact:
+        reactive_resume_dev_backup_acceptance_backup: "{{ (reactive_resume_dev_backup_acceptance_contents.results[0].content | b64decode | from_json) }}"
+        reactive_resume_dev_backup_acceptance_restore: "{{ (reactive_resume_dev_backup_acceptance_contents.results[1].content | b64decode | from_json) }}"
+      when: reactive_resume_dev_backup_mode == 'enable'
+      no_log: true
+
+    - name: Require successful current backup and restore evidence
+      ansible.builtin.assert:
+        that:
+          - reactive_resume_dev_backup_acceptance_backup.kind == 'reactive-resume-dev-backup-test'
+          - reactive_resume_dev_backup_acceptance_backup.status == 'success'
+          - reactive_resume_dev_backup_acceptance_restore.kind == 'reactive-resume-dev-restore'
+          - reactive_resume_dev_backup_acceptance_restore.status == 'success'
+          - reactive_resume_dev_backup_acceptance_backup.completed_epoch is integer
+          - reactive_resume_dev_backup_acceptance_restore.completed_epoch is integer
+          - reactive_resume_dev_backup_acceptance_restore.completed_epoch >= reactive_resume_dev_backup_acceptance_backup.completed_epoch
+          - reactive_resume_dev_backup_acceptance_now.stdout | int >= reactive_resume_dev_backup_acceptance_backup.completed_epoch
+          - reactive_resume_dev_backup_acceptance_now.stdout | int >= reactive_resume_dev_backup_acceptance_restore.completed_epoch
+          - >-
+            (reactive_resume_dev_backup_acceptance_now.stdout | int) -
+            reactive_resume_dev_backup_acceptance_backup.completed_epoch <=
+            reactive_resume_dev_backup_acceptance_max_age_seconds
+          - >-
+            (reactive_resume_dev_backup_acceptance_now.stdout | int) -
+            reactive_resume_dev_backup_acceptance_restore.completed_epoch <=
+            reactive_resume_dev_backup_acceptance_max_age_seconds
+          - reactive_resume_dev_backup_acceptance_restore.source_run_id is match('^20[0-9]{6}T[0-9]{6}Z$')
+        fail_msg: Refusing timer enablement without fresh successful backup and restore evidence.
+      changed_when: false
+      when: reactive_resume_dev_backup_mode == 'enable'
+      no_log: true
+
   tasks:
     - name: Reconcile the exact backup helper ingress policy
       kubernetes.core.k8s:
@@ -178,6 +260,7 @@
         - {path: /var/lib/cristexweb-backup, owner: paul, group: paul, mode: '0700'}
         - {path: /var/lib/cristexweb-backup/reactive-resume, owner: paul, group: paul, mode: '0700'}
         - {path: /var/lib/cristexweb-backup/reactive-resume/dev, owner: paul, group: paul, mode: '0700'}
+        - {path: /var/lib/cristexweb-backup/reactive-resume/dev/acceptance, owner: root, group: root, mode: '0700'}
 
     - name: Install the public age recipient
       ansible.builtin.copy:
@@ -239,9 +322,64 @@
       ansible.builtin.systemd_service:
         name: "{{ reactive_resume_dev_backup_service }}"
         state: started
+      register: reactive_resume_dev_backup_test_result
       when:
         - reactive_resume_dev_backup_mode == 'test'
         - not ansible_check_mode
+
+    - name: Verify the one-time backup service completed successfully
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/systemctl
+          - show
+          - "{{ reactive_resume_dev_backup_service }}"
+          - --property=ExecMainCode
+          - --property=ExecMainStatus
+          - --property=Result
+      register: reactive_resume_dev_backup_test_status
+      changed_when: false
+      check_mode: false
+      when:
+        - reactive_resume_dev_backup_mode == 'test'
+        - not ansible_check_mode
+      no_log: true
+
+    - name: Require successful one-time backup service evidence
+      ansible.builtin.assert:
+        that:
+          - reactive_resume_dev_backup_test_status.stdout is search('(?m)^ExecMainCode=exited$')
+          - reactive_resume_dev_backup_test_status.stdout is search('(?m)^ExecMainStatus=0$')
+          - reactive_resume_dev_backup_test_status.stdout is search('(?m)^Result=success$')
+        fail_msg: The one-time backup service did not complete successfully.
+      changed_when: false
+      when:
+        - reactive_resume_dev_backup_mode == 'test'
+        - not ansible_check_mode
+      no_log: true
+
+    - name: Read one-time backup evidence epoch
+      ansible.builtin.command:
+        argv: [/usr/bin/date, +%s]
+      register: reactive_resume_dev_backup_test_epoch
+      changed_when: false
+      check_mode: false
+      when:
+        - reactive_resume_dev_backup_mode == 'test'
+        - not ansible_check_mode
+      no_log: true
+
+    - name: Record root-owned successful backup evidence
+      ansible.builtin.copy:
+        dest: "{{ reactive_resume_dev_backup_acceptance_directory }}/backup-test.json"
+        content: >-
+          {"kind":"reactive-resume-dev-backup-test","status":"success","completed_epoch":{{ reactive_resume_dev_backup_test_epoch.stdout | int }}}
+        owner: root
+        group: root
+        mode: '0600'
+      when:
+        - reactive_resume_dev_backup_mode == 'test'
+        - not ansible_check_mode
+      no_log: true
 
     - name: Execute the separately approved isolated combined restore rehearsal
       ansible.builtin.command:
@@ -300,6 +438,42 @@
       when:
         - reactive_resume_dev_backup_mode == 'restore'
         - not ansible_check_mode
+
+    - name: Extract the successful restore source run ID
+      ansible.builtin.set_fact:
+        reactive_resume_dev_backup_restore_source_run_id: >-
+          {{ reactive_resume_dev_backup_restore_result.stdout
+             | regex_findall('source_run_id=(20[0-9]{6}T[0-9]{6}Z)') | first }}
+      when:
+        - reactive_resume_dev_backup_mode == 'restore'
+        - not ansible_check_mode
+      no_log: true
+
+    - name: Read successful restore evidence epoch
+      ansible.builtin.command:
+        argv: [/usr/bin/date, +%s]
+      register: reactive_resume_dev_backup_restore_epoch
+      changed_when: false
+      check_mode: false
+      when:
+        - reactive_resume_dev_backup_mode == 'restore'
+        - not ansible_check_mode
+      no_log: true
+
+    - name: Record root-owned successful restore evidence
+      ansible.builtin.copy:
+        dest: "{{ reactive_resume_dev_backup_acceptance_directory }}/restore.json"
+        content: >-
+          {"kind":"reactive-resume-dev-restore","status":"success",
+          "completed_epoch":{{ reactive_resume_dev_backup_restore_epoch.stdout | int }},
+          "source_run_id":"{{ reactive_resume_dev_backup_restore_source_run_id }}"}
+        owner: root
+        group: root
+        mode: '0600'
+      when:
+        - reactive_resume_dev_backup_mode == 'restore'
+        - not ansible_check_mode
+      no_log: true
 
     - name: Enable the accepted twice-daily timer
       ansible.builtin.systemd_service:

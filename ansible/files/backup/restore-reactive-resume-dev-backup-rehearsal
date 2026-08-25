@@ -17,6 +17,10 @@ seaweed_image='chrislusf/seaweedfs:4.44@sha256:c927ea0755b1d7dd5a3101081e4717126
 rclone_image='rclone/rclone:1.71.1@sha256:e99b4361672a8e5b41b557979b780a85797aef45a7da49629ad99cd39c59deae'
 remote_root=drive:cristexweb-recovery/reactive-resume/dev
 rclone_config=/home/paul/.config/rclone/rclone.conf
+infisical_launcher=/home/paul/.nvm/versions/node/v24.19.0/bin/infisical
+infisical_binary=/home/paul/.nvm/versions/node/v24.19.0/lib/node_modules/@infisical/cli/bin/infisical
+infisical_version='0.43.121'
+infisical_binary_sha256='21e24f040a09196fb1214873ef964ac74655b172575a78fd95e6c9f2ab1c8940'
 lock_file=/run/lock/cristexweb-reactive-resume-dev-backup-restore.lock
 declared_rpo_seconds=86400
 declared_rto_seconds=14400
@@ -43,6 +47,12 @@ exec 9>"$lock_file"
 /usr/bin/flock -n 9 || { printf '%s\n' 'restore_status=refused reason=concurrent_run'; exit 75; }
 [ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] || fail rclone_config_metadata
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || fail rclone_config_metadata
+[ -L "$infisical_launcher" ] && [ "$(/usr/bin/readlink -f "$infisical_launcher")" = "$infisical_binary" ] || fail infisical_executable_metadata
+[ -f "$infisical_binary" ] && [ ! -L "$infisical_binary" ] || fail infisical_executable_metadata
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$infisical_binary")" = 'paul:paul:755' ] || fail infisical_executable_metadata
+[ "$(/usr/bin/sha256sum "$infisical_binary" | /usr/bin/cut -d ' ' -f 1)" = "$infisical_binary_sha256" ] || fail infisical_executable_hash
+infisical_version_output=$(/usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin LC_ALL=C "$infisical_launcher" --version 2>&1) || fail infisical_version
+[ "$infisical_version_output" = "infisical version $infisical_version" ] || fail infisical_version
 remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long)
 [ "$remotes" = 'drive: drive' ] || fail rclone_remote_contract
 
@@ -51,6 +61,8 @@ pg_uid=
 pg_pod=
 storage_uid=
 storage_pod=
+pg_policy_uid=
+storage_policy_uid=
 run_id=
 pod_run_id=
 cleanup_pod() {
@@ -76,11 +88,33 @@ cleanup_pod() {
   current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
   [ -z "$current_uid" ] || return 1
 }
+cleanup_policy() {
+  name=$1
+  uid=$2
+  expected_name=$3
+  [ -n "$name" ] || return 0
+  if [ -z "$uid" ]; then
+    uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+    [ -n "$uid" ] || return 0
+  fi
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  [ -n "$current_uid" ] || return 0
+  current_name=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" -o jsonpath='{.metadata.labels.app\.kubernetes\.io/name}') || return 1
+  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" -o jsonpath='{.metadata.labels.cristex\.io/run-id}') || return 1
+  current_component=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" -o jsonpath='{.metadata.labels.cristex\.io/component}') || return 1
+  [ "$current_uid" = "$uid" ] && [ "$current_name" = "$expected_name" ] && [ "$current_run_id" = "$pod_run_id" ] && [ "$current_component" = restore-networkpolicy ] || return 1
+  /usr/bin/printf '{"kind":"DeleteOptions","apiVersion":"v1","preconditions":{"uid":"%s"}}\n' "$uid" >"$work/delete-policy-$name.json"
+  /usr/local/bin/kubectl delete --raw "/apis/networking.k8s.io/v1/namespaces/$namespace/networkpolicies/$name" -f "$work/delete-policy-$name.json" >/dev/null || return 1
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  [ -z "$current_uid" ]
+}
 cleanup() {
   trap - EXIT HUP INT TERM
   cleanup_status=0
   cleanup_pod "${pg_pod:-}" "${pg_uid:-}" reactive-resume-dev-postgresql-restore || cleanup_status=1
   cleanup_pod "${storage_pod:-}" "${storage_uid:-}" reactive-resume-dev-storage-restore || cleanup_status=1
+  cleanup_policy "${pg_policy:-}" "${pg_policy_uid:-}" reactive-resume-dev-postgresql-restore || cleanup_status=1
+  cleanup_policy "${storage_policy:-}" "${storage_policy_uid:-}" reactive-resume-dev-storage-restore || cleanup_status=1
   /usr/bin/rm -rf -- "$work" || cleanup_status=1
   if [ "$cleanup_status" -ne 0 ]; then
     printf 'restore_status=failed stage=cleanup\n' >&2
@@ -221,7 +255,7 @@ restore_reference_epoch=$(/usr/bin/date +%s)
 [ "$restore_reference_epoch" -ge "$backup_completed_epoch" ] || fail clock_skew
 
 # Retrieve the age identity only for this explicitly approved restore.
-/home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY \
+"$infisical_launcher" secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY \
   --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity" || fail infisical_identity
 /usr/bin/chmod 0600 "$work/identity"
 /usr/bin/age -d -i "$work/identity" "$work/postgresql.dump.gz.age" >"$work/postgresql.dump.gz" || fail postgresql_decrypt
@@ -291,6 +325,26 @@ PY
 
 # Isolated PostgreSQL 17 restore. The pod has emptyDir only and listens on no network address.
 pg_pod=reactive-resume-dev-postgresql-restore-$pod_run_id
+pg_policy=reactive-resume-dev-postgresql-restore-$pod_run_id
+cat >"$work/pg-policy.yaml" <<EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: $pg_policy
+  namespace: $namespace
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev-postgresql-restore
+    cristex.io/component: restore-networkpolicy
+    cristex.io/run-id: $pod_run_id
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: reactive-resume-dev-postgresql-restore
+      cristex.io/run-id: $pod_run_id
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress: []
+EOF
 cat >"$work/pg-pod.yaml" <<EOF
 apiVersion: v1
 kind: Pod
@@ -342,7 +396,9 @@ spec:
     - {name: data, emptyDir: {sizeLimit: 4Gi}}
     - {name: restore, emptyDir: {sizeLimit: 4Gi}}
 EOF
-/usr/local/bin/kubectl apply -f "$work/pg-pod.yaml" >/dev/null
+/usr/local/bin/kubectl apply -f "$work/pg-policy.yaml" -f "$work/pg-pod.yaml" >/dev/null
+pg_policy_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$pg_policy" -o jsonpath='{.metadata.uid}')
+[ -n "$pg_policy_uid" ] || fail pg_restore_policy_uid
 pg_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pg_pod" -o jsonpath='{.metadata.uid}')
 [ -n "$pg_uid" ] || fail pg_restore_uid
 /usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$pg_pod" --timeout=240s >/dev/null
@@ -360,6 +416,26 @@ pg_uid=
 
 # Isolated SeaweedFS restore. It has emptyDir only; the production PVC is never mounted.
 storage_pod=reactive-resume-dev-storage-restore-$pod_run_id
+storage_policy=reactive-resume-dev-storage-restore-$pod_run_id
+cat >"$work/storage-policy.yaml" <<EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: $storage_policy
+  namespace: $namespace
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev-storage-restore
+    cristex.io/component: restore-networkpolicy
+    cristex.io/run-id: $pod_run_id
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: reactive-resume-dev-storage-restore
+      cristex.io/run-id: $pod_run_id
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress: []
+EOF
 cat >"$work/storage-pod.yaml" <<EOF
 apiVersion: v1
 kind: Pod
@@ -474,7 +550,9 @@ spec:
     - {name: restore, emptyDir: {sizeLimit: 4Gi}}
     - {name: tmp, emptyDir: {medium: Memory, sizeLimit: 16Mi}}
 EOF
-/usr/local/bin/kubectl apply -f "$work/storage-pod.yaml" >/dev/null
+/usr/local/bin/kubectl apply -f "$work/storage-policy.yaml" -f "$work/storage-pod.yaml" >/dev/null
+storage_policy_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$storage_policy" -o jsonpath='{.metadata.uid}')
+[ -n "$storage_policy_uid" ] || fail storage_restore_policy_uid
 storage_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$storage_pod" -o jsonpath='{.metadata.uid}')
 [ -n "$storage_uid" ] || fail storage_restore_uid
 /usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$storage_pod" --timeout=300s >/dev/null

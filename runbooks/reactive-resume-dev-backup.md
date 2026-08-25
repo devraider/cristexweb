@@ -157,22 +157,29 @@ Restore selects the newest complete seven-leaf timestamp directory only. It
 validates both archive checksums, the per-service manifests, and the correlated
 `run-manifest.json` before decryption. It retrieves the Infisical-held age
 identity only inside a trapped 0700 temporary directory and removes it before
-validation.
+validation. The retrieval executable is bound to the canonical Infisical CLI
+launcher/target, owner and mode, SHA-256 digest, and exact version `0.43.121`;
+a drifted launcher or binary fails closed without contacting Infisical.
 
 PostgreSQL restores into an isolated PostgreSQL 17 temporary Pod with only `emptyDir`,
 `listen_addresses=` and no Service, PVC, or source-database connection. It runs
 `pg_restore --exit-on-error` and validates the catalog and expected logical table
-count before UID-preconditioned orphan cleanup. The backup first runs
+count before UID-preconditioned orphan cleanup. A run-labelled default-deny
+NetworkPolicy is created before the Pod and permits no ingress or egress. Both
+the Pod and its NetworkPolicy are deleted only after exact run-label, component,
+and UID checks; any cleanup failure fails closed. The backup first runs
 `pg_restore --list` and refuses a dump with no logical entries or table entries.
 
 Objects are path-validated before extraction and restored into an isolated SeaweedFS
 Pod with emptyDir data, the pinned SeaweedFS image, the same TLS/auth
 contracts, and a temporary rclone sidecar. A loopback host alias is used only to
-match the service certificate. The restore checks every extracted object against the archived per-object
-manifest, then performs a remote per-object listing/checksum comparison after
-upload. It still requires object count and total bytes greater than zero, then
-deletes only the exact run-labelled Pods using UID preconditions and `Orphan`
-propagation. Cleanup errors fail the operation rather than being suppressed. The production StatefulSet, PVC, bucket, and remote
+match the service certificate. A second run-labelled default-deny
+NetworkPolicy is created before this Pod; the sidecar uses only loopback, so no
+cluster or external egress is allowed. The restore checks every extracted object
+against the archived per-object manifest, then performs a remote per-object
+listing/checksum comparison after upload. It still requires object count and total
+bytes greater than zero, then deletes only the exact run-labelled Pods and
+NetworkPolicies using UID preconditions and `Orphan` propagation. Cleanup errors fail the operation rather than being suppressed. The production StatefulSet, PVC, bucket, and remote
 archive remain untouched.
 
 A successful rehearsal emits only:
@@ -241,7 +248,9 @@ ansible/bin/configure-reactive-resume-dev-backup restore
 # record only the sanitized restore receipt and measured RPO/RTO.
 # Repeat test + restore once more only for multi-run correlation approval.
 
-# enable only after non-empty backup, restore, RPO/RTO, cleanup, and correlation pass
+# enable only after non-empty backup, restore, RPO/RTO, cleanup, and correlation pass;
+# the playbook writes root-owned mode-0600 machine evidence and enforces its
+# success, ordering, and 24-hour freshness before enable-apply
 ansible/bin/configure-reactive-resume-dev-backup enable-check
 ansible/bin/configure-reactive-resume-dev-backup enable-apply
 ansible/bin/configure-reactive-resume-dev-backup enable-check
