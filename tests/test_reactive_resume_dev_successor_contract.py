@@ -4,6 +4,7 @@ import ast
 import hashlib
 import importlib.util
 import os
+import re
 import stat
 import subprocess
 import tempfile
@@ -15,6 +16,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENT = ROOT / "ansible/files/components/reactive-resume-dev-successor"
+CLOSURE = COMPONENT / "SOURCE-CLOSURE.sha256"
 SOURCE = COMPONENT / "source"
 POLICY = ROOT / "ansible/files/policies/reactive-resume-dev-postgresql-successor.yml"
 DEFAULTS = ROOT / "ansible/roles/reactive_resume_dev_successor/defaults/main.yml"
@@ -36,6 +38,19 @@ MIGRATION_KEYS = {"DATABASE_URL", "MIGRATION_DATABASE_URL"}
 
 def docs(path: Path) -> list[dict]:
     return [item for item in yaml.safe_load_all(path.read_text()) if item]
+
+
+def canonical_digest(path: Path) -> str:
+    source = path.read_text()
+    for symbol in ("_ACTION_CANONICAL_HASH", "_CLOSURE_MANIFEST_HASH", "_WRAPPER_HASH"):
+        source, count = re.subn(
+            rf'(?m)^({re.escape(symbol)}\s*=\s*")[0-9a-f]{{64}}("\s*)$',
+            rf'\g<1>{"0" * 64}\g<2>',
+            source,
+        )
+        if count != 1:
+            raise AssertionError(f"canonical pin {symbol} count={count}")
+    return hashlib.sha256(source.encode()).hexdigest()
 
 
 class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
@@ -252,6 +267,26 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertIn("MANIFESTS.sha256", DEFAULTS.read_text())
         self.assertIn("source_manifest_sha256", DEFAULTS.read_text())
         self.assertIn("reactive_resume_dev_successor", PLAYBOOK.read_text())
+        closure = {
+            path: digest
+            for digest, path in (line.split("  ", 1) for line in CLOSURE.read_text().splitlines())
+        }
+        self.assertEqual(
+            {
+                "ansible/ansible.cfg": hashlib.sha256((ROOT / "ansible/ansible.cfg").read_bytes()).hexdigest(),
+                "ansible/library/reactive_resume_dev_secret_metadata.py": hashlib.sha256(METADATA.read_bytes()).hexdigest(),
+                "ansible/plugins/action/reactive_resume_dev_successor_guarded.py": canonical_digest(GUARD),
+            },
+            closure,
+        )
+        for required in (
+            "SOURCE-CLOSURE.sha256",
+            "closure_manifest_expected",
+            "canonical_action_file",
+            "ansible/ansible.cfg",
+            "ansible/library/reactive_resume_dev_secret_metadata.py",
+        ):
+            self.assertIn(required, self.wrapper)
         self.assertIn("_POLICY_HASH", self.guard)
         self.assertEqual(0, subprocess.run(["python3", "-m", "py_compile", str(METADATA), str(GUARD)], check=False).returncode)
 
@@ -265,6 +300,7 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             if isinstance(target, ast.Name) and target.id in {
                 "_SCRIPT_HASH", "_MANIFEST_HASH", "_TASK_HASH", "_DEFAULTS_HASH",
                 "_PLAYBOOK_HASH", "_WRAPPER_HASH", "_POLICY_HASH", "_MANIFEST_ENTRIES",
+                "_ACTION_CANONICAL_HASH", "_CLOSURE_MANIFEST_HASH", "_CLOSURE_ENTRIES",
             }:
                 constants[target.id] = ast.literal_eval(node.value)
         paths = {
@@ -275,6 +311,7 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             "_PLAYBOOK_HASH": PLAYBOOK,
             "_WRAPPER_HASH": WRAPPER,
             "_POLICY_HASH": POLICY,
+            "_CLOSURE_MANIFEST_HASH": CLOSURE,
         }
         for symbol, path in paths.items():
             self.assertEqual(
@@ -288,6 +325,14 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
                 for path in sorted(SOURCE.glob("*.yaml"))
             },
             constants["_MANIFEST_ENTRIES"],
+        )
+        self.assertEqual(canonical_digest(GUARD), constants["_ACTION_CANONICAL_HASH"])
+        self.assertEqual(
+            {
+                "ansible/ansible.cfg": hashlib.sha256((ROOT / "ansible/ansible.cfg").read_bytes()).hexdigest(),
+                "ansible/library/reactive_resume_dev_secret_metadata.py": hashlib.sha256(METADATA.read_bytes()).hexdigest(),
+            },
+            constants["_CLOSURE_ENTRIES"],
         )
 
     def test_action_guard_reaches_read_only_exec_boundary_with_synthetic_attestation(self) -> None:

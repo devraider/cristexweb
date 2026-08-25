@@ -52,7 +52,10 @@ ansible/bin/check-reactive-resume-dev-successor check
 
 The non-passthrough wrapper supplies `--check --diff --limit crtxweb`, a
 single-use attestation, an allowlisted environment, and the pinned controller.
-The role uses metadata-only Secret/ConfigMap requests and read-only
+Before invoking Ansible it verifies the fixed `SOURCE-CLOSURE.sha256` for
+`ansible.cfg`, the successor action plugin (using its documented canonical hash
+with mutable pins normalized), and the metadata-only library. The action guard
+repeats that closure check. The role uses metadata-only Secret/ConfigMap requests and read-only
 `kubernetes.core.k8s_info`/`kubernetes.core.k8s_exec` operations. No source-only
 check is authorization to activate the application, rotate credentials, adopt
 CNPG ownership, run migrations, or promote PROD.

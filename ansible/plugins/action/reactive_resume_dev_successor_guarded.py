@@ -29,8 +29,17 @@ _POLICY_SOURCE = _REPOSITORY_ROOT / "ansible/files/policies/reactive-resume-dev-
 _TASK_HASH = "585ab7c7d813fc6dedd2cc6cc3880b7191179057d66aa812617faaf070afb5fa"
 _DEFAULTS_HASH = "a31d4646169f72c68c41186b83a2da422fcce1cd270a69e21e4a8471bc170d2b"
 _PLAYBOOK_HASH = "98c4ecc22ea6387d5c9f63ec3359573893223d93f562bf0e53de2a5a18d9c089"
-_WRAPPER_HASH = "146e8cf30f751f93eebe65673e93599242f9cc5224494c441a96d7a9508c98b3"
+_WRAPPER_HASH = "c8a7f69b803d99152d555905d9a32e2e66b479a1d2b145c411400b8bdd0ac3e2"
 _POLICY_HASH = "7bcd206f32db6f7a182feb618fd5595726e7cb4c63e1d34fe2641303ee7983a4"
+_ACTION_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
+_CLOSURE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256"
+_ACTION_CANONICAL_HASH = "2c01d1fe73d115d05dda72fc4219d61a4516df3ab686b707af1cc2c83c32905b"
+_CLOSURE_MANIFEST_HASH = "043e29ed210afd1e7381979792a0c11f68bfc3007e415b934906e4e4e21b29f9"
+_CLOSURE_ENTRIES = {
+    "ansible/ansible.cfg": "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9",
+    "ansible/library/reactive_resume_dev_secret_metadata.py": "6762f3b7830a6c01977238fca7c3397b08702c3c9b303712cf050df9c85b02c7",
+}
+_CLOSURE_ACTION_PATH = "ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
 _ARGUMENT_KEYS = {"namespace", "pod", "container", "command", "kubeconfig", "script_name", "script_sha256"}
 
 
@@ -39,6 +48,59 @@ def _sha256(path: Path) -> str:
         return hashlib.sha256(path.read_bytes()).hexdigest()
     except OSError:
         return ""
+
+
+def _canonical_sha256(path: Path) -> str:
+    try:
+        source = path.read_text(encoding="utf-8")
+        for symbol in ("_ACTION_CANONICAL_HASH", "_CLOSURE_MANIFEST_HASH", "_WRAPPER_HASH"):
+            source, count = re.subn(
+                rf'(?m)^({re.escape(symbol)}\s*=\s*")[0-9a-f]{{64}}("\s*)$',
+                rf'\g<1>{"0" * 64}\g<2>',
+                source,
+            )
+            if count != 1:
+                return ""
+        return hashlib.sha256(source.encode("utf-8")).hexdigest()
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _source_closure() -> bool:
+    if not _CLOSURE_SOURCE.is_file() or _CLOSURE_SOURCE.is_symlink():
+        return False
+    try:
+        if stat.S_IMODE(_CLOSURE_SOURCE.stat().st_mode) != 0o644:
+            return False
+        if _sha256(_CLOSURE_SOURCE) != _CLOSURE_MANIFEST_HASH:
+            return False
+        lines = _CLOSURE_SOURCE.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return False
+    expected_lines = [
+        *(f"{digest}  {path}" for path, digest in _CLOSURE_ENTRIES.items()),
+        f"{_ACTION_CANONICAL_HASH}  {_CLOSURE_ACTION_PATH}",
+    ]
+    if lines != expected_lines:
+        return False
+    for relative, digest in _CLOSURE_ENTRIES.items():
+        leaf = _REPOSITORY_ROOT / relative
+        if not leaf.is_file() or leaf.is_symlink():
+            return False
+        try:
+            if stat.S_IMODE(leaf.stat().st_mode) != 0o644 or _sha256(leaf) != digest:
+                return False
+        except OSError:
+            return False
+    if not _ACTION_SOURCE.is_file() or _ACTION_SOURCE.is_symlink():
+        return False
+    try:
+        return (
+            stat.S_IMODE(_ACTION_SOURCE.stat().st_mode) == 0o644
+            and _canonical_sha256(_ACTION_SOURCE) == _ACTION_CANONICAL_HASH
+        )
+    except OSError:
+        return False
 
 
 def _ancestor(pid: int) -> bool:
@@ -165,6 +227,8 @@ class ActionModule(ActionBase):
             return _reject("SOURCE_HASH_GUARD: successor checker identity drift")
         if _sha256(script) != _SCRIPT_HASH:
             return _reject("SOURCE_HASH_GUARD: successor checker source drift")
+        if not _source_closure():
+            return _reject("SOURCE_HASH_GUARD: successor Ansible source closure drift")
         if not _manifest_closure():
             return _reject("SOURCE_HASH_GUARD: successor MANIFESTS closure drift")
         for path, expected in (

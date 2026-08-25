@@ -33,6 +33,48 @@ sha_file() {
     ;;
   esac
 }
+closure_manifest="$repository_root/ansible/files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256"
+closure_manifest_expected='043e29ed210afd1e7381979792a0c11f68bfc3007e415b934906e4e4e21b29f9'
+action_source="$repository_root/ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
+config_source="$repository_root/ansible/ansible.cfg"
+library_source="$repository_root/ansible/library/reactive_resume_dev_secret_metadata.py"
+[ -f "$closure_manifest" ] && [ ! -L "$closure_manifest" ] || {
+  printf '%s\n' 'refusing a missing or symlinked successor source closure' >&2
+  exit 69
+}
+[ "$(sha_file "$closure_manifest")" = "$closure_manifest_expected" ] || {
+  printf '%s\n' 'refusing successor source closure drift' >&2
+  exit 69
+}
+[ -f "$action_source" ] && [ ! -L "$action_source" ] || exit 69
+[ -f "$config_source" ] && [ ! -L "$config_source" ] || exit 69
+[ -f "$library_source" ] && [ ! -L "$library_source" ] || exit 69
+closure_entry() {
+  /usr/bin/awk -v expected_path="$1" '$2 == expected_path { print $1 }' "$closure_manifest"
+}
+config_expected=$(closure_entry ansible/ansible.cfg)
+library_expected=$(closure_entry ansible/library/reactive_resume_dev_secret_metadata.py)
+action_expected=$(closure_entry ansible/plugins/action/reactive_resume_dev_successor_guarded.py)
+[ -n "$config_expected" ] && [ -n "$library_expected" ] && [ -n "$action_expected" ] || exit 69
+[ "$(sha_file "$config_source")" = "$config_expected" ] || exit 69
+[ "$(sha_file "$library_source")" = "$library_expected" ] || exit 69
+canonical_action_file=''
+attestation_file=''
+cleanup() {
+  [ -z "$canonical_action_file" ] || /bin/rm -f -- "$canonical_action_file"
+  [ -z "$attestation_file" ] || /bin/rm -f -- "$attestation_file"
+}
+trap cleanup EXIT HUP INT TERM
+canonical_action_file=$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-dev-successor-source.XXXXXX")
+/usr/bin/sed -E \
+  -e 's/^_ACTION_CANONICAL_HASH = "[0-9a-f]{64}"$/_ACTION_CANONICAL_HASH = "0000000000000000000000000000000000000000000000000000000000000000"/' \
+  -e 's/^_CLOSURE_MANIFEST_HASH = "[0-9a-f]{64}"$/_CLOSURE_MANIFEST_HASH = "0000000000000000000000000000000000000000000000000000000000000000"/' \
+  -e 's/^_WRAPPER_HASH = "[0-9a-f]{64}"$/_WRAPPER_HASH = "0000000000000000000000000000000000000000000000000000000000000000"/' \
+  "$action_source" >"$canonical_action_file"
+[ "$(sha_file "$canonical_action_file")" = "$action_expected" ] || {
+  printf '%s\n' 'refusing successor action-plugin source drift' >&2
+  exit 69
+}
 controller="$repository_root/.venv/bin/ansible-playbook"
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || {
   printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2
@@ -49,8 +91,6 @@ attestation_file=$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-d
 token=$("$openssl_tool" rand -hex 32)
 printf '%s:entrypoint:%s:%s\n' "$token" "$wrapper_pid" "$wrapper_sha" >"$attestation_file"
 /bin/chmod 600 "$attestation_file"
-cleanup() { /bin/rm -f -- "$attestation_file"; }
-trap cleanup EXIT HUP INT TERM
 cd -- "$repository_root/ansible"
 set -- "$controller" -i .ansible/inventory.local.yml playbooks/check_reactive_resume_dev_successor.yml --check --diff --limit crtxweb --extra-vars '{"reactive_resume_dev_successor_approved":true}'
 /usr/bin/env -i \

@@ -464,6 +464,7 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "files/policies/reactive-resume-dev-tls-renewal.yml",
                 "bin/check-reactive-resume-dev-successor",
                 "files/components/reactive-resume-dev-successor/MANIFESTS.sha256",
+                "files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256",
                 "files/components/reactive-resume-dev-successor/source/admission-rbac.yaml",
                 "files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml",
                 "files/components/reactive-resume-dev-successor/source/runtime-static-secret.yaml",
