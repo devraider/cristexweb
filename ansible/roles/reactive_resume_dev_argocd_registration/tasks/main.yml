@@ -240,7 +240,7 @@
       - item.resources[0].metadata.labels == handoff_source.metadata.labels
       - (item.resources[0].metadata.ownerReferences | default([])) | length == 0
       - (item.resources[0].metadata.finalizers | default([])) | length == 0
-      - 'argocd.argoproj.io/tracking-id' not in (item.resources[0].metadata.annotations | default({}))
+      - "'argocd.argoproj.io/tracking-id' not in (item.resources[0].metadata.annotations | default({}))"
       - (item.resources[0].metadata.managedFields | default([]) | map(attribute='manager') | list | select('search', 'argocd') | list | length) == 0
     loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results }}'
     loop_control:

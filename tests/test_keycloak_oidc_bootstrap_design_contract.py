@@ -236,6 +236,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "policies/cristexhub-dev-runtime-materialization.yml",
             "policies/cristexhub-prod-runtime-materialization.yml",
             "policies/argocd-ui-tls-lifecycle.yml",
+            "policies/reactive-resume-dev-tls-renewal.yml",
             "vendor/argocd/10.3.0/SHA256SUMS",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz",
             "vendor/argocd/10.3.0/argo-cd-10.3.0.tgz.prov",
@@ -252,6 +253,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "argocd-route",
             "reactive-resume-dev-route",
             "reactive-resume-dev-tls",
+            "reactive-resume-dev-argocd-registration",
             "cristexhub-dev-registration",
             "cristexhub-prod-registration",
             "cristexhub-dev-sync-transition",
@@ -280,6 +282,11 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
                 for path in (ROOT / "ansible/files/components" / component).rglob("*")
                 if path.is_file()
             )
+        expected_public_inputs.update(
+            str(path.relative_to(ROOT / "ansible/files"))
+            for path in (ROOT / "ansible/files/policies/reactive-resume-dev-argocd-handoff").rglob("*")
+            if path.is_file()
+        )
         for source_directory in ("database-provisioning", "backup"):
             expected_public_inputs.update(
                 str(path.relative_to(ROOT / "ansible/files"))

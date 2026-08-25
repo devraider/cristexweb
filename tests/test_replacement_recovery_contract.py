@@ -55,6 +55,8 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "reactive-resume-hosted-architecture.md",
                 "reactive-resume-dev-backup.md",
                 "reactive-resume-dev-private-route.md",
+                "reactive-resume-dev-argocd-registration.md",
+                "reactive-resume-dev-tls-renewal.md",
                 "reactive-resume-dev-soak.md",
                 "reactive-resume-postgresql-exposure-rotation.md",
                 "shared-database-architecture.md",
