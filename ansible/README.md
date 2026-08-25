@@ -1,20 +1,24 @@
 # Guarded Ansible operations and read-only discovery
 
-## Current live checkpoint — 2026-08-21
+## Current live checkpoint — 2026-08-25
 
-The separately guarded PROD runtime seam, Argo registration, and OIDC proxy policy
-are applied/idempotent. Argo reports private PROD `Synced/Healthy`; backend,
-Celery, frontend, oauth2-proxy, and Redis are ready. RabbitMQ is live for the PROD
-Celery worker, but observed principal/permission drift and credential rotation remain
-open. MongoDB `8.0.12` is live under its operator with TLS/SCRAM, but private
-acceptance is blocked by the absent/mismatched live MongoDB NetworkPolicy. OpenTofu
-protected host state contains exactly five imported Cloudflare resource addresses;
-the source defines six, with only the PROD DNS resource absent from state. The
-provider lockfile is tracked and the cloudflared token handoff is complete. The
-pending PROD Tunnel-config/DNS plan remains unapplied and requires fresh backup,
-exact plan review, separate provider/DNS/public-cutover approvals, and post-validation.
-Historical source-only paragraphs below retain their original checkpoint wording and
-are explicitly not current-state claims.
+The separately guarded PROD runtime seam and OIDC proxy policy remain applied/idempotent;
+backend, Celery, frontend, oauth2-proxy, and Redis are ready. The historical Argo
+registration checkpoint reported private PROD `Synced/Healthy`, but the fresh current
+snapshot is `Unknown/Missing` with a namespace/target management ComparisonError.
+The committed source contains the exact `cristexhub-prod-local` alias repair. Its
+check-only path currently stops on Kubernetes `409 Conflict` from Argo status
+`resourceVersion` churn, so the repair is source/check pending and no registration
+apply or workload sync has run. RabbitMQ is live for the PROD Celery worker, but
+observed principal/permission drift and credential rotation remain open. MongoDB
+`8.0.12` is live under its operator with TLS/SCRAM, but private acceptance is blocked
+by the absent/mismatched live MongoDB NetworkPolicy. Protected OpenTofu state contains
+exactly five imported Cloudflare resource addresses; committed source defines seven,
+and the existing DEV DNS record is pending separate import before state reaches six.
+The PROD Tunnel-config/DNS plan remains unapplied and requires fresh backup, exact
+plan review, separate provider/DNS/public-cutover approvals, and post-validation.
+Historical source-only paragraphs below retain dated checkpoint wording and are not
+current-state claims.
 
 Reactive Resume DEV has a live private runtime/Argo checkpoint: pinned revision
 `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` has exactly seven Argo-managed
@@ -554,8 +558,10 @@ runtime keys plus `cristexhub-prod-ghcr-pull`, exact PROD-scoped VAP/bindings,
 additive writer RBAC, hash-bound manifests, and the guarded
 `bin/bootstrap-infisical-cristexhub-prod-runtime check|apply` entrypoint. Its apply,
 target synchronization, and final `ok=62 changed=0 failed=0 skipped=3` idempotence
-pass; private Argo workloads are `Synced/Healthy`, while the public route and
-residual credential rotations remain blocked. The value-free
+pass; the historical private Argo workload checkpoint was `Synced/Healthy`, while
+the current Application is `Unknown/Missing` pending the alias repair and
+conflict-safe check. The public route and residual credential rotations remain
+blocked. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 PostgreSQL and one MongoDB engine in `shared-services`; PostgreSQL and the
 operator-managed MongoDB runtime are live under separate engine checkpoints, but
@@ -735,8 +741,10 @@ payload and selector, and preserved running k3s/Tailscale at
 `ok=30 changed=0 failed=0`. At that historical pre-import checkpoint, the project
 state directory remained empty and no provider operation existed. Later approved
 work imported five existing Cloudflare resource addresses; the provider lockfile is
-tracked, encrypted backup/readback and isolated restore rehearsal pass, and only the
-PROD two-change Tunnel-config/DNS plan remains unapplied.
+tracked, encrypted backup/readback and isolated restore rehearsal pass. The
+committed source defines seven resources; the existing DEV DNS record remains
+pending separate import before state reaches six, and the PROD two-change
+Tunnel-config/DNS plan remains unapplied.
 
 Review check/diff first. The operator account remains an explicit local input:
 

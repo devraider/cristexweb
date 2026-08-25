@@ -34,8 +34,10 @@ current_checkpoint: |
   are each `1/1 Ready`, but the live Argo Application is currently `Unknown/Missing`
   with a ComparisonError from the historical server-based destination. The
   source-only registration correction now targets the exact `cristexhub-prod-local`
-  cluster alias; a separately approved apply must restore `Synced/Healthy` before
-  Argo reconciliation is accepted. OIDC evidence is app-level smoke only: backend `200`,
+  cluster alias. The latest guarded check remains pending because Kubernetes returns
+  `409 Conflict` when Argo status `resourceVersion` churns between preflight and
+  dry-run patch; a separately approved conflict-safe apply must restore
+  `Synced/Healthy` before Argo reconciliation is accepted. OIDC evidence is app-level smoke only: backend `200`,
   oauth2-proxy `302`, and Celery readiness; full authenticated OIDC/CONNECT tests
   remain open. The exact source allowlist is `auth.cristex-soft.com:443` and
   `api.deepseek.com:443`. RabbitMQ is live for Celery, but the observed PROD
@@ -46,14 +48,18 @@ current_checkpoint: |
   live MongoDB or backend/Celery labels. The MongoDB URL credential and reused GHCR
   pull credential require verified rotation; the exposed DeepSeek key needs separate
   revoke/replace. OpenTofu protected host state contains exactly five imported
-  resource addresses; the committed source defines six, with only the PROD DNS
-  resource absent from state. Its pending two-change Tunnel-config/DNS plan has not
-  been applied; the provider lockfile is tracked and the cloudflared token handoff
-  is complete.
+  resource addresses; the committed source defines seven. The existing
+  `cloudflare_dns_record.reactive_resume_dev_tailscale` DEV DNS record remains
+  pending separate import, so protected state stays at five until that import would
+  bring it to six. The PROD DNS resource and Tunnel-config ingress update remain
+  unapplied; the provider lockfile is tracked and the cloudflared token handoff is
+  complete.
 
 note: |
-  The detailed paragraphs below preserve historical source/checkpoint evidence;
-  use `current_checkpoint` above for the current live-state claim.
+  The detailed paragraphs below preserve dated historical source/checkpoint evidence;
+  earlier PROD `Synced/Healthy` statements remain historical and must not override
+  the current `Unknown/Missing` alias-repair checkpoint above. Use `current_checkpoint`
+  above for the current live-state claim.
   Operational implementation now includes the previously recorded dependency,
   administrator-access, recovery, stateful-service, backup, Infisical, Cloudflare,
   Keycloak, and private Argo checkpoints. The latest approved checkpoint adds a

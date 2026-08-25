@@ -8,8 +8,11 @@ Redis are each `1/1 Ready`, backend root returns `200`, oauth2-proxy returns the
 expected private `302`, and Celery is ready on the PROD RabbitMQ vhost. The live
 Argo Application currently reports `Unknown/Missing` with a ComparisonError
 because the historical registration used the server destination instead of the
-scoped `cristexhub-prod-local` cluster alias. The source-only registration fix is
-committed but not applied; a separately approved apply must restore `Synced/Healthy`.
+scoped `cristexhub-prod-local` cluster alias. The historical `Synced/Healthy`
+checkpoint is retained as dated evidence only. The source-only registration fix is
+committed but not applied; its current guarded check is pending a conflict-safe
+resolution for Kubernetes `409 Conflict` from Argo status churn. A separately
+approved apply must restore `Synced/Healthy`.
 The guarded OIDC CONNECT proxy policy includes PROD clients and app-level `200`/`302`
 smoke passed; authenticated OIDC/callback and live positive/negative CONNECT
 validation remain open.
@@ -23,12 +26,13 @@ credential, the MongoDB credential, and the reused GHCR pull credential require
 verified rotation before public cutover. The exposed DeepSeek key also remains a
 separate revoke/replace residual.
 
-OpenTofu now manages the imported Cloudflare Tunnel and existing Keycloak/DEV DNS
-routes from protected host state with encrypted backup/readback and isolated restore
-evidence. The PROD Tunnel-ingress/DNS definitions are committed but unapplied because
-the available OAuth credential lacks DNS-record permission; `hub.cristex-soft.com`
-therefore remains unresolved. Historical source-only checkpoints below are retained
-as evidence and are explicitly not current-state claims.
+OpenTofu protected host state currently contains five imported Cloudflare resource
+addresses, while the committed source defines seven. The existing DEV DNS record is
+pending separate import before state reaches six; the PROD Tunnel-ingress/DNS
+resources remain unapplied because the available OAuth credential lacks DNS-record
+permission, so `hub.cristex-soft.com` remains unresolved. Historical source-only
+checkpoints below are retained as evidence and are explicitly not current-state
+claims.
 
 Reactive Resume DEV also has a live private runtime/Argo checkpoint: the pinned
 revision `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` has exactly seven
