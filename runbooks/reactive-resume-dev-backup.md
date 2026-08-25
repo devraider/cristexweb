@@ -80,8 +80,12 @@ mode-`0600` evidence. `restore` requires a separately created mode-`0600`
 attestation and token and restores both datasets into isolated emptyDir
 runtimes. `enable-check` predicts activation and `enable-apply` is only
 permitted after a verified backup and isolated restore whose `source_run_id`
-exactly equals the captured backup `run_id`. Direct playbook invocation, extra
-arguments, task selection, and root execution of the backup script are refused.
+exactly equals the captured backup `run_id`. Ordinary direct playbook invocation,
+extra arguments, task selection, and root execution of the backup script are
+refused within the non-hostile operator boundary. A malicious process already
+running as the trusted controller UID can mint same-UID files and Ansible inputs;
+that process is outside the claimed integrity boundary. Policy still forbids direct
+playbook invocation, and the wrapper remains the only authorized entrypoint.
 
 ## Twice-daily schedule and retention
 
