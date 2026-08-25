@@ -165,8 +165,8 @@
       - >-
         item.metadata.labels.get('cristex.io/bootstrap-writer') == 'ansible' or
         item.metadata.labels.get('app.kubernetes.io/bootstrap-writer') == 'ansible'
-    loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_manifests }}'
     fail_msg: Refusing handoff source without explicit single-owner labels.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_manifests }}'
   changed_when: false
   no_log: true
 
