@@ -58,7 +58,9 @@ Each complete timestamped state run contains exactly these three leaves:
   `opentofu-github` service marker.
 
 Before encryption, the backup validates the state parent and file closure and
-compares `tofu state list` to exactly these addresses:
+compares `TOFU_DISABLE_CHECKPOINT=1 tofu state list` to exactly these addresses.
+The explicit checkpoint-disable environment binding prevents the local state
+validation from contacting OpenTofu telemetry/checkpoint services:
 
 ```text
 github_actions_repository_permissions.reactive_resume_mirror

@@ -59,6 +59,7 @@ class OpenTofuGithubStateBackupContractTests(unittest.TestCase):
             "github_repository.reactive_resume_mirror",
             "github_repository_vulnerability_alerts.reactive_resume_mirror",
             "manifest.json",
+            "TOFU_DISABLE_CHECKPOINT=1 /usr/local/bin/tofu state list",
         ):
             self.assertIn(value, self.backup)
         self.assertNotIn("rclone sync", self.backup)

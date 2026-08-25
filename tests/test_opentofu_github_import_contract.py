@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import stat
 import subprocess
 import tempfile
@@ -14,6 +15,7 @@ GITHUB = ROOT / "opentofu/github"
 CHECK = GITHUB / "bin/check-repository-present"
 IMPORT = GITHUB / "bin/import-existing-repository"
 VALIDATE = GITHUB / "bin/validate-import-plan"
+SOURCE = GITHUB / "SOURCE.sha256"
 RUNBOOK = ROOT / "runbooks/opentofu-github-repository-import.md"
 
 ADDRESSES = [
@@ -84,6 +86,8 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
         for path in (CHECK, IMPORT, VALIDATE):
             self.assertTrue(path.is_file(), path)
             self.assertEqual(0o755, stat.S_IMODE(path.stat().st_mode), path)
+        self.assertTrue(SOURCE.is_file())
+        self.assertEqual(0o644, stat.S_IMODE(SOURCE.stat().st_mode))
         self.assertEqual(0, subprocess.run(["/bin/dash", "-n", str(IMPORT)]).returncode)
         check = CHECK.read_text()
         self.assertIn('API_ROOT = "https://api.github.com"', check)
@@ -92,6 +96,62 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
         self.assertIn('repository.get("visibility") != "private"', check)
         for method in ("POST", "PUT", "PATCH", "DELETE", "subprocess", "curl"):
             self.assertNotIn(method, check)
+
+    def test_import_binds_complete_root_source_closure(self) -> None:
+        source = IMPORT.read_text()
+        closure = SOURCE.read_text().splitlines()
+        expected_paths = {
+            ".terraform.lock.hcl",
+            "README.md",
+            "backend.tf",
+            "bin/check-repository-absence",
+            "bin/check-repository-present",
+            "bin/import-existing-repository",
+            "bin/validate-create-plan",
+            "bin/validate-import-plan",
+            "github.tf",
+            "providers.tf",
+            "versions.tf",
+        }
+        entries = {relative: digest for digest, relative in (line.split("  ", 1) for line in closure)}
+        self.assertEqual(expected_paths, set(entries))
+        self.assertEqual(11, len(closure))
+        manifest_hash = re.search(r"source_manifest_expected_sha256='([0-9a-f]{64})'", source)
+        self_hash = re.search(r"source_import_expected_canonical_sha256='([0-9a-f]{64})'", source)
+        self.assertIsNotNone(manifest_hash)
+        self.assertIsNotNone(self_hash)
+        self.assertEqual(manifest_hash.group(1), hashlib.sha256(SOURCE.read_bytes()).hexdigest())
+        canonical = IMPORT.read_text()
+        canonical = re.sub(
+            r"^source_manifest_expected_sha256='[0-9a-f]{64}'$",
+            "source_manifest_expected_sha256='__SOURCE_MANIFEST_SHA256__'",
+            canonical,
+            flags=re.MULTILINE,
+        )
+        canonical = re.sub(
+            r"^source_import_expected_canonical_sha256='[0-9a-f]{64}'$",
+            "source_import_expected_canonical_sha256='__SOURCE_IMPORT_SHA256__'",
+            canonical,
+            flags=re.MULTILINE,
+        )
+        self.assertEqual(self_hash.group(1), hashlib.sha256(canonical.encode()).hexdigest())
+        for relative, expected in entries.items():
+            path = GITHUB / relative
+            self.assertTrue(path.is_file(), relative)
+            if relative == "bin/import-existing-repository":
+                self.assertEqual(expected, hashlib.sha256(canonical.encode()).hexdigest(), relative)
+            else:
+                self.assertEqual(expected, hashlib.sha256(path.read_bytes()).hexdigest(), relative)
+        for value in (
+            "SOURCE.sha256",
+            "source_manifest_expected_sha256=",
+            "source_import_expected_canonical_sha256=",
+            "Refusing incomplete or widened GitHub source closure.",
+            "Refusing GitHub source drift:",
+            "source_actual_paths",
+            "source_mode=755",
+        ):
+            self.assertIn(value, source, value)
 
     def test_import_is_fixed_and_non_destructive(self) -> None:
         source = IMPORT.read_text()

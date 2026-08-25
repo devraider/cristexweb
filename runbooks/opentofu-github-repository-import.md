@@ -55,15 +55,23 @@ credentials there and do not pipe or redirect the import command.
 The backend file is exact-content bound to SHA-256
 `318f268e4f93ae5c7775b798a88db997f4e47d1e32374432cf5c438f63a8e487` and its
 literal local path must remain `/var/lib/opentofu/cristexweb/github.tfstate`.
-A protected first-genesis `flock` is acquired below the state parent before the
-absence check and held through initialization and all three imports. Absence is
+Before the token prompt or any provider command, the entrypoint also verifies
+`opentofu/github/SOURCE.sha256` and its pinned manifest digest. That manifest
+covers every tracked GitHub-root/source leaf, exact expected mode, and SHA-256
+content; the importer is checked through a canonical digest with its two
+embedded digest literals normalized. Missing, extra, symlinked, mode-drifted,
+or changed source fails closed. A protected first-genesis `flock` is acquired
+below the state parent before the absence check and held through initialization
+and all three imports. Absence is
 rechecked after the restore-absence gate and after initialization immediately
 before the first import.
 
 ## Required gates and sequence
 
-1. Verify the canonical worktree and run the read-only `check` mode. The
-   check must confirm the pinned OpenTofu path `/usr/local/bin/tofu` resolves to
+1. Verify the canonical worktree and complete the source-closure gate, then run
+   the read-only `check` mode. The closure must pass before the check can
+   authorize any provider-backed step. The check must confirm the pinned OpenTofu
+   path `/usr/local/bin/tofu` resolves to
    the exact regular file `/opt/opentofu/1.12.5/tofu` (root:root:0755); the
    distribution symlink itself is intentional.
 2. Independently complete the first-genesis absence attestation and its
@@ -88,12 +96,12 @@ before the first import.
    no values.
 7. Run the separate isolated restore rehearsal. It downloads the newest complete
    archive, verifies checksum/manifest, decrypts only in a mode-0700 temporary
-   filesystem, checks `tofu state list` against the same exact three addresses, and
-   removes private residue. It never writes the protected state path.
+   filesystem, checks `TOFU_DISABLE_CHECKPOINT=1 tofu state list` against the same
+   exact three addresses, and removes private residue. It never writes the protected state path.
 8. Require a second no-op plan after backup/restore, validate its JSON against
    the same exact three-address guard, rerun the exact private-repository API
-   postcheck, and compare `tofu state list` to the three imported addresses before
-   accepting the import. Source push, workflow enablement, GHCR publication,
+   postcheck, and compare `TOFU_DISABLE_CHECKPOINT=1 tofu state list` to the
+   three imported addresses before accepting the import. Source push, workflow enablement, GHCR publication,
    package visibility, collaborators, deployments, Kubernetes, Infisical, DNS,
    and public routing remain separate approvals.
 

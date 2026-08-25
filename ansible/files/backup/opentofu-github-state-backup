@@ -53,7 +53,7 @@ snapshot_sha=$(/usr/bin/sha256sum "$state_snapshot" | /usr/bin/cut -d ' ' -f1)
   'github_actions_repository_permissions.reactive_resume_mirror' \
   'github_repository.reactive_resume_mirror' \
   'github_repository_vulnerability_alerts.reactive_resume_mirror' >"$expected_addresses"
-actual_addresses=$(/usr/local/bin/tofu state list -state="$state_snapshot" 2>/dev/null) || fail state_validation
+actual_addresses=$(TOFU_DISABLE_CHECKPOINT=1 /usr/local/bin/tofu state list -state="$state_snapshot" 2>/dev/null) || fail state_validation
 printf '%s\n' "$actual_addresses" | /usr/bin/sort >"$expected_actual"
 /usr/bin/sort "$expected_addresses" >"$expected_sorted"
 /usr/bin/cmp -s "$expected_actual" "$expected_sorted" || fail state_scope

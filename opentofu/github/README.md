@@ -42,7 +42,7 @@ The independent local backend is:
 ```
 
 That state requires its own encrypted backup/readback, independent-key recovery,
-integrity verification, and isolated `tofu state list` restore rehearsal before any
+integrity verification, and isolated `TOFU_DISABLE_CHECKPOINT=1 tofu state list` restore rehearsal before any
 provider-backed operation. The separate Ansible lane is documented in
 [`runbooks/opentofu-github-state-backup.md`](../../runbooks/opentofu-github-state-backup.md)
 and uses only the fixed GitHub state/archive/unit closure; it never controls the
@@ -52,11 +52,17 @@ warning-free `tofu validate` passed with the state path still absent. No `tofu p
 
 The existing repository import workflow is documented in
 [`runbooks/opentofu-github-repository-import.md`](../../runbooks/opentofu-github-repository-import.md).
-It is a separate guarded entrypoint that accepts only `check|import`, prompts for
-an ephemeral protected token, imports exactly the three existing-repository
-addresses, validates a protected no-op plan, and requires the independent
-encrypted backup/readback and isolated restore lane. It has no create, delete,
-destroy, apply, state-push, or state-removal path.
+Before any token prompt, provider initialization, or import, the entrypoint
+verifies the committed [`SOURCE.sha256`](SOURCE.sha256) manifest and the
+canonical form of the importer itself. The manifest enumerates the complete
+tracked root/source closure (OpenTofu files, lockfile, validators, repository
+preflight, and import entrypoint), including exact file modes and SHA-256
+content. Any missing, widened, symlinked, mode-drifted, or hash-drifted leaf
+fails closed. It is a separate guarded entrypoint that accepts only
+`check|import`, prompts for an ephemeral protected token, imports exactly the
+three existing-repository addresses, validates a protected no-op plan, and
+requires the independent encrypted backup/readback and isolated restore lane.
+It has no create, delete, destroy, apply, state-push, or state-removal path.
 
 ## Apply gates
 

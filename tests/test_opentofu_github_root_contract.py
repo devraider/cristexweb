@@ -36,6 +36,7 @@ class OpenTofuGithubRootContractTests(unittest.TestCase):
                 "providers.tf",
                 "versions.tf",
                 ".terraform.lock.hcl",
+                "SOURCE.sha256",
             },
             set(self.files),
         )
