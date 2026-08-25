@@ -553,7 +553,7 @@ promotion_gates:
   resources_and_probes_accepted: false
   network_policy_and_tls_identity_accepted: false
   no_public_ingress_tunnel_cloudflare_proved: false
-  one_writer_handoff_proved: false
+  one_writer_handoff_proved: true
   private_dev_runtime_approved: false
   private_dev_validation_accepted: false
   dev_soak_completed: false

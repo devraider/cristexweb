@@ -25,10 +25,10 @@ The canonical contract is
 [`reactive-resume-architecture.yml`](../ansible/files/policies/reactive-resume-architecture.yml).
 The separately approved, source-only [PostgreSQL exposure-rotation contract](reactive-resume-postgresql-exposure-rotation.md)
 freezes only the two exposed DEV/PROD password scopes and remains blocked on
-official Infisical CAS and CNPG Secret-type decisions. `executable_source_allowed`
-remains `false`. This document authorizes no new runtime/API/provider operation.
-
-`executable_source_allowed` is bounded to the reviewed private-DEV/Argo handoff closure; this document authorizes no new runtime/API/provider operation.
+official Infisical CAS and CNPG Secret-type decisions.
+`executable_source_allowed` is bounded to the reviewed private-DEV/Argo handoff
+closure; this document authorizes
+no new runtime/API/provider operation.
 
 ## Source boundary
 
@@ -244,16 +244,15 @@ and negative authorization tests.
 
 ## Exposure and ownership
 
-Initial access, if ever approved, remains private through an approved administrative
-path. Ingress, Traefik public routes, NodePort, LoadBalancer, Cloudflare Tunnel,
-Cloudflare DNS, public administration, and direct origins are forbidden in this
-source-only revision. A future route requires separate provider, hostname,
-positive-flow, negative-admin/direct-origin, and rollback approval and is last.
-
-Ansible is the bounded bootstrap owner only for a future exact closure. Argo CD may
-receive one exact namespaced object set only after Ansible stops reconciling it and
-registration, adoption, successful sync, and managed-field evidence pass. Dual
-reconciliation is forbidden.
+The private DEV Traefik Ingress is live and Argo-managed through the Tailscale-only
+hostname. NodePort, LoadBalancer, Cloudflare Tunnel/DNS routing, public
+administration, public Traefik routing, and direct origins remain forbidden. Any
+future public route requires separate provider, hostname, positive-flow,
+negative-admin/direct-origin, and rollback approval and is last. Argo now owns the
+exact seven-object namespaced workload set; the superseded Ansible alignment and
+route lanes refuse tracked objects. The API omits `metadata.managedFields`, so that
+evidence is unavailable rather than claimed. Dual reconciliation remains
+forbidden.
 
 ## PROD reservation/template only
 

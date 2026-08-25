@@ -679,7 +679,10 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("forbidden-until-separate-public-cutover", self.policy["exposure"]["cloudflare_route"])
         self.assertEqual("forbidden", self.policy["exposure"]["dns_mutation"])
         gates = self.policy["promotion_gates"]
-        self.assertTrue(all(value is False for value in gates.values()))
+        self.assertTrue(gates["one_writer_handoff_proved"])
+        self.assertTrue(
+            all(value is False for key, value in gates.items() if key != "one_writer_handoff_proved")
+        )
         order = self.policy["promotion_order"]
         self.assertEqual("required", order["dev_private_validation_before_prod"])
         self.assertEqual("required", order["dev_soak_before_prod"])

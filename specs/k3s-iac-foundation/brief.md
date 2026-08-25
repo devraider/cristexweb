@@ -47,10 +47,12 @@ produced the sanitized schema-1 non-empty receipt
 `run_id=20260825T065948Z object_count=1 total_object_bytes=50 readback=verified
 encrypted=true private_residue=none`; hardened schema-2 installation, fresh
 schema-2 backup, isolated restore, measured RPO/RTO, and final scheduler
-idempotence remain pending. The guarded Reactive Resume Argo check stopped before
-reconciliation on the missing Infisical-owned `argocd-repository-cristexweb`
-credential metadata; no Argo registration, sync, or handoff occurred. PROD and
-public routing remain inactive. The source-only paragraphs below preserve
+idempotence remain pending. The Infisical-owned `argocd-repository-cristexweb` credential is materialized;
+Reactive Resume Argo revision `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` is
+`Synced/Healthy`, and all seven desired resources carry tracking annotations.
+The API omits `metadata.managedFields`, so manager-field evidence is unavailable;
+15 out-of-scope resources remain reported as orphans and pruning stays disabled.
+PROD and public routing remain inactive. The source-only paragraphs below preserve
 historical checkpoint evidence and are not current absence claims.
 
 ## Approved direction and historical checkpoint narrative
