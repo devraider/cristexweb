@@ -23,11 +23,69 @@ repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
   printf '%s\n' 'refusing a repository outside the pinned host path' >&2
   exit 78
 }
+script_path="$repository_root/ansible/bin/configure-reactive-resume-dev-backup"
 controller="$repository_root/.venv/bin/ansible-playbook"
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || {
   printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2
   exit 69
 }
+# The self hash replaces this literal with zeros before hashing, so changing
+# any wrapper logic or closure pin fails without creating a circular digest.
+reactive_resume_dev_backup_wrapper_sha256='bca37eb0e5f2342c29a37cd1bbb70983a57b02611afef86d3d90cc52a6dcf978'
+canonical_sha256() {
+  /usr/bin/python3 - "$1" <<'PY'
+import hashlib
+import re
+import sys
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as source:
+    text = source.read()
+text, count = re.subn(
+    r"(?m)^reactive_resume_dev_backup_wrapper_sha256='[0-9a-f]{64}'$",
+    "reactive_resume_dev_backup_wrapper_sha256='" + ("0" * 64) + "'",
+    text,
+)
+if path.endswith("configure_reactive_resume_dev_backup.yml"):
+    assert count == 0
+else:
+    assert count == 1
+text, count = re.subn(
+    r"(?m)^(    reactive_resume_dev_backup_playbook_sha256: )[0-9a-f]{64}$",
+    r"\1" + ("0" * 64),
+    text,
+)
+if path.endswith("configure_reactive_resume_dev_backup.yml"):
+    assert count == 1
+print(hashlib.sha256(text.encode("utf-8")).hexdigest())
+PY
+}
+
+playbook="$repository_root/ansible/playbooks/configure_reactive_resume_dev_backup.yml"
+playbook_expected=$(/usr/bin/awk '$1 == "reactive_resume_dev_backup_playbook_sha256:" { print $2 }' "$playbook")
+[ "${#playbook_expected}" -eq 64 ] || { printf '%s\n' 'refusing an unpinned backup playbook' >&2; exit 69; }
+case "$playbook_expected" in *[!0-9a-f]*) printf '%s\n' 'refusing an invalid backup playbook pin' >&2; exit 69 ;; esac
+[ "$(canonical_sha256 "$script_path")" = "$reactive_resume_dev_backup_wrapper_sha256" ] || {
+  printf '%s\\n' 'refusing backup wrapper source drift' >&2
+  exit 69
+}
+[ "$(canonical_sha256 "$playbook")" = "$playbook_expected" ] || {
+  printf '%s\\n' 'refusing backup playbook source drift' >&2
+  exit 69
+}
+verify_source() {
+  source_path=$1
+  source_mode=$2
+  source_sha256=$3
+  [ -f "$source_path" ] && [ ! -L "$source_path" ] || exit 69
+  [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_path")" = "paul:paul:$source_mode" ] || exit 69
+  [ "$(/usr/bin/sha256sum "$source_path" | /usr/bin/cut -d ' ' -f 1)" = "$source_sha256" ] || exit 69
+}
+verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup" 0755 0e0e284dc27d5264a5df892e00fd2e2cd9c23c6605796465eaa3e3f187196944
+verify_source "$repository_root/ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal" 0755 0000000000000000000000000000000000000000000000000000000000000000
+verify_source "$repository_root/ansible/files/backup/cristexweb-reactive-resume-dev-backup.service" 0644 cd1a1cf09646d6675ebdefba085735755c00e229f1a21ae1d2a5ab2c196dbae2
+verify_source "$repository_root/ansible/files/backup/cristexweb-reactive-resume-dev-backup.timer" 0644 33de353a8ff2628e48fd0adadf5312472f26085581cf59fcc7ce4c580d4397d5
+verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup-networkpolicy.yaml" 0644 60f3163038818523621000937a60ab68be81fcaf73a31e55a2aab199c01c640b
+
 cd -- "$repository_root/ansible"
 umask 077
 set -- "$controller" -i .ansible/inventory.local.yml \

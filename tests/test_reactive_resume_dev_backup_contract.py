@@ -26,6 +26,39 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             self.assertIn('TABLE\\s+(?!DATA\\s|ATTACH\\s)', source)
             self.assertNotIn('if " TABLE " in (" " + line + " ")', source)
 
+    def test_restore_validates_manifest_keys_before_filesystem_reads(self):
+        source = RESTORE.read_text()
+        validation = source.index('allowed_prefixes =')
+        first_read = source.index('os.path.isfile(path)', validation)
+        self.assertLess(validation, first_read)
+        for value in (
+            '"uploads/user-pictures/", "pictures/", "uploads/user-agent/"',
+            'not key.startswith("/")',
+            '".." not in key.split("/")',
+            '"\\\\" not in key',
+            '"\\x00" not in key',
+            'os.path.commonpath((root, os.path.abspath(os.path.join(root, key)))) == root',
+        ):
+            self.assertIn(value, source)
+
+    def test_wrapper_and_playbook_bind_execution_source_closure(self):
+        for value in (
+            "reactive_resume_dev_backup_wrapper_sha256=",
+            "canonical_sha256()",
+            "refusing backup wrapper source drift",
+            "refusing backup playbook source drift",
+            "verify_source()",
+            "ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal",
+        ):
+            self.assertIn(value, WRAPPER.read_text())
+        for value in (
+            "ansible/bin/configure-reactive-resume-dev-backup",
+            "reactive_resume_dev_backup_wrapper_sha256:",
+            "reactive_resume_dev_backup_playbook_sha256:",
+            "hash-bound backup source closure",
+        ):
+            self.assertIn(value, PLAYBOOK.read_text())
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.backup = BACKUP.read_text()

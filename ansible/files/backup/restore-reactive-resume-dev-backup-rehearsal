@@ -260,8 +260,14 @@ PY
 OBJECT_MANIFEST="$work/object-storage.manifest.json" OBJECT_ROOT="$work/object-verify/objects" TSV="$work/objects.tsv" /usr/bin/python3 - <<'PY' || fail object_archive_manifest
 import hashlib, json, os
 manifest = json.load(open(os.environ["OBJECT_MANIFEST"], encoding="utf-8"))
-root = os.environ["OBJECT_ROOT"]
+root = os.path.abspath(os.environ["OBJECT_ROOT"])
 expected = {item["key"]: item for item in manifest["objects"]}
+allowed_prefixes = ("uploads/user-pictures/", "pictures/", "uploads/user-agent/")
+for key in expected:
+    assert isinstance(key, str) and key and not key.startswith("/")
+    assert ".." not in key.split("/") and "\\" not in key and "\x00" not in key
+    assert key.startswith(allowed_prefixes)
+    assert os.path.commonpath((root, os.path.abspath(os.path.join(root, key)))) == root
 actual = set()
 with open(os.environ["TSV"], "w", encoding="utf-8") as tsv:
     for key, item in sorted(expected.items()):

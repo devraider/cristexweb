@@ -51,10 +51,13 @@ ansible/playbooks/configure_reactive_resume_dev_backup.yml
 ansible/bin/configure-reactive-resume-dev-backup
 ```
 
-The only wrapper modes are. Every mode invokes Ansible with
-`--ask-become-pass`; enter the sudo password in the controlling terminal and do
-not pipe or redirect the wrapper, especially when invoked from another guarded
-workflow.
+The only wrapper modes are. The wrapper and playbook perform a canonical
+source-closure attestation before Ansible runs: the wrapper self-hash and
+playbook canonical hash are checked, while the wrapper, backup executables,
+units, and NetworkPolicy are exact mode/hash-bound source inputs. Every mode
+invokes Ansible with `--ask-become-pass`; enter the sudo password in the
+controlling terminal and do not pipe or redirect the wrapper, especially when
+invoked from another guarded workflow.
 
 ```text
 ansible/bin/configure-reactive-resume-dev-backup check
@@ -139,7 +142,9 @@ DEV prefixes:
 The helper produces a sorted value-free object manifest containing every key,
 size, and SHA-256 checksum (plus available MD5 values), verifies every copied
 object against that manifest before archiving, and then creates an encrypted
-`object-storage.tar.gz.age`.
+`object-storage.tar.gz.age`. Restore validates every manifest key before any
+extracted-object filesystem read: only the three reviewed prefixes are allowed,
+with no absolute path, traversal component, backslash, NUL, or root escape.
 A successful acceptance backup refuses an empty bucket: both `object_count` and
 `total_object_bytes` must be greater than zero. The raw object export and helper
 Pod are removed on every exit path. No bucket
