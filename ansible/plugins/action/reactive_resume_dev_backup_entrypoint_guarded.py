@@ -59,7 +59,7 @@ class ActionModule(ActionBase):
             and stat.S_IMODE(state.st_mode) == 0o600
             and state.st_nlink == 1
             and content == f"{token}:entrypoint\n"
-            and len(source_results) == 7
+            and len(source_results) == 9
             and all(not item.get("failed", False) for item in source_results)
         )
         if not valid:

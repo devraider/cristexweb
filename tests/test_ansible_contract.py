@@ -66,8 +66,16 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py"),
         }
         self.assertEqual(38, len(allowed_action_plugins))
+        allowed_strategy_plugins = {
+            Path("ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py"),
+        }
         self.assertTrue(
-            all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
+            all(
+                path.parts[0] == "tests"
+                or path in allowed_action_plugins
+                or path in allowed_strategy_plugins
+                for path in source_python
+            ),
             source_python,
         )
         for relative in (
@@ -437,6 +445,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             [
                 "bin/configure-reactive-resume-dev-backup",
                 "plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py",
+                "plugins/strategy/reactive_resume_dev_backup_guarded_linear.py",
                 "files/backup/reactive-resume-dev-backup",
                 "files/backup/restore-reactive-resume-dev-backup-rehearsal",
                 "files/backup/cristexweb-reactive-resume-dev-backup.service",

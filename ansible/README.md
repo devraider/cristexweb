@@ -589,8 +589,10 @@ provenance, locked split-role migration, recovery, full application acceptance,
 and DEV soak remain blocked; Agent/Redis are disabled and no executable workload
 source exists. GitHub CI may run only syntax/lint and offline contracts from this
 source; it supplies no inventory and invokes no operational wrapper. The repository
-contains thirty-eight exact-scope action plugins; these focused Python exceptions
-are source guards/validators only, not a general operational collector.
+contains thirty-eight exact-scope action plugins plus one backup-only strategy
+plugin that rejects task selection before preflight can be skipped; these focused
+Python exceptions are source guards/validators only, not a general operational
+collector.
 
 Each component requires a dedicated non-passthrough entrypoint and frozen
 source/object closure with separate check, apply, and idempotence evidence. For the

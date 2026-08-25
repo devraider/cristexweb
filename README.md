@@ -248,8 +248,9 @@ closures, four guard cloudflared/route closures, four guard CoreDNS/DEV/PROD
 registration/sync boundaries, two guard fixed temporary logical-provisioning
 execution/Kubernetes objects, one guards the dedicated shared-MongoDB NetworkPolicy
 closure, and two guard the source-only Keycloak DEV successor identity and
-transport/actor/Infisical-CAS/API transition contracts. No general-purpose
-operational Python or infrastructure collector exists.
+transport/actor/Infisical-CAS/API transition contracts. One additional exact-scope
+strategy plugin rejects backup task-selection controls before preflight can be
+skipped. No general-purpose operational Python or infrastructure collector exists.
 
 Approved non-elevated and extended elevated check/diff runs produced the ignored
 local report. The extended report confirms the unmounted 1 TB rotational disk,

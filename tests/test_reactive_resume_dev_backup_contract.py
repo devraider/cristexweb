@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import re
 import stat
 import subprocess
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -18,6 +20,8 @@ NETWORK_POLICY = ROOT / "ansible/files/backup/reactive-resume-dev-backup-network
 PLAYBOOK = ROOT / "ansible/playbooks/configure_reactive_resume_dev_backup.yml"
 WRAPPER = ROOT / "ansible/bin/configure-reactive-resume-dev-backup"
 ENTRYPOINT_GUARD = ROOT / "ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py"
+STRATEGY_GUARD = ROOT / "ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py"
+ANSIBLE_CONFIG = ROOT / "ansible/ansible.cfg"
 RUNBOOK = ROOT / "runbooks/reactive-resume-dev-backup.md"
 
 
@@ -120,10 +124,21 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             'context.CLIARGS.get("start_at_task")',
             'context.CLIARGS.get("step")',
             'TASK_SELECTION_GUARD',
-            'len(source_results) == 7',
+            'len(source_results) == 9',
             'reactive_resume_dev_backup_internal_preflight_complete',
         ):
             self.assertIn(value, guard)
+
+    def test_strategy_guard_rejects_start_at_task_before_iteration(self):
+        spec = importlib.util.spec_from_file_location("rr_backup_strategy", STRATEGY_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        strategy = module.StrategyModule.__new__(module.StrategyModule)
+        with mock.patch.object(module.context, "CLIARGS", {"start_at_task": "mutation"}):
+            with self.assertRaisesRegex(Exception, "TASK_SELECTION_GUARD"):
+                strategy.run(None, None)
 
     def test_wrapper_playbook_and_source_hash_pins_are_current(self):
         wrapper = WRAPPER.read_text()
@@ -156,6 +171,14 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         guard_digest = hashlib.sha256(ENTRYPOINT_GUARD.read_bytes()).hexdigest()
         self.assertIn(guard_digest, wrapper)
         self.assertIn(f"sha256: {guard_digest}", playbook)
+        for source in (STRATEGY_GUARD, ANSIBLE_CONFIG):
+            digest = hashlib.sha256(source.read_bytes()).hexdigest()
+            self.assertIn(digest, wrapper)
+            self.assertIn(f"sha256: {digest}", playbook)
+        strategy = STRATEGY_GUARD.read_text()
+        self.assertIn('context.CLIARGS.get("start_at_task")', strategy)
+        self.assertIn('TASK_SELECTION_GUARD', strategy)
+        self.assertIn('strategy: reactive_resume_dev_backup_guarded_linear', playbook)
         for source in (BACKUP, RESTORE):
             digest = hashlib.sha256(source.read_bytes()).hexdigest()
             self.assertIn(digest, wrapper)
