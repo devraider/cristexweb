@@ -532,6 +532,25 @@
   changed_when: false
   no_log: true
 
+- name: Normalize Kubernetes-defaulted admission match constraints
+  ansible.builtin.set_fact:
+    reactive_resume_dev_successor_effective_match_constraints: >-
+      {{
+        reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints |
+        combine({
+          'namespaceSelector': (
+            reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints.namespaceSelector |
+            default({}, true)
+          ),
+          'objectSelector': (
+            reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints.objectSelector |
+            default({}, true)
+          )
+        }, recursive=False)
+      }}
+  changed_when: false
+  no_log: true
+
 - name: Query the exact admission policy binding evidence
   kubernetes.core.k8s_info:
     api_version: admissionregistration.k8s.io/v1
@@ -571,11 +590,18 @@
       - (reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.ownerReferences | default([]) | length) == 0
       - (reactive_resume_dev_successor_internal_admission_policy.resources[0].metadata.finalizers | default([]) | length) == 0
       - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.failurePolicy == 'Fail'
-      - (reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints | length) == 2
-      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints.matchPolicy == 'Equivalent'
-      - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints.resourceRules | length == 1
       - >-
-        reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConstraints.resourceRules[0] ==
+        (reactive_resume_dev_successor_effective_match_constraints.keys() | list | sort) ==
+        ['matchPolicy', 'namespaceSelector', 'objectSelector', 'resourceRules']
+      - reactive_resume_dev_successor_effective_match_constraints.matchPolicy == 'Equivalent'
+      - reactive_resume_dev_successor_effective_match_constraints.namespaceSelector == {}
+      - reactive_resume_dev_successor_effective_match_constraints.objectSelector == {}
+      - reactive_resume_dev_successor_effective_match_constraints.resourceRules | length == 1
+      - >-
+        (reactive_resume_dev_successor_effective_match_constraints.resourceRules[0].keys() | list | sort) ==
+        ['apiGroups', 'apiVersions', 'operations', 'resources', 'scope']
+      - >-
+        reactive_resume_dev_successor_effective_match_constraints.resourceRules[0] ==
         {'apiGroups': [''], 'apiVersions': ['v1'], 'operations': ['CREATE', 'UPDATE'], 'resources': ['secrets'], 'scope': 'Namespaced'}
       - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConditions | length == 1
       - reactive_resume_dev_successor_internal_admission_policy.resources[0].spec.matchConditions[0].name == 'exact-namespace'

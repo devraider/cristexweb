@@ -127,6 +127,25 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             [{"name": "exact-namespace", "expression": "request.namespace == 'cristexhub-dev'"}],
             policy["spec"]["matchConditions"],
         )
+        match_constraints = policy["spec"]["matchConstraints"]
+        effective_match_constraints = {
+            **match_constraints,
+            "namespaceSelector": match_constraints.get("namespaceSelector", {}),
+            "objectSelector": match_constraints.get("objectSelector", {}),
+        }
+        self.assertEqual(
+            ["matchPolicy", "namespaceSelector", "objectSelector", "resourceRules"],
+            sorted(effective_match_constraints),
+        )
+        self.assertEqual({}, effective_match_constraints["namespaceSelector"])
+        self.assertEqual({}, effective_match_constraints["objectSelector"])
+        self.assertEqual(
+            [{"apiGroups": [""], "apiVersions": ["v1"], "operations": ["CREATE", "UPDATE"],
+              "resources": ["secrets"], "scope": "Namespaced"}],
+            effective_match_constraints["resourceRules"],
+        )
+        self.assertNotIn("namespaceSelector", match_constraints)
+        self.assertNotIn("objectSelector", match_constraints)
         expression = policy["spec"]["validations"][0]["expression"]
         for required in (
             "object.metadata.name in ['reactive-resume-dev-runtime', 'reactive-resume-dev-migration']",
@@ -149,6 +168,17 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertIn("metadata.finalizers", self.tasks)
         self.assertIn("matchConditions[0].expression", self.tasks)
         self.assertIn("admission_expression_sha256", self.tasks)
+        for required in (
+            "Normalize Kubernetes-defaulted admission match constraints",
+            "reactive_resume_dev_successor_effective_match_constraints",
+            "namespaceSelector",
+            "objectSelector",
+            "['matchPolicy', 'namespaceSelector', 'objectSelector', 'resourceRules']",
+            "['apiGroups', 'apiVersions', 'operations', 'resources', 'scope']",
+            "resourceRules[0] ==",
+        ):
+            self.assertIn(required, self.tasks)
+        self.assertNotIn("spec.matchConstraints | length) == 2", self.tasks)
         self.assertIn("status.observedGeneration", self.tasks)
         self.assertIn("status.typeChecking", self.tasks)
         self.assertIn("expressionWarnings", self.tasks)
