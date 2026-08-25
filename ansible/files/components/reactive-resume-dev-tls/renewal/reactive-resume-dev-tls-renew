@@ -291,10 +291,12 @@ cf_api() {
   if [ "$#" -eq 4 ]; then
     body=$4
     /usr/bin/curl --silent --show-error --fail --proto '=https' --tlsv1.2 \
+      --connect-timeout 15 --max-time 60 \
       --config "$cloudflare_config" --request "$method" --url "$url" \
       --data-binary "@$body" --output "$output" >/dev/null 2>&1
   else
     /usr/bin/curl --silent --show-error --fail --proto '=https' --tlsv1.2 \
+      --connect-timeout 15 --max-time 60 \
       --config "$cloudflare_config" --request "$method" --url "$url" \
       --output "$output" >/dev/null 2>&1
   fi

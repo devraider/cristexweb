@@ -144,6 +144,11 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         timer = TIMER.read_text()
         for required in ("OnCalendar=*-*-* 03:45:00", "RandomizedDelaySec=15m", "Persistent=true"):
             self.assertIn(required, timer)
+        service = (COMPONENT / "renewal/cristexweb-reactive-resume-dev-tls-renew.service").read_text()
+        self.assertIn("Requires=k3s.service", service)
+        self.assertIn("After=network-online.target k3s.service", service)
+        renewal = (COMPONENT / "renewal/reactive-resume-dev-tls-renew").read_text()
+        self.assertEqual(2, renewal.count("--connect-timeout 15 --max-time 60"))
         wrapper = WRAPPER.read_text()
         for required in ("check|apply|enable-check|enable-apply", "refusing passthrough", "--check", "ENTRYPOINT=v1"):
             self.assertIn(required, wrapper)
