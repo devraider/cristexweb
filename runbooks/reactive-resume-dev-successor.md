@@ -52,13 +52,20 @@ ansible/bin/check-reactive-resume-dev-successor check
 
 The non-passthrough wrapper supplies `--check --diff --limit crtxweb`, a
 single-use attestation, an allowlisted environment, and the pinned controller.
-Before invoking Ansible it verifies the fixed `SOURCE-CLOSURE.sha256` for
-`ansible.cfg`, the metadata-only library, the successor wrapper's canonical
-source (normalizing only its closure-manifest cross-pin), and the successor
-action plugin (normalizing only its self and closure-manifest cross-pins). The
-wrapper attests its raw source hash; the action compares that raw attestation to
-the current file and separately requires the canonical wrapper hash from the
-closure. The action guard repeats that closure check. The role uses metadata-only Secret/ConfigMap requests and read-only
-`kubernetes.core.k8s_info`/`kubernetes.core.k8s_exec` operations. No source-only
-check is authorization to activate the application, rotate credentials, adopt
-CNPG ownership, run migrations, or promote PROD.
+Before invoking Ansible it verifies the fixed `SOURCE-CLOSURE.sha256` for the
+checker, source manifest, role task/defaults, playbook, policy, `ansible.cfg`,
+metadata-only library, wrapper, and action plugin. It validates every leaf's
+mode and digest, and canonicalizes only the wrapper closure-manifest pin and
+action self/closure-manifest pins; no source leaf is omitted or normalized away.
+The complete closure is checked before the pinned Ansible controller starts, so
+no earlier role task can run against an unverified checkout. The wrapper attests
+its raw source hash; the action compares that raw attestation to the current file
+and separately requires the canonical wrapper hash from the closure. The action
+guard repeats that closure check. A direct playbook or role invocation is not an
+authorized entrypoint and is rejected by the wrapper-bound role contract. A
+malicious process already running as the trusted controller UID could mint
+same-UID environment, attestation, or Ansible inputs; that process is outside the
+claimed integrity boundary. The role uses metadata-only Secret/ConfigMap
+requests and read-only `kubernetes.core.k8s_info`/`kubernetes.core.k8s_exec`
+operations. No source-only check is authorization to activate the application,
+rotate credentials, adopt CNPG ownership, run migrations, or promote PROD.

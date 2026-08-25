@@ -29,18 +29,30 @@ _POLICY_SOURCE = _REPOSITORY_ROOT / "ansible/files/policies/reactive-resume-dev-
 _TASK_HASH = "585ab7c7d813fc6dedd2cc6cc3880b7191179057d66aa812617faaf070afb5fa"
 _DEFAULTS_HASH = "a31d4646169f72c68c41186b83a2da422fcce1cd270a69e21e4a8471bc170d2b"
 _PLAYBOOK_HASH = "98c4ecc22ea6387d5c9f63ec3359573893223d93f562bf0e53de2a5a18d9c089"
-_WRAPPER_CANONICAL_HASH = "c61339039cc157a47ad2d38c78a9f56078dc9baac02981af66bd17b06dfa6e39"
+_WRAPPER_CANONICAL_HASH = "2d75048b3ae92803d4288b461a5fd9f7bce8056745290d58a88cca5877ed521d"
 _POLICY_HASH = "7bcd206f32db6f7a182feb618fd5595726e7cb4c63e1d34fe2641303ee7983a4"
 _ACTION_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
 _CLOSURE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256"
-_ACTION_CANONICAL_HASH = "b811fc9390a3009128559381dca7c2a3fe719a140ba6bb389b89b695d56e3978"
-_CLOSURE_MANIFEST_HASH = "2270e3818cd380c14528631ac24eaa5f6ad0cf197556fd27447e9ddbbc71276f"
+_ACTION_CANONICAL_HASH = "4cd78ca080648bf6767dcc5eef772a0dee9efab12abfdfb7e3a9b8ac54bbf860"
+_CLOSURE_MANIFEST_HASH = "6a57fcb37cc073b376301b8ff422806235ebc876fc5f2dda2f853251d428c8a4"
 _CLOSURE_ENTRIES = {
+    "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh": "f1891dc507d411d0c3bc91793c51cb640cc0ca8f71d7cd42f066a30ad7dbab66",
+    "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256": "f02b444f16a5444cc3b4dba56cbcf4e9e94c72f6021e32375a2504afd3d5cce1",
+    "ansible/roles/reactive_resume_dev_successor/tasks/main.yml": "585ab7c7d813fc6dedd2cc6cc3880b7191179057d66aa812617faaf070afb5fa",
+    "ansible/roles/reactive_resume_dev_successor/defaults/main.yml": "a31d4646169f72c68c41186b83a2da422fcce1cd270a69e21e4a8471bc170d2b",
+    "ansible/playbooks/check_reactive_resume_dev_successor.yml": "98c4ecc22ea6387d5c9f63ec3359573893223d93f562bf0e53de2a5a18d9c089",
+    "ansible/files/policies/reactive-resume-dev-postgresql-successor.yml": "7bcd206f32db6f7a182feb618fd5595726e7cb4c63e1d34fe2641303ee7983a4",
     "ansible/ansible.cfg": "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9",
-    "ansible/library/reactive_resume_dev_secret_metadata.py": "6762f3b7830a6c01977238fca7c3397b08702c3c9b303712cf050df9c85b02c7",
-    "ansible/bin/check-reactive-resume-dev-successor": "c61339039cc157a47ad2d38c78a9f56078dc9baac02981af66bd17b06dfa6e39",
+    "ansible/library/reactive_resume_dev_secret_metadata.py": "25190b477772d1d7ae7b275a48af68576c640e0bde0d661aac292cd445e6f061",
+    "ansible/bin/check-reactive-resume-dev-successor": "2d75048b3ae92803d4288b461a5fd9f7bce8056745290d58a88cca5877ed521d",
 }
 _CLOSURE_MODES = {
+    "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh": 0o755,
+    "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256": 0o644,
+    "ansible/roles/reactive_resume_dev_successor/tasks/main.yml": 0o644,
+    "ansible/roles/reactive_resume_dev_successor/defaults/main.yml": 0o644,
+    "ansible/playbooks/check_reactive_resume_dev_successor.yml": 0o644,
+    "ansible/files/policies/reactive-resume-dev-postgresql-successor.yml": 0o644,
     "ansible/ansible.cfg": 0o644,
     "ansible/library/reactive_resume_dev_secret_metadata.py": 0o644,
     "ansible/bin/check-reactive-resume-dev-successor": 0o755,
@@ -152,9 +164,11 @@ def _selected() -> bool:
     inventory = context.CLIARGS.get("inventory") or []
     if isinstance(inventory, str):
         inventory = [inventory]
+    start_at_task = context.CLIARGS.get("start_at_task")
+    step = context.CLIARGS.get("step")
     return (
-        not context.CLIARGS.get("start_at_task")
-        and not context.CLIARGS.get("step")
+        start_at_task is None
+        and step in (None, False)
         and tags in ([], ["all"])
         and not context.CLIARGS.get("skip_tags")
         and context.CLIARGS.get("subset") == "crtxweb"

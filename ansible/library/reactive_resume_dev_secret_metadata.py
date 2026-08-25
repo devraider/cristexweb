@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """Fetch Kubernetes Secret metadata without negotiating a full Secret object."""
 
 from __future__ import annotations

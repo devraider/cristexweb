@@ -258,6 +258,11 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertNotIn("apply'", self.wrapper)
         self.assertEqual(0, subprocess.run(["/bin/sh", "-n", str(WRAPPER)], check=False).returncode)
 
+    def test_metadata_module_uses_pinned_debian_interpreter(self) -> None:
+        text = METADATA.read_text()
+        self.assertEqual("#!/usr/bin/python3", text.splitlines()[0])
+        self.assertNotIn("/usr/bin/env python3", text.splitlines()[0])
+
     def test_metadata_module_cannot_return_secret_payload(self) -> None:
         text = METADATA.read_text()
         self.assertIn("PartialObjectMetadata", text)
@@ -265,6 +270,43 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertNotIn("read_namespaced_secret", text)
         self.assertNotIn("binaryData", text)
         self.assertNotIn(".data", text)
+
+    def test_wrapper_verifies_complete_closure_before_controller(self) -> None:
+        controller = self.wrapper.index('controller="$repository_root/.venv/bin/ansible-playbook"')
+        required = (
+            "checker_source",
+            "manifest_source",
+            "task_source",
+            "defaults_source",
+            "playbook_source",
+            "policy_source",
+            "config_source",
+            "library_source",
+            "action_source",
+            "verify_source ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh",
+            "verify_source ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256",
+            "verify_source ansible/roles/reactive_resume_dev_successor/tasks/main.yml",
+            "verify_source ansible/roles/reactive_resume_dev_successor/defaults/main.yml",
+            "verify_source ansible/playbooks/check_reactive_resume_dev_successor.yml",
+            "verify_source ansible/files/policies/reactive-resume-dev-postgresql-successor.yml",
+            "verify_source ansible/ansible.cfg",
+            "verify_source ansible/library/reactive_resume_dev_secret_metadata.py",
+            "canonical_action_file",
+            "canonical_wrapper_file",
+        )
+        for value in required:
+            self.assertIn(value, self.wrapper, value)
+            self.assertLess(self.wrapper.index(value), controller, value)
+        self.assertLess(controller, self.wrapper.index("/usr/bin/env -i"))
+
+    def test_direct_role_invocation_requires_wrapper_boundary(self) -> None:
+        self.assertLess(
+            self.tasks.index("Reject externally supplied successor internals"),
+            self.tasks.index("Require the source-only DEV successor wrapper contract"),
+        )
+        self.assertIn("exact check-only wrapper", self.tasks)
+        self.assertIn("source-only, read-only", (ROOT / "runbooks/reactive-resume-dev-successor.md").read_text())
+        self.assertIn("malicious process already running as the trusted controller UID", (ROOT / "runbooks/reactive-resume-dev-successor.md").read_text())
 
     def test_manifest_and_checker_hash_are_current(self) -> None:
         ledger = {}
@@ -285,6 +327,12 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         }
         self.assertEqual(
             {
+                "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh": hashlib.sha256(CHECKER.read_bytes()).hexdigest(),
+                "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256": hashlib.sha256((COMPONENT / "MANIFESTS.sha256").read_bytes()).hexdigest(),
+                "ansible/roles/reactive_resume_dev_successor/tasks/main.yml": hashlib.sha256(TASKS.read_bytes()).hexdigest(),
+                "ansible/roles/reactive_resume_dev_successor/defaults/main.yml": hashlib.sha256(DEFAULTS.read_bytes()).hexdigest(),
+                "ansible/playbooks/check_reactive_resume_dev_successor.yml": hashlib.sha256(PLAYBOOK.read_bytes()).hexdigest(),
+                "ansible/files/policies/reactive-resume-dev-postgresql-successor.yml": hashlib.sha256(POLICY.read_bytes()).hexdigest(),
                 "ansible/ansible.cfg": hashlib.sha256((ROOT / "ansible/ansible.cfg").read_bytes()).hexdigest(),
                 "ansible/library/reactive_resume_dev_secret_metadata.py": hashlib.sha256(METADATA.read_bytes()).hexdigest(),
                 "ansible/bin/check-reactive-resume-dev-successor": canonical_wrapper_digest(WRAPPER),
@@ -300,6 +348,12 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
             "ansible/bin/check-reactive-resume-dev-successor",
             "ansible/ansible.cfg",
             "ansible/library/reactive_resume_dev_secret_metadata.py",
+            "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh",
+            "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256",
+            "ansible/roles/reactive_resume_dev_successor/tasks/main.yml",
+            "ansible/roles/reactive_resume_dev_successor/defaults/main.yml",
+            "ansible/playbooks/check_reactive_resume_dev_successor.yml",
+            "ansible/files/policies/reactive-resume-dev-postgresql-successor.yml",
         ):
             self.assertIn(required, self.wrapper)
         self.assertIn("_POLICY_HASH", self.guard)
@@ -364,12 +418,36 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertEqual(canonical_wrapper_digest(WRAPPER), constants["_WRAPPER_CANONICAL_HASH"])
         self.assertEqual(
             {
+                "ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh": hashlib.sha256(CHECKER.read_bytes()).hexdigest(),
+                "ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256": hashlib.sha256((COMPONENT / "MANIFESTS.sha256").read_bytes()).hexdigest(),
+                "ansible/roles/reactive_resume_dev_successor/tasks/main.yml": hashlib.sha256(TASKS.read_bytes()).hexdigest(),
+                "ansible/roles/reactive_resume_dev_successor/defaults/main.yml": hashlib.sha256(DEFAULTS.read_bytes()).hexdigest(),
+                "ansible/playbooks/check_reactive_resume_dev_successor.yml": hashlib.sha256(PLAYBOOK.read_bytes()).hexdigest(),
+                "ansible/files/policies/reactive-resume-dev-postgresql-successor.yml": hashlib.sha256(POLICY.read_bytes()).hexdigest(),
                 "ansible/ansible.cfg": hashlib.sha256((ROOT / "ansible/ansible.cfg").read_bytes()).hexdigest(),
                 "ansible/library/reactive_resume_dev_secret_metadata.py": hashlib.sha256(METADATA.read_bytes()).hexdigest(),
                 "ansible/bin/check-reactive-resume-dev-successor": canonical_wrapper_digest(WRAPPER),
             },
             constants["_CLOSURE_ENTRIES"],
         )
+
+    def test_selection_guard_rejects_empty_step_state(self) -> None:
+        spec = importlib.util.spec_from_file_location("reactive_resume_dev_successor_selection_test", GUARD)
+        self.assertIsNotNone(spec and spec.loader)
+        guarded = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(guarded)
+        cliargs = {
+            "tags": [],
+            "start_at_task": None,
+            "step": "",
+            "skip_tags": [],
+            "subset": "crtxweb",
+            "diff": True,
+            "check": True,
+            "inventory": ["/synthetic/.ansible/inventory.local.yml"],
+        }
+        with patch.object(guarded.context, "CLIARGS", guarded.context.CLIARGS.__class__(cliargs)):
+            self.assertFalse(guarded._selected())
 
     def test_action_guard_reaches_read_only_exec_boundary_with_synthetic_attestation(self) -> None:
         spec = importlib.util.spec_from_file_location("reactive_resume_dev_successor_guarded_test", GUARD)

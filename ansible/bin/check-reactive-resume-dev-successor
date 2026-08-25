@@ -28,37 +28,66 @@ sha_file() {
     */shasum)
     "$sha_tool" -a 256 "$1" | /usr/bin/cut -d' ' -f1
     ;;
-  *)
+    *)
     "$sha_tool" "$1" | /usr/bin/cut -d' ' -f1
     ;;
   esac
 }
+# The self hash replaces this literal with zeros before hashing, avoiding a
+# circular digest while still binding every other wrapper byte.
 closure_manifest="$repository_root/ansible/files/components/reactive-resume-dev-successor/SOURCE-CLOSURE.sha256"
-closure_manifest_expected='2270e3818cd380c14528631ac24eaa5f6ad0cf197556fd27447e9ddbbc71276f'
+closure_manifest_expected='6a57fcb37cc073b376301b8ff422806235ebc876fc5f2dda2f853251d428c8a4'
 action_source="$repository_root/ansible/plugins/action/reactive_resume_dev_successor_guarded.py"
 config_source="$repository_root/ansible/ansible.cfg"
 library_source="$repository_root/ansible/library/reactive_resume_dev_secret_metadata.py"
+checker_source="$repository_root/ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh"
+manifest_source="$repository_root/ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256"
+task_source="$repository_root/ansible/roles/reactive_resume_dev_successor/tasks/main.yml"
+defaults_source="$repository_root/ansible/roles/reactive_resume_dev_successor/defaults/main.yml"
+playbook_source="$repository_root/ansible/playbooks/check_reactive_resume_dev_successor.yml"
+policy_source="$repository_root/ansible/files/policies/reactive-resume-dev-postgresql-successor.yml"
+closure_paths='ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256 ansible/roles/reactive_resume_dev_successor/tasks/main.yml ansible/roles/reactive_resume_dev_successor/defaults/main.yml ansible/playbooks/check_reactive_resume_dev_successor.yml ansible/files/policies/reactive-resume-dev-postgresql-successor.yml ansible/ansible.cfg ansible/library/reactive_resume_dev_secret_metadata.py ansible/bin/check-reactive-resume-dev-successor ansible/plugins/action/reactive_resume_dev_successor_guarded.py'
 [ -f "$closure_manifest" ] && [ ! -L "$closure_manifest" ] || {
   printf '%s\n' 'refusing a missing or symlinked successor source closure' >&2
   exit 69
 }
+[ "$(/usr/bin/stat -c '%a' "$closure_manifest")" = 644 ] || exit 69
 [ "$(sha_file "$closure_manifest")" = "$closure_manifest_expected" ] || {
   printf '%s\n' 'refusing successor source closure drift' >&2
   exit 69
 }
-[ -f "$action_source" ] && [ ! -L "$action_source" ] || exit 69
-[ -f "$config_source" ] && [ ! -L "$config_source" ] || exit 69
-[ -f "$library_source" ] && [ ! -L "$library_source" ] || exit 69
 closure_entry() {
   /usr/bin/awk -v expected_path="$1" '$2 == expected_path { print $1 }' "$closure_manifest"
 }
-config_expected=$(closure_entry ansible/ansible.cfg)
-library_expected=$(closure_entry ansible/library/reactive_resume_dev_secret_metadata.py)
-wrapper_expected=$(closure_entry ansible/bin/check-reactive-resume-dev-successor)
-action_expected=$(closure_entry ansible/plugins/action/reactive_resume_dev_successor_guarded.py)
-[ -n "$config_expected" ] && [ -n "$library_expected" ] && [ -n "$wrapper_expected" ] && [ -n "$action_expected" ] || exit 69
-[ "$(sha_file "$config_source")" = "$config_expected" ] || exit 69
-[ "$(sha_file "$library_source")" = "$library_expected" ] || exit 69
+set -- $closure_paths
+[ "$(/usr/bin/wc -l < "$closure_manifest" | /usr/bin/tr -d ' ')" -eq "$#" ] || {
+  printf '%s\n' 'refusing incomplete successor source closure' >&2
+  exit 69
+}
+for relative in "$@"; do
+  count=$(/usr/bin/awk -v expected_path="$relative" '$2 == expected_path { count++ } END { print count + 0 }' "$closure_manifest")
+  [ "$count" -eq 1 ] || exit 69
+done
+verify_source() {
+  relative=$1
+  path=$2
+  expected_mode=$3
+  expected=$(closure_entry "$relative")
+  case "$expected" in
+    ''|*[!0-9a-f]*) exit 69 ;;
+  esac
+  [ -f "$path" ] && [ ! -L "$path" ] || exit 69
+  [ "$(/usr/bin/stat -c '%a' "$path")" = "$expected_mode" ] || exit 69
+  [ "$(sha_file "$path")" = "$expected" ] || exit 69
+}
+verify_source ansible/files/database-provisioning/reactive-resume-dev-successor-check.sh "$checker_source" 755
+verify_source ansible/files/components/reactive-resume-dev-successor/MANIFESTS.sha256 "$manifest_source" 644
+verify_source ansible/roles/reactive_resume_dev_successor/tasks/main.yml "$task_source" 644
+verify_source ansible/roles/reactive_resume_dev_successor/defaults/main.yml "$defaults_source" 644
+verify_source ansible/playbooks/check_reactive_resume_dev_successor.yml "$playbook_source" 644
+verify_source ansible/files/policies/reactive-resume-dev-postgresql-successor.yml "$policy_source" 644
+verify_source ansible/ansible.cfg "$config_source" 644
+verify_source ansible/library/reactive_resume_dev_secret_metadata.py "$library_source" 644
 canonical_action_file=''
 canonical_wrapper_file=''
 attestation_file=''
@@ -73,6 +102,7 @@ canonical_action_file=$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-res
   -e 's/^_ACTION_CANONICAL_HASH = "[0-9a-f]{64}"$/_ACTION_CANONICAL_HASH = "0000000000000000000000000000000000000000000000000000000000000000"/' \
   -e 's/^_CLOSURE_MANIFEST_HASH = "[0-9a-f]{64}"$/_CLOSURE_MANIFEST_HASH = "0000000000000000000000000000000000000000000000000000000000000000"/' \
   "$action_source" >"$canonical_action_file"
+action_expected=$(closure_entry ansible/plugins/action/reactive_resume_dev_successor_guarded.py)
 [ "$(sha_file "$canonical_action_file")" = "$action_expected" ] || {
   printf '%s\n' 'refusing successor action-plugin source drift' >&2
   exit 69
@@ -81,10 +111,13 @@ canonical_wrapper_file=$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-re
 /usr/bin/sed -E \
   -e "s/^closure_manifest_expected='[0-9a-f]{64}'$/closure_manifest_expected='0000000000000000000000000000000000000000000000000000000000000000'/" \
   "$script_path" >"$canonical_wrapper_file"
+wrapper_expected=$(closure_entry ansible/bin/check-reactive-resume-dev-successor)
 [ "$(sha_file "$canonical_wrapper_file")" = "$wrapper_expected" ] || {
   printf '%s\n' 'refusing successor wrapper source drift' >&2
   exit 69
 }
+[ -f "$action_source" ] && [ ! -L "$action_source" ] || exit 69
+[ "$(/usr/bin/stat -c '%a' "$action_source")" = 644 ] || exit 69
 controller="$repository_root/.venv/bin/ansible-playbook"
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || {
   printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2
