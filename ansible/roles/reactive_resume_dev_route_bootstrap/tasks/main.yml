@@ -8,6 +8,7 @@
     - reactive_resume_dev_route_bootstrap_internal_manifests
     - reactive_resume_dev_route_bootstrap_internal_identity_keys
     - reactive_resume_dev_route_bootstrap_internal_namespace
+    - reactive_resume_dev_route_bootstrap_internal_argocd_handoff
     - reactive_resume_dev_route_bootstrap_internal_kubeconfig_state
     - reactive_resume_dev_route_bootstrap_internal_prestate
     - reactive_resume_dev_route_bootstrap_internal_preflight_binding
@@ -127,6 +128,23 @@
       - reactive_resume_dev_route_bootstrap_internal_namespace.resources | length == 1
       - reactive_resume_dev_route_bootstrap_internal_namespace.resources[0].status.phase == 'Active'
   changed_when: false
+- name: Query Reactive Resume DEV Argo handoff marker
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: reactive-resume-dev
+    namespace: argocd
+    kubeconfig: "{{ reactive_resume_dev_route_bootstrap_kubeconfig }}"
+  register: reactive_resume_dev_route_bootstrap_internal_argocd_handoff
+  changed_when: false
+  no_log: true
+- name: Refuse route reconciliation after Argo handoff
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_route_bootstrap_internal_argocd_handoff.resources | length == 0
+    fail_msg: Refusing Reactive Resume DEV route reconciliation after Argo registration exists; dual reconciliation is forbidden.
+  changed_when: false
+  no_log: true
 - name: Query Reactive Resume DEV Service
   kubernetes.core.k8s_info:
     api_version: v1
@@ -191,6 +209,7 @@
       identity_set_sha256: "{{ reactive_resume_dev_route_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
       prestate_count: "{{ reactive_resume_dev_route_bootstrap_internal_prestate.results | length }}"
       namespace_contract: true
+      argocd_handoff_absent: true
       no_delete_path: true
   changed_when: false
   no_log: true

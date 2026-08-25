@@ -13,6 +13,8 @@
     - reactive_resume_dev_argocd_registration_internal_namespace
     - reactive_resume_dev_argocd_registration_internal_argocd_namespace
     - reactive_resume_dev_argocd_registration_internal_repository_secret
+    - reactive_resume_dev_argocd_registration_internal_dependency_states
+    - reactive_resume_dev_argocd_registration_internal_handoff_deployments
     - reactive_resume_dev_argocd_registration_internal_prestate
     - reactive_resume_dev_argocd_registration_internal_handoff_prestate
     - reactive_resume_dev_argocd_registration_internal_preflight_binding
@@ -186,7 +188,24 @@
     namespace: argocd
     name: '{{ reactive_resume_dev_argocd_registration_repository_secret }}'
     kubeconfig: '{{ reactive_resume_dev_argocd_registration_kubeconfig }}'
+    hidden_fields:
+      - data
+      - stringData
+      - binaryData
   register: reactive_resume_dev_argocd_registration_internal_repository_secret
+  changed_when: false
+  no_log: true
+
+- name: Query exact Reactive Resume DEV workload dependency metadata
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.api_version }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.namespace }}'
+    name: '{{ item.name }}'
+    kubeconfig: '{{ reactive_resume_dev_argocd_registration_kubeconfig }}'
+    hidden_fields: '{{ item.hidden_fields }}'
+  loop: '{{ reactive_resume_dev_argocd_registration_dependency_contracts }}'
+  register: reactive_resume_dev_argocd_registration_internal_dependency_states
   changed_when: false
   no_log: true
 
@@ -205,10 +224,8 @@
       - reactive_resume_dev_argocd_registration_internal_namespaces.results[1].resources[0].metadata.labels.get('kubernetes.io/metadata.name') == 'argocd'
       - reactive_resume_dev_argocd_registration_internal_repository_secret.resources | length == 1
       - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].type == 'Opaque'
-      - (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].data | default({})).keys() | list | sort == ['sshPrivateKey', 'type', 'url']
-      - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].data.type | b64decode == 'git'
-      - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].data.url | b64decode == reactive_resume_dev_argocd_registration_repository
-      - (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].binaryData | default({})) | length == 0
+      - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.namespace == 'argocd'
+      - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.name == reactive_resume_dev_argocd_registration_repository_secret
       - (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.ownerReferences | default([])) | length == 0
       - (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.annotations | default({})).keys() | list == ['secrets.infisical.com/version']
       - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.annotations['secrets.infisical.com/version'] | length > 0
@@ -216,7 +233,28 @@
         reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.labels ==
         {'app.kubernetes.io/managed-by': 'infisical', 'app.kubernetes.io/part-of': 'argocd',
         'argocd.argoproj.io/secret-type': 'repository', 'cristex.io/value-owner': 'infisical-cloud'}
-    fail_msg: Refusing registration without the exact Namespace and Infisical-owned cristexweb repository credential.
+      - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].data is not defined
+    fail_msg: Refusing registration without exact Namespace and metadata-only Infisical-owned cristexweb repository credential validation.
+  changed_when: false
+  no_log: true
+
+- name: Require exact RR Secret, CA, pull, and TLS dependency metadata
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.namespace == item.item.namespace
+      - item.resources[0].metadata.name == item.item.name
+      - item.resources[0].metadata.resourceVersion | default('') | length > 0
+      - item.resources[0].metadata.labels == item.item.labels
+      - (item.resources[0].metadata.ownerReferences | default([])) | length == 0
+      - (item.resources[0].metadata.annotations | default({})).keys() | list == [item.item.annotation_key]
+      - item.resources[0].metadata.annotations[item.item.annotation_key] | length > 0
+      - item.item.type is not defined or item.resources[0].type == item.item.type
+      - item.resources[0].data is not defined
+      - item.resources[0].stringData is not defined
+      - item.resources[0].binaryData is not defined
+    loop: '{{ reactive_resume_dev_argocd_registration_internal_dependency_states.results }}'
+    fail_msg: Refusing RR DEV registration until every exact Infisical-owned Secret/CA/pull/TLS dependency is ready and value payloads remain suppressed.
   changed_when: false
   no_log: true
 
@@ -248,6 +286,19 @@
     vars:
       handoff_source: '{{ reactive_resume_dev_argocd_registration_internal_handoff_manifests[handoff_index] }}'
     fail_msg: Refusing a missing, foreign, Argo-managed, or dual-reconciled Reactive Resume DEV handoff object.
+  changed_when: false
+  no_log: true
+
+- name: Require ready existing Reactive Resume DEV workload dependencies
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.item.kind != 'Deployment' or (item.resources[0].status.observedGeneration | default(0) | int) == (item.resources[0].metadata.generation | default(0) | int)
+      - item.item.kind != 'Deployment' or (item.resources[0].status.readyReplicas | default(0) | int) == (item.resources[0].spec.replicas | default(0) | int)
+      - item.item.kind != 'Deployment' or (item.resources[0].status.availableReplicas | default(0) | int) == (item.resources[0].spec.replicas | default(0) | int)
+      - item.item.kind != 'Job' or (item.resources[0].status.succeeded | default(0) | int) == 1
+    loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results }}'
+    fail_msg: Refusing RR DEV registration until existing workload dependencies are ready; no workload reconciliation is performed here.
   changed_when: false
   no_log: true
 
@@ -288,6 +339,10 @@
       handoff_object_count: "{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results | length }}"
       namespace_contract: true
       repository_contract: true
+      dependency_count: '{{ reactive_resume_dev_argocd_registration_internal_dependency_states.results | length }}'
+      dependency_names: '{{ reactive_resume_dev_argocd_registration_internal_dependency_states.results | map(attribute="item.name") | list | sort }}'
+      workload_dependencies_ready: true
+      exact_application_source_contract: true
       revision: '{{ reactive_resume_dev_argocd_registration_revision }}'
       no_dual_reconciliation: true
       no_delete_path: true
@@ -327,10 +382,28 @@
       - item.item.kind != 'Secret' or item.resources[0].type == 'Opaque'
       - >-
         item.item.kind != 'Application' or
+        item.resources[0].spec.project == item.item.spec.project
+      - >-
+        item.item.kind != 'Application' or
+        item.resources[0].spec.source == item.item.spec.source
+      - >-
+        item.item.kind != 'Application' or
+        item.resources[0].spec.destination == item.item.spec.destination
+      - >-
+        item.item.kind != 'Application' or
+        item.resources[0].spec.syncPolicy == item.item.spec.syncPolicy
+      - >-
+        item.item.kind != 'Application' or
         item.resources[0].spec.syncPolicy.automated == {'prune': false, 'selfHeal': true, 'allowEmpty': false}
       - item.item.kind != 'Application' or 'CreateNamespace=false' in item.resources[0].spec.syncPolicy.syncOptions
       - item.item.kind != 'Application' or 'Prune=false' in item.resources[0].spec.syncPolicy.syncOptions
+      - item.item.kind != 'Application' or item.resources[0].spec.source.repoURL == reactive_resume_dev_argocd_registration_repository
       - item.item.kind != 'Application' or item.resources[0].spec.source.targetRevision == reactive_resume_dev_argocd_registration_revision
+      - item.item.kind != 'Application' or item.resources[0].spec.source.path == reactive_resume_dev_argocd_registration_path
+      - item.item.kind != 'Application' or item.resources[0].spec.destination.namespace == 'cristexhub-dev'
+      - item.item.kind != 'Application' or item.resources[0].spec.destination.name == 'reactive-resume-dev-local'
+      - item.item.kind != 'Application' or item.resources[0].spec.destination.server == ''
+      - item.item.kind != 'Application' or 'argocd.argoproj.io/tracking-id' not in (item.resources[0].metadata.annotations | default({}))
       - >-
         item.item.kind != 'AppProject' or
         item.resources[0].spec.syncWindows == [{'kind': 'deny', 'schedule': '* * * * *',

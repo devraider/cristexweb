@@ -21,9 +21,15 @@ Job remains inventory-only and is a separately guarded one-shot prerequisite.
 The migration Job is excluded from the automated Argo desired-state.
 
 An Infisical-owned, value-bearing-free repository Secret named
-`argocd-repository-cristexweb` must already exist in `argocd`; this closure only
-checks its metadata and never reads or prints its private key. The destination
-is the existing `cristexhub-dev` Namespace through the namespace-limited
+`argocd-repository-cristexweb` must already exist in `argocd`; this closure uses
+`hidden_fields` to suppress `data`, `stringData`, and `binaryData` at the
+Ansible result boundary, and never reads, decodes, or prints its private key.
+The exact Infisical-owned runtime and migration Secrets, PostgreSQL and object
+storage CA outputs, GHCR pull Secret, and browser TLS Secret must also exist
+with their reviewed labels, version annotation, type, owner-reference, and
+resource-version contracts. The workload Deployment must be Available and the
+migration Job complete before registration proceeds. The destination is the
+existing `cristexhub-dev` Namespace through the namespace-limited
 `reactive-resume-dev-local` cluster registration.
 
 ## Safety and ownership boundary
@@ -45,9 +51,12 @@ The handoff preflight requires every inventoried live object to exist with
 and `cristex.io/desired-owner=argocd`, and rejects Argo tracking annotations,
 Argo managed fields, owner references, and finalizers. Registration reconciles
 only its five registration objects; it never changes the workload objects.
-This is the no-dual-reconciliation boundary: no dual reconciliation is permitted. A later, separately approved adoption must
-first stop the Ansible workload owner, remove the deny window through a reviewed
-source revision, sync once, and collect managed-field evidence.
+This is the no-dual-reconciliation boundary: no dual reconciliation is permitted. The
+route wrapper also refuses to run once the Argo Application handoff marker exists,
+so the duplicate Ansible route source cannot reconcile after handoff. A later,
+separately approved adoption must first stop the Ansible workload owner, remove
+the deny window through a reviewed source revision, sync once, and collect
+managed-field evidence.
 
 There is no PROD path in this closure. `cristexhub-prod`,
 `reactive-resume-prod`, public routing, and production promotion are rejected
@@ -76,8 +85,8 @@ not run against the live cluster.
 
 ## Remaining gates
 
-The repository credential `argocd-repository-cristexweb`, exact live RR object
-set, and absence of Argo managed fields are required before a guarded check
-can pass. A successful check, separately approved apply, idempotence retry,
+The repository credential `argocd-repository-cristexweb`, exact value-suppressed
+Secret/CA/pull/TLS dependency metadata, ready live RR workload set, and absence
+of Argo managed fields are required before a guarded check can pass. A successful check, separately approved apply, idempotence retry,
 Argo sync/adoption evidence, and private hostname/backup/soak acceptance are
 still required. No source commit authorizes Kubernetes mutation or PROD.

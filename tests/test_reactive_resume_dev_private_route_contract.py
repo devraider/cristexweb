@@ -133,6 +133,9 @@ class ReactiveResumeDevPrivateRouteContractTests(unittest.TestCase):
             "CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_TOKEN",
             "CRISTEXWEB_REACTIVE_RESUME_DEV_ROUTE_BOOTSTRAP_ATTESTATION_FILE",
             "no_delete_path: true",
+            "Query Reactive Resume DEV Argo handoff marker",
+            "Refuse route reconciliation after Argo handoff",
+            "argocd_handoff_absent: true",
         ):
             self.assertIn(value, self.role_tasks, value)
         self.assertIn("role: reactive_resume_dev_route_bootstrap", self.playbook)
@@ -157,6 +160,7 @@ class ReactiveResumeDevPrivateRouteContractTests(unittest.TestCase):
             "object_count', -1)) == 2",
             "prestate_count', -1)) == 2",
             "namespace_contract') is True",
+            "argocd_handoff_absent') is True",
             "no_delete_path') is True",
             "state') != 'present'",
             "PersistentVolumeClaim",

@@ -84,7 +84,8 @@ class ActionModule(KubernetesActionModule):
             and set(binding) == {
                 "attestation_sha256", "manifest_names", "prestate_names", "handoff_names",
                 "object_count", "handoff_object_count", "namespace_contract", "repository_contract",
-                "revision", "no_dual_reconciliation", "no_delete_path",
+                "dependency_count", "dependency_names", "workload_dependencies_ready",
+                "exact_application_source_contract", "revision", "no_dual_reconciliation", "no_delete_path",
             }
             and binding.get("attestation_sha256") == hashlib.sha256(token.encode()).hexdigest()
             and binding.get("manifest_names") == sorted(identity[3] for identity in EXPECTED)
@@ -94,6 +95,13 @@ class ActionModule(KubernetesActionModule):
             and binding.get("handoff_object_count") in (8, "8")
             and _strict_true(binding.get("namespace_contract"))
             and _strict_true(binding.get("repository_contract"))
+            and binding.get("dependency_count") in (6, "6")
+            and binding.get("dependency_names") == sorted((
+                "cristexhub-ghcr-pull", "reactive-resume-dev-migration", "reactive-resume-dev-object-storage-ca",
+                "reactive-resume-dev-postgresql-ca", "reactive-resume-dev-runtime", "reactive-resume-dev-tls",
+            ))
+            and _strict_true(binding.get("workload_dependencies_ready"))
+            and _strict_true(binding.get("exact_application_source_contract"))
             and binding.get("revision") == EXPECTED_REVISION
             and _strict_true(binding.get("no_dual_reconciliation"))
             and _strict_true(binding.get("no_delete_path"))

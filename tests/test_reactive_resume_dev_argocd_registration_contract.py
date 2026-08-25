@@ -48,6 +48,32 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
         binding = next(x for x in docs(REG) if x['kind'] == 'RoleBinding')
         self.assertEqual('argocd-application-controller-reactive-resume-dev', binding['roleRef']['name'])
 
+    def test_dependency_contracts_are_exact_and_payload_suppressed(self):
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        contracts = defaults['reactive_resume_dev_argocd_registration_dependency_contracts']
+        self.assertEqual(6, len(contracts))
+        self.assertEqual(
+            ['reactive-resume-dev-runtime', 'reactive-resume-dev-migration',
+             'reactive-resume-dev-postgresql-ca', 'reactive-resume-dev-object-storage-ca',
+             'cristexhub-ghcr-pull', 'reactive-resume-dev-tls'],
+            [item['name'] for item in contracts],
+        )
+        self.assertEqual(
+            ['Opaque', 'Opaque', None, 'Opaque', 'kubernetes.io/dockerconfigjson', 'kubernetes.io/tls'],
+            [item.get('type') for item in contracts],
+        )
+        for item in contracts:
+            self.assertEqual('cristexhub-dev', item['namespace'])
+            self.assertEqual('secrets.infisical.com/version', item['annotation_key'])
+            self.assertIn('data', item['hidden_fields'])
+            self.assertIn('binaryData', item['hidden_fields'])
+            self.assertEqual(
+                {'app.kubernetes.io/managed-by': 'infisical',
+                 'app.kubernetes.io/part-of': 'cristexhub' if item['name'] == 'cristexhub-ghcr-pull' else 'reactive-resume',
+                 'cristex.io/value-owner': 'infisical-cloud'},
+                item['labels'],
+            )
+
     def test_handoff_source_is_exact_dev_and_value_free(self):
         objects = docs(SOURCE)
         self.assertEqual(8, len(objects))
@@ -69,10 +95,25 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
         wrapper = WRAPPER.read_text()
         runbook = RUNBOOK.read_text()
         self.assertIn('handoff_expected_hashes:', defaults)
+        self.assertIn('dependency_contracts:', defaults)
+        self.assertIn('reactive-resume-dev-runtime', defaults)
+        self.assertIn('reactive-resume-dev-migration', defaults)
+        self.assertIn('reactive-resume-dev-postgresql-ca', defaults)
+        self.assertIn('reactive-resume-dev-object-storage-ca', defaults)
+        self.assertIn('cristexhub-ghcr-pull', defaults)
+        self.assertIn('reactive-resume-dev-tls', defaults)
+        self.assertIn('hidden_fields:', tasks)
+        self.assertIn('Require exact RR Secret, CA, pull, and TLS dependency metadata', tasks)
+        self.assertIn('Require ready existing Reactive Resume DEV workload dependencies', tasks)
+        self.assertIn('exact_application_source_contract', tasks)
+        self.assertIn('item.resources[0].spec.source == item.item.spec.source', tasks)
+        self.assertIn('item.resources[0].spec.destination == item.item.spec.destination', tasks)
+        self.assertIn('item.resources[0].spec.syncPolicy == item.item.spec.syncPolicy', tasks)
         self.assertIn('no_dual_reconciliation: true', tasks)
         self.assertIn('managedFields', tasks)
         self.assertIn('argocd.argoproj.io/tracking-id', tasks)
         self.assertIn('EXPECTED_HANDOFF', plugin)
+        self.assertIn('dependency_names', plugin)
         self.assertIn('no_delete_path', plugin)
         self.assertIn('task selection controls are forbidden', plugin)
         self.assertIn('check|apply', wrapper)

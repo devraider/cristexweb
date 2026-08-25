@@ -64,15 +64,19 @@ foreign objects, hash drift, and any object outside the exact identity set.
 Check mode must be run first. Apply remains a separate operator approval. The
 closure has no deletion or rollback path; rollback is a reviewed Git revert and
 removal of only these exact route objects through a separately approved
-operation. A label is not an Argo handoff: registration, adoption, successful
-sync, and managed-fields evidence are still required before ownership changes.
+operation. Before every route check/apply, the role queries the
+`argocd/reactive-resume-dev` Application handoff marker and requires it to be
+absent. Once registration exists, the route wrapper fails closed; the duplicate
+route source cannot reconcile after Argo handoff. A label is not an Argo handoff:
+registration, adoption, successful sync, and managed-fields evidence are still
+required before ownership changes.
 
 ## Validation and residual risks
 
 Offline validation includes YAML/ledger checks, wrapper shell syntax, Ansible
 syntax, source-hash checks, namespace/host/service/TLS assertions, exact
-NetworkPolicy peer/port assertions, and rejection of Secret values and foreign
-route objects. No provider, DNS, Infisical, Keycloak, Kubernetes, or live host
+NetworkPolicy peer/port assertions, the post-handoff refusal contract, and
+rejection of Secret values and foreign route objects. No provider, DNS, Infisical, Keycloak, Kubernetes, or live host
 command is part of source validation.
 
 Before activation, separately verify the precreated certificate SAN and validity,
