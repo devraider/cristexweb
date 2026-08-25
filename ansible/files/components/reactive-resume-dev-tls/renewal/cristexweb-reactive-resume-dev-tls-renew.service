@@ -8,6 +8,7 @@ Wants=network-online.target
 Type=oneshot
 User=paul
 Group=paul
+Environment=HOME=/home/paul
 UMask=0077
 ExecStart=/usr/local/libexec/cristexweb/reactive-resume-dev-tls-renew renew
 TimeoutStartSec=20min

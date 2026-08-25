@@ -60,6 +60,8 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         service = SERVICE.read_text()
         for required in (
             "User=paul",
+            "Group=paul",
+            "Environment=HOME=/home/paul",
             "UMask=0077",
             "NoNewPrivileges=true",
             "PrivateTmp=true",
