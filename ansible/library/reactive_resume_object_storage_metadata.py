@@ -194,6 +194,12 @@ def _producer_targets(value, expected_kind, expected_api_version, expected_metad
     if (
         metadata.get("name") != expected_metadata.get("name")
         or metadata.get("namespace") != expected_metadata.get("namespace")
+        or not isinstance(expected_metadata.get("uid"), str)
+        or not expected_metadata.get("uid")
+        or metadata.get("uid") != expected_metadata.get("uid")
+        or not isinstance(expected_metadata.get("resourceVersion"), str)
+        or not expected_metadata.get("resourceVersion")
+        or metadata.get("resourceVersion") != expected_metadata.get("resourceVersion")
     ):
         return None
     spec = value.get("spec")

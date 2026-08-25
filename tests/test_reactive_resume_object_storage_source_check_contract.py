@@ -349,12 +349,12 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {
                     "apiVersion": "secrets.infisical.com/v1beta1",
                     "kind": "InfisicalStaticSecret",
-                    "metadata": {"name": "shared-postgresql", "namespace": "shared-services"},
+                    "metadata": {"name": "shared-postgresql", "namespace": "shared-services", "uid": "uid-shared-postgresql", "resourceVersion": "1"},
                     "spec": {"targets": [{"name": "safe-target", "namespace": "shared-services", "kind": "Secret", "template": {"data": {"password": "not-returned"}}}]},
                 },
                 "InfisicalStaticSecret",
                 "secrets.infisical.com/v1beta1",
-                {"name": "shared-postgresql", "namespace": "shared-services"},
+                {"name": "shared-postgresql", "namespace": "shared-services", "uid": "uid-shared-postgresql", "resourceVersion": "1"},
             ),
         )
         self.assertEqual(
@@ -363,12 +363,12 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {
                     "apiVersion": "secrets.infisical.com/v1alpha1",
                     "kind": "InfisicalSecret",
-                    "metadata": {"name": "shared-postgresql", "namespace": "shared-services"},
+                    "metadata": {"name": "shared-postgresql", "namespace": "shared-services", "uid": "uid-shared-postgresql", "resourceVersion": "1"},
                     "spec": {"managedSecretReference": {"secretName": "safe-target", "secretNamespace": "shared-services"}},
                 },
                 "InfisicalSecret",
                 "secrets.infisical.com/v1alpha1",
-                {"name": "shared-postgresql", "namespace": "shared-services"},
+                {"name": "shared-postgresql", "namespace": "shared-services", "uid": "uid-shared-postgresql", "resourceVersion": "1"},
             ),
         )
         self.assertEqual(
@@ -380,7 +380,7 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {
                     "apiVersion": "secrets.infisical.com/v1alpha1",
                     "kind": "InfisicalPushSecret",
-                    "metadata": {"name": "push", "namespace": "shared-services"},
+                    "metadata": {"name": "push", "namespace": "shared-services", "uid": "uid-push", "resourceVersion": "1"},
                     "spec": {"push": {
                         "secret": {"secretName": "direct", "secretNamespace": "shared-services"},
                         "generators": [{"destinationSecretName": "generated"}],
@@ -388,7 +388,7 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 },
                 "InfisicalPushSecret",
                 "secrets.infisical.com/v1alpha1",
-                {"name": "push", "namespace": "shared-services"},
+                {"name": "push", "namespace": "shared-services", "uid": "uid-push", "resourceVersion": "1"},
             ),
         )
         self.assertIsNone(
@@ -396,12 +396,12 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {
                     "apiVersion": "secrets.infisical.com/v1alpha1",
                     "kind": "InfisicalDynamicSecret",
-                    "metadata": {"name": "dynamic", "namespace": "shared-services"},
+                    "metadata": {"name": "dynamic", "namespace": "shared-services", "uid": "uid-dynamic", "resourceVersion": "1"},
                     "spec": {},
                 },
                 "InfisicalDynamicSecret",
                 "secrets.infisical.com/v1alpha1",
-                {"name": "dynamic", "namespace": "shared-services"},
+                {"name": "dynamic", "namespace": "shared-services", "uid": "uid-dynamic", "resourceVersion": "1"},
             )
         )
         self.assertEqual(
@@ -410,12 +410,12 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
                 {
                     "apiVersion": "external-secrets.io/v1beta1",
                     "kind": "ExternalSecret",
-                    "metadata": {"name": "external", "namespace": "shared-services"},
+                    "metadata": {"name": "external", "namespace": "shared-services", "uid": "uid-external", "resourceVersion": "1"},
                     "spec": {},
                 },
                 "ExternalSecret",
                 "external-secrets.io/v1beta1",
-                {"name": "external", "namespace": "shared-services"},
+                {"name": "external", "namespace": "shared-services", "uid": "uid-external", "resourceVersion": "1"},
             ),
         )
         for invalid in (
