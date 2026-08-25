@@ -248,20 +248,22 @@ completion = datetime.strptime(run["completed_at_utc"], "%Y%m%dT%H%M%SZ").replac
 started = datetime.strptime(run["run_id"], "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
 assert completion >= started
 assert isinstance(run["backup_duration_seconds"], int) and run["backup_duration_seconds"] >= 0
-assert set(run["database"]) == {"name", "archive", "bytes", "sha256", "logical_entry_count", "logical_table_count"}
+assert set(run["database"]) == {"name", "archive", "bytes", "sha256", "logical_entry_count", "logical_table_count", "logical_archive_bytes"}
 assert run["database"]["name"] == "reactive_resume_dev_successor"
 assert run["database"]["archive"] == "postgresql.dump.gz.age"
 assert run["database"]["logical_entry_count"] > 0 and run["database"]["logical_table_count"] > 0
+assert isinstance(run["database"]["logical_archive_bytes"], int) and run["database"]["logical_archive_bytes"] > 0
 assert set(run["object_storage"]) == {"bucket", "archive", "bytes", "sha256", "object_count", "total_object_bytes"}
 assert run["object_storage"]["bucket"] == "reactive-resume-dev"
 assert run["object_storage"]["archive"] == "object-storage.tar.gz.age"
 assert isinstance(run["object_storage"]["object_count"], int) and run["object_storage"]["object_count"] > 0
 assert isinstance(run["object_storage"]["total_object_bytes"], int) and run["object_storage"]["total_object_bytes"] > 0
-assert set(pg) == {"schema", "service", "database", "run_id", "completed_at_utc", "archive", "archive_bytes", "archive_sha256", "encryption", "source_cluster", "logical_entry_count", "logical_table_count"}
+assert set(pg) == {"schema", "service", "database", "run_id", "completed_at_utc", "archive", "archive_bytes", "archive_sha256", "encryption", "source_cluster", "logical_entry_count", "logical_table_count", "logical_archive_bytes"}
 assert pg["schema"] == 2 and pg["run_id"] == os.environ["RUN_ID"] and pg["completed_at_utc"] == run["completed_at_utc"] and pg["database"] == "reactive_resume_dev_successor"
 assert pg["archive_bytes"] > 0 and run["database"]["bytes"] == pg["archive_bytes"] == int(os.environ["PG_ACTUAL_BYTES"])
 assert pg["archive_sha256"] == os.environ["PG_ACTUAL_SHA256"]
 assert pg["logical_entry_count"] == run["database"]["logical_entry_count"] and pg["logical_table_count"] == run["database"]["logical_table_count"]
+assert pg["logical_archive_bytes"] == run["database"]["logical_archive_bytes"]
 assert set(obj) == {"schema", "service", "bucket", "run_id", "completed_at_utc", "archive", "archive_bytes", "archive_sha256", "encryption", "object_count", "total_object_bytes", "objects"}
 assert obj["schema"] == 2 and obj["service"] == "seaweedfs"
 assert obj["run_id"] == os.environ["RUN_ID"] and obj["completed_at_utc"] == run["completed_at_utc"] and obj["bucket"] == "reactive-resume-dev"
@@ -300,6 +302,14 @@ PY
 case "$backup_duration_seconds" in
   ''|*[!0-9]*) fail backup_duration_contract ;;
 esac
+expected_pg_logical_bytes=$(/usr/bin/python3 - "$work/run-manifest.json" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    value = json.load(stream)["database"]["logical_archive_bytes"]
+assert isinstance(value, int) and value > 0
+print(value)
+PY
+) || fail pg_manifest_content
 expected_pg_table_count=$(/usr/bin/python3 - "$work/run-manifest.json" <<'PY'
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as stream:
@@ -324,7 +334,34 @@ restore_reference_epoch=$(/usr/bin/date +%s)
   --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity" || fail infisical_identity
 /usr/bin/chmod 0600 "$work/identity"
 /usr/bin/age -d -i "$work/identity" "$work/postgresql.dump.gz.age" >"$work/postgresql.dump.gz" || fail postgresql_decrypt
-/usr/bin/gzip -d -c "$work/postgresql.dump.gz" >"$work/postgresql.dump" || fail postgresql_decompress
+shm_capacity_preflight 1 "$expected_pg_logical_bytes" || fail shm_capacity
+PG_GZIP="$work/postgresql.dump.gz" PG_DUMP="$work/postgresql.dump" PG_EXPECTED_BYTES="$expected_pg_logical_bytes" /usr/bin/python3 - <<'PY' || fail postgresql_decompress
+import gzip
+import os
+expected = int(os.environ["PG_EXPECTED_BYTES"])
+descriptor = os.open(
+    os.environ["PG_DUMP"],
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+    0o600,
+)
+total = 0
+try:
+    with gzip.open(os.environ["PG_GZIP"], "rb") as source, os.fdopen(descriptor, "wb") as target:
+        while True:
+            chunk = source.read(min(1024 * 1024, expected - total + 1))
+            if not chunk:
+                break
+            total += len(chunk)
+            assert total <= expected
+            target.write(chunk)
+finally:
+    if total != expected:
+        try:
+            os.unlink(os.environ["PG_DUMP"])
+        except FileNotFoundError:
+            pass
+assert total == expected
+PY
 /usr/bin/age -d -i "$work/identity" "$work/object-storage.tar.gz.age" >"$work/object-storage.tar.gz" || fail object_decrypt
 /usr/bin/rm -f -- "$work/identity" "$work/postgresql.dump.gz.age" "$work/object-storage.tar.gz.age" "$work/postgresql.dump.gz.age.sha256" "$work/object-storage.tar.gz.age.sha256" "$work/postgresql.dump.gz"
 [ -s "$work/postgresql.dump" ] || fail pg_archive_empty
@@ -362,7 +399,11 @@ manifest = json.load(open(os.environ["OBJECT_MANIFEST"], encoding="utf-8"))
 expected = {item["key"]: item["size"] for item in manifest["objects"]}
 assert len(expected) == len(manifest["objects"])
 allowed_directories = {"objects"}
-for key in expected:
+for key, size in expected.items():
+    assert isinstance(key, str) and key and isinstance(size, int) and size >= 0
+    assert not key.startswith("/") and not any(char in key for char in ("\t", "\r", "\n", "\x00"))
+    assert ".." not in key.split("/") and "\\" not in key
+    assert key.startswith(("uploads/user-pictures/", "pictures/", "uploads/user-agent/"))
     parts = key.split("/")[:-1]
     for index in range(1, len(parts) + 1):
         allowed_directories.add("objects/" + "/".join(parts[:index]))

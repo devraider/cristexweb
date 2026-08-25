@@ -278,6 +278,9 @@ for item in raw:
     key = item.get("Path") or item.get("Name")
     size = item.get("Size")
     assert isinstance(key, str) and key and isinstance(size, int) and size >= 0
+    assert not key.startswith("/") and not any(char in key for char in ("\t", "\r", "\n", "\x00"))
+    assert ".." not in key.split("/") and "\\" not in key
+    assert key.startswith(("uploads/user-pictures/", "pictures/", "uploads/user-agent/"))
     assert key not in expected
     expected[key] = size
 allowed_directories = {"objects"}
@@ -358,9 +361,10 @@ for item in values:
             digest.update(chunk)
             md5_digest.update(chunk)
     hashes = item.get("Hashes") if isinstance(item.get("Hashes"), dict) else {}
-    md5 = hashes.get("MD5")
-    if md5 is not None:
-        assert isinstance(md5, str) and len(md5) == 32 and md5_digest.hexdigest() == md5
+    md5 = hashes.get("md5", hashes.get("MD5"))
+    assert isinstance(md5, str) and len(md5) == 32
+    assert all(char in "0123456789abcdef" for char in md5)
+    assert md5_digest.hexdigest() == md5
     objects.append({"key": key, "size": actual_size, "sha256": digest.hexdigest(), "md5": md5})
 actual = set()
 object_root = os.environ["OBJECT_ROOT"]
@@ -383,6 +387,11 @@ PY
   /usr/bin/pg_dump --format=custom --compress=0 --no-owner --no-privileges \
   --dbname="$database" >"$work/reactive-resume-dev.dump" || fail pg_dump
 [ -s "$work/reactive-resume-dev.dump" ] || fail pg_dump_empty
+pg_logical_archive_bytes=$(/usr/bin/stat -c %s "$work/reactive-resume-dev.dump")
+case "$pg_logical_archive_bytes" in
+  ''|*[!0-9]*) fail pg_dump_size ;;
+esac
+[ "$pg_logical_archive_bytes" -gt 0 ] || fail pg_dump_size
 /usr/bin/pg_restore --list "$work/reactive-resume-dev.dump" >"$work/postgresql.list" || fail pg_logical_list
 pg_logical_counts=$(/usr/bin/python3 - "$work/postgresql.list" <<'PY'
 import re, sys
@@ -426,11 +435,11 @@ completed_epoch=$(/usr/bin/date +%s)
 [ "$completed_epoch" -ge "$start_epoch" ] || fail clock_skew
 completed_at_utc=$(/usr/bin/date -u +%Y%m%dT%H%M%SZ)
 backup_duration_seconds=$(( completed_epoch - start_epoch ))
-/usr/bin/python3 - "$run_directory/postgresql.manifest.json" "$run_directory/object-storage.manifest.json" "$run_id" "$completed_at_utc" "$pg_archive_bytes" "$pg_archive_sha256" "$object_archive_bytes" "$object_archive_sha256" "$object_count" "$total_object_bytes" "$pg_logical_entry_count" "$pg_logical_table_count" <<'PY'
+/usr/bin/python3 - "$run_directory/postgresql.manifest.json" "$run_directory/object-storage.manifest.json" "$run_id" "$completed_at_utc" "$pg_archive_bytes" "$pg_archive_sha256" "$object_archive_bytes" "$object_archive_sha256" "$object_count" "$total_object_bytes" "$pg_logical_entry_count" "$pg_logical_table_count" "$pg_logical_archive_bytes" <<'PY'
 import json, sys
-_, pg_path, object_path, run_id, completed, pg_bytes, pg_sha, object_bytes, object_sha, count, total, logical_entries, logical_tables = sys.argv
+_, pg_path, object_path, run_id, completed, pg_bytes, pg_sha, object_bytes, object_sha, count, total, logical_entries, logical_tables, logical_bytes = sys.argv
 pg = {"schema": 2}
-pg.update({"service": "postgresql", "database": "reactive_resume_dev_successor", "run_id": run_id, "completed_at_utc": completed, "archive": "postgresql.dump.gz.age", "archive_bytes": int(pg_bytes), "archive_sha256": pg_sha, "encryption": "age-x25519", "source_cluster": "shared-postgresql", "logical_entry_count": int(logical_entries), "logical_table_count": int(logical_tables)})
+pg.update({"service": "postgresql", "database": "reactive_resume_dev_successor", "run_id": run_id, "completed_at_utc": completed, "archive": "postgresql.dump.gz.age", "archive_bytes": int(pg_bytes), "archive_sha256": pg_sha, "encryption": "age-x25519", "source_cluster": "shared-postgresql", "logical_entry_count": int(logical_entries), "logical_table_count": int(logical_tables), "logical_archive_bytes": int(logical_bytes)})
 with open(pg_path, "w", encoding="utf-8") as stream:
     json.dump(pg, stream, separators=(",", ":"))
 with open(object_path, encoding="utf-8") as stream:
@@ -439,11 +448,11 @@ obj.update({"service": "seaweedfs", "bucket": "reactive-resume-dev", "run_id": r
 with open(object_path, "w", encoding="utf-8") as stream:
     json.dump(obj, stream, separators=(",", ":"))
 PY
-/usr/bin/python3 - "$run_directory/run-manifest.json" "$run_id" "$completed_at_utc" "$backup_duration_seconds" "$pg_archive_bytes" "$pg_archive_sha256" "$object_archive_bytes" "$object_archive_sha256" "$object_count" "$total_object_bytes" "$pg_logical_entry_count" "$pg_logical_table_count" <<'PY'
+/usr/bin/python3 - "$run_directory/run-manifest.json" "$run_id" "$completed_at_utc" "$backup_duration_seconds" "$pg_archive_bytes" "$pg_archive_sha256" "$object_archive_bytes" "$object_archive_sha256" "$object_count" "$total_object_bytes" "$pg_logical_entry_count" "$pg_logical_table_count" "$pg_logical_archive_bytes" <<'PY'
 import json, sys
-_, path, run_id, completed, duration, pg_bytes, pg_sha, object_bytes, object_sha, count, total, logical_entries, logical_tables = sys.argv
+_, path, run_id, completed, duration, pg_bytes, pg_sha, object_bytes, object_sha, count, total, logical_entries, logical_tables, logical_bytes = sys.argv
 with open(path, "w", encoding="utf-8") as stream:
-    json.dump({"schema": 2, "service": "reactive-resume-dev", "run_id": run_id, "created_at_utc": run_id, "completed_at_utc": completed, "backup_duration_seconds": int(duration), "encryption": "age-x25519", "database": {"name": "reactive_resume_dev_successor", "archive": "postgresql.dump.gz.age", "bytes": int(pg_bytes), "sha256": pg_sha, "logical_entry_count": int(logical_entries), "logical_table_count": int(logical_tables)}, "object_storage": {"bucket": "reactive-resume-dev", "archive": "object-storage.tar.gz.age", "bytes": int(object_bytes), "sha256": object_sha, "object_count": int(count), "total_object_bytes": int(total)}}, stream, separators=(",", ":"))
+    json.dump({"schema": 2, "service": "reactive-resume-dev", "run_id": run_id, "created_at_utc": run_id, "completed_at_utc": completed, "backup_duration_seconds": int(duration), "encryption": "age-x25519", "database": {"name": "reactive_resume_dev_successor", "archive": "postgresql.dump.gz.age", "bytes": int(pg_bytes), "sha256": pg_sha, "logical_entry_count": int(logical_entries), "logical_table_count": int(logical_tables), "logical_archive_bytes": int(logical_bytes)}, "object_storage": {"bucket": "reactive-resume-dev", "archive": "object-storage.tar.gz.age", "bytes": int(object_bytes), "sha256": object_sha, "object_count": int(count), "total_object_bytes": int(total)}}, stream, separators=(",", ":"))
 PY
 for leaf in postgresql.dump.gz.age postgresql.dump.gz.age.sha256 postgresql.manifest.json object-storage.tar.gz.age object-storage.tar.gz.age.sha256 object-storage.manifest.json run-manifest.json; do
   /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/$leaf" "$remote_directory/$leaf"

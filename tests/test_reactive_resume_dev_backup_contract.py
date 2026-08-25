@@ -56,6 +56,10 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('assert len(members) <= member_limit', source)
         self.assertIn('directories == allowed_directories', source)
         self.assertLess(source.index('directories == allowed_directories'), source.index('source = archive.extractfile(member)'))
+        archive_validation = source.index('ARCHIVE="$work/object-storage.tar.gz" OBJECT_VERIFY=')
+        control_validation = source.index('not any(char in key for char in ("\\t", "\\r", "\\n", "\\x00"))', archive_validation)
+        archive_write = source.index('source = archive.extractfile(member)', archive_validation)
+        self.assertLess(control_validation, archive_write)
 
     def test_pg_table_count_excludes_table_data_and_attach_toc_entries(self):
         for source in (BACKUP.read_text(), RESTORE.read_text()):
@@ -187,6 +191,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             '"completed_at_utc": completed',
             '"logical_entry_count": int(logical_entries)',
             '"logical_table_count": int(logical_tables)',
+            '"logical_archive_bytes": int(logical_bytes)',
+            'hashes.get("md5", hashes.get("MD5"))',
+            'assert md5_digest.hexdigest() == md5',
             '"sha256": digest.hexdigest()',
             "actual == seen",
             "pg_restore --list",
@@ -202,6 +209,10 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "now < source",
             "backup_duration_seconds",
             "restore_duration_seconds",
+            "expected_pg_logical_bytes",
+            "PG_EXPECTED_BYTES",
+            "assert total <= expected",
+            "assert total == expected",
             "rpo_seconds",
             "object_storage_empty",
             "restored_object_empty",
