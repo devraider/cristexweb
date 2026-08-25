@@ -141,12 +141,20 @@
       - cristexhub_prod_registration_internal_manifest_identities | length == 5
       - cristexhub_prod_registration_internal_manifest_identities | unique | list | length == 5
       - >-
-        cristexhub_prod_registration_internal_manifest_identities | sort ==
+        cristexhub_prod_registration_internal_manifest_identities |
+        difference([
+        'argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod',
+        'argoproj.io/v1alpha1|Application|argocd|cristexhub-prod',
+        'rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod',
+        'rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|argocd-application-controller-cristexhub-prod',
+        'v1|Secret|argocd|argocd-cluster-cristexhub-prod']) | length == 0
+      - >-
         ['argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod',
         'argoproj.io/v1alpha1|Application|argocd|cristexhub-prod',
         'rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod',
         'rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|argocd-application-controller-cristexhub-prod',
-        'v1|Secret|argocd|argocd-cluster-cristexhub-prod']
+        'v1|Secret|argocd|argocd-cluster-cristexhub-prod'] |
+        difference(cristexhub_prod_registration_internal_manifest_identities) | length == 0
     fail_msg: Refusing duplicate, missing, or foreign PROD registration manifest identities.
   changed_when: false
   no_log: true
@@ -555,6 +563,18 @@
   changed_when: false
   no_log: true
 
+- name: Derive exact expected changed registration identities
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_expected_changed_identities: >-
+      {{
+      (['argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod']
+      if 'AppProject' in cristexhub_prod_registration_internal_legacy_transition_candidates else []) +
+      (['argoproj.io/v1alpha1|Application|argocd|cristexhub-prod']
+      if 'Application' in cristexhub_prod_registration_internal_legacy_transition_candidates else [])
+      }}
+  changed_when: false
+  no_log: true
+
 - name: Require exact registration mutation result closure
   ansible.builtin.assert:
     that:
@@ -564,21 +584,13 @@
         unique | list | length ==
         cristexhub_prod_registration_internal_mutation_changed_identities | length
       - >-
-        (cristexhub_prod_registration_internal_legacy_transition_candidates | sort ==
-        ['Application', 'AppProject'] and
-        cristexhub_prod_registration_internal_mutation_changed_identities | sort ==
-        ['argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod',
-        'argoproj.io/v1alpha1|Application|argocd|cristexhub-prod']) or
-        (cristexhub_prod_registration_internal_legacy_transition_candidates | sort ==
-        ['AppProject'] and
-        cristexhub_prod_registration_internal_mutation_changed_identities | sort ==
-        ['argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod']) or
-        (cristexhub_prod_registration_internal_legacy_transition_candidates | sort ==
-        ['Application'] and
-        cristexhub_prod_registration_internal_mutation_changed_identities | sort ==
-        ['argoproj.io/v1alpha1|Application|argocd|cristexhub-prod']) or
-        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 0 and
-        cristexhub_prod_registration_internal_mutation_changed_identities | length == 0)
+        cristexhub_prod_registration_internal_mutation_changed_identities |
+        difference(cristexhub_prod_registration_internal_expected_changed_identities) |
+        length == 0
+      - >-
+        cristexhub_prod_registration_internal_expected_changed_identities |
+        difference(cristexhub_prod_registration_internal_mutation_changed_identities) |
+        length == 0
       - >-
         cristexhub_prod_registration_internal_mutation_changed_identities | length ==
         cristexhub_prod_registration_internal_legacy_transition_candidates | length
