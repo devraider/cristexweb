@@ -1,0 +1,32 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: reactive-resume-dev-private
+  namespace: cristexhub-dev
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev
+    app.kubernetes.io/part-of: cristexhub
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/bootstrap-writer: ansible
+    cristex.io/component: reactive-resume-dev-route
+    cristex.io/desired-owner: argocd
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [resume-dev.cristex-soft.com]
+      secretName: reactive-resume-dev-tls
+  rules:
+    - host: resume-dev.cristex-soft.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: reactive-resume-dev
+                port:
+                  number: 3000

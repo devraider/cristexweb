@@ -1,0 +1,236 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reactive-resume-dev
+  namespace: cristexhub-dev
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev
+    app.kubernetes.io/part-of: cristexhub
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  progressDeadlineSeconds: 600
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: reactive-resume-dev
+      app.kubernetes.io/part-of: cristexhub
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: reactive-resume-dev
+        app.kubernetes.io/part-of: cristexhub
+        app.kubernetes.io/managed-by: ansible
+        cristex.io/bootstrap-writer: ansible
+        cristex.io/desired-owner: argocd
+    spec:
+      serviceAccountName: reactive-resume-dev
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: cristexhub-ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: reactive-resume
+          image: ghcr.io/devraider/cristex-reactive-resume@sha256:720ff5a60a7f6b91a75535e230dbb664207fdf1bc5cb8732d584bae7ebdac13c
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3000"
+            - name: SERVER_PORT
+              value: "3001"
+            - name: NODE_EXTRA_CA_CERTS
+              value: /etc/reactive-resume/object-storage/ca.crt
+            - name: NODE_USE_ENV_PROXY
+              value: "1"
+            - name: HTTPS_PROXY
+              value: http://oidc-connect-proxy.shared-services.svc:3128
+            - name: NO_PROXY
+              value: .svc,.cluster.local,127.0.0.1,localhost
+            - name: APP_URL
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: APP_URL
+                  optional: false
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: DATABASE_URL
+                  optional: false
+            - name: AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: AUTH_SECRET
+                  optional: false
+            - name: OAUTH_PROVIDER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: OAUTH_PROVIDER_NAME
+                  optional: false
+            - name: OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: OAUTH_CLIENT_ID
+                  optional: false
+            - name: OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: OAUTH_CLIENT_SECRET
+                  optional: false
+            - name: OAUTH_ISSUER
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: OAUTH_ISSUER
+                  optional: false
+            - name: OAUTH_DISCOVERY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: OAUTH_DISCOVERY_URL
+                  optional: false
+            - name: OAUTH_SCOPES
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: OAUTH_SCOPES
+                  optional: false
+            - name: S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: S3_ACCESS_KEY_ID
+                  optional: false
+            - name: S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: S3_SECRET_ACCESS_KEY
+                  optional: false
+            - name: S3_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: S3_REGION
+                  optional: false
+            - name: S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: S3_ENDPOINT
+                  optional: false
+            - name: S3_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: S3_BUCKET
+                  optional: false
+            - name: S3_FORCE_PATH_STYLE
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-dev-runtime
+                  key: S3_FORCE_PATH_STYLE
+                  optional: false
+            - name: FLAG_DISABLE_SIGNUPS
+              value: "false"
+            - name: FLAG_DISABLE_EMAIL_AUTH
+              value: "true"
+            - name: FLAG_DISABLE_IMAGE_PROCESSING
+              value: "false"
+            - name: FLAG_DISABLE_API_RATE_LIMIT
+              value: "false"
+            - name: FLAG_SHOW_SPONSORS
+              value: "false"
+            - name: FLAG_ALLOW_UNSAFE_AI_BASE_URL
+              value: "false"
+            - name: FLAG_ALLOW_UNSAFE_OAUTH_REDIRECT_URI
+              value: "false"
+          volumeMounts:
+            - name: postgresql-ca
+              mountPath: /etc/reactive-resume/postgresql
+              readOnly: true
+            - name: object-storage-ca
+              mountPath: /etc/reactive-resume/object-storage
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: postgresql-ca
+          configMap:
+            name: reactive-resume-dev-postgresql-ca
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: object-storage-ca
+          secret:
+            secretName: reactive-resume-dev-object-storage-ca
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi

@@ -1,0 +1,77 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: reactive-resume-dev-egress
+  namespace: cristexhub-dev
+  labels:
+    app.kubernetes.io/name: reactive-resume-dev
+    app.kubernetes.io/part-of: cristexhub
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [reactive-resume-dev, reactive-resume-dev-migrate]
+    matchLabels:
+      app.kubernetes.io/part-of: cristexhub
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: shared-services
+          podSelector:
+            matchLabels:
+              cnpg.io/cluster: shared-postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: shared-services
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: reactive-resume-object-storage
+      ports:
+        - protocol: TCP
+          port: 8333
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: shared-services
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloak
+              app.kubernetes.io/part-of: cristex-platform
+      ports:
+        - protocol: TCP
+          port: 8443
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: shared-services
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: oidc-connect-proxy
+              app.kubernetes.io/part-of: cristex-platform
+      ports:
+        - protocol: TCP
+          port: 3128

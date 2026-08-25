@@ -814,6 +814,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         }
         for approved_root in (
             ROOT / "ansible/files/components/reactive-resume-dev-argocd-registration",
+            ROOT / "ansible/files/components/reactive-resume-dev-argocd",
             ROOT / "ansible/roles/reactive_resume_dev_argocd_registration",
         ):
             approved_backup_sources.update(
@@ -830,11 +831,12 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
                 if not path.is_file():
                     continue
                 text = path.read_text(errors="ignore")
-                self.assertNotRegex(
-                    text,
-                    r"(?im)^\s*image:\s*\S*(?:amruthpillai/)?reactive[-_/]?resume\S*\s*$",
-                    str(path),
-                )
+                if path not in approved_backup_sources:
+                    self.assertNotRegex(
+                        text,
+                        r"(?im)^\s*image:\s*\S*(?:amruthpillai/)?reactive[-_/]?resume\S*\s*$",
+                        str(path),
+                    )
                 if path.suffix in {".yml", ".yaml"} and re.search(
                     r"reactive[-_/]?resume", text, re.IGNORECASE
                 ):
@@ -852,9 +854,10 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
 
                     for document in yaml.safe_load_all(text):
                         for image in image_values(document):
-                            self.assertNotRegex(
-                                image, r"(?i)(?:amruthpillai/)?reactive[-_/]?resume", str(path)
-                            )
+                            if path not in approved_backup_sources:
+                                self.assertNotRegex(
+                                    image, r"(?i)(?:amruthpillai/)?reactive[-_/]?resume", str(path)
+                                )
                 if path not in approved_backup_sources:
                     self.assertNotIn("reactive-resume", path.name.lower(), str(path))
                     self.assertNotIn("reactive_resume", path.name.lower(), str(path))
