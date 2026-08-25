@@ -40,7 +40,7 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
         self.assertEqual([], project['spec']['clusterResourceWhitelist'])
         self.assertEqual([{'server': 'https://kubernetes.default.svc', 'namespace': 'cristexhub-dev'}], project['spec']['destinations'])
         self.assertEqual({'Deployment', 'Service', 'ServiceAccount', 'Ingress', 'NetworkPolicy'}, {x['kind'] for x in project['spec']['namespaceResourceWhitelist']})
-        self.assertEqual([{'kind': 'deny', 'schedule': '* * * * *', 'duration': '24h', 'applications': ['reactive-resume-dev'], 'manualSync': False}], project['spec']['syncWindows'])
+        self.assertEqual([], project['spec']['syncWindows'])
         role = next(x for x in docs(REG) if x['kind'] == 'Role')
         self.assertNotIn('jobs', str(role))
         self.assertNotIn('delete', str(role))

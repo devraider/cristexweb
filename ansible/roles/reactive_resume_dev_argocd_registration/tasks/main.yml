@@ -645,9 +645,13 @@
          item.resources[0].spec.clusterResourceWhitelist == item.item.spec.clusterResourceWhitelist and
          item.resources[0].spec.namespaceResourceWhitelist == item.item.spec.namespaceResourceWhitelist and
          item.resources[0].spec.orphanedResources == item.item.spec.orphanedResources and
-         item.resources[0].spec.syncWindows == item.item.spec.syncWindows and
-         item.resources[0].spec.destinations ==
-           [{'name': 'reactive-resume-dev-local', 'namespace': 'cristexhub-dev'}])
+         (item.resources[0].spec.syncWindows | default([])) in
+           [item.item.spec.syncWindows,
+            [{'kind': 'deny', 'schedule': '* * * * *', 'duration': '24h',
+              'applications': ['reactive-resume-dev'], 'manualSync': false}]] and
+         item.resources[0].spec.destinations in
+           [[{'name': 'reactive-resume-dev-local', 'namespace': 'cristexhub-dev'}],
+            item.item.spec.destinations])
       - >-
         item.resources | length == 0 or item.item.kind != 'Role' or
         item.resources[0].rules == item.item.rules
@@ -747,8 +751,7 @@
       - item.item.kind != 'Application' or 'argocd.argoproj.io/tracking-id' not in (item.resources[0].metadata.annotations | default({}))
       - >-
         item.item.kind != 'AppProject' or
-        item.resources[0].spec.syncWindows == [{'kind': 'deny', 'schedule': '* * * * *',
-        'duration': '24h', 'applications': ['reactive-resume-dev'], 'manualSync': false}]
+        (item.resources[0].spec.syncWindows | default([])) == []
     fail_msg: Refusing drifted or unsafe Reactive Resume DEV Argo registration state.
   loop: '{{ reactive_resume_dev_argocd_registration_internal_poststate.results }}'
   changed_when: false

@@ -28,10 +28,4 @@ spec:
       kind: NetworkPolicy
   orphanedResources:
     warn: true
-  syncWindows:
-    - kind: deny
-      schedule: '* * * * *'
-      duration: 24h
-      applications:
-        - reactive-resume-dev
-      manualSync: false
+  syncWindows: []
