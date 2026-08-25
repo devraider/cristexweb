@@ -25,7 +25,7 @@
   ansible.builtin.assert:
     that:
       - reactive_resume_dev_soak_internal_root.status == 200
-  fail_msg: The private hostname root must return HTTP 200 over validated TLS.
+    fail_msg: The private hostname root must return HTTP 200 over validated TLS.
   changed_when: false
   no_log: true
 
@@ -59,9 +59,9 @@
     that:
       - reactive_resume_dev_soak_internal_health.status == 200
       - reactive_resume_dev_soak_internal_health_payload.status == 'healthy'
-  fail_msg: >-
-    The private hostname must return HTTP 200 with the exact healthy application
-    status over validated TLS.
+    fail_msg: >-
+      The private hostname must return HTTP 200 with the exact healthy application
+      status over validated TLS.
   changed_when: false
   no_log: true
 
@@ -96,9 +96,9 @@
       - reactive_resume_dev_soak_internal_oidc.status == 200
       - reactive_resume_dev_soak_internal_oidc_payload.issuer == reactive_resume_dev_soak_oidc_issuer
       - reactive_resume_dev_soak_internal_oidc_payload.jwks_uri == reactive_resume_dev_soak_oidc_jwks_url
-  fail_msg: >-
-    Reactive Resume must resolve OIDC discovery to the retained shared
-    cristexhub realm and its exact JWKS endpoint, not the retired successor realm.
+    fail_msg: >-
+      Reactive Resume must resolve OIDC discovery to the retained shared
+      cristexhub realm and its exact JWKS endpoint, not the retired successor realm.
   changed_when: false
   no_log: true
 
@@ -139,7 +139,7 @@
       - >-
         (reactive_resume_dev_soak_internal_jwks_payload['keys'] |
         selectattr('kty', 'defined') | list | length) == reactive_resume_dev_soak_internal_jwks_payload['keys'] | length
-  fail_msg: The shared CristexHub JWKS endpoint must be reachable and contain keyed JSON Web Keys.
+    fail_msg: The shared CristexHub JWKS endpoint must be reachable and contain keyed JSON Web Keys.
   changed_when: false
   no_log: true
 
@@ -174,7 +174,7 @@
     that:
       - reactive_resume_dev_soak_internal_timer_active.rc == 0
       - reactive_resume_dev_soak_internal_timer_enabled.rc == 0
-  fail_msg: The exact Reactive Resume DEV backup timer must remain active and enabled.
+    fail_msg: The exact Reactive Resume DEV backup timer must remain active and enabled.
   changed_when: false
   no_log: true
 
@@ -195,7 +195,9 @@
     that:
       - reactive_resume_dev_soak_internal_deployment.resources | length == 1
       - reactive_resume_dev_soak_internal_deployment.resources[0].spec.replicas == 1
-      - reactive_resume_dev_soak_internal_deployment.resources[0].status.observedGeneration >= reactive_resume_dev_soak_internal_deployment.resources[0].metadata.generation
+      - >-
+        reactive_resume_dev_soak_internal_deployment.resources[0].status.observedGeneration >=
+        reactive_resume_dev_soak_internal_deployment.resources[0].metadata.generation
       - reactive_resume_dev_soak_internal_deployment.resources[0].status.replicas == 1
       - reactive_resume_dev_soak_internal_deployment.resources[0].status.updatedReplicas == 1
       - reactive_resume_dev_soak_internal_deployment.resources[0].status.readyReplicas == 1
@@ -277,16 +279,26 @@
   ansible.builtin.assert:
     that:
       - reactive_resume_dev_soak_internal_network_policy.resources | length == 1
-      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.podSelector.matchLabels['app.kubernetes.io/name'] == reactive_resume_dev_soak_deployment
+      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.podSelector.matchLabels | length == 2
+      - >-
+        reactive_resume_dev_soak_internal_network_policy.resources[0].spec.podSelector.matchLabels['app.kubernetes.io/name'] ==
+        reactive_resume_dev_soak_deployment
+      - >-
+        reactive_resume_dev_soak_internal_network_policy.resources[0].spec.podSelector.matchLabels['app.kubernetes.io/part-of'] ==
+        'cristexhub'
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.policyTypes == ['Ingress']
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress | length == 1
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from | length == 1
-      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from[0].namespaceSelector.matchLabels['kubernetes.io/metadata.name'] == 'kube-system'
-      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from[0].podSelector.matchLabels['app.kubernetes.io/name'] == 'traefik'
+      - >-
+        reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from[0].namespaceSelector.matchLabels[
+          'kubernetes.io/metadata.name'] == 'kube-system'
+      - >-
+        reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from[0].podSelector.matchLabels[
+          'app.kubernetes.io/name'] == 'traefik'
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports | length == 1
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports[0].protocol == 'TCP'
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports[0].port == 3000
-  fail_msg: The DEV route must retain the exact Traefik-only ingress NetworkPolicy.
+    fail_msg: The DEV route must retain the exact Traefik-only ingress NetworkPolicy.
   changed_when: false
   no_log: true
 
@@ -332,11 +344,21 @@
 - name: Require no alternate labeled DEV exposure objects
   ansible.builtin.assert:
     that:
-      - reactive_resume_dev_soak_internal_labeled_ingresses.resources | map(attribute='metadata.name') | list == [reactive_resume_dev_soak_ingress]
-      - reactive_resume_dev_soak_internal_labeled_services.resources | map(attribute='metadata.name') | list == [reactive_resume_dev_soak_service]
-      - reactive_resume_dev_soak_internal_labeled_services.resources | selectattr('spec.type', 'equalto', 'ClusterIP') | list | length == 1
-      - reactive_resume_dev_soak_internal_labeled_network_policies.resources | map(attribute='metadata.name') | list | sort == ['reactive-resume-dev-default-deny', 'reactive-resume-dev-egress', 'reactive-resume-dev-route-allow-traefik']
-  fail_msg: The DEV app label may expose only the exact private Traefik Ingress and ClusterIP Service.
+      - >-
+        reactive_resume_dev_soak_internal_labeled_ingresses.resources |
+        map(attribute='metadata.name') | list == [reactive_resume_dev_soak_ingress]
+      - >-
+        reactive_resume_dev_soak_internal_labeled_services.resources |
+        map(attribute='metadata.name') | list == [reactive_resume_dev_soak_service]
+      - >-
+        reactive_resume_dev_soak_internal_labeled_services.resources |
+        selectattr('spec.type', 'equalto', 'ClusterIP') | list | length == 1
+      - >-
+        reactive_resume_dev_soak_internal_labeled_network_policies.resources |
+        map(attribute='metadata.name') | list | sort ==
+        ['reactive-resume-dev-default-deny', 'reactive-resume-dev-egress',
+         'reactive-resume-dev-route-allow-traefik']
+    fail_msg: The DEV app label may expose only the exact private Traefik Ingress and ClusterIP Service.
   changed_when: false
   no_log: true
 
@@ -387,7 +409,7 @@
   loop: "{{ reactive_resume_dev_soak_internal_prod_results.results }}"
   loop_control:
     label: fixed-prod-labeled-resource-class
-  fail_msg: No labeled Reactive Resume PROD resource may exist during the DEV soak.
+    fail_msg: No labeled Reactive Resume PROD resource may exist during the DEV soak.
   changed_when: false
   no_log: true
 
@@ -461,12 +483,17 @@
       - >-
         (item.resources | map(attribute='metadata') | list | to_json |
         regex_findall(reactive_resume_dev_soak_rr_name_pattern) | length) == 0
-  loop: "{{ reactive_resume_dev_soak_internal_prod_inventory_results.results + reactive_resume_dev_soak_internal_argocd_results.results + reactive_resume_dev_soak_internal_shared_results.results + reactive_resume_dev_soak_internal_argocd_labeled_results.results + reactive_resume_dev_soak_internal_shared_labeled_results.results }}"
+    fail_msg: >-
+      No resource named with the exact Reactive Resume marker may exist in the
+      checked PROD, Argo, or shared-services inventories.
+  loop: >-
+    {{ reactive_resume_dev_soak_internal_prod_inventory_results.results +
+       reactive_resume_dev_soak_internal_argocd_results.results +
+       reactive_resume_dev_soak_internal_shared_results.results +
+       reactive_resume_dev_soak_internal_argocd_labeled_results.results +
+       reactive_resume_dev_soak_internal_shared_labeled_results.results }}
   loop_control:
     label: fixed-rr-marker-inventory
-  fail_msg: >-
-    No resource named with the exact Reactive Resume marker may exist in the
-    checked PROD, Argo, or shared-services inventories.
   changed_when: false
   no_log: true
 

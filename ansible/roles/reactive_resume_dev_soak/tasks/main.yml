@@ -137,7 +137,10 @@
       - not (reactive_resume_dev_soak_internal_attestation_state.stat.islnk | default(false))
       - reactive_resume_dev_soak_internal_attestation_state.stat.pw_name == reactive_resume_dev_soak_controller_user
       - reactive_resume_dev_soak_internal_attestation_state.stat.mode == '0600'
-      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_TOKEN') ~ ':entrypoint'
+      - >-
+        lookup('ansible.builtin.file',
+          lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_SOAK_TOKEN') ~ ':entrypoint'
     fail_msg: >-
       ENTRYPOINT_GUARD: refusing a missing, reusable, foreign-owned, symlinked,
       or invalid soak attestation.
