@@ -41,7 +41,38 @@ EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1'
  ('v1', 'Secret', 'argocd', 'argocd-cluster-cristexhub-prod'): '3d8901d60df585bf9b5110e99fee323266acb9d8e41dbf55d174d82a1358d538'}
 
 def canonical(value: dict[str, Any]) -> str:
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    """Hash desired objects while ignoring only the bound metadata.resourceVersion."""
+    normalized = json.loads(json.dumps(value))
+    metadata = normalized.get("metadata")
+    if isinstance(metadata, dict) and "resourceVersion" in metadata:
+        metadata.pop("resourceVersion")
+    return hashlib.sha256(json.dumps(normalized, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def object_identity(value: dict[str, Any]) -> tuple[str, str, str, str]:
+    metadata = value.get("metadata") or {}
+    return (
+        str(value.get("apiVersion", "")),
+        str(value.get("kind", "")),
+        str(metadata.get("namespace", "")),
+        str(metadata.get("name", "")),
+    )
+
+
+def bound_prestate(bindings: Any, object_identity: tuple[str, str, str, str]) -> dict[str, Any] | None:
+    if not isinstance(bindings, list):
+        return None
+    matches = [
+        entry for entry in bindings
+        if isinstance(entry, dict)
+        and (
+            entry.get("apiVersion"),
+            entry.get("kind"),
+            entry.get("namespace", ""),
+            entry.get("name"),
+        ) == object_identity
+    ]
+    return matches[0] if len(matches) == 1 else None
 
 
 class ActionModule(KubernetesActionModule):
@@ -97,6 +128,9 @@ class ActionModule(KubernetesActionModule):
                 "legacy_transition_spec_hashes",
                 "legacy_transition_manifest_hashes",
                 "legacy_transition_metadata_hash",
+                "prestate_object_count",
+                "prestate_bindings",
+                "transition_change_count",
                 "no_delete_path",
             }
             and binding.get("attestation_sha256") == hashlib.sha256(token.encode()).hexdigest()
@@ -113,8 +147,27 @@ class ActionModule(KubernetesActionModule):
             and binding.get("legacy_transition_spec_hashes") == LEGACY_TRANSITION_SPEC_HASHES
             and binding.get("legacy_transition_manifest_hashes") == LEGACY_TRANSITION_MANIFEST_HASHES
             and binding.get("legacy_transition_metadata_hash") == LEGACY_TRANSITION_METADATA_HASH
+            and str(binding.get("prestate_object_count")) == "5"
+            and isinstance(binding.get("prestate_bindings"), list)
+            and len(binding.get("prestate_bindings")) == 5
+            and len({object_identity(entry) for entry in binding.get("prestate_bindings") if isinstance(entry, dict)}) == 5
+            and len({entry.get("uid") for entry in binding.get("prestate_bindings") if isinstance(entry, dict)}) == 5
+            and all(
+                isinstance(entry, dict)
+                and set(entry) == {"apiVersion", "kind", "namespace", "name", "uid", "resourceVersion"}
+                and object_identity(entry) in EXPECTED
+                and re.fullmatch(r"[0-9a-fA-F-]{36}", str(entry.get("uid", ""))) is not None
+                and re.fullmatch(r"[0-9]+", str(entry.get("resourceVersion", ""))) is not None
+                for entry in binding.get("prestate_bindings")
+            )
+            and str(binding.get("transition_change_count")) in ("0", "2")
+            and str(binding.get("transition_change_count")) == str(binding.get("legacy_transition_change_count"))
             and strict_true(binding.get("no_delete_path"))
         )
+        prestate = bound_prestate(binding.get("prestate_bindings"), identity)
+        resource_version = meta.get("resourceVersion")
+        if not valid_binding or prestate is None or resource_version != prestate.get("resourceVersion"):
+            return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: missing or changed UID/resourceVersion precondition"}
         valid = (
             valid_binding
             and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT") == "v1"

@@ -22,6 +22,7 @@ PLAYBOOK = ROOT / "ansible/playbooks/bootstrap_cristexhub_prod_registration.yml"
 RUNBOOK = ROOT / "runbooks/cristexhub-prod-argocd-registration.md"
 ACTION_ONLY_FIXTURE = ROOT / "tests/reject_cristexhub_prod_registration_action_only.yml"
 TASK_START_FIXTURE = ROOT / "tests/reject_cristexhub_prod_registration_task_start.sh"
+RESOURCE_VERSION_FIXTURE = ROOT / "tests/reject_cristexhub_prod_registration_resource_version.sh"
 REVISION = "751885a42798d282e168131db147f13694a0a621"
 
 
@@ -179,6 +180,55 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertIn("legacy_transition_change_count", PLUGIN.read_text())
         self.assertIn("legacy_transition_spec_hashes", PLUGIN.read_text())
         self.assertIn("legacy_transition_manifest_hashes", PLUGIN.read_text())
+        self.assertIn("resourceVersion", PLUGIN.read_text())
+        self.assertIn("prestate_bindings", PLUGIN.read_text())
+
+    def test_resource_version_is_the_only_ignored_bound_hash_field(self) -> None:
+        import importlib.util
+
+        collection_root = ROOT / "ansible/.ansible/collections"
+        if not (collection_root / "ansible_collections").is_dir():
+            collection_root = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections")
+        if (collection_root / "ansible_collections").is_dir():
+            import sys
+            sys.path.insert(0, str(collection_root))
+        spec = importlib.util.spec_from_file_location("prod_registration_action", PLUGIN)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        application = next(manifest for manifest in objects() if manifest["kind"] == "Application")
+        with_rv = json.loads(json.dumps(application))
+        with_rv["metadata"]["resourceVersion"] = "7"
+        self.assertEqual(module.canonical(application), module.canonical(with_rv))
+        with_uid = json.loads(json.dumps(application))
+        with_uid["metadata"]["uid"] = "00000000-0000-4000-8000-000000000001"
+        self.assertNotEqual(module.canonical(application), module.canonical(with_uid))
+        self.assertIn("metadata.resourceVersion", module.canonical.__doc__ or "")
+
+    def test_legacy_alias_transition_binds_all_prestate_identity_fields(self) -> None:
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        tasks = TASKS.read_text()
+        plugin = PLUGIN.read_text()
+        for needle in (
+            "prestate_bindings",
+            "prestate_object_count",
+            "resourceVersion",
+            "Re-query exact five-object prestate immediately before mutation",
+            "Require unchanged UID and resourceVersion immediately before mutation",
+            "Add exact resourceVersion optimistic-concurrency preconditions",
+            "difference(['name', 'namespace', 'uid', 'resourceVersion'",
+        ):
+            self.assertIn(needle, tasks)
+        for needle in (
+            "prestate_bindings",
+            "prestate_object_count",
+            "resourceVersion",
+            "metadata.resourceVersion",
+            "set(entry) == {\"apiVersion\", \"kind\", \"namespace\", \"name\", \"uid\", \"resourceVersion\"}",
+        ):
+            self.assertIn(needle, plugin)
+        self.assertEqual(5, defaults["cristexhub_prod_registration_object_count"])
 
     def test_legacy_alias_transition_rejects_foreign_uid_or_spec(self) -> None:
         defaults = yaml.safe_load(DEFAULTS.read_text())
@@ -215,6 +265,10 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertIn("when: not ansible_check_mode", tasks[status_query:status_assert + 600])
         for needle in (
             "metadata.ownerReferences",
+            "metadata.keys()",
+            "metadata.resourceVersion",
+            "resourceVersion optimistic-concurrency preconditions",
+            "prestate_recheck",
             "binaryData",
             "immutable",
             "k3s administrator kubeconfig",
@@ -301,6 +355,18 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             self.assertNotIn("child-end", events)
             self.assertEqual([], list(tmpdir.iterdir()))
 
+    def test_resource_version_fixture_is_executable_and_fail_closed(self) -> None:
+        self.assertTrue(os.access(RESOURCE_VERSION_FIXTURE, os.X_OK))
+        result = subprocess.run(
+            [str(RESOURCE_VERSION_FIXTURE)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("rejected changed precondition", result.stdout)
+
     def test_action_guard_is_exact_present_only(self) -> None:
         plugin = PLUGIN.read_text()
         for needle in (
@@ -371,6 +437,8 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             "prune=false",
             "Cloudflare",
             "protected\nDNS-capable Cloudflare credential plus exact two-change plan/apply",
+            "reject_cristexhub_prod_registration_resource_version.sh",
+            "resourceVersion optimistic-concurrency",
         ):
             self.assertIn(needle, runbook)
 

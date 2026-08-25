@@ -11,6 +11,9 @@
     - cristexhub_prod_registration_internal_kubeconfig_state
     - cristexhub_prod_registration_internal_preflight_binding
     - cristexhub_prod_registration_internal_legacy_transition_candidates
+    - cristexhub_prod_registration_internal_prestate_bindings
+    - cristexhub_prod_registration_internal_prestate_recheck
+    - cristexhub_prod_registration_internal_mutation_manifests
   changed_when: false
 - name: Require the exact non-passthrough registration contract
   ansible.builtin.assert:
@@ -175,6 +178,56 @@
   changed_when: false
   no_log: true
 
+- name: Require the complete existing five-object prestate for the bounded transition
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_registration_internal_prestate.results | length == 5
+      - >-
+        cristexhub_prod_registration_internal_prestate.results |
+        map(attribute='resources') | map('length') | list == [1, 1, 1, 1, 1]
+    fail_msg: Refusing a partial, absent, or multiply-resolved PROD registration prestate.
+  changed_when: false
+  no_log: true
+
+- name: Bind exact prestate UID and resourceVersion for every registration object
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_prestate_bindings: >-
+      {{ (cristexhub_prod_registration_internal_prestate_bindings | default([])) +
+      [{
+        'apiVersion': item.item.apiVersion,
+        'kind': item.item.kind,
+        'namespace': item.item.metadata.namespace | default(''),
+        'name': item.item.metadata.name,
+        'uid': item.resources[0].metadata.uid,
+        'resourceVersion': item.resources[0].metadata.resourceVersion
+      }] }}
+  loop: '{{ cristexhub_prod_registration_internal_prestate.results }}'
+  changed_when: false
+  no_log: true
+
+- name: Require complete exact prestate UID and resourceVersion bindings
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_registration_internal_prestate_bindings | length == 5
+      - >-
+        cristexhub_prod_registration_internal_prestate_bindings |
+        selectattr('uid', 'defined') | list | length == 5
+      - >-
+        cristexhub_prod_registration_internal_prestate_bindings |
+        selectattr('resourceVersion', 'defined') | list | length == 5
+      - >-
+        cristexhub_prod_registration_internal_prestate_bindings |
+        map(attribute='uid') | select('match', '^[0-9a-fA-F-]{36}$') | list | length == 5
+      - >-
+        cristexhub_prod_registration_internal_prestate_bindings |
+        map(attribute='resourceVersion') | select('match', '^[0-9]+$') | list | length == 5
+      - >-
+        cristexhub_prod_registration_internal_prestate_bindings |
+        map(attribute='uid') | unique | list | length == 5
+    fail_msg: Refusing registration without exact unique UID/resourceVersion preconditions for all five objects.
+  changed_when: false
+  no_log: true
+
 - name: Record exact legacy-to-alias transition candidates
   ansible.builtin.set_fact:
     cristexhub_prod_registration_internal_legacy_transition_candidates: >-
@@ -215,6 +268,17 @@
       - >-
         item.resources | length == 0 or
         (item.resources[0].metadata.finalizers | default([]) | length) == 0
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.keys() | list |
+        difference(['name', 'namespace', 'uid', 'resourceVersion', 'generation',
+        'creationTimestamp', 'managedFields', 'labels', 'annotations']) | length) == 0
+      - >-
+        item.resources | length == 0 or
+        item.resources[0].metadata.uid | default('') | length > 0
+      - >-
+        item.resources | length == 0 or
+        item.resources[0].metadata.resourceVersion | default('') is match('^[0-9]+$')
       - >-
         item.resources | length == 0 or
         (item.resources[0].metadata.annotations | default({})) ==
@@ -270,6 +334,58 @@
       legacy_transition_manifest_hashes: "{{ cristexhub_prod_registration_legacy_transition_manifest_hashes }}"
       legacy_transition_metadata_hash: '{{ cristexhub_prod_registration_legacy_transition_metadata_hash }}'
       no_delete_path: true
+      prestate_object_count: "{{ cristexhub_prod_registration_internal_prestate_bindings | length }}"
+      prestate_bindings: "{{ cristexhub_prod_registration_internal_prestate_bindings }}"
+      transition_change_count: "{{ cristexhub_prod_registration_internal_legacy_transition_candidates | length }}"
+  changed_when: false
+  no_log: true
+
+- name: Re-query exact five-object prestate immediately before mutation
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.metadata.namespace | default(omit) }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
+  loop: '{{ cristexhub_prod_registration_internal_manifests }}'
+  register: cristexhub_prod_registration_internal_prestate_recheck
+  changed_when: false
+  no_log: true
+
+- name: Require unchanged UID and resourceVersion immediately before mutation
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].apiVersion == item.item.apiVersion
+      - item.resources[0].kind == item.item.kind
+      - item.resources[0].metadata.name == item.item.metadata.name
+      - item.resources[0].metadata.namespace | default('') == item.item.metadata.namespace | default('')
+      - item.resources[0].metadata.uid == cristexhub_prod_registration_internal_prestate_bindings[prestate_recheck_index].uid
+      - item.resources[0].metadata.resourceVersion == cristexhub_prod_registration_internal_prestate_bindings[prestate_recheck_index].resourceVersion
+      - >-
+        (item.resources[0].metadata.keys() | list |
+        difference(['name', 'namespace', 'uid', 'resourceVersion', 'generation',
+        'creationTimestamp', 'managedFields', 'labels', 'annotations']) | length) == 0
+    fail_msg: Refusing replacement, changed resourceVersion, or metadata drift before PROD registration mutation.
+  loop: '{{ cristexhub_prod_registration_internal_prestate_recheck.results }}'
+  loop_control:
+    index_var: prestate_recheck_index
+  changed_when: false
+  no_log: true
+
+- name: Add exact resourceVersion optimistic-concurrency preconditions
+  ansible.builtin.set_fact:
+    cristexhub_prod_registration_internal_mutation_manifests: >-
+      {{ (cristexhub_prod_registration_internal_mutation_manifests | default([])) +
+      [cristexhub_prod_registration_internal_manifests[mutation_manifest_index] |
+      combine({'metadata':
+      (cristexhub_prod_registration_internal_manifests[mutation_manifest_index].metadata |
+      combine({'resourceVersion':
+      cristexhub_prod_registration_internal_prestate_bindings[mutation_manifest_index].resourceVersion},
+      recursive=True))}, recursive=True)] }}
+  loop: '{{ range(0, cristexhub_prod_registration_internal_manifests | length) | list }}'
+  loop_control:
+    loop_var: mutation_manifest_index
   changed_when: false
   no_log: true
 
@@ -280,7 +396,7 @@
     kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
     wait: false
     wait_timeout: 60
-  loop: '{{ cristexhub_prod_registration_internal_manifests }}'
+  loop: '{{ cristexhub_prod_registration_internal_mutation_manifests }}'
   no_log: true
 - name: Query exact live registration post-state
   kubernetes.core.k8s_info:

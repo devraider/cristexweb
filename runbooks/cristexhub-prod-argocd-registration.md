@@ -29,9 +29,17 @@ any foreign/extra drift fails closed. The three other registration objects
 remain exact present-only objects and are never part of this transition.
 
 Check mode must predict exactly those two alias updates for the current legacy
-state; apply is a separately approved mutation. After the pair has converged,
-subsequent checks may be idempotent with zero transition candidates. No delete,
-prune, sync, Namespace, workload, or public-route operation is included.
+state; apply is a separately approved mutation. Before either update, the role
+binds the exact UID and `metadata.resourceVersion` for all five existing
+registration objects, re-queries all five immediately before mutation, and passes
+each unchanged resourceVersion in the desired object as Kubernetes optimistic
+concurrency precondition. A replacement, changed resourceVersion, missing object,
+partial/mixed transition, or metadata key outside the exact server-generated set
+fails closed. Canonical desired hashes ignore only that one bound
+`metadata.resourceVersion` field; all other desired and metadata fields remain
+hash-bound. After the pair has converged, subsequent checks may be idempotent with
+zero transition candidates. No delete, prune, sync, Namespace, workload, or
+public-route operation is included.
 
 ## Exact source
 
@@ -70,8 +78,10 @@ The role checks:
 - the exact precreated and labelled `cristexhub-prod` Namespace;
 - the exact Infisical-owned Argo repository credential metadata;
 - raw manifest hashes and exact object count;
-- absence of foreign objects, extra data, annotations, finalizers, or drifted
-  fields at the five target identities;
+- absence of foreign objects, extra data, annotations, finalizers, metadata keys,
+  or drifted fields at the five target identities;
+- exact five-object UID/resourceVersion prestate binding, immediate re-query, and
+  Kubernetes optimistic-concurrency preconditions for the bounded alias update;
 - the exact `cristexhub-prod-local` cluster-alias destination and automated non-pruning Application policy;
 - after live apply only, an Argo Application status of `Synced/Healthy`; check mode
   remains source-only and does not require live status.
@@ -129,6 +139,8 @@ DNS-capable Cloudflare credential plus exact two-change plan/apply.
 .venv/bin/python -m unittest -v tests.test_cristexhub_prod_registration_contract
 .venv/bin/python -m compileall -q ansible/plugins/action tests
 sh -n ansible/bin/bootstrap-cristexhub-prod-registration
+sh -n tests/reject_cristexhub_prod_registration_resource_version.sh
+tests/reject_cristexhub_prod_registration_resource_version.sh
 cd ansible && ../.venv/bin/ansible-playbook playbooks/bootstrap_cristexhub_prod_registration.yml --syntax-check
 ```
 
