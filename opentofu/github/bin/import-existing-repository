@@ -4,7 +4,8 @@ set -eu
 set -o pipefail
 umask 077
 PATH=/usr/local/bin:/usr/bin:/bin
-export PATH
+LC_ALL=C
+export PATH LC_ALL
 case $- in
     *x*|*v*) printf '%s\n' 'Refusing traced shell execution.' >&2; exit 65 ;;
 esac
@@ -53,8 +54,8 @@ repo_root=$(CDPATH= cd -- "$dir/../../.." && pwd -P)
 # leaf except itself; the manifest and this entrypoint's canonical form are
 # independently pinned below so a partial source review cannot authorize import.
 source_manifest="$github_root/SOURCE.sha256"
-source_manifest_expected_sha256='07ec8686f29ff6973e4ff339cbe4a6098598902c975cdfb2f8e5ac0b4ed05b61'
-source_import_expected_canonical_sha256='2397e340040925ec01050d8dcbc4d6bb2c657c048a2265acf280635382b4744c'
+source_manifest_expected_sha256='43708216e6bfae1c857fd05f4114ad8c08ba69d0f34cb5ddb5d828b5cb57d678'
+source_import_expected_canonical_sha256='5a1592b6986743767268afcc23fc42318ce3f77babcc870d2e529a429fad68a7'
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-github-source.XXXXXX)
 chmod 0700 "$source_work"
 trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM

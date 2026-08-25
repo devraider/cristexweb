@@ -163,6 +163,8 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "/bin/stty -echo",
             "read -r github_token",
             "canonical dash interpreter",
+            "LC_ALL=C",
+            "export PATH LC_ALL",
             "GITHUB_TOKEN",
             "check-repository-present",
             "restore-absence",
