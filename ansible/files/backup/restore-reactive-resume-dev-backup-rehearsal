@@ -32,7 +32,10 @@ fail() { printf 'restore_status=failed stage=%s\n' "$1" >&2; exit 1; }
 approval_file=${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ATTESTATION_FILE-}
 token=${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_TOKEN-}
 [ -n "$approval_file" ] && [ -f "$approval_file" ] && [ ! -L "$approval_file" ] || fail approval_attestation
-printf '%s\n' "$token" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || fail approval_token
+case "$token" in
+  ''|*[!0-9a-f]*) fail approval_token ;;
+esac
+[ "${#token}" -eq 64 ] || fail approval_token
 [ "$(/usr/bin/stat -c '%U:%a' "$approval_file")" = "$(id -un):600" ] || fail approval_attestation
 [ "$(/usr/bin/cat "$approval_file")" = "$token:restore" ] || fail approval_attestation
 
@@ -40,7 +43,7 @@ exec 9>"$lock_file"
 /usr/bin/flock -n 9 || { printf '%s\n' 'restore_status=refused reason=concurrent_run'; exit 75; }
 [ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] || fail rclone_config_metadata
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || fail rclone_config_metadata
-remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long | /usr/bin/sed 's/[[:space:]]*$//')
+remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long)
 [ "$remotes" = 'drive: drive' ] || fail rclone_remote_contract
 
 work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-reactive-resume-dev-restore.XXXXXX)
@@ -53,28 +56,51 @@ pod_run_id=
 cleanup_pod() {
   name=$1
   uid=$2
-  [ -n "$uid" ] || return 0
-  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)
-  current_name=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" -o jsonpath='{.metadata.labels.app\.kubernetes\.io/name}' 2>/dev/null || true)
-  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" -o jsonpath='{.metadata.labels.cristex\.io/run-id}' 2>/dev/null || true)
   expected_name=$3
+  [ -n "$name" ] || return 0
+  if [ -z "$uid" ]; then
+    uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+    [ -n "$uid" ] || return 0
+  fi
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  [ -n "$current_uid" ] || return 0
+  current_name=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" -o jsonpath='{.metadata.labels.app\.kubernetes\.io/name}') || return 1
+  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" -o jsonpath='{.metadata.labels.cristex\.io/run-id}') || return 1
   [ "$current_uid" = "$uid" ] && [ "$current_name" = "$expected_name" ] && [ "$current_run_id" = "$pod_run_id" ] || return 1
   /usr/bin/printf '{"kind":"DeleteOptions","apiVersion":"v1","propagationPolicy":"Orphan","preconditions":{"uid":"%s"}}\n' "$uid" >"$work/delete-$name.json"
-  /usr/local/bin/kubectl delete --raw "/api/v1/namespaces/$namespace/pods/$name" -f "$work/delete-$name.json" >/dev/null
-  /usr/local/bin/kubectl -n "$namespace" wait --for=delete "pod/$name" --timeout=120s >/dev/null 2>&1 || true
-  [ -z "$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" -o name 2>/dev/null || true)" ] || return 1
+  /usr/local/bin/kubectl delete --raw "/api/v1/namespaces/$namespace/pods/$name" -f "$work/delete-$name.json" >/dev/null || return 1
+  if ! /usr/local/bin/kubectl -n "$namespace" wait --for=delete "pod/$name" --timeout=120s >/dev/null 2>&1; then
+    current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+    [ -z "$current_uid" ] || return 1
+  fi
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  [ -z "$current_uid" ] || return 1
 }
 cleanup() {
-  cleanup_pod "${pg_pod:-}" "${pg_uid:-}" reactive-resume-dev-postgresql-restore >/dev/null 2>&1 || true
-  cleanup_pod "${storage_pod:-}" "${storage_uid:-}" reactive-resume-dev-storage-restore >/dev/null 2>&1 || true
-  /usr/bin/rm -rf -- "$work"
+  trap - EXIT HUP INT TERM
+  cleanup_status=0
+  cleanup_pod "${pg_pod:-}" "${pg_uid:-}" reactive-resume-dev-postgresql-restore || cleanup_status=1
+  cleanup_pod "${storage_pod:-}" "${storage_uid:-}" reactive-resume-dev-storage-restore || cleanup_status=1
+  /usr/bin/rm -rf -- "$work" || cleanup_status=1
+  if [ "$cleanup_status" -ne 0 ]; then
+    printf 'restore_status=failed stage=cleanup\n' >&2
+    exit 1
+  fi
 }
 trap cleanup EXIT HUP INT TERM
 /usr/bin/chmod 0700 "$work"
 restore_start_epoch=$(/usr/bin/date +%s)
 
 # Select only a complete timestamp directory; partial immutable uploads are ignored.
-candidates=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sed 's#/$##' | /usr/bin/sort -r)
+/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" >"$work/candidates.raw" || fail remote_catalog
+/usr/bin/python3 - "$work/candidates.raw" "$work/candidates" <<'PY'
+import sys
+with open(sys.argv[1], encoding="utf-8") as source:
+    values = sorted((line.rstrip("/\n") for line in source if line.strip()), reverse=True)
+with open(sys.argv[2], "w", encoding="utf-8") as target:
+    target.write("\n".join(values))
+    target.write("\n" if values else "")
+PY
 selected=
 expected_leaves='object-storage.manifest.json
 object-storage.tar.gz.age
@@ -85,17 +111,27 @@ postgresql.manifest.json
 run-manifest.json'
 while IFS= read -r candidate; do
   [ -n "$candidate" ] || continue
-  printf '%s\n' "$candidate" | /usr/bin/grep -Eq '^20[0-9]{6}T[0-9]{6}Z$' || continue
-  leaves=$(/usr/local/bin/rclone --config "$rclone_config" lsf --files-only "$remote_root/$candidate" | /usr/bin/sort)
+  case "$candidate" in
+    20[0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z) ;;
+    *) continue ;;
+  esac
+  /usr/local/bin/rclone --config "$rclone_config" lsf --files-only "$remote_root/$candidate" >"$work/leaves.raw" || fail remote_catalog
+  /usr/bin/python3 - "$work/leaves.raw" "$work/leaves" <<'PY'
+import sys
+with open(sys.argv[1], encoding="utf-8") as source:
+    values = sorted(line.rstrip("\n") for line in source if line.strip())
+with open(sys.argv[2], "w", encoding="utf-8") as target:
+    target.write("\n".join(values))
+    target.write("\n" if values else "")
+PY
+  leaves=$(/usr/bin/cat "$work/leaves")
   [ "$leaves" = "$expected_leaves" ] || continue
   selected=$candidate
   break
-done <<EOF
-$candidates
-EOF
+done <"$work/candidates"
 [ -n "$selected" ] || fail remote_catalog
 run_id=$selected
-pod_run_id=$(/usr/bin/printf '%s' "$run_id" | /usr/bin/tr '[:upper:]' '[:lower:]')
+pod_run_id=$run_id
 remote="$remote_root/$run_id"
 for leaf in object-storage.manifest.json object-storage.tar.gz.age object-storage.tar.gz.age.sha256 postgresql.dump.gz.age postgresql.dump.gz.age.sha256 postgresql.manifest.json run-manifest.json; do
   /usr/local/bin/rclone --config "$rclone_config" copyto "$remote/$leaf" "$work/$leaf" || fail remote_download
@@ -104,29 +140,43 @@ done
 (cd "$work" && /usr/bin/sha256sum -c object-storage.tar.gz.age.sha256 >/dev/null) || fail object_checksum
 RUN_MANIFEST="$work/run-manifest.json" PG_MANIFEST="$work/postgresql.manifest.json" OBJECT_MANIFEST="$work/object-storage.manifest.json" RUN_ID="$run_id" /usr/bin/python3 - <<'PY' || fail manifest_contract
 import json, os
+from datetime import datetime, timezone
 run = json.load(open(os.environ["RUN_MANIFEST"], encoding="utf-8"))
 pg = json.load(open(os.environ["PG_MANIFEST"], encoding="utf-8"))
 obj = json.load(open(os.environ["OBJECT_MANIFEST"], encoding="utf-8"))
-assert set(run) == {"schema", "service", "run_id", "created_at_utc", "backup_duration_seconds", "encryption", "database", "object_storage"}
-assert run["schema"] == 1 and run["service"] == "reactive-resume-dev"
+assert set(run) == {"schema", "service", "run_id", "created_at_utc", "completed_at_utc", "backup_duration_seconds", "encryption", "database", "object_storage"}
+assert run["schema"] == 2 and run["service"] == "reactive-resume-dev"
 assert run["run_id"] == os.environ["RUN_ID"] and run["created_at_utc"] == os.environ["RUN_ID"] and run["encryption"] == "age-x25519"
+completion = datetime.strptime(run["completed_at_utc"], "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+started = datetime.strptime(run["run_id"], "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+assert completion >= started
 assert isinstance(run["backup_duration_seconds"], int) and run["backup_duration_seconds"] >= 0
-assert set(run["database"]) == {"name", "archive", "bytes", "sha256"}
+assert set(run["database"]) == {"name", "archive", "bytes", "sha256", "logical_entry_count", "logical_table_count"}
 assert run["database"]["name"] == "reactive_resume_dev_successor"
 assert run["database"]["archive"] == "postgresql.dump.gz.age"
+assert run["database"]["logical_entry_count"] > 0 and run["database"]["logical_table_count"] > 0
 assert set(run["object_storage"]) == {"bucket", "archive", "bytes", "sha256", "object_count", "total_object_bytes"}
 assert run["object_storage"]["bucket"] == "reactive-resume-dev"
 assert run["object_storage"]["archive"] == "object-storage.tar.gz.age"
 assert isinstance(run["object_storage"]["object_count"], int) and run["object_storage"]["object_count"] > 0
 assert isinstance(run["object_storage"]["total_object_bytes"], int) and run["object_storage"]["total_object_bytes"] > 0
-assert set(pg) == {"schema", "service", "database", "run_id", "archive", "archive_bytes", "archive_sha256", "encryption", "source_cluster"}
-assert pg["run_id"] == os.environ["RUN_ID"] and pg["database"] == "reactive_resume_dev_successor"
+assert set(pg) == {"schema", "service", "database", "run_id", "completed_at_utc", "archive", "archive_bytes", "archive_sha256", "encryption", "source_cluster", "logical_entry_count", "logical_table_count"}
+assert pg["schema"] == 2 and pg["run_id"] == os.environ["RUN_ID"] and pg["completed_at_utc"] == run["completed_at_utc"] and pg["database"] == "reactive_resume_dev_successor"
 assert pg["archive_bytes"] > 0 and run["database"]["bytes"] == pg["archive_bytes"]
-assert set(obj) == {"schema", "service", "bucket", "run_id", "archive", "archive_bytes", "archive_sha256", "encryption", "object_count", "total_object_bytes"}
-assert obj["service"] == "seaweedfs"
-assert obj["run_id"] == os.environ["RUN_ID"] and obj["bucket"] == "reactive-resume-dev"
-assert isinstance(obj["object_count"], int) and obj["object_count"] > 0
-assert isinstance(obj["total_object_bytes"], int) and obj["total_object_bytes"] > 0
+assert pg["logical_entry_count"] == run["database"]["logical_entry_count"] and pg["logical_table_count"] == run["database"]["logical_table_count"]
+assert set(obj) == {"schema", "service", "bucket", "run_id", "completed_at_utc", "archive", "archive_bytes", "archive_sha256", "encryption", "object_count", "total_object_bytes", "objects"}
+assert obj["schema"] == 2 and obj["service"] == "seaweedfs"
+assert obj["run_id"] == os.environ["RUN_ID"] and obj["completed_at_utc"] == run["completed_at_utc"] and obj["bucket"] == "reactive-resume-dev"
+assert isinstance(obj["objects"], list) and len(obj["objects"]) == obj["object_count"] > 0
+assert obj["total_object_bytes"] == sum(item["size"] for item in obj["objects"]) > 0
+keys = set()
+for item in obj["objects"]:
+    assert set(item) == {"key", "size", "sha256", "md5"}
+    assert isinstance(item["key"], str) and item["key"] not in keys and item["key"].startswith(("uploads/user-pictures/", "pictures/", "uploads/user-agent/"))
+    assert isinstance(item["size"], int) and item["size"] >= 0
+    assert isinstance(item["sha256"], str) and len(item["sha256"]) == 64 and all(char in "0123456789abcdef" for char in item["sha256"])
+    assert item["md5"] is None or (isinstance(item["md5"], str) and len(item["md5"]) == 32)
+    keys.add(item["key"])
 assert obj["archive_bytes"] > 0 and run["object_storage"]["bytes"] == obj["archive_bytes"]
 assert run["object_storage"]["object_count"] == obj["object_count"]
 assert run["object_storage"]["total_object_bytes"] == obj["total_object_bytes"]
@@ -140,16 +190,50 @@ assert isinstance(value, int) and value >= 0
 print(value)
 PY
 )
-printf '%s\n' "$backup_duration_seconds" | /usr/bin/grep -Eq '^[0-9]+$' || fail backup_duration_contract
+case "$backup_duration_seconds" in
+  ''|*[!0-9]*) fail backup_duration_contract ;;
+esac
+expected_pg_table_count=$(/usr/bin/python3 - "$work/run-manifest.json" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    value = json.load(stream)["database"]["logical_table_count"]
+assert isinstance(value, int) and value > 0
+print(value)
+PY
+) || fail pg_manifest_content
+backup_completed_epoch=$(/usr/bin/python3 - "$work/run-manifest.json" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+with open(sys.argv[1], encoding="utf-8") as stream:
+    value = json.load(stream)["completed_at_utc"]
+print(int(datetime.strptime(value, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc).timestamp()))
+PY
+) || fail completion_timestamp
+restore_reference_epoch=$(/usr/bin/date +%s)
+[ "$restore_reference_epoch" -ge "$backup_completed_epoch" ] || fail clock_skew
 
 # Retrieve the age identity only for this explicitly approved restore.
 /home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY \
   --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity" || fail infisical_identity
 /usr/bin/chmod 0600 "$work/identity"
-/usr/bin/age -d -i "$work/identity" "$work/postgresql.dump.gz.age" | /usr/bin/gzip -d >"$work/postgresql.dump" || fail postgresql_decrypt
+/usr/bin/age -d -i "$work/identity" "$work/postgresql.dump.gz.age" >"$work/postgresql.dump.gz" || fail postgresql_decrypt
+/usr/bin/gzip -d -c "$work/postgresql.dump.gz" >"$work/postgresql.dump" || fail postgresql_decompress
 /usr/bin/age -d -i "$work/identity" "$work/object-storage.tar.gz.age" >"$work/object-storage.tar.gz" || fail object_decrypt
-/usr/bin/rm -f -- "$work/identity" "$work/postgresql.dump.gz.age" "$work/object-storage.tar.gz.age" "$work/postgresql.dump.gz.age.sha256" "$work/object-storage.tar.gz.age.sha256"
+/usr/bin/rm -f -- "$work/identity" "$work/postgresql.dump.gz.age" "$work/object-storage.tar.gz.age" "$work/postgresql.dump.gz.age.sha256" "$work/object-storage.tar.gz.age.sha256" "$work/postgresql.dump.gz"
 [ -s "$work/postgresql.dump" ] || fail pg_archive_empty
+/usr/bin/pg_restore --list "$work/postgresql.dump" >"$work/restored-postgresql.list" || fail restored_pg_logical_list
+restored_pg_counts=$(/usr/bin/python3 - "$work/restored-postgresql.list" <<'PY'
+import sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    entries = [line for line in stream if line.strip() and not line.startswith(";")]
+tables = [line for line in entries if " TABLE " in (" " + line + " ")]
+assert entries and tables
+print(f"{len(entries)}:{len(tables)}")
+PY
+) || fail restored_pg_logical_content
+restored_pg_logical_entry_count=${restored_pg_counts%%:*}
+restored_pg_logical_table_count=${restored_pg_counts#*:}
+[ "$restored_pg_logical_entry_count" -gt 0 ] && [ "$restored_pg_logical_table_count" -gt 0 ] || fail restored_pg_logical_content
 [ -s "$work/object-storage.tar.gz" ] || fail object_archive_empty
 
 # Validate object archive paths before extraction.
@@ -162,6 +246,33 @@ for raw in open(os.environ["TAR_LIST"], encoding="utf-8"):
         raise SystemExit(1)
 PY
 /usr/bin/rm -f -- "$work/tar-list"
+/usr/bin/install -d -m 0700 "$work/object-verify"
+/usr/bin/tar -xzf "$work/object-storage.tar.gz" -C "$work/object-verify" || fail object_archive_extract
+OBJECT_MANIFEST="$work/object-storage.manifest.json" OBJECT_ROOT="$work/object-verify/objects" TSV="$work/objects.tsv" /usr/bin/python3 - <<'PY' || fail object_archive_manifest
+import hashlib, json, os
+manifest = json.load(open(os.environ["OBJECT_MANIFEST"], encoding="utf-8"))
+root = os.environ["OBJECT_ROOT"]
+expected = {item["key"]: item for item in manifest["objects"]}
+actual = set()
+with open(os.environ["TSV"], "w", encoding="utf-8") as tsv:
+    for key, item in sorted(expected.items()):
+        path = os.path.join(root, key)
+        assert os.path.isfile(path) and not os.path.islink(path)
+        assert os.stat(path).st_size == item["size"]
+        digest = hashlib.sha256()
+        with open(path, "rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+        assert digest.hexdigest() == item["sha256"]
+        actual.add(key)
+        tsv.write(f"{key}\t{item['size']}\t{item['sha256']}\n")
+for base, dirs, files in os.walk(root, followlinks=False):
+    for name in files:
+        path = os.path.join(base, name)
+        assert not os.path.islink(path)
+        assert os.path.relpath(path, root) in expected
+assert actual == set(expected)
+PY
 
 # Isolated PostgreSQL 17 restore. The pod has emptyDir only and listens on no network address.
 pg_pod=reactive-resume-dev-postgresql-restore-$pod_run_id
@@ -222,9 +333,13 @@ pg_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pg_pod" -o jsonpath='{
 /usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$pg_pod" --timeout=240s >/dev/null
 /usr/local/bin/kubectl -n "$namespace" cp "$work/postgresql.dump" "$pg_pod:/restore/postgresql.dump" -c postgres >/dev/null
 /usr/local/bin/kubectl -n "$namespace" exec "$pg_pod" -c postgres -- /usr/bin/pg_restore --exit-on-error --no-owner --no-privileges --dbname=reactive_resume_restore /restore/postgresql.dump >/dev/null
-pg_table_count=$(/usr/local/bin/kubectl -n "$namespace" exec "$pg_pod" -c postgres -- /usr/bin/psql --no-psqlrc --tuples-only --no-align --dbname=reactive_resume_restore --command="SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema');")
-printf '%s\n' "$pg_table_count" | /usr/bin/grep -Eq '^[0-9]+$' || fail pg_restore_catalog
-/usr/bin/rm -f -- "$work/postgresql.dump"
+pg_table_count=$(/usr/local/bin/kubectl -n "$namespace" exec "$pg_pod" -c postgres -- /usr/bin/psql --no-psqlrc --tuples-only --no-align --dbname=reactive_resume_restore --command="SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema');") || fail pg_restore_catalog
+case "$pg_table_count" in
+  ''|*[!0-9]*) fail pg_restore_catalog ;;
+esac
+[ "$pg_table_count" -gt 0 ] && [ "$pg_table_count" -eq "$expected_pg_table_count" ] || fail pg_restore_catalog
+[ "$restored_pg_logical_table_count" -eq "$expected_pg_table_count" ] || fail restored_pg_logical_content
+/usr/bin/rm -f -- "$work/postgresql.dump" "$work/restored-postgresql.list"
 cleanup_pod "$pg_pod" "$pg_uid" reactive-resume-dev-postgresql-restore || fail pg_restore_cleanup
 pg_uid=
 
@@ -303,7 +418,13 @@ spec:
       image: $seaweed_image
       imagePullPolicy: IfNotPresent
       command: [/bin/sh, -ec]
-      args: ["until printf '%s\\n' 's3.bucket.create -name reactive-resume-dev -owner reactive-resume-dev' | /usr/bin/weed shell -master=127.0.0.1:9333; do sleep 2; done; exec sleep 3600"]
+      args:
+        - |
+          until /usr/bin/weed shell -master=127.0.0.1:9333 <<'EOF_S3'
+          s3.bucket.create -name reactive-resume-dev -owner reactive-resume-dev
+          EOF_S3
+          do sleep 2; done
+          exec sleep 3600
       securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
       resources: {requests: {cpu: 10m, memory: 32Mi}, limits: {cpu: 100m, memory: 128Mi}}
       volumeMounts: [{name: tmp, mountPath: /tmp}]
@@ -342,33 +463,73 @@ EOF
 storage_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$storage_pod" -o jsonpath='{.metadata.uid}')
 [ -n "$storage_uid" ] || fail storage_restore_uid
 /usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$storage_pod" --timeout=300s >/dev/null
-/usr/local/bin/kubectl -n "$namespace" exec -i "$storage_pod" -c rclone -- tar -xzf - -C /restore <"$work/object-storage.tar.gz"
-/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone copy --s3-no-check-bucket /restore/objects "s3:$bucket" >/dev/null
-/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone check --one-way --size-only /restore/objects "s3:$bucket" >/dev/null
-actual_count=$(/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone lsf --recursive --files-only "s3:$bucket" | /usr/bin/wc -l | /usr/bin/tr -d ' ')
-actual_total=$(/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone size --json "s3:$bucket" | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin)["bytes"])')
-expected_count=$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["object_count"])' "$work/object-storage.manifest.json")
-expected_total=$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["total_object_bytes"])' "$work/object-storage.manifest.json")
+/usr/local/bin/kubectl -n "$namespace" exec -i "$storage_pod" -c rclone -- tar -xzf - -C /restore <"$work/object-storage.tar.gz" || fail object_restore_extract
+/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone copy --s3-no-check-bucket /restore/objects "s3:$bucket" >/dev/null || fail object_restore_upload
+/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone check --one-way --checksum /restore/objects "s3:$bucket" >/dev/null || fail object_restore_checksum
+/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone lsjson --recursive --hash --metadata "s3:$bucket" >"$work/restored-object-list.json" || fail object_remote_manifest
+actual_counts=$(/usr/bin/python3 - "$work/restored-object-list.json" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    values = json.load(stream)
+objects = [item for item in values if not item.get("IsDir")]
+assert all(isinstance(item.get("Path"), str) and isinstance(item.get("Size"), int) for item in objects)
+print(f"{len(objects)}:{sum(item['Size'] for item in objects)}")
+PY
+) || fail object_remote_manifest
+actual_count=${actual_counts%%:*}
+actual_total=${actual_counts#*:}
+expected_counts=$(/usr/bin/python3 - "$work/object-storage.manifest.json" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    value = json.load(stream)
+print(f"{value['object_count']}:{value['total_object_bytes']}")
+PY
+) || fail object_storage_manifest
+expected_count=${expected_counts%%:*}
+expected_total=${expected_counts#*:}
 [ "$expected_count" -gt 0 ] && [ "$expected_total" -gt 0 ] || fail object_storage_empty
 [ "$actual_count" -gt 0 ] && [ "$actual_total" -gt 0 ] || fail restored_object_empty
 [ "$actual_count" = "$expected_count" ] || fail object_count
 [ "$actual_total" = "$expected_total" ] || fail object_total
+while IFS="$(printf '\t')" read -r key expected_size expected_sha; do
+  [ -n "$key" ] || continue
+  /usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone cat "s3:$bucket/$key" >"$work/remote-object" || fail object_remote_read
+  remote_size=$(/usr/bin/stat -c %s "$work/remote-object")
+  [ "$remote_size" = "$expected_size" ] || fail object_remote_size
+  remote_digest=$(/usr/bin/sha256sum "$work/remote-object")
+  remote_digest=${remote_digest%% *}
+  [ "$remote_digest" = "$expected_sha" ] || fail object_remote_checksum
+done <"$work/objects.tsv"
+OBJECT_MANIFEST="$work/object-storage.manifest.json" REMOTE_LIST="$work/restored-object-list.json" /usr/bin/python3 - <<'PY' || fail object_remote_set
+import json, os
+expected = json.load(open(os.environ["OBJECT_MANIFEST"], encoding="utf-8"))
+actual = [item for item in json.load(open(os.environ["REMOTE_LIST"], encoding="utf-8")) if not item.get("IsDir")]
+expected_keys = {item["key"] for item in expected["objects"]}
+actual_keys = {item["Path"] for item in actual}
+assert actual_keys == expected_keys
+for item in actual:
+    assert item["Size"] == next(value["size"] for value in expected["objects"] if value["key"] == item["Path"])
+PY
 cleanup_pod "$storage_pod" "$storage_uid" reactive-resume-dev-storage-restore || fail storage_restore_cleanup
 storage_uid=
-/usr/bin/rm -f -- "$work/object-storage.tar.gz"
-/usr/bin/rm -rf -- "$work"
+/usr/bin/rm -f -- "$work/object-storage.tar.gz" "$work/remote-object"
+/usr/bin/rm -rf -- "$work/object-verify" "$work/objects.tsv"
 restore_end_epoch=$(/usr/bin/date +%s)
 restore_duration_seconds=$(( restore_end_epoch - restore_start_epoch ))
-rpo_seconds=$(/usr/bin/python3 - "$run_id" "$restore_end_epoch" <<'PY'
-from datetime import datetime, timezone
+rpo_seconds=$(/usr/bin/python3 - "$backup_completed_epoch" "$restore_end_epoch" <<'PY'
 import sys
-source = datetime.strptime(sys.argv[1], "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+source = int(sys.argv[1])
 now = int(sys.argv[2])
-print(max(0, now - int(source.timestamp())))
+if now < source:
+    raise SystemExit("clock_skew")
+print(now - source)
 PY
-)
-printf '%s\n' "$rpo_seconds" | /usr/bin/grep -Eq '^[0-9]+$' || fail rpo_measurement
+) || fail clock_skew
+case "$rpo_seconds" in
+  ''|*[!0-9]*) fail rpo_measurement ;;
+esac
 [ "$rpo_seconds" -le "$declared_rpo_seconds" ] || fail rpo_exceeded
 [ "$restore_duration_seconds" -le "$declared_rto_seconds" ] || fail rto_exceeded
+cleanup
 trap - EXIT HUP INT TERM
 printf 'restore_status=success source_run_id=%s backup_duration_seconds=%s restore_duration_seconds=%s rpo_seconds=%s postgres_catalog_table_count=%s object_count=%s object_bytes=%s checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none\n' "$run_id" "$backup_duration_seconds" "$restore_duration_seconds" "$rpo_seconds" "$pg_table_count" "$actual_count" "$actual_total"

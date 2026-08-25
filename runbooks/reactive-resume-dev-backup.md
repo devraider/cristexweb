@@ -3,19 +3,18 @@
 ## Status
 
 **SOURCE-ONLY DESIGN / NOT RUN / RUNTIME UNINSTALLED.** This runbook defines a
-future host-managed weekly backup for the private Reactive Resume DEV logical
+future host-managed twice-daily backup for the private Reactive Resume DEV logical
 PostgreSQL database and private SeaweedFS object storage. It has no Kubernetes
 CronJob, PVC copy, remote deletion, public endpoint, or live installation in this
 revision. The only permitted rollback is a Git revert before a separately
 approved host apply.
 
-The scheduler is intentionally one combined service. Each run uses one UTC
-`YYYYmmddTHHMMSSZ` run ID and writes both the PostgreSQL and object-storage
-archives under that exact ID. A value-free `run-manifest.json` binds the two
-archive checksums, byte counts, database name, bucket, object count, total
-object bytes, UTC creation time, and backup duration. This prevents accepting a
-database archive from one run with objects from another and provides the source
-measurement for the restore RPO receipt.
+The scheduler is one combined service. Each run uses one UTC
+`YYYYmmddTHHMMSSZ` run ID and writes both archives under that exact ID. A
+value-free `run-manifest.json` binds checksums, byte counts, logical PostgreSQL
+entry/table counts, object keys, per-object sizes and SHA-256 checksums, the
+snapshot completion timestamp, and backup duration. RPO is measured from that
+completion timestamp, not from run start.
 
 ## Scope and ownership
 
@@ -68,14 +67,17 @@ permitted after a verified backup and isolated restore. Direct playbook
 invocation, extra arguments, task selection, and root execution of the backup
 script are refused.
 
-## Weekly schedule and retention
+## Twice-daily schedule and retention
 
-The systemd timer runs:
+The systemd timer runs twice daily:
 
-- `OnCalendar=Sun *-*-* 04:15:00`;
-- `RandomizedDelaySec=30m`;
+- `OnCalendar=*-*-* 00,12:15:00`;
+- `RandomizedDelaySec=0`;
 - `Persistent=true`; and
 - `AccuracySec=1m`.
+
+The fixed 12-hour cadence keeps the completion-based RPO below 24 hours even
+when a run takes its full 60-minute service timeout.
 
 The service runs as unprivileged host user `paul` with `k3s-admin` kubeconfig
 access, `ProtectSystem=strict`, `ProtectHome=read-only`, `PrivateTmp`,
@@ -125,8 +127,10 @@ DEV prefixes:
 - `pictures/`; and
 - `uploads/user-agent/`.
 
-The helper produces a sorted value-free object manifest containing keys, sizes,
-and available MD5 values, then creates an encrypted `object-storage.tar.gz.age`.
+The helper produces a sorted value-free object manifest containing every key,
+size, and SHA-256 checksum (plus available MD5 values), verifies every copied
+object against that manifest before archiving, and then creates an encrypted
+`object-storage.tar.gz.age`.
 A successful acceptance backup refuses an empty bucket: both `object_count` and
 `total_object_bytes` must be greater than zero. The raw object export and helper
 Pod are removed on every exit path. No bucket
@@ -143,15 +147,18 @@ validation.
 
 PostgreSQL restores into an isolated PostgreSQL 17 temporary Pod with only `emptyDir`,
 `listen_addresses=` and no Service, PVC, or source-database connection. It runs
-`pg_restore --exit-on-error` and validates the catalog before UID-preconditioned
-orphan cleanup.
+`pg_restore --exit-on-error` and validates the catalog and expected logical table
+count before UID-preconditioned orphan cleanup. The backup first runs
+`pg_restore --list` and refuses a dump with no logical entries or table entries.
 
 Objects are path-validated before extraction and restored into an isolated SeaweedFS
 Pod with emptyDir data, the pinned SeaweedFS image, the same TLS/auth
 contracts, and a temporary rclone sidecar. A loopback host alias is used only to
-match the service certificate. The restore checks object count and total bytes, requiring both to be greater
-than zero, then deletes only the exact run-labelled Pods using UID preconditions
-and `Orphan` propagation. The production StatefulSet, PVC, bucket, and remote
+match the service certificate. The restore checks every extracted object against the archived per-object
+manifest, then performs a remote per-object listing/checksum comparison after
+upload. It still requires object count and total bytes greater than zero, then
+deletes only the exact run-labelled Pods using UID preconditions and `Orphan`
+propagation. Cleanup errors fail the operation rather than being suppressed. The production StatefulSet, PVC, bucket, and remote
 archive remain untouched.
 
 A successful rehearsal emits only:
@@ -160,10 +167,12 @@ A successful rehearsal emits only:
 restore_status=success source_run_id=<timestamp> backup_duration_seconds=<n> restore_duration_seconds=<n> rpo_seconds=<n> postgres_catalog_table_count=<n> object_count=<n> object_bytes=<n> checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none
 ```
 
-`rpo_seconds` is the measured age of the selected UTC backup at restore
-completion; `restore_duration_seconds` is the measured isolated-rehearsal
-runtime. The checked targets are RPO `86400` seconds (24 hours) and RTO `14400`
-seconds (4 hours); the restore refuses a receipt outside either bound.
+`rpo_seconds` is the measured age of the selected backup's completion timestamp
+at restore completion; `restore_duration_seconds` is the measured
+isolated-rehearsal runtime. A future completion timestamp fails closed as
+`clock_skew`; timestamps are never clamped to zero. The checked targets are RPO
+`86400` seconds (24 hours) and RTO `14400` seconds (4 hours); the restore refuses
+a receipt outside either bound.
 
 No archive contents, Secret values, tokens, credentials, age identity, or
 Authorization headers are printed.
@@ -181,7 +190,8 @@ and evidence:
 5. one successful combined isolated restore with zero private residue;
 6. private application S3 upload/read/delete and PostgreSQL login validation;
 7. a successful non-empty backup and isolated restore with measured
-   `backup_duration_seconds`, `restore_duration_seconds`, and `rpo_seconds`;
+   `backup_duration_seconds`, `restore_duration_seconds`, and `rpo_seconds`,
+   including logical PostgreSQL content and per-object checksum evidence;
 8. measured RPO/RTO within 24-hour/4-hour targets and at least one multi-run
    correlation check; and
 9. final idempotent scheduler apply.

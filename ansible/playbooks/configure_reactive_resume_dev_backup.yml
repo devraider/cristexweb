@@ -1,5 +1,5 @@
 ---
-- name: Configure the guarded weekly Reactive Resume DEV backup scheduler
+- name: Configure the guarded twice-daily Reactive Resume DEV backup scheduler
   hosts: crtxweb
   gather_facts: false
   become: true
@@ -16,7 +16,7 @@
     reactive_resume_dev_backup_timer: cristexweb-reactive-resume-dev-backup.timer
 
   pre_tasks:
-    - name: Require the canonical weekly backup contract
+    - name: Require the canonical twice-daily backup contract
       ansible.builtin.assert:
         that:
           - reactive_resume_dev_backup_approved | bool
@@ -155,7 +155,7 @@
         group: root
         mode: '0755'
 
-    - name: Install the weekly systemd service unit
+    - name: Install the twice-daily systemd service unit
       ansible.builtin.copy:
         src: "{{ reactive_resume_dev_backup_repository_root }}/ansible/files/backup/cristexweb-reactive-resume-dev-backup.service"
         dest: /etc/systemd/system/cristexweb-reactive-resume-dev-backup.service
@@ -164,7 +164,7 @@
         mode: '0644'
       register: reactive_resume_dev_backup_service_unit
 
-    - name: Install the weekly systemd timer unit
+    - name: Install the twice-daily systemd timer unit
       ansible.builtin.copy:
         src: "{{ reactive_resume_dev_backup_repository_root }}/ansible/files/backup/cristexweb-reactive-resume-dev-backup.timer"
         dest: /etc/systemd/system/cristexweb-reactive-resume-dev-backup.timer
@@ -178,7 +178,7 @@
         daemon_reload: true
       when: reactive_resume_dev_backup_service_unit.changed or reactive_resume_dev_backup_timer_unit.changed
 
-    - name: Keep the weekly timer disabled until restore acceptance
+    - name: Keep the twice-daily timer disabled until restore acceptance
       ansible.builtin.systemd_service:
         name: "{{ reactive_resume_dev_backup_timer }}"
         enabled: false
@@ -253,7 +253,7 @@
         - reactive_resume_dev_backup_mode == 'restore'
         - not ansible_check_mode
 
-    - name: Enable the accepted weekly timer
+    - name: Enable the accepted twice-daily timer
       ansible.builtin.systemd_service:
         name: "{{ reactive_resume_dev_backup_timer }}"
         enabled: true

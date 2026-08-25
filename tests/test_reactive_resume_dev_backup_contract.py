@@ -49,11 +49,22 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "backup_duration_seconds=",
             '"backup_duration_seconds": int(duration)',
             '"created_at_utc": run_id',
+            '"completed_at_utc": completed',
+            '"logical_entry_count": int(logical_entries)',
+            '"logical_table_count": int(logical_tables)',
+            '"sha256": digest.hexdigest()',
+            "actual == seen",
+            "pg_restore --list",
+            "pg_logical_content",
+            "clock_skew",
         ):
             self.assertIn(value, self.backup, value)
         for value in (
             "declared_rpo_seconds=86400",
             "declared_rto_seconds=14400",
+            "completed_at_utc",
+            "completion_timestamp",
+            "now < source",
             "backup_duration_seconds",
             "restore_duration_seconds",
             "rpo_seconds",
@@ -166,7 +177,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         ):
             self.assertIn(value, self.backup, value)
         for value in (
-            "rclone check --one-way --size-only",
+            "rclone check --one-way --checksum",
+            "rclone lsjson --recursive --hash --metadata",
+            "object_remote_checksum",
             "reactive-resume-object-storage-tls",
             "reactive-resume-object-storage-auth",
             "target=isolated-emptydir-postgresql-and-seaweedfs",
@@ -198,9 +211,12 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             self.assertIn("current_uid", text)
             self.assertIn("wait --for=delete", text)
         self.assertIn('rm -rf -- "$run_directory" "$work"', self.backup)
+        self.assertIn('backup_success=true', self.backup)
         self.assertIn("helper_uid=", self.backup)
         self.assertIn("pg_uid=", self.restore)
         self.assertIn("storage_uid=", self.restore)
+        self.assertNotRegex(self.backup, r"cleanup_helper[^\n]*\|\| true")
+        self.assertNotRegex(self.restore, r"cleanup_pod[^\n]*\|\| true")
 
     def test_age_custody_and_plaintext_cleanup(self) -> None:
         combined = self.backup + "\n" + self.restore
@@ -217,7 +233,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertNotIn("SHARED_DATABASE_BACKUP_AGE_IDENTITY=", combined)
         self.assertNotIn("--password=", combined)
 
-    def test_weekly_systemd_unit_is_hardened_and_persistent(self) -> None:
+    def test_twice_daily_systemd_unit_is_hardened_and_persistent(self) -> None:
         for value in (
             "User=paul",
             "Group=paul",
@@ -231,24 +247,26 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         ):
             self.assertIn(value, self.service, value)
         for value in (
-            "OnCalendar=Sun *-*-* 04:15:00",
-            "RandomizedDelaySec=30m",
+            "OnCalendar=*-*-* 00,12:15:00",
+            "RandomizedDelaySec=0",
             "Persistent=true",
             "AccuracySec=1m",
             "WantedBy=timers.target",
             "Unit=cristexweb-reactive-resume-dev-backup.service",
         ):
             self.assertIn(value, self.timer, value)
+        self.assertNotIn("OnCalendar=Sun", self.timer)
+        self.assertNotIn("RandomizedDelaySec=30m", self.timer)
 
     def test_playbook_gates_timer_until_restore_and_supports_idempotence(self) -> None:
         for value in (
             "reactive_resume_dev_backup_approved",
             "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT",
             "reactive_resume_dev_backup_mode in ['install', 'test', 'restore', 'enable']",
-            "Keep the weekly timer disabled until restore acceptance",
+            "Keep the twice-daily timer disabled until restore acceptance",
             "Execute the separately approved one-time combined backup test",
             "Execute the separately approved isolated combined restore rehearsal",
-            "Enable the accepted weekly timer",
+            "Enable the accepted twice-daily timer",
             "reactive_resume_dev_backup_mode == 'enable'",
             "not ansible_check_mode",
             "failed_when: false",
@@ -276,6 +294,16 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             self.assertIn(value, self.wrapper, value)
         self.assertNotIn('exec "$@"', self.wrapper)
 
+    def test_pipeline_failures_are_not_masked_and_clock_skew_is_fail_closed(self) -> None:
+        for text in (self.backup, self.restore):
+            self.assertNotIn("tar -C /work -czf - objects |", text)
+            self.assertNotRegex(text, r"kubectl[^\n]*\|\s*(?:age|gzip)")
+            self.assertNotRegex(text, r"(?:gzip|age -d)[^\n]*\|\s*(?:age|gzip)")
+        self.assertIn("/usr/bin/age -d -i \"$work/identity\" \"$work/postgresql.dump.gz.age\" >\"$work/postgresql.dump.gz\"", self.restore)
+        self.assertIn("backup_completed_epoch", self.restore)
+        self.assertIn("raise SystemExit(\"clock_skew\")", self.restore)
+        self.assertNotIn("max(0, now -", self.restore)
+
     def test_runbook_records_not_run_scope_and_recovery_contract(self) -> None:
         normalized = " ".join(self.runbook.split())
         for value in (
@@ -283,7 +311,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "reactive_resume_dev_successor",
             "reactive-resume-dev",
             "one UTC `YYYYmmddTHHMMSSZ` run ID",
-            "OnCalendar=Sun *-*-* 04:15:00",
+            "OnCalendar=*-*-* 00,12:15:00",
             "14 days",
             "rclone copyto --immutable",
             "emptyDir",
@@ -298,6 +326,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "non-empty backup",
             "RPO `86400` seconds (24 hours)",
             "RTO `14400` seconds (4 hours)",
+            "twice-daily",
+            "per-object checksum",
+            "clock_skew",
             "Exact approved acceptance run sequence",
             "journalctl -u cristexweb-reactive-resume-dev-backup.service",
             "--ask-become-pass",
@@ -306,6 +337,7 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         ):
             self.assertIn(value, normalized, value)
         self.assertNotIn("runtime was applied", self.runbook.lower())
+        self.assertNotIn("weekly backup", self.runbook.lower())
 
 
 if __name__ == "__main__":

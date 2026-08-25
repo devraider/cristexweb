@@ -37,17 +37,25 @@ exec 9>"$lock_file"
 
 [ -f "$recipient_file" ] && [ ! -L "$recipient_file" ] || fail recipient_metadata
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$recipient_file")" = 'root:paul:640' ] || fail recipient_metadata
-[ "$(/usr/bin/sha256sum "$recipient_file" | /usr/bin/cut -d ' ' -f 1)" = "$recipient_sha256" ] || fail recipient_hash
+recipient_digest=$(/usr/bin/sha256sum "$recipient_file")
+recipient_digest=${recipient_digest%% *}
+[ "$recipient_digest" = "$recipient_sha256" ] || fail recipient_hash
 recipient=$(/usr/bin/tr -d '\n' <"$recipient_file")
-printf '%s\n' "$recipient" | /usr/bin/grep -Eq '^age1[0-9a-z]+$' || fail recipient_contract
+case "$recipient" in
+  age1[0-9a-z]*) ;;
+  *) fail recipient_contract ;;
+esac
 
 [ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] || fail rclone_config_metadata
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || fail rclone_config_metadata
-remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long | /usr/bin/sed 's/[[:space:]]*$//')
+remotes=$(/usr/local/bin/rclone --config "$rclone_config" listremotes --long)
 [ "$remotes" = 'drive: drive' ] || fail rclone_remote_contract
 
 primary=$(/usr/local/bin/kubectl -n "$namespace" get cluster "$cluster" -o jsonpath='{.status.currentPrimary}')
-printf '%s\n' "$primary" | /usr/bin/grep -Eq '^shared-postgresql-[1-9][0-9]*$' || fail postgresql_primary_contract
+case "$primary" in
+  shared-postgresql-[1-9]*) ;;
+  *) fail postgresql_primary_contract ;;
+esac
 ready=$(/usr/local/bin/kubectl -n "$namespace" get pod "$primary" -o jsonpath='{.status.containerStatuses[?(@.name=="postgres")].ready}')
 [ "$ready" = true ] || fail postgresql_readiness
 
@@ -57,38 +65,81 @@ object_ready=$(/usr/local/bin/kubectl -n "$namespace" get pod "$object_pod" -o j
 [ "$object_ready" = 'Running:true' ] || fail object_storage_readiness
 service_contract=$(/usr/local/bin/kubectl -n "$namespace" get service "$object_service" -o jsonpath='{.spec.type}:{.spec.ports[0].port}:{.spec.ports[0].name}')
 [ "$service_contract" = 'ClusterIP:8333:s3-https' ] || fail object_storage_service
-tls_contract=$(/usr/local/bin/kubectl -n "$namespace" get secret "$object_tls_secret" -o json | /usr/bin/python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["type"] == "kubernetes.io/tls" and set(x.get("data", {})) == {"ca.crt", "tls.crt", "tls.key"}; print("ok")')
+metadata_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-reactive-resume-dev-backup-metadata.XXXXXX)
+cleanup_metadata() { /usr/bin/rm -rf -- "$metadata_work"; }
+trap cleanup_metadata EXIT HUP INT TERM
+/usr/local/bin/kubectl -n "$namespace" get secret "$object_tls_secret" -o json >"$metadata_work/tls.json" || fail object_storage_tls_secret
+tls_contract=$(/usr/bin/python3 - "$metadata_work/tls.json" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    value = json.load(stream)
+assert value["type"] == "kubernetes.io/tls" and set(value.get("data", {})) == {"ca.crt", "tls.crt", "tls.key"}
+print("ok")
+PY
+)
 [ "$tls_contract" = ok ] || fail object_storage_tls_secret
-auth_contract=$(/usr/local/bin/kubectl -n "$namespace" get secret "$object_auth_secret" -o json | /usr/bin/python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["type"] == "Opaque" and set(x.get("data", {})) == {"accessKey", "secretKey"}; print("ok")')
+/usr/local/bin/kubectl -n "$namespace" get secret "$object_auth_secret" -o json >"$metadata_work/auth.json" || fail object_storage_auth_secret
+auth_contract=$(/usr/bin/python3 - "$metadata_work/auth.json" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    value = json.load(stream)
+assert value["type"] == "Opaque" and set(value.get("data", {})) == {"accessKey", "secretKey"}
+print("ok")
+PY
+)
 [ "$auth_contract" = ok ] || fail object_storage_auth_secret
-
+cleanup_metadata
+metadata_work=
 work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-reactive-resume-dev-backup.XXXXXX)
 start_epoch=$(/usr/bin/date +%s)
 timestamp=$(/usr/bin/date -u +%Y%m%dT%H%M%SZ)
 run_id=$timestamp
-pod_run_id=$(/usr/bin/printf '%s' "$run_id" | /usr/bin/tr '[:upper:]' '[:lower:]')
+pod_run_id=$run_id
 run_directory="$archive_root/$run_id"
 remote_directory="$remote_root/$run_id"
+backup_success=false
 [ ! -e "$run_directory" ] || { /usr/bin/rm -rf -- "$work"; printf '%s\n' 'backup_status=refused reason=local_timestamp_collision'; exit 73; }
 /usr/bin/install -d -m 0700 "$run_directory"
 helper_pod=reactive-resume-dev-backup-$pod_run_id
 helper_uid=
 cleanup_helper() {
-  [ -n "${helper_uid:-}" ] || return 0
-  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)
-  current_name=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" -o jsonpath='{.metadata.labels.app\.kubernetes\.io/name}' 2>/dev/null || true)
-  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" -o jsonpath='{.metadata.labels.cristex\.io/run-id}' 2>/dev/null || true)
+  [ -n "${helper_pod:-}" ] || return 0
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  if [ -z "$helper_uid" ]; then
+    [ -n "$current_uid" ] || return 0
+    helper_uid=$current_uid
+  fi
+  if [ -z "$current_uid" ]; then
+    helper_uid=
+    return 0
+  fi
+  current_name=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" -o jsonpath='{.metadata.labels.app\.kubernetes\.io/name}') || return 1
+  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" -o jsonpath='{.metadata.labels.cristex\.io/run-id}') || return 1
   [ "$current_uid" = "$helper_uid" ] && [ "$current_name" = 'reactive-resume-dev-backup' ] && [ "$current_run_id" = "$pod_run_id" ] || return 1
   /usr/bin/printf '{"kind":"DeleteOptions","apiVersion":"v1","propagationPolicy":"Orphan","preconditions":{"uid":"%s"}}\n' "$helper_uid" >"$work/delete.json"
-  /usr/local/bin/kubectl delete --raw "/api/v1/namespaces/$namespace/pods/$helper_pod" -f "$work/delete.json" >/dev/null
-  /usr/local/bin/kubectl -n "$namespace" wait --for=delete "pod/$helper_pod" --timeout=120s >/dev/null 2>&1 || true
-  [ -z "$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" -o name 2>/dev/null || true)" ] || return 1
+  /usr/local/bin/kubectl delete --raw "/api/v1/namespaces/$namespace/pods/$helper_pod" -f "$work/delete.json" >/dev/null || return 1
+  if ! /usr/local/bin/kubectl -n "$namespace" wait --for=delete "pod/$helper_pod" --timeout=120s >/dev/null 2>&1; then
+    current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+    [ -z "$current_uid" ] || return 1
+  fi
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  [ -z "$current_uid" ] || return 1
   helper_uid=
 }
 cleanup_plaintext() {
-  cleanup_helper >/dev/null 2>&1 || true
-  /usr/bin/rm -f -- "$run_directory/reactive-resume-dev.dump" "$work/raw-manifest.json" "$work/object-manifest.json"
-  /usr/bin/rm -rf -- "$run_directory" "$work"
+  trap - EXIT HUP INT TERM
+  cleanup_status=0
+  cleanup_helper || cleanup_status=1
+  /usr/bin/rm -f -- "$run_directory/reactive-resume-dev.dump" "$work/raw-manifest.json" "$work/object-manifest.json" "$work/object-storage.tar.gz" "$work/postgresql.dump.gz" || cleanup_status=1
+  if [ "$backup_success" = true ]; then
+    /usr/bin/rm -rf -- "$work" "$metadata_work" || cleanup_status=1
+  else
+    /usr/bin/rm -rf -- "$run_directory" "$work" "$metadata_work" || cleanup_status=1
+  fi
+  if [ "$cleanup_status" -ne 0 ]; then
+    printf 'backup_status=failed stage=cleanup\n' >&2
+    exit 1
+  fi
 }
 trap cleanup_plaintext EXIT HUP INT TERM
 /usr/bin/chmod 0700 "$work"
@@ -169,11 +220,12 @@ helper_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$helper_pod" -o jso
 /usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$helper_pod" --timeout=1800s >/dev/null
 /usr/local/bin/kubectl -n "$namespace" cp "$helper_pod:/work/raw-manifest.json" "$work/raw-manifest.json" -c rclone >/dev/null
 RAW="$work/raw-manifest.json" OUT="$work/object-manifest.json" /usr/bin/python3 - <<'PY'
-import json, os
+import hashlib, json, os
 with open(os.environ["RAW"], encoding="utf-8") as stream:
     values = json.load(stream)
 assert isinstance(values, list)
 objects = []
+seen = set()
 for item in values:
     if item.get("IsDir"):
         continue
@@ -181,35 +233,75 @@ for item in values:
     assert isinstance(key, str) and key and not key.startswith("/")
     assert ".." not in key.split("/") and "\\" not in key and "\x00" not in key
     assert key.startswith(("uploads/user-pictures/", "pictures/", "uploads/user-agent/"))
-    size = item.get("Size")
-    assert isinstance(size, int) and size >= 0
+    assert key not in seen
+    seen.add(key)
+    expected_size = item.get("Size")
+    assert isinstance(expected_size, int) and expected_size >= 0
+    path = os.path.join("/work/objects", key)
+    assert os.path.isfile(path) and not os.path.islink(path)
+    actual_size = os.stat(path).st_size
+    assert actual_size == expected_size
+    digest = hashlib.sha256()
+    md5_digest = hashlib.md5()
+    with open(path, "rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+            md5_digest.update(chunk)
     hashes = item.get("Hashes") if isinstance(item.get("Hashes"), dict) else {}
     md5 = hashes.get("MD5")
     if md5 is not None:
-        assert isinstance(md5, str) and len(md5) == 32
-    objects.append({"key": key, "size": size, "md5": md5})
+        assert isinstance(md5, str) and len(md5) == 32 and md5_digest.hexdigest() == md5
+    objects.append({"key": key, "size": actual_size, "sha256": digest.hexdigest(), "md5": md5})
+actual = set()
+for root, dirs, files in os.walk("/work/objects", followlinks=False):
+    for name in files:
+        path = os.path.join(root, name)
+        assert not os.path.islink(path)
+        actual.add(os.path.relpath(path, "/work/objects"))
+assert actual == seen
 objects.sort(key=lambda value: value["key"])
 with open(os.environ["OUT"], "w", encoding="utf-8") as stream:
-    json.dump({"schema": 1, "bucket": "reactive-resume-dev", "objects": objects}, stream, separators=(",", ":"))
+    json.dump({"schema": 2, "bucket": "reactive-resume-dev", "objects": objects}, stream, separators=(",", ":"))
 PY
-/usr/local/bin/kubectl -n "$namespace" exec -i "$helper_pod" -c rclone -- tar -C /work -czf - objects | /usr/bin/age -r "$recipient" -o "$run_directory/object-storage.tar.gz.age"
+/usr/local/bin/kubectl -n "$namespace" exec -i "$helper_pod" -c rclone -- tar -C /work -czf - objects >"$work/object-storage.tar.gz" || fail object_archive_export
+/usr/bin/age -r "$recipient" -o "$run_directory/object-storage.tar.gz.age" "$work/object-storage.tar.gz" || fail object_archive_encrypt
 [ -s "$run_directory/object-storage.tar.gz.age" ] || fail object_archive_empty
 
 # Dump only the successor logical database; no PostgreSQL PVC is copied.
 /usr/local/bin/kubectl -n "$namespace" exec "$primary" -c postgres -- \
   /usr/bin/pg_dump --format=custom --compress=0 --no-owner --no-privileges \
-  --dbname="$database" >"$run_directory/reactive-resume-dev.dump"
+  --dbname="$database" >"$run_directory/reactive-resume-dev.dump" || fail pg_dump
 [ -s "$run_directory/reactive-resume-dev.dump" ] || fail pg_dump_empty
-/usr/bin/gzip -9 -c "$run_directory/reactive-resume-dev.dump" | \
-  /usr/bin/age -r "$recipient" -o "$run_directory/postgresql.dump.gz.age"
-/usr/bin/rm -f -- "$run_directory/reactive-resume-dev.dump"
+/usr/bin/pg_restore --list "$run_directory/reactive-resume-dev.dump" >"$work/postgresql.list" || fail pg_logical_list
+pg_logical_counts=$(/usr/bin/python3 - "$work/postgresql.list" <<'PY'
+import sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    entries = [line for line in stream if line.strip() and not line.startswith(";")]
+tables = [line for line in entries if " TABLE " in (" " + line + " ")]
+assert entries and tables
+print(f"{len(entries)}:{len(tables)}")
+PY
+) || fail pg_logical_content
+pg_logical_entry_count=${pg_logical_counts%%:*}
+pg_logical_table_count=${pg_logical_counts#*:}
+[ "$pg_logical_entry_count" -gt 0 ] && [ "$pg_logical_table_count" -gt 0 ] || fail pg_logical_content
+/usr/bin/gzip -9 -c "$run_directory/reactive-resume-dev.dump" >"$work/postgresql.dump.gz" || fail pg_compress
+/usr/bin/age -r "$recipient" -o "$run_directory/postgresql.dump.gz.age" "$work/postgresql.dump.gz" || fail pg_encrypt
+/usr/bin/rm -f -- "$run_directory/reactive-resume-dev.dump" "$work/postgresql.dump.gz"
 cleanup_helper
 helper_uid=
 
 (cd "$run_directory" && /usr/bin/sha256sum postgresql.dump.gz.age >postgresql.dump.gz.age.sha256)
 (cd "$run_directory" && /usr/bin/sha256sum object-storage.tar.gz.age >object-storage.tar.gz.age.sha256)
-object_count=$(/usr/bin/python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["objects"]))' "$work/object-manifest.json")
-total_object_bytes=$(/usr/bin/python3 -c 'import json,sys; print(sum(x["size"] for x in json.load(open(sys.argv[1]))["objects"]))' "$work/object-manifest.json")
+object_counts=$(/usr/bin/python3 - "$work/object-manifest.json" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    objects = json.load(stream)["objects"]
+print(f"{len(objects)}:{sum(item['size'] for item in objects)}")
+PY
+) || fail object_manifest_counts
+object_count=${object_counts%%:*}
+total_object_bytes=${object_counts#*:}
 [ "$object_count" -gt 0 ] && [ "$total_object_bytes" -gt 0 ] || fail object_storage_empty
 /usr/bin/cp --preserve=mode "$work/object-manifest.json" "$run_directory/object-storage.manifest.json"
 
@@ -217,20 +309,28 @@ pg_archive_bytes=$(/usr/bin/stat -c %s "$run_directory/postgresql.dump.gz.age")
 object_archive_bytes=$(/usr/bin/stat -c %s "$run_directory/object-storage.tar.gz.age")
 pg_archive_sha256=$(/usr/bin/cut -d ' ' -f 1 "$run_directory/postgresql.dump.gz.age.sha256")
 object_archive_sha256=$(/usr/bin/cut -d ' ' -f 1 "$run_directory/object-storage.tar.gz.age.sha256")
-backup_duration_seconds=$(( $(/usr/bin/date +%s) - start_epoch ))
-/usr/bin/python3 - "$run_directory/postgresql.manifest.json" "$run_directory/object-storage.manifest.json" "$run_id" "$pg_archive_bytes" "$pg_archive_sha256" "$object_archive_bytes" "$object_archive_sha256" "$object_count" "$total_object_bytes" <<'PY'
+completed_epoch=$(/usr/bin/date +%s)
+[ "$completed_epoch" -ge "$start_epoch" ] || fail clock_skew
+completed_at_utc=$(/usr/bin/date -u +%Y%m%dT%H%M%SZ)
+backup_duration_seconds=$(( completed_epoch - start_epoch ))
+/usr/bin/python3 - "$run_directory/postgresql.manifest.json" "$run_directory/object-storage.manifest.json" "$run_id" "$completed_at_utc" "$pg_archive_bytes" "$pg_archive_sha256" "$object_archive_bytes" "$object_archive_sha256" "$object_count" "$total_object_bytes" "$pg_logical_entry_count" "$pg_logical_table_count" <<'PY'
 import json, sys
-_, pg_path, object_path, run_id, pg_bytes, pg_sha, object_bytes, object_sha, count, total = sys.argv
+_, pg_path, object_path, run_id, completed, pg_bytes, pg_sha, object_bytes, object_sha, count, total, logical_entries, logical_tables = sys.argv
+pg = {"schema": 2}
+pg.update({"service": "postgresql", "database": "reactive_resume_dev_successor", "run_id": run_id, "completed_at_utc": completed, "archive": "postgresql.dump.gz.age", "archive_bytes": int(pg_bytes), "archive_sha256": pg_sha, "encryption": "age-x25519", "source_cluster": "shared-postgresql", "logical_entry_count": int(logical_entries), "logical_table_count": int(logical_tables)})
 with open(pg_path, "w", encoding="utf-8") as stream:
-    json.dump({"schema": 1, "service": "postgresql", "database": "reactive_resume_dev_successor", "run_id": run_id, "archive": "postgresql.dump.gz.age", "archive_bytes": int(pg_bytes), "archive_sha256": pg_sha, "encryption": "age-x25519", "source_cluster": "shared-postgresql"}, stream, separators=(",", ":"))
+    json.dump(pg, stream, separators=(",", ":"))
+with open(object_path, encoding="utf-8") as stream:
+    obj = json.load(stream)
+obj.update({"service": "seaweedfs", "bucket": "reactive-resume-dev", "run_id": run_id, "completed_at_utc": completed, "archive": "object-storage.tar.gz.age", "archive_bytes": int(object_bytes), "archive_sha256": object_sha, "encryption": "age-x25519", "object_count": int(count), "total_object_bytes": int(total)})
 with open(object_path, "w", encoding="utf-8") as stream:
-    json.dump({"schema": 1, "service": "seaweedfs", "bucket": "reactive-resume-dev", "run_id": run_id, "archive": "object-storage.tar.gz.age", "archive_bytes": int(object_bytes), "archive_sha256": object_sha, "encryption": "age-x25519", "object_count": int(count), "total_object_bytes": int(total)}, stream, separators=(",", ":"))
+    json.dump(obj, stream, separators=(",", ":"))
 PY
-/usr/bin/python3 - "$run_directory/run-manifest.json" "$run_id" "$backup_duration_seconds" "$pg_archive_bytes" "$pg_archive_sha256" "$object_archive_bytes" "$object_archive_sha256" "$object_count" "$total_object_bytes" <<'PY'
+/usr/bin/python3 - "$run_directory/run-manifest.json" "$run_id" "$completed_at_utc" "$backup_duration_seconds" "$pg_archive_bytes" "$pg_archive_sha256" "$object_archive_bytes" "$object_archive_sha256" "$object_count" "$total_object_bytes" "$pg_logical_entry_count" "$pg_logical_table_count" <<'PY'
 import json, sys
-_, path, run_id, duration, pg_bytes, pg_sha, object_bytes, object_sha, count, total = sys.argv
+_, path, run_id, completed, duration, pg_bytes, pg_sha, object_bytes, object_sha, count, total, logical_entries, logical_tables = sys.argv
 with open(path, "w", encoding="utf-8") as stream:
-    json.dump({"schema": 1, "service": "reactive-resume-dev", "run_id": run_id, "created_at_utc": run_id, "backup_duration_seconds": int(duration), "encryption": "age-x25519", "database": {"name": "reactive_resume_dev_successor", "archive": "postgresql.dump.gz.age", "bytes": int(pg_bytes), "sha256": pg_sha}, "object_storage": {"bucket": "reactive-resume-dev", "archive": "object-storage.tar.gz.age", "bytes": int(object_bytes), "sha256": object_sha, "object_count": int(count), "total_object_bytes": int(total)}}, stream, separators=(",", ":"))
+    json.dump({"schema": 2, "service": "reactive-resume-dev", "run_id": run_id, "created_at_utc": run_id, "completed_at_utc": completed, "backup_duration_seconds": int(duration), "encryption": "age-x25519", "database": {"name": "reactive_resume_dev_successor", "archive": "postgresql.dump.gz.age", "bytes": int(pg_bytes), "sha256": pg_sha, "logical_entry_count": int(logical_entries), "logical_table_count": int(logical_tables)}, "object_storage": {"bucket": "reactive-resume-dev", "archive": "object-storage.tar.gz.age", "bytes": int(object_bytes), "sha256": object_sha, "object_count": int(count), "total_object_bytes": int(total)}}, stream, separators=(",", ":"))
 PY
 for leaf in postgresql.dump.gz.age postgresql.dump.gz.age.sha256 postgresql.manifest.json object-storage.tar.gz.age object-storage.tar.gz.age.sha256 object-storage.manifest.json run-manifest.json; do
   /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/$leaf" "$remote_directory/$leaf"
@@ -243,6 +343,8 @@ done
 /usr/bin/rm -rf -- "$readback"
 /usr/bin/find "$archive_root" -mindepth 1 -maxdepth 1 -type d -mtime +14 \
   -name '20[0-9][0-9][01][0-9][0-3][0-9]T[0-2][0-9][0-5][0-9][0-5][0-9]Z' -exec /usr/bin/rm -rf -- {} +
+backup_success=true
 trap - EXIT HUP INT TERM
-/usr/bin/rm -rf -- "$work"
+cleanup_plaintext
+trap - EXIT HUP INT TERM
 printf 'backup_status=success service=reactive-resume-dev run_id=%s database=reactive_resume_dev_successor object_bucket=reactive-resume-dev object_count=%s total_object_bytes=%s backup_duration_seconds=%s readback=verified encrypted=true private_residue=none\n' "$run_id" "$object_count" "$total_object_bytes" "$backup_duration_seconds"
