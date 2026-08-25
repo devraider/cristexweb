@@ -5,6 +5,13 @@ set -o pipefail
 umask 077
 PATH=/usr/local/bin:/usr/bin:/bin
 export PATH
+case $- in
+    *x*|*v*) printf '%s\n' 'Refusing traced shell execution.' >&2; exit 65 ;;
+esac
+[ "$(/usr/bin/readlink -f "/proc/$$/exe")" = /usr/bin/dash ] || {
+    printf '%s\n' 'Refusing execution outside the canonical dash interpreter.' >&2
+    exit 65
+}
 
 usage='usage: opentofu/github/bin/import-existing-repository check|import'
 [ "$#" -eq 1 ] || { printf '%s\n' "$usage" >&2; exit 64; }
@@ -46,8 +53,8 @@ repo_root=$(CDPATH= cd -- "$dir/../../.." && pwd -P)
 # leaf except itself; the manifest and this entrypoint's canonical form are
 # independently pinned below so a partial source review cannot authorize import.
 source_manifest="$github_root/SOURCE.sha256"
-source_manifest_expected_sha256='671c0359dc9e5a74a073218112ce14bf8c688eb3f1730d54dc5711f113c3bb95'
-source_import_expected_canonical_sha256='91008f590583392bfc6f0ca863e8885a7b55849b32f5fc82220bbc750f7d2dce'
+source_manifest_expected_sha256='07ec8686f29ff6973e4ff339cbe4a6098598902c975cdfb2f8e5ac0b4ed05b61'
+source_import_expected_canonical_sha256='2397e340040925ec01050d8dcbc4d6bb2c657c048a2265acf280635382b4744c'
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-github-source.XXXXXX)
 chmod 0700 "$source_work"
 trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM
@@ -181,7 +188,11 @@ log="$work/command.log"
 plan="$work/github-import.tfplan"
 plan_json="$work/github-import-plan.json"
 github_token=
+terminal_echo_disabled=false
 cleanup() {
+    if [ "${terminal_echo_disabled:-false}" = true ]; then
+        /bin/stty echo 2>/dev/null || true
+    fi
     unset GITHUB_TOKEN github_token confirmation
     /usr/bin/rm -rf -- "$work" "$source_work"
 }
@@ -236,12 +247,20 @@ run_capture() {
 # sanitized receipts and never receives GITHUB_TOKEN.
 run_backup_interactive() {
     revalidate_source_closure
+    [ -f "$backup_wrapper" ] && [ ! -L "$backup_wrapper" ] || fail backup_wrapper
+    [ "$(/usr/bin/stat -c '%U:%G:%a' "$backup_wrapper")" = 'paul:paul:755' ] || fail backup_wrapper
+    [ "$(/usr/bin/sha256sum "$backup_wrapper" | /usr/bin/cut -d ' ' -f 1)" =
+      '582ab4adde9e34f06c6ccc9535cb77594c5992ff3a1484d27420385dc5da89b5' ] || fail backup_wrapper
     printf 'import_stage=backup_%s sudo_prompt=interactive\n' "$1" >&2
     clean_exec "$backup_wrapper" "$1" || fail "backup_$1"
 }
 
 printf '%s' 'GitHub token (input hidden): ' >&2
-IFS= read -r -s github_token || fail protected_token_input
+/bin/stty -echo || fail protected_token_input
+terminal_echo_disabled=true
+IFS= read -r github_token || fail protected_token_input
+/bin/stty echo || fail protected_token_input
+terminal_echo_disabled=false
 printf '\n' >&2
 [ "${#github_token}" -ge 20 ] || fail protected_token_contract
 case "$github_token" in
@@ -272,11 +291,15 @@ state_absence_recheck
 run_quiet "$tofu" -chdir="$github_root" init -input=false -no-color
 state_absence_recheck
 # These are the only import addresses and IDs. No create/delete/apply path exists.
+# Revalidate the exact private repository immediately before every state import.
+run_quiet_with_token "$github_root/bin/check-repository-present"
 run_quiet_with_token "$tofu" -chdir="$github_root" import -input=false -lock=true -no-color \
     github_repository.reactive_resume_mirror devraider/cristex-reactive-resume
 [ -f "$state_file" ] && [ ! -L "$state_file" ] || fail first_import_state
+run_quiet_with_token "$github_root/bin/check-repository-present"
 run_quiet_with_token "$tofu" -chdir="$github_root" import -input=false -lock=true -no-color \
     github_repository_vulnerability_alerts.reactive_resume_mirror cristex-reactive-resume
+run_quiet_with_token "$github_root/bin/check-repository-present"
 run_quiet_with_token "$tofu" -chdir="$github_root" import -input=false -lock=true -no-color \
     github_actions_repository_permissions.reactive_resume_mirror cristex-reactive-resume
 

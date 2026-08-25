@@ -160,7 +160,9 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "/home/paul/projects/cristexweb/opentofu/github",
             "/var/lib/opentofu/cristexweb/github.tfstate",
             "GitHub token (input hidden)",
-            "read -r -s github_token",
+            "/bin/stty -echo",
+            "read -r github_token",
+            "canonical dash interpreter",
             "GITHUB_TOKEN",
             "check-repository-present",
             "restore-absence",
@@ -206,6 +208,12 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
         self.assertIn("run_quiet_with_token() {\n    revalidate_source_closure", source)
         self.assertIn("run_capture() {\n    revalidate_source_closure", source)
         self.assertIn("revalidate_source_closure\n", source)
+        self.assertGreaterEqual(
+            source.count('run_quiet_with_token "$github_root/bin/check-repository-present"'),
+            4,
+        )
+        self.assertIn('582ab4adde9e34f06c6ccc9535cb77594c5992ff3a1484d27420385dc5da89b5', source)
+        self.assertIn("stat -c '%U:%G:%a' \"$backup_wrapper\"", source)
 
     def test_backend_environment_lock_and_final_gates_are_bound(self) -> None:
         source = IMPORT.read_text()
