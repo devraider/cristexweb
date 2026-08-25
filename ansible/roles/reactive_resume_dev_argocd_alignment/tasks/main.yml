@@ -50,7 +50,10 @@
       - not (reactive_resume_dev_argocd_alignment_internal_attestation.stat.islnk | default(false))
       - reactive_resume_dev_argocd_alignment_internal_attestation.stat.pw_name == reactive_resume_dev_argocd_alignment_controller_user
       - reactive_resume_dev_argocd_alignment_internal_attestation.stat.mode == '0600'
-      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_TOKEN') ~ ':entrypoint'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_TOKEN') ~ ':entrypoint'
   delegate_to: localhost
   become: false
   changed_when: false
@@ -74,7 +77,9 @@
       - item.stat.isreg | default(false)
       - not (item.stat.islnk | default(false))
       - item.stat.mode == '0644'
-      - item.stat.checksum == (reactive_resume_dev_argocd_alignment_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - >-
+        item.stat.checksum == (reactive_resume_dev_argocd_alignment_expected_hashes |
+        selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
       - item.item.startswith(reactive_resume_dev_argocd_alignment_repository_root ~ '/ansible/files/')
   loop: '{{ reactive_resume_dev_argocd_alignment_internal_manifest_states.results }}'
   delegate_to: localhost
@@ -94,16 +99,51 @@
   ansible.builtin.assert:
     that:
       - reactive_resume_dev_argocd_alignment_internal_manifests | length == 11
-      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') | list | length == 7
-      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'shared-services') | list | length == 4
-      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('kind', 'equalto', 'Job') | list | length == 0
-      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
-      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 7
-      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') | map(attribute='kind') | list | sort == ['Deployment', 'Ingress', 'NetworkPolicy', 'NetworkPolicy', 'NetworkPolicy', 'Service', 'ServiceAccount']
-      - reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'shared-services') | selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 4
-      - (reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') | map(attribute='metadata.name') | list | sort) == ['reactive-resume-dev', 'reactive-resume-dev', 'reactive-resume-dev', 'reactive-resume-dev-default-deny', 'reactive-resume-dev-egress', 'reactive-resume-dev-private', 'reactive-resume-dev-route-allow-traefik']
-      - (reactive_resume_dev_argocd_alignment_internal_manifests | selectattr('metadata.namespace', 'equalto', 'shared-services') | map(attribute='metadata.name') | list | sort) == ['keycloak-allow-reactive-resume-dev', 'oidc-connect-proxy-allow-reactive-resume-dev', 'reactive-resume-object-storage-allow-dev', 'shared-postgresql-ingress']
-      - reactive_resume_dev_argocd_alignment_internal_manifests | rejectattr('metadata.namespace', 'in', ['cristexhub-dev', 'shared-services']) | list | length == 0
+      - >-
+        reactive_resume_dev_argocd_alignment_internal_manifests |
+        selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') |
+        list | length == 7
+      - >-
+        reactive_resume_dev_argocd_alignment_internal_manifests |
+        selectattr('metadata.namespace', 'equalto', 'shared-services') |
+        list | length == 4
+      - >-
+        reactive_resume_dev_argocd_alignment_internal_manifests |
+        selectattr('kind', 'equalto', 'Job') | list | length == 0
+      - >-
+        reactive_resume_dev_argocd_alignment_internal_manifests |
+        selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - >-
+        reactive_resume_dev_argocd_alignment_internal_manifests |
+        selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 7
+      - >-
+        (reactive_resume_dev_argocd_alignment_internal_manifests |
+        selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') |
+        map(attribute='kind') | list | sort) ==
+        ['Deployment', 'Ingress', 'NetworkPolicy', 'NetworkPolicy',
+        'NetworkPolicy', 'Service', 'ServiceAccount']
+      - >-
+        reactive_resume_dev_argocd_alignment_internal_manifests |
+        selectattr('metadata.namespace', 'equalto', 'shared-services') |
+        selectattr('kind', 'equalto', 'NetworkPolicy') | list | length == 4
+      - >-
+        (reactive_resume_dev_argocd_alignment_internal_manifests |
+        selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') |
+        map(attribute='metadata.name') | list | sort) ==
+        ['reactive-resume-dev', 'reactive-resume-dev', 'reactive-resume-dev',
+        'reactive-resume-dev-default-deny', 'reactive-resume-dev-egress',
+        'reactive-resume-dev-private', 'reactive-resume-dev-route-allow-traefik']
+      - >-
+        (reactive_resume_dev_argocd_alignment_internal_manifests |
+        selectattr('metadata.namespace', 'equalto', 'shared-services') |
+        map(attribute='metadata.name') | list | sort) ==
+        ['keycloak-allow-reactive-resume-dev',
+        'oidc-connect-proxy-allow-reactive-resume-dev',
+        'reactive-resume-object-storage-allow-dev', 'shared-postgresql-ingress']
+      - >-
+        reactive_resume_dev_argocd_alignment_internal_manifests |
+        rejectattr('metadata.namespace', 'in', ['cristexhub-dev',
+        'shared-services']) | list | length == 0
     fail_msg: Refusing any object outside the exact seven-object DEV and four destination NetworkPolicy alignment closure.
   changed_when: false
   no_log: true
@@ -153,7 +193,11 @@
       - item.resources | length == 0 or (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
       - item.resources | length == 0 or (item.resources[0].metadata.finalizers | default([]) | length) == 0
       - item.resources | length == 0 or 'argocd.argoproj.io/tracking-id' not in (item.resources[0].metadata.annotations | default({}))
-      - item.resources | length == 0 or (item.resources[0].metadata.managedFields | default([]) | map(attribute='manager') | select('search', 'argocd') | list | length) == 0
+      - >-
+        item.resources | length == 0 or
+        (item.resources[0].metadata.managedFields | default([]) |
+        map(attribute='manager') | select('search', 'argocd') | list |
+        length) == 0
     fail_msg: Refusing foreign, Argo-owned, or deleting alignment pre-state.
   loop: '{{ reactive_resume_dev_argocd_alignment_internal_prestate.results }}'
   changed_when: false

@@ -56,6 +56,43 @@ class ReactiveResumeDevArgoAlignmentContractTests(unittest.TestCase):
             ).hexdigest()
             self.assertIn(canonical, PLUGIN.read_text())
 
+    def test_expected_identities_match_the_source_closure(self) -> None:
+        defaults = load(DEFAULTS)
+        source = [load(p) for p in sorted(DEV.glob('*.yaml'))] + [load(p) for p in DESTINATION]
+        expected = {
+            (item['apiVersion'], item['kind'], item['metadata']['namespace'], item['metadata']['name'])
+            for item in source
+        }
+        configured = {
+            (item['apiVersion'], item['kind'], item['namespace'], item['name'])
+            for item in defaults['reactive_resume_dev_argocd_alignment_expected_identities']
+        }
+        self.assertEqual(expected, configured)
+        self.assertEqual(11, len(configured))
+        self.assertNotIn(('batch/v1', 'Job', 'cristexhub-dev', 'reactive-resume-dev-migrate'), configured)
+
+    def test_action_guard_identity_and_hash_sets_match_source(self) -> None:
+        defaults = load(DEFAULTS)
+        source = [load(p) for p in sorted(DEV.glob('*.yaml'))] + [load(p) for p in DESTINATION]
+        expected = {
+            (item['apiVersion'], item['kind'], item['metadata']['namespace'], item['metadata']['name'])
+            for item in source
+        }
+        tree = ast.parse(PLUGIN.read_text())
+        constants = {}
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                if node.targets[0].id in {'EXPECTED', 'EXPECTED_HASHES'}:
+                    constants[node.targets[0].id] = ast.literal_eval(node.value)
+        self.assertEqual(expected, constants['EXPECTED'])
+        expected_hashes = {
+            (item['apiVersion'], item['kind'], item['metadata']['namespace'], item['metadata']['name']):
+            hashlib.sha256(json.dumps(item, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+            for item in source
+        }
+        self.assertEqual(expected_hashes, constants['EXPECTED_HASHES'])
+        self.assertEqual(11, len(defaults['reactive_resume_dev_argocd_alignment_expected_identities']))
+
     def test_action_guard_is_exact_and_non_destructive(self) -> None:
         text = PLUGIN.read_text()
         self.assertIn("EXPECTED_IDENTITY_SET_SHA256", text)
@@ -72,7 +109,10 @@ class ReactiveResumeDevArgoAlignmentContractTests(unittest.TestCase):
         tasks = TASKS.read_text()
         wrapper = WRAPPER.read_text()
         self.assertIn("exactly seven DEV objects and four destination NetworkPolicies", tasks)
-        self.assertIn("['Deployment', 'Ingress', 'NetworkPolicy', 'NetworkPolicy', 'NetworkPolicy', 'Service', 'ServiceAccount']", tasks)
+        self.assertIn("map(attribute='kind') | list | sort", tasks)
+        for kind in ('Deployment', 'Ingress', 'Service', 'ServiceAccount'):
+            self.assertIn(kind, tasks)
+        self.assertIn("selectattr('kind', 'equalto', 'NetworkPolicy')", tasks)
         self.assertIn("Reconcile only the exact eleven alignment objects", tasks)
         self.assertIn("kind', 'equalto', 'Job') | list | length == 0", tasks)
         self.assertIn("kind', 'equalto', 'Secret') | list | length == 0", tasks)

@@ -4,12 +4,14 @@ reactive_resume_dev_argocd_registration_state: present
 reactive_resume_dev_argocd_registration_kubeconfig: /etc/rancher/k3s/k3s.yaml
 reactive_resume_dev_argocd_registration_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
 reactive_resume_dev_argocd_registration_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+reactive_resume_dev_argocd_registration_component_root: >-
+  {{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd-registration
 reactive_resume_dev_argocd_registration_manifest_paths:
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd-registration/config/appproject-reactive-resume-dev.yaml"
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd-registration/config/application-reactive-resume-dev.yaml"
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd-registration/rbac/role-argocd-application-controller-reactive-resume-dev.yaml"
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd-registration/rbac/rolebinding-argocd-application-controller-reactive-resume-dev.yaml"
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/components/reactive-resume-dev-argocd-registration/config/secret-cluster-reactive-resume-dev.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_component_root }}/config/appproject-reactive-resume-dev.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_component_root }}/config/application-reactive-resume-dev.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_component_root }}/rbac/role-argocd-application-controller-reactive-resume-dev.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_component_root }}/rbac/rolebinding-argocd-application-controller-reactive-resume-dev.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_component_root }}/config/secret-cluster-reactive-resume-dev.yaml"
 reactive_resume_dev_argocd_registration_object_count: 5
 reactive_resume_dev_argocd_registration_repository: ssh://git@ssh.github.com:443/devraider/cristexweb.git
 reactive_resume_dev_argocd_registration_revision: dd7d4cedd902e68266d9713d1dbb8e90f0b529b1
@@ -80,15 +82,17 @@ reactive_resume_dev_argocd_registration_expected_hashes:
   config/secret-cluster-reactive-resume-dev.yaml: e2fbba0e829fbcd269a10ec3fabaa8205595d79fc78ee4ab089bc53357169915
   rbac/role-argocd-application-controller-reactive-resume-dev.yaml: ab0a14d48e3a22b158453dab9ad7ed06d0a63ff818a14e2e8ca94f48ecb8eba7
   rbac/rolebinding-argocd-application-controller-reactive-resume-dev.yaml: 4ccef642d0f30c0245abb162685da5727a9811fd7dabe89ce24762ad41204460
+reactive_resume_dev_argocd_registration_handoff_root: >-
+  {{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff
 reactive_resume_dev_argocd_registration_handoff_manifest_paths:
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff/deployment.yaml"
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff/ingress-private.yaml"
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff/migration-job.yaml"
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff/networkpolicy-default-deny.yaml"
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff/networkpolicy-egress.yaml"
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff/networkpolicy-route-allow-traefik.yaml"
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff/service.yaml"
-  - "{{ reactive_resume_dev_argocd_registration_repository_root }}/ansible/files/policies/reactive-resume-dev-argocd-handoff/serviceaccount.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_handoff_root }}/deployment.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_handoff_root }}/ingress-private.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_handoff_root }}/migration-job.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_handoff_root }}/networkpolicy-default-deny.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_handoff_root }}/networkpolicy-egress.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_handoff_root }}/networkpolicy-route-allow-traefik.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_handoff_root }}/service.yaml"
+  - "{{ reactive_resume_dev_argocd_registration_handoff_root }}/serviceaccount.yaml"
 reactive_resume_dev_argocd_registration_handoff_object_count: 8
 reactive_resume_dev_argocd_registration_handoff_expected_hashes:
   deployment.yaml: bc23d1f54b65872e39d1b33c147bd5dd222bb03fb2fa634d0ebcf984c83244fd

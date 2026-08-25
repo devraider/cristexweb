@@ -62,8 +62,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/keycloak_dev_identity_transition_guarded.py"),
             Path("ansible/plugins/action/keycloak_reactive_resume_dev_client_guarded.py"),
             Path("ansible/plugins/action/infisical_reactive_resume_dev_ca_guarded_k8s.py"),
+            Path("ansible/plugins/action/reactive_resume_dev_argocd_alignment_guarded_k8s.py"),
         }
-        self.assertEqual(36, len(allowed_action_plugins))
+        self.assertEqual(37, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -180,6 +181,11 @@ class AnsibleLayoutTests(unittest.TestCase):
             "bin/bootstrap-reactive-resume-dev-argocd-registration",
             "playbooks/bootstrap_reactive_resume_dev_argocd_registration.yml",
             "plugins/action/reactive_resume_dev_argocd_registration_guarded_k8s.py",
+            "bin/bootstrap-reactive-resume-dev-argocd-alignment",
+            "playbooks/bootstrap_reactive_resume_dev_argocd_alignment.yml",
+            "plugins/action/reactive_resume_dev_argocd_alignment_guarded_k8s.py",
+            "roles/reactive_resume_dev_argocd_alignment/defaults/main.yml",
+            "roles/reactive_resume_dev_argocd_alignment/tasks/main.yml",
             "roles/reactive_resume_dev_argocd_registration/defaults/main.yml",
             "roles/reactive_resume_dev_argocd_registration/tasks/main.yml",
             "files/policies/reactive-resume-dev-argocd-handoff/deployment.yaml",

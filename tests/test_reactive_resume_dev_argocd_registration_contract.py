@@ -175,6 +175,17 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
         for p in SOURCE.glob('*.yaml'):
             self.assertEqual(0o644, stat.S_IMODE(p.stat().st_mode))
 
+    def test_atomic_diff_uses_verified_bytes_and_never_a_filename(self):
+        tasks = TASKS.read_text()
+        self.assertIn("stdin: '{{ item.content | b64decode }}'", tasks)
+        self.assertEqual(2, tasks.count("-f\n      - '-'"))
+        self.assertIn('Read each immutable handoff input exactly once', tasks)
+        self.assertIn('Require exact content hashes before diff', tasks)
+        self.assertIn('reactive_resume_dev_argocd_registration_internal_alignment_sources', tasks)
+        self.assertIn('internal_desired_diffs.results | length == 7', tasks)
+        self.assertIn('internal_destination_diffs.results | length == 4', tasks)
+        self.assertNotIn("-f\n      - '{{ item }}'", tasks)
+
     def test_source_hashes_are_recorded(self):
         defaults = DEFAULTS.read_text()
         for p in REG.rglob('*.yaml'):

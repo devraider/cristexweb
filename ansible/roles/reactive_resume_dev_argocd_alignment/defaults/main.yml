@@ -4,33 +4,48 @@ reactive_resume_dev_argocd_alignment_state: present
 reactive_resume_dev_argocd_alignment_kubeconfig: /etc/rancher/k3s/k3s.yaml
 reactive_resume_dev_argocd_alignment_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
 reactive_resume_dev_argocd_alignment_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+reactive_resume_dev_argocd_alignment_workload_root: >-
+  {{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd
+reactive_resume_dev_argocd_alignment_destination_root: >-
+  {{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components
 reactive_resume_dev_argocd_alignment_manifest_paths:
-  - "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/deployment.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/ingress-private.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/networkpolicy-default-deny.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/networkpolicy-egress.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/networkpolicy-route-allow-traefik.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/service.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/serviceaccount.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/postgresql/network/postgresql-ingress.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/keycloak/network/keycloak-allow-reactive-resume-dev.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-networkpolicy/network/reactive-resume-object-storage-allow-dev.yaml"
+  - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/deployment.yaml"
+  - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/ingress-private.yaml"
+  - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/networkpolicy-default-deny.yaml"
+  - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/networkpolicy-egress.yaml"
+  - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/networkpolicy-route-allow-traefik.yaml"
+  - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/service.yaml"
+  - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/serviceaccount.yaml"
+  - "{{ reactive_resume_dev_argocd_alignment_destination_root }}/postgresql/network/postgresql-ingress.yaml"
+  - "{{ reactive_resume_dev_argocd_alignment_destination_root }}/keycloak/network/keycloak-allow-reactive-resume-dev.yaml"
+  - "{{ reactive_resume_dev_argocd_alignment_destination_root }}/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml"
+  - "{{ reactive_resume_dev_argocd_alignment_destination_root }}/reactive-resume-dev-networkpolicy/network/reactive-resume-object-storage-allow-dev.yaml"
 reactive_resume_dev_argocd_alignment_object_count: 11
 reactive_resume_dev_argocd_alignment_source_object_count: 7
 reactive_resume_dev_argocd_alignment_destination_policy_count: 4
 reactive_resume_dev_argocd_alignment_expected_hashes:
-  - {path: "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/deployment.yaml", sha256: aa9d9d542b0a32cd9d84b3f30f0427aa8f209ad8acbe9c393dae15c557593985}
-  - {path: "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/ingress-private.yaml", sha256: e2fe7e0a4fb711e6e3173db72d43d17d78ad313baddafc6685791ed505cd4339}
-  - {path: "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/networkpolicy-default-deny.yaml", sha256: 1789a79508b27547536c2feb3b57ecc62079f9cff43efecaf9fac555b6887fb2}
-  - {path: "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/networkpolicy-egress.yaml", sha256: 046479ad15be8c1c1ad5ba0217788e3a5335ca614be3a5b7dfe04e754147d153}
-  - {path: "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/networkpolicy-route-allow-traefik.yaml", sha256: 3e03a9d551e2309ba5e6b4eff2c602e0cfb6c36c76054003214d8cdbd98c18b5}
-  - {path: "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/service.yaml", sha256: acfda77d6196d70814bfc61c570d1c3da556e4b9979976fdf08fff05403e9f8f}
-  - {path: "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-argocd/serviceaccount.yaml", sha256: cd299ec8ec36a0aaf00a4a62b74dd455f51dc4ea9f74825f66e33104ecd6ab9d}
-  - {path: "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/postgresql/network/postgresql-ingress.yaml", sha256: 93deeff43cfea12e7b77ef41e8f9ebbd24cc6b467cbdd089c5131a1abf0fc947}
-  - {path: "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/keycloak/network/keycloak-allow-reactive-resume-dev.yaml", sha256: 2486c5301d88d9b95d19dbcca5a4762e11c83007f5e99c7cfab7e00f4ddf50b9}
-  - {path: "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml", sha256: 129ee4b054899fd6d1f13c5e58a1823d9434ab559eb354b63be53180566b87fb}
-  - {path: "{{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components/reactive-resume-dev-networkpolicy/network/reactive-resume-object-storage-allow-dev.yaml", sha256: 79687232a2a98efaf10db9671ed98d67ed677db3a07729748fbc7df0e4010420}
+  - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/deployment.yaml"
+    sha256: aa9d9d542b0a32cd9d84b3f30f0427aa8f209ad8acbe9c393dae15c557593985
+  - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/ingress-private.yaml"
+    sha256: e2fe7e0a4fb711e6e3173db72d43d17d78ad313baddafc6685791ed505cd4339
+  - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/networkpolicy-default-deny.yaml"
+    sha256: 1789a79508b27547536c2feb3b57ecc62079f9cff43efecaf9fac555b6887fb2
+  - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/networkpolicy-egress.yaml"
+    sha256: 046479ad15be8c1c1ad5ba0217788e3a5335ca614be3a5b7dfe04e754147d153
+  - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/networkpolicy-route-allow-traefik.yaml"
+    sha256: 3e03a9d551e2309ba5e6b4eff2c602e0cfb6c36c76054003214d8cdbd98c18b5
+  - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/service.yaml"
+    sha256: acfda77d6196d70814bfc61c570d1c3da556e4b9979976fdf08fff05403e9f8f
+  - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/serviceaccount.yaml"
+    sha256: cd299ec8ec36a0aaf00a4a62b74dd455f51dc4ea9f74825f66e33104ecd6ab9d
+  - path: "{{ reactive_resume_dev_argocd_alignment_destination_root }}/postgresql/network/postgresql-ingress.yaml"
+    sha256: 93deeff43cfea12e7b77ef41e8f9ebbd24cc6b467cbdd089c5131a1abf0fc947
+  - path: "{{ reactive_resume_dev_argocd_alignment_destination_root }}/keycloak/network/keycloak-allow-reactive-resume-dev.yaml"
+    sha256: 2486c5301d88d9b95d19dbcca5a4762e11c83007f5e99c7cfab7e00f4ddf50b9
+  - path: "{{ reactive_resume_dev_argocd_alignment_destination_root }}/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml"
+    sha256: 129ee4b054899fd6d1f13c5e58a1823d9434ab559eb354b63be53180566b87fb
+  - path: "{{ reactive_resume_dev_argocd_alignment_destination_root }}/reactive-resume-dev-networkpolicy/network/reactive-resume-object-storage-allow-dev.yaml"
+    sha256: 79687232a2a98efaf10db9671ed98d67ed677db3a07729748fbc7df0e4010420
 reactive_resume_dev_argocd_alignment_expected_identities:
   - {apiVersion: apps/v1, kind: Deployment, namespace: cristexhub-dev, name: reactive-resume-dev}
   - {apiVersion: networking.k8s.io/v1, kind: Ingress, namespace: cristexhub-dev, name: reactive-resume-dev-private}

@@ -94,8 +94,13 @@
       - item.stat.isreg | default(false)
       - not (item.stat.islnk | default(false))
       - item.stat.mode == '0644'
-      - item.stat.checksum == (reactive_resume_dev_argocd_registration_expected_hashes | dict2items | selectattr('key', 'equalto', item.item | regex_replace('^' ~ reactive_resume_dev_argocd_registration_repository_root ~ '/ansible/files/components/reactive-resume-dev-argocd-registration/', '')) | map(attribute='value') | first)
-      - item.item.startswith(reactive_resume_dev_argocd_registration_repository_root ~ '/ansible/files/components/reactive-resume-dev-argocd-registration/')
+      - >-
+        item.stat.checksum ==
+        (reactive_resume_dev_argocd_registration_expected_hashes | dict2items |
+        selectattr('key', 'equalto', item.item | regex_replace(
+        '^' ~ reactive_resume_dev_argocd_registration_component_root ~ '/', '')) |
+        map(attribute='value') | first)
+      - item.item.startswith(reactive_resume_dev_argocd_registration_component_root ~ '/')
     fail_msg: Refusing hash-drifted Reactive Resume DEV registration source.
   loop: '{{ reactive_resume_dev_argocd_registration_internal_manifest_states.results }}'
   delegate_to: localhost
@@ -120,8 +125,13 @@
       - item.stat.isreg | default(false)
       - not (item.stat.islnk | default(false))
       - item.stat.mode == '0644'
-      - item.stat.checksum == (reactive_resume_dev_argocd_registration_handoff_expected_hashes | dict2items | selectattr('key', 'equalto', item.item | regex_replace('^' ~ reactive_resume_dev_argocd_registration_repository_root ~ '/ansible/files/policies/reactive-resume-dev-argocd-handoff/', '')) | map(attribute='value') | first)
-      - item.item.startswith(reactive_resume_dev_argocd_registration_repository_root ~ '/ansible/files/policies/reactive-resume-dev-argocd-handoff/')
+      - >-
+        item.stat.checksum ==
+        (reactive_resume_dev_argocd_registration_handoff_expected_hashes |
+        dict2items | selectattr('key', 'equalto', item.item |
+        regex_replace('^' ~ reactive_resume_dev_argocd_registration_handoff_root ~
+        '/', '')) | map(attribute='value') | first)
+      - item.item.startswith(reactive_resume_dev_argocd_registration_handoff_root ~ '/')
     fail_msg: Refusing hash-drifted Reactive Resume DEV handoff source.
   loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_manifest_states.results }}'
   delegate_to: localhost
@@ -151,9 +161,19 @@
     that:
       - reactive_resume_dev_argocd_registration_internal_manifests | length == 5
       - reactive_resume_dev_argocd_registration_internal_handoff_manifests | length == 8
-      - reactive_resume_dev_argocd_registration_internal_handoff_manifests | map(attribute='metadata.namespace') | list | unique == ['cristexhub-dev']
-      - reactive_resume_dev_argocd_registration_internal_handoff_manifests | map(attribute='kind') | list | sort == ['Deployment', 'Ingress', 'Job', 'NetworkPolicy', 'NetworkPolicy', 'NetworkPolicy', 'Service', 'ServiceAccount']
-      - reactive_resume_dev_argocd_registration_internal_handoff_manifests | rejectattr('kind', 'in', ['Secret', 'Namespace', 'PersistentVolumeClaim', 'Role', 'RoleBinding', 'ClusterRole', 'ClusterRoleBinding']) | list | length == 8
+      - >-
+        reactive_resume_dev_argocd_registration_internal_handoff_manifests |
+        map(attribute='metadata.namespace') | list | unique == ['cristexhub-dev']
+      - >-
+        (reactive_resume_dev_argocd_registration_internal_handoff_manifests |
+        map(attribute='kind') | list | sort) ==
+        ['Deployment', 'Ingress', 'Job', 'NetworkPolicy', 'NetworkPolicy',
+        'NetworkPolicy', 'Service', 'ServiceAccount']
+      - >-
+        reactive_resume_dev_argocd_registration_internal_handoff_manifests |
+        rejectattr('kind', 'in', ['Secret', 'Namespace', 'PersistentVolumeClaim',
+        'Role', 'RoleBinding', 'ClusterRole', 'ClusterRoleBinding']) |
+        list | length == 8
       - reactive_resume_dev_argocd_registration_internal_handoff_manifests | selectattr('metadata.namespace', 'equalto', 'cristexhub-prod') | list | length == 0
       - reactive_resume_dev_argocd_registration_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 1
       - reactive_resume_dev_argocd_registration_internal_manifests | selectattr('kind', 'equalto', 'Application') | list | length == 1
@@ -231,9 +251,15 @@
       - reactive_resume_dev_argocd_registration_internal_repository_secret.resources | length == 1
       - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].type == 'Opaque'
       - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.namespace == 'argocd'
-      - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.name == reactive_resume_dev_argocd_registration_repository_secret
-      - (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.ownerReferences | default([])) | length == 0
-      - (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.annotations | default({})).keys() | list == ['secrets.infisical.com/version']
+      - >-
+        reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.name ==
+        reactive_resume_dev_argocd_registration_repository_secret
+      - >-
+        (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.ownerReferences |
+        default([])) | length == 0
+      - >-
+        (reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.annotations |
+        default({})).keys() | list == ['secrets.infisical.com/version']
       - reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.annotations['secrets.infisical.com/version'] | length > 0
       - >-
         reactive_resume_dev_argocd_registration_internal_repository_secret.resources[0].metadata.labels ==
@@ -429,9 +455,18 @@
   ansible.builtin.assert:
     that:
       - item.resources | length == 1
-      - item.item.kind != 'Deployment' or (item.resources[0].status.observedGeneration | default(0) | int) == (item.resources[0].metadata.generation | default(0) | int)
-      - item.item.kind != 'Deployment' or (item.resources[0].status.readyReplicas | default(0) | int) == (item.resources[0].spec.replicas | default(0) | int)
-      - item.item.kind != 'Deployment' or (item.resources[0].status.availableReplicas | default(0) | int) == (item.resources[0].spec.replicas | default(0) | int)
+      - >-
+        item.item.kind != 'Deployment' or
+        (item.resources[0].status.observedGeneration | default(0) | int) ==
+        (item.resources[0].metadata.generation | default(0) | int)
+      - >-
+        item.item.kind != 'Deployment' or
+        (item.resources[0].status.readyReplicas | default(0) | int) ==
+        (item.resources[0].spec.replicas | default(0) | int)
+      - >-
+        item.item.kind != 'Deployment' or
+        (item.resources[0].status.availableReplicas | default(0) | int) ==
+        (item.resources[0].spec.replicas | default(0) | int)
       - item.item.kind != 'Job' or (item.resources[0].status.succeeded | default(0) | int) == 1
     fail_msg: Refusing RR DEV registration until existing workload dependencies are ready; no workload reconciliation is performed here.
   loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results }}'
@@ -441,17 +476,39 @@
 - name: Bind the immutable workload and destination handoff contract
   ansible.builtin.set_fact:
     reactive_resume_dev_argocd_registration_internal_alignment_contract:
-      - {class: desired, path: ansible/files/components/reactive-resume-dev-argocd/deployment.yaml, sha256: aa9d9d542b0a32cd9d84b3f30f0427aa8f209ad8acbe9c393dae15c557593985}
-      - {class: desired, path: ansible/files/components/reactive-resume-dev-argocd/ingress-private.yaml, sha256: e2fe7e0a4fb711e6e3173db72d43d17d78ad313baddafc6685791ed505cd4339}
-      - {class: desired, path: ansible/files/components/reactive-resume-dev-argocd/networkpolicy-default-deny.yaml, sha256: 1789a79508b27547536c2feb3b57ecc62079f9cff43efecaf9fac555b6887fb2}
-      - {class: desired, path: ansible/files/components/reactive-resume-dev-argocd/networkpolicy-egress.yaml, sha256: 046479ad15be8c1c1ad5ba0217788e3a5335ca614be3a5b7dfe04e754147d153}
-      - {class: desired, path: ansible/files/components/reactive-resume-dev-argocd/networkpolicy-route-allow-traefik.yaml, sha256: 3e03a9d551e2309ba5e6b4eff2c602e0cfb6c36c76054003214d8cdbd98c18b5}
-      - {class: desired, path: ansible/files/components/reactive-resume-dev-argocd/service.yaml, sha256: acfda77d6196d70814bfc61c570d1c3da556e4b9979976fdf08fff05403e9f8f}
-      - {class: desired, path: ansible/files/components/reactive-resume-dev-argocd/serviceaccount.yaml, sha256: cd299ec8ec36a0aaf00a4a62b74dd455f51dc4ea9f74825f66e33104ecd6ab9d}
-      - {class: destination, path: ansible/files/components/postgresql/network/postgresql-ingress.yaml, sha256: 93deeff43cfea12e7b77ef41e8f9ebbd24cc6b467cbdd089c5131a1abf0fc947}
-      - {class: destination, path: ansible/files/components/keycloak/network/keycloak-allow-reactive-resume-dev.yaml, sha256: 2486c5301d88d9b95d19dbcca5a4762e11c83007f5e99c7cfab7e00f4ddf50b9}
-      - {class: destination, path: ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml, sha256: 129ee4b054899fd6d1f13c5e58a1823d9434ab559eb354b63be53180566b87fb}
-      - {class: destination, path: ansible/files/components/reactive-resume-dev-networkpolicy/network/reactive-resume-object-storage-allow-dev.yaml, sha256: 79687232a2a98efaf10db9671ed98d67ed677db3a07729748fbc7df0e4010420}
+      - class: desired
+        path: ansible/files/components/reactive-resume-dev-argocd/deployment.yaml
+        sha256: aa9d9d542b0a32cd9d84b3f30f0427aa8f209ad8acbe9c393dae15c557593985
+      - class: desired
+        path: ansible/files/components/reactive-resume-dev-argocd/ingress-private.yaml
+        sha256: e2fe7e0a4fb711e6e3173db72d43d17d78ad313baddafc6685791ed505cd4339
+      - class: desired
+        path: ansible/files/components/reactive-resume-dev-argocd/networkpolicy-default-deny.yaml
+        sha256: 1789a79508b27547536c2feb3b57ecc62079f9cff43efecaf9fac555b6887fb2
+      - class: desired
+        path: ansible/files/components/reactive-resume-dev-argocd/networkpolicy-egress.yaml
+        sha256: 046479ad15be8c1c1ad5ba0217788e3a5335ca614be3a5b7dfe04e754147d153
+      - class: desired
+        path: ansible/files/components/reactive-resume-dev-argocd/networkpolicy-route-allow-traefik.yaml
+        sha256: 3e03a9d551e2309ba5e6b4eff2c602e0cfb6c36c76054003214d8cdbd98c18b5
+      - class: desired
+        path: ansible/files/components/reactive-resume-dev-argocd/service.yaml
+        sha256: acfda77d6196d70814bfc61c570d1c3da556e4b9979976fdf08fff05403e9f8f
+      - class: desired
+        path: ansible/files/components/reactive-resume-dev-argocd/serviceaccount.yaml
+        sha256: cd299ec8ec36a0aaf00a4a62b74dd455f51dc4ea9f74825f66e33104ecd6ab9d
+      - class: destination
+        path: ansible/files/components/postgresql/network/postgresql-ingress.yaml
+        sha256: 93deeff43cfea12e7b77ef41e8f9ebbd24cc6b467cbdd089c5131a1abf0fc947
+      - class: destination
+        path: ansible/files/components/keycloak/network/keycloak-allow-reactive-resume-dev.yaml
+        sha256: 2486c5301d88d9b95d19dbcca5a4762e11c83007f5e99c7cfab7e00f4ddf50b9
+      - class: destination
+        path: ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml
+        sha256: 129ee4b054899fd6d1f13c5e58a1823d9434ab559eb354b63be53180566b87fb
+      - class: destination
+        path: ansible/files/components/reactive-resume-dev-networkpolicy/network/reactive-resume-object-storage-allow-dev.yaml
+        sha256: 79687232a2a98efaf10db9671ed98d67ed677db3a07729748fbc7df0e4010420
   changed_when: false
   no_log: true
 
@@ -573,7 +630,11 @@
       - item.resources | length == 0 or (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
       - item.resources | length == 0 or (item.resources[0].metadata.finalizers | default([]) | length) == 0
       - item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject', 'Role', 'RoleBinding'] or item.resources[0].spec == item.item.spec
-      - item.resources | length == 0 or item.item.kind != 'Secret' or ((item.resources[0].type == 'Opaque') and (item.resources[0].data | default({})).keys() | list | sort == ['clusterResources', 'config', 'name', 'namespaces', 'server'])
+      - >-
+        item.resources | length == 0 or item.item.kind != 'Secret' or
+        ((item.resources[0].type == 'Opaque') and
+        (item.resources[0].data | default({})).keys() | list | sort ==
+        ['clusterResources', 'config', 'name', 'namespaces', 'server'])
     fail_msg: Refusing to overwrite a foreign or drifted Reactive Resume DEV registration object.
   loop: '{{ reactive_resume_dev_argocd_registration_internal_prestate.results }}'
   changed_when: false
