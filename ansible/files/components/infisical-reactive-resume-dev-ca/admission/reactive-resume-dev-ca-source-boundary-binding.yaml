@@ -1,0 +1,11 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: reactive-resume-dev-ca-source-boundary
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: reactive-resume
+    cristex.io/component: infisical-reactive-resume-dev-ca
+spec:
+  policyName: reactive-resume-dev-ca-source-boundary
+  validationActions: [Deny]

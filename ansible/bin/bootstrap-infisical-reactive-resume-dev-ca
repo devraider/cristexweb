@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+[ "$#" -eq 1 ] && { [ "$1" = check ] || [ "$1" = apply ]; } || { echo 'usage: ansible/bin/bootstrap-infisical-reactive-resume-dev-ca check|apply' >&2; exit 64; }
+mode=$1; dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P); root=$(CDPATH= cd -- "$dir/../.." && pwd -P)
+case "$root" in /Users/paul/Projects/cristexweb|/home/paul/projects/cristexweb) ;; *) exit 78;; esac
+controller="$root/.venv/bin/ansible-playbook"; [ -x "$controller" ] || exit 69
+user=$(id -un); cd "$root/ansible"; umask 077
+a=$(mktemp "${TMPDIR:-/tmp}/cristexweb-infisical-reactive-resume-dev-ca.XXXXXX"); t=$(openssl rand -hex 32); printf '%s:entrypoint\n' "$t" >"$a"; chmod 0600 "$a"; trap 'rm -f -- "$a"' EXIT HUP INT TERM
+set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_infisical_reactive_resume_dev_ca.yml --diff --limit crtxweb --extra-vars '{"infisical_reactive_resume_dev_ca_bootstrap_approved":true}'
+[ "$mode" = apply ] || set -- "$@" --check
+/usr/bin/env -i HOME="${HOME:-/home/paul}" USER="$user" LOGNAME="$user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_REPOSITORY_ROOT="$root" CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_ENTRYPOINT=v1 CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_TOKEN="$t" CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_ATTESTATION_FILE="$a" "$@"

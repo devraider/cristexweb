@@ -818,11 +818,17 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             ROOT / "ansible/roles/keycloak_reactive_resume_dev_client_bootstrap/tasks/main.yml",
             ROOT / "ansible/bin/bootstrap-keycloak-reactive-resume-dev-client",
             ROOT / "ansible/playbooks/bootstrap_keycloak_reactive_resume_dev_client.yml",
+            ROOT / "ansible/playbooks/bootstrap_infisical_reactive_resume_dev_ca.yml",
+            ROOT / "ansible/plugins/action/infisical_reactive_resume_dev_ca_guarded_k8s.py",
+            ROOT / "ansible/roles/infisical_reactive_resume_dev_ca_bootstrap/defaults/main.yml",
+            ROOT / "ansible/roles/infisical_reactive_resume_dev_ca_bootstrap/tasks/main.yml",
+            ROOT / "ansible/bin/bootstrap-infisical-reactive-resume-dev-ca",
         }
         for approved_root in (
             ROOT / "ansible/files/components/reactive-resume-dev-argocd-registration",
             ROOT / "ansible/files/components/reactive-resume-dev-argocd",
             ROOT / "ansible/files/components/reactive-resume-dev-networkpolicy",
+            ROOT / "ansible/files/components/infisical-reactive-resume-dev-ca",
             ROOT / "ansible/files/components/keycloak/network/keycloak-allow-reactive-resume-dev.yaml",
             ROOT / "ansible/files/components/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml",
             ROOT / "ansible/roles/reactive_resume_dev_argocd_registration",

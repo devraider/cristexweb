@@ -61,8 +61,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/keycloak_dev_identity_guarded.py"),
             Path("ansible/plugins/action/keycloak_dev_identity_transition_guarded.py"),
             Path("ansible/plugins/action/keycloak_reactive_resume_dev_client_guarded.py"),
+            Path("ansible/plugins/action/infisical_reactive_resume_dev_ca_guarded_k8s.py"),
         }
-        self.assertEqual(35, len(allowed_action_plugins))
+        self.assertEqual(36, len(allowed_action_plugins))
         self.assertTrue(
             all(path.parts[0] == "tests" or path in allowed_action_plugins for path in source_python),
             source_python,
@@ -199,6 +200,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "bin/bootstrap-cristexhub-dev-registration",
             "bin/bootstrap-cristexhub-dev-sync-transition",
             "bin/bootstrap-infisical-cristexhub-dev-runtime",
+            "bin/bootstrap-infisical-reactive-resume-dev-ca",
             "bin/bootstrap-infisical-cristexhub-prod-runtime",
             "bin/bootstrap-oidc-connect-proxy",
             "bin/configure-coredns-external-forwarding",
@@ -208,6 +210,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "playbooks/bootstrap_cristexhub_dev_registration.yml",
             "playbooks/bootstrap_cristexhub_dev_sync_transition.yml",
             "playbooks/bootstrap_infisical_cristexhub_dev_runtime.yml",
+            "playbooks/bootstrap_infisical_reactive_resume_dev_ca.yml",
             "playbooks/bootstrap_infisical_cristexhub_prod_runtime.yml",
             "playbooks/bootstrap_oidc_connect_proxy.yml",
             "playbooks/configure_coredns_external_forwarding.yml",
@@ -221,6 +224,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "plugins/action/cristexhub_dev_registration_guarded_k8s.py",
             "plugins/action/cristexhub_dev_sync_transition_guarded_k8s.py",
             "plugins/action/infisical_cristexhub_dev_runtime_guarded_k8s.py",
+            "plugins/action/infisical_reactive_resume_dev_ca_guarded_k8s.py",
             "plugins/action/infisical_cristexhub_prod_runtime_guarded_k8s.py",
             "plugins/action/oidc_connect_proxy_guarded_k8s.py",
             "roles/argocd_route_bootstrap/defaults/main.yml",
@@ -235,6 +239,8 @@ class AnsibleLayoutTests(unittest.TestCase):
             "roles/cristexhub_dev_sync_transition/tasks/main.yml",
             "roles/infisical_cristexhub_dev_runtime_bootstrap/defaults/main.yml",
             "roles/infisical_cristexhub_dev_runtime_bootstrap/tasks/main.yml",
+            "roles/infisical_reactive_resume_dev_ca_bootstrap/defaults/main.yml",
+            "roles/infisical_reactive_resume_dev_ca_bootstrap/tasks/main.yml",
             "roles/infisical_cristexhub_prod_runtime_bootstrap/defaults/main.yml",
             "roles/infisical_cristexhub_prod_runtime_bootstrap/tasks/main.yml",
             "roles/oidc_connect_proxy_bootstrap/defaults/main.yml",
@@ -404,6 +410,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "cristexhub-prod-registration",
             "cristexhub-dev-sync-transition",
             "infisical-cristexhub-dev-runtime",
+            "infisical-reactive-resume-dev-ca",
             "infisical-cristexhub-prod-runtime",
             "shared-mongodb-networkpolicy",
             "keycloak-dev-identity",

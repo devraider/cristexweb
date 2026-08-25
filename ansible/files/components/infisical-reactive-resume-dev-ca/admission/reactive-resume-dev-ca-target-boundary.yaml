@@ -1,0 +1,27 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: reactive-resume-dev-ca-target-boundary
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: reactive-resume
+    cristex.io/component: infisical-reactive-resume-dev-ca
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ['']
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [secrets, configmaps]
+        scope: Namespaced
+  matchConditions:
+    - name: exact-namespace-and-identity
+      expression: request.namespace == 'cristexhub-dev' && (request.userInfo.username == 'system:serviceaccount:shared-services:infisical-operator-controller' || object.metadata.name in ['reactive-resume-dev-postgresql-ca', 'reactive-resume-dev-object-storage-ca'])
+  validations:
+    - expression: >-
+        request.userInfo.username == 'system:serviceaccount:shared-services:infisical-operator-controller' && (!has(object.metadata.ownerReferences) || object.metadata.ownerReferences.size() == 0) && object.metadata.labels.size() == 3 && object.metadata.labels['app.kubernetes.io/managed-by'] == 'infisical' && object.metadata.labels['app.kubernetes.io/part-of'] == 'reactive-resume' && object.metadata.labels['cristex.io/value-owner'] == 'infisical-cloud' &&
+        ((object.metadata.name == 'reactive-resume-dev-postgresql-ca' && object.kind == 'ConfigMap' && object.data.size() == 1 && object.data['ca.crt'].size() > 0) ||
+        (object.metadata.name == 'reactive-resume-dev-object-storage-ca' && object.kind == 'Secret' && object.type == 'Opaque' && object.data.size() == 1 && object.data['ca.crt'].size() > 0))
+      message: Only the Infisical controller may write the exact Reactive Resume DEV CA target contracts.
+      reason: Forbidden

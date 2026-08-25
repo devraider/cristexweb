@@ -1,0 +1,9 @@
+---
+- name: Bootstrap guarded value-free Reactive Resume DEV CA materialization
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: infisical_reactive_resume_dev_ca_bootstrap

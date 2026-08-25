@@ -1,0 +1,33 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: reactive-resume-dev-ca-source-boundary
+  labels:
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: reactive-resume
+    cristex.io/component: infisical-reactive-resume-dev-ca
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [secrets.infisical.com]
+        apiVersions: [v1beta1]
+        operations: [CREATE, UPDATE]
+        resources: [infisicalstaticsecrets]
+        scope: Namespaced
+  matchConditions:
+    - name: exact-namespace-and-identity
+      expression: request.namespace == 'cristexhub-dev' && (request.userInfo.username == 'system:serviceaccount:shared-services:infisical-operator-controller' || object.metadata.name == 'reactive-resume-dev-ca')
+  validations:
+    - expression: >-
+        (request.userInfo.username == 'system:admin' ||
+        (request.userInfo.username == 'system:serviceaccount:shared-services:infisical-operator-controller' && oldObject != null && oldObject.spec == object.spec)) &&
+        object.metadata.name == 'reactive-resume-dev-ca' && object.metadata.labels.size() == 4 &&
+        object.metadata.labels['app.kubernetes.io/managed-by'] == 'ansible' && object.metadata.labels['app.kubernetes.io/part-of'] == 'reactive-resume' &&
+        object.metadata.labels['cristex.io/component'] == 'infisical-reactive-resume-dev-ca' && object.metadata.labels['cristex.io/environment'] == 'dev' &&
+        object.spec.infisicalAuthRef.name == 'cristexhub-dev-infisical-auth' && object.spec.infisicalAuthRef.namespace == 'cristexhub-dev' &&
+        object.spec.sources.size() == 2 && object.spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326' && object.spec.sources[0].environmentSlug == 'prod' && object.spec.sources[0].secretPath == '/shared-services/postgresql' &&
+        object.spec.sources[1].projectId == '619656da-14f3-4872-857b-be103cdc5326' && object.spec.sources[1].environmentSlug == 'prod' && object.spec.sources[1].secretPath == '/reactive-resume/dev/object-storage-tls' &&
+        object.spec.targets.size() == 2 && object.spec.targets[0].name == 'reactive-resume-dev-postgresql-ca' && object.spec.targets[0].kind == 'ConfigMap' && object.spec.targets[1].name == 'reactive-resume-dev-object-storage-ca' && object.spec.targets[1].kind == 'Secret'
+      message: Only the exact Reactive Resume DEV CA StaticSecret source is allowed.
+      reason: Forbidden

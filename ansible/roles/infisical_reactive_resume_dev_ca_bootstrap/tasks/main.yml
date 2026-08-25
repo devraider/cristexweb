@@ -1,0 +1,159 @@
+---
+- name: Reject externally supplied CA seam internals
+  ansible.builtin.assert:
+    that: item not in vars
+  loop:
+    - infisical_reactive_resume_dev_ca_bootstrap_internal_manifests
+    - infisical_reactive_resume_dev_ca_bootstrap_internal_preflight_binding
+    - infisical_reactive_resume_dev_ca_bootstrap_internal_auth
+    - infisical_reactive_resume_dev_ca_bootstrap_internal_apply
+  changed_when: false
+
+- name: Require the guarded value-free CA closure invocation
+  ansible.builtin.assert:
+    that:
+      - infisical_reactive_resume_dev_ca_bootstrap_approved | bool
+      - infisical_reactive_resume_dev_ca_bootstrap_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_ATTESTATION_FILE') | length > 0
+      - infisical_reactive_resume_dev_ca_bootstrap_manifest_paths | length == 7
+      - infisical_reactive_resume_dev_ca_bootstrap_object_count == 7
+      - infisical_reactive_resume_dev_ca_bootstrap_namespace == 'cristexhub-dev'
+      - infisical_reactive_resume_dev_ca_bootstrap_auth_name == 'cristexhub-dev-infisical-auth'
+  changed_when: false
+  no_log: true
+
+- name: Inspect the one-time CA seam attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_ATTESTATION_FILE') }}"
+    follow: false
+  delegate_to: localhost
+  register: infisical_reactive_resume_dev_ca_bootstrap_attestation
+  changed_when: false
+  no_log: true
+
+- name: Require private CA seam attestation
+  ansible.builtin.assert:
+    that:
+      - infisical_reactive_resume_dev_ca_bootstrap_attestation.stat.isreg | default(false)
+      - not (infisical_reactive_resume_dev_ca_bootstrap_attestation.stat.islnk | default(false))
+      - infisical_reactive_resume_dev_ca_bootstrap_attestation.stat.mode == '0600'
+      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_TOKEN') ~ ':entrypoint'
+  changed_when: false
+  no_log: true
+
+- name: Inspect exact CA closure source files
+  ansible.builtin.stat:
+    path: '{{ item }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: '{{ infisical_reactive_resume_dev_ca_bootstrap_manifest_paths }}'
+  delegate_to: localhost
+  register: infisical_reactive_resume_dev_ca_bootstrap_manifest_states
+  changed_when: false
+  no_log: true
+
+- name: Require regular hash-bound CA closure source files
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - item.item | realpath == item.item
+      - item.item.startswith(infisical_reactive_resume_dev_ca_bootstrap_repository_root ~ '/ansible/files/components/infisical-reactive-resume-dev-ca/')
+      - item.stat.checksum == (infisical_reactive_resume_dev_ca_bootstrap_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+  loop: '{{ infisical_reactive_resume_dev_ca_bootstrap_manifest_states.results }}'
+  changed_when: false
+  no_log: true
+
+- name: Load exact value-free CA closure objects
+  ansible.builtin.set_fact:
+    infisical_reactive_resume_dev_ca_bootstrap_internal_manifests: '{{ (infisical_reactive_resume_dev_ca_bootstrap_internal_manifests | default([])) + [(lookup("ansible.builtin.file", item) | from_yaml)] }}'
+  loop: '{{ infisical_reactive_resume_dev_ca_bootstrap_manifest_paths }}'
+  changed_when: false
+  no_log: true
+
+- name: Require exact value-free CA closure shape
+  ansible.builtin.assert:
+    that:
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_manifests | length == 7
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ValidatingAdmissionPolicy') | list | length == 2
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'ValidatingAdmissionPolicyBinding') | list | length == 2
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'Role') | list | length == 1
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'RoleBinding') | list | length == 1
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_manifests | selectattr('kind', 'equalto', 'InfisicalStaticSecret') | list | length == 1
+  changed_when: false
+  no_log: true
+
+- name: Query the precreated DEV Infisical Auth metadata
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1beta1
+    kind: InfisicalAuth
+    name: '{{ infisical_reactive_resume_dev_ca_bootstrap_auth_name }}'
+    namespace: '{{ infisical_reactive_resume_dev_ca_bootstrap_namespace }}'
+    kubeconfig: '{{ infisical_reactive_resume_dev_ca_bootstrap_kubeconfig }}'
+  register: infisical_reactive_resume_dev_ca_bootstrap_internal_auth
+  changed_when: false
+  no_log: true
+
+- name: Require the existing exact DEV Infisical Auth
+  ansible.builtin.assert:
+    that:
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_auth.resources | length == 1
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_auth.resources[0].metadata.name == 'cristexhub-dev-infisical-auth'
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_auth.resources[0].metadata.namespace == 'cristexhub-dev'
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_auth.resources[0].spec.method == 'universal'
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_auth.resources[0].spec.infisicalConnectionRef.name == 'infisical-cloud'
+      - infisical_reactive_resume_dev_ca_bootstrap_internal_auth.resources[0].spec.infisicalConnectionRef.namespace == 'cristexhub-dev'
+  fail_msg: 'BLOCKED: existing cristexhub-dev-infisical-auth is absent or drifted; no CA mutation was attempted.'
+  changed_when: false
+  no_log: true
+
+- name: Query exact CA closure object pre-state
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: '{{ item.kind }}'
+    namespace: '{{ item.metadata.namespace | default(omit) }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ infisical_reactive_resume_dev_ca_bootstrap_kubeconfig }}'
+  loop: '{{ infisical_reactive_resume_dev_ca_bootstrap_internal_manifests }}'
+  register: infisical_reactive_resume_dev_ca_bootstrap_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Reject foreign CA closure objects before mutation
+  ansible.builtin.assert:
+    that:
+      - item.resources | length in [0, 1]
+      - item.resources | length == 0 or item.resources[0].metadata.name == item.item.metadata.name
+      - item.resources | length == 0 or (item.resources[0].metadata.labels | default({})) == (item.item.metadata.labels | default({}))
+      - item.resources | length == 0 or item.item.kind not in ['Role', 'RoleBinding', 'InfisicalStaticSecret'] or item.resources[0].get('spec') == item.item.get('spec') or item.resources[0].get('rules') == item.item.get('rules')
+  loop: '{{ infisical_reactive_resume_dev_ca_bootstrap_internal_prestate.results }}'
+  changed_when: false
+  no_log: true
+
+- name: Bind the exact CA closure preflight
+  ansible.builtin.set_fact:
+    infisical_reactive_resume_dev_ca_bootstrap_internal_preflight_binding:
+      attestation_sha256: '{{ lookup("ansible.builtin.env", "CRISTEXWEB_INFISICAL_REACTIVE_RESUME_DEV_CA_TOKEN") | hash("sha256") }}'
+      object_count: 7
+      prestate_count: '{{ infisical_reactive_resume_dev_ca_bootstrap_internal_prestate.results | length }}'
+  changed_when: false
+  no_log: true
+
+- name: Reconcile exact value-free CA closure
+  infisical_reactive_resume_dev_ca_guarded_k8s:
+    state: present
+    definition: '{{ item }}'
+    kubeconfig: '{{ infisical_reactive_resume_dev_ca_bootstrap_kubeconfig }}'
+    wait: false
+    wait_timeout: 60
+  loop: '{{ infisical_reactive_resume_dev_ca_bootstrap_internal_manifests }}'
+  register: infisical_reactive_resume_dev_ca_bootstrap_internal_apply
+  no_log: true
