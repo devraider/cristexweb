@@ -7,8 +7,11 @@ Reactive Resume DEV runs in `cristexhub-dev` at the private hostname
 `https://resume-dev.cristex-soft.com`. The shared `cristexhub` Keycloak client is
 represented by an exact guarded value-free source contract; its secret remains
 Infisical/Kubernetes-owned and no client or user outside that additive contract is
-reconciled by the source. The former same-named `cristexhub-dev` client is disabled,
-retained only for rollback, and deletion is forbidden.
+reconciled by the source. A separate recorded private-runtime acceptance covered
+shared-realm OIDC/session/logout application flow for the active client; that
+runtime evidence is not attributed to the source wrapper. The former same-named
+`cristexhub-dev` client is disabled, retained only for rollback, and deletion is
+forbidden.
 
 Historical absence inventories remain historical and must not be read as current
 state. The canonical DEV workload source contains exactly seven value-free Argo manifests

@@ -42,7 +42,10 @@ and one proxied `hub.cristex-soft.com` DNS create; no apply has run for those tw
 changes. The provider lockfile is tracked, the cloudflared token handoff is complete,
 and the public route remains unapplied. Reactive Resume DEV has a private
 runtime/hostname checkpoint and the shared `cristexhub` client source check passed
-without Keycloak/API or Kubernetes mutation. The prior installed backup source
+without Keycloak/API or Kubernetes mutation. A separate recorded private-runtime
+acceptance completed the shared-realm OIDC/session/logout application cycle for
+`reactive-resume-dev`; that evidence must not be attributed to the source-only
+wrapper. The prior installed backup source
 produced the sanitized schema-1 non-empty receipt
 `run_id=20260825T065948Z object_count=1 total_object_bytes=50 readback=verified
 encrypted=true private_residue=none`; hardened schema-2 installation, fresh

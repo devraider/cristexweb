@@ -2,13 +2,22 @@
 
 ## Status and ownership
 
-**SOURCE CHECK PASSED; RUNTIME VALUES REMAIN PRIVATE.** The exact value-free
-shared-realm client source and its non-passthrough check-only wrapper are
-implemented. The guarded source check passed without Keycloak/API/Kubernetes
-mutation. This pass validates only the committed contract; it does not assert a
-new runtime reconciliation or expose any client value.
+**SOURCE CHECK PASSED; PRIVATE RUNTIME ACCEPTANCE RECORDED; VALUES REMAIN
+PRIVATE.** The exact value-free shared-realm client source and its
+non-passthrough check-only wrapper are implemented. The guarded source check
+passed without Keycloak/API/Kubernetes mutation and validates only the committed
+contract; it does not itself reconcile or inspect the runtime client.
 
-This is the exact value-free source contract for the already checkpointed private
+A separate approved private-runtime acceptance is recorded for this client: the
+active `reactive-resume-dev` client uses the shared `cristexhub` realm, its
+Infisical-owned secret is materialized only into the private application runtime,
+and the private-hostname acceptance cycle covered shared-realm OIDC login,
+session, and logout/application flow. That runtime evidence is intentionally
+separate from this source check and must not be attributed to this wrapper. Full
+application acceptance, database authorization/recovery, and public/PROD gates
+remain separate and open.
+
+This is the exact value-free source contract for the privately accepted
 Reactive Resume DEV client. Ansible owns this bounded source-only validation;
 Keycloak runtime client values remain owned by Infisical Cloud and materialized
 only into the private application runtime. This source does not call Keycloak,
@@ -47,6 +56,8 @@ rejects API/admin token inputs. The action plugin has no URI, command, shell,
 Keycloak, or Kubernetes mutation path. It validates only the committed source
 contract and emits no values.
 
-No apply mode exists in this closure. Any future runtime reconciliation requires
-an explicit separate API/transport, least-privilege actor, preserve-existing
-client/user proof, exact before/after metadata, and rollback approval.
+No apply mode exists in this closure. The recorded runtime reconciliation and
+private acceptance were a separate operation; this wrapper is not its evidence or
+owner. Any future client mutation requires an explicit separate API/transport,
+least-privilege actor, preserve-existing client/user proof, exact before/after
+metadata, and rollback approval.
