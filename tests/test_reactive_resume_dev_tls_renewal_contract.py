@@ -72,6 +72,10 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "chmod 0600 \"$credentials\"",
             "values_output=false",
             "private_residue=none",
+            "infisical_rotation_armed=1",
+            "stage=infisical_rollback",
+            "infisical-rollback-readback.yaml",
+            "remaining_threshold_seconds",
         ):
             self.assertIn(required, text)
         for forbidden in (
@@ -118,7 +122,8 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         for required in (
             "reactive_resume_dev_tls_renewal_mode in ['install', 'enable']",
             "Install exact renewal dependencies",
-            "python3-certbot-dns-cloudflare",
+            'certbot={{ reactive_resume_dev_tls_renewal_certbot_package_version }}',
+            'python3-certbot-dns-cloudflare={{ reactive_resume_dev_tls_renewal_dns_cloudflare_package_version }}',
             "'certbot' in ansible_facts.packages",
             "'python3-certbot-dns-cloudflare' in ansible_facts.packages",
             "reactive_resume_dev_tls_renewal_certbot_package_version",

@@ -38,8 +38,8 @@
 - name: Install exact renewal dependencies
   ansible.builtin.apt:
     name:
-      - certbot
-      - python3-certbot-dns-cloudflare
+      - "certbot={{ reactive_resume_dev_tls_renewal_certbot_package_version }}"
+      - "python3-certbot-dns-cloudflare={{ reactive_resume_dev_tls_renewal_dns_cloudflare_package_version }}"
     state: present
     update_cache: false
   when: reactive_resume_dev_tls_renewal_mode == 'install'
@@ -222,7 +222,6 @@
     state: stopped
   when:
     - reactive_resume_dev_tls_renewal_mode == 'install'
-    - not ansible_check_mode
 
 - name: Enable and start the guarded renewal timer
   ansible.builtin.systemd_service:
@@ -231,4 +230,3 @@
     state: started
   when:
     - reactive_resume_dev_tls_renewal_mode == 'enable'
-    - not ansible_check_mode

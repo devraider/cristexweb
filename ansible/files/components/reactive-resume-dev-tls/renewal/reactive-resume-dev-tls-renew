@@ -39,23 +39,10 @@ fail() {
 }
 
 [ "$(id -u)" -ne 0 ] || fail non_root_operator_required
-[ -x "$certbot" ] || fail certbot_missing
-[ -x "$infisical" ] || fail infisical_cli_missing
-[ -x "$validator" ] || fail validator_missing
 [ -r "$system_ca" ] || fail system_ca_missing
-[ -f "$cloudflare_token_file" ] && [ ! -L "$cloudflare_token_file" ] || fail cloudflare_token_metadata
-[ "$(stat -c '%U:%G:%a' "$cloudflare_token_file")" = 'paul:paul:600' ] || fail cloudflare_token_metadata
-[ "$(stat -c '%s' "$cloudflare_token_file")" -ge 20 ] || fail cloudflare_token_contract
-! grep -q '[[:space:]]' "$cloudflare_token_file" || fail cloudflare_token_contract
 [ -z "${INFISICAL_TOKEN+x}" ] || fail secret_environment_forbidden
 [ -z "${INFISICAL_SERVICE_TOKEN+x}" ] || fail secret_environment_forbidden
 [ -z "${INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET+x}" ] || fail secret_environment_forbidden
-[ "$(/usr/bin/dpkg-query -W -f='${Version}' certbot 2>/dev/null)" = "$certbot_package_version" ] || fail certbot_provenance
-[ "$(/usr/bin/dpkg-query -W -f='${Version}' python3-certbot-dns-cloudflare 2>/dev/null)" = "$dns_cloudflare_package_version" ] || fail dns_cloudflare_provenance
-certbot_version=$($certbot --version 2>&1) || fail certbot_version
-printf '%s\n' "$certbot_version" | grep -Fq "certbot 4.0.0" || fail certbot_version
-infisical_version=$($infisical --version 2>&1) || fail infisical_version
-printf '%s\n' "$infisical_version" | grep -Fq "$infisical_cli_version" || fail infisical_version
 
 [ -d "$state_root" ] && [ ! -L "$state_root" ] || fail state_root_metadata
 [ "$(stat -c '%U:%G:%a' "$state_root")" = 'paul:paul:700' ] || fail state_root_metadata
@@ -81,12 +68,26 @@ flock -n 9 || {
 
 work=$(/usr/bin/mktemp -d "$work_root.XXXXXX")
 challenge_cleanup_armed=0
+infisical_rotation_armed=0
+owned_challenge_ids=$work/owned-challenge-ids
+: >"$owned_challenge_ids"
 cleanup() {
   status=$?
   trap - EXIT HUP INT TERM
   if [ "${challenge_cleanup_armed:-0}" -eq 1 ] && [ -f "${cloudflare_config:-}" ]; then
     if ! cleanup_challenge_records; then
       printf '%s\n' 'tls_renewal_status=failed stage=challenge_cleanup' >&2
+      status=1
+    fi
+  fi
+  if [ "$status" -ne 0 ] && [ "${infisical_rotation_armed:-0}" -eq 1 ] && [ -s "${infisical_before:-}" ]; then
+    rollback_readback=$work/infisical-rollback-readback.yaml
+    if ! "$infisical" secrets set --env "$environment" --projectId "$project_id" \
+        --path "$infisical_path" --file "$infisical_before" --silent >/dev/null 2>&1 ||
+       ! "$infisical" secrets get --env "$environment" --projectId "$project_id" \
+        --path "$infisical_path" --output yaml --silent >"$rollback_readback" 2>/dev/null ||
+       ! /usr/bin/cmp -s "$infisical_before" "$rollback_readback"; then
+      printf '%s\n' 'tls_renewal_status=failed stage=infisical_rollback' >&2
       status=1
     fi
   fi
@@ -97,14 +98,6 @@ trap cleanup EXIT HUP INT TERM
 chmod 0700 "$work"
 
 cloudflare_config=$work/cloudflare.conf
-# curl reads the token from this mode-0600 config file; the token is never an
-# argument, environment value, journal field, or evidence value.
-{
-  printf 'header = "Authorization: Bearer '
-  cat "$cloudflare_token_file"
-  printf '"\nheader = "Content-Type: application/json"\n'
-} >"$cloudflare_config"
-chmod 0600 "$cloudflare_config"
 
 cf_api() {
   method=$1
@@ -136,21 +129,15 @@ cf_records_empty() {
 
 cleanup_challenge_records() {
   records=$work/challenge-cleanup.json
-  ids=$work/challenge-ids
-  cf_api GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=TXT&name=$challenge_name&per_page=100" "$records" || return 1
-  cf_json_success "$records" || return 1
-  if cf_records_empty "$records"; then
-    : >"$ids"
-  else
-    /usr/bin/grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' "$records" |
-      /usr/bin/sed -E 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' >"$ids" || return 1
-  fi
   while IFS= read -r record_id; do
     [ -n "$record_id" ] || continue
     deleted=$work/challenge-delete.json
     cf_api DELETE "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" "$deleted" || return 1
     cf_json_success "$deleted" || return 1
-  done <"$ids"
+  done <"$owned_challenge_ids"
+  : >"$owned_challenge_ids"
+  # Never delete an unrecorded concurrent actor's TXT record. Any remaining
+  # exact-name record is a fail-closed cleanup condition for manual review.
   cf_api GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=TXT&name=$challenge_name&per_page=100" "$records" || return 1
   cf_json_success "$records" && cf_records_empty "$records"
 }
@@ -175,6 +162,31 @@ if openssl x509 -in "$current_cert" -noout -checkend "$minimum_remaining_seconds
   printf 'tls_renewal_status=skipped reason=certificate_valid san=exact trust=verified remaining_threshold_seconds=%s\n' "$minimum_remaining_seconds"
   exit 0
 fi
+
+# Renewal-only prerequisites are intentionally checked after the trusted
+# certificate threshold, so a safe skip does not require provider or Infisical
+# credentials and never materializes a token-bearing temporary file.
+[ -x "$certbot" ] || fail certbot_missing
+[ -x "$infisical" ] || fail infisical_cli_missing
+[ -x "$validator" ] || fail validator_missing
+[ -f "$cloudflare_token_file" ] && [ ! -L "$cloudflare_token_file" ] || fail cloudflare_token_metadata
+[ "$(stat -c '%U:%G:%a' "$cloudflare_token_file")" = 'paul:paul:600' ] || fail cloudflare_token_metadata
+[ "$(stat -c '%s' "$cloudflare_token_file")" -ge 20 ] || fail cloudflare_token_contract
+! grep -q '[[:space:]]' "$cloudflare_token_file" || fail cloudflare_token_contract
+[ "$(/usr/bin/dpkg-query -W -f='${Version}' certbot 2>/dev/null)" = "$certbot_package_version" ] || fail certbot_provenance
+[ "$(/usr/bin/dpkg-query -W -f='${Version}' python3-certbot-dns-cloudflare 2>/dev/null)" = "$dns_cloudflare_package_version" ] || fail dns_cloudflare_provenance
+certbot_version=$($certbot --version 2>&1) || fail certbot_version
+printf '%s\n' "$certbot_version" | grep -Fq "certbot 4.0.0" || fail certbot_version
+infisical_version=$($infisical --version 2>&1) || fail infisical_version
+printf '%s\n' "$infisical_version" | grep -Fq "$infisical_cli_version" || fail infisical_version
+# curl reads the token from this mode-0600 config file; the token is never an
+# argument, environment value, journal field, or evidence value.
+{
+  printf 'header = "Authorization: Bearer '
+  cat "$cloudflare_token_file"
+  printf '"\nheader = "Content-Type: application/json"\n'
+} >"$cloudflare_config"
+chmod 0600 "$cloudflare_config"
 
 # Validate token activity, account, zone identity, and read access to only the
 # exact challenge name before arming the cleanup boundary.
@@ -211,9 +223,11 @@ cf_json_success "$scope_probe_response" || fail cloudflare_dns_write_scope
 scope_probe_id=$(/usr/bin/grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' "$scope_probe_response" |
   /usr/bin/sed -E 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' | head -n 1)
 [ -n "$scope_probe_id" ] || fail cloudflare_dns_write_scope
+printf '%s\n' "$scope_probe_id" >>"$owned_challenge_ids"
 cf_api DELETE "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$scope_probe_id" \
   "$scope_probe_delete" || fail cloudflare_dns_write_scope
 cf_json_success "$scope_probe_delete" || fail cloudflare_dns_write_scope
+: >"$owned_challenge_ids"
 cf_api GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=TXT&name=$challenge_name&per_page=100" \
   "$challenge_preflight" || fail cloudflare_dns_cleanup
 cf_json_success "$challenge_preflight" && cf_records_empty "$challenge_preflight" || fail cloudflare_dns_cleanup
@@ -293,6 +307,9 @@ payload=$work/infisical-upload.yaml
   sed 's/^/  /' "$private_key"
 } >"$payload"
 chmod 0600 "$payload"
+# Arm rollback before the first write so ambiguous transport failures restore
+# and verify the exact protected pre-state during the EXIT trap.
+infisical_rotation_armed=1
 "$infisical" secrets set --env "$environment" --projectId "$project_id" \
   --path "$infisical_path" --file "$payload" --silent >/dev/null 2>&1 || fail infisical_upload
 
@@ -335,5 +352,6 @@ fi
 # only exact-name records left by this locked run and verify an empty result.
 cleanup_challenge_records || fail challenge_cleanup
 challenge_cleanup_armed=0
+infisical_rotation_armed=0
 printf 'tls_renewal_status=success hostname=%s san=exact trust=verified validity=30d custody=infisical path=%s keys=exact-two upload_readback=verified challenge=%s cleanup=verified private_residue=none values_output=false\n' \
   "$hostname" "$infisical_path" "$challenge_name"
