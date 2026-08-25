@@ -53,15 +53,34 @@ PY
 [ "${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_APPROVED-}" = true ] || fail approval_missing
 approval_file=${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ATTESTATION_FILE-}
 token=${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_TOKEN-}
-[ -n "$approval_file" ] && [ -f "$approval_file" ] && [ ! -L "$approval_file" ] || fail approval_attestation
+[ -n "$approval_file" ] || fail approval_attestation
 case "$token" in
   ''|*[!0-9a-f]*) fail approval_token ;;
 esac
 [ "${#token}" -eq 64 ] || fail approval_token
-[ "$(/usr/bin/stat -c '%U:%a' "$approval_file")" = "$(id -un):600" ] || fail approval_attestation
-[ "$(/usr/bin/cat "$approval_file")" = "$token:restore" ] || fail approval_attestation
-/usr/bin/rm -f -- "$approval_file" || fail approval_attestation_consume
-[ ! -e "$approval_file" ] || fail approval_attestation_consume
+# Open without following links, validate through the held descriptor, and consume
+# the same inode before any restore lock or remote access. A malicious process
+# under the trusted operator UID remains outside this boundary.
+APPROVAL_FILE="$approval_file" APPROVAL_TOKEN="$token" /usr/bin/python3 - <<'PY' || fail approval_attestation_consume
+import os
+import stat
+path = os.environ["APPROVAL_FILE"]
+expected = (os.environ["APPROVAL_TOKEN"] + ":restore").encode("ascii")
+fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+try:
+    opened = os.fstat(fd)
+    assert stat.S_ISREG(opened.st_mode)
+    assert opened.st_uid == os.getuid() and stat.S_IMODE(opened.st_mode) == 0o600
+    assert opened.st_nlink == 1
+    value = os.read(fd, len(expected) + 1)
+    assert value == expected and os.read(fd, 1) == b""
+    current = os.lstat(path)
+    assert current.st_dev == opened.st_dev and current.st_ino == opened.st_ino
+    os.unlink(path)
+    assert not os.path.lexists(path)
+finally:
+    os.close(fd)
+PY
 
 exec 9>"$lock_file"
 /usr/bin/flock -n 9 || { printf '%s\n' 'restore_status=refused reason=concurrent_run'; exit 75; }

@@ -263,9 +263,39 @@ shm_capacity_preflight 4 "$postgres_source_bytes" "$object_source_bytes" || fail
 /usr/local/bin/kubectl -n "$namespace" exec -i "$helper_pod" -c rclone -- \
   tar -C /work -czf - objects >"$work/object-storage.tar.gz" || fail object_archive_export
 [ -s "$work/object-storage.tar.gz" ] || fail object_archive_empty
-/usr/bin/mkdir -p "$work/object-export"
-/usr/bin/tar --extract --gzip --file="$work/object-storage.tar.gz" \
-  --directory="$work/object-export" --no-same-owner --no-same-permissions || fail object_archive_extract
+/usr/bin/install -d -m 0700 "$work/object-export"
+ARCHIVE="$work/object-storage.tar.gz" OBJECT_EXPORT="$work/object-export" /usr/bin/python3 - <<'PY' || fail object_archive_extract
+import os
+import shutil
+import tarfile
+root = os.path.realpath(os.environ["OBJECT_EXPORT"])
+with tarfile.open(os.environ["ARCHIVE"], mode="r:gz") as archive:
+    members = archive.getmembers()
+    assert members
+    for member in members:
+        path = member.name.rstrip("/")
+        assert path and not path.startswith("/") and path.startswith("objects")
+        assert ".." not in path.split("/") and "\\" not in path and "\x00" not in path
+        target = os.path.realpath(os.path.join(root, path))
+        assert os.path.commonpath((root, target)) == root
+        assert member.isdir() or member.isfile()
+        if member.isdir():
+            os.makedirs(target, mode=0o700, exist_ok=True)
+            assert not os.path.islink(target)
+            continue
+        parent = os.path.dirname(target)
+        os.makedirs(parent, mode=0o700, exist_ok=True)
+        assert not os.path.islink(parent) and not os.path.lexists(target)
+        source = archive.extractfile(member)
+        assert source is not None
+        descriptor = os.open(
+            target,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+        )
+        with os.fdopen(descriptor, "wb") as destination:
+            shutil.copyfileobj(source, destination, length=1024 * 1024)
+PY
 RAW="$work/raw-manifest.json" OUT="$work/object-manifest.json" OBJECT_ROOT="$work/object-export/objects" /usr/bin/python3 - <<'PY'
 import hashlib, json, os
 with open(os.environ["RAW"], encoding="utf-8") as stream:
@@ -338,6 +368,7 @@ pg_logical_table_count=${pg_logical_counts#*:}
 [ "$pg_logical_entry_count" -gt 0 ] && [ "$pg_logical_table_count" -gt 0 ] || fail pg_logical_content
 /usr/bin/gzip -9 -c "$work/reactive-resume-dev.dump" >"$work/postgresql.dump.gz" || fail pg_compress
 /usr/bin/age -r "$recipient" -o "$run_directory/postgresql.dump.gz.age" "$work/postgresql.dump.gz" || fail pg_encrypt
+[ -s "$run_directory/postgresql.dump.gz.age" ] || fail pg_archive_empty
 /usr/bin/rm -f -- "$work/reactive-resume-dev.dump" "$work/postgresql.dump.gz"
 cleanup_helper
 helper_uid=

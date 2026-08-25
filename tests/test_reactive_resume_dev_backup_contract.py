@@ -24,10 +24,13 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
     def test_object_bytes_are_streamed_to_host_before_host_digest_validation(self):
         source = BACKUP.read_text()
         export = source.index('>"$work/object-storage.tar.gz" || fail object_archive_export')
-        extract = source.index('--directory="$work/object-export"')
+        extract = source.index('ARCHIVE="$work/object-storage.tar.gz"')
         validate = source.index('OBJECT_ROOT="$work/object-export/objects"')
         self.assertLess(export, extract)
         self.assertLess(extract, validate)
+        self.assertIn('assert member.isdir() or member.isfile()', source)
+        self.assertIn('os.O_NOFOLLOW', source)
+        self.assertNotIn('/usr/bin/tar --extract', source)
         self.assertIn('os.environ["OBJECT_ROOT"]', source)
         self.assertNotIn('os.path.join("/work/objects", key)', source)
 
@@ -36,7 +39,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('assert member.isdir() or member.isfile()', source)
         self.assertIn('os.O_NOFOLLOW', source)
         self.assertIn('not os.path.lexists(target)', source)
-        self.assertIn('/usr/bin/rm -f -- "$approval_file"', source)
+        self.assertIn('fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)', source)
+        self.assertIn('os.unlink(path)', source)
+        self.assertIn('current.st_ino == opened.st_ino', source)
         self.assertIn('approval_attestation_consume', source)
 
     def test_pg_table_count_excludes_table_data_and_attach_toc_entries(self):
