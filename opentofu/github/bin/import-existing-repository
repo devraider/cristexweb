@@ -74,7 +74,7 @@ lock_file="$state_parent/github-import.lock"
 [ ! -e "$lock_file" ] || [ -f "$lock_file" ] || exit 65
 exec 9>"$lock_file"
 chmod 0600 "$lock_file"
-[ "$(/usr/bin/stat -c '%U:%G:%a' "$lock_file")" = 'paul:root:600' ] || exit 65
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$lock_file")" = 'paul:paul:600' ] || exit 65
 /usr/bin/flock -n 9 || {
     printf '%s\n' 'Refusing concurrent first-genesis import.' >&2
     exit 75

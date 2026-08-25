@@ -149,6 +149,7 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "committed backend file is hash-bound",
             "grep -Fxq",
             "lock_file=\"$state_parent/github-import.lock\"",
+            "paul:paul:600",
             "/usr/bin/flock -n 9",
             "state_absence_recheck",
             "TF_CLI_ARGS_*",
