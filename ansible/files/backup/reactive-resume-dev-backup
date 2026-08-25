@@ -256,7 +256,17 @@ case "$postgres_source_bytes" in
   ''|*[!0-9]*) fail postgresql_size ;;
 esac
 shm_capacity_preflight 4 "$postgres_source_bytes" "$object_source_bytes" || fail shm_capacity
-RAW="$work/raw-manifest.json" OUT="$work/object-manifest.json" /usr/bin/python3 - <<'PY'
+# Stream the exported object tree to the host before host-side digest validation.
+# The helper emptyDir is not mounted on the host, so raw manifest bytes alone are
+# insufficient. Keep both the archive and an extracted validation copy in the
+# protected tmpfs workspace; the capacity preflight above accounts for both.
+/usr/local/bin/kubectl -n "$namespace" exec -i "$helper_pod" -c rclone -- \
+  tar -C /work -czf - objects >"$work/object-storage.tar.gz" || fail object_archive_export
+[ -s "$work/object-storage.tar.gz" ] || fail object_archive_empty
+/usr/bin/mkdir -p "$work/object-export"
+/usr/bin/tar --extract --gzip --file="$work/object-storage.tar.gz" \
+  --directory="$work/object-export" --no-same-owner --no-same-permissions || fail object_archive_extract
+RAW="$work/raw-manifest.json" OUT="$work/object-manifest.json" OBJECT_ROOT="$work/object-export/objects" /usr/bin/python3 - <<'PY'
 import hashlib, json, os
 with open(os.environ["RAW"], encoding="utf-8") as stream:
     values = json.load(stream)
@@ -274,7 +284,9 @@ for item in values:
     seen.add(key)
     expected_size = item.get("Size")
     assert isinstance(expected_size, int) and expected_size >= 0
-    path = os.path.join("/work/objects", key)
+    root = os.environ["OBJECT_ROOT"]
+    path = os.path.join(root, key)
+    assert os.path.commonpath((root, os.path.realpath(path))) == root
     assert os.path.isfile(path) and not os.path.islink(path)
     actual_size = os.stat(path).st_size
     assert actual_size == expected_size
@@ -290,17 +302,18 @@ for item in values:
         assert isinstance(md5, str) and len(md5) == 32 and md5_digest.hexdigest() == md5
     objects.append({"key": key, "size": actual_size, "sha256": digest.hexdigest(), "md5": md5})
 actual = set()
-for root, dirs, files in os.walk("/work/objects", followlinks=False):
+object_root = os.environ["OBJECT_ROOT"]
+for root, dirs, files in os.walk(object_root, followlinks=False):
+    assert all(not os.path.islink(os.path.join(root, name)) for name in dirs)
     for name in files:
         path = os.path.join(root, name)
         assert not os.path.islink(path)
-        actual.add(os.path.relpath(path, "/work/objects"))
+        actual.add(os.path.relpath(path, object_root))
 assert actual == seen
 objects.sort(key=lambda value: value["key"])
 with open(os.environ["OUT"], "w", encoding="utf-8") as stream:
     json.dump({"schema": 2, "bucket": "reactive-resume-dev", "objects": objects}, stream, separators=(",", ":"))
 PY
-/usr/local/bin/kubectl -n "$namespace" exec -i "$helper_pod" -c rclone -- tar -C /work -czf - objects >"$work/object-storage.tar.gz" || fail object_archive_export
 /usr/bin/age -r "$recipient" -o "$run_directory/object-storage.tar.gz.age" "$work/object-storage.tar.gz" || fail object_archive_encrypt
 [ -s "$run_directory/object-storage.tar.gz.age" ] || fail object_archive_empty
 

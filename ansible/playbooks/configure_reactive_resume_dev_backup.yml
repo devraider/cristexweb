@@ -12,8 +12,8 @@
     reactive_resume_dev_backup_age_version: 1.2.1-1+b5
     reactive_resume_dev_backup_recipient_sha256: ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
     reactive_resume_dev_backup_repository_root: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_REPOSITORY_ROOT') | trim }}"
-    reactive_resume_dev_backup_wrapper_sha256: d07c4aca5a662726e8c34df1c1a709fa8e77075cb2ce9593df57e169c85f4d29
-    reactive_resume_dev_backup_playbook_sha256: 08f2973d4edc7d102b1b9fb26a90d79ec0a8c4dbfc805e4c4597e00d99f3be2e
+    reactive_resume_dev_backup_wrapper_sha256: 6937c5b3bb27e07fb2c5360069c488d8a1716d31b47cfab70d3625885cf39aa4
+    reactive_resume_dev_backup_playbook_sha256: aefdd5260eb0809d30a7a548f9e2bb759d2bcf422d165d30d34fa57209d7536c
     reactive_resume_dev_backup_service: cristexweb-reactive-resume-dev-backup.service
     reactive_resume_dev_backup_timer: cristexweb-reactive-resume-dev-backup.timer
     reactive_resume_dev_backup_acceptance_directory: /var/lib/cristexweb-backup/reactive-resume/dev/acceptance
@@ -50,10 +50,10 @@
       loop:
         - path: ansible/bin/configure-reactive-resume-dev-backup
           mode: '0755'
-          sha256: 9a343566349d12853dfd6afa219c6185390be996cc5babbdea10ae8b39f5a000
+          sha256: a6b667cc3a8fa7c7585fa6e685c33a73760b6c98e5e8533a8984edecd062008d
         - path: ansible/files/backup/reactive-resume-dev-backup
           mode: '0755'
-          sha256: 6f7b712f0ddbc4925e3732120bb0f63fb130e10a7f1eb72e777e1b5efdd63719
+          sha256: 601f373f77e955caf4deb26ab4811f8c635afdee906886ee787a4f1768faa11d
         - path: ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal
           mode: '0755'
           sha256: 9f478cd48ebad4f370672b6b4ebf2678abd80d93aedf42b2b26e96c6ee9c190e

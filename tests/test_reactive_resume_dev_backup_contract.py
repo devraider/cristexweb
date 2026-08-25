@@ -21,6 +21,16 @@ RUNBOOK = ROOT / "runbooks/reactive-resume-dev-backup.md"
 
 
 class ReactiveResumeDevBackupContractTests(unittest.TestCase):
+    def test_object_bytes_are_streamed_to_host_before_host_digest_validation(self):
+        source = BACKUP.read_text()
+        export = source.index('>"$work/object-storage.tar.gz" || fail object_archive_export')
+        extract = source.index('--directory="$work/object-export"')
+        validate = source.index('OBJECT_ROOT="$work/object-export/objects"')
+        self.assertLess(export, extract)
+        self.assertLess(extract, validate)
+        self.assertIn('os.environ["OBJECT_ROOT"]', source)
+        self.assertNotIn('os.path.join("/work/objects", key)', source)
+
     def test_pg_table_count_excludes_table_data_and_attach_toc_entries(self):
         for source in (BACKUP.read_text(), RESTORE.read_text()):
             self.assertIn('TABLE\\s+(?!DATA\\s|ATTACH\\s)', source)
