@@ -32,6 +32,9 @@
     - reactive_resume_object_storage_source_check_internal_history_links
     - reactive_resume_object_storage_source_check_internal_live_secret
     - reactive_resume_object_storage_source_check_internal_live_infisical_source
+    - reactive_resume_object_storage_source_check_internal_secret_metadata
+    - reactive_resume_object_storage_source_check_internal_alternate_producers
+    - reactive_resume_object_storage_source_check_internal_metadata_inventory
   changed_when: false
 
 - name: Require the check-only object-storage source contract
@@ -429,58 +432,101 @@
   changed_when: false
   no_log: true
 
-- name: Inspect absent historical InfisicalStaticSecret source identity
-  kubernetes.core.k8s_info:
-    api_version: secrets.infisical.com/v1beta1
-    kind: InfisicalStaticSecret
-    name: "{{ reactive_resume_object_storage_source_check_live_secret_name }}"
-    namespace: "{{ reactive_resume_object_storage_source_check_namespace }}"
+- name: Inspect live object-storage Secret custody metadata without requesting Secret data
+  reactive_resume_object_storage_metadata:
     kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
-  register: reactive_resume_object_storage_source_check_internal_live_infisical_source
+    api_path: "{{ reactive_resume_object_storage_source_check_secret_metadata_resource.api_path }}"
+  register: reactive_resume_object_storage_source_check_internal_secret_metadata
   check_mode: false
-  changed_when: false
-  failed_when: false
-  no_log: true
-
-- name: Require historical InfisicalStaticSecret source to remain absent
-  ansible.builtin.assert:
-    that:
-      - reactive_resume_object_storage_source_check_internal_live_infisical_source.failed | default(false) | bool == false
-      - reactive_resume_object_storage_source_check_internal_live_infisical_source.resources | default([]) | length == 0
-    fail_msg: Refusing an applied historical InfisicalStaticSecret source object; this recovery record has no reconciliation path.
   changed_when: false
   no_log: true
 
-- name: Inspect live object-storage Secret custody metadata without reading values
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Secret
-    name: "{{ reactive_resume_object_storage_source_check_live_secret_name }}"
-    namespace: "{{ reactive_resume_object_storage_source_check_namespace }}"
+- name: Inspect alternate Secret producer metadata without requesting object data
+  reactive_resume_object_storage_metadata:
     kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
-  register: reactive_resume_object_storage_source_check_internal_live_secret
+    api_path: "{{ item.api_path }}"
+  loop: "{{ reactive_resume_object_storage_source_check_alternate_producers }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: reactive_resume_object_storage_source_check_internal_alternate_producers
   check_mode: false
   changed_when: false
-  failed_when: false
+  no_log: true
+
+- name: Initialize the sanitized owner provenance and deletion metadata inventory
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_metadata_inventory:
+      - identity: "Secret/shared-services/{{ reactive_resume_object_storage_source_check_live_secret_name }}"
+        found: "{{ reactive_resume_object_storage_source_check_internal_secret_metadata.found | default(false) }}"
+        metadata: "{{ reactive_resume_object_storage_source_check_internal_secret_metadata.metadata | default({}) }}"
+  changed_when: false
+  no_log: true
+
+- name: Inventory alternate producer owner provenance and deletion metadata
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_metadata_inventory: >-
+      {{ reactive_resume_object_storage_source_check_internal_metadata_inventory + [
+        {
+          'identity': item.item.name,
+          'found': item.found | default(false),
+          'metadata': item.metadata | default({})
+        }
+      ] }}
+  loop: "{{ reactive_resume_object_storage_source_check_internal_alternate_producers.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  changed_when: false
   no_log: true
 
 - name: Require historical Infisical source absence and separate live Secret custody
   ansible.builtin.assert:
     that:
-      - reactive_resume_object_storage_source_check_internal_live_secret.failed | default(false) | bool == false
-      - reactive_resume_object_storage_source_check_internal_live_secret.resources | default([]) | length == 1
-      - >-
-        reactive_resume_object_storage_source_check_internal_live_secret.resources[0].metadata.name ==
-        reactive_resume_object_storage_source_check_live_secret_name
-      - >-
-        reactive_resume_object_storage_source_check_internal_live_secret.resources[0].type ==
-        reactive_resume_object_storage_source_check_live_secret_type
-      - >-
-        reactive_resume_object_storage_source_check_internal_live_secret.resources[0].metadata.labels ==
-        reactive_resume_object_storage_source_check_live_secret_labels
-      - reactive_resume_object_storage_source_check_internal_live_secret.resources[0].metadata.annotations.get('argocd.argoproj.io/instance', '') == ''
-      - reactive_resume_object_storage_source_check_internal_live_secret.resources[0].metadata.annotations.get('argocd.argoproj.io/tracking-id', '') == ''
-    fail_msg: Refusing missing or foreign live Secret custody for an intentionally absent historical InfisicalStaticSecret.
+      - reactive_resume_object_storage_source_check_internal_secret_metadata.found | default(false) | bool
+      - reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.name == reactive_resume_object_storage_source_check_live_secret_name
+      - reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.labels == reactive_resume_object_storage_source_check_live_secret_labels
+      - reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.annotations.get('argocd.argoproj.io/instance', '') == ''
+      - reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.annotations.get('argocd.argoproj.io/tracking-id', '') == ''
+      - reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.ownerReferences | default([]) | length == 0
+      - reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.finalizers | default([]) | length == 0
+      - reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.deletionTimestamp | default(None) is none
+      - reactive_resume_object_storage_source_check_internal_secret_metadata.metadata.deletionGracePeriodSeconds | default(None) is none
+    fail_msg: Refusing missing, foreign, owned, terminating, or value-unverified live Secret custody.
+  changed_when: false
+  no_log: true
+
+- name: Require historical InfisicalStaticSecret source to remain absent
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_object_storage_source_check_internal_alternate_producers.results[0].item.name == 'infisical-static-secret'
+      - reactive_resume_object_storage_source_check_internal_alternate_producers.results[0].found | default(false) | bool == false
+      - reactive_resume_object_storage_source_check_internal_alternate_producers.results[0].metadata | default({}) == {}
+    fail_msg: Refusing an applied historical InfisicalStaticSecret source object; this recovery record has no reconciliation path.
+  changed_when: false
+  no_log: true
+
+- name: Require no alternate Secret producer and inventory its provenance metadata
+  ansible.builtin.assert:
+    that:
+      - item.found | default(false) | bool == false
+      - item.metadata | default({}) == {}
+    fail_msg: "Refusing an alternate producer for the object-storage Secret target: {{ item.item.name }}."
+  loop: "{{ reactive_resume_object_storage_source_check_internal_alternate_producers.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Require live source objects have no foreign owner or deletion metadata
+  ansible.builtin.assert:
+    that:
+      - item.resources[0].metadata.ownerReferences | default([]) | length == 0
+      - item.resources[0].metadata.finalizers | default([]) | length == 0
+      - item.resources[0].metadata.deletionTimestamp | default(None) is none
+      - item.resources[0].metadata.deletionGracePeriodSeconds | default(None) is none
+    fail_msg: Refusing an object-storage source with foreign ownership or pending deletion metadata.
+  loop: "{{ reactive_resume_object_storage_source_check_internal_live_objects.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
   changed_when: false
   no_log: true
 
@@ -618,7 +664,7 @@
     msg: >-
       object_storage_source_check=passed historical_objects=8 live_runtime_objects=7
       historical_infisical_static_secret=absent live_secret_custody=present current_leaf=bound
-      live_identity_query=metadata_and_nonsecret_full_spec secret_values_read=false pvc_data_read=false
+      live_identity_query=partial_metadata_and_nonsecret_full_spec secret_values_requested=false pvc_data_read=false
       argo_application=present argo_sync=Synced argo_health=Healthy argo_shared_services_resources=0
       argo_tracking=absent handoff=not_proven argo_apply=false pvc_apply=false delete=false
   changed_when: false

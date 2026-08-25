@@ -73,6 +73,7 @@ class AnsibleLayoutTests(unittest.TestCase):
         }
         allowed_library_plugins = {
             Path("ansible/library/reactive_resume_dev_secret_metadata.py"),
+            Path("ansible/library/reactive_resume_object_storage_metadata.py"),
         }
         self.assertTrue(
             all(
@@ -103,6 +104,11 @@ class AnsibleLayoutTests(unittest.TestCase):
             "files/policies/hosted-identity-authorization.yml",
             "files/policies/reactive-resume-architecture.yml",
             "files/policies/reactive-resume-postgresql-exposure-rotation.yml",
+<<<<<<< HEAD
+=======
+            "files/policies/reactive-resume-dev-postgresql-successor.yml",
+            "files/policies/reactive-resume-object-storage.yml",
+>>>>>>> 42b5a4a (fix: harden object storage source metadata checks)
             "files/policies/shared-database-architecture.yml",
             "files/policies/shared-rabbitmq-architecture.yml",
             "files/policies/shared-stateful-backup-architecture.yml",
@@ -477,6 +483,7 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "plugins/action/reactive_resume_dev_successor_guarded.py",
                 "roles/reactive_resume_dev_successor/defaults/main.yml",
                 "roles/reactive_resume_dev_successor/tasks/main.yml",
+                "library/reactive_resume_object_storage_metadata.py",
                 "bin/check-reactive-resume-object-storage-source",
                 "playbooks/check_reactive_resume_object_storage_source.yml",
                 "roles/reactive_resume_object_storage_source_check/defaults/main.yml",

@@ -22,6 +22,7 @@ assert _spec and _spec.loader
 _full_spec_module = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_full_spec_module)
 _normalized = _full_spec_module._normalized
+_normalized_pair = _full_spec_module._normalized_pair
 TASKS = ROLE / "tasks/main.yml"
 DEFAULTS = ROLE / "defaults/main.yml"
 PLAYBOOK = ROOT / "ansible/playbooks/check_reactive_resume_object_storage_source.yml"
@@ -178,6 +179,8 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         for required in (
             "_METADATA_DROPS",
             "_SERVICE_SPEC_DROPS",
+            "_SERVICE_DEFAULTS",
+            "_STATEFULSET_DEFAULTS",
             "kubectl.kubernetes.io/last-applied-configuration",
             "clusterIP",
             "revisionHistoryLimit",
@@ -191,14 +194,32 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
         live["metadata"].update({"uid": "generated", "resourceVersion": "generated"})
         live["spec"].update({"clusterIP": "10.0.0.1", "clusterIPs": ["10.0.0.1"], "ipFamilies": ["IPv4"], "ipFamilyPolicy": "SingleStack", "sessionAffinity": "None"})
         live["metadata"]["annotations"] = {"kubectl.kubernetes.io/last-applied-configuration": "generated"}
-        self.assertEqual(_normalized(desired), _normalized(live))
+        self.assertEqual(_normalized_pair(desired, live)[0], _normalized_pair(desired, live)[1])
+        behavior_drift = yaml.safe_load((HISTORY / "runtime/service.yaml").read_text())
+        behavior_drift["spec"]["sessionAffinity"] = "ClientIP"
+        self.assertNotEqual(_normalized_pair(desired, behavior_drift)[0], _normalized_pair(desired, behavior_drift)[1])
+        deleting = yaml.safe_load((HISTORY / "runtime/service.yaml").read_text())
+        deleting["metadata"]["deletionTimestamp"] = "2026-01-01T00:00:00Z"
+        self.assertNotEqual(_normalized_pair(desired, deleting)[0], _normalized_pair(desired, deleting)[1])
+        statefulset = yaml.safe_load((HISTORY / "runtime/statefulset.yaml").read_text())
+        live_statefulset = yaml.safe_load((HISTORY / "runtime/statefulset.yaml").read_text())
+        live_statefulset["spec"]["revisionHistoryLimit"] = 10
+        self.assertEqual(_normalized_pair(statefulset, live_statefulset)[0], _normalized_pair(statefulset, live_statefulset)[1])
+
+    def test_metadata_request_never_returns_secret_body(self) -> None:
+        metadata_module = ROOT / "ansible/library/reactive_resume_object_storage_metadata.py"
+        text = metadata_module.read_text()
+        self.assertIn("PartialObjectMetadata", text)
+        self.assertIn("_PARTIAL_METADATA_ACCEPT", text)
+        self.assertNotIn('"data"', text)
+        self.assertNotIn('"stringData"', text)
 
     def test_role_is_read_only_and_ownership_guarded(self) -> None:
         for required in (
             "ansible_check_mode",
             "kubernetes.core.k8s_info:",
             "check_mode: false",
-            "metadata_and_nonsecret_full_spec secret_values_read=false pvc_data_read=false",
+            "partial_metadata_and_nonsecret_full_spec secret_values_requested=false pvc_data_read=false",
             "reactive_resume_object_storage_source_check_internal_manifest_ledger",
             "reactive_resume_object_storage_source_check_internal_history_files",
             "reactive_resume_object_storage_source_check_internal_history_directories",
@@ -206,6 +227,10 @@ class ReactiveResumeObjectStorageSourceCheckContractTests(unittest.TestCase):
             "Require the exact historical source directory inventory",
             "historical Infisical source absence",
             "Require historical InfisicalStaticSecret source to remain absent",
+            "reactive_resume_object_storage_metadata:",
+            "without requesting Secret data",
+            "alternate Secret producer",
+            "owner provenance and deletion metadata",
             "live Secret custody",
             "reactive_resume_object_storage_source_check_live_secret_name",
             "reactive_resume_object_storage_source_check_argo_revision",

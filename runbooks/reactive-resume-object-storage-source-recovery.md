@@ -13,8 +13,9 @@ Kubernetes object, PVC, Secret, or Argo Application.
 The current private DEV Argo Application is revision
 `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`, with pruning and empty applications
 disabled. The source check reads object metadata plus normalized non-secret full
-specs and ConfigMap data required for exact source comparison; it never reads
-Secret values or PVC contents. It requires all eight historical source
+specs and ConfigMap data required for exact source comparison. Secret custody
+and alternate-producer checks use the Kubernetes PartialObjectMetadata media
+type, so no Secret data or stringData is requested or returned; Secret values or PVC contents are never queried. It requires all eight historical source
 identities in repository custody, while only seven non-secret runtime
 identities are required live. The historical InfisicalStaticSecret source
 record is intentionally absent live; live Secret custody is checked separately
@@ -76,7 +77,10 @@ InfisicalStaticSecret identity as an absent source-only object and checks the
 separate live Secret custody metadata. It compares normalized full specs and
 ConfigMap data (using the current DEV policy leaf where the source intentionally
 differs). Foreign, absent, duplicate, or Argo-tracked identities fail closed.
-Secret values, PVC data, and object contents are never queried.
+The metadata inventory records ownerReferences, managedFields provenance,
+finalizers, deletion timestamps, and alternate producer identities; any foreign
+owner, producer, or pending deletion fails closed. Secret values, PVC data, and
+object contents are never queried.
 
 ## Read-only entrypoint
 

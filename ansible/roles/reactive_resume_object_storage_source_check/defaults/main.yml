@@ -66,6 +66,24 @@ reactive_resume_object_storage_source_check_live_secret_labels:
   app.kubernetes.io/managed-by: infisical
   app.kubernetes.io/part-of: reactive-resume
   cristex.io/value-owner: infisical-cloud
+reactive_resume_object_storage_source_check_secret_metadata_resource:
+  name: target-secret
+  api_path: /api/v1/namespaces/shared-services/secrets/reactive-resume-object-storage-auth
+reactive_resume_object_storage_source_check_alternate_producers:
+  - name: infisical-static-secret
+    api_path: /apis/secrets.infisical.com/v1beta1/namespaces/shared-services/infisicalstaticsecrets/reactive-resume-object-storage-auth
+  - name: infisical-dynamic-secret
+    api_path: /apis/secrets.infisical.com/v1beta1/namespaces/shared-services/infisicaldynamicsecrets/reactive-resume-object-storage-auth
+  - name: external-secret
+    api_path: /apis/external-secrets.io/v1beta1/namespaces/shared-services/externalsecrets/reactive-resume-object-storage-auth
+  - name: sealed-secret
+    api_path: /apis/sealedsecrets.bitnami.com/v1alpha1/namespaces/shared-services/sealedsecrets/reactive-resume-object-storage-auth
+  - name: secret-provider-class
+    api_path: /apis/secrets-store.csi.x-k8s.io/v1/namespaces/shared-services/secretproviderclasses/reactive-resume-object-storage-auth
+reactive_resume_object_storage_source_check_metadata_allowed_managers:
+  - ansible
+  - argocd-controller
+  - infisical
 reactive_resume_object_storage_source_check_argo_resource_identities:
   - '|v1|Service|cristexhub-dev|reactive-resume-dev'
   - '|v1|ServiceAccount|cristexhub-dev|reactive-resume-dev'
