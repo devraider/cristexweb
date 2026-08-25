@@ -264,22 +264,48 @@ shm_capacity_preflight 4 "$postgres_source_bytes" "$object_source_bytes" || fail
   tar -C /work -czf - objects >"$work/object-storage.tar.gz" || fail object_archive_export
 [ -s "$work/object-storage.tar.gz" ] || fail object_archive_empty
 /usr/bin/install -d -m 0700 "$work/object-export"
-ARCHIVE="$work/object-storage.tar.gz" OBJECT_EXPORT="$work/object-export" /usr/bin/python3 - <<'PY' || fail object_archive_extract
+ARCHIVE="$work/object-storage.tar.gz" OBJECT_EXPORT="$work/object-export" RAW_MANIFEST="$work/raw-manifest.json" /usr/bin/python3 - <<'PY' || fail object_archive_extract
+import json
 import os
 import shutil
 import tarfile
 root = os.path.realpath(os.environ["OBJECT_EXPORT"])
+raw = json.load(open(os.environ["RAW_MANIFEST"], encoding="utf-8"))
+expected = {}
+for item in raw:
+    if item.get("IsDir"):
+        continue
+    key = item.get("Path") or item.get("Name")
+    size = item.get("Size")
+    assert isinstance(key, str) and key and isinstance(size, int) and size >= 0
+    assert key not in expected
+    expected[key] = size
+allowed_directories = {"objects"}
+for key in expected:
+    parts = key.split("/")[:-1]
+    for index in range(1, len(parts) + 1):
+        allowed_directories.add("objects/" + "/".join(parts[:index]))
 with tarfile.open(os.environ["ARCHIVE"], mode="r:gz") as archive:
     members = archive.getmembers()
     assert members
+    files = set()
     for member in members:
         path = member.name.rstrip("/")
         assert path and not path.startswith("/")
         assert path == "objects" or path.startswith("objects/")
         assert ".." not in path.split("/") and "\\" not in path and "\x00" not in path
+        assert member.isdir() or member.isfile()
+        if member.isdir():
+            assert path in allowed_directories
+        else:
+            key = path.removeprefix("objects/")
+            assert key in expected and key not in files and member.size == expected[key]
+            files.add(key)
+    assert files == set(expected)
+    for member in members:
+        path = member.name.rstrip("/")
         target = os.path.realpath(os.path.join(root, path))
         assert os.path.commonpath((root, target)) == root
-        assert member.isdir() or member.isfile()
         if member.isdir():
             os.makedirs(target, mode=0o700, exist_ok=True)
             assert not os.path.islink(target)

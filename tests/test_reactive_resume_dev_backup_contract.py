@@ -33,6 +33,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertNotIn('/usr/bin/tar --extract', source)
         self.assertIn('os.environ["OBJECT_ROOT"]', source)
         self.assertNotIn('os.path.join("/work/objects", key)', source)
+        self.assertIn('member.size == expected[key]', source)
+        self.assertIn('assert files == set(expected)', source)
+        self.assertLess(source.index('assert files == set(expected)'), source.index('source = archive.extractfile(member)'))
 
     def test_restore_rejects_archive_links_and_consumes_one_use_attestation(self):
         source = RESTORE.read_text()
@@ -46,6 +49,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn('object-storage-validated.tar.gz', source)
         self.assertIn('/usr/bin/rm -f -- "$work/object-storage.tar.gz"', source)
         self.assertNotIn('<"$work/object-storage.tar.gz" || fail object_restore_extract', source)
+        self.assertIn('member.size == expected[key]', source)
+        self.assertIn('assert files == set(expected)', source)
+        self.assertLess(source.index('assert files == set(expected)'), source.index('source = archive.extractfile(member)'))
 
     def test_pg_table_count_excludes_table_data_and_attach_toc_entries(self):
         for source in (BACKUP.read_text(), RESTORE.read_text()):
