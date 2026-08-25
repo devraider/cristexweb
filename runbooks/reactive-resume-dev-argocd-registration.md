@@ -74,9 +74,18 @@ There is no PROD path in this closure. `cristexhub-prod`,
 `reactive-resume-prod`, public routing, and production promotion are rejected
 by source scope and remain separate approvals.
 
-The fixed-name migration Job is deliberately not an Argo resource. Before
-runtime handoff, a separately approved one-shot migration gate must verify the
-precreated migration Secret and PostgreSQL CA, apply or confirm only
+The fixed-name migration Job is deliberately not an Argo resource. Its complete
+value-free policy is hash-bound in
+`ansible/files/policies/reactive-resume-dev-argocd-handoff/migration-job.yaml`
+(`sha256:b262ddb6834eb9d14d0eb279bb1a1c8686df83fedea56dc51d01fddc2281a3ac`).
+Before runtime handoff, the guarded registration preflight compares the live
+completed Job's immutable metadata labels/annotations, runtime image digest,
+command/args, environment values and exact migration Secret key references,
+pull Secret, PostgreSQL CA ConfigMap, security context, resources, volumes, and
+workload labels to that source. It also requires one successful completion with
+no active or failed attempts. The gate only reads and validates this Job; it
+never reconciles it. A separately approved one-shot migration gate must verify
+the precreated migration Secret and PostgreSQL CA, apply or confirm only
 `job/reactive-resume-dev-migrate`, wait for successful completion, and record a
 sanitized receipt. It must never be placed back into the automated source,
 rerun through `selfHeal`, or updated in place; any new migration requires a

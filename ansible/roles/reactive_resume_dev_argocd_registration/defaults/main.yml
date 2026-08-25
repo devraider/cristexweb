@@ -93,12 +93,13 @@ reactive_resume_dev_argocd_registration_handoff_object_count: 8
 reactive_resume_dev_argocd_registration_handoff_expected_hashes:
   deployment.yaml: bc23d1f54b65872e39d1b33c147bd5dd222bb03fb2fa634d0ebcf984c83244fd
   ingress-private.yaml: 92fa5c2bb56e931812ba2cc04d236d48e2b5f2d017cc15e031f1bd30dc62f8d4
-  migration-job.yaml: 8269cf3318ac8a231d836f737ff3b627e0d52e5ce96d95293d9e47d1d350989e
+  migration-job.yaml: b262ddb6834eb9d14d0eb279bb1a1c8686df83fedea56dc51d01fddc2281a3ac
   networkpolicy-default-deny.yaml: 6b17ae215e74a33d51758bf53e2a16512f5cb356da3609c175fe0c637407b60c
   networkpolicy-egress.yaml: 0fe6ef5f70a0e3fbcc8c5583abe69dfb7f880c4c6311856822fca5730b2904db
   networkpolicy-route-allow-traefik.yaml: 84ce4ff883721cf29b6b27e2719f83edabc1041a1b904f65effc1452bf93e2ce
   service.yaml: e14330ee4fb5bee7178f3ae574703bff20558e04a6d3f6541c4e5721aed98d6f
   serviceaccount.yaml: ac2d702836df80db1354807cb8cdd1e2b14af87e0090162bbadabe794384a895
+reactive_resume_dev_argocd_registration_migration_job_source_sha256: b262ddb6834eb9d14d0eb279bb1a1c8686df83fedea56dc51d01fddc2281a3ac
 reactive_resume_dev_argocd_registration_handoff_objects:
   - {apiVersion: apps/v1, kind: Deployment, namespace: cristexhub-dev, name: reactive-resume-dev}
   - {apiVersion: networking.k8s.io/v1, kind: Ingress, namespace: cristexhub-dev, name: reactive-resume-dev-private}

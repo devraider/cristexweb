@@ -31,6 +31,7 @@ EXPECTED_HANDOFF = {
 ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 TASK_SUFFIX = "/ansible/roles/reactive_resume_dev_argocd_registration/tasks/main.yml"
 EXPECTED_REVISION = "dd7d4cedd902e68266d9713d1dbb8e90f0b529b1"
+EXPECTED_MIGRATION_SOURCE_SHA256 = "b262ddb6834eb9d14d0eb279bb1a1c8686df83fedea56dc51d01fddc2281a3ac"
 EXPECTED_DEPENDENCY_DATA_KEYS = {
     "reactive-resume-dev-runtime": [
         "APP_URL", "AUTH_SECRET", "DATABASE_URL", "OAUTH_CLIENT_ID",
@@ -98,7 +99,8 @@ class ActionModule(KubernetesActionModule):
                 "attestation_sha256", "manifest_names", "prestate_names", "handoff_names",
                 "object_count", "handoff_object_count", "namespace_contract", "repository_contract",
                 "dependency_count", "dependency_names", "dependency_data_keys", "workload_dependencies_ready",
-                "exact_application_source_contract", "revision", "no_dual_reconciliation", "no_delete_path",
+                "migration_job_contract", "migration_job_source_sha256", "exact_application_source_contract",
+                "revision", "no_dual_reconciliation", "no_delete_path",
             }
             and binding.get("attestation_sha256") == hashlib.sha256(token.encode()).hexdigest()
             and binding.get("manifest_names") == sorted(identity[3] for identity in EXPECTED)
@@ -112,6 +114,8 @@ class ActionModule(KubernetesActionModule):
             and binding.get("dependency_names") == sorted(EXPECTED_DEPENDENCY_DATA_KEYS)
             and binding.get("dependency_data_keys") == EXPECTED_DEPENDENCY_DATA_KEYS
             and _strict_true(binding.get("workload_dependencies_ready"))
+            and _strict_true(binding.get("migration_job_contract"))
+            and binding.get("migration_job_source_sha256") == EXPECTED_MIGRATION_SOURCE_SHA256
             and _strict_true(binding.get("exact_application_source_contract"))
             and binding.get("revision") == EXPECTED_REVISION
             and _strict_true(binding.get("no_dual_reconciliation"))

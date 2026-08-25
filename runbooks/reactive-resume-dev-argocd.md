@@ -24,7 +24,13 @@ PVCs, Namespaces, RBAC, Jobs, object storage, database, or Infisical resources.
 - Migration prerequisite: the exact live `job/reactive-resume-dev-migrate` is
   preserved only in the handoff inventory at
   `ansible/files/policies/reactive-resume-dev-argocd-handoff/migration-job.yaml`.
-  It is not in the Argo source path, AppProject whitelist, or controller Role.
+  That value-free policy is hash-bound at
+  `sha256:b262ddb6834eb9d14d0eb279bb1a1c8686df83fedea56dc51d01fddc2281a3ac`.
+  The registration gate validates the completed live Job's image, command/args,
+  environment and Secret references, CA/pull references, security context,
+  resources, and generated workload labels against this source; it only reads
+  the Job and never reconciles it. It is not in the Argo source path, AppProject
+  whitelist, or controller Role.
 - Runtime and the separately guarded migration prerequisite consume only
   precreated Infisical-owned Secrets and ConfigMaps through
   `secretKeyRef`/`configMap`; no value is present here.

@@ -10,6 +10,8 @@
     - reactive_resume_dev_argocd_registration_internal_manifests
     - reactive_resume_dev_argocd_registration_internal_handoff_manifest_states
     - reactive_resume_dev_argocd_registration_internal_handoff_manifests
+    - reactive_resume_dev_argocd_registration_internal_migration_source
+    - reactive_resume_dev_argocd_registration_internal_migration_contract
     - reactive_resume_dev_argocd_registration_internal_namespace
     - reactive_resume_dev_argocd_registration_internal_argocd_namespace
     - reactive_resume_dev_argocd_registration_internal_repository_secret
@@ -302,6 +304,127 @@
   changed_when: false
   no_log: true
 
+- name: Require the exact completed migration Job source and live immutable spec
+  ansible.builtin.assert:
+    that:
+      - item.item.kind != 'Job' or item.resources | length == 1
+      - item.item.kind != 'Job' or item.resources[0].metadata.labels == migration_source.metadata.labels
+      - >-
+        item.item.kind != 'Job' or
+        (item.resources[0].metadata.annotations | dict2items |
+        rejectattr('key', 'equalto', 'kubectl.kubernetes.io/last-applied-configuration') |
+        list | items2dict) == migration_source.metadata.annotations
+      - item.item.kind != 'Job' or item.resources[0].spec.backoffLimit == migration_source.spec.backoffLimit
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.activeDeadlineSeconds == migration_source.spec.activeDeadlineSeconds
+      - item.item.kind != 'Job' or item.resources[0].spec.completions == migration_source.spec.completions
+      - item.item.kind != 'Job' or item.resources[0].spec.parallelism == migration_source.spec.parallelism
+      - item.item.kind != 'Job' or item.resources[0].spec.manualSelector == migration_source.spec.manualSelector
+      - >-
+        item.item.kind != 'Job' or
+        (item.resources[0].spec.template.metadata.labels | dict2items |
+        rejectattr('key', 'in', migration_generated_label_keys) | list | items2dict) ==
+        migration_source.spec.template.metadata.labels
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.metadata.labels['batch.kubernetes.io/job-name'] ==
+        migration_source.metadata.name
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.metadata.labels['job-name'] == migration_source.metadata.name
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.metadata.labels['batch.kubernetes.io/controller-uid'] ==
+        item.resources[0].metadata.uid
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.metadata.labels['controller-uid'] == item.resources[0].metadata.uid
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.restartPolicy == migration_source.spec.template.spec.restartPolicy
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.serviceAccountName ==
+        migration_source.spec.template.spec.serviceAccountName
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.automountServiceAccountToken ==
+        migration_source.spec.template.spec.automountServiceAccountToken
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.imagePullSecrets == migration_source.spec.template.spec.imagePullSecrets
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.securityContext == migration_source.spec.template.spec.securityContext
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.volumes == migration_source.spec.template.spec.volumes
+      - item.item.kind != 'Job' or item.resources[0].spec.template.spec.containers | length == 1
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.containers[0].name ==
+        migration_source.spec.template.spec.containers[0].name
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.containers[0].image ==
+        migration_source.spec.template.spec.containers[0].image
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.containers[0].imagePullPolicy ==
+        migration_source.spec.template.spec.containers[0].imagePullPolicy
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.containers[0].command ==
+        migration_source.spec.template.spec.containers[0].command
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.containers[0].args ==
+        migration_source.spec.template.spec.containers[0].args
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.containers[0].env ==
+        migration_source.spec.template.spec.containers[0].env
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.containers[0].volumeMounts ==
+        migration_source.spec.template.spec.containers[0].volumeMounts
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.containers[0].securityContext ==
+        migration_source.spec.template.spec.containers[0].securityContext
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].spec.template.spec.containers[0].resources ==
+        migration_source.spec.template.spec.containers[0].resources
+      - >-
+        item.item.kind != 'Job' or
+        item.resources[0].status.succeeded | default(0) | int == migration_source.spec.completions
+      - item.item.kind != 'Job' or item.resources[0].status.failed | default(0) | int == 0
+      - item.item.kind != 'Job' or item.resources[0].status.active | default(0) | int == 0
+      - item.item.kind != 'Job' or item.resources[0].status.startTime | default('') | length > 0
+      - item.item.kind != 'Job' or item.resources[0].status.completionTime | default('') | length > 0
+      - >-
+        item.item.kind != 'Job' or
+        (item.resources[0].status.conditions | default([]) |
+        selectattr('type', 'equalto', 'Complete') |
+        selectattr('status', 'equalto', 'True') | list | length) == 1
+    fail_msg: >-
+      Refusing registration until the completed migration Job exactly matches
+      the immutable one-shot policy/source.
+  loop: '{{ reactive_resume_dev_argocd_registration_internal_handoff_prestate.results }}'
+  vars:
+    migration_source: >-
+      {{ reactive_resume_dev_argocd_registration_internal_handoff_manifests |
+      selectattr('kind', 'equalto', 'Job') | first }}
+    migration_generated_label_keys:
+      - batch.kubernetes.io/controller-uid
+      - batch.kubernetes.io/job-name
+      - controller-uid
+      - job-name
+  changed_when: false
+  no_log: true
+
 - name: Require ready existing Reactive Resume DEV workload dependencies
   ansible.builtin.assert:
     that:
@@ -471,6 +594,8 @@
       dependency_names: '{{ reactive_resume_dev_argocd_registration_internal_dependency_states.results | map(attribute="item.name") | list | sort }}'
       dependency_data_keys: '{{ reactive_resume_dev_argocd_registration_internal_dependency_data_keys }}'
       workload_dependencies_ready: true
+      migration_job_contract: true
+      migration_job_source_sha256: '{{ reactive_resume_dev_argocd_registration_migration_job_source_sha256 }}'
       exact_application_source_contract: true
       revision: '{{ reactive_resume_dev_argocd_registration_revision }}'
       no_dual_reconciliation: true

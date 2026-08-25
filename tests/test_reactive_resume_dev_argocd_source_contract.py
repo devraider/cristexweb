@@ -25,6 +25,7 @@ EXPECTED_FILES = {
 HANDOFF = ROOT / "ansible/files/policies/reactive-resume-dev-argocd-handoff"
 RUNTIME_DIGEST = "sha256:720ff5a60a7f6b91a75535e230dbb664207fdf1bc5cb8732d584bae7ebdac13c"
 MIGRATION_DIGEST = "sha256:a4f0157e023c10c1c6ff163d34bf25c3343647247eddb1d4f9bfa9b46e1a3093"
+MIGRATION_SOURCE_SHA256 = "b262ddb6834eb9d14d0eb279bb1a1c8686df83fedea56dc51d01fddc2281a3ac"
 
 
 def load_objects() -> list[dict]:
@@ -85,6 +86,16 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         migration = next(obj for obj in handoff if obj["kind"] == "Job")
         self.assertEqual("reactive-resume-dev-migrate", migration["metadata"]["name"])
         self.assertEqual("Job", migration["kind"])
+        self.assertEqual("ansible", migration["metadata"]["labels"]["app.kubernetes.io/managed-by"])
+        self.assertEqual("argocd", migration["metadata"]["labels"]["cristex.io/desired-owner"])
+        self.assertEqual("ghcr.io/devraider/cristex-reactive-resume@sha256:a4f0157e023c10c1c6ff163d34bf25c3343647247eddb1d4f9bfa9b46e1a3093", migration["spec"]["template"]["spec"]["containers"][0]["image"])
+        self.assertEqual(
+            {"DATABASE_URL", "MIGRATION_DATABASE_URL"},
+            {env["name"] for env in migration["spec"]["template"]["spec"]["containers"][0]["env"] if "valueFrom" in env},
+        )
+        secret_refs = [env["valueFrom"]["secretKeyRef"] for env in migration["spec"]["template"]["spec"]["containers"][0]["env"] if "valueFrom" in env]
+        self.assertTrue(all(ref["name"] == "reactive-resume-dev-migration" and ref["optional"] is False for ref in secret_refs))
+        self.assertEqual("reactive-resume-dev-postgresql-ca", migration["spec"]["template"]["spec"]["volumes"][0]["configMap"]["name"])
         self.assertNotIn("migration-job.yaml", {path.name for path in SOURCE.glob("*.yaml")})
 
     def test_route_and_network_boundaries_are_private(self) -> None:
@@ -131,6 +142,7 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         self.assertIn("ansible/files/components/reactive-resume-dev-argocd/", runbook)
         self.assertIn("reactive-resume-dev-migrate", runbook)
         self.assertIn(MIGRATION_DIGEST, runbook)
+        self.assertIn(MIGRATION_SOURCE_SHA256, runbook)
         self.assertIn("excluded from the automated Argo desired-state", runbook)
         self.assertIn("one-shot", runbook)
         self.assertIn("migration-job.yaml", runbook)
