@@ -41,6 +41,54 @@ class ReactiveResumeDevSoakContractTests(unittest.TestCase):
             self.assertIn(value, self.defaults, value)
         self.assertIn("sample_count == (reactive_resume_dev_soak_duration_seconds // reactive_resume_dev_soak_interval_seconds) + 1", self.tasks)
 
+    def test_exact_service_ingress_and_networkpolicy_closure(self) -> None:
+        service = yaml.safe_load((ROOT / 'ansible/files/components/reactive-resume-dev-argocd/service.yaml').read_text())
+        ingress = yaml.safe_load((ROOT / 'ansible/files/components/reactive-resume-dev-argocd/ingress-private.yaml').read_text())
+        network_policy = yaml.safe_load((ROOT / 'ansible/files/components/reactive-resume-dev-argocd/networkpolicy-route-allow-traefik.yaml').read_text())
+        self.assertEqual(
+            {'app.kubernetes.io/name': 'reactive-resume-dev', 'app.kubernetes.io/part-of': 'cristexhub'},
+            service['spec']['selector'],
+        )
+        self.assertEqual(
+            [{'name': 'http', 'port': 3000, 'protocol': 'TCP', 'targetPort': 'http'}],
+            service['spec']['ports'],
+        )
+        for forbidden in ('externalIPs', 'externalName', 'loadBalancerIP', 'loadBalancerSourceRanges', 'healthCheckNodePort'):
+            self.assertNotIn(forbidden, service['spec'])
+        self.assertEqual(
+            {'traefik.ingress.kubernetes.io/router.entrypoints': 'websecure',
+             'traefik.ingress.kubernetes.io/router.tls': 'true'},
+            ingress['metadata']['annotations'],
+        )
+        self.assertEqual([{'protocol': 'TCP', 'port': 3000}], network_policy['spec']['ingress'][0]['ports'])
+        self.assertNotIn('endPort', network_policy['spec']['ingress'][0]['ports'][0])
+        for value in (
+            'spec.selector ==',
+            "'app.kubernetes.io/name': reactive_resume_dev_soak_deployment",
+            "ports[0].name == 'http'",
+            'spec.externalIPs is not defined',
+            'metadata.annotations ==',
+            "'traefik.ingress.kubernetes.io/router.entrypoints': 'websecure'",
+            'ports[0] ==',
+            "'protocol': 'TCP', 'port': 3000",
+            'ports[0].endPort is not defined',
+        ):
+            self.assertIn(value, self.sample, value)
+
+    def test_expanded_prod_negative_inventory(self) -> None:
+        defaults = yaml.safe_load(self.defaults)
+        expected = {
+            ('v1', 'Pod'),
+            ('apps/v1', 'ReplicaSet'),
+            ('apps/v1', 'DaemonSet'),
+            ('discovery.k8s.io/v1', 'EndpointSlice'),
+        }
+        for key in ('reactive_resume_dev_soak_prod_queries', 'reactive_resume_dev_soak_prod_inventory_queries', 'reactive_resume_dev_soak_shared_queries'):
+            actual = {(item['api_version'], item['kind']) for item in defaults[key]}
+            self.assertTrue(expected <= actual, key)
+        for value in ("'kind': 'Pod'", "'kind': 'ReplicaSet'", "'kind': 'DaemonSet'", "'kind': 'EndpointSlice'"):
+            self.assertIn(value, self.tasks, value)
+
     def test_read_only_probe_closure_and_prod_fence(self) -> None:
         for value in (
             "ansible_check_mode",

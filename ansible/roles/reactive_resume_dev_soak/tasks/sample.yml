@@ -224,9 +224,21 @@
       - reactive_resume_dev_soak_internal_service.resources | length == 1
       - reactive_resume_dev_soak_internal_service.resources[0].spec.type == 'ClusterIP'
       - reactive_resume_dev_soak_internal_service.resources[0].spec.ports | length == 1
+      - >-
+        reactive_resume_dev_soak_internal_service.resources[0].spec.selector ==
+        {'app.kubernetes.io/name': reactive_resume_dev_soak_deployment,
+         'app.kubernetes.io/part-of': 'cristexhub'}
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.ports[0].name == 'http'
       - reactive_resume_dev_soak_internal_service.resources[0].spec.ports[0].port == 3000
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.ports[0].protocol == 'TCP'
       - reactive_resume_dev_soak_internal_service.resources[0].spec.ports[0].targetPort == 'http'
-    fail_msg: The DEV application service must remain private ClusterIP port 3000.
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.ports[0].nodePort is not defined
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.externalIPs is not defined
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.externalName is not defined
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.loadBalancerIP is not defined
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.loadBalancerSourceRanges is not defined
+      - reactive_resume_dev_soak_internal_service.resources[0].spec.healthCheckNodePort is not defined
+    fail_msg: The DEV application service must remain private ClusterIP port 3000 without external exposure fields.
   changed_when: false
   no_log: true
 
@@ -247,8 +259,10 @@
     that:
       - reactive_resume_dev_soak_internal_ingress.resources | length == 1
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.ingressClassName == 'traefik'
-      - reactive_resume_dev_soak_internal_ingress.resources[0].metadata.annotations['traefik.ingress.kubernetes.io/router.entrypoints'] == 'websecure'
-      - reactive_resume_dev_soak_internal_ingress.resources[0].metadata.annotations['traefik.ingress.kubernetes.io/router.tls'] == 'true'
+      - >-
+        reactive_resume_dev_soak_internal_ingress.resources[0].metadata.annotations ==
+        {'traefik.ingress.kubernetes.io/router.entrypoints': 'websecure',
+         'traefik.ingress.kubernetes.io/router.tls': 'true'}
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules | length == 1
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules[0].host == reactive_resume_dev_soak_hostname
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules[0].http.paths | length == 1
@@ -296,9 +310,11 @@
         reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from[0].podSelector.matchLabels[
           'app.kubernetes.io/name'] == 'traefik'
       - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports | length == 1
-      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports[0].protocol == 'TCP'
-      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports[0].port == 3000
-    fail_msg: The DEV route must retain the exact Traefik-only ingress NetworkPolicy.
+      - >-
+        reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports[0] ==
+        {'protocol': 'TCP', 'port': 3000}
+      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports[0].endPort is not defined
+    fail_msg: The DEV route must retain the exact Traefik-only ingress NetworkPolicy without widened port ranges.
   changed_when: false
   no_log: true
 
