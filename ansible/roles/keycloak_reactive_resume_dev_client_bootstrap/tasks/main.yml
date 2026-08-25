@@ -50,7 +50,10 @@
       - not (keycloak_reactive_resume_dev_client_bootstrap_internal_attestation_state.stat.islnk | default(false))
       - keycloak_reactive_resume_dev_client_bootstrap_internal_attestation_state.stat.pw_name == keycloak_reactive_resume_dev_client_bootstrap_controller_user
       - keycloak_reactive_resume_dev_client_bootstrap_internal_attestation_state.stat.mode == '0600'
-      - lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_ATTESTATION_FILE')) == lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_TOKEN') ~ ':entrypoint'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_KEYCLOAK_REACTIVE_RESUME_DEV_CLIENT_TOKEN') ~ ':entrypoint'
   changed_when: false
   no_log: true
 
@@ -73,7 +76,9 @@
       - item.stat.pw_name == keycloak_reactive_resume_dev_client_bootstrap_controller_user
       - item.stat.mode == '0644'
       - (item.item | ansible.builtin.realpath) == item.item
-      - item.stat.checksum == (keycloak_reactive_resume_dev_client_bootstrap_expected_hashes | selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
+      - >-
+        item.stat.checksum == (keycloak_reactive_resume_dev_client_bootstrap_expected_hashes |
+        selectattr('path', 'equalto', item.item) | map(attribute='sha256') | first)
       - item.item.startswith(keycloak_reactive_resume_dev_client_bootstrap_component_root ~ '/')
   loop: "{{ keycloak_reactive_resume_dev_client_bootstrap_internal_manifest_states.results }}"
   loop_control:
@@ -103,7 +108,10 @@
     that:
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests | length == 1
       - keycloak_reactive_resume_dev_client_bootstrap_internal_identity_keys | unique | length == 1
-      - (keycloak_reactive_resume_dev_client_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256')) == keycloak_reactive_resume_dev_client_bootstrap_expected_identity_set_sha256
+      - >-
+        (keycloak_reactive_resume_dev_client_bootstrap_internal_identity_keys |
+        sort | join('\n') | hash('sha256')) ==
+        keycloak_reactive_resume_dev_client_bootstrap_expected_identity_set_sha256
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].kind == 'KeycloakClientContract'
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.realm == 'cristexhub'
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.additive is true
@@ -112,10 +120,14 @@
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.client_deletion == 'forbidden'
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients | length == 1
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].clientId == 'reactive-resume-dev'
-      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].redirectUris == ['https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom']
+      - >-
+        keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].redirectUris ==
+        ['https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom']
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].webOrigins == ['https://resume-dev.cristex-soft.com']
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].attributes['pkce.code.challenge.method'] == 'S256'
-      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].attributes['post.logout.redirect.uris'] == 'https://resume-dev.cristex-soft.com/'
+      - >-
+        keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].attributes['post.logout.redirect.uris'] ==
+        'https://resume-dev.cristex-soft.com/'
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].credentialContract.owner == 'infisical-cloud'
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].credentialContract.path == 'prod:/reactive-resume/dev/runtime'
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].credentialContract.key == 'OAUTH_CLIENT_SECRET'

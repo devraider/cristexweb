@@ -4,7 +4,8 @@ keycloak_reactive_resume_dev_client_bootstrap_state: present
 keycloak_reactive_resume_dev_client_bootstrap_kubeconfig: /etc/rancher/k3s/k3s.yaml
 keycloak_reactive_resume_dev_client_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
 keycloak_reactive_resume_dev_client_bootstrap_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
-keycloak_reactive_resume_dev_client_bootstrap_component_root: "{{ keycloak_reactive_resume_dev_client_bootstrap_repository_root }}/ansible/files/components/keycloak-reactive-resume-dev-client"
+keycloak_reactive_resume_dev_client_bootstrap_component_root: >-
+  {{ keycloak_reactive_resume_dev_client_bootstrap_repository_root }}/ansible/files/components/keycloak-reactive-resume-dev-client
 keycloak_reactive_resume_dev_client_bootstrap_manifest_paths:
   - "{{ keycloak_reactive_resume_dev_client_bootstrap_component_root }}/source/reactive-resume-dev-client.yaml"
 keycloak_reactive_resume_dev_client_bootstrap_expected_hashes:
