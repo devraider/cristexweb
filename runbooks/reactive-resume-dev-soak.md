@@ -17,10 +17,10 @@ The wrapper is non-passthrough, pins the repository/controller, limits execution
 to `crtxweb`, creates a single-use attestation, and always invokes Ansible with
 `--check --diff`. The role independently refuses a non-check invocation,
 foreign internal variables, extra hosts, alternate URLs, alternate realms, and
-non-canonical duration/sample values. `uri`, `kubernetes.core.k8s_info`, and
-`service_facts` are read-only; the pause between samples is not a mutation.
-There is no apply, delete, enable, restart, Secret writer, DNS/provider path,
-or Argo sync path.
+non-canonical duration/sample values. `uri`, `kubernetes.core.k8s_info`, exact
+read-only `systemctl is-active/is-enabled`, and controller-side epoch probes are
+read-only; the pause between samples is not a mutation. There is no apply,
+delete, enable, restart, Secret writer, DNS/provider path, or Argo sync path.
 
 ## Exact 15-minute acceptance contract
 
@@ -32,11 +32,15 @@ drift, or PROD resource causes a fail-closed stop.
 
 Every sample verifies:
 
-- browser-trusted HTTPS to the exact health URL, with certificate validation
-  enabled, HTTP `200`, and JSON status `healthy`;
+- browser-trusted HTTPS to the exact application root and health URL, with
+  certificate validation enabled, HTTP `200`, and JSON status `healthy` for
+  health;
 - OIDC discovery at the shared realm URL and exact issuer
   `https://auth.cristex-soft.com/realms/cristexhub` (the successor realm is
-  deliberately rejected);
+  deliberately rejected), plus a reachable non-empty JWKS document whose
+  keys have `kid` and `kty` fields;
+- exact `systemctl is-active --quiet` and `systemctl is-enabled --quiet`
+  results for `cristexweb-reactive-resume-dev-backup.timer` at every sample;
 - `cristexhub-dev` Deployment `reactive-resume-dev`: observed generation,
   one desired/updated/available/ready replica;
 - ClusterIP-only Service `reactive-resume-dev`, exactly port `3000` targeting
@@ -45,22 +49,28 @@ Every sample verifies:
   TLS Secret reference `reactive-resume-dev-tls`, and exact route annotations;
 - precreated `kubernetes.io/tls` Secret metadata with exactly `tls.crt` and
   `tls.key` keys, without reading or emitting values;
-- zero `app.kubernetes.io/part-of=reactive-resume` resources in
-  `cristexhub-prod` across Secret, Deployment, StatefulSet, Job, CronJob,
-  Service, Ingress, NetworkPolicy, PVC, and InfisicalStaticSecret classes.
+- zero labeled Reactive Resume resources in `cristexhub-prod` across the
+  fixed common classes;
+- zero objects in the unlabeled and common resource inventory whose names or
+  labels carry the Reactive Resume marker, across the checked
+  `cristexhub-prod` inventory, Argo applications (`Application`/`ApplicationSet`) inventory,
+  and shared-services common database/credential inventory. This is a scoped
+  marker check, not a claim that all unrelated PROD resources are absent;
+- only the exact labeled DEV Ingress, ClusterIP Service, and route
+  NetworkPolicy exposure objects.
 
-The host-side check additionally requires the existing
-`cristexweb-reactive-resume-dev-backup.timer` to be `running` and `enabled`.
-The soak never enables or starts it.
+The exact backup timer checks run on the host at every sample. The soak never
+enables, starts, restarts, or mutates it. The measured controller-side elapsed
+seconds must meet the full 900-second window.
 
 ## Sanitized receipt
 
 The final Ansible receipt is intentionally limited to:
 
 - receipt identifier and `sanitized-v1` format;
-- hostname, fixed duration, interval, and sample count;
-- pass booleans for TLS/health, OIDC issuer, app readiness, backup timer, and
-  zero PROD activation;
+- hostname, fixed duration, measured elapsed duration, interval, and sample count;
+- pass booleans for root/health TLS, OIDC issuer/JWKS, app readiness, exact
+  backup timer state, scoped Reactive Resume marker absence, and exposure;
 - `values_output=false`.
 
 Response bodies, OIDC documents, Kubernetes Secret data, cookies, tokens,
@@ -73,5 +83,6 @@ proof or an Argo ownership handoff.
 This source closure does not perform the required non-empty object-storage
 backup/restore proof, measure RPO/RTO, reconcile an Argo Application, rotate
 credentials, or activate PROD. Those remain separate guarded operations. The
-single-node host, private DNS/Tailscale dependency, shared stateful services,
+single-node host, private DNS/Tailscale dependency (the controller probe does
+not prove reachability from outside the tailnet), shared stateful services,
 and certificate renewal process remain residual availability dependencies.

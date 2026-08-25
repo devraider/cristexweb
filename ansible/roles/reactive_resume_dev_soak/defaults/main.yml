@@ -9,9 +9,12 @@ reactive_resume_dev_soak_url: https://resume-dev.cristex-soft.com/
 reactive_resume_dev_soak_health_url: https://resume-dev.cristex-soft.com/api/health
 reactive_resume_dev_soak_oidc_discovery_url: https://auth.cristex-soft.com/realms/cristexhub/.well-known/openid-configuration
 reactive_resume_dev_soak_oidc_issuer: https://auth.cristex-soft.com/realms/cristexhub
+reactive_resume_dev_soak_oidc_jwks_url: https://auth.cristex-soft.com/realms/cristexhub/protocol/openid-connect/certs
 reactive_resume_dev_soak_deployment: reactive-resume-dev
 reactive_resume_dev_soak_service: reactive-resume-dev
 reactive_resume_dev_soak_ingress: reactive-resume-dev-private
+reactive_resume_dev_soak_network_policy: reactive-resume-dev-route-allow-traefik
+reactive_resume_dev_soak_app_label_selector: app.kubernetes.io/name=reactive-resume-dev
 reactive_resume_dev_soak_tls_secret: reactive-resume-dev-tls
 reactive_resume_dev_soak_backup_timer: cristexweb-reactive-resume-dev-backup.timer
 reactive_resume_dev_soak_duration_seconds: 900
@@ -30,5 +33,47 @@ reactive_resume_dev_soak_prod_queries:
   - {api_version: networking.k8s.io/v1, kind: NetworkPolicy}
   - {api_version: v1, kind: PersistentVolumeClaim}
   - {api_version: secrets.infisical.com/v1beta1, kind: InfisicalStaticSecret}
+reactive_resume_dev_soak_prod_inventory_queries:
+  - {api_version: v1, kind: ConfigMap}
+  - {api_version: v1, kind: Secret}
+  - {api_version: v1, kind: ServiceAccount}
+  - {api_version: apps/v1, kind: Deployment}
+  - {api_version: apps/v1, kind: StatefulSet}
+  - {api_version: batch/v1, kind: Job}
+  - {api_version: batch/v1, kind: CronJob}
+  - {api_version: v1, kind: Service}
+  - {api_version: networking.k8s.io/v1, kind: Ingress}
+  - {api_version: networking.k8s.io/v1, kind: NetworkPolicy}
+  - {api_version: rbac.authorization.k8s.io/v1, kind: Role}
+  - {api_version: rbac.authorization.k8s.io/v1, kind: RoleBinding}
+  - {api_version: v1, kind: PersistentVolumeClaim}
+  - {api_version: secrets.infisical.com/v1beta1, kind: InfisicalAuth}
+  - {api_version: secrets.infisical.com/v1beta1, kind: InfisicalConnection}
+  - {api_version: secrets.infisical.com/v1beta1, kind: InfisicalStaticSecret}
+reactive_resume_dev_soak_argocd_queries:
+  - {api_version: argoproj.io/v1alpha1, kind: Application}
+  - {api_version: argoproj.io/v1alpha1, kind: ApplicationSet}
+reactive_resume_dev_soak_shared_queries:
+  - {api_version: v1, kind: ConfigMap}
+  - {api_version: v1, kind: Secret}
+  - {api_version: v1, kind: ServiceAccount}
+  - {api_version: apps/v1, kind: Deployment}
+  - {api_version: apps/v1, kind: StatefulSet}
+  - {api_version: batch/v1, kind: Job}
+  - {api_version: batch/v1, kind: CronJob}
+  - {api_version: v1, kind: Service}
+  - {api_version: networking.k8s.io/v1, kind: Ingress}
+  - {api_version: networking.k8s.io/v1, kind: NetworkPolicy}
+  - {api_version: v1, kind: PersistentVolumeClaim}
+  - {api_version: rbac.authorization.k8s.io/v1, kind: Role}
+  - {api_version: rbac.authorization.k8s.io/v1, kind: RoleBinding}
+  - {api_version: postgresql.cnpg.io/v1, kind: Cluster}
+  - {api_version: postgresql.cnpg.io/v1, kind: Database}
+  - {api_version: postgresql.cnpg.io/v1, kind: DatabaseRole}
+  - {api_version: secrets.infisical.com/v1beta1, kind: InfisicalAuth}
+  - {api_version: secrets.infisical.com/v1beta1, kind: InfisicalConnection}
+  - {api_version: secrets.infisical.com/v1beta1, kind: InfisicalStaticSecret}
+reactive_resume_dev_soak_rr_name_pattern: reactive[-_]resume
+
 reactive_resume_dev_soak_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
 reactive_resume_dev_soak_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"

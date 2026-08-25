@@ -6,7 +6,30 @@
   check_mode: false
   changed_when: false
 
-- name: Probe the private hostname over browser-trusted TLS
+- name: Probe the private hostname root over browser-trusted TLS
+  ansible.builtin.uri:
+    url: "{{ reactive_resume_dev_soak_url }}"
+    method: GET
+    status_code: [200]
+    timeout: 30
+    validate_certs: true
+    return_content: false
+  delegate_to: localhost
+  become: false
+  register: reactive_resume_dev_soak_internal_root
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require the private hostname root response
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_root.status == 200
+  fail_msg: The private hostname root must return HTTP 200 over validated TLS.
+  changed_when: false
+  no_log: true
+
+- name: Probe the private hostname health over browser-trusted TLS
   ansible.builtin.uri:
     url: "{{ reactive_resume_dev_soak_health_url }}"
     method: GET
@@ -72,10 +95,86 @@
     that:
       - reactive_resume_dev_soak_internal_oidc.status == 200
       - reactive_resume_dev_soak_internal_oidc_payload.issuer == reactive_resume_dev_soak_oidc_issuer
-      - reactive_resume_dev_soak_internal_oidc_payload.jwks_uri is defined
+      - reactive_resume_dev_soak_internal_oidc_payload.jwks_uri == reactive_resume_dev_soak_oidc_jwks_url
   fail_msg: >-
     Reactive Resume must resolve OIDC discovery to the retained shared
-    cristexhub realm, not the retired successor realm.
+    cristexhub realm and its exact JWKS endpoint, not the retired successor realm.
+  changed_when: false
+  no_log: true
+
+- name: Fetch the shared CristexHub JWKS endpoint
+  ansible.builtin.uri:
+    url: "{{ reactive_resume_dev_soak_oidc_jwks_url }}"
+    method: GET
+    headers:
+      Accept: application/json
+    status_code: [200]
+    timeout: 30
+    validate_certs: true
+    return_content: true
+  delegate_to: localhost
+  become: false
+  register: reactive_resume_dev_soak_internal_jwks
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Parse the JWKS response without output
+  ansible.builtin.set_fact:
+    reactive_resume_dev_soak_internal_jwks_payload: "{{ reactive_resume_dev_soak_internal_jwks.content | from_json }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require reachable non-empty shared-realm JWKS
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_jwks.status == 200
+      - reactive_resume_dev_soak_internal_jwks_payload.keys is defined
+      - reactive_resume_dev_soak_internal_jwks_payload.keys | length > 0
+      - >-
+        (reactive_resume_dev_soak_internal_jwks_payload.keys |
+        selectattr('kid', 'defined') | list | length) == reactive_resume_dev_soak_internal_jwks_payload.keys | length
+      - >-
+        (reactive_resume_dev_soak_internal_jwks_payload.keys |
+        selectattr('kty', 'defined') | list | length) == reactive_resume_dev_soak_internal_jwks_payload.keys | length
+  fail_msg: The shared CristexHub JWKS endpoint must be reachable and contain keyed JSON Web Keys.
+  changed_when: false
+  no_log: true
+
+- name: Check the exact backup timer active state without mutation
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - --quiet
+      - cristexweb-reactive-resume-dev-backup.timer
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  register: reactive_resume_dev_soak_internal_timer_active
+  no_log: true
+
+- name: Check the exact backup timer enabled state without mutation
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-enabled
+      - --quiet
+      - cristexweb-reactive-resume-dev-backup.timer
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  register: reactive_resume_dev_soak_internal_timer_enabled
+  no_log: true
+
+- name: Require exact active and enabled backup timer state
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_timer_active.rc == 0
+      - reactive_resume_dev_soak_internal_timer_enabled.rc == 0
+  fail_msg: The exact Reactive Resume DEV backup timer must remain active and enabled.
   changed_when: false
   no_log: true
 
@@ -156,6 +255,70 @@
   changed_when: false
   no_log: true
 
+- name: Query the exact DEV route NetworkPolicy
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    name: "{{ reactive_resume_dev_soak_network_policy }}"
+    namespace: "{{ reactive_resume_dev_soak_namespace }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  register: reactive_resume_dev_soak_internal_network_policy
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require the exact route NetworkPolicy exposure boundary
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_network_policy.resources | length == 1
+      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.podSelector.matchLabels['app.kubernetes.io/name'] == reactive_resume_dev_soak_deployment
+      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.policyTypes == ['Ingress']
+      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress | length == 1
+      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from | length == 1
+      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from[0].namespaceSelector.matchLabels['kubernetes.io/metadata.name'] == 'kube-system'
+      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].from[0].podSelector.matchLabels['app.kubernetes.io/name'] == 'traefik'
+      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports[0].protocol == 'TCP'
+      - reactive_resume_dev_soak_internal_network_policy.resources[0].spec.ingress[0].ports[0].port == 3000
+  fail_msg: The DEV route must retain the exact Traefik-only ingress NetworkPolicy.
+  changed_when: false
+  no_log: true
+
+- name: Query all DEV Ingress exposure objects for the application label
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: Ingress
+    namespace: "{{ reactive_resume_dev_soak_namespace }}"
+    label_selectors:
+      - "{{ reactive_resume_dev_soak_app_label_selector }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  register: reactive_resume_dev_soak_internal_labeled_ingresses
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Query all DEV Service exposure objects for the application label
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Service
+    namespace: "{{ reactive_resume_dev_soak_namespace }}"
+    label_selectors:
+      - "{{ reactive_resume_dev_soak_app_label_selector }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  register: reactive_resume_dev_soak_internal_labeled_services
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require no alternate labeled DEV exposure objects
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_labeled_ingresses.resources | map(attribute='metadata.name') | list == [reactive_resume_dev_soak_ingress]
+      - reactive_resume_dev_soak_internal_labeled_services.resources | map(attribute='metadata.name') | list == [reactive_resume_dev_soak_service]
+      - reactive_resume_dev_soak_internal_labeled_services.resources | selectattr('spec.type', 'equalto', 'ClusterIP') | list | length == 1
+  fail_msg: The DEV app label may expose only the exact private Traefik Ingress and ClusterIP Service.
+  changed_when: false
+  no_log: true
+
 - name: Query the precreated DEV TLS Secret metadata
   kubernetes.core.k8s_info:
     api_version: v1
@@ -178,7 +341,7 @@
   changed_when: false
   no_log: true
 
-- name: Query every fixed Reactive Resume PROD resource class
+- name: Query labeled Reactive Resume PROD resource classes
   kubernetes.core.k8s_info:
     api_version: "{{ item.api_version }}"
     kind: "{{ item.kind }}"
@@ -198,8 +361,87 @@
       - item.resources | length == 0
   loop: "{{ reactive_resume_dev_soak_internal_prod_results.results }}"
   loop_control:
-    label: fixed-prod-resource-class
-  fail_msg: Reactive Resume PROD must remain completely inactive during the DEV soak.
+    label: fixed-prod-labeled-resource-class
+  fail_msg: No labeled Reactive Resume PROD resource may exist during the DEV soak.
+  changed_when: false
+  no_log: true
+
+- name: Query unlabeled and common PROD resource inventory
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ reactive_resume_dev_soak_prod_namespace }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  loop: "{{ reactive_resume_dev_soak_prod_inventory_queries }}"
+  register: reactive_resume_dev_soak_internal_prod_inventory_results
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Query Argo applications for Reactive Resume PROD markers
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: argocd
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  loop: "{{ reactive_resume_dev_soak_argocd_queries }}"
+  register: reactive_resume_dev_soak_internal_argocd_results
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Query shared-services common PROD resource inventory
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: shared-services
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  loop: "{{ reactive_resume_dev_soak_shared_queries }}"
+  register: reactive_resume_dev_soak_internal_shared_results
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Query labeled Reactive Resume Argo applications
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: argocd
+    label_selectors:
+      - "{{ reactive_resume_dev_soak_prod_label_selector }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  loop: "{{ reactive_resume_dev_soak_argocd_queries }}"
+  register: reactive_resume_dev_soak_internal_argocd_labeled_results
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Query labeled Reactive Resume shared-services objects
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: shared-services
+    label_selectors:
+      - "{{ reactive_resume_dev_soak_prod_label_selector }}"
+    kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
+  loop: "{{ reactive_resume_dev_soak_shared_queries }}"
+  register: reactive_resume_dev_soak_internal_shared_labeled_results
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require no unlabeled or common Reactive Resume PROD markers
+  ansible.builtin.assert:
+    that:
+      - >-
+        (item.resources | map(attribute='metadata.name') |
+        select('search', reactive_resume_dev_soak_rr_name_pattern) | list | length) == 0
+  loop: "{{ reactive_resume_dev_soak_internal_prod_inventory_results.results + reactive_resume_dev_soak_internal_argocd_results.results + reactive_resume_dev_soak_internal_shared_results.results + reactive_resume_dev_soak_internal_argocd_labeled_results.results + reactive_resume_dev_soak_internal_shared_labeled_results.results }}"
+  loop_control:
+    label: fixed-rr-marker-inventory
+  fail_msg: >-
+    No resource named with the exact Reactive Resume marker may exist in the
+    checked PROD, Argo, or shared-services inventories.
   changed_when: false
   no_log: true
 
@@ -208,11 +450,13 @@
     reactive_resume_dev_soak_internal_samples: >-
       {{ (reactive_resume_dev_soak_internal_samples | default([])) + [{
         'sample': reactive_resume_dev_soak_sample_index | int,
+        'hostname_root_http': true,
         'hostname_tls_http': true,
         'oidc_issuer': true,
+        'oidc_jwks': true,
         'app_ready': true,
         'backup_timer_active_enabled': true,
-        'prod_activation_absent': true
+        'prod_reactive_resume_markers_absent': true
       }] }}
   changed_when: false
   no_log: true

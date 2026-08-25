@@ -27,12 +27,80 @@
       - reactive_resume_dev_soak_health_url == 'https://resume-dev.cristex-soft.com/api/health'
       - reactive_resume_dev_soak_oidc_discovery_url == 'https://auth.cristex-soft.com/realms/cristexhub/.well-known/openid-configuration'
       - reactive_resume_dev_soak_oidc_issuer == 'https://auth.cristex-soft.com/realms/cristexhub'
+      - reactive_resume_dev_soak_oidc_jwks_url == 'https://auth.cristex-soft.com/realms/cristexhub/protocol/openid-connect/certs'
+      - reactive_resume_dev_soak_deployment == 'reactive-resume-dev'
+      - reactive_resume_dev_soak_service == 'reactive-resume-dev'
+      - reactive_resume_dev_soak_ingress == 'reactive-resume-dev-private'
+      - reactive_resume_dev_soak_network_policy == 'reactive-resume-dev-route-allow-traefik'
+      - reactive_resume_dev_soak_app_label_selector == 'app.kubernetes.io/name=reactive-resume-dev'
+      - reactive_resume_dev_soak_tls_secret == 'reactive-resume-dev-tls'
+      - reactive_resume_dev_soak_backup_timer == 'cristexweb-reactive-resume-dev-backup.timer'
+      - reactive_resume_dev_soak_prod_label_selector == 'app.kubernetes.io/part-of=reactive-resume'
       - reactive_resume_dev_soak_duration_seconds == 900
       - reactive_resume_dev_soak_interval_seconds == 60
       - reactive_resume_dev_soak_sample_count == 16
       - reactive_resume_dev_soak_sample_count == (reactive_resume_dev_soak_duration_seconds // reactive_resume_dev_soak_interval_seconds) + 1
       - reactive_resume_dev_soak_receipt_format == 'sanitized-v1'
-      - reactive_resume_dev_soak_prod_queries | length == 10
+      - >-
+        reactive_resume_dev_soak_prod_queries == [
+          {'api_version': 'v1', 'kind': 'Secret'},
+          {'api_version': 'apps/v1', 'kind': 'Deployment'},
+          {'api_version': 'apps/v1', 'kind': 'StatefulSet'},
+          {'api_version': 'batch/v1', 'kind': 'Job'},
+          {'api_version': 'batch/v1', 'kind': 'CronJob'},
+          {'api_version': 'v1', 'kind': 'Service'},
+          {'api_version': 'networking.k8s.io/v1', 'kind': 'Ingress'},
+          {'api_version': 'networking.k8s.io/v1', 'kind': 'NetworkPolicy'},
+          {'api_version': 'v1', 'kind': 'PersistentVolumeClaim'},
+          {'api_version': 'secrets.infisical.com/v1beta1', 'kind': 'InfisicalStaticSecret'}
+        ]
+      - >-
+        reactive_resume_dev_soak_prod_inventory_queries == [
+          {'api_version': 'v1', 'kind': 'ConfigMap'},
+          {'api_version': 'v1', 'kind': 'Secret'},
+          {'api_version': 'v1', 'kind': 'ServiceAccount'},
+          {'api_version': 'apps/v1', 'kind': 'Deployment'},
+          {'api_version': 'apps/v1', 'kind': 'StatefulSet'},
+          {'api_version': 'batch/v1', 'kind': 'Job'},
+          {'api_version': 'batch/v1', 'kind': 'CronJob'},
+          {'api_version': 'v1', 'kind': 'Service'},
+          {'api_version': 'networking.k8s.io/v1', 'kind': 'Ingress'},
+          {'api_version': 'networking.k8s.io/v1', 'kind': 'NetworkPolicy'},
+          {'api_version': 'rbac.authorization.k8s.io/v1', 'kind': 'Role'},
+          {'api_version': 'rbac.authorization.k8s.io/v1', 'kind': 'RoleBinding'},
+          {'api_version': 'v1', 'kind': 'PersistentVolumeClaim'},
+          {'api_version': 'secrets.infisical.com/v1beta1', 'kind': 'InfisicalAuth'},
+          {'api_version': 'secrets.infisical.com/v1beta1', 'kind': 'InfisicalConnection'},
+          {'api_version': 'secrets.infisical.com/v1beta1', 'kind': 'InfisicalStaticSecret'}
+        ]
+      - >-
+        reactive_resume_dev_soak_argocd_queries == [
+          {'api_version': 'argoproj.io/v1alpha1', 'kind': 'Application'},
+          {'api_version': 'argoproj.io/v1alpha1', 'kind': 'ApplicationSet'}
+        ]
+      - >-
+        reactive_resume_dev_soak_shared_queries == [
+          {'api_version': 'v1', 'kind': 'ConfigMap'},
+          {'api_version': 'v1', 'kind': 'Secret'},
+          {'api_version': 'v1', 'kind': 'ServiceAccount'},
+          {'api_version': 'apps/v1', 'kind': 'Deployment'},
+          {'api_version': 'apps/v1', 'kind': 'StatefulSet'},
+          {'api_version': 'batch/v1', 'kind': 'Job'},
+          {'api_version': 'batch/v1', 'kind': 'CronJob'},
+          {'api_version': 'v1', 'kind': 'Service'},
+          {'api_version': 'networking.k8s.io/v1', 'kind': 'Ingress'},
+          {'api_version': 'networking.k8s.io/v1', 'kind': 'NetworkPolicy'},
+          {'api_version': 'v1', 'kind': 'PersistentVolumeClaim'},
+          {'api_version': 'rbac.authorization.k8s.io/v1', 'kind': 'Role'},
+          {'api_version': 'rbac.authorization.k8s.io/v1', 'kind': 'RoleBinding'},
+          {'api_version': 'postgresql.cnpg.io/v1', 'kind': 'Cluster'},
+          {'api_version': 'postgresql.cnpg.io/v1', 'kind': 'Database'}
+          {'api_version': 'postgresql.cnpg.io/v1', 'kind': 'DatabaseRole'},
+          {'api_version': 'secrets.infisical.com/v1beta1', 'kind': 'InfisicalAuth'},
+          {'api_version': 'secrets.infisical.com/v1beta1', 'kind': 'InfisicalConnection'},
+          {'api_version': 'secrets.infisical.com/v1beta1', 'kind': 'InfisicalStaticSecret'}
+        ]
+      - reactive_resume_dev_soak_rr_name_pattern == 'reactive[-_]resume'
     fail_msg: >-
       The soak is a fixed 15-minute, 16-sample, check-only closure for the
       selected private DEV hostname and shared cristexhub realm.
@@ -78,43 +146,23 @@
   changed_when: false
   no_log: true
 
-# service_facts reports service units but does not enumerate systemd timer
-# units on this Debian host. Use the read-only systemctl queries instead of
-# treating a missing timer key as proof that the accepted timer is inactive.
-- name: Read the fixed backup timer active state without mutation
+- name: Record the soak start epoch without mutation
   ansible.builtin.command:
     argv:
-      - /usr/bin/systemctl
-      - is-active
-      - "{{ reactive_resume_dev_soak_backup_timer }}"
-  register: reactive_resume_dev_soak_internal_timer_active
+      - date
+      - +%s
+  delegate_to: localhost
+  become: false
   check_mode: false
   changed_when: false
-  failed_when: false
+  register: reactive_resume_dev_soak_internal_start_time
   no_log: true
 
-- name: Read the fixed backup timer enabled state without mutation
-  ansible.builtin.command:
-    argv:
-      - /usr/bin/systemctl
-      - is-enabled
-      - "{{ reactive_resume_dev_soak_backup_timer }}"
-  register: reactive_resume_dev_soak_internal_timer_enabled
-  check_mode: false
-  changed_when: false
-  failed_when: false
-  no_log: true
-
-- name: Require an enabled and active Reactive Resume DEV backup timer
+- name: Require a valid soak start epoch
   ansible.builtin.assert:
     that:
-      - reactive_resume_dev_soak_internal_timer_active.rc == 0
-      - reactive_resume_dev_soak_internal_timer_active.stdout | trim == 'active'
-      - reactive_resume_dev_soak_internal_timer_enabled.rc == 0
-      - reactive_resume_dev_soak_internal_timer_enabled.stdout | trim == 'enabled'
-    fail_msg: >-
-      The weekly Reactive Resume DEV backup timer must already be active and
-      enabled; the soak has no enable or restart path.
+      - reactive_resume_dev_soak_internal_start_time.rc == 0
+      - reactive_resume_dev_soak_internal_start_time.stdout is match('^[0-9]+$')
   changed_when: false
   no_log: true
 
@@ -150,10 +198,42 @@
     loop_var: reactive_resume_dev_soak_sample_index
     label: "sample-{{ reactive_resume_dev_soak_sample_index }}"
 
+- name: Record the soak end epoch without mutation
+  ansible.builtin.command:
+    argv:
+      - date
+      - +%s
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  changed_when: false
+  register: reactive_resume_dev_soak_internal_end_time
+  no_log: true
+
+- name: Require a valid soak end epoch and measure elapsed duration
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_soak_internal_end_time.rc == 0
+      - reactive_resume_dev_soak_internal_end_time.stdout is match('^[0-9]+$')
+      - reactive_resume_dev_soak_internal_end_time.stdout | int >= reactive_resume_dev_soak_internal_start_time.stdout | int
+  changed_when: false
+  no_log: true
+
+- name: Record measured soak duration
+  ansible.builtin.set_fact:
+    reactive_resume_dev_soak_internal_elapsed_seconds: >-
+      {{ reactive_resume_dev_soak_internal_end_time.stdout | int - reactive_resume_dev_soak_internal_start_time.stdout | int }}
+  changed_when: false
+  no_log: true
+
 - name: Require every soak sample to pass
   ansible.builtin.assert:
     that:
       - (reactive_resume_dev_soak_internal_samples | default([])) | length == reactive_resume_dev_soak_sample_count
+      - reactive_resume_dev_soak_internal_elapsed_seconds >= reactive_resume_dev_soak_duration_seconds
+      - >-
+        (reactive_resume_dev_soak_internal_samples |
+        selectattr('hostname_root_http', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
       - >-
         (reactive_resume_dev_soak_internal_samples |
         selectattr('hostname_tls_http', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
@@ -162,13 +242,20 @@
         selectattr('oidc_issuer', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
       - >-
         (reactive_resume_dev_soak_internal_samples |
+        selectattr('oidc_jwks', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
+      - >-
+        (reactive_resume_dev_soak_internal_samples |
         selectattr('app_ready', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
       - >-
         (reactive_resume_dev_soak_internal_samples |
-        selectattr('prod_activation_absent', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
+        selectattr('backup_timer_active_enabled', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
+      - >-
+        (reactive_resume_dev_soak_internal_samples |
+        selectattr('prod_reactive_resume_markers_absent', 'equalto', true) | list | length) == reactive_resume_dev_soak_sample_count
     fail_msg: >-
-      Every fixed soak sample must pass TLS/health, shared-realm OIDC issuer,
-      app readiness, and zero-PROD-activation checks.
+      Every fixed soak sample must pass the private root/health probes, shared-realm
+      OIDC discovery/JWKS, app readiness, exact timer state, and scoped zero-RR-PROD
+      inventory check; elapsed time must meet the fixed window.
   changed_when: false
   no_log: true
 
@@ -180,13 +267,17 @@
       result: pass
       hostname: "{{ reactive_resume_dev_soak_hostname }}"
       duration_seconds: "{{ reactive_resume_dev_soak_duration_seconds }}"
+      measured_elapsed_seconds: "{{ reactive_resume_dev_soak_internal_elapsed_seconds }}"
       interval_seconds: "{{ reactive_resume_dev_soak_interval_seconds }}"
       samples: "{{ reactive_resume_dev_soak_sample_count }}"
       checks:
+        hostname_root_http: pass
         hostname_tls_http: pass
         oidc_issuer: pass
+        oidc_jwks: pass
         app_ready: pass
         backup_timer_active_enabled: pass
-        prod_activation_absent: pass
+        prod_reactive_resume_markers_absent: pass
+      scope_note: checked_exact_rr_markers_only_not_universal_prod_absence
       values_output: false
   changed_when: false
