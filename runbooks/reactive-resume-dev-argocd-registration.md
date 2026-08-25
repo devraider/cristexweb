@@ -2,15 +2,17 @@
 
 ## Status
 
-**SOURCE IMPLEMENTED / GUARDED CHECK BLOCKED ON REPOSITORY CREDENTIAL.** The
-five-object registration closure, eight-object value-free handoff inventory,
-seven-object Argo desired-state source, destination NetworkPolicies, and
-migration exclusion are implemented. The latest guarded `check` reached the
-live dependency preflight and stopped before registration reconciliation because
-the required Infisical-owned `argocd-repository-cristexweb` Secret metadata was
-not present. No registration apply, Argo sync, adoption, workload restart, or
-other mutation occurred. A passing check, separately approved apply/idempotence,
-and later handoff/sync evidence remain pending.
+**LIVE / SYNCED / HEALTHY.** The five-object registration closure, exact
+migration prerequisite, dependency key closure, seven-object desired state, and
+four destination NetworkPolicies passed the guarded preflight. The alignment
+apply converged and its retry passed at `changed=0`; registration then applied
+and converged at `changed=0`. After the approved deny-window removal and exact
+in-cluster destination correction, Argo reconciled revision
+`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` to `Synced/Healthy` with a successful
+operation. All seven objects have Argo tracking annotations; this k3s API omits
+`metadata.managedFields`, so manager-field evidence is unavailable rather than
+claimed. The superseded alignment wrapper now fails closed on the Argo tracking
+markers, proving that its Ansible reconciliation lane cannot be reopened.
 
 This is a source-only, guarded registration closure for the private Reactive
 Resume DEV workload in `cristexhub-dev`. It does not perform a Kubernetes,
@@ -56,8 +58,9 @@ no delete. The cluster Secret sets `clusterResources=false` and
 
 The Application is automated only with safe controls:
 `prune=false`, `selfHeal=true`, `allowEmpty=false`, `Prune=false`, and
-`CreateNamespace=false`. An always-active deny sync window keeps the
-registration from synchronizing while Ansible still owns the live objects.
+`CreateNamespace=false`. An always-active deny sync window kept the initial
+registration quiescent while Ansible still owned the live objects; the separately
+approved adoption transition removed that window only after exact alignment.
 The handoff preflight requires every inventoried live object to exist with
 `app.kubernetes.io/managed-by=ansible`, a reviewed bootstrap-writer label,
 and `cristex.io/desired-owner=argocd`, and rejects Argo tracking annotations,
@@ -65,10 +68,9 @@ Argo managed fields, owner references, and finalizers. Registration reconciles
 only its five registration objects; it never changes the workload objects.
 This is the no-dual-reconciliation boundary: no dual reconciliation is permitted. The
 route wrapper also refuses to run once the Argo Application handoff marker exists,
-so the duplicate Ansible route source cannot reconcile after handoff. A later,
-separately approved adoption must first stop the Ansible workload owner, remove
-the deny window through a reviewed source revision, sync once, and collect
-managed-field evidence.
+so the duplicate Ansible route source cannot reconcile after handoff. The adoption stopped the Ansible workload lane, removed the deny window through
+reviewed source, synced once, and collected the available tracking evidence.
+Manager-field evidence remains unavailable because this API omits the field.
 
 There is no PROD path in this closure. `cristexhub-prod`,
 `reactive-resume-prod`, public routing, and production promotion are rejected
@@ -107,16 +109,11 @@ missing; this is not apply or handoff evidence.
 
 ## Remaining gates
 
-The repository credential `argocd-repository-cristexweb`, exact value-suppressed
-Secret/CA/pull/TLS dependency metadata, and exact data-key closure are required:
-`reactive-resume-dev-runtime` has the reviewed 15 runtime keys,
-`reactive-resume-dev-migration` has `DATABASE_URL` and
-`MIGRATION_DATABASE_URL`, each CA target has only `ca.crt`, the pull Secret has
-only `.dockerconfigjson`, and TLS has only `tls.crt`/`tls.key`. Key names are
-checked under `no_log`; values are never emitted. The ready live RR workload
-set and absence of Argo managed fields are also required before a guarded check
-can pass; the latest
-check stopped on that repository-credential gate. A successful check, separately
-approved apply, idempotence retry, Argo sync/adoption evidence, and private
-hostname/backup/soak acceptance are still required. No source commit authorizes
-Kubernetes mutation or PROD.
+The repository credential and exact value-suppressed dependency metadata/key
+closure passed: runtime has the reviewed 15 keys, migration has its exact two,
+each CA target has only `ca.crt`, the pull Secret only `.dockerconfigjson`, and
+TLS only `tls.crt`/`tls.key`. Names were checked under `no_log`; values were never
+emitted. Registration, idempotence, sync, adoption, and private hostname health
+now pass. Hardened schema-2 backup/restore, TLS renewal installation/enablement,
+the 15-minute soak, and protected GitHub-state recovery remain separate pending
+gates. Nothing here authorizes PROD or public routing.
