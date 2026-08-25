@@ -2,13 +2,17 @@
 
 ## Current live checkpoint — 2026-08-25
 
-Private CristexHub PROD activation is live at the pinned revision
-`751885a42798d282e168131db147f13694a0a621`: Argo reports `Synced/Healthy`,
-backend/Celery/frontend/oauth2-proxy/Redis are each `1/1 Ready`, backend root
-returns `200`, oauth2-proxy returns the expected private `302`, and Celery is ready
-on the PROD RabbitMQ vhost. The guarded OIDC CONNECT proxy policy includes PROD
-clients and app-level `200`/`302` smoke passed; authenticated OIDC/callback and live
-positive/negative CONNECT validation remain open.
+Private CristexHub PROD workloads remain live at the pinned revision
+`751885a42798d282e168131db147f13694a0a621`: backend/Celery/frontend/oauth2-proxy/
+Redis are each `1/1 Ready`, backend root returns `200`, oauth2-proxy returns the
+expected private `302`, and Celery is ready on the PROD RabbitMQ vhost. The live
+Argo Application currently reports `Unknown/Missing` with a ComparisonError
+because the historical registration used the server destination instead of the
+scoped `cristexhub-prod-local` cluster alias. The source-only registration fix is
+committed but not applied; a separately approved apply must restore `Synced/Healthy`.
+The guarded OIDC CONNECT proxy policy includes PROD clients and app-level `200`/`302`
+smoke passed; authenticated OIDC/callback and live positive/negative CONNECT
+validation remain open.
 
 The shared MongoDB engine is live as operator-managed MongoDB `8.0.12` with
 TLS/SCRAM, but **private PROD acceptance is blocked**: no NetworkPolicy currently

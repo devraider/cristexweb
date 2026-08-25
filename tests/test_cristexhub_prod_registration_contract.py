@@ -73,7 +73,11 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             application["spec"]["source"],
         )
         self.assertEqual(
-            {"server": "https://kubernetes.default.svc", "namespace": "cristexhub-prod"},
+            {
+                "name": "cristexhub-prod-local",
+                "server": "",
+                "namespace": "cristexhub-prod",
+            },
             application["spec"]["destination"],
         )
         sync_policy = application["spec"]["syncPolicy"]
@@ -93,12 +97,12 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         )
         self.assertEqual([], application["metadata"].get("finalizers", []))
 
-    def test_project_is_namespaced_least_privilege_for_exact_server(self) -> None:
+    def test_project_is_namespaced_least_privilege_for_exact_cluster_alias(self) -> None:
         project = next(manifest for manifest in objects() if manifest["kind"] == "AppProject")
         spec = project["spec"]
         self.assertEqual([], spec["clusterResourceWhitelist"])
         self.assertEqual(
-            [{"server": "https://kubernetes.default.svc", "namespace": "cristexhub-prod"}],
+            [{"name": "cristexhub-prod-local", "namespace": "cristexhub-prod"}],
             spec["destinations"],
         )
         self.assertEqual(
@@ -155,6 +159,11 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertLess(prestate, reject)
         self.assertLess(reject, binding)
         self.assertLess(binding, mutation)
+        status_query = tasks.index("Wait for live PROD Application to reconcile")
+        status_assert = tasks.index("Require live PROD Application Synced and Healthy")
+        self.assertLess(mutation, status_query)
+        self.assertLess(status_query, status_assert)
+        self.assertIn("when: not ansible_check_mode", tasks[status_query:status_assert + 600])
         for needle in (
             "metadata.ownerReferences",
             "binaryData",
@@ -163,6 +172,9 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             "argocd-repository-cristexhub",
             "internal_preflight_binding",
             "'prune': false, 'selfHeal': true, 'allowEmpty': false",
+            "status.sync.status",
+            "status.health.status",
+            "cristexhub-prod-local",
         ):
             self.assertIn(needle, tasks)
 
@@ -301,7 +313,11 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         runbook = RUNBOOK.read_text()
         for needle in (
             REVISION,
-            "APPLIED / IDEMPOTENT / SYNCED / HEALTHY",
+            "LIVE STATUS UNKNOWN / RECONCILIATION APPLY PENDING",
+            "cristexhub-prod-local",
+            "HISTORICAL REGISTRATION APPLIED",
+            "Synced/Healthy",
+            "separately approved registration apply",
             "does not create the Namespace",
             "prune=false",
             "Cloudflare",

@@ -1,12 +1,17 @@
 # CristexHub PROD Argo registration and private activation
 
-Status: **APPLIED / IDEMPOTENT / SYNCED / HEALTHY / PUBLIC ROUTE PENDING**.
+Status: **SOURCE FIX READY / HISTORICAL REGISTRATION APPLIED / LIVE STATUS UNKNOWN / RECONCILIATION APPLY PENDING / PUBLIC ROUTE PENDING**.
 
-This five-object closure now registers and continuously reconciles the private
-PROD workload at the pinned revision. It does not create the Namespace, own
-application Secret values, publish images, change databases, or add the
-Cloudflare route. Registration apply passed, the active-state retry converged at
-`changed=0`, and Argo reports `Synced/Healthy`.
+The historical five-object closure remains present and the private PROD
+workloads are currently Ready at the pinned revision, but the live Argo
+Application is `Unknown/Missing` with a ComparisonError because the old
+server-based destination does not resolve the scoped cluster registration. The
+committed source now targets the exact `cristexhub-prod-local` cluster alias;
+that correction is source-only until a separately approved registration apply.
+The guarded live apply must restore `Synced/Healthy` and fails closed while the
+Application remains `Unknown`. This source change does not create the Namespace,
+own application Secret values, publish images, change databases, or add the
+Cloudflare route.
 
 ## Exact source
 
@@ -47,7 +52,9 @@ The role checks:
 - raw manifest hashes and exact object count;
 - absence of foreign objects, extra data, annotations, finalizers, or drifted
   fields at the five target identities;
-- the exact in-cluster server destination and automated non-pruning Application policy.
+- the exact `cristexhub-prod-local` cluster-alias destination and automated non-pruning Application policy;
+- after live apply only, an Argo Application status of `Synced/Healthy`; check mode
+  remains source-only and does not require live status.
 
 The action plugin accepts only the canonical role task, exact present-only
 objects, exact hashes, complete preflight binding, and wrapper attestation. It
@@ -62,15 +69,21 @@ and Ingresses in `cristexhub-prod`. It permits no Namespace, Secret, PVC, RBAC,
 or cluster-scoped application object. Controller RBAC is namespaced and has no
 `delete` verb.
 
-The active Application uses `selfHeal=true`, `prune=false`, `allowEmpty=false`,
+The active Application source uses the exact `cristexhub-prod-local` cluster
+alias with `server: ''`, `selfHeal=true`, `prune=false`, `allowEmpty=false`,
 `CreateNamespace=false`, `ServerSideApply=false`, `Replace=false`, and
-`FailOnSharedResource=true`. The AppProject accepts only the exact in-cluster
-server and `cristexhub-prod` Namespace.
+`FailOnSharedResource=true`. The AppProject accepts only that alias and the
+`cristexhub-prod` Namespace; it does not add a second destination.
 
-## Completed registration/synchronization and remaining acceptance gates
+## Current registration/reconciliation status and remaining acceptance gates
 
-The private registration, Secret materialization, pinned workload sync, and readiness
-gates below have completed:
+The historical registration objects, Secret materialization, and private
+workload readiness remain observed, but the current Application status is
+`Unknown/Missing` until the alias correction is separately applied. The
+private workload sync transition is therefore not currently accepted. The
+corrected guarded apply must prove `Synced/Healthy` before this registration is
+again treated as reconciled. The following dependency gates remain observed or
+open:
 
 - exact-main image promotion with immutable backend, frontend, and Keycloak
   evidence; current source publication governance remains a separate gate;
@@ -99,6 +112,8 @@ sh -n ansible/bin/bootstrap-cristexhub-prod-registration
 cd ansible && ../.venv/bin/ansible-playbook playbooks/bootstrap_cristexhub_prod_registration.yml --syntax-check
 ```
 
-Expected result: these offline checks pass without mutation. The private runtime
-and Argo evidence above is already applied; no provider or Cloudflare route mutation
-is performed by these offline commands.
+Expected result: these offline checks pass without mutation. They validate the
+alias-based source and guarded post-check only; they do not change the live
+`Unknown/Missing` Application status. A separately approved registration apply
+must restore and revalidate `Synced/Healthy`; no provider or Cloudflare route
+mutation is performed by these offline commands.

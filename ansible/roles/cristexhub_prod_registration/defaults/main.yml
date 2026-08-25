@@ -29,11 +29,11 @@ cristexhub_prod_registration_expected_hashes:
   - path: >-
       {{ cristexhub_prod_registration_repository_root
       }}/ansible/files/components/cristexhub-prod-registration/config/appproject-cristexhub-prod.yaml
-    sha256: 8bdd846ebe3d745a6abd9cd7eefaa8f9b1b3f9340e1910f1756736309c7b1467
+    sha256: 9e75e23f9c24b0280ca3d00c4e815b8517a94ba77a0e78feff061542a1e7b8a5
   - path: >-
       {{ cristexhub_prod_registration_repository_root
       }}/ansible/files/components/cristexhub-prod-registration/config/application-cristexhub-prod.yaml
-    sha256: 81bf9a7e2c3bcfefc78540725a4b8f797eb34b037e693680504b33ac1a12f4a1
+    sha256: 2850c9c53ffb983f4a6ec43c3c787bfa5605312c1c0fe9ebd8df98e3045d7741
   - path: >-
       {{ cristexhub_prod_registration_repository_root
       }}/ansible/files/components/cristexhub-prod-registration/rbac/role-argocd-application-controller-cristexhub-prod.yaml

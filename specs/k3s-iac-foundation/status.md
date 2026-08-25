@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: 452 offline contracts and all 47 playbook syntax checks pass; private PROD is Synced/Healthy and the public route remains unapplied
+build: 452 offline contracts and all 47 playbook syntax checks pass; private PROD workloads are Ready but the Argo Application is currently Unknown/Missing pending the scoped cluster-alias registration apply; the public route remains unapplied
 date: 2026-08-25
 deploy_required_after_acceptance: yes
 
@@ -30,9 +30,12 @@ reactive_resume_checkpoint: |
   checkpoint.
 
 current_checkpoint: |
-  Private CristexHub PROD at revision `751885a42798d282e168131db147f13694a0a621`
-  is Argo `Synced/Healthy`; backend, Celery, frontend, oauth2-proxy, and Redis are
-  each `1/1 Ready`. OIDC evidence is app-level smoke only: backend `200`,
+  Private CristexHub PROD workloads at revision `751885a42798d282e168131db147f13694a0a621`
+  are each `1/1 Ready`, but the live Argo Application is currently `Unknown/Missing`
+  with a ComparisonError from the historical server-based destination. The
+  source-only registration correction now targets the exact `cristexhub-prod-local`
+  cluster alias; a separately approved apply must restore `Synced/Healthy` before
+  Argo reconciliation is accepted. OIDC evidence is app-level smoke only: backend `200`,
   oauth2-proxy `302`, and Celery readiness; full authenticated OIDC/CONNECT tests
   remain open. The exact source allowlist is `auth.cristex-soft.com:443` and
   `api.deepseek.com:443`. RabbitMQ is live for Celery, but the observed PROD
@@ -71,12 +74,13 @@ note: |
   ten-key source runtime plus `cristexhub-prod-ghcr-pull`, scoped VAP/bindings,
   additive RBAC, hashes, and guarded source. The prior nine-key target apply and final
   idempotence passed at `ok=62 changed=0 failed=0 skipped=3`; the ten-key update is
-  NOT RUN/BLOCKED. The five-object PROD Argo registration
+  NOT RUN/BLOCKED. The five-object PROD Argo registration source
   pins protected-main revision `751885a42798d282e168131db147f13694a0a621`, uses
-  namespace-scoped no-delete RBAC and the exact in-cluster server destination, and
-  now reconciles with `selfHeal=true`, `prune=false`, and `allowEmpty=false`.
-  Argo and all five Deployments are `Synced/Healthy`; the Cloudflare route remains
-  unapplied. A separate source-only, check-only
+  namespace-scoped no-delete RBAC and the exact `cristexhub-prod-local` cluster
+  alias, and retains `selfHeal=true`, `prune=false`, and `allowEmpty=false`.
+  The live Application is currently `Unknown/Missing` from the historical
+  server-based destination; a separately approved apply must restore
+  `Synced/Healthy`. The Cloudflare route remains unapplied. A separate source-only, check-only
   `k3s_datastore_preflight` role/playbook/wrapper is now offline-validated with
   fixed read-only argv under `no_log`, a bounded private mode-`0600` config slurp,
   strict duplicate/type/mapping/YAML and encryption-JSON parsers, exact

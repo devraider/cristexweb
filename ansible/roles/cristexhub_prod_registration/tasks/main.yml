@@ -237,6 +237,43 @@
   changed_when: false
   no_log: true
   when: not ansible_check_mode
+- name: Wait for live PROD Application to reconcile
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    namespace: argocd
+    name: cristexhub-prod
+    kubeconfig: '{{ cristexhub_prod_registration_kubeconfig }}'
+  register: cristexhub_prod_registration_internal_application_status
+  changed_when: false
+  no_log: true
+  until:
+    - cristexhub_prod_registration_internal_application_status.resources | length == 1
+    - >-
+      cristexhub_prod_registration_internal_application_status.resources[0].status.sync.status |
+      default('') == 'Synced'
+    - >-
+      cristexhub_prod_registration_internal_application_status.resources[0].status.health.status |
+      default('') == 'Healthy'
+  retries: 30
+  delay: 10
+  when: not ansible_check_mode
+
+- name: Require live PROD Application Synced and Healthy
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_registration_internal_application_status.resources | length == 1
+      - >-
+        cristexhub_prod_registration_internal_application_status.resources[0].status.sync.status |
+        default('') == 'Synced'
+      - >-
+        cristexhub_prod_registration_internal_application_status.resources[0].status.health.status |
+        default('') == 'Healthy'
+    fail_msg: Refusing PROD registration while the live Argo Application is not Synced and Healthy.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
 - name: Require exact PROD registration post-state metadata
   ansible.builtin.assert:
     that:
