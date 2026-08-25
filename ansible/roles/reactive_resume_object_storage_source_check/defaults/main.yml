@@ -1,0 +1,44 @@
+---
+reactive_resume_object_storage_source_check_approved: false
+reactive_resume_object_storage_source_check_kubeconfig: /etc/rancher/k3s/k3s.yaml
+reactive_resume_object_storage_source_check_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+reactive_resume_object_storage_source_check_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+reactive_resume_object_storage_source_check_namespace: shared-services
+reactive_resume_object_storage_source_check_history_root: >-
+  {{ reactive_resume_object_storage_source_check_repository_root }}/ansible/files/components/reactive-resume-object-storage-history
+reactive_resume_object_storage_source_check_current_allow_dev_relative: >-
+  ansible/files/components/reactive-resume-dev-networkpolicy/network/reactive-resume-object-storage-allow-dev.yaml
+reactive_resume_object_storage_source_check_current_allow_dev_sha256: 79687232a2a98efaf10db9671ed98d67ed677db3a07729748fbc7df0e4010420
+reactive_resume_object_storage_source_check_object_count: 8
+reactive_resume_object_storage_source_check_manifest_entries:
+  - relative: source/reactive-resume-object-storage-auth.yaml
+    mode: '0644'
+    sha256: 547626072d1ae6013d6513eed641fbb5f422c6f305ab641fe059873be4f905b2
+  - relative: network/default-deny.yaml
+    mode: '0644'
+    sha256: 350e97eeeae636af9cf6d4a8494d9c8002d760c0123a985dd19fe9987969f559
+  - relative: network/allow-dev.yaml
+    mode: '0644'
+    sha256: c50f60fa16fb8ab0e018f19c55b8be2eaa1b7db8960b8dde3b8d43cdd39814ad
+  - relative: network/allow-dns.yaml
+    mode: '0644'
+    sha256: 73bb421065fd6991ab8b8217fea165ddd9739104ee37f2f42f91f6e697e32b4d
+  - relative: runtime/serviceaccount.yaml
+    mode: '0644'
+    sha256: 087cf2fbfe5f333cefd3367707a19f05e1b7bac4b48d75668a825834542f447a
+  - relative: runtime/configmap.yaml
+    mode: '0644'
+    sha256: 7cabd8c56001737adfd66f68932fa8811a754e506828ba23562f89f604975516
+  - relative: runtime/service.yaml
+    mode: '0644'
+    sha256: 46fda04ad1b7ad2c3469c0c99d0f3a697084a6730b104df9227ff96a3cd75b38
+  - relative: runtime/statefulset.yaml
+    mode: '0644'
+    sha256: 275ec75e893d3b18b3f48fc30e5216f5a74d1664319981229f91e8c55ecf23c6
+reactive_resume_object_storage_source_check_current_allow_dev_component: reactive-resume-dev-networkpolicy
+reactive_resume_object_storage_source_check_history_allow_dev_component: object-storage
+reactive_resume_object_storage_source_check_argo_application: reactive-resume-dev
+reactive_resume_object_storage_source_check_argo_namespace: argocd
+reactive_resume_object_storage_source_check_argo_revision: dd7d4cedd902e68266d9713d1dbb8e90f0b529b1
+reactive_resume_object_storage_source_check_argo_prune: false
+reactive_resume_object_storage_source_check_argo_allow_empty: false

@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: reactive-resume-object-storage-allow-dns
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: reactive-resume-object-storage
+    app.kubernetes.io/part-of: reactive-resume
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+    cristex.io/component: object-storage
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: reactive-resume-object-storage
+      app.kubernetes.io/part-of: reactive-resume
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

@@ -1,0 +1,256 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: reactive-resume-object-storage
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: reactive-resume-object-storage
+    app.kubernetes.io/part-of: reactive-resume
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+    cristex.io/component: object-storage
+spec:
+  serviceName: reactive-resume-object-storage
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: reactive-resume-object-storage
+      app.kubernetes.io/part-of: reactive-resume
+  volumeClaimTemplates:
+    - metadata:
+        name: object-storage-data
+        labels:
+          app.kubernetes.io/name: reactive-resume-object-storage
+          app.kubernetes.io/part-of: reactive-resume
+          app.kubernetes.io/managed-by: ansible
+          cristex.io/bootstrap-writer: ansible
+          cristex.io/desired-owner: argocd
+          cristex.io/component: object-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: local-path
+        volumeMode: Filesystem
+        resources:
+          requests:
+            storage: 20Gi
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: reactive-resume-object-storage
+        app.kubernetes.io/part-of: reactive-resume
+        app.kubernetes.io/managed-by: ansible
+        cristex.io/bootstrap-writer: ansible
+        cristex.io/desired-owner: argocd
+        cristex.io/component: object-storage
+    spec:
+      serviceAccountName: reactive-resume-object-storage
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 60
+      initContainers:
+        - name: initialize-data-permissions
+          image: chrislusf/seaweedfs:4.44@sha256:c927ea0755b1d7dd5a3101081e4717126d00e75e89d3142e21df374b0a90acad
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - >-
+              install -d -m 0700 -o 1000 -g 1000 /data
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - CHOWN
+                - FOWNER
+          volumeMounts:
+            - name: object-storage-data
+              mountPath: /data
+        - name: render-s3-config
+          image: chrislusf/seaweedfs:4.44@sha256:c927ea0755b1d7dd5a3101081e4717126d00e75e89d3142e21df374b0a90acad
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              umask 077
+              cat > /config/s3.json <<EOF
+              {"identities":[{"name":"reactive-resume-dev","credentials":[{"accessKey":"${SEAWEEDFS_S3_ACCESS_KEY_ID}","secretKey":"${SEAWEEDFS_S3_SECRET_ACCESS_KEY}"}],"actions":["List:reactive-resume-dev","Read:reactive-resume-dev/*","Write:reactive-resume-dev/*","Tagging:reactive-resume-dev/*"]}]}
+              EOF
+          env:
+            - name: SEAWEEDFS_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-object-storage-auth
+                  key: accessKey
+            - name: SEAWEEDFS_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-object-storage-auth
+                  key: secretKey
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: object-storage-config
+              mountPath: /config
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: seaweedfs
+          image: chrislusf/seaweedfs:4.44@sha256:c927ea0755b1d7dd5a3101081e4717126d00e75e89d3142e21df374b0a90acad
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/bin/weed
+          args:
+            - server
+            - -dir=/data
+            - -ip=0.0.0.0
+            - -master.port=9333
+            - -volume.port=8080
+            - -filer.port=8888
+            - -s3
+            - -s3.port=8333
+            - -s3.config=/etc/seaweedfs-config/s3.json
+            - -s3.key.file=/etc/seaweedfs-tls/tls.key
+            - -s3.cert.file=/etc/seaweedfs-tls/tls.crt
+            - -s3.cacert.file=/etc/seaweedfs-tls/ca.crt
+            - -s3.tlsVerifyClientCert=false
+          ports:
+            - name: s3-https
+              containerPort: 8333
+              protocol: TCP
+          env:
+            - name: SEAWEEDFS_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-object-storage-auth
+                  key: accessKey
+                  optional: false
+            - name: SEAWEEDFS_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: reactive-resume-object-storage-auth
+                  key: secretKey
+                  optional: false
+            - name: HOME
+              value: /tmp
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          startupProbe:
+            tcpSocket:
+              port: s3-https
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: s3-https
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: s3-https
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          volumeMounts:
+            - name: object-storage-data
+              mountPath: /data
+            - name: object-storage-config
+              mountPath: /etc/seaweedfs-config
+              readOnly: true
+            - name: object-storage-tls
+              mountPath: /etc/seaweedfs-tls
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+        - name: bucket-genesis
+          image: chrislusf/seaweedfs:4.44@sha256:c927ea0755b1d7dd5a3101081e4717126d00e75e89d3142e21df374b0a90acad
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - >-
+              until printf '%s\n' 's3.bucket.create -name reactive-resume-dev -owner reactive-resume-dev' |
+              /usr/bin/weed shell -master=127.0.0.1:9333; do
+                sleep 2;
+              done;
+              exec sleep 2147483647
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: object-storage-config
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+        - name: object-storage-tls
+          secret:
+            secretName: reactive-resume-object-storage-tls
+            defaultMode: 0440
+            items:
+              - key: ca.crt
+                path: ca.crt
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Mi

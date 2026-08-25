@@ -1,0 +1,8 @@
+---
+- name: Check the historical Reactive Resume object-storage source and live ownership
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  roles:
+    - role: reactive_resume_object_storage_source_check

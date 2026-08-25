@@ -1,0 +1,39 @@
+#!/bin/sh
+set -eu
+
+usage='usage: ansible/bin/check-reactive-resume-object-storage-source check'
+[ "$#" -eq 1 ] && [ "$1" = check ] || { printf '%s\n' "$usage" >&2; exit 64; }
+[ ! -L "$0" ] || { printf '%s\n' 'Refusing symlinked entrypoint.' >&2; exit 66; }
+dir="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$0")" && pwd -P)"
+root="$(CDPATH= cd -- "$dir/../.." && pwd -P)"
+[ "$root" = /home/paul/projects/cristexweb ] || {
+  printf '%s\n' 'Refusing non-canonical repository root.' >&2
+  exit 78
+}
+controller="$root/.venv/bin/ansible-playbook"
+[ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
+inventory="$root/ansible/.ansible/inventory.local.yml"
+[ -f "$inventory" ] && [ ! -L "$inventory" ] && [ -s "$inventory" ] || exit 78
+[ -z "${ANSIBLE_RUN_TAGS:-}${ANSIBLE_SKIP_TAGS:-}${ANSIBLE_START_AT_TASK:-}${ANSIBLE_STEP:-}" ] || exit 78
+user=$(/usr/bin/id -un)
+cd "$root/ansible"
+umask 077
+attestation="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-object-storage-source.XXXXXX")"
+token="$(/usr/bin/openssl rand -hex 32)"
+printf '%s:entrypoint\n' "$token" >"$attestation"
+chmod 0600 "$attestation"
+cleanup() { /bin/rm -f -- "$attestation"; }
+trap cleanup EXIT HUP INT TERM
+set -- "$controller" -i .ansible/inventory.local.yml \
+  playbooks/check_reactive_resume_object_storage_source.yml \
+  --check --diff --limit crtxweb \
+  --extra-vars '{"reactive_resume_object_storage_source_check_approved":true}'
+/usr/bin/env -i \
+  HOME="${HOME:-/home/paul}" USER="$user" LOGNAME="$user" \
+  PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 \
+  ANSIBLE_CONFIG="$PWD/ansible.cfg" \
+  CRISTEXWEB_REPOSITORY_ROOT="$root" \
+  CRISTEXWEB_REACTIVE_RESUME_OBJECT_STORAGE_SOURCE_ENTRYPOINT=v1 \
+  CRISTEXWEB_REACTIVE_RESUME_OBJECT_STORAGE_SOURCE_TOKEN="$token" \
+  CRISTEXWEB_REACTIVE_RESUME_OBJECT_STORAGE_SOURCE_ATTESTATION_FILE="$attestation" \
+  "$@"

@@ -440,6 +440,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "reactive-resume-dev-argocd",
             "keycloak-reactive-resume-dev-client",
             "reactive-resume-dev-networkpolicy",
+            "reactive-resume-object-storage-history",
         ):
             required.extend(
                 str(path.relative_to(ANSIBLE))
@@ -475,6 +476,10 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "plugins/action/reactive_resume_dev_successor_guarded.py",
                 "roles/reactive_resume_dev_successor/defaults/main.yml",
                 "roles/reactive_resume_dev_successor/tasks/main.yml",
+                "bin/check-reactive-resume-object-storage-source",
+                "playbooks/check_reactive_resume_object_storage_source.yml",
+                "roles/reactive_resume_object_storage_source_check/defaults/main.yml",
+                "roles/reactive_resume_object_storage_source_check/tasks/main.yml",
             ]
         )
         self.assertEqual([], [path for path in required if not (ANSIBLE / path).is_file()])

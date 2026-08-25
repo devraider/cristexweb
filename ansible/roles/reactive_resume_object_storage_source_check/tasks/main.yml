@@ -1,0 +1,336 @@
+---
+- name: Reject externally supplied object-storage source-check internals
+  ansible.builtin.assert:
+    that:
+      - item not in vars
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied object-storage
+      source-check internal variable {{ item }}.
+  loop:
+    - reactive_resume_object_storage_source_check_internal_attestation
+    - reactive_resume_object_storage_source_check_internal_manifest_states
+    - reactive_resume_object_storage_source_check_internal_manifests
+    - reactive_resume_object_storage_source_check_internal_manifest_paths
+    - reactive_resume_object_storage_source_check_internal_current_path
+    - reactive_resume_object_storage_source_check_internal_current_leaf
+    - reactive_resume_object_storage_source_check_internal_history_allow_dev
+    - reactive_resume_object_storage_source_check_internal_current_app_labels
+    - reactive_resume_object_storage_source_check_internal_live_objects
+    - reactive_resume_object_storage_source_check_internal_argo
+    - reactive_resume_object_storage_source_check_internal_argo_resources
+    - reactive_resume_object_storage_source_check_internal_identity_set
+  changed_when: false
+
+- name: Require the check-only object-storage source contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_OBJECT_STORAGE_SOURCE_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_OBJECT_STORAGE_SOURCE_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_OBJECT_STORAGE_SOURCE_ATTESTATION_FILE') | length > 0
+      - reactive_resume_object_storage_source_check_approved | bool
+      - ansible_check_mode
+      - (ansible_limit | default('') | string) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - reactive_resume_object_storage_source_check_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - reactive_resume_object_storage_source_check_repository_root == (playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname)
+      - reactive_resume_object_storage_source_check_namespace == 'shared-services'
+      - reactive_resume_object_storage_source_check_object_count == 8
+    fail_msg: >-
+      Refusing object-storage source inspection outside the single-host,
+      check-only, canonical repository boundary.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the one-run source-check attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_OBJECT_STORAGE_SOURCE_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: reactive_resume_object_storage_source_check_internal_attestation
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require a private single-use source-check attestation
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_object_storage_source_check_internal_attestation.stat.exists | default(false)
+      - reactive_resume_object_storage_source_check_internal_attestation.stat.isreg | default(false)
+      - not (reactive_resume_object_storage_source_check_internal_attestation.stat.islnk | default(false))
+      - reactive_resume_object_storage_source_check_internal_attestation.stat.pw_name == reactive_resume_object_storage_source_check_controller_user
+      - reactive_resume_object_storage_source_check_internal_attestation.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_OBJECT_STORAGE_SOURCE_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_OBJECT_STORAGE_SOURCE_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing a missing, reusable, foreign-owned, or invalid source-check attestation.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Bind the historical source manifest paths
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_manifest_paths: >-
+      {{ (reactive_resume_object_storage_source_check_internal_manifest_paths | default([])) +
+         [reactive_resume_object_storage_source_check_history_root ~ '/' ~ item.relative] }}
+  loop: "{{ reactive_resume_object_storage_source_check_manifest_entries }}"
+  changed_when: false
+  no_log: true
+
+- name: Inspect every historical object-storage source leaf
+  ansible.builtin.stat:
+    path: "{{ reactive_resume_object_storage_source_check_history_root }}/{{ item.relative }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ reactive_resume_object_storage_source_check_manifest_entries }}"
+  register: reactive_resume_object_storage_source_check_internal_manifest_states
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require exact hash-bound historical source leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == reactive_resume_object_storage_source_check_controller_user
+      - item.stat.mode == item.item.mode
+      - item.stat.checksum == item.item.sha256
+    fail_msg: Refusing missing, symlinked, mode-drifted, or hash-drifted historical source.
+  loop: "{{ reactive_resume_object_storage_source_check_internal_manifest_states.results }}"
+  loop_control:
+    label: "{{ item.item.relative }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Load the value-free historical object-storage source
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_manifests: >-
+      {{ (reactive_resume_object_storage_source_check_internal_manifests | default([])) +
+         [(lookup('ansible.builtin.file', reactive_resume_object_storage_source_check_history_root ~ '/' ~ item.relative) | from_yaml)] }}
+  loop: "{{ reactive_resume_object_storage_source_check_manifest_entries }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind the exact historical object identities
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_identity_set: >-
+      {{ (reactive_resume_object_storage_source_check_internal_identity_set | default([])) +
+         [item.apiVersion ~ '|' ~ item.kind ~ '|' ~ (item.metadata.namespace | default('')) ~ '|' ~ item.metadata.name] }}
+  loop: "{{ reactive_resume_object_storage_source_check_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Require the exact eight-object historical source partition
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_object_storage_source_check_internal_manifests | length == 8
+      - reactive_resume_object_storage_source_check_internal_identity_set | unique | length == 8
+      - reactive_resume_object_storage_source_check_internal_identity_set | sort == [
+          'apps/v1|StatefulSet|shared-services|reactive-resume-object-storage',
+          'v1|ConfigMap|shared-services|reactive-resume-object-storage-config',
+          'v1|Service|shared-services|reactive-resume-object-storage',
+          'v1|ServiceAccount|shared-services|reactive-resume-object-storage',
+          'networking.k8s.io/v1|NetworkPolicy|shared-services|reactive-resume-object-storage-allow-dev',
+          'networking.k8s.io/v1|NetworkPolicy|shared-services|reactive-resume-object-storage-allow-dns',
+          'networking.k8s.io/v1|NetworkPolicy|shared-services|reactive-resume-object-storage-default-deny',
+          'secrets.infisical.com/v1beta1|InfisicalStaticSecret|shared-services|reactive-resume-object-storage-auth'
+        ] | sort
+      - reactive_resume_object_storage_source_check_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
+      - reactive_resume_object_storage_source_check_internal_manifests | selectattr('kind', 'equalto', 'PersistentVolumeClaim') | list | length == 0
+      - reactive_resume_object_storage_source_check_internal_manifests | selectattr('kind', 'equalto', 'Ingress') | list | length == 0
+      - reactive_resume_object_storage_source_check_internal_manifests | selectattr('kind', 'equalto', 'Job') | list | length == 0
+    fail_msg: Refusing a historical source outside the exact private object-storage closure.
+  changed_when: false
+  no_log: true
+
+- name: Bind the current DEV policy source path
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_current_path: >-
+      {{ reactive_resume_object_storage_source_check_repository_root ~ '/' ~
+         reactive_resume_object_storage_source_check_current_allow_dev_relative }}
+  changed_when: false
+  no_log: true
+
+- name: Inspect the current DEV object-storage allow policy source
+  ansible.builtin.stat:
+    path: "{{ reactive_resume_object_storage_source_check_internal_current_path }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  register: reactive_resume_object_storage_source_check_internal_current_leaf
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the bound current DEV policy leaf
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_object_storage_source_check_internal_current_leaf.stat.exists | default(false)
+      - reactive_resume_object_storage_source_check_internal_current_leaf.stat.isreg | default(false)
+      - not (reactive_resume_object_storage_source_check_internal_current_leaf.stat.islnk | default(false))
+      - reactive_resume_object_storage_source_check_internal_current_leaf.stat.pw_name == reactive_resume_object_storage_source_check_controller_user
+      - reactive_resume_object_storage_source_check_internal_current_leaf.stat.mode == '0644'
+      - reactive_resume_object_storage_source_check_internal_current_leaf.stat.checksum == reactive_resume_object_storage_source_check_current_allow_dev_sha256
+    fail_msg: Refusing an unbound current object-storage policy leaf.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Load the current DEV policy leaf without mutating it
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_current_leaf: >-
+      {{ lookup('ansible.builtin.file', reactive_resume_object_storage_source_check_internal_current_path) | from_yaml }}
+  changed_when: false
+  no_log: true
+
+- name: Bind the historical allow policy identity
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_history_allow_dev: >-
+      {{ reactive_resume_object_storage_source_check_internal_manifests
+         | selectattr('kind', 'equalto', 'NetworkPolicy')
+         | selectattr('metadata.name', 'equalto', 'reactive-resume-object-storage-allow-dev')
+         | list | first }}
+  changed_when: false
+  no_log: true
+
+- name: Bind the current app selector identity
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_current_app_labels: >-
+      {{ reactive_resume_object_storage_source_check_internal_current_leaf.spec.ingress[0]['from'][0].podSelector.matchLabels }}
+  changed_when: false
+  no_log: true
+
+- name: Bind the historical/current source difference
+  ansible.builtin.assert:
+    that:
+      - >-
+        reactive_resume_object_storage_source_check_internal_current_leaf.metadata.labels['cristex.io/component'] ==
+        reactive_resume_object_storage_source_check_current_allow_dev_component
+      - >-
+        reactive_resume_object_storage_source_check_internal_current_leaf.metadata.annotations['cristex.io/source-service'] ==
+        'reactive-resume-dev'
+      - >-
+        reactive_resume_object_storage_source_check_internal_current_leaf.metadata.annotations['cristex.io/source-service-port'] == '8333'
+      - reactive_resume_object_storage_source_check_internal_current_app_labels['app.kubernetes.io/part-of'] == 'cristexhub'
+      - >-
+        reactive_resume_object_storage_source_check_internal_history_allow_dev.metadata.labels['cristex.io/component'] ==
+        reactive_resume_object_storage_source_check_history_allow_dev_component
+      - reactive_resume_object_storage_source_check_internal_history_allow_dev.metadata.annotations | default({}) == {}
+    fail_msg: Historical/current object-storage source identity difference is not explicitly bound.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the current shared-services Namespace metadata
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ reactive_resume_object_storage_source_check_namespace }}"
+    kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
+  register: reactive_resume_object_storage_source_check_internal_namespace
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require the established shared-services Namespace identity
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_object_storage_source_check_internal_namespace.resources | length == 1
+      - reactive_resume_object_storage_source_check_internal_namespace.resources[0].status.phase == 'Active'
+      - reactive_resume_object_storage_source_check_internal_namespace.resources[0].metadata.labels.get('app.kubernetes.io/part-of') == 'cristex-platform'
+    fail_msg: Refusing source binding against a missing or drifted shared-services Namespace.
+  changed_when: false
+  no_log: true
+
+- name: Inspect current object-storage identities without reading Secret or PVC data
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    name: "{{ item.metadata.name }}"
+    namespace: "{{ item.metadata.namespace | default(omit) }}"
+    kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
+  loop: "{{ reactive_resume_object_storage_source_check_internal_manifests }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.metadata.name }}"
+  register: reactive_resume_object_storage_source_check_internal_live_objects
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Refuse foreign current object-storage identities
+  ansible.builtin.assert:
+    that:
+      - item.failed | default(false) | bool == false
+      - item.resources | default([]) | length <= 1
+      - item.resources | default([]) | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/name') == 'reactive-resume-object-storage'
+      - item.resources | default([]) | length == 0 or item.resources[0].metadata.labels.get('cristex.io/desired-owner') == 'argocd'
+    fail_msg: Refusing a foreign current object-storage identity; no apply path exists.
+  loop: "{{ reactive_resume_object_storage_source_check_internal_live_objects.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.metadata.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Inspect current Argo ownership metadata only
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: "{{ reactive_resume_object_storage_source_check_argo_application }}"
+    namespace: "{{ reactive_resume_object_storage_source_check_argo_namespace }}"
+    kubeconfig: "{{ reactive_resume_object_storage_source_check_kubeconfig }}"
+  register: reactive_resume_object_storage_source_check_internal_argo
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Bind current Argo resources for read-only assertions
+  ansible.builtin.set_fact:
+    reactive_resume_object_storage_source_check_internal_argo_resources: >-
+      {{ reactive_resume_object_storage_source_check_internal_argo.resources | default([]) }}
+  changed_when: false
+  no_log: true
+
+- name: Require the current Argo handoff identity when present
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_object_storage_source_check_internal_argo.failed | default(false) | bool == false
+      - reactive_resume_object_storage_source_check_internal_argo_resources | length <= 1
+      - >-
+        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
+        reactive_resume_object_storage_source_check_internal_argo_resources[0].status.sync.revision ==
+        reactive_resume_object_storage_source_check_argo_revision
+      - >-
+        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
+        reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.syncPolicy.automated.prune ==
+        reactive_resume_object_storage_source_check_argo_prune
+      - >-
+        reactive_resume_object_storage_source_check_internal_argo_resources | length == 0 or
+        reactive_resume_object_storage_source_check_internal_argo_resources[0].spec.syncPolicy.automated.allowEmpty ==
+        reactive_resume_object_storage_source_check_argo_allow_empty
+    fail_msg: Refusing a source binding against unexpected Argo ownership metadata.
+  changed_when: false
+  no_log: true
+
+- name: Emit a sanitized read-only ownership result
+  ansible.builtin.debug:
+    msg: >-
+      object_storage_source_check=passed historical_objects=8 current_leaf=bound
+      live_identity_query=metadata_only secret_data_read=false pvc_data_read=false
+      argo_apply=false pvc_apply=false delete=false
+  changed_when: false

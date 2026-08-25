@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reactive-resume-object-storage-config
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: reactive-resume-object-storage
+    app.kubernetes.io/part-of: reactive-resume
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/desired-owner: argocd
+    cristex.io/component: object-storage
+data:
+  s3.json: |
+    {
+      "identities": [
+        {
+          "name": "reactive-resume-dev",
+          "credentials": [
+            {
+              "accessKey": "${SEAWEEDFS_S3_ACCESS_KEY_ID}",
+              "secretKey": "${SEAWEEDFS_S3_SECRET_ACCESS_KEY}"
+            }
+          ],
+          "actions": [
+            "List:reactive-resume-dev",
+            "Read:reactive-resume-dev/*",
+            "Write:reactive-resume-dev/*",
+            "Tagging:reactive-resume-dev/*"
+          ]
+        }
+      ]
+    }
