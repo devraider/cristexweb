@@ -300,6 +300,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "RTO `14400` seconds (4 hours)",
             "Exact approved acceptance run sequence",
             "journalctl -u cristexweb-reactive-resume-dev-backup.service",
+            "--ask-become-pass",
+            "controlling terminal",
+            "do not pipe or redirect",
         ):
             self.assertIn(value, normalized, value)
         self.assertNotIn("runtime was applied", self.runbook.lower())

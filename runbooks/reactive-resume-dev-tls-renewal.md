@@ -35,13 +35,17 @@ Infisical values untouched. Temporary workspace cleanup is installed before
 certificate generation and removes certbot state, credentials, payload, and
 private material.
 
-The source requires distro packages `certbot` and
-`python3-certbot-dns-cloudflare`. The host installer is a separate guarded
-Ansible mode; source authoring does not install packages or run renewal.
+Install mode installs exactly the distro packages `certbot` and
+`python3-certbot-dns-cloudflare` (with `update_cache: false`) before installing
+the service. The service uses the pinned user-owned Infisical standalone binary
+at `/home/paul/.nvm/versions/node/v24.19.0/lib/node_modules/@infisical/cli/bin/infisical`;
+it does not assume a nonexistent `/usr/local/bin/infisical`.
 
 ## Safe systemd lifecycle
 
-The units are installed disabled and stopped by default:
+The units are installed disabled and stopped by default. Every wrapper call
+invokes Ansible with `--ask-become-pass`; enter the sudo password only in the
+controlling terminal and never pipe or redirect the prompt.
 
 ```text
 ansible/bin/configure-reactive-resume-dev-tls-renewal check
@@ -50,7 +54,9 @@ ansible/bin/configure-reactive-resume-dev-tls-renewal enable-check
 ansible/bin/configure-reactive-resume-dev-tls-renewal enable-apply
 ```
 
-`enable-apply` is a separate approval boundary. The daily timer is persistent,
+`apply` is a separate approved host-mutation boundary and installs the exact
+Certbot prerequisites while leaving the renewal timer disabled. `enable-apply`
+is a second approval boundary. The daily timer is persistent,
 randomized by 15 minutes, locked against concurrent execution, non-root, and
 hardened with `ProtectSystem`, `ProtectHome=read-only`, `PrivateTmp`,
 `NoNewPrivileges`, restricted address families, and an explicit writable state

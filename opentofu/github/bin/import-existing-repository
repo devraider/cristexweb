@@ -73,6 +73,14 @@ run_quiet() {
     chmod 0600 "$log"
     "$@" >"$log" 2>&1 || fail command
 }
+# Ansible backup modes use --ask-become-pass. Do not redirect their prompt to
+# the provider log: nested backup calls must retain the controlling terminal so
+# the operator can enter sudo credentials, while the backup source emits only
+# sanitized receipts and never receives GITHUB_TOKEN.
+run_backup_interactive() {
+    printf 'import_stage=backup_%s sudo_prompt=interactive\n' "$1" >&2
+    "$backup_wrapper" "$1" || fail "backup_$1"
+}
 
 printf '%s' 'GitHub token (input hidden): ' >&2
 IFS= read -r -s github_token || fail protected_token_input
@@ -101,7 +109,7 @@ unset confirmation
 backup_wrapper="$repo_root/ansible/bin/configure-opentofu-github-state-backup"
 [ -x "$backup_wrapper" ] || fail backup_wrapper
 unset GITHUB_TOKEN
-run_quiet "$backup_wrapper" restore-absence
+run_backup_interactive restore-absence
 # The token remains only in this shell variable while the backup lane runs
 # without GITHUB_TOKEN; it is re-exported immediately before provider calls.
 export GITHUB_TOKEN="$github_token"
@@ -123,6 +131,6 @@ run_quiet "$github_root/bin/validate-import-plan" "$plan_json"
 
 # Backup, immutable readback, and isolated restore are mandatory after genesis.
 unset GITHUB_TOKEN
-run_quiet "$backup_wrapper" test
-run_quiet "$backup_wrapper" restore
+run_backup_interactive test
+run_backup_interactive restore
 printf '%s\n' 'import_status=success repository=devraider/cristex-reactive-resume addresses=3 plan=no-op backup=immutable-readback restore=isolated token_output=false'

@@ -110,6 +110,8 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "github_actions_repository_permissions.reactive_resume_mirror",
             "validate-import-plan",
             "restore",
+            "run_backup_interactive()",
+            "sudo_prompt=interactive",
             "token_output=false",
         ):
             self.assertIn(value, source, value)
@@ -122,8 +124,16 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "github_repository_webhook",
             "github_actions_secret",
             "printf '%s' \"$github_token\"",
+            'run_quiet "$backup_wrapper"',
         ):
             self.assertNotIn(forbidden, source, forbidden)
+        for value in (
+            "tofu_target=/opt/opentofu/1.12.5/tofu",
+            '[ -L "$tofu" ]',
+            'readlink -f -- "$tofu"',
+            "stat -c '%U:%G:%a' \"$tofu_target\"",
+        ):
+            self.assertIn(value, source, value)
 
     def test_import_plan_validator_accepts_only_noop_exact_scope(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -169,6 +179,10 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "never creates",
             "tofu destroy",
             "state rm",
+            "/opt/opentofu/1.12.5/tofu",
+            "distribution symlink itself is intentional",
+            "--ask-become-pass",
+            "controlling terminal",
         ):
             self.assertIn(value, text, value)
         self.assertIn("tofu apply", text)

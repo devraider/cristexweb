@@ -42,7 +42,10 @@ class ReactiveResumeDevSoakContractTests(unittest.TestCase):
         for value in (
             "ansible_check_mode",
             "ansible_diff_mode",
-            "ansible.builtin.service_facts:",
+            "ansible.builtin.command:",
+            "/usr/bin/systemctl",
+            "is-active",
+            "is-enabled",
             "kubernetes.core.k8s_info:",
             "ansible.builtin.uri:",
             "validate_certs: true",
@@ -54,7 +57,6 @@ class ReactiveResumeDevSoakContractTests(unittest.TestCase):
         ):
             self.assertIn(value, self.tasks + self.sample, value)
         for forbidden in (
-            "ansible.builtin.command:",
             "ansible.builtin.shell:",
             "ansible.builtin.copy:",
             "ansible.builtin.template:",

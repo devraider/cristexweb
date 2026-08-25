@@ -22,7 +22,8 @@ state_root=/var/lib/cristexweb/reactive-resume-dev-tls
 work_root=$state_root/work
 lock_file=/run/lock/cristexweb-reactive-resume-dev-tls-renew.lock
 certbot=/usr/bin/certbot
-infisical=/usr/local/bin/infisical
+# Pinned user-owned Infisical standalone binary; the service runs as paul.
+infisical=/home/paul/.nvm/versions/node/v24.19.0/lib/node_modules/@infisical/cli/bin/infisical
 validator=/usr/local/libexec/cristexweb/validate-reactive-resume-dev-tls-material
 minimum_remaining_seconds=2592000
 

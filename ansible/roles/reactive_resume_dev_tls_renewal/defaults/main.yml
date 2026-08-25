@@ -6,6 +6,10 @@ reactive_resume_dev_tls_renewal_controller_user: "{{ lookup('ansible.builtin.env
 reactive_resume_dev_tls_renewal_token_file: /home/paul/.config/cristexweb/cloudflare-argo-dns-token
 reactive_resume_dev_tls_renewal_state_root: /var/lib/cristexweb/reactive-resume-dev-tls
 reactive_resume_dev_tls_renewal_libexec_root: /usr/local/libexec/cristexweb
+# The pinned Infisical CLI is a user-owned Node standalone binary already used
+# by the host backup restore lanes. The service runs as paul, so it must not
+# require a nonexistent root-owned /usr/local/bin/infisical installation.
+reactive_resume_dev_tls_renewal_infisical_cli: /home/paul/.nvm/versions/node/v24.19.0/lib/node_modules/@infisical/cli/bin/infisical
 reactive_resume_dev_tls_renewal_service: cristexweb-reactive-resume-dev-tls-renew.service
 reactive_resume_dev_tls_renewal_timer: cristexweb-reactive-resume-dev-tls-renew.timer
 reactive_resume_dev_tls_renewal_component_root: "{{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/files/components/reactive-resume-dev-tls/renewal"

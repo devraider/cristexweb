@@ -28,35 +28,49 @@
   changed_when: false
   no_log: true
 
+# Certbot and its Cloudflare DNS-01 plugin are host prerequisites. Installing
+# exactly these distro packages belongs to this explicitly approved install
+# mode; check mode predicts the package changes without requiring them to be
+# present already.
+- name: Install exact renewal dependencies
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-dns-cloudflare
+    state: present
+    update_cache: false
+  when: reactive_resume_dev_tls_renewal_mode == 'install'
+
 - name: Collect package facts for renewal dependencies
   ansible.builtin.package_facts:
     manager: apt
 
-- name: Require the pinned renewal dependency names
+- name: Require the pinned renewal dependency names after install
   ansible.builtin.assert:
     that:
-      - "'certbot' in ansible_facts.packages"
-      - "'python3-certbot-dns-cloudflare' in ansible_facts.packages"
-    fail_msg: Refusing absent certbot DNS-01 dependencies.
+      - ansible_check_mode or 'certbot' in ansible_facts.packages
+      - ansible_check_mode or 'python3-certbot-dns-cloudflare' in ansible_facts.packages
+    fail_msg: Refusing absent certbot DNS-01 dependencies after the approved install.
   changed_when: false
   no_log: true
 
-- name: Inspect the required Infisical CLI
+- name: Inspect the pinned user-owned Infisical CLI
   ansible.builtin.stat:
-    path: /usr/local/bin/infisical
+    path: "{{ reactive_resume_dev_tls_renewal_infisical_cli }}"
     follow: false
   register: reactive_resume_dev_tls_renewal_internal_infisical_state
   changed_when: false
   no_log: true
 
-- name: Require the protected Infisical CLI
+- name: Require the pinned user-owned Infisical CLI
   ansible.builtin.assert:
     that:
       - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.isreg | default(false)
       - not (reactive_resume_dev_tls_renewal_internal_infisical_state.stat.islnk | default(false))
-      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.pw_name == 'root'
-      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.mode == '0755'
-    fail_msg: Refusing a missing or unsafe Infisical CLI.
+      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.pw_name == 'paul'
+      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.gr_name == 'paul'
+      - reactive_resume_dev_tls_renewal_internal_infisical_state.stat.mode == '0775'
+    fail_msg: Refusing a missing or unsafe pinned Infisical CLI.
   changed_when: false
   no_log: true
 

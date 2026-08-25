@@ -45,11 +45,17 @@ endpoint overrides and proxies. The protected token input is entered through
 hidden input,
 never placed in an argument, file, plan output, or evidence, and is unset before
 any backup command. Provider command output is captured in a mode-0600 temporary
-log and only sanitized receipts are printed.
+log and only sanitized receipts are printed. The nested backup/restore-absence
+calls intentionally retain the controlling terminal because their Ansible wrapper
+uses `--ask-become-pass`; enter sudo credentials there and do not pipe or redirect
+the import command.
 
 ## Required gates and sequence
 
-1. Verify the canonical worktree and run the read-only `check` mode.
+1. Verify the canonical worktree and run the read-only `check` mode. The
+   check must confirm the pinned OpenTofu path `/usr/local/bin/tofu` resolves to
+   the exact regular file `/opt/opentofu/1.12.5/tofu` (root:root:0755); the
+   distribution symlink itself is intentional.
 2. Independently complete the first-genesis absence attestation and its
    encrypted readback/isolated rehearsal through the guarded state-backup lane.
    The import entrypoint requires the successful `restore-absence` gate immediately

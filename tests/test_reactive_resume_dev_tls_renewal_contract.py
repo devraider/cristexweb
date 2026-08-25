@@ -80,6 +80,8 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         text = ROLE.read_text()
         for required in (
             "reactive_resume_dev_tls_renewal_mode in ['install', 'enable']",
+            "Install exact renewal dependencies",
+            "python3-certbot-dns-cloudflare",
             "'certbot' in ansible_facts.packages",
             "'python3-certbot-dns-cloudflare' in ansible_facts.packages",
             "mode == '0600'",
@@ -89,6 +91,9 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
         self.assertIn("role: reactive_resume_dev_tls_renewal", PLAYBOOK.read_text())
+        defaults = (ROOT / "ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml").read_text()
+        self.assertIn("v24.19.0/lib/node_modules/@infisical/cli/bin/infisical", defaults)
+        self.assertIn("reactive_resume_dev_tls_renewal_infisical_cli", defaults)
 
     def test_manifest_hashes_and_runbook(self) -> None:
         manifest = (COMPONENT / "MANIFESTS.sha256").read_text().splitlines()
@@ -103,6 +108,8 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "prod:/reactive-resume/dev/tls",
             "exact SAN",
             "enable-apply",
+            "python3-certbot-dns-cloudflare",
+            "v24.19.0/lib/node_modules/@infisical/cli/bin/infisical",
             "Direct `kubectl` Secret writes are forbidden",
         ):
             self.assertIn(required, runbook)

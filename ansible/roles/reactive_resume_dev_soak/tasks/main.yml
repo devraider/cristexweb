@@ -78,19 +78,40 @@
   changed_when: false
   no_log: true
 
-- name: Read the fixed backup timer state without mutation
-  ansible.builtin.service_facts:
-  register: reactive_resume_dev_soak_internal_services
+# service_facts reports service units but does not enumerate systemd timer
+# units on this Debian host. Use the read-only systemctl queries instead of
+# treating a missing timer key as proof that the accepted timer is inactive.
+- name: Read the fixed backup timer active state without mutation
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/systemctl
+      - is-active
+      - "{{ reactive_resume_dev_soak_backup_timer }}"
+  register: reactive_resume_dev_soak_internal_timer_active
   check_mode: false
   changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Read the fixed backup timer enabled state without mutation
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/systemctl
+      - is-enabled
+      - "{{ reactive_resume_dev_soak_backup_timer }}"
+  register: reactive_resume_dev_soak_internal_timer_enabled
+  check_mode: false
+  changed_when: false
+  failed_when: false
   no_log: true
 
 - name: Require an enabled and active Reactive Resume DEV backup timer
   ansible.builtin.assert:
     that:
-      - reactive_resume_dev_soak_internal_services.services[reactive_resume_dev_soak_backup_timer] is defined
-      - reactive_resume_dev_soak_internal_services.services[reactive_resume_dev_soak_backup_timer].state == 'running'
-      - reactive_resume_dev_soak_internal_services.services[reactive_resume_dev_soak_backup_timer].status == 'enabled'
+      - reactive_resume_dev_soak_internal_timer_active.rc == 0
+      - reactive_resume_dev_soak_internal_timer_active.stdout | trim == 'active'
+      - reactive_resume_dev_soak_internal_timer_enabled.rc == 0
+      - reactive_resume_dev_soak_internal_timer_enabled.stdout | trim == 'enabled'
     fail_msg: >-
       The weekly Reactive Resume DEV backup timer must already be active and
       enabled; the soak has no enable or restart path.

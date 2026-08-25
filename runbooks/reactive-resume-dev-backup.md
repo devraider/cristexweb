@@ -46,7 +46,10 @@ ansible/playbooks/configure_reactive_resume_dev_backup.yml
 ansible/bin/configure-reactive-resume-dev-backup
 ```
 
-The only wrapper modes are:
+The only wrapper modes are. Every mode invokes Ansible with
+`--ask-become-pass`; enter the sudo password in the controlling terminal and do
+not pipe or redirect the wrapper, especially when invoked from another guarded
+workflow.
 
 ```text
 ansible/bin/configure-reactive-resume-dev-backup check
@@ -194,7 +197,7 @@ or capture credentials. Run these in order from the canonical checkout:
 sh -n ansible/files/backup/reactive-resume-dev-backup
 sh -n ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal
 
-# install/check, then separately approved apply and idempotence
+# install/check (sudo prompt stays visible), then separately approved apply and idempotence
 ansible/bin/configure-reactive-resume-dev-backup check
 ansible/bin/configure-reactive-resume-dev-backup apply
 ansible/bin/configure-reactive-resume-dev-backup apply
@@ -205,7 +208,7 @@ journalctl -u cristexweb-reactive-resume-dev-backup.service -n 1 -o cat --no-pag
 
 # create a one-use mode-0600 attestation containing only <token>:restore,
 # export the wrapper's approved restore variables without displaying them,
-# then run the isolated combined restore
+# keep the sudo prompt attached to the terminal, then run the isolated combined restore
 ansible/bin/configure-reactive-resume-dev-backup restore
 
 # separately verify zero exact temporary Pods and no private staging residue;
