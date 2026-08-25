@@ -377,6 +377,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             "keycloak-dev-identity",
             "keycloak-dev-identity-transition",
             "reactive-resume-dev-route",
+            "reactive-resume-dev-tls",
         ):
             required.extend(
                 str(path.relative_to(ANSIBLE))

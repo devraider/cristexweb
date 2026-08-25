@@ -7,9 +7,16 @@ The shared self-hosted Keycloak workload is an existing private runtime checkpoi
 Keycloak `26.7.1`, PostgreSQL `17.10`, the retained PROD-compatibility realm
 `cristexhub`, and issuer `https://auth.cristex-soft.com/realms/cristexhub` remain
 canonical. The exact release identities are recorded in the [Keycloak release
-selection](keycloak-release-selection.md). A separate source-only DEV successor
+selection](keycloak-release-selection.md). Reactive Resume DEV is an explicit
+shared-realm exception: its client `reactive-resume-dev` uses the retained
+`cristexhub` realm and issuer `https://auth.cristex-soft.com/realms/cristexhub`
+so its shared login theme and SSO are the same as CristexHub. Its private
+hostname is `https://resume-dev.cristex-soft.com`, with exact callback
+`/api/auth/oauth2/callback/custom`, exact web origin, exact post-logout redirect,
+and PKCE `S256`. A separate source-only DEV successor
 contract now defines realm `cristexhub-dev` and issuer
-`https://auth.cristex-soft.com/realms/cristexhub-dev`; it has no runtime activation.
+`https://auth.cristex-soft.com/realms/cristexhub-dev`; that lane is for the
+CristexHub DEV identity transition, not Reactive Resume.
 
 The DEV successor lane authorizes only offline source validation. It performs no
 Admin API request and authorizes no apply, Secret operation, database mutation,
@@ -93,9 +100,20 @@ PKCE `S256`, and permits exactly this callback:
 `https://hub.cristex-soft.com/`. The client secret is an Infisical-owned value at
 `prod:/cristexhub/prod/runtime`, represented only by the key name
 `OIDC_CLIENT_SECRET`, which is the same source/key projected by the PROD runtime
-StaticSecret; no value is present here. Reactive Resume and
-Argo CD browser clients remain inactive until their own exact private callbacks and
-origins are selected; no hostname or route is invented.
+StaticSecret; no value is present here. Reactive Resume DEV is now selected as a
+confidential client in the shared `cristexhub` realm. Its exact value-free contract
+is recorded in `hosted-identity-authorization.yml`: hostname
+`https://resume-dev.cristex-soft.com`, callback
+`https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom`, web origin
+`https://resume-dev.cristex-soft.com`, post-logout redirect
+`https://resume-dev.cristex-soft.com/*`, and Infisical key
+`prod:/reactive-resume/dev/runtime#OAUTH_CLIENT_SECRET`. The former same-named
+client in `cristexhub-dev` is retained only for rollback, must not be deleted, and
+may be disabled only by a separately approved operation after private acceptance.
+Rollback re-enables it and restores the old issuer/discovery pair without touching
+CristexHub's client. Argo CD browser clients remain inactive until their own exact
+private callbacks and origins are selected; no additional hostname or route is
+invented.
 
 The per-client group authorization contract is explicit and environment-bound:
 
@@ -194,8 +212,8 @@ session-local or development issuer cannot later be substituted without token an
 client breakage. The CristexHub PROD callback is the exact
 `https://hub.cristex-soft.com/oauth2/callback` contract above, while DEV uses its
 separate exact callback. The Argo callback must match the future private
-administration URL exactly, and Reactive Resume receives a separate exact client
-and callback when that contract is selected.
+administration URL exactly. Reactive Resume already uses its separate exact
+shared-realm client and callback recorded above.
 
 The existing reviewed browser-auth route and DEV application route are live.
 Keycloak administration and its management health/metrics surface remain private.
@@ -297,9 +315,9 @@ backup, and keeps a working predecessor credential until successor acceptance.
 - Keycloak and PostgreSQL image trust, SBOM/vulnerability disposition, and off-node
   OCI recovery for the selected children;
 - storage placement, resource budget, backup identity, retention, and RPO/RTO;
-- Reactive Resume and Argo client callbacks/origins, TLS source, proxy trust, and
-  the later browser-auth route for the selected stable issuer (the CristexHub DEV
-  and PROD callback/origin contracts are source-selected above);
+- Argo client callbacks/origins, TLS source, proxy trust, and the later browser-auth
+  route for the selected stable issuer (CristexHub DEV, CristexHub PROD, and
+  Reactive Resume callback/origin contracts are source-selected above);
 - completed foundation Namespace check/first-apply/idempotence evidence;
 - Infisical Operator scoped RBAC, Universal Auth recovery, and exact target scope;
 - exact realm/client reconciliation implementation and runtime negative tests for

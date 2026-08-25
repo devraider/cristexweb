@@ -177,11 +177,33 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual("OIDC_CLIENT_SECRET", prod["client_secret_key"])
         self.assertNotIn("CRISTEXHUB_PROD_OIDC_CLIENT_SECRET", self.policy_text)
 
+        rr = browser["reactive-resume-dev"]
+        self.assertEqual("cristexhub-dev", rr["namespace"])
+        self.assertEqual("cristexhub", rr["realm"])
+        self.assertEqual("https://auth.cristex-soft.com/realms/cristexhub", rr["issuer"])
+        self.assertTrue(rr["callback_selected"])
+        self.assertEqual("S256", rr["pkce_method"])
+        self.assertTrue(rr["shared_login_theme_and_sso"])
+        self.assertEqual(
+            ["https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom"],
+            rr["redirect_uris"],
+        )
+        self.assertEqual(["https://resume-dev.cristex-soft.com"], rr["web_origins"])
+        self.assertEqual(
+            ["https://resume-dev.cristex-soft.com/*"], rr["post_logout_redirect_uris"]
+        )
+        self.assertEqual("prod:/reactive-resume/dev/runtime", rr["client_secret_path"])
+        self.assertEqual("OAUTH_CLIENT_SECRET", rr["client_secret_key"])
+        self.assertEqual(
+            "retained-for-rollback-pending-separate-disable-approval",
+            rr["old_successor_client"]["status"],
+        )
+        self.assertEqual("forbidden", rr["old_successor_client"]["deletion"])
         self.assertTrue(
             all(
                 not entry["callback_selected"]
                 for key, entry in browser.items()
-                if key not in {"cristexhub-dev", "cristexhub-prod"}
+                if key not in {"cristexhub-dev", "cristexhub-prod", "reactive-resume-dev"}
             )
         )
         claims = self.policy["claims"]

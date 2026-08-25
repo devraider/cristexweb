@@ -57,6 +57,29 @@ the validated schema; a non-production value can select the development port and
 weaken rate limiting, so exact production metadata is mandatory. Candidate image source behavior remains unreviewed;
 none of these facts is a runtime contract.
 
+## Current DEV identity selection
+
+The current private DEV identity contract supersedes the earlier successor-realm
+selection below. Reactive Resume DEV uses the retained `cristexhub` realm so its
+shared login theme and SSO are the same as CristexHub. The exact value-free
+selection is:
+
+- issuer/discovery: `https://auth.cristex-soft.com/realms/cristexhub`;
+- browser hostname: `https://resume-dev.cristex-soft.com`;
+- exact callback: `https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom`;
+- exact web origin: `https://resume-dev.cristex-soft.com`;
+- RP-initiated post-logout redirect: `https://resume-dev.cristex-soft.com/*`;
+- client: `reactive-resume-dev` in realm `cristexhub`, with PKCE S256.
+
+The former `reactive-resume-dev` client in `cristexhub-dev` is retained only as a
+rollback handle while shared-realm private acceptance is confirmed. It must not
+be deleted. Disabling it is a separate, explicitly approved operation after the
+shared-realm client has passed private login, session, callback, logout, and
+negative alternate-authentication tests. Rollback re-enables only that old
+client, restores the old issuer/discovery values, and reverts the application
+source/configuration; it does not delete identities or mutate the `cristexhub`
+CristexHub client. No disable or delete operation is authorized by this runbook.
+
 ## DEV placement and explicit blockers
 
 The intended application namespace is `cristexhub-dev`, not `shared-services`.
@@ -109,20 +132,25 @@ The DEV contract is incomplete and blocked on all of the following:
   `shared-postgresql-rw` identity are not acceptable. Permit only exact app-to-DB
   traffic and required DNS; deny direct/public origins and broad namespace
   selectors.
-- **OIDC:** new DEV identity targets the successor `cristexhub-dev` realm and issuer;
-  runtime state for that realm and its Reactive Resume client remains unaccepted.
-  The retained `cristexhub` realm remains PROD-compatible and read-only during this
-  transition. Do not mutate either client from this policy. Before runtime, pin one
-  upstream release and verify its candidate custom callback
-  `${APP_URL}/api/auth/oauth2/callback/custom`, web origin, scopes, and audience.
-  The reviewed integration has sound signed-cookie/DB-backed one-time state but no
-  PKCE or OIDC nonce, decodes ID tokens without signature/JWKS/issuer/audience/
-  expiry verification, hardcodes new OAuth users as email-verified, leaves the
-  direct username/password endpoint usable despite the email-auth flag,
-  unconditionally enables passkeys, and enables Google/GitHub/LinkedIn whenever
-  their credentials exist. Those alternate providers and their credentials are
-  forbidden for the Keycloak-only boundary and require direct negative tests. It
-  also permits
+- **OIDC:** the accepted private DEV identity uses the shared `cristexhub` realm
+  and issuer `https://auth.cristex-soft.com/realms/cristexhub`, with shared login
+  theme/SSO. The `reactive-resume-dev` client is pinned to hostname
+  `https://resume-dev.cristex-soft.com`, callback
+  `/api/auth/oauth2/callback/custom`, exact web origin, exact post-logout redirect,
+  and PKCE S256. The old same-named client in `cristexhub-dev` remains a
+  rollback-only handle; deletion is forbidden and disable requires a separate
+  approval after private acceptance. Before any retirement, record the shared
+  client metadata, verify private login/session/logout and negative alternate-auth
+  tests, then disable only the old client. Rollback re-enables the old client and
+  restores the old issuer/discovery pair without deleting users or touching the
+  CristexHub client. The historical upstream review found sound signed-cookie/
+  DB-backed one-time state but no PKCE or OIDC nonce, decoded ID tokens without
+  signature/JWKS/issuer/audience/expiry verification, hardcoded new OAuth users as
+  email-verified, left the direct username/password endpoint usable despite the
+  email-auth flag, unconditionally enabled passkeys, and enabled
+  Google/GitHub/LinkedIn whenever credentials existed. Those alternate providers
+  and credentials remain forbidden for the Keycloak-only boundary and require
+  direct negative tests. It also permits
   insufficiently trusted account linking, does not consistently bind accounts to
   OIDC `sub`, and performs only local logout. Configuration alone cannot remediate
   this. A reviewed source patch or equivalent validating broker must add exact token

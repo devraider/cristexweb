@@ -125,28 +125,49 @@ reviewed_v5_runtime_contract:
   startup_migrations_before_bind: true
   browser_or_printer_dependency: none-client-side-pdf
 identity:
-  status: blocked-successor-realm-runtime-unobserved-and-upstream-oidc-hardening-unaccepted
-  realm: cristexhub-dev
-  issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
+  status: accepted-dev-private-shared-realm-with-rollback-safe-successor-retirement
+  realm: cristexhub
+  issuer: https://auth.cristex-soft.com/realms/cristexhub
+  shared_login_theme_and_sso: true
+  selected_hostname: https://resume-dev.cristex-soft.com
+  selected_callback: https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom
+  selected_web_origins:
+    - https://resume-dev.cristex-soft.com
+  selected_post_logout_redirects:
+    - https://resume-dev.cristex-soft.com/*
   candidate_realms:
     retained_prod_compatible: cristexhub
-    successor_dev_source: cristexhub-dev
+    retired_successor_dev_source: cristexhub-dev
   candidate_issuers:
     retained_prod_compatible: https://auth.cristex-soft.com/realms/cristexhub
-    successor_dev_source: https://auth.cristex-soft.com/realms/cristexhub-dev
+    retired_successor_dev_source: https://auth.cristex-soft.com/realms/cristexhub-dev
   clients:
     dev:
       id: reactive-resume-dev
       namespace: cristexhub-dev
-      status: source-only-successor-client-runtime-unobserved-blocker
+      status: shared-realm-client-runtime-accepted
+      realm: cristexhub
+      callback: /api/auth/oauth2/callback/custom
+      hostname: https://resume-dev.cristex-soft.com
+      login_theme_and_sso: shared-cristexhub
     prod:
       id: reactive-resume-prod
       namespace: cristexhub-prod
       status: reservation-only
-  exact_callbacks_selected: false
-  exact_web_origins_selected: false
-  exact_post_logout_selected: false
-  pkce_s256_selected: false
+  old_successor_client:
+    id: reactive-resume-dev
+    realm: cristexhub-dev
+    status: retained-for-rollback-pending-separate-disable-approval
+    deletion: forbidden
+    disable_requires: shared-realm-private-acceptance-and-explicit-approval
+    rollback:
+      reenable_client: allowed-only-through-reviewed-recovery
+      restore_issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
+      restore_discovery: https://auth.cristex-soft.com/realms/cristexhub-dev/.well-known/openid-configuration
+  exact_callbacks_selected: true
+  exact_web_origins_selected: true
+  exact_post_logout_selected: true
+  pkce_s256_selected: true
   scopes_selected: false
   audience_selected: false
   claims_selected: false
@@ -588,15 +609,21 @@ source_closure:
       cross_database_access: deny
       dedicated_pvc_or_engine: forbidden
     identity_scope:
-      realm: cristexhub-dev
-      issuer: https://auth.cristex-soft.com/realms/cristexhub-dev
-      realm_runtime_state: unobserved-blocker
+      realm: cristexhub
+      issuer: https://auth.cristex-soft.com/realms/cristexhub
+      realm_runtime_state: accepted-private-validation
       client_id: reactive-resume-dev
       namespace: cristexhub-dev
-      callbacks: unselected-blocker
-      web_origins: unselected-blocker
-      post_logout_redirects: unselected-blocker
-      client_secret_state: infisical-owned-unmaterialized
+      callbacks:
+        - https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom
+      web_origins:
+        - https://resume-dev.cristex-soft.com
+      post_logout_redirects:
+        - https://resume-dev.cristex-soft.com/*
+      shared_login_theme_and_sso: true
+      pkce_s256: true
+      client_secret_state: infisical-owned-materialized
+      old_successor_client_retirement: retained-for-rollback-pending-separate-disable-approval
       cross_environment_identity: forbidden
     runtime_secret_contract:
       target_namespace: cristexhub-dev
