@@ -192,5 +192,5 @@ class ArgoTargetCacheRepairContractTests(unittest.TestCase):
         self.assertIn("internal_legacy_bindings | default([]) | map(attribute='identity') | list", self.tasks)
         self.assertIn("legacy_bindings | default([]) | length == 0", self.tasks)
         self.assertIn("status.sync.revision", self.tasks)
-        self.assertIn("status.comparedTo.source.repoURL", self.tasks)
+        self.assertIn("status.sync.comparedTo.source.repoURL", self.tasks)
         self.assertIn("status.operationState.phase", self.tasks)

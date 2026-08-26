@@ -727,12 +727,12 @@
       (argocd_target_cache_repair_internal_application.resources[0].metadata.resourceVersion !=
       argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.resourceVersion)
     - argocd_target_cache_repair_internal_application.resources[0].status.sync.revision == '751885a42798d282e168131db147f13694a0a621'
-    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.server == argocd_target_cache_repair_expected_server
-    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.namespace == 'cristexhub-prod'
-    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.name | default('') == ''
-    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.repoURL == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
-    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.path == 'infra/kubernetes/cristexhub-prod'
-    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.targetRevision == '751885a42798d282e168131db147f13694a0a621'
+    - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.destination.server == argocd_target_cache_repair_expected_server
+    - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.destination.namespace == 'cristexhub-prod'
+    - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.destination.name | default('') == ''
+    - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.source.repoURL == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+    - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.source.path == 'infra/kubernetes/cristexhub-prod'
+    - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.source.targetRevision == '751885a42798d282e168131db147f13694a0a621'
     - argocd_target_cache_repair_internal_application.resources[0].status.operationState.phase | default('') == 'Succeeded'
     - argocd_target_cache_repair_internal_application.resources[0].status.operationState.syncResult.revision == '751885a42798d282e168131db147f13694a0a621'
   retries: 60
@@ -752,12 +752,12 @@
         (argocd_target_cache_repair_internal_application.resources[0].metadata.resourceVersion !=
         argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.resourceVersion)
       - argocd_target_cache_repair_internal_application.resources[0].status.sync.revision == '751885a42798d282e168131db147f13694a0a621'
-      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.server == argocd_target_cache_repair_expected_server
-      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.namespace == 'cristexhub-prod'
-      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.name | default('') == ''
-      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.repoURL == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
-      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.path == 'infra/kubernetes/cristexhub-prod'
-      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.targetRevision == '751885a42798d282e168131db147f13694a0a621'
+      - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.destination.server == argocd_target_cache_repair_expected_server
+      - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.destination.namespace == 'cristexhub-prod'
+      - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.destination.name | default('') == ''
+      - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.source.repoURL == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+      - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.source.path == 'infra/kubernetes/cristexhub-prod'
+      - argocd_target_cache_repair_internal_application.resources[0].status.sync.comparedTo.source.targetRevision == '751885a42798d282e168131db147f13694a0a621'
       - argocd_target_cache_repair_internal_application.resources[0].status.operationState.phase | default('') == 'Succeeded'
       - argocd_target_cache_repair_internal_application.resources[0].status.operationState.syncResult.revision == '751885a42798d282e168131db147f13694a0a621'
       - argocd_target_cache_repair_internal_application.resources[0].spec.destination.server == argocd_target_cache_repair_expected_server
