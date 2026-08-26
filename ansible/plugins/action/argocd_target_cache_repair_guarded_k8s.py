@@ -43,7 +43,7 @@ _PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989d
 _INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
 _ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 _K8S_JSON_PATCH_SHA256 = "3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b"
-_ACTION_CANONICAL_SHA256 = "a6467768084537ca3d127f312858e48866112efb1e48ec0149c641355d1c55c7"
+_ACTION_CANONICAL_SHA256 = "6c1f1ed8f16c532f24ab29f9eeb99f57610702409c5072d5fbbc29e2081a916d"
 _WRAPPER_CANONICAL_SHA256 = "39b3ee06dde22201688d59f29a06131d9f92d76273b20e668a2c30a5f42beee2"
 _TASK_SHA256 = "225bf49548f0e6cb3a8ec850da9253612a1fd105b6d7333082202453123e0d7b"
 _DEFAULTS_SHA256 = "9c29d84393b18c56ca769fde990944f031ac9d042c2b618a014dbc5b0699a2c0"
@@ -427,10 +427,12 @@ class ActionModule(KubernetesActionModule):
         if (
             not _strict_true(task_vars.get("argocd_target_cache_repair_approved"))
             or task_vars.get("argocd_target_cache_repair_state") != "present"
-            or not _wrapper_binding_valid(token)
-            or not _preflight_binding_valid(preflight)
         ):
+            return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: missing target-cache repair approval"}
+        if not _wrapper_binding_valid(token):
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: missing target-cache repair wrapper binding"}
+        if not _preflight_binding_valid(preflight):
+            return {"changed": False, "failed": True, "msg": "PREFLIGHT_GUARD: invalid target-cache repair preflight binding"}
         binding = args.get("prestate_binding")
         if not isinstance(definition, dict) or not isinstance(binding, dict):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: exact definition and prestate binding required"}
