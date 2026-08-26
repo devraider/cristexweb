@@ -418,7 +418,7 @@
       controller_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_CONTROLLER_SHA256') }}"
       python_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_PYTHON_SHA256') }}"
       prestate_bindings: "{{ argocd_target_cache_repair_internal_bindings }}"
-      transition_plan: "{{ argocd_target_cache_repair_internal_legacy_bindings | map(attribute='identity') | list }}"
+      transition_plan: "{{ argocd_target_cache_repair_internal_legacy_bindings | default([]) | map(attribute='identity') | list }}"
       no_delete_path: true
   changed_when: false
   no_log: true
