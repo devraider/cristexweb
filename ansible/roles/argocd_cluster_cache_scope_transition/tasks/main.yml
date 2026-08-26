@@ -252,7 +252,7 @@
         (argocd_cluster_cache_scope_transition_internal_prestate.results |
         selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].metadata.deletionGracePeriodSeconds |
         default(None) in [None, 0]
-      - item.observed_namespaces in ['cristexhub-dev', 'cristexhub-prod', argocd_cluster_cache_scope_transition_expected_target_namespaces]
+      - item.observed_namespaces in [item.legacy_namespaces, item.target_namespaces]
       - >-
         (argocd_cluster_cache_scope_transition_internal_prestate.results |
         selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].data.keys() | list | sort ==
@@ -277,7 +277,7 @@
       - >-
         (argocd_cluster_cache_scope_transition_internal_prestate.results |
         selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].data.namespaces | b64decode ==
-        argocd_cluster_cache_scope_transition_expected_target_namespaces
+        item.observed_namespaces
       - >-
         (argocd_cluster_cache_scope_transition_internal_prestate.results |
         selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].metadata.labels ==
