@@ -98,6 +98,7 @@ class OpenTofuFoundationStateReconciliationContractTests(unittest.TestCase):
             'run_backup_gate restore',
             "IMPORT EXISTING reactive_resume_dev_tailscale DNS",
             "TF_CLI_CONFIG_FILE=/dev/null",
+            "TF_WORKSPACE=default",
             "TOFU_DISABLE_CHECKPOINT=1",
             "CLOUDFLARE_API_TOKEN",
             "anonymous pipe",

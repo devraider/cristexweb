@@ -44,8 +44,8 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
     exit 78
 }
 source_manifest="$root/bin/SOURCE.sha256"
-source_manifest_expected_sha256='364f18059bad7efa9811557a29aadbbc62b657383361e50b39889ad332c3e8ab'
-source_reconcile_expected_canonical_sha256='c88ce3a98bad3b003e968af791423fa17d8edba67470bc78c0fed21177807b1f'
+source_manifest_expected_sha256='56922bac59929758464689f5ed77bf195deee85530cfe4e4cce11f17fa5fac32'
+source_reconcile_expected_canonical_sha256='a06a5566b297ae145f5f24b701ed85263a343e0f3842c8402aaef28d93b998d0'
 validator="$root/bin/validate-foundation-state-scope"
 [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
 [ -x "$validator" ] && [ ! -L "$validator" ] || exit 78
@@ -182,7 +182,7 @@ exec 9<"$state_parent"
 clean_exec() {
     /usr/bin/env -i \
         HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TOFU_DISABLE_CHECKPOINT=1 \
+        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
         "$@"
 }
 run_capture() {
@@ -208,7 +208,7 @@ run_capture_with_token() {
     chmod 0600 "$capture_file"
     printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
         HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TOFU_DISABLE_CHECKPOINT=1 \
+        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
         TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
         TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
         /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' import-child "$@" >"$capture_file" 2>"$log" || {
