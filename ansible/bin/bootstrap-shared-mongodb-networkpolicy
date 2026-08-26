@@ -3,6 +3,18 @@ set -eu
 usage='usage: ansible/bin/bootstrap-shared-mongodb-networkpolicy check|apply'
 [ "$#" -eq 1 ] && { [ "$1" = check ] || [ "$1" = apply ]; } || { printf '%s\n' "$usage" >&2; exit 64; }
 mode=$1
+umask 077
+lock_file='/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
+[ ! -L "$lock_file" ] || {
+  printf '%s\n' 'refusing symlinked shared MongoDB NetworkPolicy cooperative lock' >&2
+  exit 66
+}
+# Serialize authorized closure writers; Kubernetes has no transaction spanning both policies.
+exec 9>>"$lock_file"
+/usr/bin/flock -n 9 || {
+  printf '%s\n' 'shared MongoDB NetworkPolicy cooperative lock is held' >&2
+  exit 75
+}
 apply_approval=
 case "$mode" in
   check) ansible_flags='--diff --check' ;;
@@ -23,11 +35,10 @@ controller="$root/.venv/bin/ansible-playbook"
 [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
 user=$(/usr/bin/id -un)
 cd "$root/ansible"
-umask 077
 attestation="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-shared-mongodb-networkpolicy.XXXXXX")"
 token="$(/usr/bin/openssl rand -hex 32)"
 printf '%s:entrypoint\n' "$token" >"$attestation"
 cleanup() { /bin/rm -f -- "$attestation"; }
 trap cleanup EXIT HUP INT TERM
 set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_shared_mongodb_networkpolicy.yml $ansible_flags --limit crtxweb --extra-vars "{\"shared_mongodb_networkpolicy_bootstrap_approved\":true,\"shared_mongodb_networkpolicy_bootstrap_mode\":\"$mode\"}"
-/usr/bin/env -i HOME="${HOME:-/home/paul}" USER="$user" LOGNAME="$user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ENTRYPOINT=v1 CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN="$token" CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE="$attestation" CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED="$apply_approval" "$@"
+/usr/bin/env -i HOME="${HOME:-/home/paul}" USER="$user" LOGNAME="$user" PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 ANSIBLE_CONFIG="$PWD/ansible.cfg" CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ENTRYPOINT=v1 CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN="$token" CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE="$attestation" CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE="$lock_file" CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED="$apply_approval" "$@"

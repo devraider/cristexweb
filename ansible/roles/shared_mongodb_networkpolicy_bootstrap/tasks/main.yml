@@ -22,6 +22,10 @@
     - shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state
     - shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding
     - shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate
+    - shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate
+    - shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_poststate
+    - shared_mongodb_networkpolicy_bootstrap_internal_poststate
+    - shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_poststate
   changed_when: false
 
 - name: Require source-only shared MongoDB NetworkPolicy approval contract
@@ -465,7 +469,9 @@
       object_count: 2
       identity_set_sha256: "{{ shared_mongodb_networkpolicy_bootstrap_internal_identity_keys | sort | join('\n') | hash('sha256') }}"
       prestate_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_prestate.results | map(attribute='resources') | map('length') | sum }}"
+      initial_prestate_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_prestate.results | map(attribute='resources') | map('length') | sum }}"
       networkpolicy_prestate: "{{ shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate | default([]) | sort(attribute='name') }}"
+      transition_phase: initial
       mongodb_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_mongodb.resources | length }}"
       statefulset_count: "{{ shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources | length }}"
       statefulset_uid: "{{ shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].metadata.uid }}"
@@ -492,13 +498,238 @@
   changed_when: false
   no_log: true
 
-- name: Reconcile only the exact NetworkPolicy definitions through the guarded lane
+- name: Reconcile the exact default-deny policy before any allow policy
   shared_mongodb_networkpolicy_guarded_k8s:
     state: present
-    definition: "{{ item }}"
+    definition: >-
+      {{ shared_mongodb_networkpolicy_bootstrap_internal_manifests |
+      selectattr('metadata.name', 'equalto', 'shared-mongodb-networkpolicy-default-deny') |
+      first }}
     kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
     wait: false
     wait_timeout: 60
-  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_manifests }}"
-  register: shared_mongodb_networkpolicy_bootstrap_internal_check
+    prestate_binding: >-
+      {{ shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate |
+      selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-default-deny') |
+      list | first | default({}, true) }}
+    validation_only: false
+  register: shared_mongodb_networkpolicy_bootstrap_internal_default_deny_mutation
   no_log: true
+
+- name: Refresh the full NetworkPolicy inventory after deny-first step
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    namespace: shared-services
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_between
+  changed_when: false
+
+- name: Query exact target prestates after deny-first step
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_manifests }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_between_prestate
+  changed_when: false
+  no_log: true
+
+- name: Bind the deny-first transition prestate and inventory
+  ansible.builtin.set_fact:
+    shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate: >-
+      {{ (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate | default([])) +
+      ([{
+        'name': item.resources[0].metadata.name,
+        'uid': item.resources[0].metadata.uid,
+        'resource_version': item.resources[0].metadata.resourceVersion
+      }] if item.resources | length == 1 else []) }}
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_between_prestate.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind the exact deny-first state for the second CAS step
+  ansible.builtin.set_fact:
+    shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies: "{{ shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_between }}"
+    shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding: >-
+      {{ shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding | combine({'prestate_count':
+      shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate | length,
+      'networkpolicy_prestate': shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate |
+      sort(attribute='name'),
+      'networkpolicy_count': shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_between.resources |
+      length,
+      'networkpolicy_names': shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_between.resources |
+      map(attribute='metadata.name') | list | sort,
+      'transition_phase': 'after-default-deny'}) }}
+  changed_when: false
+  no_log: true
+
+- name: Reconcile the exact allow policy only after deny-first state is bound
+  shared_mongodb_networkpolicy_guarded_k8s:
+    state: present
+    definition: >-
+      {{ shared_mongodb_networkpolicy_bootstrap_internal_manifests |
+      selectattr('metadata.name', 'equalto', 'shared-mongodb-networkpolicy-allow') |
+      first }}
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+    prestate_binding: >-
+      {{ shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate |
+      selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-allow') |
+      list | first | default({}, true) }}
+    validation_only: false
+  register: shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation
+  no_log: true
+
+- name: Bind the exact sequential NetworkPolicy mutation result list
+  ansible.builtin.set_fact:
+    shared_mongodb_networkpolicy_bootstrap_internal_check:
+      results:
+        - "{{ shared_mongodb_networkpolicy_bootstrap_internal_default_deny_mutation }}"
+        - "{{ shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation }}"
+  changed_when: false
+  no_log: true
+
+- name: Require exact deny-first mutation count and order
+  ansible.builtin.assert:
+    that:
+      - shared_mongodb_networkpolicy_bootstrap_internal_check.results | length == 2
+      - >-
+        shared_mongodb_networkpolicy_bootstrap_internal_check.results[0].identity |
+        default('') ==
+        'networking.k8s.io/v1|NetworkPolicy|shared-services|shared-mongodb-networkpolicy-default-deny'
+      - >-
+        shared_mongodb_networkpolicy_bootstrap_internal_check.results[1].identity |
+        default('') ==
+        'networking.k8s.io/v1|NetworkPolicy|shared-services|shared-mongodb-networkpolicy-allow'
+      - >-
+        (shared_mongodb_networkpolicy_bootstrap_internal_check.results |
+        selectattr('changed', 'equalto', true) | list | length) ==
+        (2 - (shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding.initial_prestate_count | int))
+    fail_msg: Refusing an unexpected deny-first NetworkPolicy mutation sequence.
+  changed_when: false
+  no_log: true
+
+- name: Enumerate every NetworkPolicy after the complete closure mutation
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    namespace: shared-services
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Query exact target NetworkPolicy poststate
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_manifests }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Bind the complete poststate UID/resourceVersion ledger
+  ansible.builtin.set_fact:
+    shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_poststate: >-
+      {{ (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_poststate | default([])) +
+      ([{
+        'name': item.resources[0].metadata.name,
+        'uid': item.resources[0].metadata.uid,
+        'resource_version': item.resources[0].metadata.resourceVersion
+      }] if item.resources | length == 1 else []) }}
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_poststate.results | default([]) }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Bind the fresh poststate inventory to the guarded validator
+  ansible.builtin.set_fact:
+    shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies: "{{ shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_poststate }}"
+    shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding: >-
+      {{ shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding | combine({'prestate_count':
+      shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_poststate | length,
+      'networkpolicy_prestate': shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_poststate |
+      sort(attribute='name'),
+      'networkpolicy_count': shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_poststate.resources |
+      length,
+      'networkpolicy_names': shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_poststate.resources |
+      map(attribute='metadata.name') | list | sort,
+      'transition_phase': 'post'}) }}
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact target NetworkPolicy poststate and preserved identities
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].apiVersion == item.item.apiVersion
+      - item.resources[0].kind == item.item.kind
+      - item.resources[0].metadata.namespace == item.item.metadata.namespace
+      - item.resources[0].metadata.name == item.item.metadata.name
+      - >-
+        item.resources[0].metadata.labels ==
+        (shared_mongodb_networkpolicy_bootstrap_internal_manifests |
+        selectattr('metadata.name', 'equalto', item.item.metadata.name) |
+        map(attribute='metadata.labels') | first)
+      - >-
+        item.resources[0].spec ==
+        (shared_mongodb_networkpolicy_bootstrap_internal_manifests |
+        selectattr('metadata.name', 'equalto', item.item.metadata.name) |
+        map(attribute='spec') | first)
+      - item.resources[0].metadata.uid | default('') | length > 0
+      - item.resources[0].metadata.resourceVersion is match('^[0-9]+$')
+      - >-
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate |
+        selectattr('name', 'equalto', item.item.metadata.name) | list | length == 0) or
+        item.resources[0].metadata.uid ==
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate |
+        selectattr('name', 'equalto', item.item.metadata.name) | map(attribute='uid') | first)
+      - >-
+        'deletionTimestamp' not in item.resources[0].metadata
+      - >-
+        'deletionGracePeriodSeconds' not in item.resources[0].metadata
+      - >-
+        'deletionGracePeriod' not in item.resources[0].metadata
+      - >-
+        'finalizers' not in item.resources[0].metadata
+      - >-
+        'ownerReferences' not in item.resources[0].metadata
+      - >-
+        (item.resources[0].metadata.annotations | default({}) | length) == 0
+      - >-
+        (item.resources[0].metadata.keys() | list |
+        difference(['name', 'namespace', 'uid', 'resourceVersion', 'generation',
+        'creationTimestamp', 'managedFields', 'labels', 'annotations']) | length) == 0
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_poststate.results | default([]) }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Validate exact namespace-wide NetworkPolicy closure after mutation
+  shared_mongodb_networkpolicy_guarded_k8s:
+    state: present
+    definition: >-
+      {{ shared_mongodb_networkpolicy_bootstrap_internal_manifests |
+      selectattr('metadata.name', 'equalto', 'shared-mongodb-networkpolicy-default-deny') |
+      first }}
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+    wait: false
+    wait_timeout: 60
+    prestate_binding: >-
+      {{ shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_poststate |
+      selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-default-deny') |
+      list | first | default({}, true) }}
+    validation_only: true
+  register: shared_mongodb_networkpolicy_bootstrap_internal_poststate_validation
+  no_log: true
+  when: not ansible_check_mode

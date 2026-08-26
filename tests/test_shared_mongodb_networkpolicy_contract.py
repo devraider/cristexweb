@@ -96,6 +96,8 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
             defaults['shared_mongodb_networkpolicy_bootstrap_kubeconfig'],
         )
         self.assertEqual(2, defaults['shared_mongodb_networkpolicy_bootstrap_object_count'])
+        self.assertIn('shared-mongodb-networkpolicy-default-deny.yaml', defaults['shared_mongodb_networkpolicy_bootstrap_manifest_paths'][0])
+        self.assertIn('shared-mongodb-networkpolicy-allow.yaml', defaults['shared_mongodb_networkpolicy_bootstrap_manifest_paths'][1])
         self.assertEqual(
             sorted(self.by_name),
             sorted(defaults['shared_mongodb_networkpolicy_bootstrap_target_names']),
@@ -178,6 +180,30 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         )
         self.assertEqual({'k8s-app': 'kube-dns'}, dns['to'][0]['podSelector']['matchLabels'])
         self.assertEqual({('TCP', 53), ('UDP', 53)}, {(x['protocol'], x['port']) for x in dns['ports']})
+
+    def test_existing_target_uses_uid_resource_version_and_payload_cas(self) -> None:
+        definition = copy.deepcopy(self.by_name['shared-mongodb-networkpolicy-default-deny'])
+        prestate = {
+            'name': definition['metadata']['name'],
+            'uid': 'uid-default-deny',
+            'resource_version': '17',
+        }
+        patch = self.plugin._networkpolicy_cas_patch(definition, prestate)
+        self.assertEqual(
+            [
+                ('test', '/metadata/uid', 'uid-default-deny'),
+                ('test', '/metadata/resourceVersion', '17'),
+                ('test', '/metadata/labels', definition['metadata']['labels']),
+                ('test', '/spec', definition['spec']),
+            ],
+            [(item['op'], item['path'], item['value']) for item in patch],
+        )
+        with self.assertRaises(ValueError):
+            self.plugin._networkpolicy_cas_patch(definition, {
+                'name': definition['metadata']['name'],
+                'uid': 'uid-default-deny',
+                'resource_version': 'stale',
+            })
 
     def test_selector_overlap_negative_cases_are_fail_closed(self) -> None:
         labels = {
@@ -305,7 +331,19 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         self.assertIn("ownerReferences[0].uid ==", TASKS.read_text())
         self.assertIn("shared_mongodb_networkpolicy_bootstrap_internal_statefulset.resources[0].metadata.uid", TASKS.read_text())
         self.assertIn("map(attribute='resources') | map('length') | sum", TASKS.read_text())
-        self.assertIn("_safe_int(binding.get('prestate_count')) in (0, 2)", PLUGIN.read_text())
+        self.assertIn("_safe_int(binding.get('prestate_count'))", PLUGIN.read_text())
+        self.assertIn("initial_prestate_count", PLUGIN.read_text())
+        self.assertIn("transition_phase", PLUGIN.read_text())
+        self.assertIn("_networkpolicy_cas_patch", PLUGIN.read_text())
+        self.assertIn("kubernetes.core.k8s_json_patch", PLUGIN.read_text())
+        self.assertIn("'path': '/metadata/resourceVersion'", PLUGIN.read_text())
+        self.assertIn('validation_only', PLUGIN.read_text())
+        self.assertIn('Enumerate every NetworkPolicy after the complete closure mutation', TASKS.read_text())
+        self.assertIn('Reconcile the exact default-deny policy before any allow policy', TASKS.read_text())
+        self.assertIn("lock_file='/tmp/cristexweb-shared-mongodb-networkpolicy.lock'", WRAPPER.read_text())
+        self.assertIn('/usr/bin/flock -n 9', WRAPPER.read_text())
+        self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE="$lock_file"', WRAPPER.read_text())
+        self.assertIn('_cooperative_lock_valid', PLUGIN.read_text())
         self.assertIn("binding.get('pod_owner_uid') == binding.get('statefulset_uid')", PLUGIN.read_text())
         self.assertIn('k8s-app=kube-dns', TASKS.read_text())
         self.assertIn('root:k3s-admin', TASKS.read_text())
@@ -315,6 +353,7 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         self.assertIn("'ownerReferences' not in item.resources[0].metadata", TASKS.read_text())
         self.assertIn('networkpolicy_prestate', PLUGIN.read_text())
         runbook = (ROOT / 'runbooks/shared-mongodb-networkpolicy-bootstrap.md').read_text()
+        self.assertIn('cooperative lock', runbook.lower())
         self.assertIn('historical and predates the', runbook)
         self.assertIn('lifecycle/pre-state hardening', runbook)
         self.assertIn('fresh check is required', runbook)

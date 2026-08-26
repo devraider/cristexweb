@@ -27,12 +27,16 @@ _EXPECTED_OBJECT_HASHES = {
         'shared-mongodb-networkpolicy-default-deny',
     ): '85647c86943781233258c7c7e386255dd375d6b4b437dab29032bde1653872bd',
 }
-_EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
+_EXPECTED_ARGUMENT_KEYS = {
+    'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout',
+    'prestate_binding', 'validation_only',
+}
 _EXPECTED_TASK_SOURCES = {
     '/Users/paul/Projects/cristexweb/ansible/roles/shared_mongodb_networkpolicy_bootstrap/tasks/main.yml',
     '/home/paul/projects/cristexweb/ansible/roles/shared_mongodb_networkpolicy_bootstrap/tasks/main.yml',
 }
 _EXPECTED_IDENTITY_SET_SHA256 = '11352b9439d10f2ffdfad385ee31f524885fead8d74d38937101614f742ab575'
+_EXPECTED_LOCK_FILE = '/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
 _MONGODB_POD_LABELS = {
     'app': 'shared-mongodb-svc',
     'app.kubernetes.io/part-of': 'shared-databases',
@@ -132,6 +136,51 @@ def _safe_int(value: Any, default: int = -1) -> int:
 
 def _as_bool(value: Any) -> bool:
     return value is True or (isinstance(value, str) and value.lower() == 'true')
+
+
+def _cooperative_lock_valid() -> bool:
+    """Require the wrapper's inherited lock descriptor, not just its marker."""
+    if os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE') != _EXPECTED_LOCK_FILE:
+        return False
+    try:
+        return os.path.realpath('/proc/self/fd/9') == _EXPECTED_LOCK_FILE
+    except OSError:
+        return False
+
+
+def _networkpolicy_cas_patch(
+    definition: dict[str, Any], prestate: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Build a no-op JSON patch whose tests condition the target mutation.
+
+    The Kubernetes JSON-patch endpoint performs the GET and all RFC 6902 test
+    operations as one request.  Testing both identity fields and the complete
+    desired payload prevents a stale Ansible snapshot from being silently
+    adopted by a later generic reconcile.
+    """
+    identity = _policy_identity(definition)
+    metadata = definition.get('metadata') or {}
+    if (
+        set(prestate) != {'name', 'uid', 'resource_version'}
+        or prestate.get('name') != identity[-1]
+        or not isinstance(prestate.get('uid'), str)
+        or not prestate.get('uid')
+        or not isinstance(prestate.get('resource_version'), str)
+        or not re.fullmatch(r'[0-9]+', prestate.get('resource_version', ''))
+        or not isinstance(metadata.get('labels'), dict)
+        or not isinstance(definition.get('spec'), dict)
+    ):
+        raise ValueError('invalid existing NetworkPolicy prestate for CAS')
+    return [
+        {'op': 'test', 'path': '/metadata/uid', 'value': prestate['uid']},
+        {
+            'op': 'test',
+            'path': '/metadata/resourceVersion',
+            'value': prestate['resource_version'],
+        },
+        {'op': 'test', 'path': '/metadata/labels', 'value': metadata['labels']},
+        {'op': 'test', 'path': '/spec', 'value': definition['spec']},
+    ]
 
 
 def _networkpolicy_preflight_error(
@@ -242,6 +291,8 @@ class ActionModule(KubernetesActionModule):
         binding = task_vars.get(
             'shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding', {}
         )
+        if not isinstance(binding, dict):
+            binding = {}
         all_networkpolicies = task_vars.get(
             'shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies', {}
         )
@@ -263,13 +314,19 @@ class ActionModule(KubernetesActionModule):
         except (OSError, ValueError):
             attestation_state = None
             attestation_content = ''
+        policy_prestate = binding.get('networkpolicy_prestate')
+        prestate_count = _safe_int(binding.get('prestate_count'))
+        initial_prestate_count = _safe_int(binding.get('initial_prestate_count'))
+        transition_phase = binding.get('transition_phase')
         valid_binding = (
             isinstance(binding, dict)
             and binding.get('attestation_sha256') == hashlib.sha256(token.encode()).hexdigest()
             and _safe_int(binding.get('object_count')) == 2
             and binding.get('identity_set_sha256') == _EXPECTED_IDENTITY_SET_SHA256
-            and _safe_int(binding.get('prestate_count')) in (0, 2)
-            and _safe_int(binding.get('prestate_count')) != 1
+            and transition_phase in {'initial', 'after-default-deny', 'post'}
+            and initial_prestate_count in (0, 2)
+            and prestate_count == (len(policy_prestate) if isinstance(policy_prestate, list) else -1)
+            and prestate_count in ((0, 2) if transition_phase == 'initial' else (0, 1, 2))
             and _safe_int(binding.get('mongodb_count')) == 1
             and _safe_int(binding.get('statefulset_count')) == 1
             and isinstance(binding.get('statefulset_uid'), str)
@@ -308,7 +365,11 @@ class ActionModule(KubernetesActionModule):
             and attestation_state.st_uid == os.getuid()
             and attestation_content == f'{token}:entrypoint'
         )
-        live_pods = (live_pod_result or {}).get('resources', [])
+        live_pods = (
+            live_pod_result.get('resources', [])
+            if isinstance(live_pod_result, dict)
+            else []
+        )
         policy_inventory_present = isinstance(all_networkpolicies, dict) and isinstance(
             all_networkpolicies.get('resources'), list
         )
@@ -320,6 +381,7 @@ class ActionModule(KubernetesActionModule):
         )
         if (
             not valid_attestation
+            or not _cooperative_lock_valid()
             or not valid_binding
             or not policy_inventory_present
             or policy_preflight_error is not None
@@ -339,6 +401,8 @@ class ActionModule(KubernetesActionModule):
             or args.get('kubeconfig') != '/etc/rancher/k3s/k3s.yaml'
             or args.get('wait') is not False
             or args.get('wait_timeout') != 60
+            or args.get('validation_only') not in (True, False)
+            or not isinstance(args.get('prestate_binding'), dict)
         ):
             return {
                 'changed': False,
@@ -361,9 +425,78 @@ class ActionModule(KubernetesActionModule):
                 'failed': True,
                 'msg': 'MUTATION_ARGUMENT_GUARD: refusing unknown or changed NetworkPolicy',
             }
+        prestate_binding = args['prestate_binding']
+        expected_prestate = next(
+            (
+                item
+                for item in (binding.get('networkpolicy_prestate') or [])
+                if isinstance(item, dict) and item.get('name') == identity[-1]
+            ),
+            {},
+        )
+        if prestate_binding != expected_prestate:
+            return {
+                'changed': False,
+                'failed': True,
+                'msg': 'MUTATION_ARGUMENT_GUARD: target NetworkPolicy prestate binding drift',
+            }
+        if args['validation_only']:
+            return {
+                'changed': False,
+                'identity': '|'.join(str(value) for value in identity),
+                'validation_only': True,
+            }
+        if prestate_binding:
+            try:
+                patch = _networkpolicy_cas_patch(definition, prestate_binding)
+            except (TypeError, ValueError, KeyError):
+                return {
+                    'changed': False,
+                    'failed': True,
+                    'msg': 'MUTATION_ARGUMENT_GUARD: exact target NetworkPolicy CAS prestate required',
+                }
+            if context.CLIARGS.get('check'):
+                return {
+                    'changed': False,
+                    'identity': '|'.join(str(value) for value in identity),
+                    'patch_operation_count': len(patch),
+                    'cas': True,
+                }
+            original_action, original_args = self._task.action, self._task.args
+            self._task.action = 'kubernetes.core.k8s_json_patch'
+            self._task.args = {
+                'api_version': definition['apiVersion'],
+                'kind': definition['kind'],
+                'namespace': metadata['namespace'],
+                'name': metadata['name'],
+                'kubeconfig': '/etc/rancher/k3s/k3s.yaml',
+                'patch': patch,
+            }
+            try:
+                from ansible_collections.kubernetes.core.plugins.action.k8s_json_patch import (
+                    ActionModule as PatchActionModule,
+                )
+                patch_action = PatchActionModule(
+                    self._task,
+                    self._connection,
+                    self._play_context,
+                    self._loader,
+                    self._templar,
+                    getattr(self, '_shared_loader_obj', None),
+                )
+                result = patch_action.run(tmp=tmp, task_vars=task_vars)
+                return {
+                    **result,
+                    'identity': '|'.join(str(value) for value in identity),
+                    'patch_operation_count': len(patch),
+                    'cas': True,
+                }
+            finally:
+                self._task.action, self._task.args = original_action, original_args
         original_action = self._task.action
         self._task.action = 'kubernetes.core.k8s'
         try:
-            return super().run(tmp=tmp, task_vars=task_vars)
+            result = super().run(tmp=tmp, task_vars=task_vars)
+            return {**result, 'identity': '|'.join(str(value) for value in identity), 'cas': False}
         finally:
             self._task.action = original_action

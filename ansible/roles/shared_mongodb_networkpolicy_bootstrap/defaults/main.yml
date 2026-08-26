@@ -8,18 +8,19 @@ shared_mongodb_networkpolicy_bootstrap_repository_root: "{{ playbook_dir | ansib
 shared_mongodb_networkpolicy_bootstrap_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
 shared_mongodb_networkpolicy_bootstrap_component_root: >-
   {{ shared_mongodb_networkpolicy_bootstrap_repository_root }}/ansible/files/components/shared-mongodb-networkpolicy
+# Apply the deny policy before any allow policy so a partial apply is fail-closed.
 shared_mongodb_networkpolicy_bootstrap_manifest_paths:
-  - "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-allow.yaml"
   - "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-default-deny.yaml"
+  - "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-allow.yaml"
 shared_mongodb_networkpolicy_bootstrap_object_count: 2
 shared_mongodb_networkpolicy_bootstrap_target_names:
   - shared-mongodb-networkpolicy-allow
   - shared-mongodb-networkpolicy-default-deny
 shared_mongodb_networkpolicy_bootstrap_expected_hashes:
-  - path: "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-allow.yaml"
-    sha256: b3f492e663a99f2264fa64bbf3accdb12a42767f67b5e2819c4fb24246cd3bfd
   - path: "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-default-deny.yaml"
     sha256: 531923114cb79b0c73adc64014422a0b8ded8d39550ffe0d5adb1e7c361843fc
+  - path: "{{ shared_mongodb_networkpolicy_bootstrap_component_root }}/network/shared-mongodb-networkpolicy-allow.yaml"
+    sha256: b3f492e663a99f2264fa64bbf3accdb12a42767f67b5e2819c4fb24246cd3bfd
 shared_mongodb_networkpolicy_bootstrap_identity_set_sha256: 11352b9439d10f2ffdfad385ee31f524885fead8d74d38937101614f742ab575
 shared_mongodb_networkpolicy_bootstrap_namespace: shared-services
 shared_mongodb_networkpolicy_bootstrap_mongodb_cr_name: shared-mongodb

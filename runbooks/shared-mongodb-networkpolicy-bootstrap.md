@@ -52,9 +52,17 @@ separate, explicit mutation gate: it requires the operator to set
 `CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED=v1`, runs without
 `--check`, and still uses the same pinned repository controller, clean
 allowlisted environment, one host, exact attestation, source hashes, action
-plugin, and pre-state UID/resourceVersion ledger. Direct Ansible invocation,
-task selection, and an apply without that approval are refused. Neither mode
-reads Secret values or invokes the legacy MongoDB closure. The role additionally requires the protected
+plugin, and pre-state UID/resourceVersion ledger. The wrapper also acquires a
+non-blocking cooperative lock (`flock`) for the complete run, so authorized closure
+writers cannot interleave their preflight and mutations; a held lock fails
+closed. Existing targets are reconciled through one JSON-patch request whose
+`test` operations condition UID, resourceVersion, labels, and spec at mutation
+time. The deny policy is written first, followed by a fresh inventory/ledger
+refresh and the allow policy. Apply then performs a fresh namespace-wide
+inventory and exact target readback, preserving existing UIDs and rejecting
+foreign overlapping selectors. Direct Ansible invocation, task selection, and
+an apply without that approval are refused. Neither mode reads Secret values or
+invokes the legacy MongoDB closure. The role additionally requires the protected
 root:`k3s-admin` mode-`0640` kubeconfig, the established `shared-services` Namespace,
 the live `MongoDBCommunity/shared-mongodb` resource with status `Running`, version
 `8.0.12`, and one current member, exactly `shared-mongodb-0` owned by
