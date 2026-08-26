@@ -4,6 +4,9 @@
     that: item not in vars
     fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied target-cache repair variable {{ item }}."
   loop:
+    - argocd_target_cache_repair_internal_attestation_state
+    - argocd_target_cache_repair_internal_statefulset_target_spec
+    - argocd_target_cache_repair_internal_statefulset_legacy_spec
     - argocd_target_cache_repair_internal_source_states
     - argocd_target_cache_repair_internal_manifests
     - argocd_target_cache_repair_internal_prestate
@@ -11,6 +14,9 @@
     - argocd_target_cache_repair_internal_legacy_bindings
     - argocd_target_cache_repair_internal_target_bindings
     - argocd_target_cache_repair_internal_mutation_results
+    - argocd_target_cache_repair_internal_role_mutation
+    - argocd_target_cache_repair_internal_configmap_mutation
+    - argocd_target_cache_repair_internal_statefulset_mutation
     - argocd_target_cache_repair_internal_poststate
     - argocd_target_cache_repair_internal_controller
     - argocd_target_cache_repair_internal_pods
@@ -87,6 +93,11 @@
       - (argocd_target_cache_repair_sources | map(attribute='identity') | list) == argocd_target_cache_repair_target_identities
       - (argocd_target_cache_repair_sources | map(attribute='identity') | list | unique | list | length) == 3
       - >-
+        (argocd_target_cache_repair_target_kinds |
+        map(attribute='apiVersion') | list |
+        zip(argocd_target_cache_repair_target_kinds | map(attribute='kind') | list) |
+        map('join', '|') | list | unique | list | length) == 3
+      - >-
         argocd_target_cache_repair_sources[0].path ==
         '/home/paul/projects/cristexweb/ansible/files/components/'
         ~ 'cristexhub-prod-registration/rbac/'
@@ -154,7 +165,7 @@
         lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_TOKEN') ~ ':entrypoint:' ~
         lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_WRAPPER_PID') ~ ':' ~
         lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_WRAPPER_STARTTIME') ~ ':' ~
-        lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_WRAPPER_SHA256') ~ '\n'
+        lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_WRAPPER_SHA256')
     fail_msg: Refusing a missing, reusable, foreign-owned, symlinked, or invalid target-cache attestation.
   delegate_to: localhost
   changed_when: false
@@ -466,14 +477,45 @@
   changed_when: false
   no_log: true
 
-- name: Apply only the exact target-cache repair patches
+- name: Apply only the exact target-cache repair PROD Role patch
   argocd_target_cache_repair_guarded_k8s:
     state: present
-    definition: "{{ argocd_target_cache_repair_internal_manifests | selectattr('metadata.name', 'equalto', item.name) | first }}"
+    definition: "{{ argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'Role') | first }}"
     kubeconfig: "{{ argocd_target_cache_repair_kubeconfig }}"
-    prestate_binding: "{{ item }}"
-  loop: "{{ argocd_target_cache_repair_internal_legacy_bindings | default([]) }}"
-  register: argocd_target_cache_repair_internal_mutation_results
+    prestate_binding: "{{ argocd_target_cache_repair_internal_bindings | selectattr('kind', 'equalto', 'Role') | first }}"
+  register: argocd_target_cache_repair_internal_role_mutation
+  when: (argocd_target_cache_repair_internal_bindings | selectattr('kind', 'equalto', 'Role') | map(attribute='state') | first) == 'legacy'
+  no_log: true
+
+- name: Apply only the exact target-cache repair ConfigMap patch
+  argocd_target_cache_repair_guarded_k8s:
+    state: present
+    definition: "{{ argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'ConfigMap') | first }}"
+    kubeconfig: "{{ argocd_target_cache_repair_kubeconfig }}"
+    prestate_binding: "{{ argocd_target_cache_repair_internal_bindings | selectattr('kind', 'equalto', 'ConfigMap') | first }}"
+  register: argocd_target_cache_repair_internal_configmap_mutation
+  when: (argocd_target_cache_repair_internal_bindings | selectattr('kind', 'equalto', 'ConfigMap') | map(attribute='state') | first) == 'legacy'
+  no_log: true
+
+- name: Apply only the exact target-cache repair controller StatefulSet patch
+  argocd_target_cache_repair_guarded_k8s:
+    state: present
+    definition: "{{ argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'StatefulSet') | first }}"
+    kubeconfig: "{{ argocd_target_cache_repair_kubeconfig }}"
+    prestate_binding: "{{ argocd_target_cache_repair_internal_bindings | selectattr('kind', 'equalto', 'StatefulSet') | first }}"
+  register: argocd_target_cache_repair_internal_statefulset_mutation
+  when: (argocd_target_cache_repair_internal_bindings | selectattr('kind', 'equalto', 'StatefulSet') | map(attribute='state') | first) == 'legacy'
+  no_log: true
+
+- name: Bind the exact sequential target-cache repair mutation result list
+  ansible.builtin.set_fact:
+    argocd_target_cache_repair_internal_mutation_results:
+      results: >-
+        {{ [argocd_target_cache_repair_internal_role_mutation,
+        argocd_target_cache_repair_internal_configmap_mutation,
+        argocd_target_cache_repair_internal_statefulset_mutation] |
+        rejectattr('skipped', 'defined') | list }}
+  changed_when: false
   no_log: true
 
 - name: Require exact check or apply patch count
@@ -484,9 +526,13 @@
         (argocd_target_cache_repair_internal_legacy_bindings | default([]) | length)
       - >-
         (argocd_target_cache_repair_internal_mutation_results.results |
+        map(attribute='identity') | list) ==
+        (argocd_target_cache_repair_internal_preflight_binding.transition_plan | default([]))
+      - >-
+        (argocd_target_cache_repair_internal_mutation_results.results |
         selectattr('changed', 'equalto', true) | list | length) ==
         (argocd_target_cache_repair_internal_legacy_bindings | default([]) | length)
-    fail_msg: Refusing an unexpected target-cache repair patch count.
+    fail_msg: Refusing an unexpected target-cache repair patch count or order.
   changed_when: false
   no_log: true
 
@@ -672,8 +718,18 @@
       argocd_target_cache_repair_internal_application.resources[0].metadata.uid ==
       argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.uid
     - >-
-      argocd_target_cache_repair_internal_application.resources[0].metadata.resourceVersion !=
-      argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.resourceVersion
+      (argocd_target_cache_repair_internal_legacy_bindings | default([]) | length == 0) or
+      (argocd_target_cache_repair_internal_application.resources[0].metadata.resourceVersion !=
+      argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.resourceVersion)
+    - argocd_target_cache_repair_internal_application.resources[0].status.sync.revision == '751885a42798d282e168131db147f13694a0a621'
+    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.server == argocd_target_cache_repair_expected_server
+    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.namespace == 'cristexhub-prod'
+    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.name | default('') == ''
+    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.repoURL == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.path == 'infra/kubernetes/cristexhub-prod'
+    - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.targetRevision == '751885a42798d282e168131db147f13694a0a621'
+    - argocd_target_cache_repair_internal_application.resources[0].status.operationState.phase | default('') == 'Succeeded'
+    - argocd_target_cache_repair_internal_application.resources[0].status.operationState.syncResult.revision == '751885a42798d282e168131db147f13694a0a621'
   retries: 60
   delay: 5
   when: not ansible_check_mode
@@ -687,8 +743,18 @@
         argocd_target_cache_repair_internal_application.resources[0].metadata.uid ==
         argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.uid
       - >-
-        argocd_target_cache_repair_internal_application.resources[0].metadata.resourceVersion !=
-        argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.resourceVersion
+        (argocd_target_cache_repair_internal_legacy_bindings | default([]) | length == 0) or
+        (argocd_target_cache_repair_internal_application.resources[0].metadata.resourceVersion !=
+        argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.resourceVersion)
+      - argocd_target_cache_repair_internal_application.resources[0].status.sync.revision == '751885a42798d282e168131db147f13694a0a621'
+      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.server == argocd_target_cache_repair_expected_server
+      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.namespace == 'cristexhub-prod'
+      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.destination.name | default('') == ''
+      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.repoURL == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.path == 'infra/kubernetes/cristexhub-prod'
+      - argocd_target_cache_repair_internal_application.resources[0].status.comparedTo.source.targetRevision == '751885a42798d282e168131db147f13694a0a621'
+      - argocd_target_cache_repair_internal_application.resources[0].status.operationState.phase | default('') == 'Succeeded'
+      - argocd_target_cache_repair_internal_application.resources[0].status.operationState.syncResult.revision == '751885a42798d282e168131db147f13694a0a621'
       - argocd_target_cache_repair_internal_application.resources[0].spec.destination.server == argocd_target_cache_repair_expected_server
       - argocd_target_cache_repair_internal_application.resources[0].spec.destination.name | default('') == ''
       - argocd_target_cache_repair_internal_application.resources[0].spec.source.targetRevision == '751885a42798d282e168131db147f13694a0a621'

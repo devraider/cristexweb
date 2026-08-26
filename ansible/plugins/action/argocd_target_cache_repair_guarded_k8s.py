@@ -32,16 +32,20 @@ _K8S_JSON_PATCH_SOURCE = Path("/home/paul/projects/cristexweb/ansible/.ansible/c
 _K8S_JSON_PATCH_REAL_SOURCE = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core/plugins/action/k8s_info.py")
 _EXPECTED_OPERATOR = "paul"
 _TASK_SUFFIX = "/ansible/roles/argocd_target_cache_repair/tasks/main.yml"
-_EXPECTED_TASK_NAME = "Apply only the exact target-cache repair patches"
+_EXPECTED_TASK_NAMES = {
+    "rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod": "Apply only the exact target-cache repair PROD Role patch",
+    "v1|ConfigMap|argocd|argocd-cm": "Apply only the exact target-cache repair ConfigMap patch",
+    "apps/v1|StatefulSet|argocd|argocd-application-controller": "Apply only the exact target-cache repair controller StatefulSet patch",
+}
 _EXPECTED_ACTION = "argocd_target_cache_repair_guarded_k8s"
 _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
 _PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
 _INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
 _ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 _K8S_JSON_PATCH_SHA256 = "3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b"
-_ACTION_CANONICAL_SHA256 = "b21e8be025c8753a440d88631a0e71159f072c13629697f228aa32ec42d381d4"
-_WRAPPER_CANONICAL_SHA256 = "1c649ed8c8a99f536f6c05ab000cf2b4924a934fd25b916388d08e2ce0ca94ef"
-_TASK_SHA256 = "b9b35bbef3c2bdd238bbb6bb35bedb1e206893a40adc71072c65eb8a735c8c42"
+_ACTION_CANONICAL_SHA256 = "c66ba302ebf33d20368a2b237683d3265f3445585f16a24695b68a4221ee4792"
+_WRAPPER_CANONICAL_SHA256 = "39b3ee06dde22201688d59f29a06131d9f92d76273b20e668a2c30a5f42beee2"
+_TASK_SHA256 = "9bea299182ecef4d01262a413f73e82433cce6986d427812a6e4fe16982d30db"
 _DEFAULTS_SHA256 = "9c29d84393b18c56ca769fde990944f031ac9d042c2b618a014dbc5b0699a2c0"
 _PLAYBOOK_SHA256 = "31bd84fa42af384ae3b94498b0e624033bdac847162aed06903728bb3ed88a5f"
 _CONFIGMAP_SHA256 = "bc167b1f4d2ccb20223c67bceb067459fed6a8057a6b4119aa0bd1dc9909c082"
@@ -213,6 +217,7 @@ def _source_closure_valid() -> bool:
             and _canonical_file_hash(_ACTION_SOURCE, "_ACTION_CANONICAL_SHA256") == _ACTION_CANONICAL_SHA256
             and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") == _WRAPPER_CANONICAL_SHA256
             and (stat.S_ISLNK(json_patch.st_mode) or stat.S_ISREG(json_patch.st_mode))
+            and _K8S_JSON_PATCH_SOURCE.resolve() == _K8S_JSON_PATCH_REAL_SOURCE
             and stat.S_ISREG(json_patch_real.st_mode)
             and stat.S_IMODE(json_patch_real.st_mode) == 0o644
             and json_patch_real.st_uid == os.getuid()
@@ -411,7 +416,9 @@ class ActionModule(KubernetesActionModule):
         source = str(Path(re.sub(r":\d+(?::\d+)?$", "", str(self._task.get_path()))).resolve())
         if source != EXPECTED_REPOSITORY_ROOT + _TASK_SUFFIX or not _selection_is_canonical() or not _source_closure_valid():
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: non-canonical target-cache repair invocation"}
-        if str(getattr(self._task, "name", "")) != _EXPECTED_TASK_NAME or self._task.action != _EXPECTED_ACTION:
+        definition = args.get("definition")
+        identity = _identity(definition) if isinstance(definition, dict) else ""
+        if str(getattr(self._task, "name", "")) != _EXPECTED_TASK_NAMES.get(identity) or self._task.action != _EXPECTED_ACTION:
             return {"changed": False, "failed": True, "msg": "TASK_SELECTION_GUARD: unexpected target-cache repair task identity"}
         if set(args) != _ARGS or args.get("state") != "present" or args.get("kubeconfig") != str(_KUBECONFIG_SOURCE):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: unexpected target-cache repair arguments"}
@@ -424,7 +431,6 @@ class ActionModule(KubernetesActionModule):
             or not _preflight_binding_valid(preflight)
         ):
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: missing target-cache repair wrapper binding"}
-        definition = args.get("definition")
         binding = args.get("prestate_binding")
         if not isinstance(definition, dict) or not isinstance(binding, dict):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: exact definition and prestate binding required"}

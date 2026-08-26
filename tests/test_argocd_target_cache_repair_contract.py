@@ -78,6 +78,8 @@ class ArgoTargetCacheRepairContractTests(unittest.TestCase):
         self.assertIn("server/repo-server", self.tasks)
         self.assertIn("ConfigMap, PROD Role, and controller StatefulSet", self.tasks)
         self.assertIn("no_delete_path", self.tasks)
+        self.assertIn("internal_attestation_state", self.tasks.split("- name: Require the exact target-cache repair entrypoint contract", 1)[0])
+        self.assertIn("internal_statefulset_target_spec", self.tasks.split("- name: Require the exact target-cache repair entrypoint contract", 1)[0])
 
     def test_exact_cas_process_and_postvalidation_guards_are_present(self) -> None:
         for required in (
@@ -140,6 +142,7 @@ class ArgoTargetCacheRepairContractTests(unittest.TestCase):
         self.assertIn("resourceVersion", self.action)
         self.assertIn("no_delete_path", self.action)
         self.assertIn("_K8S_JSON_PATCH_SOURCE", self.action)
+        self.assertIn("_K8S_JSON_PATCH_SOURCE.resolve() == _K8S_JSON_PATCH_REAL_SOURCE", self.action)
         self.assertIn("python3.13", self.action)
 
     def test_statefulset_requires_full_spec_and_safe_partial_recovery_is_documented(self) -> None:
@@ -151,6 +154,7 @@ class ArgoTargetCacheRepairContractTests(unittest.TestCase):
         self.assertIn("no automatic rollback", runbook)
         self.assertIn("observedGeneration ==", runbook)
         self.assertIn("server/repo-server", runbook)
+        self.assertIn("trusted controller-UID boundary", runbook)
 
     def test_wrapper_rejects_passthrough_without_running_ansible(self) -> None:
         import subprocess
@@ -158,3 +162,25 @@ class ArgoTargetCacheRepairContractTests(unittest.TestCase):
         result = subprocess.run([str(WRAPPER), "check", "unexpected"], cwd=ROOT, capture_output=True, text=True, check=False)
         self.assertEqual(64, result.returncode)
         self.assertNotIn("ansible-playbook", result.stdout + result.stderr)
+
+    def test_canonical_check_is_read_only_and_reaches_metadata_queries(self) -> None:
+        self.assertIn("mode=$1", self.wrapper)
+        self.assertIn("if [ \"$mode\" = check ]; then set -- \"$@\" --check; fi", self.wrapper)
+        self.assertIn("kubernetes.core.k8s_info", self.tasks)
+        self.assertIn("Query the exact three target-cache repair prestates", self.tasks)
+        self.assertIn("Query exact target-cache repair poststate", self.tasks)
+        self.assertIn("when: not ansible_check_mode", self.tasks)
+        self.assertNotIn("kubectl", self.wrapper)
+
+    def test_sequential_patch_tasks_bind_identity_order_and_idempotent_application_rv(self) -> None:
+        for name in (
+            "Apply only the exact target-cache repair PROD Role patch",
+            "Apply only the exact target-cache repair ConfigMap patch",
+            "Apply only the exact target-cache repair controller StatefulSet patch",
+        ):
+            self.assertIn(name, self.tasks)
+        self.assertIn("transition_plan", self.tasks)
+        self.assertIn("legacy_bindings | default([]) | length == 0", self.tasks)
+        self.assertIn("status.sync.revision", self.tasks)
+        self.assertIn("status.comparedTo.source.repoURL", self.tasks)
+        self.assertIn("status.operationState.phase", self.tasks)

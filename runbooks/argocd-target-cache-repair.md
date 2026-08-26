@@ -41,9 +41,7 @@ passthrough arguments and task selection. The wrapper changes to the canonical
 fixed repository/inventory/config/kubeconfig, exact controller and Python
 (`/usr/bin/python3.13`, regular root-owned `0755`) digests, a single-run
 PID-bound attestation, and the canonical non-symlink action plugin. Direct
-`ansible-playbook` and action-plugin invocation are rejected. The trusted
-controller-UID boundary is explicit: a malicious process already running as the
-trusted UID can forge same-UID files and inputs and is outside this guarantee.
+`ansible-playbook` and action-plugin invocation are rejected. The trusted controller-UID boundary is explicit: a malicious process already running as the trusted UID can forge same-UID files, process state, and inputs and is outside this guarantee; this lane does not claim protection from an already-compromised trusted controller account.
 
 Check reads exactly the three live mutation objects, the PROD Application and the
 server/repo-server peer metadata. It predicts one CAS JSON Patch per legacy
