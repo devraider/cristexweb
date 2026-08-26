@@ -1,0 +1,9 @@
+---
+- name: Transition the bounded Argo cluster-cache namespace scope
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: argocd_cluster_cache_scope_transition

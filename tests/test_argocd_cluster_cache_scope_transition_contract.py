@@ -1,0 +1,164 @@
+from __future__ import annotations
+
+import base64
+import hashlib
+import importlib.util
+import json
+from pathlib import Path
+import stat
+import subprocess
+import unittest
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULTS = ROOT / "ansible/roles/argocd_cluster_cache_scope_transition/defaults/main.yml"
+TASKS = ROOT / "ansible/roles/argocd_cluster_cache_scope_transition/tasks/main.yml"
+PLUGIN = ROOT / "ansible/plugins/action/argocd_cluster_cache_scope_transition_guarded_k8s.py"
+WRAPPER = ROOT / "ansible/bin/bootstrap-argocd-cluster-cache-scope-transition"
+PLAYBOOK = ROOT / "ansible/playbooks/bootstrap_argocd_cluster_cache_scope_transition.yml"
+RUNBOOK = ROOT / "runbooks/argocd-cluster-cache-scope-transition.md"
+TARGET_NAMESPACES = "cristexhub-dev,cristexhub-prod"
+
+SOURCE_PATHS = (
+    ROOT / "ansible/files/components/cristexhub-dev-registration/config/secret-cluster-cristexhub-dev.yaml",
+    ROOT / "ansible/files/components/cristexhub-prod-registration/config/secret-cluster-cristexhub-prod.yaml",
+    ROOT / "ansible/files/components/reactive-resume-dev-argocd-registration/config/secret-cluster-reactive-resume-dev.yaml",
+)
+
+
+def load_plugin():
+    collection_root = ROOT / "ansible/.ansible/collections"
+    import sys
+
+    if not (collection_root / "ansible_collections").is_dir():
+        collection_root = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections")
+    if (collection_root / "ansible_collections").is_dir():
+        sys.path.insert(0, str(collection_root))
+    spec = importlib.util.spec_from_file_location("argocd_cluster_cache_scope_transition", PLUGIN)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class ArgoClusterCacheScopeTransitionContractTests(unittest.TestCase):
+    def test_exact_three_original_sources_are_final_shared_scope(self) -> None:
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        self.assertEqual(3, defaults["argocd_cluster_cache_scope_transition_object_count"])
+        self.assertEqual(TARGET_NAMESPACES, defaults["argocd_cluster_cache_scope_transition_expected_target_namespaces"])
+        entries = defaults["argocd_cluster_cache_scope_transition_sources"]
+        self.assertEqual({path.name for path in SOURCE_PATHS}, {Path(entry["path"]).name for entry in entries})
+        for entry, path in zip(entries, SOURCE_PATHS):
+            manifest = yaml.safe_load(path.read_text())
+            self.assertEqual("Secret", manifest["kind"])
+            self.assertEqual("Opaque", manifest["type"])
+            self.assertEqual(
+                {"name", "server", "namespaces", "clusterResources", "config"},
+                set(manifest["stringData"]),
+            )
+            self.assertEqual(TARGET_NAMESPACES, manifest["stringData"]["namespaces"])
+            self.assertEqual(entry["sha256"], hashlib.sha256(path.read_bytes()).hexdigest())
+            self.assertNotIn("data", manifest)
+            self.assertNotIn("binaryData", manifest)
+
+    def test_plugin_target_hashes_and_patch_are_exact_scope_only(self) -> None:
+        module = load_plugin()
+        self.assertEqual({"/metadata/uid", "/metadata/resourceVersion", "/data/namespaces"}, {op["path"] for op in module.transition_patch(
+            {
+                "apiVersion": "v1", "kind": "Secret", "namespace": "argocd",
+                "name": "argocd-cluster-cristexhub-dev",
+                "identity": "v1|Secret|argocd|argocd-cluster-cristexhub-dev",
+                "uid": "01234567-89ab-cdef-0123-456789abcdef",
+                "resourceVersion": "42", "legacy_namespaces": "cristexhub-dev",
+                "target_namespaces": TARGET_NAMESPACES, "observed_namespaces": "cristexhub-dev",
+            },
+            yaml.safe_load(SOURCE_PATHS[0].read_text()),
+        )})
+        patch = module.transition_patch(
+            {
+                "apiVersion": "v1", "kind": "Secret", "namespace": "argocd",
+                "name": "argocd-cluster-cristexhub-dev",
+                "identity": "v1|Secret|argocd|argocd-cluster-cristexhub-dev",
+                "uid": "01234567-89ab-cdef-0123-456789abcdef",
+                "resourceVersion": "42", "legacy_namespaces": "cristexhub-dev",
+                "target_namespaces": TARGET_NAMESPACES, "observed_namespaces": "cristexhub-dev",
+            },
+            yaml.safe_load(SOURCE_PATHS[0].read_text()),
+        )
+        self.assertEqual(["test", "test", "test", "replace"], [op["op"] for op in patch])
+        self.assertEqual(["/metadata/uid", "/metadata/resourceVersion", "/data/namespaces", "/data/namespaces"], [op["path"] for op in patch])
+        self.assertEqual(base64.b64encode(b"cristexhub-dev").decode(), patch[2]["value"])
+        self.assertEqual(base64.b64encode(TARGET_NAMESPACES.encode()).decode(), patch[3]["value"])
+        self.assertNotIn("/data/name", {op["path"] for op in patch})
+        self.assertNotIn("/metadata/labels", {op["path"] for op in patch})
+
+    def test_patch_rejects_foreign_or_final_state(self) -> None:
+        module = load_plugin()
+        binding = {
+            "apiVersion": "v1", "kind": "Secret", "namespace": "argocd",
+            "name": "argocd-cluster-cristexhub-prod",
+            "identity": "v1|Secret|argocd|argocd-cluster-cristexhub-prod",
+            "uid": "01234567-89ab-cdef-0123-456789abcdef",
+            "resourceVersion": "42", "legacy_namespaces": "cristexhub-prod",
+            "target_namespaces": TARGET_NAMESPACES, "observed_namespaces": TARGET_NAMESPACES,
+        }
+        with self.assertRaises(ValueError):
+            module.transition_patch(binding, yaml.safe_load(SOURCE_PATHS[1].read_text()))
+        binding["observed_namespaces"] = "foreign"
+        with self.assertRaises(ValueError):
+            module.transition_patch(binding, yaml.safe_load(SOURCE_PATHS[1].read_text()))
+
+    def test_role_isolated_from_stale_registration_and_rr_dependencies(self) -> None:
+        text = TASKS.read_text()
+        self.assertEqual(2, text.count("kubernetes.core.k8s_info:"))
+        self.assertIn("kind: Secret", text)
+        self.assertNotIn("Application", text)
+        self.assertNotIn("AppProject", text)
+        self.assertNotIn("reactive_resume_dev", text)
+        self.assertNotIn("repository credential", text.lower())
+        self.assertIn("no_log: true", text)
+        self.assertIn("resourceVersion", text)
+        self.assertIn("ownerReferences", text)
+        self.assertIn("argocd_cluster_cache_scope_transition_internal_legacy_bindings", text)
+        self.assertIn("argocd_cluster_cache_scope_transition_internal_target_bindings", text)
+        self.assertIn("when: not ansible_check_mode", text)
+        self.assertIn("argocd_cluster_cache_scope_transition_guarded_k8s:", text)
+
+    def test_wrapper_and_playbook_are_non_passthrough_and_attested(self) -> None:
+        wrapper = WRAPPER.read_text()
+        self.assertTrue(WRAPPER.stat().st_mode & stat.S_IXUSR)
+        self.assertIn("check|apply", wrapper)
+        self.assertIn("env -i", wrapper)
+        self.assertIn("--diff", wrapper)
+        self.assertIn("--limit crtxweb", wrapper)
+        self.assertIn("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_TOKEN", wrapper)
+        self.assertIn("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ATTESTATION_FILE", wrapper)
+        self.assertIn("rm -f", wrapper)
+        self.assertNotIn("--tags", wrapper)
+        self.assertNotIn("--start-at-task", wrapper)
+        self.assertIn("argocd_cluster_cache_scope_transition", PLAYBOOK.read_text())
+        self.assertIn("one-time", RUNBOOK.read_text())
+        self.assertIn("No live check or apply is implied", RUNBOOK.read_text())
+
+    def test_action_and_source_are_value_suppressed(self) -> None:
+        plugin = PLUGIN.read_text()
+        tasks = TASKS.read_text()
+        self.assertIn("kubernetes.core.k8s_json_patch", plugin)
+        self.assertIn('"/data/namespaces"', plugin)
+        self.assertIn('"/metadata/resourceVersion"', plugin)
+        self.assertIn("set(args) != ARGS", plugin)
+        self.assertIn("source_sha256", plugin)
+        self.assertIn("no_log: true", tasks)
+        self.assertNotIn("print(", plugin)
+        self.assertNotIn("debug:", tasks)
+
+    def test_no_unintended_files_or_source_definitions(self) -> None:
+        self.assertTrue((ROOT / "ansible/roles/argocd_cluster_cache_scope_transition/defaults/main.yml").is_file())
+        self.assertTrue((ROOT / "ansible/roles/argocd_cluster_cache_scope_transition/tasks/main.yml").is_file())
+        self.assertTrue(PLUGIN.is_file())
+        self.assertEqual(3, len(SOURCE_PATHS))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,317 @@
+---
+- name: Reject externally supplied cache-transition internals
+  ansible.builtin.assert:
+    that: item not in vars
+    fail_msg: "INTERNAL_VARIABLE_GUARD: refusing externally supplied cache-transition internal {{ item }}."
+  loop:
+    - argocd_cluster_cache_scope_transition_internal_states
+    - argocd_cluster_cache_scope_transition_internal_manifests
+    - argocd_cluster_cache_scope_transition_internal_prestate
+    - argocd_cluster_cache_scope_transition_internal_prestate_bindings
+    - argocd_cluster_cache_scope_transition_internal_legacy_bindings
+    - argocd_cluster_cache_scope_transition_internal_target_bindings
+    - argocd_cluster_cache_scope_transition_internal_mutation_results
+    - argocd_cluster_cache_scope_transition_internal_poststate
+    - argocd_cluster_cache_scope_transition_internal_preflight_binding
+  changed_when: false
+
+- name: Require the exact one-time cache-transition contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ATTESTATION_FILE') | length > 0
+      - argocd_cluster_cache_scope_transition_approved | bool
+      - argocd_cluster_cache_scope_transition_state == 'present'
+      - ansible_diff_mode
+      - (ansible_limit | default('')) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - argocd_cluster_cache_scope_transition_sources | length == 3
+      - argocd_cluster_cache_scope_transition_object_count == 3
+      - argocd_cluster_cache_scope_transition_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - argocd_cluster_cache_scope_transition_expected_server == 'https://kubernetes.default.svc'
+      - argocd_cluster_cache_scope_transition_expected_target_namespaces == 'cristexhub-dev,cristexhub-prod'
+      - argocd_cluster_cache_scope_transition_expected_target_namespaces.split(',') == ['cristexhub-dev', 'cristexhub-prod']
+      - argocd_cluster_cache_scope_transition_expected_cluster_resources == 'false'
+      - argocd_cluster_cache_scope_transition_expected_config == '{}'
+    fail_msg: Refusing an unapproved or non-canonical Argo cluster-cache scope transition.
+  changed_when: false
+
+- name: Inspect only the three canonical registration Secret sources
+  ansible.builtin.stat:
+    path: '{{ item.path }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop: '{{ argocd_cluster_cache_scope_transition_sources }}'
+  register: argocd_cluster_cache_scope_transition_internal_states
+  delegate_to: localhost
+  changed_when: false
+
+- name: Require hash-bound original registration Secret sources
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - item.stat.mode == '0644'
+      - item.stat.checksum == item.item.sha256
+      - item.item.path.startswith(argocd_cluster_cache_scope_transition_repository_root ~ '/ansible/files/components/')
+      - item.item.path.endswith('.yaml')
+    fail_msg: Refusing hash-drifted or out-of-tree registration Secret source.
+  loop: '{{ argocd_cluster_cache_scope_transition_internal_states.results }}'
+  delegate_to: localhost
+  changed_when: false
+
+- name: Load the exact original registration Secret definitions
+  ansible.builtin.set_fact:
+    argocd_cluster_cache_scope_transition_internal_manifests: >-
+      {{ (argocd_cluster_cache_scope_transition_internal_manifests | default([])) +
+      [lookup('ansible.builtin.file', item.path) | from_yaml] }}
+  loop: '{{ argocd_cluster_cache_scope_transition_sources }}'
+  changed_when: false
+  no_log: true
+
+- name: Require exactly three value-free target Secret definitions
+  ansible.builtin.assert:
+    that:
+      - argocd_cluster_cache_scope_transition_internal_manifests | length == 3
+      - argocd_cluster_cache_scope_transition_internal_manifests | map(attribute='kind') | list | unique | list == ['Secret']
+      - argocd_cluster_cache_scope_transition_internal_manifests | map(attribute='apiVersion') | list | unique | list == ['v1']
+      - >-
+        argocd_cluster_cache_scope_transition_internal_manifests |
+        map(attribute='metadata.namespace') | list | unique | list == ['argocd']
+      - >-
+        argocd_cluster_cache_scope_transition_internal_manifests |
+        map(attribute='metadata.name') | list | sort ==
+        ['argocd-cluster-cristexhub-dev', 'argocd-cluster-cristexhub-prod',
+        'argocd-cluster-reactive-resume-dev']
+      - argocd_cluster_cache_scope_transition_internal_manifests | selectattr('type', 'equalto', 'Opaque') | list | length == 3
+      - argocd_cluster_cache_scope_transition_internal_manifests | selectattr('data', 'defined') | list | length == 0
+      - argocd_cluster_cache_scope_transition_internal_manifests | selectattr('binaryData', 'defined') | list | length == 0
+      - >-
+        argocd_cluster_cache_scope_transition_internal_manifests |
+        map(attribute='stringData') | map('dict2items') | map('map', attribute='key') |
+        map('list') | list | unique == [['clusterResources', 'config', 'name', 'namespaces', 'server']]
+    fail_msg: Refusing a target closure other than the three original cluster Secret stringData definitions.
+  changed_when: false
+  no_log: true
+
+- name: Query only the three owned cluster Secret prestates
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: Secret
+    namespace: '{{ item.metadata.namespace }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ argocd_cluster_cache_scope_transition_kubeconfig }}'
+  loop: '{{ argocd_cluster_cache_scope_transition_internal_manifests }}'
+  register: argocd_cluster_cache_scope_transition_internal_prestate
+  changed_when: false
+  no_log: true
+
+- name: Require complete, unique, non-terminating Secret prestates
+  ansible.builtin.assert:
+    that:
+      - argocd_cluster_cache_scope_transition_internal_prestate.results | length == 3
+      - argocd_cluster_cache_scope_transition_internal_prestate.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
+      - >-
+        argocd_cluster_cache_scope_transition_internal_prestate.results |
+        selectattr('resources.0.type', 'equalto', 'Opaque') | list | length == 3
+    fail_msg: Refusing a partial, foreign, terminating, or multiply-resolved cache Secret prestate.
+  changed_when: false
+  no_log: true
+
+- name: Build metadata-only CAS bindings while checking Secret data without output
+  ansible.builtin.set_fact:
+    argocd_cluster_cache_scope_transition_internal_prestate_bindings: >-
+      {{ (argocd_cluster_cache_scope_transition_internal_prestate_bindings | default([])) + [{
+      'apiVersion': item.item.apiVersion,
+      'kind': 'Secret',
+      'namespace': item.item.metadata.namespace,
+      'name': item.item.metadata.name,
+      'identity': item.item.apiVersion ~ '|Secret|' ~ item.item.metadata.namespace ~ '|' ~ item.item.metadata.name,
+      'uid': item.resources[0].metadata.uid,
+      'resourceVersion': item.resources[0].metadata.resourceVersion,
+      'legacy_namespaces': (argocd_cluster_cache_scope_transition_sources |
+        selectattr('name', 'equalto', item.item.metadata.name) | map(attribute='legacy_namespaces') | first),
+      'target_namespaces': argocd_cluster_cache_scope_transition_expected_target_namespaces,
+      'observed_namespaces': (item.resources[0].data.namespaces | b64decode)
+      }] }}
+  loop: '{{ argocd_cluster_cache_scope_transition_internal_prestate.results }}'
+  changed_when: false
+  no_log: true
+
+- name: Require exact owned metadata, data keys, and source-aligned prestate values
+  ansible.builtin.assert:
+    that:
+      - item.apiVersion == 'v1'
+      - item.kind == 'Secret'
+      - item.namespace == 'argocd'
+      - item.name in ['argocd-cluster-cristexhub-dev', 'argocd-cluster-cristexhub-prod', 'argocd-cluster-reactive-resume-dev']
+      - item.uid is match('^[0-9a-fA-F-]{36}$')
+      - item.resourceVersion is match('^[0-9]+$')
+      - item.identity == 'v1|Secret|argocd|' ~ item.name
+      - item.target_namespaces == argocd_cluster_cache_scope_transition_expected_target_namespaces
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_prestate.results |
+        selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].metadata.ownerReferences |
+        default([]) | length == 0
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_prestate.results |
+        selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].metadata.deletionTimestamp |
+        default(None) in [None, '']
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_prestate.results |
+        selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].metadata.deletionGracePeriodSeconds |
+        default(None) in [None, 0]
+      - item.observed_namespaces in ['cristexhub-dev', 'cristexhub-prod', argocd_cluster_cache_scope_transition_expected_target_namespaces]
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_prestate.results |
+        selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].data.keys() | list | sort ==
+        ['clusterResources', 'config', 'name', 'namespaces', 'server']
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_prestate.results |
+        selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].data.name | b64decode ==
+        (argocd_cluster_cache_scope_transition_internal_manifests |
+        selectattr('metadata.name', 'equalto', item.name) | first).stringData.name
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_prestate.results |
+        selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].data.server | b64decode ==
+        argocd_cluster_cache_scope_transition_expected_server
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_prestate.results |
+        selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].data.clusterResources | b64decode ==
+        argocd_cluster_cache_scope_transition_expected_cluster_resources
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_prestate.results |
+        selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].data.config | b64decode ==
+        argocd_cluster_cache_scope_transition_expected_config
+    fail_msg: Refusing a cluster Secret with drifted ownership, identity, or value contract.
+  loop: '{{ argocd_cluster_cache_scope_transition_internal_prestate_bindings }}'
+  changed_when: false
+  no_log: true
+
+- name: Require exact Ansible ownership labels on all three prestates
+  ansible.builtin.assert:
+    that:
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_prestate.results |
+        selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].metadata.labels ==
+        {'app.kubernetes.io/part-of': 'cristexhub',
+        'app.kubernetes.io/managed-by': 'ansible',
+        'argocd.argoproj.io/secret-type': 'cluster',
+        'cristex.io/component': (argocd_cluster_cache_scope_transition_sources |
+          selectattr('name', 'equalto', item.name) | map(attribute='component') | first)}
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_prestate.results |
+        selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].metadata.finalizers | default([]) | length == 0
+    fail_msg: Refusing a cluster Secret not owned by the exact Ansible registration component.
+  loop: '{{ argocd_cluster_cache_scope_transition_internal_prestate_bindings }}'
+  changed_when: false
+  no_log: true
+
+- name: Split exact legacy and already-transitioned prestates for mixed recovery
+  ansible.builtin.set_fact:
+    argocd_cluster_cache_scope_transition_internal_legacy_bindings: >-
+      {{ (argocd_cluster_cache_scope_transition_internal_legacy_bindings | default([])) + [item] }}
+  loop: '{{ argocd_cluster_cache_scope_transition_internal_prestate_bindings }}'
+  when: item.observed_namespaces == item.legacy_namespaces
+  changed_when: false
+  no_log: true
+
+- name: Record already-transitioned bounded prestates
+  ansible.builtin.set_fact:
+    argocd_cluster_cache_scope_transition_internal_target_bindings: >-
+      {{ (argocd_cluster_cache_scope_transition_internal_target_bindings | default([])) + [item] }}
+  loop: '{{ argocd_cluster_cache_scope_transition_internal_prestate_bindings }}'
+  when: item.observed_namespaces == item.target_namespaces
+  changed_when: false
+  no_log: true
+
+- name: Require no partial or foreign namespace scope
+  ansible.builtin.assert:
+    that:
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_legacy_bindings | default([]) | length) +
+        (argocd_cluster_cache_scope_transition_internal_target_bindings | default([]) | length) == 3
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_legacy_bindings | default([]) |
+        map(attribute='name') | list |
+        intersect(argocd_cluster_cache_scope_transition_internal_target_bindings | default([]) |
+        map(attribute='name') | list) | length) == 0
+    fail_msg: Refusing a mixed cache state containing a foreign or partial namespace scope.
+  changed_when: false
+  no_log: true
+
+- name: Bind the exact three-object source and prestate closure
+  ansible.builtin.set_fact:
+    argocd_cluster_cache_scope_transition_internal_preflight_binding:
+      source_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_TOKEN') | hash('sha256') }}"
+      object_count: 3
+      target_namespaces: '{{ argocd_cluster_cache_scope_transition_expected_target_namespaces }}'
+      prestate_bindings: '{{ argocd_cluster_cache_scope_transition_internal_prestate_bindings }}'
+      no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Apply only legacy cluster Secret scope patches with exact CAS bindings
+  argocd_cluster_cache_scope_transition_guarded_k8s:
+    state: present
+    definition: >-
+      {{ argocd_cluster_cache_scope_transition_internal_manifests |
+      selectattr('metadata.name', 'equalto', item.name) | first }}
+    kubeconfig: '{{ argocd_cluster_cache_scope_transition_kubeconfig }}'
+    prestate_binding: '{{ item }}'
+  loop: '{{ argocd_cluster_cache_scope_transition_internal_legacy_bindings | default([]) }}'
+  register: argocd_cluster_cache_scope_transition_internal_mutation_results
+  no_log: true
+
+- name: Require exactly the predicted bounded patch count
+  ansible.builtin.assert:
+    that:
+      - >-
+        argocd_cluster_cache_scope_transition_internal_mutation_results.results | length ==
+        (argocd_cluster_cache_scope_transition_internal_legacy_bindings | default([]) | length)
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_mutation_results.results |
+        selectattr('changed', 'equalto', true) | list | length) ==
+        (argocd_cluster_cache_scope_transition_internal_legacy_bindings | default([]) | length)
+    fail_msg: Refusing an unexpected cache-transition mutation count.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Query exact three-object cache poststate
+  kubernetes.core.k8s_info:
+    api_version: '{{ item.apiVersion }}'
+    kind: Secret
+    namespace: '{{ item.metadata.namespace }}'
+    name: '{{ item.metadata.name }}'
+    kubeconfig: '{{ argocd_cluster_cache_scope_transition_kubeconfig }}'
+  loop: '{{ argocd_cluster_cache_scope_transition_internal_manifests }}'
+  register: argocd_cluster_cache_scope_transition_internal_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require exact shared scope and unchanged non-scope Secret fields
+  ansible.builtin.assert:
+    that:
+      - argocd_cluster_cache_scope_transition_internal_poststate.results | length == 3
+      - argocd_cluster_cache_scope_transition_internal_poststate.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_poststate.results |
+        selectattr('resources.0.type', 'equalto', 'Opaque') | list | length) == 3
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_poststate.results |
+        map(attribute='resources.0.data.namespaces') | map('b64decode') | list | unique | list ==
+        [argocd_cluster_cache_scope_transition_expected_target_namespaces]
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_poststate.results |
+        map(attribute='resources.0.data') | map('dict2items') | map('map', attribute='key') |
+        map('list') | list | unique == [['clusterResources', 'config', 'name', 'namespaces', 'server']]
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_poststate.results |
+        selectattr('resources.0.metadata.ownerReferences', 'undefined') | list | length == 3)
+    fail_msg: Refusing poststate with an unexpected Secret scope or field closure.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode

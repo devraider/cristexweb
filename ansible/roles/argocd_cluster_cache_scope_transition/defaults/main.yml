@@ -1,0 +1,35 @@
+---
+argocd_cluster_cache_scope_transition_approved: false
+argocd_cluster_cache_scope_transition_state: present
+argocd_cluster_cache_scope_transition_kubeconfig: /etc/rancher/k3s/k3s.yaml
+argocd_cluster_cache_scope_transition_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+argocd_cluster_cache_scope_transition_expected_target_namespaces: 'cristexhub-dev,cristexhub-prod'
+argocd_cluster_cache_scope_transition_expected_server: 'https://kubernetes.default.svc'
+argocd_cluster_cache_scope_transition_expected_cluster_resources: 'false'
+argocd_cluster_cache_scope_transition_expected_config: '{}'
+argocd_cluster_cache_scope_transition_sources:
+  - name: argocd-cluster-cristexhub-dev
+    path: >-
+      {{ argocd_cluster_cache_scope_transition_repository_root }}/ansible/files/components/cristexhub-dev-registration/config/secret-cluster-cristexhub-dev.yaml
+    sha256: 4fe913fe414a6d9ffa93286c7ba0c760ebc2671bcc90c202dccfc645b7f209c9
+    component: cristexhub-dev-registration
+    identity_name: cristexhub-dev-local
+    legacy_namespaces: cristexhub-dev
+  - name: argocd-cluster-cristexhub-prod
+    path: >-
+      {{ argocd_cluster_cache_scope_transition_repository_root }}/ansible/files/components/
+      cristexhub-prod-registration/config/secret-cluster-cristexhub-prod.yaml
+    sha256: c6b7534728865115014979ea4d6aeeedd9f28fc7ff415bad8795bcc1dfd75193
+    component: cristexhub-prod-registration
+    identity_name: cristexhub-prod-local
+    legacy_namespaces: cristexhub-prod
+  - name: argocd-cluster-reactive-resume-dev
+    path: >-
+      {{ argocd_cluster_cache_scope_transition_repository_root }}/ansible/files/components/
+      reactive-resume-dev-argocd-registration/config/secret-cluster-reactive-resume-dev.yaml
+    sha256: 9e59d72f0085490e77f89be74a91a4f4d882f9ba07e89b334bd8ef7feef466d2
+    component: reactive-resume-dev-argocd-registration
+    identity_name: reactive-resume-dev-local
+    legacy_namespaces: cristexhub-dev
+argocd_cluster_cache_scope_transition_object_count: 3
+argocd_cluster_cache_scope_transition_namespace: argocd

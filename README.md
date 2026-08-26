@@ -263,7 +263,7 @@ evidence. Separate guarded [logical database provisioning](runbooks/shared-datab
 consumes precreated per-consumer Secrets through temporary UID-bound helper Pods;
 all empty reservations and PROD activation remain **NOT RUN/BLOCKED**. No general
 host baseline or deployment exists.
-Python is otherwise test-only; the repository contains forty exact-scope
+Python is otherwise test-only; the repository contains forty-one exact-scope
 Ansible action plugins, one exact-scope backup strategy plugin, and two focused
 Ansible library modules. These reviewed focused guards cover the approved mutation,
 validation, cryptographic, and backup task-selection boundaries; no general-purpose
@@ -474,7 +474,7 @@ ansible/                 # discovery plus guarded host/Kubernetes/database sourc
   bin/                    # non-passthrough operational entrypoints
   inventory/
   playbooks/
-  plugins/action/         # forty exact-scope mutation/validation guards
+  plugins/action/         # forty-one exact-scope mutation/validation guards
   plugins/strategy/       # one backup-only task-selection guard
   library/                # two focused metadata-only helpers
   roles/                  # bounded discovery, host, Namespace, controller, Secret, and database roles

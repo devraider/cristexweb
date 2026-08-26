@@ -612,7 +612,7 @@ checkpoint; current HEAD's additional `networkpolicy-allow-backend.yaml` remains
 unapplied and is not claimed live or Argo-managed, while the remaining
 runtime/migration and database source lanes are not complete. GitHub CI may run
 only syntax/lint and offline contracts from this source; it supplies no inventory
-and invokes no operational wrapper. The repository contains forty exact-scope
+and invokes no operational wrapper. The repository contains forty-one exact-scope
 action plugins, one backup-only strategy plugin that rejects task selection before
 preflight can be skipped, and two focused library modules; these focused Python
 exceptions are source guards/validators only, not a general operational collector.
