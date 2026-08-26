@@ -148,6 +148,9 @@ class ArgoTargetCacheRepairContractTests(unittest.TestCase):
     def test_statefulset_requires_full_spec_and_safe_partial_recovery_is_documented(self) -> None:
         self.assertIn("internal_statefulset_target_spec", self.tasks)
         self.assertIn("internal_statefulset_legacy_spec", self.tasks)
+        self.assertIn("exact annotation replacement", self.tasks)
+        self.assertIn("combine({'annotations': argocd_target_cache_repair_legacy_controller_annotations}, recursive=False)", self.tasks)
+        self.assertNotIn("combine({'annotations': argocd_target_cache_repair_legacy_controller_annotations}, recursive=True)", self.tasks)
         self.assertIn("item.resources[0].spec ==", self.tasks)
         runbook = (ROOT / "runbooks/argocd-target-cache-repair.md").read_text()
         self.assertIn("Safe partial states and recovery", runbook)

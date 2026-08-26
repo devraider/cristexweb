@@ -227,23 +227,26 @@
   changed_when: false
   no_log: true
 
-- name: Build full normalized StatefulSet target and legacy specs
+- name: Build full normalized StatefulSet target spec
   ansible.builtin.set_fact:
     argocd_target_cache_repair_internal_statefulset_target_spec: >-
       {{ argocd_target_cache_repair_internal_manifests |
       selectattr('kind', 'equalto', 'StatefulSet') |
       map(attribute='spec') | first }}
+  changed_when: false
+  no_log: true
+
+- name: Build full normalized StatefulSet legacy spec with exact annotation replacement
+  ansible.builtin.set_fact:
     argocd_target_cache_repair_internal_statefulset_legacy_spec: >-
-      {{ (argocd_target_cache_repair_internal_manifests |
-      selectattr('kind', 'equalto', 'StatefulSet') | map(attribute='spec') | first) |
-      combine({'template': {
-        'metadata': (
-          argocd_target_cache_repair_internal_manifests |
-          selectattr('kind', 'equalto', 'StatefulSet') |
-          map(attribute='spec.template.metadata') | first |
-          combine({'annotations': argocd_target_cache_repair_legacy_controller_annotations}, recursive=True)
-        )
-      }}, recursive=True) }}
+      {{ argocd_target_cache_repair_internal_statefulset_target_spec |
+      combine({'template':
+        argocd_target_cache_repair_internal_statefulset_target_spec.template |
+        combine({'metadata':
+          argocd_target_cache_repair_internal_statefulset_target_spec.template.metadata |
+          combine({'annotations': argocd_target_cache_repair_legacy_controller_annotations}, recursive=False)
+        }, recursive=False)
+      }, recursive=False) }}
   changed_when: false
   no_log: true
 
