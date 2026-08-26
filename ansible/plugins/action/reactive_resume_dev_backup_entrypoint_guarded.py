@@ -20,7 +20,7 @@ _EXPECTED_TASK_SOURCE = str(
 _EXPECTED_TASK_NAME = "Mark the complete guarded backup preflight"
 _EXPECTED_TASK_ACTION = "reactive_resume_dev_backup_entrypoint_guarded"
 _PLAYBOOK_SOURCE = _REPOSITORY_ROOT / "ansible/playbooks/configure_reactive_resume_dev_backup.yml"
-_PLAYBOOK_CANONICAL_SHA256 = "a8ad42ff174da338b704c14eb27c33295088da230b3a70593fb48e8c1d7583c1"
+_PLAYBOOK_CANONICAL_SHA256 = "53eef18bc710c7329552fa073d72aa2fea0a8fa108f52e2dcfee380559cf4c5a"
 _EXPECTED_SOURCE_REGISTER = "reactive_resume_dev_backup_source_states"
 _SELF_SOURCE_SHA256 = "__SELF_SOURCE_SHA256__"
 _WRAPPER_SOURCE_SHA256 = "__WRAPPER_SOURCE_SHA256__"
@@ -48,12 +48,12 @@ _EXPECTED_SOURCE_RESULTS = (
     {
         "path": "ansible/files/backup/reactive-resume-dev-backup",
         "mode": "0755",
-        "sha256": "5544f4ed635546edb294242f3b1feaa6b64358f8f5474a51ce2962fbb87a35c0",
+        "sha256": "2a170cb9a26c1110398f7ed0f4ce605a6dd120de3787de0c83708f4cffa0111e",
     },
     {
         "path": "ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal",
         "mode": "0755",
-        "sha256": "e1f35dfa1b7f99410a1977c056d1ee8a676ce6263d0c363345d281275e8c125f",
+        "sha256": "dc205d8fc6b56d6b98a66358a1c69f68f5fb070e11061815217015d571dfc696",
     },
     {
         "path": "ansible/files/backup/cristexweb-reactive-resume-dev-backup.service",
@@ -71,7 +71,7 @@ _EXPECTED_SOURCE_RESULTS = (
         "sha256": "4bfdf41939c1a6f3312c3f703c235efe14959fb1062c5573f16e8d337e1d1ec6",
     },
 )
-_SOURCE_CONTRACT_SHA256 = "5f0ff89c31f2de764b9e9c6b526bb56c50f819516e05d6c080b65ff7c9ff5357"
+_SOURCE_CONTRACT_SHA256 = "45a6c12164e0d57c834b21792af85809c5a821396dcdd7ef91121c4b5cc27306"
 _EXPECTED_BINDING = {
     "schema": 1,
     "task_source": "ansible/playbooks/configure_reactive_resume_dev_backup.yml",

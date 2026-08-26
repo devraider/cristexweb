@@ -161,7 +161,7 @@ cleanup_plaintext() {
   cleanup_helper || cleanup_status=1
   cleanup_policy "${helper_ingress_policy:-}" "${helper_ingress_policy_uid:-}" backup-networkpolicy || cleanup_status=1
   cleanup_policy "${helper_egress_policy:-}" "${helper_egress_policy_uid:-}" backup-networkpolicy || cleanup_status=1
-  /usr/bin/rm -f -- "$work/reactive-resume-dev.dump" "$work/postgresql-size.raw" "$work/raw-manifest.json" "$work/object-manifest.json" "$work/object-storage.tar.gz" "$work/postgresql.dump.gz" || cleanup_status=1
+  /usr/bin/rm -f -- "$work/reactive-resume-dev.dump" "$work/postgresql-size.raw" "$work/raw-manifest.json" "$work/raw-manifest-final.json" "$work/object-manifest.json" "$work/object-storage.tar.gz" "$work/postgresql.dump.gz" || cleanup_status=1
   if [ "$backup_success" = true ]; then
     /usr/bin/rm -rf -- "$work" || cleanup_status=1
   else
@@ -495,6 +495,42 @@ PY
 pg_logical_entry_count=${pg_logical_counts%%:*}
 pg_logical_table_count=${pg_logical_counts#*:}
 [ "$pg_logical_entry_count" -gt 0 ] && [ "$pg_logical_table_count" -gt 0 ] || fail pg_logical_content
+# Fence the independently captured S3 dataset around the PostgreSQL snapshot.
+# S3 and PostgreSQL have no shared transaction, so drift fails closed rather
+# than being presented as an atomic cross-dataset backup.
+/usr/local/bin/kubectl -n "$namespace" exec "$helper_pod" -c rclone -- \
+  /bin/sh -ec 'rclone lsjson --recursive --hash --metadata "s3:reactive-resume-dev" >/work/raw-manifest-final.json.tmp && mv /work/raw-manifest-final.json.tmp /work/raw-manifest-final.json' || fail object_consistency_catalog
+/usr/local/bin/kubectl -n "$namespace" cp "$helper_pod:/work/raw-manifest-final.json" "$work/raw-manifest-final.json" -c rclone >/dev/null || fail object_consistency_catalog
+INITIAL_MANIFEST="$work/raw-manifest.json" FINAL_MANIFEST="$work/raw-manifest-final.json" /usr/bin/python3 - <<'PY' || fail object_consistency_drift
+import json
+import os
+
+allowed = ("uploads/user-pictures/", "pictures/", "uploads/user-agent/")
+
+def fingerprint(path):
+    values = json.load(open(path, encoding="utf-8"))
+    assert isinstance(values, list)
+    result = []
+    for item in values:
+        if item.get("IsDir"):
+            continue
+        key = item.get("Path") or item.get("Name")
+        size = item.get("Size")
+        hashes = item.get("Hashes")
+        assert isinstance(key, str) and key and key.startswith(allowed)
+        assert not key.startswith("/") and ".." not in key.split("/") and "\\" not in key and "\x00" not in key
+        assert isinstance(size, int) and size >= 0
+        assert isinstance(hashes, dict)
+        assert isinstance(hashes.get("md5"), str) and len(hashes["md5"]) == 32
+        assert all(isinstance(name, str) and isinstance(value, str) for name, value in hashes.items())
+        digests = tuple(sorted(hashes.items()))
+        assert digests
+        result.append((key, size, digests))
+    assert result
+    return sorted(result)
+
+assert fingerprint(os.environ["INITIAL_MANIFEST"]) == fingerprint(os.environ["FINAL_MANIFEST"])
+PY
 /usr/bin/gzip -9 -c "$work/reactive-resume-dev.dump" >"$work/postgresql.dump.gz" || fail pg_compress
 /usr/bin/age -r "$recipient" -o "$run_directory/postgresql.dump.gz.age" "$work/postgresql.dump.gz" || fail pg_encrypt
 [ -s "$run_directory/postgresql.dump.gz.age" ] || fail pg_archive_empty
@@ -541,7 +577,7 @@ PY
 import json, sys
 _, path, run_id, completed, duration, pg_bytes, pg_sha, object_bytes, object_sha, count, total, logical_entries, logical_tables, logical_bytes = sys.argv
 with open(path, "w", encoding="utf-8") as stream:
-    json.dump({"schema": 2, "service": "reactive-resume-dev", "run_id": run_id, "created_at_utc": run_id, "completed_at_utc": completed, "backup_duration_seconds": int(duration), "encryption": "age-x25519", "database": {"name": "reactive_resume_dev_successor", "archive": "postgresql.dump.gz.age", "bytes": int(pg_bytes), "sha256": pg_sha, "logical_entry_count": int(logical_entries), "logical_table_count": int(logical_tables), "logical_archive_bytes": int(logical_bytes)}, "object_storage": {"bucket": "reactive-resume-dev", "archive": "object-storage.tar.gz.age", "bytes": int(object_bytes), "sha256": object_sha, "object_count": int(count), "total_object_bytes": int(total)}}, stream, separators=(",", ":"))
+    json.dump({"schema": 2, "service": "reactive-resume-dev", "run_id": run_id, "created_at_utc": run_id, "completed_at_utc": completed, "backup_duration_seconds": int(duration), "encryption": "age-x25519", "snapshot_consistency": "correlated-stability-fence-not-atomic", "database": {"name": "reactive_resume_dev_successor", "archive": "postgresql.dump.gz.age", "bytes": int(pg_bytes), "sha256": pg_sha, "logical_entry_count": int(logical_entries), "logical_table_count": int(logical_tables), "logical_archive_bytes": int(logical_bytes)}, "object_storage": {"bucket": "reactive-resume-dev", "archive": "object-storage.tar.gz.age", "bytes": int(object_bytes), "sha256": object_sha, "object_count": int(count), "total_object_bytes": int(total)}}, stream, separators=(",", ":"))
 PY
 for leaf in postgresql.dump.gz.age postgresql.dump.gz.age.sha256 postgresql.manifest.json object-storage.tar.gz.age object-storage.tar.gz.age.sha256 object-storage.manifest.json run-manifest.json; do
   /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/$leaf" "$remote_directory/$leaf"

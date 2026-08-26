@@ -264,8 +264,9 @@ from datetime import datetime, timezone
 run = json.load(open(os.environ["RUN_MANIFEST"], encoding="utf-8"))
 pg = json.load(open(os.environ["PG_MANIFEST"], encoding="utf-8"))
 obj = json.load(open(os.environ["OBJECT_MANIFEST"], encoding="utf-8"))
-assert set(run) == {"schema", "service", "run_id", "created_at_utc", "completed_at_utc", "backup_duration_seconds", "encryption", "database", "object_storage"}
+assert set(run) == {"schema", "service", "run_id", "created_at_utc", "completed_at_utc", "backup_duration_seconds", "encryption", "snapshot_consistency", "database", "object_storage"}
 assert run["schema"] == 2 and run["service"] == "reactive-resume-dev"
+assert run["snapshot_consistency"] == "correlated-stability-fence-not-atomic"
 assert run["run_id"] == os.environ["RUN_ID"] and run["created_at_utc"] == os.environ["RUN_ID"] and run["encryption"] == "age-x25519"
 completion = datetime.strptime(run["completed_at_utc"], "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
 started = datetime.strptime(run["run_id"], "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
@@ -330,6 +331,14 @@ expected_pg_logical_bytes=$(/usr/bin/python3 - "$work/run-manifest.json" <<'PY'
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as stream:
     value = json.load(stream)["database"]["logical_archive_bytes"]
+assert isinstance(value, int) and value > 0
+print(value)
+PY
+) || fail pg_manifest_content
+expected_pg_entry_count=$(/usr/bin/python3 - "$work/run-manifest.json" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    value = json.load(stream)["database"]["logical_entry_count"]
 assert isinstance(value, int) and value > 0
 print(value)
 PY
@@ -406,6 +415,7 @@ PY
 restored_pg_logical_entry_count=${restored_pg_counts%%:*}
 restored_pg_logical_table_count=${restored_pg_counts#*:}
 [ "$restored_pg_logical_entry_count" -gt 0 ] && [ "$restored_pg_logical_table_count" -gt 0 ] || fail restored_pg_logical_content
+[ "$restored_pg_logical_entry_count" -eq "$expected_pg_entry_count" ] || fail restored_pg_logical_content
 [ -s "$work/object-storage.tar.gz" ] || fail object_archive_empty
 
 # Reject links/devices and extract only regular files/directories after exact
@@ -738,10 +748,15 @@ spec:
           s3.bucket.create -name reactive-resume-dev -owner reactive-resume-dev
           EOF_S3
           do sleep 2; done
+          /usr/bin/touch /restore/bucket-genesis.ready
           exec sleep 3600
       securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
       resources: {requests: {cpu: 10m, memory: 32Mi}, limits: {cpu: 100m, memory: 128Mi}}
-      volumeMounts: [{name: tmp, mountPath: /tmp}]
+      readinessProbe:
+        exec: {command: [/bin/sh, -ec, test -f /restore/bucket-genesis.ready]}
+        periodSeconds: 2
+        failureThreshold: 150
+      volumeMounts: [{name: restore, mountPath: /restore}, {name: tmp, mountPath: /tmp}]
     - name: rclone
       image: $rclone_image
       imagePullPolicy: IfNotPresent
@@ -780,6 +795,8 @@ storage_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$storage_pod" -o j
 [ -n "$storage_uid" ] || fail storage_restore_uid
 /usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$storage_pod" --timeout=300s >/dev/null
 /usr/local/bin/kubectl -n "$namespace" exec -i "$storage_pod" -c rclone -- tar -xzf - -C /restore <"$work/object-storage-validated.tar.gz" || fail object_restore_extract
+/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c bucket-genesis -- /bin/sh -ec 'test -f /restore/bucket-genesis.ready' >/dev/null || fail object_bucket_genesis
+/usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone lsd "s3:$bucket" >/dev/null || fail object_bucket_genesis
 /usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone copy --s3-no-check-bucket /restore/objects "s3:$bucket" >/dev/null || fail object_restore_upload
 /usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone check --one-way --checksum /restore/objects "s3:$bucket" >/dev/null || fail object_restore_checksum
 /usr/local/bin/kubectl -n "$namespace" exec "$storage_pod" -c rclone -- rclone lsjson --recursive --hash --metadata "s3:$bucket" >"$work/restored-object-list.json" || fail object_remote_manifest

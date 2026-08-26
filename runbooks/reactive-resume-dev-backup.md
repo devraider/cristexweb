@@ -19,8 +19,9 @@ The scheduler is one combined service. Each run uses one UTC
 `YYYYmmddTHHMMSSZ` run ID and writes both archives under that exact ID. A
 value-free `run-manifest.json` binds checksums, byte counts, logical PostgreSQL
 entry/table counts, object keys, per-object sizes and SHA-256 checksums, the
-snapshot completion timestamp, and backup duration. RPO is measured from that
-completion timestamp, not from run start. Before large staging begins, both
+snapshot completion timestamp, backup duration, and the explicit
+`snapshot_consistency=correlated-stability-fence-not-atomic` contract. RPO is
+measured from that completion timestamp, not from run start. Before large staging begins, both
 executables fail closed on `/dev/shm` free capacity using source/archive byte
 estimates, a 256 MiB reserve, and a 64 MiB minimum free threshold; the check is
 repeated before restore extraction. Plaintext remains only in `/dev/shm` and
@@ -154,7 +155,15 @@ DEV prefixes:
 The helper produces a sorted value-free object manifest containing every key,
 size, and SHA-256 checksum (plus available MD5 values), verifies every copied
 object against that manifest before archiving, and then creates an encrypted
-`object-storage.tar.gz.age`. Its dedicated NetworkPolicies are created per run and select only the exact
+`object-storage.tar.gz.age`. After the object export and PostgreSQL logical dump,
+the helper obtains a second S3 listing and compares the key, size, and reported
+hash set with the initial listing; any catalog or content drift fails closed.
+This is a stability fence, not atomic across datasets: PostgreSQL and S3 have
+no shared transaction, so the run manifest explicitly records
+`correlated-stability-fence-not-atomic` and no point-in-time application
+consistency is claimed. A truly atomic claim would require application
+quiescence or a storage/database transaction protocol outside this source.
+Its dedicated NetworkPolicies are created per run and select only the exact
 run-labelled backup helper; each policy UID is captured and used as a deletion
 precondition. Egress is permitted solely to kube-system CoreDNS on TCP/UDP 53,
 the shared-services CNPG primary on TCP 5432, and the shared-services Reactive
@@ -181,8 +190,8 @@ a drifted launcher or binary fails closed without contacting Infisical.
 
 PostgreSQL restores into an isolated PostgreSQL 17 temporary Pod with only `emptyDir`,
 `listen_addresses=` and no Service, PVC, or source-database connection. It runs
-`pg_restore --exit-on-error` and validates the catalog and expected logical table
-count before UID-preconditioned orphan cleanup. This is a data-only rehearsal: the
+`pg_restore --exit-on-error` and validates the catalog plus both expected logical
+entry and table counts before UID-preconditioned orphan cleanup. This is a data-only rehearsal: the
 archive excludes PostgreSQL roles, ownership, ACL/default privileges, and passwords;
 those remain separate Infisical/CNPG custody and authorization gates. A run-labelled default-deny
 NetworkPolicy is created before the Pod and permits no ingress or egress. Both
@@ -199,8 +208,10 @@ cluster or external egress is allowed. The restore checks every extracted object
 against the archived per-object manifest, then performs a remote per-object
 listing/checksum comparison after upload. It still requires object count and total
 bytes greater than zero, then deletes only the exact run-labelled Pods and
-NetworkPolicies using UID preconditions and `Orphan` propagation. Cleanup errors fail the operation rather than being suppressed. The production StatefulSet, PVC, bucket, and remote
-archive remain untouched.
+NetworkPolicies using UID preconditions and `Orphan` propagation. Cleanup errors fail the operation rather than being suppressed. The temporary SeaweedFS restore waits for an explicit bucket-genesis readiness
+marker and an authenticated bucket listing before upload, eliminating the
+startup race between the restore uploader and bucket creation. The production
+StatefulSet, PVC, bucket, and remote archive remain untouched.
 
 A successful rehearsal emits only the exact schema-2 sanitized receipt:
 

@@ -82,6 +82,44 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             self.assertIn('TABLE\\s+(?!DATA\\s|ATTACH\\s)', source)
             self.assertNotIn('if " TABLE " in (" " + line + " ")', source)
 
+    def test_restore_compares_logical_entry_count_and_gates_bucket_genesis(self):
+        source = RESTORE.read_text()
+        self.assertIn('expected_pg_entry_count=', source)
+        self.assertIn('[ "$restored_pg_logical_entry_count" -eq "$expected_pg_entry_count" ]', source)
+        self.assertIn('/restore/bucket-genesis.ready', source)
+        self.assertIn('test -f /restore/bucket-genesis.ready', source)
+        self.assertIn('rclone lsd "s3:$bucket"', source)
+        marker = source.index('bucket-genesis.ready')
+        upload = source.index('rclone copy --s3-no-check-bucket')
+        self.assertLess(marker, upload)
+        self.assertIn('readinessProbe:', source[source.index('- name: bucket-genesis'):upload])
+        self.assertLess(source.index('expected_pg_entry_count='), source.index('restored_pg_logical_entry_count='))
+
+    def test_cross_dataset_consistency_is_stability_fenced_and_not_atomic(self):
+        backup = BACKUP.read_text()
+        restore = RESTORE.read_text()
+        runbook = RUNBOOK.read_text()
+        for value in (
+            'raw-manifest-final.json',
+            'object_consistency_catalog',
+            'object_consistency_drift',
+            'INITIAL_MANIFEST=',
+            'FINAL_MANIFEST=',
+            'snapshot_consistency": "correlated-stability-fence-not-atomic"',
+        ):
+            self.assertIn(value, backup)
+        self.assertIn('snapshot_consistency', restore)
+        self.assertIn('correlated-stability-fence-not-atomic', restore)
+        self.assertLess(backup.index('pg_restore --list'), backup.index('FINAL_MANIFEST='))
+        self.assertIn('object_consistency_drift', backup)
+        for value in (
+            'correlated-stability-fence-not-atomic',
+            'not atomic',
+            'fails closed',
+            'no shared transaction',
+        ):
+            self.assertIn(value, runbook.lower())
+
     def test_restore_validates_manifest_keys_before_filesystem_reads(self):
         source = RESTORE.read_text()
         validation = source.index('allowed_prefixes =')
