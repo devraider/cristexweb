@@ -1,12 +1,16 @@
 # CristexHub PROD Argo registration and private activation
 
-Status: **SOURCE DIRECT-SERVER READY / ONE-TIME ALIAS TRANSITION PENDING / PUBLIC ROUTE PENDING**.
+Status: **SOURCE DIRECT-SERVER READY / ALIAS TRANSITION APPLIED / LIVE UNKNOWN-MISSING FROM DUPLICATE CACHE / DIRECT-SERVER TRANSITION PENDING / PUBLIC ROUTE PENDING**.
 
 The canonical PROD registration source now uses the in-cluster Kubernetes API
-server directly. The separate cache-scope lane must first complete the exact
-three-Secret namespace-scope transition. This registration lane then accepts
-only the already-existing PROD five-object closure and performs the bounded
-alias-to-direct-server repair. It does not inspect or reconcile DEV or Reactive Resume registration objects, does not create a Namespace, and never changes Secret values.
+server directly. The earlier bounded alias transition has already been applied,
+but the live Application is still `Unknown/Missing` because duplicate same-server
+cluster registrations resolve through the wrong cache entry. The separate
+cache-scope lane must first complete the exact three-Secret namespace-scope
+transition. This registration lane then accepts only the already-existing PROD
+five-object closure and performs the bounded alias-to-direct-server repair. It
+does not inspect or reconcile DEV or Reactive Resume registration objects, does
+not create a Namespace, and never changes Secret values.
 
 ## Canonical five-object closure
 

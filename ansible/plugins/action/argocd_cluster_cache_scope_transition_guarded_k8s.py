@@ -34,12 +34,14 @@ _ACTION_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/action/argocd_cluster_cache
 _METADATA_MODULE_SOURCE = _REPOSITORY_ROOT / "ansible/library/argocd_cluster_cache_secret_metadata.py"
 _CONTROLLER_SOURCE = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
 _PYTHON_SOURCE = Path("/usr/bin/python3")
+_CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
+_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
 _KUBECONFIG_SOURCE = Path("/etc/rancher/k3s/k3s.yaml")
 _EXPECTED_OPERATOR = "paul"
 _EXPECTED_TASK_NAME = "Apply only legacy cluster Secret scope patches with exact CAS bindings"
 _EXPECTED_TASK_ACTION = "argocd_cluster_cache_scope_transition_guarded_k8s"
-_ACTION_CANONICAL_SHA256 = "ebcc9d980a8fc5daa31107679cf0ae05d3d24ca0abcb8787c76acbf5ca257d3b"
-_WRAPPER_CANONICAL_SHA256 = "22314904d86ead629a88ff3d61f355d3b871d6ffb8404b5f015519a37fb24a5d"
+_ACTION_CANONICAL_SHA256 = "b458cba3a1b3040cf1cfe762ae9eae3ef00a17386dae1d06fad3d1fc1d24b054"
+_WRAPPER_CANONICAL_SHA256 = "90d20b131c4286a9afece06c55ce7c99370f8902d5207fd894ec8cc47c623523"
 _TASK_SHA256 = "88a0aeb6ab7ff6a4470808ee72606ad9f0a9e79b88f4ff31a6dbfccfa43ee21e"
 _DEFAULTS_SHA256 = "e5cf4171ce426332d7d16411797460a5c66280512d629fd924019848784f2b30"
 _PLAYBOOK_SHA256 = "c44ee2507e08cb2a52a3c091a0d47776e61e98e90a1e2d233da068553345a7b7"
@@ -123,19 +125,31 @@ def _proc_starttime(pid: int) -> str:
         return ""
 
 
-def _ancestor(pid: int) -> bool:
-    current = os.getpid()
-    seen: set[int] = set()
-    while current > 1 and current not in seen:
-        if current == pid:
-            return True
-        seen.add(current)
-        try:
-            status = Path(f"/proc/{current}/status").read_text()
-            current = int(next(line for line in status.splitlines() if line.startswith("PPid:")).split()[1])
-        except (OSError, StopIteration, ValueError):
-            return False
-    return False
+def _proc_cmdline(pid: int) -> list[str]:
+    try:
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+        if not raw.endswith(b"\0"):
+            return []
+        return [part.decode("utf-8", "strict") for part in raw[:-1].split(b"\0")]
+    except (OSError, UnicodeError):
+        return []
+
+
+def _expected_ansible_argv() -> list[str]:
+    argv = [
+        str(_CONTROLLER_SOURCE),
+        "-i",
+        ".ansible/inventory.local.yml",
+        "playbooks/bootstrap_argocd_cluster_cache_scope_transition.yml",
+        "--diff",
+        "--limit",
+        "crtxweb",
+        "--extra-vars",
+        "argocd_cluster_cache_scope_transition_approved=true",
+    ]
+    if bool(context.CLIARGS.get("check")):
+        argv.append("--check")
+    return argv
 
 
 def _selection_is_canonical() -> bool:
@@ -144,21 +158,8 @@ def _selection_is_canonical() -> bool:
     inventory = context.CLIARGS.get("inventory") or []
     if isinstance(inventory, str):
         inventory = [inventory]
-    forbidden = ("--start-at-task", "--step", "--tags", "--skip-tags")
-    selection_argv = any(
-        argument in ("-t", "-S")
-        or argument.startswith("-t=")
-        or argument.startswith("-S=")
-        or (argument.startswith("-t") and len(argument) > 2)
-        or argument.startswith("--start-at-task=")
-        or argument.startswith("--step=")
-        or argument.startswith("--tags=")
-        or argument.startswith("--skip-tags=")
-        or argument in forbidden
-        for argument in sys.argv[1:]
-    )
     return (
-        not selection_argv
+        sys.argv == _expected_ansible_argv()
         and context.CLIARGS.get("start_at_task") is None
         and context.CLIARGS.get("step") in (None, False)
         and tags in ([], ["all"])
@@ -166,28 +167,56 @@ def _selection_is_canonical() -> bool:
         and context.CLIARGS.get("subset") == "crtxweb"
         and bool(context.CLIARGS.get("diff"))
         and inventory in [[".ansible/inventory.local.yml"], [str(_INVENTORY_SOURCE)]]
+        and not any(
+            os.environ.get(name)
+            for name in (
+                "ANSIBLE_LIBRARY",
+                "ANSIBLE_ACTION_PLUGINS",
+                "ANSIBLE_ROLES_PATH",
+                "ANSIBLE_COLLECTIONS_PATH",
+            )
+        )
     )
 
 
 def _source_closure_valid() -> bool:
     expected = (
-        (_TASK_SOURCE, _TASK_SHA256),
-        (_DEFAULTS_SOURCE, _DEFAULTS_SHA256),
-        (_PLAYBOOK_SOURCE, _PLAYBOOK_SHA256),
-        (_INVENTORY_SOURCE, _INVENTORY_SHA256),
-        (_ANSIBLE_CONFIG_SOURCE, _ANSIBLE_CONFIG_SHA256),
-        (_METADATA_MODULE_SOURCE, _METADATA_MODULE_SHA256),
+        (_TASK_SOURCE, _TASK_SHA256, 0o644, os.getuid()),
+        (_DEFAULTS_SOURCE, _DEFAULTS_SHA256, 0o644, os.getuid()),
+        (_PLAYBOOK_SOURCE, _PLAYBOOK_SHA256, 0o644, os.getuid()),
+        (_INVENTORY_SOURCE, _INVENTORY_SHA256, 0o600, os.getuid()),
+        (_ANSIBLE_CONFIG_SOURCE, _ANSIBLE_CONFIG_SHA256, 0o644, os.getuid()),
+        (_METADATA_MODULE_SOURCE, _METADATA_MODULE_SHA256, 0o644, os.getuid()),
+        (_ACTION_SOURCE, _ACTION_CANONICAL_SHA256, 0o644, os.getuid()),
+        (_WRAPPER_SOURCE, _WRAPPER_CANONICAL_SHA256, 0o755, os.getuid()),
     )
-    if any(not path.is_file() or path.is_symlink() or _sha256(path) != digest for path, digest in expected):
+    if any(
+        not path.is_file()
+        or path.is_symlink()
+        or stat.S_IMODE(path.stat(follow_symlinks=False).st_mode) != mode
+        or path.stat(follow_symlinks=False).st_uid != owner
+        or (digest != _sha256(path) and path not in (_ACTION_SOURCE, _WRAPPER_SOURCE))
+        for path, digest, mode, owner in expected
+    ):
         return False
     try:
         inventory_state = _INVENTORY_SOURCE.stat(follow_symlinks=False)
         config_state = _ANSIBLE_CONFIG_SOURCE.stat(follow_symlinks=False)
+        controller_state = _CONTROLLER_SOURCE.stat(follow_symlinks=False)
         return (
             stat.S_IMODE(inventory_state.st_mode) == 0o600
             and inventory_state.st_uid == os.getuid()
             and stat.S_IMODE(config_state.st_mode) == 0o644
             and config_state.st_uid == os.getuid()
+            and stat.S_ISREG(controller_state.st_mode)
+            and not _CONTROLLER_SOURCE.is_symlink()
+            and stat.S_IMODE(controller_state.st_mode) == 0o775
+            and controller_state.st_uid == os.getuid()
+            and _sha256(_CONTROLLER_SOURCE) == _CONTROLLER_SHA256
+            and stat.S_ISREG(_PYTHON_SOURCE.resolve().stat(follow_symlinks=False).st_mode)
+            and stat.S_IMODE(_PYTHON_SOURCE.resolve().stat(follow_symlinks=False).st_mode) == 0o755
+            and _PYTHON_SOURCE.resolve().stat(follow_symlinks=False).st_uid == 0
+            and _sha256(_PYTHON_SOURCE) == _PYTHON_SHA256
             and _canonical_file_hash(_ACTION_SOURCE, "_ACTION_CANONICAL_SHA256") == _ACTION_CANONICAL_SHA256
             and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") == _WRAPPER_CANONICAL_SHA256
         )
@@ -221,13 +250,23 @@ def _wrapper_binding_valid(token: str) -> bool:
         and Path(wrapper_path) == _WRAPPER_SOURCE
         and wrapper_sha == _sha256(_WRAPPER_SOURCE)
         and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") == _WRAPPER_CANONICAL_SHA256
+        and _proc_cmdline(pid) == ["/bin/dash", str(_WRAPPER_SOURCE), "check" if bool(context.CLIARGS.get("check")) else "apply"]
         and content == f"{token}:entrypoint:{pid}:{starttime}:{wrapper_sha}\n"
         and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_OPERATOR") == _EXPECTED_OPERATOR
+        and os.environ.get("ANSIBLE_CONFIG") == str(_ANSIBLE_CONFIG_SOURCE)
+        and not any(os.environ.get(name) for name in ("ANSIBLE_LIBRARY", "ANSIBLE_ACTION_PLUGINS", "ANSIBLE_ROLES_PATH", "ANSIBLE_COLLECTIONS_PATH"))
         and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_CONTROLLER") == str(_CONTROLLER_SOURCE)
         and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_PYTHON") == str(_PYTHON_SOURCE)
         and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_KUBECONFIG") == str(_KUBECONFIG_SOURCE)
-        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_CONTROLLER_SHA256") == _sha256(_CONTROLLER_SOURCE)
-        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_PYTHON_SHA256") == _sha256(_PYTHON_SOURCE)
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_CONTROLLER_SHA256") == _CONTROLLER_SHA256
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_PYTHON_SHA256") == _PYTHON_SHA256
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_TASK_SHA256") == _TASK_SHA256
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_DEFAULTS_SHA256") == _DEFAULTS_SHA256
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_PLAYBOOK_SHA256") == _PLAYBOOK_SHA256
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_INVENTORY_SHA256") == _INVENTORY_SHA256
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ANSIBLE_CONFIG_SHA256") == _ANSIBLE_CONFIG_SHA256
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_METADATA_MODULE_SHA256") == _METADATA_MODULE_SHA256
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ACTION_SHA256") == _sha256(_ACTION_SOURCE)
     )
 
 
@@ -301,7 +340,11 @@ def transition_patch(prestate_binding: dict[str, Any], definition: dict[str, Any
 
 
 def _strict_true(value: Any) -> bool:
-    return value is True or (type(value).__name__ == "_AnsibleTaggedBool" and bool(value))
+    return (
+        value is True
+        or (type(value).__name__ == "_AnsibleTaggedBool" and bool(value))
+        or (type(value).__name__ == "_AnsibleTaggedStr" and value == "true")
+    )
 
 
 def _dispatch_patch(
@@ -345,6 +388,8 @@ class ActionModule(KubernetesActionModule):
         task_vars = task_vars or {}
         if (
             source != str(_TASK_SOURCE)
+            or Path(__file__).absolute() != _ACTION_SOURCE
+            or Path(__file__).is_symlink()
             or getattr(self._task, "name", None) != _EXPECTED_TASK_NAME
             or getattr(self._task, "action", None) != _EXPECTED_TASK_ACTION
         ):
@@ -391,8 +436,8 @@ class ActionModule(KubernetesActionModule):
             and binding_from_vars.get("metadata_module_sha256") == _METADATA_MODULE_SHA256
             and binding_from_vars.get("wrapper_sha256") == os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_WRAPPER_SHA256")
             and binding_from_vars.get("action_sha256") == _sha256(_ACTION_SOURCE)
-            and binding_from_vars.get("controller_sha256") == _sha256(_CONTROLLER_SOURCE)
-            and binding_from_vars.get("python_sha256") == _sha256(_PYTHON_SOURCE)
+            and binding_from_vars.get("controller_sha256") == _CONTROLLER_SHA256
+            and binding_from_vars.get("python_sha256") == _PYTHON_SHA256
             and binding_from_vars.get("operator") == _EXPECTED_OPERATOR
             and binding_from_vars.get("kubeconfig") == str(_KUBECONFIG_SOURCE)
         )

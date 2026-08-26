@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/dash
 set -eu
 
 usage='usage: ansible/bin/bootstrap-cristexhub-prod-registration check|apply'
@@ -9,7 +9,8 @@ if [ "$#" -ne 1 ] || { [ "$1" != check ] && [ "$1" != apply ]; }; then
 fi
 mode=$1
 script_path=$0
-wrapper_canonical_sha256_expected='0d6f0362ef90c4badbdcb8f131e9b211ba02a7aea49e2a4bc44636159eea1b87'
+original_script_path=$script_path
+wrapper_canonical_sha256_expected='3c01e867e7effa0a091fac46e6cbe855dd6b0cd30ae2f6341817df76fac55ee2'
 canonical_sha256() {
   /usr/bin/python3 - "$1" <<'PY'
 import hashlib, re, sys
@@ -33,10 +34,15 @@ if [ "$repository_root" != "$expected_repository_root" ]; then
   exit 78
 fi
 script_path="$repository_root/ansible/bin/bootstrap-cristexhub-prod-registration"
+if [ "$original_script_path" != "$script_path" ]; then
+  exec /bin/dash "$script_path" "$mode"
+fi
 controller_home="$(CDPATH= cd -- "$repository_root/../.." && /bin/pwd -P)"
 controller_user="$(/usr/bin/id -un)"
 controller="$repository_root/.venv/bin/ansible-playbook"
 python_tool=/usr/bin/python3
+controller_sha256_expected=baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd
+python_sha256_expected=17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1
 inventory="$repository_root/ansible/.ansible/inventory.local.yml"
 ansible_config="$repository_root/ansible/ansible.cfg"
 task_source="$repository_root/ansible/roles/cristexhub_prod_registration/tasks/main.yml"
@@ -69,6 +75,7 @@ action_sha256="$(sha256_file "$action_source")"
 controller_sha256="$(sha256_file "$controller")"
 python_sha256="$(sha256_file "$python_tool")"
 [ "$task_sha256" != '' ] && [ "$defaults_sha256" != '' ] && [ "$playbook_sha256" != '' ] && [ "$inventory_sha256" != '' ] && [ "$ansible_config_sha256" != '' ] && [ "$action_sha256" != '' ] && [ "$controller_sha256" != '' ] && [ "$python_sha256" != '' ] || exit 69
+[ "$controller_sha256" = "$controller_sha256_expected" ] && [ "$python_sha256" = "$python_sha256_expected" ] || exit 69
 
 umask 077
 attestation_file=

@@ -108,6 +108,7 @@ try:
         get_path=lambda: str(root / "ansible/roles/cristexhub_prod_registration/tasks/main.yml") + ":1",
     )
     env = {
+        "ANSIBLE_CONFIG": str(root / "ansible/ansible.cfg"),
         "CRISTEXWEB_REPOSITORY_ROOT": str(root),
         "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT": "v2",
         "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TOKEN": token,
@@ -115,8 +116,13 @@ try:
         "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_SHA256": "b" * 64,
         "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ACTION_SHA256": "c" * 64,
     }
-    cliargs = {"tags": [], "skip_tags": [], "subset": "crtxweb", "diff": True, "inventory": [".ansible/inventory.local.yml"]}
-    with mock.patch.object(module, "_source_closure_valid", return_value=True), mock.patch.object(module, "_wrapper_binding_valid", return_value=True), mock.patch.object(module.context, "CLIARGS", cliargs), mock.patch.dict(os.environ, env, clear=False):
+    cliargs = {"tags": [], "skip_tags": [], "subset": "crtxweb", "diff": True, "inventory": [".ansible/inventory.local.yml"], "check": False}
+    expected_argv = [
+        str(module._CONTROLLER_SOURCE), "-i", ".ansible/inventory.local.yml",
+        "playbooks/bootstrap_cristexhub_prod_registration.yml", "--diff", "--limit", "crtxweb",
+        "--extra-vars", "cristexhub_prod_registration_approved=true",
+    ]
+    with mock.patch.object(module, "_source_closure_valid", return_value=True), mock.patch.object(module, "_wrapper_binding_valid", return_value=True), mock.patch.object(module.context, "CLIARGS", cliargs), mock.patch.object(sys, "argv", expected_argv), mock.patch.dict(os.environ, env, clear=False):
         result = action.run(task_vars=task_vars)
     assert result.get("failed") is True, result
     assert "resourceVersion" in result.get("msg", ""), result

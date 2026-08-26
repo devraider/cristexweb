@@ -56,8 +56,8 @@ _EXPECTED_TASK_NAMES = {
     True: "Reconcile exact bounded PROD direct-server transition",
 }
 _EXPECTED_TASK_ACTION = "cristexhub_prod_registration_guarded_k8s"
-_ACTION_CANONICAL_SHA256 = "235d8f2e631658427f9924ee61ff066b1fce278847bd36c557eb5dc82d0ad030"
-_WRAPPER_CANONICAL_SHA256 = "0d6f0362ef90c4badbdcb8f131e9b211ba02a7aea49e2a4bc44636159eea1b87"
+_ACTION_CANONICAL_SHA256 = "1e0c34cbc655e548b81196d180efd84311581cce08c5051cf330005f6dbf7786"
+_WRAPPER_CANONICAL_SHA256 = "3c01e867e7effa0a091fac46e6cbe855dd6b0cd30ae2f6341817df76fac55ee2"
 _TASK_SHA256 = "a8d5d08d1298223add2bae2c4e6756693bf3904b575eaa97ef6ea4bd3bfc7fdd"
 _DEFAULTS_SHA256 = "0ca75dfa3eacdaecd14c98810a8a071a904538c7ca7528d6888aaebe4f5c2a57"
 _PLAYBOOK_SHA256 = "05f22011b423c7aafff5a93d4aa5ba2cd4d41f56fe2ff41b842f032f793a7458"
@@ -127,39 +127,41 @@ def _ancestor(pid: int) -> bool:
     return False
 
 
+def _proc_cmdline(pid: int) -> list[str]:
+    try:
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+        if not raw.endswith(b"\0"):
+            return []
+        return [part.decode("utf-8", "strict") for part in raw[:-1].split(b"\0")]
+    except (OSError, UnicodeError):
+        return []
+
+
+def _expected_ansible_argv() -> list[str]:
+    argv = [
+        str(_CONTROLLER_SOURCE),
+        "-i",
+        ".ansible/inventory.local.yml",
+        "playbooks/bootstrap_cristexhub_prod_registration.yml",
+        "--diff",
+        "--limit",
+        "crtxweb",
+        "--extra-vars",
+        "cristexhub_prod_registration_approved=true",
+    ]
+    if bool(context.CLIARGS.get("check")):
+        argv.append("--check")
+    return argv
+
+
 def _selection_is_canonical() -> bool:
     tags = list(context.CLIARGS.get("tags") or [])
     skip_tags = list(context.CLIARGS.get("skip_tags") or [])
     inventory = context.CLIARGS.get("inventory") or []
     if isinstance(inventory, str):
         inventory = [inventory]
-    argv = sys.argv[1:]
-    extra_values: list[str] = []
-    selection_argv = False
-    index = 0
-    while index < len(argv):
-        argument = argv[index]
-        if argument in ("-e", "--extra-vars"):
-            if index + 1 >= len(argv):
-                return False
-            extra_values.append(argv[index + 1])
-            index += 2
-            continue
-        if argument.startswith("-e=") or argument.startswith("--extra-vars="):
-            extra_values.append(argument.split("=", 1)[1])
-        elif argument in ("-t", "-S", "--start-at-task", "--step", "--tags", "--skip-tags") or argument.startswith(("-t=", "-S=", "--start-at-task=", "--step=", "--tags=", "--skip-tags=")):
-            selection_argv = True
-        elif argument in ("-i", "--inventory", "--limit"):
-            if index + 1 >= len(argv):
-                return False
-            expected = ".ansible/inventory.local.yml" if argument in ("-i", "--inventory") else "crtxweb"
-            if argv[index + 1] != expected:
-                selection_argv = True
-            index += 1
-        index += 1
     return (
-        not selection_argv
-        and (not extra_values or extra_values == ["cristexhub_prod_registration_approved=true"])
+        sys.argv == _expected_ansible_argv()
         and context.CLIARGS.get("start_at_task") is None
         and context.CLIARGS.get("step") in (None, False)
         and tags in ([], ["all"])
@@ -167,18 +169,36 @@ def _selection_is_canonical() -> bool:
         and context.CLIARGS.get("subset") == "crtxweb"
         and bool(context.CLIARGS.get("diff"))
         and inventory in [[".ansible/inventory.local.yml"], [str(_INVENTORY_SOURCE)]]
+        and not any(
+            os.environ.get(name)
+            for name in (
+                "ANSIBLE_LIBRARY",
+                "ANSIBLE_ACTION_PLUGINS",
+                "ANSIBLE_ROLES_PATH",
+                "ANSIBLE_COLLECTIONS_PATH",
+            )
+        )
     )
 
 
 def _source_closure_valid() -> bool:
     expected = (
-        (_TASK_SOURCE, _TASK_SHA256),
-        (_DEFAULTS_SOURCE, _DEFAULTS_SHA256),
-        (_PLAYBOOK_SOURCE, _PLAYBOOK_SHA256),
-        (_INVENTORY_SOURCE, _INVENTORY_SHA256),
-        (_ANSIBLE_CONFIG_SOURCE, _ANSIBLE_CONFIG_SHA256),
+        (_TASK_SOURCE, _TASK_SHA256, 0o644, os.getuid()),
+        (_DEFAULTS_SOURCE, _DEFAULTS_SHA256, 0o644, os.getuid()),
+        (_PLAYBOOK_SOURCE, _PLAYBOOK_SHA256, 0o644, os.getuid()),
+        (_INVENTORY_SOURCE, _INVENTORY_SHA256, 0o600, os.getuid()),
+        (_ANSIBLE_CONFIG_SOURCE, _ANSIBLE_CONFIG_SHA256, 0o644, os.getuid()),
+        (_ACTION_SOURCE, _ACTION_CANONICAL_SHA256, 0o644, os.getuid()),
+        (_WRAPPER_SOURCE, _WRAPPER_CANONICAL_SHA256, 0o755, os.getuid()),
     )
-    if any(not path.is_file() or path.is_symlink() or _sha256(path) != digest for path, digest in expected):
+    if any(
+        not path.is_file()
+        or path.is_symlink()
+        or stat.S_IMODE(path.stat(follow_symlinks=False).st_mode) != mode
+        or path.stat(follow_symlinks=False).st_uid != owner
+        or (digest != _sha256(path) and path not in (_ACTION_SOURCE, _WRAPPER_SOURCE))
+        for path, digest, mode, owner in expected
+    ):
         return False
     try:
         inventory_state = _INVENTORY_SOURCE.stat(follow_symlinks=False)
@@ -191,7 +211,13 @@ def _source_closure_valid() -> bool:
             and config_state.st_uid == os.getuid()
             and stat.S_ISREG(controller_state.st_mode)
             and not _CONTROLLER_SOURCE.is_symlink()
-            and stat.S_IMODE(controller_state.st_mode) & 0o111
+            and stat.S_IMODE(controller_state.st_mode) == 0o775
+            and controller_state.st_uid == os.getuid()
+            and _sha256(_CONTROLLER_SOURCE) == _CONTROLLER_SHA256
+            and stat.S_ISREG(_PYTHON_SOURCE.resolve().stat(follow_symlinks=False).st_mode)
+            and stat.S_IMODE(_PYTHON_SOURCE.resolve().stat(follow_symlinks=False).st_mode) == 0o755
+            and _PYTHON_SOURCE.resolve().stat(follow_symlinks=False).st_uid == 0
+            and _sha256(_PYTHON_SOURCE) == _PYTHON_SHA256
             and _canonical_file_hash(_ACTION_SOURCE, "_ACTION_CANONICAL_SHA256") == _ACTION_CANONICAL_SHA256
             and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") == _WRAPPER_CANONICAL_SHA256
         )
@@ -220,19 +246,22 @@ def _wrapper_binding_valid(token: str) -> bool:
         and state.st_nlink == 1 and Path(wrapper_path) == _WRAPPER_SOURCE
         and wrapper_sha == _sha256(_WRAPPER_SOURCE)
         and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") == _WRAPPER_CANONICAL_SHA256
-        and content == f"{token}:entrypoint:{pid}:{starttime}:{wrapper_sha}\\n"
+        and _proc_cmdline(pid) == ["/bin/dash", str(_WRAPPER_SOURCE), "check" if bool(context.CLIARGS.get("check")) else "apply"]
+        and content == f"{token}:entrypoint:{pid}:{starttime}:{wrapper_sha}\n"
         and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_OPERATOR") == _EXPECTED_OPERATOR
+        and os.environ.get("ANSIBLE_CONFIG") == str(_ANSIBLE_CONFIG_SOURCE)
+        and not any(os.environ.get(name) for name in ("ANSIBLE_LIBRARY", "ANSIBLE_ACTION_PLUGINS", "ANSIBLE_ROLES_PATH", "ANSIBLE_COLLECTIONS_PATH"))
         and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_CONTROLLER") == str(_CONTROLLER_SOURCE)
         and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PYTHON") == str(_PYTHON_SOURCE)
         and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_KUBECONFIG") == str(_KUBECONFIG_SOURCE)
-        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TASK_SHA256") == _sha256(_TASK_SOURCE)
-        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_DEFAULTS_SHA256") == _sha256(_DEFAULTS_SOURCE)
-        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PLAYBOOK_SHA256") == _sha256(_PLAYBOOK_SOURCE)
-        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_INVENTORY_SHA256") == _sha256(_INVENTORY_SOURCE)
-        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ANSIBLE_CONFIG_SHA256") == _sha256(_ANSIBLE_CONFIG_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TASK_SHA256") == _TASK_SHA256
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_DEFAULTS_SHA256") == _DEFAULTS_SHA256
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PLAYBOOK_SHA256") == _PLAYBOOK_SHA256
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_INVENTORY_SHA256") == _INVENTORY_SHA256
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ANSIBLE_CONFIG_SHA256") == _ANSIBLE_CONFIG_SHA256
         and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ACTION_SHA256") == _sha256(_ACTION_SOURCE)
-        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_CONTROLLER_SHA256") == _sha256(_CONTROLLER_SOURCE)
-        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PYTHON_SHA256") == _sha256(_PYTHON_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_CONTROLLER_SHA256") == _CONTROLLER_SHA256
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PYTHON_SHA256") == _PYTHON_SHA256
     )
 
 
@@ -601,6 +630,8 @@ class ActionModule(KubernetesActionModule):
         repository_root = str(Path(os.environ.get("CRISTEXWEB_REPOSITORY_ROOT", "")).resolve())
         if repository_root != EXPECTED_REPOSITORY_ROOT or source != EXPECTED_REPOSITORY_ROOT + TASK_SUFFIX:
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: non-canonical registration task source"}
+        if Path(__file__).absolute() != _ACTION_SOURCE or Path(__file__).is_symlink():
+            return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: non-canonical action plugin path"}
         if transition_mode:
             if set(args) != TRANSITION_ARGS or args.get("state") != "present" or args.get("kubeconfig") != "/etc/rancher/k3s/k3s.yaml":
                 return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: refusing direct-server transition arguments"}
@@ -731,6 +762,7 @@ class ActionModule(KubernetesActionModule):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: missing or changed UID/resourceVersion precondition"}
         valid = (
             valid_binding
+            and _selection_is_canonical()
             and _source_closure_valid()
             and _wrapper_binding_valid(token)
             and strict_true(task_vars.get("cristexhub_prod_registration_approved"))

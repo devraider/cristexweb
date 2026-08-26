@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/dash
 set -eu
 
 usage='usage: ansible/bin/bootstrap-argocd-cluster-cache-scope-transition check|apply'
@@ -9,7 +9,8 @@ if [ "$#" -ne 1 ] || { [ "$1" != check ] && [ "$1" != apply ]; }; then
 fi
 mode=$1
 script_path=$0
-wrapper_canonical_sha256_expected='22314904d86ead629a88ff3d61f355d3b871d6ffb8404b5f015519a37fb24a5d'
+original_script_path=$script_path
+wrapper_canonical_sha256_expected='90d20b131c4286a9afece06c55ce7c99370f8902d5207fd894ec8cc47c623523'
 canonical_sha256() {
   /usr/bin/python3 - "$1" <<'PY'
 import hashlib, re, sys
@@ -33,10 +34,15 @@ if [ "$repository_root" != "$expected_repository_root" ]; then
   exit 78
 fi
 script_path="$repository_root/ansible/bin/bootstrap-argocd-cluster-cache-scope-transition"
+if [ "$original_script_path" != "$script_path" ]; then
+  exec /bin/dash "$script_path" "$mode"
+fi
 controller_home="$(CDPATH= cd -- "$repository_root/../.." && /bin/pwd -P)"
 controller_user="$(/usr/bin/id -un)"
 controller="$repository_root/.venv/bin/ansible-playbook"
 python_tool=/usr/bin/python3
+controller_sha256_expected=baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd
+python_sha256_expected=17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1
 inventory="$repository_root/ansible/.ansible/inventory.local.yml"
 ansible_config="$repository_root/ansible/ansible.cfg"
 task_source="$repository_root/ansible/roles/argocd_cluster_cache_scope_transition/tasks/main.yml"
@@ -66,6 +72,7 @@ metadata_module_sha256="$(sha256_file "$metadata_module_source")"
 controller_sha256="$(sha256_file "$controller")"
 python_sha256="$(sha256_file "$python_tool")"
 [ "$task_sha256" != '' ] && [ "$defaults_sha256" != '' ] && [ "$playbook_sha256" != '' ] && [ "$inventory_sha256" != '' ] && [ "$ansible_config_sha256" != '' ] && [ "$action_sha256" != '' ] && [ "$metadata_module_sha256" != '' ] && [ "$controller_sha256" != '' ] && [ "$python_sha256" != '' ] || exit 69
+[ "$controller_sha256" = "$controller_sha256_expected" ] && [ "$python_sha256" = "$python_sha256_expected" ] || exit 69
 if [ ! -f "$controller" ] || [ ! -x "$controller" ] || [ -L "$controller" ]; then
   printf '%s\n' 'refusing an absent, non-executable, or symlinked pinned Ansible controller' >&2
   exit 69

@@ -458,6 +458,19 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         ):
             self.assertIn(needle, tasks)
 
+    def test_wrapper_and_action_bind_real_dash_process_and_exact_argv(self) -> None:
+        plugin = PLUGIN.read_text()
+        wrapper = WRAPPER.read_text()
+        self.assertIn('#!/bin/dash', wrapper)
+        self.assertIn('content == f"{token}:entrypoint:{pid}:{starttime}:{wrapper_sha}\\n"', plugin)
+        self.assertIn("_proc_cmdline(pid) == [\"/bin/dash\", str(_WRAPPER_SOURCE)", plugin)
+        self.assertIn("sys.argv == _expected_ansible_argv()", plugin)
+        self.assertIn('ANSIBLE_CONFIG") == str(_ANSIBLE_CONFIG_SOURCE)', plugin)
+        self.assertIn('not any(os.environ.get(name)', plugin)
+        self.assertIn('exec /bin/dash "$script_path" "$mode"', wrapper)
+        self.assertIn('playbooks/bootstrap_cristexhub_prod_registration.yml', wrapper)
+        self.assertIn('if [ "$mode" = check ]; then', wrapper)
+
     def test_wrapper_is_non_passthrough_and_cancels_its_controller(self) -> None:
         wrapper = WRAPPER.read_text()
         self.assertIn('[ "$#" -ne 1 ]', wrapper)
@@ -514,9 +527,10 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
                 "wrapper_canonical_sha256_expected='" + ("0" * 64) + "'",
                 sandbox_wrapper,
             )
-            sandbox_wrapper = sandbox_wrapper.replace(
-                "wrapper_canonical_sha256_expected='0d6f0362ef90c4badbdcb8f131e9b211ba02a7aea49e2a4bc44636159eea1b87'",
+            sandbox_wrapper = re.sub(
+                r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$",
                 "wrapper_canonical_sha256_expected='" + hashlib.sha256(canonical_wrapper.encode()).hexdigest() + "'",
+                sandbox_wrapper,
             )
             script.write_text(sandbox_wrapper)
             inventory = root / "ansible/.ansible/inventory.local.yml"
@@ -534,6 +548,22 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
                 "open(marker,'a').write('child-end\\n')\n"
             )
             controller.chmod(0o755)
+            sandbox_wrapper = re.sub(
+                r"(?m)^controller_sha256_expected=[0-9a-f]{64}$",
+                "controller_sha256_expected=" + hashlib.sha256(controller.read_bytes()).hexdigest(),
+                script.read_text(),
+            )
+            canonical_wrapper = re.sub(
+                r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$",
+                "wrapper_canonical_sha256_expected='" + ("0" * 64) + "'",
+                sandbox_wrapper,
+            )
+            sandbox_wrapper = re.sub(
+                r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$",
+                "wrapper_canonical_sha256_expected='" + hashlib.sha256(canonical_wrapper.encode()).hexdigest() + "'",
+                sandbox_wrapper,
+            )
+            script.write_text(sandbox_wrapper)
             env = os.environ.copy()
             env["TMPDIR"] = str(tmpdir)
             process = subprocess.Popen(

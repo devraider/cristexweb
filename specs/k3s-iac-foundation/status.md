@@ -2,7 +2,7 @@
 
 state: agent:in-progress
 phase: implementing
-build: 452 offline contracts and all 47 playbook syntax checks pass; private PROD workloads are Ready but the Argo Application is currently Unknown/Missing pending the scoped cluster-alias registration apply; the public route remains unapplied
+build: offline contracts and playbook syntax checks pass; private PROD workloads are Ready but the Argo Application is currently Unknown/Missing after the scoped cluster-alias registration apply, due to duplicate same-server cluster-cache resolution; the committed direct-server correction remains pending; the public route remains unapplied
 date: 2026-08-25
 deploy_required_after_acceptance: yes
 
@@ -82,11 +82,13 @@ note: |
   idempotence passed at `ok=62 changed=0 failed=0 skipped=3`; the ten-key update is
   NOT RUN/BLOCKED. The five-object PROD Argo registration source
   pins protected-main revision `751885a42798d282e168131db147f13694a0a621`, uses
-  namespace-scoped no-delete RBAC and the exact `cristexhub-prod-local` cluster
-  alias, and retains `selfHeal=true`, `prune=false`, and `allowEmpty=false`.
-  The live Application is currently `Unknown/Missing` after the alias transition;
-  the direct-server source/check/apply remains pending and a separately approved
-  apply must restore `Synced/Healthy`. The Cloudflare route remains unapplied. A separate source-only, check-only
+  namespace-scoped no-delete RBAC and retains `selfHeal=true`, `prune=false`, and
+  `allowEmpty=false`. The bounded `cristexhub-prod-local` alias transition was
+  applied, but the live Application is currently `Unknown/Missing` because
+  duplicate same-server cluster registrations resolve through the wrong cache
+  entry. The direct-server source/check/apply remains pending and a separately
+  approved apply must restore `Synced/Healthy`. The Cloudflare route remains
+  unapplied. A separate source-only, check-only
   `k3s_datastore_preflight` role/playbook/wrapper is now offline-validated with
   fixed read-only argv under `no_log`, a bounded private mode-`0600` config slurp,
   strict duplicate/type/mapping/YAML and encryption-JSON parsers, exact

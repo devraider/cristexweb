@@ -89,6 +89,41 @@ class ArgoClusterCacheScopeTransitionContractTests(unittest.TestCase):
         self.assertIn("item.stringData.keys() | list | sort", tasks)
         self.assertIn("map(attribute='apiVersion')", tasks)
 
+    def test_strict_approval_accepts_only_canonical_boolean_forms(self) -> None:
+        module = load_plugin()
+
+        class _AnsibleTaggedBool:
+            def __bool__(self):
+                return True
+
+        class _AnsibleTaggedStr(str):
+            pass
+
+        self.assertTrue(module._strict_true(True))
+        self.assertTrue(module._strict_true(_AnsibleTaggedBool()))
+        self.assertTrue(module._strict_true(_AnsibleTaggedStr("true")))
+        for value in (False, 1, "true", "yes", _AnsibleTaggedStr("yes"), None):
+            self.assertFalse(module._strict_true(value))
+
+    def test_wrapper_contract_uses_dash_newline_and_exact_argv_binding(self) -> None:
+        plugin = PLUGIN.read_text()
+        wrapper = WRAPPER.read_text()
+        self.assertIn('#!/bin/dash', wrapper)
+        self.assertIn('content == f"{token}:entrypoint:{pid}:{starttime}:{wrapper_sha}\\n"', plugin)
+        self.assertIn("_proc_cmdline(pid) == [\"/bin/dash\", str(_WRAPPER_SOURCE)", plugin)
+        self.assertIn("sys.argv == _expected_ansible_argv()", plugin)
+        self.assertIn('ANSIBLE_CONFIG") == str(_ANSIBLE_CONFIG_SOURCE)', plugin)
+        self.assertIn('not any(os.environ.get(name)', plugin)
+        self.assertIn('exec /bin/dash "$script_path" "$mode"', wrapper)
+
+    def test_source_closure_pins_controller_and_python_identity(self) -> None:
+        plugin = PLUGIN.read_text()
+        self.assertIn('_CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"', plugin)
+        self.assertIn('_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"', plugin)
+        self.assertIn('stat.S_IMODE(controller_state.st_mode) == 0o775', plugin)
+        self.assertIn('stat.S_IMODE(_PYTHON_SOURCE.resolve().stat(follow_symlinks=False).st_mode) == 0o755', plugin)
+        self.assertIn('Path(__file__).absolute() != _ACTION_SOURCE', plugin)
+
     def test_source_closure_and_wrapper_process_binding_are_pinned(self) -> None:
         module = load_plugin()
         self.assertTrue(module._source_closure_valid())
