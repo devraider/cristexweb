@@ -1,4 +1,5 @@
 import hashlib
+import re
 import stat
 import unittest
 from pathlib import Path
@@ -42,6 +43,9 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         self.assertTrue(p["certificate"]["endpoint_preflight"]["system_trust_store_check"])
         self.assertEqual("https://api.cloudflare.com/client/v4/user/tokens/verify", p["cloudflare"]["token_validation"]["verify_endpoint"])
         self.assertEqual("cristex-soft.com", p["cloudflare"]["token_validation"]["exact_zone_name"])
+        self.assertIn("delete_only_process_owned_ids", p["cloudflare"]["token_validation"]["dns_write_scope"])
+        self.assertEqual("never_delete_unobserved_exact_name_records_fail_closed", p["cloudflare"]["token_validation"]["concurrent_record_policy"])
+        self.assertEqual("exact_leaf_sha256_fingerprint_san_and_expiry", p["safety"]["served_certificate_convergence"])
         self.assertEqual("yaml_key_set_and_byte_equality_verified", p["infisical"]["readback"])
         self.assertEqual("persistent_lineage_keep_until_expiring_without_renew_by_default", p["safety"]["certbot_issuance"])
         self.assertEqual("4.0.0-2+deb13u1", p["safety"]["dependency_provenance"]["certbot_package"])
@@ -62,13 +66,20 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "-verify_hostname \"$hostname\"",
             "-CAfile \"$system_ca\"",
             "current_san=",
+            "certificate_fingerprint()",
+            "certificate_san_set()",
+            "certificate_expiry()",
+            "validate_existing_certificate_pair()",
+            "expected_certificate_fingerprint",
+            "expected_certificate_san_set",
+            "expected_certificate_expiry",
             "token-verify.json",
             "type=TXT&name=$challenge_name",
             "challenge_record_preexisting",
             "scope-probe.json",
             "cloudflare_dns_write_scope",
             "cleanup_challenge_records",
-            "record_owned_challenge_ids",
+            "owned_challenge_ids",
             "challenge_cleanup_armed=1",
             "upload_readback=verified",
             "infisical_prewrite",
@@ -115,6 +126,9 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             self.assertNotIn(forbidden, text)
         self.assertNotIn("CLOUDFLARE_DNS_API_TOKEN=", text)
         self.assertNotIn('secrets set --env "$environment" --projectId "$project_id" \\\n    --path "$infisical_path" --file "$infisical_before"', text)
+        self.assertNotIn('record_owned_challenge_ids "$records"', text)
+        self.assertNotIn('public_key_revision "$served_cert"', text)
+        self.assertIn('validate_existing_certificate_pair "$infisical_before_cert" "$infisical_before_key"', text)
         self.assertNotIn('sleep "$convergence_interval_seconds"', text)
         self.assertIn('/usr/bin/timeout "$command_timeout" "$@"', text)
 
@@ -150,7 +164,17 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         renewal = (COMPONENT / "renewal/reactive-resume-dev-tls-renew").read_text()
         self.assertEqual(2, renewal.count("--connect-timeout 15 --max-time 60"))
         wrapper = WRAPPER.read_text()
-        for required in ("check|apply|enable-check|enable-apply", "refusing passthrough", "--check", "ENTRYPOINT=v1"):
+        for required in (
+            "check|apply|enable-check|enable-apply",
+            "refusing passthrough",
+            "--check",
+            "ENTRYPOINT=v1",
+            "refusing traced shell execution",
+            "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TOKEN",
+            "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ATTESTATION_FILE",
+            "wrapper_canonical_sha256_expected",
+            "normalized_defaults_sha256",
+        ):
             self.assertIn(required, wrapper)
 
     def test_role_is_separate_install_and_enable_boundary(self) -> None:
@@ -201,9 +225,14 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "reactive_resume_dev_tls_renewal_manifest_sha256",
             "reactive_resume_dev_tls_renewal_source_hashes",
             "reactive_resume_dev_tls_renewal_execution_source_hashes",
+            "Require the single-use TLS renewal wrapper attestation",
+            "Require the exact single-use TLS renewal wrapper attestation",
+            "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MANIFEST_SHA256",
             "item.stat.mode == item.item.mode",
             "item.stat.pw_name == 'paul'",
             "normalized execution closure sources",
+            "Require wrapper-bound renewal source digests",
+            "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256",
             "normalized_digest_name",
             "reactive_resume_dev_tls_renewal_defaults_self_hash",
             "regex_replace(",
@@ -240,6 +269,34 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         self.assertEqual(5, len(files))
         for line, path in zip(manifest, files):
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), line.split()[0])
+        wrapper = WRAPPER.read_text()
+        wrapper_expected = re.search(
+            r"(?m)^wrapper_canonical_sha256_expected='([0-9a-f]{64})'$", wrapper
+        )
+        self.assertIsNotNone(wrapper_expected)
+        wrapper_normalized = re.sub(
+            r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$",
+            "wrapper_canonical_sha256_expected='" + ("0" * 64) + "'",
+            wrapper,
+        )
+        self.assertEqual(hashlib.sha256(wrapper_normalized.encode()).hexdigest(), wrapper_expected.group(1))
+        defaults = DEFAULTS.read_text()
+        defaults_normalized = re.sub(
+            r"(?m)^reactive_resume_dev_tls_renewal_defaults_self_hash: [0-9a-f]{64}$",
+            "reactive_resume_dev_tls_renewal_defaults_self_hash: __SELF_HASH__",
+            defaults,
+        )
+        defaults_normalized = re.sub(
+            r"(?m)^(    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: )[0-9a-f]{64}$",
+            r"\1__SELF_HASH__",
+            defaults_normalized,
+        )
+        defaults_expected = re.search(
+            r"(?m)^reactive_resume_dev_tls_renewal_defaults_self_hash: ([0-9a-f]{64})$",
+            defaults,
+        )
+        self.assertIsNotNone(defaults_expected)
+        self.assertEqual(hashlib.sha256(defaults_normalized.encode()).hexdigest(), defaults_expected.group(1))
         runbook = RUNBOOK.read_text()
         for required in (
             "DNS-01",
@@ -266,11 +323,16 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "enable-check` and `enable-apply`\nnever install or repair",
             "already-installed exact file hashes",
             "exact two-key set",
-            "all exact-name record IDs",
+            "process-owned ledger",
+            "unknown record added concurrently remains untouched",
             "runtime convergence",
+            "SHA-256 DER fingerprint",
             "refreshInterval: 1h",
             "instantUpdates: false",
             "15-minute safety margin",
+            "single-use,",
+            "direct playbook invocation",
+            "externally supplied hash variables",
             "canonical wrapper, playbook, role task file, and role defaults",
         ):
             self.assertIn(required, runbook)

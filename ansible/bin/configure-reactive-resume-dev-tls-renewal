@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/dash
 set -eu
 
 usage='usage: ansible/bin/configure-reactive-resume-dev-tls-renewal check|apply|enable-check|enable-apply'
@@ -13,32 +13,132 @@ case "$1" in
   enable-apply) mode=enable; check_mode=false ;;
   *) printf '%s\n%s\n' "$usage" 'refusing passthrough arguments or task selection' >&2; exit 64 ;;
 esac
+case $- in
+  *x*|*v*) printf '%s\n' 'refusing traced shell execution' >&2; exit 65 ;;
+esac
 
 script_path=$0
-[ ! -L "$script_path" ] || { printf '%s\n' 'refusing a symlinked entrypoint' >&2; exit 66; }
-script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)"
-repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
-[ "$repository_root" = '/home/paul/projects/cristexweb' ] || {
-  printf '%s\n' 'refusing a repository outside the pinned host path' >&2
+[ ! -L "$script_path" ] || {
+  printf '%s\n' 'refusing a symlinked TLS renewal entrypoint' >&2
+  exit 66
+}
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && /bin/pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && /bin/pwd -P)"
+[ "$repository_root" = /home/paul/projects/cristexweb ] || {
+  printf '%s\n' 'refusing a repository outside the pinned controller path' >&2
   exit 78
 }
+script_path="$repository_root/ansible/bin/configure-reactive-resume-dev-tls-renewal"
 controller="$repository_root/.venv/bin/ansible-playbook"
-[ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || {
-  printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2
+python_tool=/usr/bin/python3
+inventory="$repository_root/ansible/.ansible/inventory.local.yml"
+ansible_config="$repository_root/ansible/ansible.cfg"
+manifest="$repository_root/ansible/files/components/reactive-resume-dev-tls/MANIFESTS.sha256"
+validator="$repository_root/ansible/files/components/reactive-resume-dev-tls/renewal/validate-reactive-resume-dev-tls-material"
+renewal="$repository_root/ansible/files/components/reactive-resume-dev-tls/renewal/reactive-resume-dev-tls-renew"
+service="$repository_root/ansible/files/components/reactive-resume-dev-tls/renewal/cristexweb-reactive-resume-dev-tls-renew.service"
+timer="$repository_root/ansible/files/components/reactive-resume-dev-tls/renewal/cristexweb-reactive-resume-dev-tls-renew.timer"
+playbook="$repository_root/ansible/playbooks/configure_reactive_resume_dev_tls_renewal.yml"
+tasks="$repository_root/ansible/roles/reactive_resume_dev_tls_renewal/tasks/main.yml"
+defaults="$repository_root/ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml"
+sha_file() { /usr/bin/sha256sum -- "$1" | /usr/bin/awk '{print $1}'; }
+canonical_sha256() {
+  "$python_tool" - "$1" <<'PY'
+import hashlib, re, sys
+source = open(sys.argv[1], encoding='utf-8').read()
+source, count = re.subn(
+    r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$",
+    "wrapper_canonical_sha256_expected='" + ('0' * 64) + "'",
+    source,
+)
+if count != 1:
+    raise SystemExit(69)
+print(hashlib.sha256(source.encode()).hexdigest())
+PY
+}
+normalized_defaults_sha256() {
+  "$python_tool" - "$1" <<'PY'
+import hashlib, re, sys
+source = open(sys.argv[1], encoding='utf-8').read()
+source, count = re.subn(
+    r"(?m)^reactive_resume_dev_tls_renewal_defaults_self_hash: [0-9a-f]{64}$",
+    "reactive_resume_dev_tls_renewal_defaults_self_hash: __SELF_HASH__",
+    source,
+)
+if count != 1:
+    raise SystemExit(69)
+source, count = re.subn(
+    r"(?m)^(    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: )[0-9a-f]{64}$",
+    r"\1__SELF_HASH__",
+    source,
+)
+if count != 1:
+    raise SystemExit(69)
+print(hashlib.sha256(source.encode()).hexdigest())
+PY
+}
+wrapper_canonical_sha256_expected='39ed6715c16c0abeeb2b746483b66c256ea6bba1111e1f2cd3a87c55a4bb95cf'
+[ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
+for source in "$inventory" "$ansible_config" "$manifest" "$validator" "$renewal" "$service" "$timer" "$playbook" "$tasks" "$defaults"; do
+  [ -f "$source" ] && [ ! -L "$source" ] || exit 69
+done
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$inventory")" = 'paul:paul:600' ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$ansible_config")" = 'paul:paul:644' ] || exit 69
+[ "$(canonical_sha256 "$script_path")" = "$wrapper_canonical_sha256_expected" ] || {
+  printf '%s\n' 'refusing TLS renewal wrapper source drift' >&2
   exit 69
 }
-
+controller_user=$(/usr/bin/id -un)
+[ "$controller_user" = paul ] || exit 78
 cd -- "$repository_root/ansible"
-umask 077
-set -- "$controller" -i .ansible/inventory.local.yml \
-  playbooks/configure_reactive_resume_dev_tls_renewal.yml --diff --limit crtxweb \
+wrapper_sha256=$(sha_file "$script_path")
+controller_sha256=$(sha_file "$controller")
+python_sha256=$(sha_file "$python_tool")
+inventory_sha256=$(sha_file "$inventory")
+ansible_config_sha256=$(sha_file "$ansible_config")
+manifest_sha256=$(sha_file "$manifest")
+validator_sha256=$(sha_file "$validator")
+renewal_sha256=$(sha_file "$renewal")
+service_sha256=$(sha_file "$service")
+timer_sha256=$(sha_file "$timer")
+playbook_sha256=$(sha_file "$playbook")
+task_sha256=$(sha_file "$tasks")
+defaults_sha256=$(normalized_defaults_sha256 "$defaults")
+attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-dev-tls-renewal.XXXXXX")"
+attestation_token="$(/usr/bin/openssl rand -hex 32)"
+/bin/chmod 0600 "$attestation_file"
+printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+cleanup() { /bin/rm -f -- "$attestation_file"; }
+trap cleanup EXIT HUP INT TERM
+
+set -- \
+  "$controller" \
+  -i "$inventory" \
+  playbooks/configure_reactive_resume_dev_tls_renewal.yml \
+  --diff \
+  --limit crtxweb \
   --ask-become-pass \
   --extra-vars "{\"reactive_resume_dev_tls_renewal_approved\":true,\"reactive_resume_dev_tls_renewal_mode\":\"$mode\",\"reactive_resume_dev_tls_renewal_repository_root\":\"$repository_root\"}"
 [ "$check_mode" = false ] || set -- "$@" --check
-exec /usr/bin/env -i \
-  HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+
+/usr/bin/env -i \
+  HOME=/home/paul \
+  USER="$controller_user" \
+  LOGNAME="$controller_user" \
+  PATH=/usr/bin:/bin:/usr/sbin:/sbin \
   LC_ALL=C.UTF-8 \
-  ANSIBLE_CONFIG="$PWD/ansible.cfg" \
+  ANSIBLE_CONFIG="$ansible_config" \
+  ANSIBLE_HOST_PATTERN_MISMATCH=error \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ENTRYPOINT=v1 \
-  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_REPOSITORY_ROOT="$repository_root" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TOKEN="$attestation_token" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ATTESTATION_FILE="$attestation_file" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_SHA256="$wrapper_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MANIFEST_SHA256="$manifest_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_VALIDATOR_SHA256="$validator_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CERTBOT_SHA256="$renewal_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_SERVICE_SHA256="$service_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TIMER_SHA256="$timer_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_SHA256="$playbook_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256="$task_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_DEFAULTS_SHA256="$defaults_sha256" \
   "$@"

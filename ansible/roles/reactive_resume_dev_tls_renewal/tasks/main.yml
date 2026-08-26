@@ -1,21 +1,14 @@
 ---
 - name: Reject externally supplied renewal internals
   ansible.builtin.assert:
-    that: item not in vars
-  loop:
-    - reactive_resume_dev_tls_renewal_internal_token
-    - reactive_resume_dev_tls_renewal_internal_token_state
-    - reactive_resume_dev_tls_renewal_internal_infisical_state
-    - reactive_resume_dev_tls_renewal_internal_certbot_state
-    - reactive_resume_dev_tls_renewal_internal_certbot_version
-    - reactive_resume_dev_tls_renewal_internal_infisical_version
-    - reactive_resume_dev_tls_renewal_internal_package_facts
-    - reactive_resume_dev_tls_renewal_internal_service_unit
-    - reactive_resume_dev_tls_renewal_internal_timer_unit
-    - reactive_resume_dev_tls_renewal_internal_source_states
-    - reactive_resume_dev_tls_renewal_internal_execution_source_states
-    - reactive_resume_dev_tls_renewal_internal_normalized_source_contents
-    - reactive_resume_dev_tls_renewal_internal_installed_files
+    that:
+      - >-
+        (vars.keys() |
+        select('match', '^reactive_resume_dev_tls_renewal_internal_') |
+        list | length) == 0
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied Reactive Resume DEV
+      TLS renewal state.
   changed_when: false
 
 - name: Require the exact guarded TLS renewal wrapper
@@ -32,6 +25,46 @@
       - reactive_resume_dev_tls_renewal_service == 'cristexweb-reactive-resume-dev-tls-renew.service'
       - reactive_resume_dev_tls_renewal_timer == 'cristexweb-reactive-resume-dev-tls-renew.timer'
     fail_msg: Refusing TLS renewal installation outside the fixed guarded wrapper.
+  changed_when: false
+  no_log: true
+
+- name: Require the single-use TLS renewal wrapper attestation
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ATTESTATION_FILE') | length > 0
+      - reactive_resume_dev_tls_renewal_controller_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - reactive_resume_dev_tls_renewal_controller_user == lookup('ansible.builtin.env', 'USER')
+    fail_msg: Refusing TLS renewal invocation without the canonical wrapper attestation.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the single-use TLS renewal wrapper attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: reactive_resume_dev_tls_renewal_internal_attestation_state
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the exact single-use TLS renewal wrapper attestation
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_attestation_state.stat.isreg | default(false)
+      - not (reactive_resume_dev_tls_renewal_internal_attestation_state.stat.islnk | default(false))
+      - reactive_resume_dev_tls_renewal_internal_attestation_state.stat.pw_name == reactive_resume_dev_tls_renewal_controller_user
+      - reactive_resume_dev_tls_renewal_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing a missing, reusable, foreign-owned, or invalid TLS renewal attestation.
+  delegate_to: localhost
+  become: false
   changed_when: false
   no_log: true
 
@@ -70,6 +103,54 @@
   loop: '{{ reactive_resume_dev_tls_renewal_internal_source_states.results }}'
   delegate_to: localhost
   become: false
+  changed_when: false
+  no_log: true
+
+- name: Require wrapper-bound renewal source digests
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MANIFEST_SHA256') == reactive_resume_dev_tls_renewal_manifest_sha256
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_VALIDATOR_SHA256') ==
+        (reactive_resume_dev_tls_renewal_source_hashes |
+        selectattr('path', 'search', 'validate-reactive-resume-dev-tls-material') |
+        map(attribute='sha256') | first)
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CERTBOT_SHA256') ==
+        (reactive_resume_dev_tls_renewal_source_hashes |
+        selectattr('path', 'search', 'reactive-resume-dev-tls-renew') |
+        map(attribute='sha256') | first)
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_SERVICE_SHA256') ==
+        (reactive_resume_dev_tls_renewal_source_hashes |
+        selectattr('path', 'search', 'cristexweb-reactive-resume-dev-tls-renew.service') |
+        map(attribute='sha256') | first)
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TIMER_SHA256') ==
+        (reactive_resume_dev_tls_renewal_source_hashes |
+        selectattr('path', 'search', 'cristexweb-reactive-resume-dev-tls-renew.timer') |
+        map(attribute='sha256') | first)
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_SHA256') ==
+        (reactive_resume_dev_tls_renewal_execution_source_hashes |
+        selectattr('path', 'search', 'configure-reactive-resume-dev-tls-renewal') |
+        map(attribute='sha256') | first)
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_SHA256') ==
+        (reactive_resume_dev_tls_renewal_execution_source_hashes |
+        selectattr('path', 'search', 'configure_reactive_resume_dev_tls_renewal.yml') |
+        map(attribute='sha256') | first)
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256') ==
+        (reactive_resume_dev_tls_renewal_execution_source_hashes |
+        selectattr('path', 'search', 'reactive_resume_dev_tls_renewal/tasks/main.yml') |
+        map(attribute='sha256') | first)
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_DEFAULTS_SHA256') ==
+        (reactive_resume_dev_tls_renewal_execution_source_hashes |
+        selectattr('path', 'search', 'reactive_resume_dev_tls_renewal/defaults/main.yml') |
+        map(attribute='sha256') | first)
+    fail_msg: Refusing TLS renewal source hashes not bound by the canonical wrapper.
   changed_when: false
   no_log: true
 

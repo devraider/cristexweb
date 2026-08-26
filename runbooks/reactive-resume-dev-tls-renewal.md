@@ -20,9 +20,10 @@ Tunnel ingress, Kubernetes objects, or the reserved PROD hostname.
 - Certbot's Cloudflare DNS plugin creates only the exact challenge TXT record.
   The controller explicitly lists the exact name before issuance, refuses
   pre-existing records, performs one exact-name DNS write/delete scope probe,
-  records all exact-name record IDs observed by the locked run (including IDs
-  created internally by Certbot), deletes those IDs through the exact zone
-  API, and verifies an empty readback on success and failure.
+  and records only the probe record ID created by this process. Cleanup deletes
+  only IDs in that process-owned ledger; it never infers ownership from a later
+  exact-name listing. Any unknown record added concurrently remains untouched
+  and causes a fail-closed non-empty readback.
 - Newly generated working copies and upload payloads exist only in a
   mode-0700 temporary workspace with mode-0600 leaves. Certbot's persistent
   account/lineage (including its protected private key) remains only beneath
@@ -36,7 +37,9 @@ Tunnel ingress, Kubernetes objects, or the reserved PROD hostname.
   API; its CLI exposes no conditional write operation, so renewal uses a fail-closed revision/readback
   protocol: exact two-key pre-state is exported, a pre-write export is re-read immediately before
   write, and compared by certificate/key digest; post-write readback must match
-  both new files. A read/check/write rollback has an unavoidable race without
+  both new files. The existing Infisical pair is checked for exact hostname/SAN
+  and key correspondence without applying the new-certificate 30-day threshold,
+  because it is expected to be near expiry when renewal is triggered. A read/check/write rollback has an unavoidable race without
   CAS: a concurrent writer can change the remote state after the last read.
   Therefore unattended rollback is not attempted; the helper performs a final
   exact two-key set/revision read, emits `no_cas_fail_closed`, and leaves remote
@@ -57,8 +60,11 @@ post-upload YAML key-set and byte readback. If a later stage fails, rollback
 fails closed because Infisical has no atomic CAS operation; no stale pre-state
 write is attempted. Before success, the controller waits for the
 InfisicalStaticSecret `LastReconcileStatus=True`, exact Kubernetes TLS Secret
-bytes, and the browser-served Traefik certificate public-key revision to converge;
-this runtime convergence is required before success. The source contract is
+bytes, and the browser-served Traefik leaf certificate to converge. It compares
+that served leaf's SHA-256 DER fingerprint, exact SAN set, and exact `notAfter`
+value with the newly issued leaf, in addition to hostname and system-trust
+validation; a public-key match alone is insufficient. This runtime convergence
+is required before success. The source contract is
 `refreshInterval: 1h` with `instantUpdates: false`, so renewal uses an elapsed
 75-minute convergence deadline (including bounded kubectl/TLS commands and a
 15-minute safety margin after the one-hour refresh interval), while
@@ -73,7 +79,10 @@ hash-binds every renewal source before copying it. It also hash-binds the
 canonical wrapper, playbook, role task file, and role defaults execution
 closure; only the explicitly named `reactive_resume_dev_tls_renewal_defaults_self_hash`
 digest literal is normalized to avoid that self-reference cycle. All other
-source-pin digest literals remain covered by the closure. The complete controller-local source/hash preflight runs before any package or
+source-pin digest literals remain covered by the closure. A single-use,
+controller-owned attestation is required in addition to the entrypoint marker;
+direct playbook invocation and externally supplied hash variables therefore
+fail before package or host tasks. The complete controller-local source/hash preflight runs before any package or
 host task. It then installs the pinned Debian packages
 `certbot=4.0.0-2+deb13u1` and
 `python3-certbot-dns-cloudflare=4.0.0-1` with `update_cache: false`, and verifies

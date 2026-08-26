@@ -114,10 +114,34 @@ verify_infisical_key_set() {
   /usr/bin/cmp -s "$output" "$infisical_keys_expected"
 }
 
-public_key_revision() {
-  openssl x509 -in "$1" -pubkey -noout |
-    openssl pkey -pubin -outform DER |
+certificate_fingerprint() {
+  openssl x509 -in "$1" -outform DER |
     sha256sum | awk '{print $1}'
+}
+
+certificate_san_set() {
+  openssl x509 -in "$1" -noout -ext subjectAltName |
+    awk '/Subject Alternative Name/{capture=1; next} capture && /^[^[:space:]]/{exit} capture{gsub(/[[:space:]]/, ""); printf "%s", $0} END{print ""}'
+}
+
+certificate_expiry() {
+  openssl x509 -in "$1" -noout -enddate | sed 's/^notAfter=//'
+}
+
+validate_existing_certificate_pair() {
+  existing_certificate=$1
+  existing_private_key=$2
+  openssl x509 -in "$existing_certificate" -noout -checkhost "$hostname" >/dev/null 2>&1 || return 1
+  [ "$(certificate_san_set "$existing_certificate")" = "DNS:$hostname" ] || return 1
+  existing_certificate_key=$(
+    openssl x509 -in "$existing_certificate" -pubkey -noout |
+      openssl pkey -pubin -outform DER | sha256sum | awk '{print $1}'
+  )
+  existing_private_key_key=$(
+    openssl pkey -in "$existing_private_key" -pubout -outform DER |
+      sha256sum | awk '{print $1}'
+  )
+  [ "$existing_certificate_key" = "$existing_private_key_key" ]
 }
 
 convergence_remaining_seconds() {
@@ -218,7 +242,9 @@ wait_for_runtime_convergence() {
       "$served_handshake" >"$served_cert"
     if [ -s "$served_cert" ] &&
        run_convergence_command openssl x509 -in "$served_cert" -noout -checkhost "$hostname" >/dev/null 2>&1 &&
-       [ "$(public_key_revision "$served_cert")" = "$(public_key_revision "$certificate")" ]; then
+       [ "$(certificate_fingerprint "$served_cert")" = "$expected_certificate_fingerprint" ] &&
+       [ "$(certificate_san_set "$served_cert")" = "$expected_certificate_san_set" ] &&
+       [ "$(certificate_expiry "$served_cert")" = "$expected_certificate_expiry" ]; then
       return 0
     fi
     wait_for_convergence_interval || return 1
@@ -314,27 +340,12 @@ cf_records_empty() {
   cf_json_compact "$1" | /usr/bin/grep -Fq '"result":[]'
 }
 
-record_ids_from_response() {
-  /usr/bin/grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' "$1" |
-    /usr/bin/sed -E 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)"/\1/'
-}
-
-record_owned_challenge_ids() {
-  response=$1
-  [ -f "$owned_challenge_ids" ] || return 1
-  record_ids_from_response "$response" >>"$owned_challenge_ids"
-  LC_ALL=C /usr/bin/sort -u -o "$owned_challenge_ids" "$owned_challenge_ids"
-}
-
 cleanup_challenge_records() {
   records=$work/challenge-cleanup.json
-  # The preflight requires an empty exact-name set. Therefore every exact-name
-  # record observed during this locked run is ours, including Certbot-created
-  # records whose IDs are not exposed by the plugin. Record all IDs before any
-  # delete and fail closed if the final exact-name set is not empty.
-  cf_api GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=TXT&name=$challenge_name&per_page=100" "$records" || return 1
-  cf_json_success "$records" || return 1
-  record_owned_challenge_ids "$records" || return 1
+  # Delete only record IDs created by this process (the scope probe). Never
+  # infer ownership from an exact-name listing: another actor may have added a
+  # TXT record after preflight. Unknown leftovers therefore fail closed.
+  [ -f "$owned_challenge_ids" ] || return 1
   while IFS= read -r record_id; do
     [ -n "$record_id" ] || continue
     deleted=$work/challenge-delete.json
@@ -430,6 +441,7 @@ scope_probe_id=$(/usr/bin/grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' "$scop
   /usr/bin/sed -E 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' | head -n 1)
 [ -n "$scope_probe_id" ] || fail cloudflare_dns_write_scope
 printf '%s\n' "$scope_probe_id" >>"$owned_challenge_ids"
+LC_ALL=C /usr/bin/sort -u -o "$owned_challenge_ids" "$owned_challenge_ids"
 cf_api DELETE "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$scope_probe_id" \
   "$scope_probe_delete" || fail cloudflare_dns_write_scope
 cf_json_success "$scope_probe_delete" || fail cloudflare_dns_write_scope
@@ -488,6 +500,14 @@ private_key=$work/privkey.pem
 /usr/bin/cp --dereference --no-preserve=mode "$private_key_link" "$private_key"
 chmod 0600 "$certificate" "$private_key"
 "$validator" "$certificate" "$private_key" >/dev/null || fail certificate_contract
+certificate_leaf=$work/certificate-leaf.pem
+/usr/bin/awk '/-----BEGIN CERTIFICATE-----/{capture=1} capture{print} /-----END CERTIFICATE-----/{exit}' \
+  "$certificate" >"$certificate_leaf"
+[ -s "$certificate_leaf" ] || fail certificate_contract
+expected_certificate_fingerprint=$(certificate_fingerprint "$certificate_leaf")
+expected_certificate_san_set=$(certificate_san_set "$certificate_leaf")
+expected_certificate_expiry=$(certificate_expiry "$certificate_leaf")
+[ "$expected_certificate_san_set" = "DNS:$hostname" ] || fail certificate_contract
 
 # Infisical's exact two-key state is read before mutation. Extra keys or a
 # missing key refuse the rotation; the pre-state is retained for rollback.
@@ -512,7 +532,7 @@ infisical_before_key=$work/infisical-before.key
 extract_infisical_key TLS_CRT "$infisical_before" "$infisical_before_cert"
 extract_infisical_key TLS_KEY "$infisical_before" "$infisical_before_key"
 [ -s "$infisical_before_cert" ] && [ -s "$infisical_before_key" ] || fail infisical_prestate_unreadable
-"$validator" "$infisical_before_cert" "$infisical_before_key" >/dev/null 2>&1 || fail infisical_prestate_contract
+validate_existing_certificate_pair "$infisical_before_cert" "$infisical_before_key" || fail infisical_prestate_contract
 prestate_revision=$(material_revision "$infisical_before_cert" "$infisical_before_key")
 # Infisical's documented CLI exposes no CAS/If-Match operation. Treat the
 # digest of the exact two-key export as a revision token: require an identical
@@ -553,8 +573,8 @@ if ! cmp -s "$certificate" "$infisical_readback_cert" ||
 fi
 "$validator" "$infisical_readback_cert" "$infisical_readback_key" >/dev/null || fail infisical_readback_contract
 
-# The Certbot plugin must have removed its TXT record; independently remove
-# every exact-name record observed during this locked run and verify an empty
+# The Certbot plugin must have removed its TXT record; remove only the
+# process-owned probe IDs still present in the ledger and verify an empty
 # readback before any success receipt.
 cleanup_challenge_records || fail challenge_cleanup
 challenge_cleanup_armed=0

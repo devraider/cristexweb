@@ -30,7 +30,8 @@ cloudflare:
     exact_zone_id: 3cbee16e56d7656440f93e685807e779
     exact_zone_name: cristex-soft.com
     dns_read_scope_preflight: exact_challenge_name_only
-    dns_write_scope: exact_challenge_probe_delete_then_certbot_dns01_then_explicit_delete_and_empty_readback
+    dns_write_scope: exact_challenge_probe_delete_then_certbot_dns01_then_delete_only_process_owned_ids_and_empty_readback
+    concurrent_record_policy: never_delete_unobserved_exact_name_records_fail_closed
   proxied: false
   tunnel: forbidden
 infisical:
@@ -66,7 +67,7 @@ host:
   enabled_by: separate-enable-apply-mode
 safety:
   no_value_output: true
-  exact_challenge_cleanup: explicit_cloudflare_api_delete_then_empty_readback
+  exact_challenge_cleanup: delete_only_process_owned_ids_then_empty_readback_fail_closed_on_unknown_records
   certbot_issuance: persistent_lineage_keep_until_expiring_without_renew_by_default
   dependency_provenance:
     certbot_package: 4.0.0-2+deb13u1
@@ -80,3 +81,4 @@ safety:
     no_automatic_rollback_without_infisical_cas; prewrite_failures_leave_values_unchanged;
     postwrite_failures_may_leave_the_uploaded_pair_pending_operator_recovery
   endpoint_tls_trust_store: /etc/ssl/certs/ca-certificates.crt
+  served_certificate_convergence: exact_leaf_sha256_fingerprint_san_and_expiry
