@@ -36,6 +36,32 @@ project denies every source, destination, cluster resource, and namespaced resou
 it prevents the server's empty-install project-creation path without granting create
 authority.
 
+### Guarded target-cache repair
+
+The source-only `ansible/bin/bootstrap-argocd-target-cache-repair` lane is a distinct
+one-time repair for the existing application-controller. It is not the 32-object
+bootstrap and patches exactly `argocd/argocd-cm`, the existing PROD controller Role,
+and the application-controller StatefulSet pod-template annotations. It has no
+Secret, RoleBinding, Deployment, server, repo-server, Application, AppProject,
+delete, prune, or full-bootstrap path.
+
+The exact `resource.inclusions` value uses only
+`https://kubernetes.default.svc` (never `*`) and contains exactly core
+`ConfigMap`, `Service`, `ServiceAccount`; `apps/Deployment`; and
+`networking.k8s.io/Ingress` and `NetworkPolicy`. This cache filter does not grant
+RBAC. The PROD Role adds only `get`, `list`, and `watch` for ServiceAccounts; the
+PROD AppProject continues to exclude ServiceAccount and no create/patch authority
+is added.
+
+The dedicated wrapper/action/role bind the exact source hashes, object identities,
+UIDs, resourceVersions, definitions, process command line, canonical inventory,
+configuration, controller/Python digests, and single-run attestation. Check mode
+predicts only the three bounded CAS patches; apply verifies post-state and rolls
+only the application-controller using its pod-template checksums/repair annotation.
+It waits for that StatefulSet and Pod to be Available/Ready and then validates the
+PROD Application as `Synced/Healthy`. The lane remains source-only pending its
+separate operational approval; see [the target-cache repair runbook](argocd-target-cache-repair.md).
+
 The retained minimal core is one application-controller StatefulSet, one repo-server
 Deployment, one server Deployment, and standalone Redis. Argo uses
 `quay.io/argoproj/argocd@sha256:521d6b62ecd0434c9cc6e9242a74f0e1137bb8fc0026b2c483ea88f3f17e725d`.

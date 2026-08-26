@@ -1,0 +1,114 @@
+#!/bin/dash
+set -eu
+usage='usage: ansible/bin/bootstrap-argocd-target-cache-repair check|apply'
+if [ "$#" -ne 1 ] || { [ "$1" != check ] && [ "$1" != apply ]; }; then
+  printf '%s\n' "$usage" >&2
+  printf '%s\n' 'refusing passthrough arguments and task-selection controls' >&2
+  exit 64
+fi
+mode=$1
+original_script_path=$0
+script_path=$0
+wrapper_canonical_sha256_expected='da7756c63fcd2bab2b53640a8e8850a4dd8379722f3f4853d46caf21aef21947'
+canonical_sha256() {
+  /usr/bin/python3 - "$1" <<'PY'
+import hashlib, re, sys
+source = open(sys.argv[1], encoding='utf-8').read()
+source, count = re.subn(r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$", "wrapper_canonical_sha256_expected='" + ('0' * 64) + "'", source)
+if count != 1:
+    raise SystemExit(69)
+print(hashlib.sha256(source.encode()).hexdigest())
+PY
+}
+[ ! -L "$script_path" ] || { printf '%s\n' 'refusing a symlinked target-cache repair entrypoint' >&2; exit 66; }
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && /bin/pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && /bin/pwd -P)"
+expected_repository_root=/home/paul/projects/cristexweb
+[ "$repository_root" = "$expected_repository_root" ] || { printf '%s\n' 'refusing a repository outside the pinned controller path' >&2; exit 78; }
+script_path="$repository_root/ansible/bin/bootstrap-argocd-target-cache-repair"
+if [ "$original_script_path" != "$script_path" ]; then
+  exec /bin/dash "$script_path" "$mode"
+fi
+controller_home="$(CDPATH= cd -- "$repository_root/../.." && /bin/pwd -P)"
+controller_user="$(/usr/bin/id -un)"
+[ "$controller_user" = paul ] || { printf '%s\n' 'refusing an unexpected controller user' >&2; exit 78; }
+controller="$repository_root/.venv/bin/ansible-playbook"
+python_tool=/usr/bin/python3
+inventory="$repository_root/ansible/.ansible/inventory.local.yml"
+ansible_config="$repository_root/ansible/ansible.cfg"
+kubeconfig=/etc/rancher/k3s/k3s.yaml
+configmap_source="$repository_root/ansible/files/components/argocd/config/configmap-argocd-cm.yaml"
+role_source="$repository_root/ansible/files/components/cristexhub-prod-registration/rbac/role-argocd-application-controller-cristexhub-prod.yaml"
+statefulset_source="$repository_root/ansible/files/components/argocd/runtime/statefulset-argocd-application-controller.yaml"
+task_source="$repository_root/ansible/roles/argocd_target_cache_repair/tasks/main.yml"
+defaults_source="$repository_root/ansible/roles/argocd_target_cache_repair/defaults/main.yml"
+playbook_source="$repository_root/ansible/playbooks/bootstrap_argocd_target_cache_repair.yml"
+action_source="$repository_root/ansible/plugins/action/argocd_target_cache_repair_guarded_k8s.py"
+sha256_file() { /usr/bin/sha256sum -- "$1" | /usr/bin/awk '{print $1}'; }
+[ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || { printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2; exit 69; }
+[ -f "$python_tool" ] && [ ! -L "$python_tool" ] || { printf '%s\n' 'refusing an unsafe Python controller' >&2; exit 69; }
+[ "$(canonical_sha256 "$script_path")" = "$wrapper_canonical_sha256_expected" ] || { printf '%s\n' 'refusing target-cache wrapper source drift' >&2; exit 69; }
+controller_sha256_expected=baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd
+python_sha256_expected=17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1
+action_sha256="$(sha256_file "$action_source")"
+task_sha256="$(sha256_file "$task_source")"
+defaults_sha256="$(sha256_file "$defaults_source")"
+playbook_sha256="$(sha256_file "$playbook_source")"
+configmap_sha256=bc167b1f4d2ccb20223c67bceb067459fed6a8057a6b4119aa0bd1dc9909c082
+role_sha256=9a12af899b86acdac58ad34ce707f8558d45dede27c4e362926c488be1fb44f9
+statefulset_sha256=aa96028f0ab939d68b26d393c98f7ce0f8ae2c5d14525753a4292679c372329e1
+inventory_sha256="$(sha256_file "$inventory")"
+ansible_config_sha256="$(sha256_file "$ansible_config")"
+wrapper_sha256="$(sha256_file "$script_path")"
+wrapper_pid=$$
+wrapper_starttime="$(/usr/bin/awk '{print $22}' "/proc/$$/stat")"
+attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/argocd-target-cache-repair.XXXXXX")"
+cleanup_file() { /bin/rm -f -- "$attestation_file"; }
+terminate_child() { signal_status=$1; trap - EXIT HUP INT TERM; cleanup_file; exit "$signal_status"; }
+trap cleanup_file EXIT
+trap 'terminate_child 129' HUP
+trap 'terminate_child 130' INT
+trap 'terminate_child 143' TERM
+/bin/chmod 600 "$attestation_file"
+attestation_token="$(/usr/bin/openssl rand -hex 32)"
+printf '%s:entrypoint:%s:%s:%s\n' "$attestation_token" "$wrapper_pid" "$wrapper_starttime" "$wrapper_sha256" >"$attestation_file"
+set -- \
+  "$controller" \
+  -i .ansible/inventory.local.yml \
+  playbooks/bootstrap_argocd_target_cache_repair.yml \
+  --diff \
+  --limit crtxweb \
+  --extra-vars argocd_target_cache_repair_approved=true
+if [ "$mode" = check ]; then set -- "$@" --check; fi
+/usr/bin/setsid /usr/bin/env -i \
+  "HOME=$controller_home" \
+  "USER=$controller_user" \
+  "LOGNAME=$controller_user" \
+  'PATH=/usr/bin:/bin:/usr/sbin:/sbin' \
+  'LC_ALL=C.UTF-8' \
+  "ANSIBLE_CONFIG=$ansible_config" \
+  "CRISTEXWEB_REPOSITORY_ROOT=$repository_root" \
+  'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_ENTRYPOINT=v1' \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_MODE=$mode" \
+  'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_APPLY_APPROVED=v1' \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_TOKEN=$attestation_token" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_ATTESTATION_FILE=$attestation_file" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_WRAPPER_PID=$wrapper_pid" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_WRAPPER_STARTTIME=$wrapper_starttime" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_WRAPPER_PATH=$script_path" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_WRAPPER_SHA256=$wrapper_sha256" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_CONTROLLER=$controller" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_CONTROLLER_SHA256=$controller_sha256_expected" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_PYTHON=$python_tool" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_PYTHON_SHA256=$python_sha256_expected" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_KUBECONFIG=$kubeconfig" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_TASK_SHA256=$task_sha256" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_DEFAULTS_SHA256=$defaults_sha256" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_PLAYBOOK_SHA256=$playbook_sha256" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_CONFIGMAP_SHA256=$configmap_sha256" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_ROLE_SHA256=$role_sha256" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_STATEFULSET_SHA256=$statefulset_sha256" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_INVENTORY_SHA256=$inventory_sha256" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_ANSIBLE_CONFIG_SHA256=$ansible_config_sha256" \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_ACTION_SHA256=$action_sha256" \
+  "$@"

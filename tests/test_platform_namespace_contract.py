@@ -169,6 +169,7 @@ metadata:
                 ANSIBLE / "bin/bootstrap-infisical-database-secrets",
                 ANSIBLE / "bin/bootstrap-argocd",
                 ANSIBLE / "bin/bootstrap-argocd-cluster-cache-scope-transition",
+                ANSIBLE / "bin/bootstrap-argocd-target-cache-repair",
                 ANSIBLE / "bin/bootstrap-mongodb",
                 ANSIBLE / "bin/bootstrap-postgresql",
                 ANSIBLE / "bin/bootstrap-keycloak",

@@ -8,7 +8,10 @@ registration checkpoint reported private PROD `Synced/Healthy`, but the fresh cu
 snapshot is `Unknown/Missing` with a namespace/target management ComparisonError after
 the `cristexhub-prod-local` alias transition was applied. The committed source now
 targets the direct in-cluster server; its guarded three-step check/apply remains
-pending and no direct-server registration apply or workload sync has run. RabbitMQ is live for the PROD Celery worker, but
+pending and no direct-server registration apply or workload sync has run. The
+source-only target-cache repair lane is separately bounded to argocd-cm, the PROD
+controller Role's read-only ServiceAccount rule, and the application-controller
+pod-template checksum/annotation; it remains unapplied. RabbitMQ is live for the PROD Celery worker, but
 observed principal/permission drift and credential rotation remain open. MongoDB
 `8.0.12` is live under its operator with TLS/SCRAM, but private acceptance is blocked
 by the absent/mismatched live MongoDB NetworkPolicy. Protected OpenTofu state contains

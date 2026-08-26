@@ -1,0 +1,82 @@
+---
+# One-time, source-only repair for the private Argo target cache. This role does
+# not bootstrap Argo and owns no Secret or server/repo-server object.
+argocd_target_cache_repair_approved: false
+argocd_target_cache_repair_state: present
+argocd_target_cache_repair_mode: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_MODE') }}"
+argocd_target_cache_repair_kubeconfig: /etc/rancher/k3s/k3s.yaml
+argocd_target_cache_repair_repository_root: /home/paul/projects/cristexweb
+argocd_target_cache_repair_controller_user: paul
+argocd_target_cache_repair_namespace: argocd
+argocd_target_cache_repair_object_count: 3
+argocd_target_cache_repair_expected_server: https://kubernetes.default.svc
+argocd_target_cache_repair_target_kinds:
+  - {apiVersion: v1, kind: ConfigMap, namespace: argocd, name: argocd-cm}
+  - {apiVersion: rbac.authorization.k8s.io/v1, kind: Role, namespace: cristexhub-prod, name: argocd-application-controller-cristexhub-prod}
+  - {apiVersion: apps/v1, kind: StatefulSet, namespace: argocd, name: argocd-application-controller}
+argocd_target_cache_repair_sources:
+  - identity: v1|ConfigMap|argocd|argocd-cm
+    apiVersion: v1
+    kind: ConfigMap
+    namespace: argocd
+    name: argocd-cm
+    path: /home/paul/projects/cristexweb/ansible/files/components/argocd/config/configmap-argocd-cm.yaml
+    sha256: bc167b1f4d2ccb20223c67bceb067459fed6a8057a6b4119aa0bd1dc9909c082
+  - identity: rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    namespace: cristexhub-prod
+    name: argocd-application-controller-cristexhub-prod
+    path: /home/paul/projects/cristexweb/ansible/files/components/cristexhub-prod-registration/rbac/role-argocd-application-controller-cristexhub-prod.yaml
+    sha256: 9a12af899b86acdac58ad34ce707f8558d45dede27c4e362926c488be1fb44f9
+  - identity: apps/v1|StatefulSet|argocd|argocd-application-controller
+    apiVersion: apps/v1
+    kind: StatefulSet
+    namespace: argocd
+    name: argocd-application-controller
+    path: /home/paul/projects/cristexweb/ansible/files/components/argocd/runtime/statefulset-argocd-application-controller.yaml
+    sha256: aa96028f0ab939d68b26d393c98f7ce0f8ae2c5d14525753a4292679c372329e
+argocd_target_cache_repair_expected_uids:
+  v1|ConfigMap|argocd|argocd-cm: 848966ad-8d11-41ff-8a26-5e17532f7a81
+  rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod: 7ea319e9-2ad3-4f49-b529-e19eeb944690
+  apps/v1|StatefulSet|argocd|argocd-application-controller: d18d7475-4dec-48ee-a284-b5a4d4629b01
+argocd_target_cache_repair_legacy_configmap_data:
+  admin.enabled: 'true'
+  application.instanceLabelKey: argocd.argoproj.io/instance
+  resource.respectRBAC: 'strict'
+  timeout.reconciliation: 180s
+argocd_target_cache_repair_legacy_role_rules:
+  - apiGroups: ['']
+    resources: [configmaps, services]
+    verbs: [get, list, watch, create, patch]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch, create, patch]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies, ingresses]
+    verbs: [get, list, watch, create, patch]
+argocd_target_cache_repair_legacy_controller_annotations:
+  checksum/cmd-params: 719e10663b1773800849f9da2234f3544e4c368d6b3f5568026bd4f71f303278
+  checksum/cm: 7311652314f5f1ec5d55f2e282f2ad0189c91a93a9079c8947fb42be3b7fd21e
+  checksum/cristexhub-dev-read-rbac: 23e8f7a228ebe53a9e7fde8ffc4ccf97dcb6a6dd433f70ed3b879e13d8558da1
+argocd_target_cache_repair_expected_labels:
+  ConfigMap:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/component: server
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v3.5.0-sha256-521d6b62ecd0434c9cc6e9242a74f0e1137bb8fc0026b2c48
+    cristex.io/component: argocd
+  Role:
+    app.kubernetes.io/part-of: cristexhub
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: cristexhub-prod-registration
+  StatefulSet:
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/managed-by: ansible
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v3.5.0-sha256-521d6b62ecd0434c9cc6e9242a74f0e1137bb8fc0026b2c48
+    cristex.io/component: argocd

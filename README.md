@@ -11,7 +11,10 @@ after the bounded `cristexhub-prod-local` alias transition was applied. The
 historical `Synced/Healthy` checkpoint is retained as dated evidence only. The
 committed source now targets the direct in-cluster server; its guarded three-step
 check/apply remains pending, and a separately approved apply must restore
-`Synced/Healthy`.
+`Synced/Healthy`. The dedicated target-cache repair source now narrows
+`resource.inclusions` to `https://kubernetes.default.svc` and the exact managed
+ConfigMap/Service/ServiceAccount, Deployment, Ingress, and NetworkPolicy union;
+it remains source-only pending its separate approval.
 The guarded OIDC CONNECT proxy policy includes PROD clients and app-level `200`/`302`
 smoke passed; authenticated OIDC/callback and live positive/negative CONNECT
 validation remain open.

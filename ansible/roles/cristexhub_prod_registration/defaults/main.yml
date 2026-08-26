@@ -117,7 +117,7 @@ cristexhub_prod_registration_expected_hashes:
   - path: >-
       {{ cristexhub_prod_registration_repository_root
       }}/ansible/files/components/cristexhub-prod-registration/rbac/role-argocd-application-controller-cristexhub-prod.yaml
-    sha256: f5606f2b58299fb1ce67dab48273513e57dd0ca0613795f9d976b1509fd33977
+    sha256: 9a12af899b86acdac58ad34ce707f8558d45dede27c4e362926c488be1fb44f9
   - path: >-
       {{ cristexhub_prod_registration_repository_root
       }}/ansible/files/components/cristexhub-prod-registration/rbac/rolebinding-argocd-application-controller-cristexhub-prod.yaml

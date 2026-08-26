@@ -117,6 +117,31 @@ class ArgoCdHardenedDesignContractTests(unittest.TestCase):
         for forbidden in ("curl ", "wget ", "helm repo", "helm pull"):
             self.assertNotIn(forbidden, comparator)
 
+    def test_exact_target_cache_resource_inclusions(self) -> None:
+        settings = self.by_identity[("v1", "ConfigMap", "argocd", "argocd-cm")]
+        inclusions = yaml.safe_load(settings["data"]["resource.inclusions"])
+        self.assertEqual(
+            [
+                {"apiGroups": [""], "kinds": ["ConfigMap", "Service", "ServiceAccount"], "clusters": ["https://kubernetes.default.svc"]},
+                {"apiGroups": ["apps"], "kinds": ["Deployment"], "clusters": ["https://kubernetes.default.svc"]},
+                {"apiGroups": ["networking.k8s.io"], "kinds": ["Ingress", "NetworkPolicy"], "clusters": ["https://kubernetes.default.svc"]},
+            ],
+            inclusions,
+        )
+        self.assertNotIn("*", json.dumps(inclusions))
+        self.assertNotIn("Secret", json.dumps(inclusions))
+        self.assertNotIn("StatefulSet", json.dumps(inclusions))
+        controller = self.by_identity[("apps/v1", "StatefulSet", "argocd", "argocd-application-controller")]
+        annotations = controller["spec"]["template"]["metadata"]["annotations"]
+        cm_digest = hashlib.sha256((COMPONENT / "config/configmap-argocd-cm.yaml").read_bytes()).hexdigest()
+        role_digest = hashlib.sha256((ROOT / "ansible/files/components/cristexhub-prod-registration/rbac/role-argocd-application-controller-cristexhub-prod.yaml").read_bytes()).hexdigest()
+        self.assertEqual(cm_digest, annotations["checksum/cm"])
+        self.assertEqual(role_digest, annotations["checksum/cristexhub-prod-read-rbac"])
+        self.assertEqual("v1", annotations["cristex.io/target-cache-repair"])
+        runbook = RUNBOOK.read_text()
+        self.assertIn("Guarded target-cache repair", runbook)
+        self.assertIn("https://kubernetes.default.svc", runbook)
+
     def test_default_project_is_precreated_deny_all(self) -> None:
         project = self.by_identity[("argoproj.io/v1alpha1", "AppProject", "argocd", "default")]
         spec = project["spec"]

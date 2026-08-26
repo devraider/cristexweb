@@ -15,5 +15,27 @@ metadata:
 data:
   admin.enabled: 'true'
   application.instanceLabelKey: argocd.argoproj.io/instance
+  resource.inclusions: |
+    - apiGroups:
+        - ''
+      kinds:
+        - ConfigMap
+        - Service
+        - ServiceAccount
+      clusters:
+        - https://kubernetes.default.svc
+    - apiGroups:
+        - apps
+      kinds:
+        - Deployment
+      clusters:
+        - https://kubernetes.default.svc
+    - apiGroups:
+        - networking.k8s.io
+      kinds:
+        - Ingress
+        - NetworkPolicy
+      clusters:
+        - https://kubernetes.default.svc
   resource.respectRBAC: 'strict'
   timeout.reconciliation: 180s

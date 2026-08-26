@@ -36,7 +36,10 @@ current_checkpoint: |
   was applied. The committed source-only correction now targets the direct in-cluster
   server; its fresh guarded three-step check/apply remains pending. A separately
   approved direct-server apply must restore `Synced/Healthy` before Argo reconciliation
-  is accepted. OIDC evidence is app-level smoke only: backend `200`,
+  is accepted. A separate source-only target-cache repair now binds the exact
+  `argocd-cm`, PROD controller Role read-only ServiceAccount rule, and
+  application-controller pod-template checksum/annotation; it has not run live.
+  OIDC evidence is app-level smoke only: backend `200`,
   oauth2-proxy `302`, and Celery readiness; full authenticated OIDC/CONNECT tests
   remain open. The exact source allowlist is `auth.cristex-soft.com:443` and
   `api.deepseek.com:443`. RabbitMQ is live for Celery, but the observed PROD

@@ -1,0 +1,9 @@
+---
+- name: One-time guarded Argo target-cache repair
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  collections:
+    - kubernetes.core
+  roles:
+    - role: argocd_target_cache_repair

@@ -24,8 +24,10 @@ spec:
     metadata:
       annotations:
         checksum/cmd-params: 719e10663b1773800849f9da2234f3544e4c368d6b3f5568026bd4f71f303278
-        checksum/cm: 7311652314f5f1ec5d55f2e282f2ad0189c91a93a9079c8947fb42be3b7fd21e
+        checksum/cm: bc167b1f4d2ccb20223c67bceb067459fed6a8057a6b4119aa0bd1dc9909c082
         checksum/cristexhub-dev-read-rbac: 23e8f7a228ebe53a9e7fde8ffc4ccf97dcb6a6dd433f70ed3b879e13d8558da1
+        checksum/cristexhub-prod-read-rbac: 9a12af899b86acdac58ad34ce707f8558d45dede27c4e362926c488be1fb44f9
+        cristex.io/target-cache-repair: v1
       labels:
         app.kubernetes.io/name: argocd-application-controller
         app.kubernetes.io/instance: argocd

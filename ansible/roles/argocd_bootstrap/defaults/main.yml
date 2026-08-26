@@ -44,7 +44,7 @@ argocd_bootstrap_expected_hashes:
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/config/appproject-default.yaml'
   sha256: a6231aae44f3c8fb7a6ef762e9a065798a711abcf9092e2db7d2e743954d34f8
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/config/configmap-argocd-cm.yaml'
-  sha256: 7311652314f5f1ec5d55f2e282f2ad0189c91a93a9079c8947fb42be3b7fd21e
+  sha256: bc167b1f4d2ccb20223c67bceb067459fed6a8057a6b4119aa0bd1dc9909c082
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/config/configmap-argocd-cmd-params-cm.yaml'
   sha256: bc61942f41cad5389fc58576c17fedacbe821c07e6e0cf552779d5078e1d911e
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/config/configmap-argocd-gpg-keys-cm.yaml'
@@ -104,7 +104,7 @@ argocd_bootstrap_expected_hashes:
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/runtime/service-argocd-server.yaml'
   sha256: 1c2042b5b9772f2a7c3d6c6efb90be04afb80acd2d86a6eca4e033d844bf691e
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/runtime/statefulset-argocd-application-controller.yaml'
-  sha256: 62e0512124d17cd01980893f4b3a63d7fda8bffdffbf8d939f13b366b2c4d208
+  sha256: aa96028f0ab939d68b26d393c98f7ce0f8ae2c5d14525753a4292679c372329e
 argocd_bootstrap_secret_contract:
   argocd-secret:
     type: Opaque

@@ -56,7 +56,7 @@ _EXPECTED_TASK_NAMES = {
     True: "Reconcile exact bounded PROD direct-server transition",
 }
 _EXPECTED_TASK_ACTION = "cristexhub_prod_registration_guarded_k8s"
-_ACTION_CANONICAL_SHA256 = "fa51786f639de1f9d92c14b380cdd8e9ac9edbb6af1f1f3d83d4006f19f3f14d"
+_ACTION_CANONICAL_SHA256 = "34dd5fe71ade9cc6cf2cdde0fdf8751ff48e1f21af7530d8e9e433a86a711470"
 _WRAPPER_CANONICAL_SHA256 = "3c01e867e7effa0a091fac46e6cbe855dd6b0cd30ae2f6341817df76fac55ee2"
 _TASK_SHA256 = "4efa9369d47aa70aaa8da088a531025f57bf62b5dede883ee1225e742758dd3e"
 _DEFAULTS_SHA256 = "0ca75dfa3eacdaecd14c98810a8a071a904538c7ca7528d6888aaebe4f5c2a57"
@@ -69,7 +69,7 @@ _SOURCE_CLOSURE_SHA256 = "2d0c1878f262b6ef95940f5a78b9f878d747ef8a19ea472799b7c4
 EXPECTED_SOURCE_CLOSURE_ENTRIES = [
     "cristexhub-prod=8bdd846ebe3d745a6abd9cd7eefaa8f9b1b3f9340e1910f1756736309c7b1467",
     "cristexhub-prod=81bf9a7e2c3bcfefc78540725a4b8f797eb34b037e693680504b33ac1a12f4a1",
-    "argocd-application-controller-cristexhub-prod=f5606f2b58299fb1ce67dab48273513e57dd0ca0613795f9d976b1509fd33977",
+    "argocd-application-controller-cristexhub-prod=9a12af899b86acdac58ad34ce707f8558d45dede27c4e362926c488be1fb44f9",
     "argocd-application-controller-cristexhub-prod=1957e9e7ab1cc9cbedf9ff70273cb6f5567eec41082300302bb17fecba6b37f5",
     "argocd-cluster-cristexhub-prod=c6b7534728865115014979ea4d6aeeedd9f28fc7ff415bad8795bcc1dfd75193",
 ]
@@ -304,7 +304,7 @@ def valid_transition_state(alias: Any, target: Any, transitional: Any) -> bool:
 
 EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-prod'): '4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2',
  ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-prod'): '29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1',
- ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'c40a189cdf4a3b864fae8bb64f06b0473aae2b47771f1c22ddf4a86f0f669fc4',
+ ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'b360dc15ff78580772e2d74c6720796865a6b9e4303033d1ad822880e0a493e5',
  ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'd0f0b78eb5960d368631b4d0ed9dd0371bacf19efa0e1c7ba01599d94bb75a83',
  ('v1', 'Secret', 'argocd', 'argocd-cluster-cristexhub-prod'): '80bb4f88a9f3436f8a61e02de206207d6822681fd1f005c64f21c507273a4e11'}
 

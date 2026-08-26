@@ -26,6 +26,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "argocd-candidate-provenance.md",
                 "argocd-cluster-cache-scope-transition.md",
                 "argocd-hardened-design.md",
+                "argocd-target-cache-repair.md",
                 "argocd-private-ui-route.md",
                 "argocd-release-selection.md",
                 "argocd-ui-tls-lifecycle.md",
