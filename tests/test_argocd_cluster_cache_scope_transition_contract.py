@@ -85,7 +85,7 @@ class ArgoClusterCacheScopeTransitionContractTests(unittest.TestCase):
         tasks = TASKS.read_text()
         self.assertIn("argocd_cluster_cache_secret_metadata:", tasks)
         self.assertIn("label_selector: 'argocd.argoproj.io/secret-type=cluster'", tasks)
-        self.assertIn("items | length == 3", tasks)
+        self.assertIn("internal_cluster_secret_inventory['items'] | length == 3", tasks)
         self.assertIn("item.stringData.keys() | list | sort", tasks)
         self.assertIn("map(attribute='apiVersion')", tasks)
 
