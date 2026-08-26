@@ -20,15 +20,44 @@ _EXPECTED_TASK_SOURCE = str(
 _EXPECTED_TASK_NAME = "Mark the complete guarded backup preflight"
 _EXPECTED_TASK_ACTION = "reactive_resume_dev_backup_entrypoint_guarded"
 _PLAYBOOK_SOURCE = _REPOSITORY_ROOT / "ansible/playbooks/configure_reactive_resume_dev_backup.yml"
-_PLAYBOOK_CANONICAL_SHA256 = "53eef18bc710c7329552fa073d72aa2fea0a8fa108f52e2dcfee380559cf4c5a"
+_PLAYBOOK_CANONICAL_SHA256 = "eb746490515b6be2604d40828eabb94cf94f67c999ec5f834c72d0e7bcc5b322"
 _EXPECTED_SOURCE_REGISTER = "reactive_resume_dev_backup_source_states"
 _SELF_SOURCE_SHA256 = "__SELF_SOURCE_SHA256__"
 _WRAPPER_SOURCE_SHA256 = "__WRAPPER_SOURCE_SHA256__"
+_CONTROLLER_SOURCE = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
+_CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
+_INVENTORY_SOURCE = _REPOSITORY_ROOT / "ansible/.ansible/inventory.local.yml"
+_INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
+_INVENTORY_BYTES = (
+    b"---\nall:\n  children:\n    k3s_servers:\n      hosts:\n"
+    b"        crtxweb:\n          ansible_connection: local\n"
+    b"          ansible_python_interpreter: /usr/bin/python3\n"
+    b"          ansible_user: paul\n"
+)
+_ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
+_STRATEGY_SHA256 = "852257239327e457e910980417e478ee28654d330df2ebeff88374ddb21c3e3c"
+_COLLECTION_MANIFEST_SOURCE = _REPOSITORY_ROOT / "ansible/.ansible/collections/ansible_collections/kubernetes/core/MANIFEST.json"
+_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
 _EXPECTED_SOURCE_RESULTS = (
     {
         "path": "ansible/bin/configure-reactive-resume-dev-backup",
         "mode": "0755",
         "sha256": _WRAPPER_SOURCE_SHA256,
+    },
+    {
+        "path": ".venv/bin/ansible-playbook",
+        "mode": "0755",
+        "sha256": _CONTROLLER_SHA256,
+    },
+    {
+        "path": "ansible/.ansible/inventory.local.yml",
+        "mode": "0600",
+        "sha256": _INVENTORY_SHA256,
+    },
+    {
+        "path": "ansible/.ansible/collections/ansible_collections/kubernetes/core/MANIFEST.json",
+        "mode": "0644",
+        "sha256": _COLLECTION_MANIFEST_SHA256,
     },
     {
         "path": "ansible/ansible.cfg",
@@ -38,7 +67,7 @@ _EXPECTED_SOURCE_RESULTS = (
     {
         "path": "ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py",
         "mode": "0644",
-        "sha256": "2878e72b0783deefcdb2fad49e518ff8b864d476d4ff6fa836c1a00fc17608e6",
+        "sha256": _STRATEGY_SHA256,
     },
     {
         "path": "ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py",
@@ -80,6 +109,13 @@ _EXPECTED_BINDING = {
     "source_register": _EXPECTED_SOURCE_REGISTER,
     "source_result_count": len(_EXPECTED_SOURCE_RESULTS),
     "source_contract_sha256": _SOURCE_CONTRACT_SHA256,
+    "controller_path": "/home/paul/projects/cristexweb/.venv/bin/ansible-playbook",
+    "controller_sha256": _CONTROLLER_SHA256,
+    "inventory_path": "/home/paul/projects/cristexweb/ansible/.ansible/inventory.local.yml",
+    "inventory_sha256": _INVENTORY_SHA256,
+    "ansible_config_sha256": _ANSIBLE_CONFIG_SHA256,
+    "strategy_sha256": _STRATEGY_SHA256,
+    "collection_manifest_sha256": _COLLECTION_MANIFEST_SHA256,
     "no_apply_path": True,
 }
 
@@ -99,6 +135,11 @@ def _canonical_playbook_sha256() -> str:
         lambda match: match.group(1) + ("0" * 64),
         text,
     )
+    text, immutable_hash_count = re.subn(
+        r"(?m)^(\s+- reactive_resume_dev_backup_(?:wrapper|playbook)_sha256 == ')[0-9a-f]{64}(')$",
+        lambda match: match.group(1) + ("0" * 64) + match.group(2),
+        text,
+    )
     dynamic_count = 0
     for source_path in (
         "ansible/bin/configure-reactive-resume-dev-backup",
@@ -115,9 +156,78 @@ def _canonical_playbook_sha256() -> str:
             text,
         )
         dynamic_count += count
-    if self_count != 1 or wrapper_variable_count != 1 or dynamic_count != 2:
+    if self_count != 1 or wrapper_variable_count != 1 or immutable_hash_count != 2 or dynamic_count != 2:
         return ""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _controller_contract() -> bool:
+    try:
+        state = _CONTROLLER_SOURCE.stat(follow_symlinks=False)
+        with _CONTROLLER_SOURCE.open("r", encoding="utf-8") as source:
+            first_line = source.readline().rstrip("\n")
+    except (OSError, UnicodeError):
+        return False
+    return (
+        stat.S_ISREG(state.st_mode)
+        and not stat.S_ISLNK(state.st_mode)
+        and state.st_uid == os.getuid()
+        and state.st_gid == os.getgid()
+        and stat.S_IMODE(state.st_mode) == 0o755
+        and hashlib.sha256(_CONTROLLER_SOURCE.read_bytes()).hexdigest() == _CONTROLLER_SHA256
+        and first_line == f"#!{_REPOSITORY_ROOT}/.venv/bin/python"
+    )
+
+
+def _inventory_contract() -> bool:
+    try:
+        state = _INVENTORY_SOURCE.stat(follow_symlinks=False)
+        return (
+            stat.S_ISREG(state.st_mode)
+            and not stat.S_ISLNK(state.st_mode)
+            and state.st_uid == os.getuid()
+            and state.st_gid == os.getgid()
+            and stat.S_IMODE(state.st_mode) == 0o600
+            and hashlib.sha256(_INVENTORY_SOURCE.read_bytes()).hexdigest() == _INVENTORY_SHA256
+            and _INVENTORY_SOURCE.read_bytes() == _INVENTORY_BYTES
+        )
+    except OSError:
+        return False
+
+
+def _runtime_binding_contract() -> bool:
+    return (
+        os.environ.get("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_CONTROLLER_PATH")
+        == str(_CONTROLLER_SOURCE)
+        and os.environ.get("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_CONTROLLER_SHA256")
+        == _CONTROLLER_SHA256
+        and os.environ.get("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_INVENTORY_PATH")
+        == str(_INVENTORY_SOURCE)
+        and os.environ.get("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_INVENTORY_SHA256")
+        == _INVENTORY_SHA256
+        and os.environ.get("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ANSIBLE_CONFIG_SHA256")
+        == _ANSIBLE_CONFIG_SHA256
+        and os.environ.get("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_STRATEGY_SHA256")
+        == _STRATEGY_SHA256
+        and os.environ.get("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_COLLECTION_MANIFEST_SHA256")
+        == _COLLECTION_MANIFEST_SHA256
+        and os.environ.get("ANSIBLE_CONFIG") == str(_REPOSITORY_ROOT / "ansible/ansible.cfg")
+        and not any(
+            key.startswith("ANSIBLE_") and key != "ANSIBLE_CONFIG"
+            for key in os.environ
+        )
+        and not any(
+            key in os.environ
+            for key in (
+                "PYTHONHOME",
+                "PYTHONPATH",
+                "PYTHONOPTIMIZE",
+                "PYTHONINSPECT",
+                "PYTHONBREAKPOINT",
+                "VIRTUAL_ENV",
+            )
+        )
+    )
 
 
 def _task_source(task: Any) -> str:
@@ -151,6 +261,7 @@ def _canonical_source_file_matches(expected: dict[str, str]) -> bool:
         stat.S_ISREG(state.st_mode)
         and not stat.S_ISLNK(state.st_mode)
         and state.st_uid == os.getuid()
+        and state.st_gid == os.getgid()
         and stat.S_IMODE(state.st_mode) == int(expected["mode"], 8)
         and digest == expected["sha256"]
     )
@@ -310,6 +421,9 @@ class ActionModule(ActionBase):
             and content == f"{token}:entrypoint\n"
             and valid_binding
             and _valid_source_states(source_states)
+            and _runtime_binding_contract()
+            and _controller_contract()
+            and _inventory_contract()
         )
         if not valid:
             return {

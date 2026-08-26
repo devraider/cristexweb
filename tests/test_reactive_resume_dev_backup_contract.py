@@ -143,6 +143,12 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "refusing backup playbook source drift",
             "verify_source()",
             "ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal",
+            "controller_expected=",
+            "inventory_expected=",
+            "collection_manifest_expected=",
+            "refusing inventory target or identity drift",
+            "refusing inherited controller or Ansible override",
+            "refusing traced shell execution",
         ):
             self.assertIn(value, WRAPPER.read_text())
         for value in (
@@ -158,6 +164,11 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "Execute backup operations only after the complete guarded preflight",
             "Execute backup post-checks only after the complete guarded preflight",
             "reactive_resume_dev_backup_internal_preflight_complete | default(false) | bool",
+            "Require immutable backup controller and source bindings",
+            "reactive_resume_dev_backup_controller_sha256:",
+            "reactive_resume_dev_backup_inventory_sha256:",
+            "reactive_resume_dev_backup_collection_manifest_sha256:",
+            "source_result_count: 12",
         ):
             self.assertIn(value, PLAYBOOK.read_text())
         self.assertIn("CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_TOKEN", WRAPPER.read_text())
@@ -175,6 +186,9 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             '_EXPECTED_TASK_SOURCE',
             'source_contract_sha256',
             'reactive_resume_dev_backup_internal_preflight_complete',
+            '_controller_contract()',
+            '_inventory_contract()',
+            '_runtime_binding_contract()',
         ):
             self.assertIn(value, guard)
 
@@ -339,15 +353,28 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
                 args={},
                 get_path=lambda: f"{module._EXPECTED_TASK_SOURCE}:123",
             )
-            with mock.patch.object(module.ActionBase, "run", return_value={}):
-                with mock.patch.dict(
+            with (
+                mock.patch.object(module.ActionBase, "run", return_value={}),
+                mock.patch.object(module, "_controller_contract", return_value=True),
+                mock.patch.object(module, "_inventory_contract", return_value=True),
+                mock.patch.object(module, "_canonical_source_file_matches", return_value=True),
+                mock.patch.dict(
                     os.environ,
                     {
+                        "ANSIBLE_CONFIG": str(ROOT / "ansible/ansible.cfg"),
+                        "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_CONTROLLER_PATH": str(module._CONTROLLER_SOURCE),
+                        "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_CONTROLLER_SHA256": module._CONTROLLER_SHA256,
+                        "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_INVENTORY_PATH": str(module._INVENTORY_SOURCE),
+                        "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_INVENTORY_SHA256": module._INVENTORY_SHA256,
+                        "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ANSIBLE_CONFIG_SHA256": module._ANSIBLE_CONFIG_SHA256,
+                        "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_STRATEGY_SHA256": module._STRATEGY_SHA256,
+                        "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_COLLECTION_MANIFEST_SHA256": module._COLLECTION_MANIFEST_SHA256,
                         "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_TOKEN": token,
                         "CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE": attestation.name,
                     },
-                    clear=False,
-                ):
+                    clear=True,
+                ),
+            ):
                     result = action.run(task_vars=task_vars)
                     self.assertFalse(result.get("failed"), result)
                     self.assertTrue(result["ansible_facts"]["reactive_resume_dev_backup_internal_preflight_complete"])
@@ -428,6 +455,53 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertTrue(result.get("failed"), result)
         self.assertIn("ENTRYPOINT_GUARD", result.get("msg", ""))
 
+    def test_wrapper_rejects_inherited_overrides_and_traced_execution(self):
+        overridden = os.environ.copy()
+        overridden["ANSIBLE_CONFIG"] = "/tmp/forged-ansible.cfg"
+        result = subprocess.run(
+            ["/bin/sh", str(WRAPPER), "check"],
+            capture_output=True,
+            text=True,
+            env=overridden,
+            check=False,
+        )
+        self.assertEqual(65, result.returncode)
+        self.assertIn("inherited controller or Ansible override", result.stderr)
+        traced = subprocess.run(
+            ["/bin/sh", "-x", str(WRAPPER), "check"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(65, traced.returncode)
+        self.assertIn("refusing traced shell execution", traced.stderr)
+
+    def test_strategy_rejects_noncanonical_inventory_and_extra_vars(self):
+        spec = importlib.util.spec_from_file_location("rr_backup_strategy_argv", STRATEGY_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        prefix = [
+            "ansible-playbook",
+            "-i",
+            str(module._INVENTORY_SOURCE),
+            str(ROOT / "ansible/playbooks/configure_reactive_resume_dev_backup.yml"),
+            "--diff",
+            "--limit",
+            "crtxweb",
+            "--ask-become-pass",
+            "--extra-vars",
+        ]
+        payload = '{"reactive_resume_dev_backup_approved":true,"reactive_resume_dev_backup_mode":"install","reactive_resume_dev_backup_repository_root":"' + str(module._REPOSITORY_ROOT) + '"}'
+        with mock.patch.object(module.sys, "argv", prefix + [payload]):
+            self.assertTrue(module._canonical_argv())
+        forged = '{"reactive_resume_dev_backup_approved":true,"reactive_resume_dev_backup_mode":"install","reactive_resume_dev_backup_repository_root":"/tmp/forged"}'
+        with mock.patch.object(module.sys, "argv", prefix + [forged]):
+            self.assertFalse(module._canonical_argv())
+        with mock.patch.object(module.sys, "argv", prefix[:-2] + ["--extra-vars", payload, "--become"]):
+            self.assertFalse(module._canonical_argv())
+
     def test_wrapper_playbook_and_source_hash_pins_are_current(self):
         wrapper = WRAPPER.read_text()
         wrapper_declared = re.search(
@@ -452,6 +526,11 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             r"(?m)^(    reactive_resume_dev_backup_playbook_sha256: )[0-9a-f]{64}$",
             lambda match: match.group(1) + ("0" * 64),
             playbook,
+        )
+        playbook_canonical = re.sub(
+            r"(?m)^(\s+- reactive_resume_dev_backup_(?:wrapper|playbook)_sha256 == ')[0-9a-f]{64}(')$",
+            lambda match: match.group(1) + ("0" * 64) + match.group(2),
+            playbook_canonical,
         )
         self.assertEqual(playbook_declared, hashlib.sha256(playbook_canonical.encode()).hexdigest())
         self.assertIn(f"reactive_resume_dev_backup_wrapper_sha256: {wrapper_declared}", playbook)

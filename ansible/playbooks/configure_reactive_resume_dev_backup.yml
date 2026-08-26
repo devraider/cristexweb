@@ -19,9 +19,16 @@
     reactive_resume_dev_backup_entrypoint_attestation: >-
       {{ lookup('ansible.builtin.env',
                 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE') | trim }}
-    reactive_resume_dev_backup_wrapper_sha256: daafb09b476a52390a2a8f5dc1d76921dedf1a31e483e44443ea36b743bae81d
-    reactive_resume_dev_backup_playbook_sha256: 91fc4f6f3f061cc2b01a5188c6be3caff85e2e050d95414e574c4d5d441086ef
+    reactive_resume_dev_backup_wrapper_sha256: fa11b5be83ec0b54d71bd8256618acfd6c00eec2227f381d4a9fc84804b1f062
+    reactive_resume_dev_backup_playbook_sha256: bc24f112bae6db14894bc5c1ee8df96f8dca18337e87e88d0c919690a058d6c0
     reactive_resume_dev_backup_source_contract_sha256: 45a6c12164e0d57c834b21792af85809c5a821396dcdd7ef91121c4b5cc27306
+    reactive_resume_dev_backup_controller_path: /home/paul/projects/cristexweb/.venv/bin/ansible-playbook
+    reactive_resume_dev_backup_controller_sha256: baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd
+    reactive_resume_dev_backup_inventory_path: /home/paul/projects/cristexweb/ansible/.ansible/inventory.local.yml
+    reactive_resume_dev_backup_inventory_sha256: 652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0
+    reactive_resume_dev_backup_ansible_config_sha256: 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9
+    reactive_resume_dev_backup_strategy_sha256: 852257239327e457e910980417e478ee28654d330df2ebeff88374ddb21c3e3c
+    reactive_resume_dev_backup_collection_manifest_sha256: dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df
     reactive_resume_dev_backup_restore_timeout_seconds: 14400
     reactive_resume_dev_backup_service: cristexweb-reactive-resume-dev-backup.service
     reactive_resume_dev_backup_timer: cristexweb-reactive-resume-dev-backup.timer
@@ -96,6 +103,23 @@
       changed_when: false
       no_log: true
 
+    - name: Require immutable backup controller and source bindings
+      ansible.builtin.assert:
+        that:
+          - reactive_resume_dev_backup_wrapper_sha256 == 'fa11b5be83ec0b54d71bd8256618acfd6c00eec2227f381d4a9fc84804b1f062'
+          - reactive_resume_dev_backup_playbook_sha256 == 'bc24f112bae6db14894bc5c1ee8df96f8dca18337e87e88d0c919690a058d6c0'
+          - reactive_resume_dev_backup_source_contract_sha256 == '45a6c12164e0d57c834b21792af85809c5a821396dcdd7ef91121c4b5cc27306'
+          - reactive_resume_dev_backup_controller_path == '/home/paul/projects/cristexweb/.venv/bin/ansible-playbook'
+          - reactive_resume_dev_backup_controller_sha256 == 'baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
+          - reactive_resume_dev_backup_inventory_path == '/home/paul/projects/cristexweb/ansible/.ansible/inventory.local.yml'
+          - reactive_resume_dev_backup_inventory_sha256 == '652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
+          - reactive_resume_dev_backup_ansible_config_sha256 == '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+          - reactive_resume_dev_backup_strategy_sha256 == '2878e72b0783deefcdb2fad49e518ff8b864d476d4ff6fa836c1a00fc17608e6'
+          - reactive_resume_dev_backup_collection_manifest_sha256 == 'dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df'
+        fail_msg: Refusing mutable backup controller, inventory, configuration, or source bindings.
+      changed_when: false
+      no_log: true
+
     - name: Inspect the private single-run backup entrypoint attestation
       ansible.builtin.stat:
         path: '{{ reactive_resume_dev_backup_entrypoint_attestation }}'
@@ -131,16 +155,25 @@
       loop:
         - path: ansible/bin/configure-reactive-resume-dev-backup
           mode: '0755'
-          sha256: 99993ffc4135fc8793900f352f9dc95e84574d3b93516677dd7f585946cf21ab
+          sha256: c70d9bc2f0e5a32624b689e51fafb87e8ce5e843c1b185824d183e8fe4871683
+        - path: .venv/bin/ansible-playbook
+          mode: '0755'
+          sha256: baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd
+        - path: ansible/.ansible/inventory.local.yml
+          mode: '0600'
+          sha256: 652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0
+        - path: ansible/.ansible/collections/ansible_collections/kubernetes/core/MANIFEST.json
+          mode: '0644'
+          sha256: dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df
         - path: ansible/ansible.cfg
           mode: '0644'
           sha256: 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9
         - path: ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py
           mode: '0644'
-          sha256: 2878e72b0783deefcdb2fad49e518ff8b864d476d4ff6fa836c1a00fc17608e6
+          sha256: 852257239327e457e910980417e478ee28654d330df2ebeff88374ddb21c3e3c
         - path: ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py
           mode: '0644'
-          sha256: 86f37c35e087c91b53aee7db35e962c6f86849ca4a39deb6b34f143af92faafd
+          sha256: ff418271895ea6f0224bb105ac8cbae9caf18d56ad2a34bf77a1a1afff8dddfb
         - path: ansible/files/backup/reactive-resume-dev-backup
           mode: '0755'
           sha256: 2a170cb9a26c1110398f7ed0f4ce605a6dd120de3787de0c83708f4cffa0111e
@@ -359,8 +392,15 @@
           task_name: Mark the complete guarded backup preflight
           task_action: reactive_resume_dev_backup_entrypoint_guarded
           source_register: reactive_resume_dev_backup_source_states
-          source_result_count: 9
+          source_result_count: 12
           source_contract_sha256: 45a6c12164e0d57c834b21792af85809c5a821396dcdd7ef91121c4b5cc27306
+          controller_path: /home/paul/projects/cristexweb/.venv/bin/ansible-playbook
+          controller_sha256: baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd
+          inventory_path: /home/paul/projects/cristexweb/ansible/.ansible/inventory.local.yml
+          inventory_sha256: 652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0
+          ansible_config_sha256: 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9
+          strategy_sha256: 852257239327e457e910980417e478ee28654d330df2ebeff88374ddb21c3e3c
+          collection_manifest_sha256: dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df
           no_apply_path: true
       changed_when: false
       no_log: true

@@ -1,6 +1,18 @@
 #!/bin/sh
 set -eu
 
+case $- in
+  *x*|*v*)
+    printf '%s\n' 'refusing traced shell execution' >&2
+    exit 65
+    ;;
+esac
+if ! /usr/bin/env | /usr/bin/awk -F= \
+  '/^(ANSIBLE_|PYTHONHOME=|PYTHONPATH=|PYTHONOPTIMIZE=|PYTHONINSPECT=|PYTHONBREAKPOINT=|VIRTUAL_ENV=)/ { found = 1 } END { exit found }'; then
+  printf '%s\n' 'refusing inherited controller or Ansible override' >&2
+  exit 65
+fi
+
 usage='usage: ansible/bin/configure-reactive-resume-dev-backup check|apply|test|restore|enable-check|enable-apply'
 if [ "$#" -ne 1 ]; then
   printf '%s\n%s\n' "$usage" 'refusing passthrough arguments or task selection' >&2
@@ -25,15 +37,21 @@ repository_root="$(CDPATH= cd -- "$script_directory/../.." && pwd -P)"
 }
 script_path="$repository_root/ansible/bin/configure-reactive-resume-dev-backup"
 controller="$repository_root/.venv/bin/ansible-playbook"
+inventory="$repository_root/ansible/.ansible/inventory.local.yml"
+ansible_config="$repository_root/ansible/ansible.cfg"
+collection_manifest="$repository_root/ansible/.ansible/collections/ansible_collections/kubernetes/core/MANIFEST.json"
+controller_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
+inventory_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
+collection_manifest_expected='dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df'
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || {
   printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2
   exit 69
 }
 # The self hash replaces this literal with zeros before hashing, so changing
 # any wrapper logic or closure pin fails without creating a circular digest.
-reactive_resume_dev_backup_wrapper_sha256='daafb09b476a52390a2a8f5dc1d76921dedf1a31e483e44443ea36b743bae81d'
+reactive_resume_dev_backup_wrapper_sha256='fa11b5be83ec0b54d71bd8256618acfd6c00eec2227f381d4a9fc84804b1f062'
 canonical_sha256() {
-  /usr/bin/python3 - "$1" <<'PY'
+  /usr/bin/python3 -I - "$1" <<'PY'
 import hashlib
 import re
 import sys
@@ -46,16 +64,25 @@ text, count = re.subn(
     text,
 )
 if path.endswith("configure_reactive_resume_dev_backup.yml"):
-    assert count == 0
+    if count != 0:
+        raise SystemExit(69)
 else:
-    assert count == 1
+    if count != 1:
+        raise SystemExit(69)
 text, count = re.subn(
     r"(?m)^(    reactive_resume_dev_backup_playbook_sha256: )[0-9a-f]{64}$",
     lambda match: match.group(1) + ("0" * 64),
     text,
 )
-if path.endswith("configure_reactive_resume_dev_backup.yml"):
-    assert count == 1
+if path.endswith("configure_reactive_resume_dev_backup.yml") and count != 1:
+    raise SystemExit(69)
+text, immutable_count = re.subn(
+    r"(?m)^(\s+- reactive_resume_dev_backup_(?:wrapper|playbook)_sha256 == ')[0-9a-f]{64}(')$",
+    lambda match: match.group(1) + ("0" * 64) + match.group(2),
+    text,
+)
+if path.endswith("configure_reactive_resume_dev_backup.yml") and immutable_count != 2:
+    raise SystemExit(69)
 print(hashlib.sha256(text.encode("utf-8")).hexdigest())
 PY
 }
@@ -80,9 +107,35 @@ verify_source() {
   [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_path")" = "paul:paul:$source_mode" ] || exit 69
   [ "$(/usr/bin/sha256sum "$source_path" | /usr/bin/cut -d ' ' -f 1)" = "$source_sha256" ] || exit 69
 }
-verify_source "$repository_root/ansible/ansible.cfg" 644 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9
-verify_source "$repository_root/ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py" 644 2878e72b0783deefcdb2fad49e518ff8b864d476d4ff6fa836c1a00fc17608e6
-verify_source "$repository_root/ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py" 644 86f37c35e087c91b53aee7db35e962c6f86849ca4a39deb6b34f143af92faafd
+verify_source "$ansible_config" 644 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9
+verify_source "$repository_root/ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py" 644 852257239327e457e910980417e478ee28654d330df2ebeff88374ddb21c3e3c
+verify_source "$repository_root/ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py" 644 ff418271895ea6f0224bb105ac8cbae9caf18d56ad2a34bf77a1a1afff8dddfb
+verify_source "$controller" 755 "$controller_expected"
+verify_source "$inventory" 600 "$inventory_expected"
+verify_source "$collection_manifest" 644 "$collection_manifest_expected"
+[ "$(/usr/bin/head -n 1 "$controller")" = "#!$repository_root/.venv/bin/python" ] || {
+  printf '%s\n' 'refusing an Ansible controller outside the pinned project interpreter' >&2
+  exit 69
+}
+/usr/bin/grep -Eq '"version"[[:space:]]*:[[:space:]]*"6\.1\.0"' "$collection_manifest" || {
+  printf '%s\n' 'refusing an unpinned kubernetes.core collection' >&2
+  exit 69
+}
+/usr/bin/awk '
+  NR == 1 { ok = ($0 == "---") }
+  NR == 2 { ok = ok && ($0 == "all:") }
+  NR == 3 { ok = ok && ($0 == "  children:") }
+  NR == 4 { ok = ok && ($0 == "    k3s_servers:") }
+  NR == 5 { ok = ok && ($0 == "      hosts:") }
+  NR == 6 { ok = ok && ($0 == "        crtxweb:") }
+  NR == 7 { ok = ok && ($0 == "          ansible_connection: local") }
+  NR == 8 { ok = ok && ($0 == "          ansible_python_interpreter: /usr/bin/python3") }
+  NR == 9 { ok = ok && ($0 == "          ansible_user: paul") }
+  END { exit !(ok && NR == 9) }
+' "$inventory" || {
+  printf '%s\n' 'refusing inventory target or identity drift' >&2
+  exit 69
+}
 verify_source "$repository_root/ansible/files/backup/reactive-resume-dev-backup" 755 2a170cb9a26c1110398f7ed0f4ce605a6dd120de3787de0c83708f4cffa0111e
 verify_source "$repository_root/ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal" 755 dc205d8fc6b56d6b98a66358a1c69f68f5fb070e11061815217015d571dfc696
 verify_source "$repository_root/ansible/files/backup/cristexweb-reactive-resume-dev-backup.service" 644 cd1a1cf09646d6675ebdefba085735755c00e229f1a21ae1d2a5ab2c196dbae2
@@ -100,18 +153,25 @@ entrypoint_attestation=$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-re
 entrypoint_token=$(/usr/bin/openssl rand -hex 32)
 printf '%s:entrypoint\n' "$entrypoint_token" >"$entrypoint_attestation"
 /usr/bin/chmod 0600 "$entrypoint_attestation"
-set -- "$controller" -i .ansible/inventory.local.yml \
-  playbooks/configure_reactive_resume_dev_backup.yml --diff --limit crtxweb \
+set -- "$controller" -i "$inventory" \
+  "$playbook" --diff --limit crtxweb \
   --ask-become-pass \
   --extra-vars "{\"reactive_resume_dev_backup_approved\":true,\"reactive_resume_dev_backup_mode\":\"$mode\",\"reactive_resume_dev_backup_repository_root\":\"$repository_root\"}"
 [ "$check_mode" = false ] || set -- "$@" --check
 if [ "$mode" = restore ]; then
   /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 \
-    ANSIBLE_CONFIG="$PWD/ansible.cfg" \
+    ANSIBLE_CONFIG="$ansible_config" \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT=v1 \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_REPOSITORY_ROOT="$repository_root" \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_TOKEN="$entrypoint_token" \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE="$entrypoint_attestation" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_CONTROLLER_PATH="$controller" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_CONTROLLER_SHA256="$controller_expected" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_INVENTORY_PATH="$inventory" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_INVENTORY_SHA256="$inventory_expected" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ANSIBLE_CONFIG_SHA256="4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_STRATEGY_SHA256="852257239327e457e910980417e478ee28654d330df2ebeff88374ddb21c3e3c" \
+    CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_COLLECTION_MANIFEST_SHA256="$collection_manifest_expected" \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ENTRYPOINT="${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ENTRYPOINT-}" \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_APPROVED="${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_APPROVED-}" \
     CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ATTESTATION_FILE="${CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_RESTORE_ATTESTATION_FILE-}" \
@@ -120,9 +180,16 @@ if [ "$mode" = restore ]; then
   exit $?
 fi
 /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 \
-  ANSIBLE_CONFIG="$PWD/ansible.cfg" \
+  ANSIBLE_CONFIG="$ansible_config" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT=v1 \
   CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_REPOSITORY_ROOT="$repository_root" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_TOKEN="$entrypoint_token" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE="$entrypoint_attestation" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_CONTROLLER_PATH="$controller" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_CONTROLLER_SHA256="$controller_expected" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_INVENTORY_PATH="$inventory" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_INVENTORY_SHA256="$inventory_expected" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ANSIBLE_CONFIG_SHA256="4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_STRATEGY_SHA256="852257239327e457e910980417e478ee28654d330df2ebeff88374ddb21c3e3c" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_COLLECTION_MANIFEST_SHA256="$collection_manifest_expected" \
   "$@"
