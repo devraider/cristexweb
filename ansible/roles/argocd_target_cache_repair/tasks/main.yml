@@ -767,3 +767,4 @@
     fail_msg: Refusing stale, aliased, drifted, or unhealthy PROD Application poststate.
   changed_when: false
   no_log: true
+  when: not ansible_check_mode
