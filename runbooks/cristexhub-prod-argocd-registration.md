@@ -1,178 +1,110 @@
 # CristexHub PROD Argo registration and private activation
 
-Status: **SOURCE FIX READY / HISTORICAL REGISTRATION APPLIED / LIVE STATUS UNKNOWN / RECONCILIATION APPLY PENDING / PUBLIC ROUTE PENDING**.
+Status: **SOURCE DIRECT-SERVER READY / ONE-TIME ALIAS TRANSITION PENDING / PUBLIC ROUTE PENDING**.
 
-The historical five-object closure remains present and the private PROD
-workloads are currently Ready at the pinned revision, but the live Argo
-Application is `Unknown/Missing` with a ComparisonError because the old
-server-based destination does not resolve the scoped cluster registration. The
-committed source now targets the exact `cristexhub-prod-local` cluster alias;
-that correction is source-only until a separately approved registration apply.
-The guarded live apply must restore `Synced/Healthy` and fails closed while the
-Application remains `Unknown`. This source change does not create the Namespace,
-own application Secret values, publish images, change databases, or add the
-Cloudflare route.
+The canonical PROD registration source now uses the in-cluster Kubernetes API
+server directly. The separate cache-scope lane must first complete the exact
+three-Secret namespace-scope transition. This registration lane then accepts
+only the already-existing PROD five-object closure and performs the bounded
+alias-to-direct-server repair. It does not inspect or reconcile DEV or Reactive Resume registration objects, does not create a Namespace, and never changes Secret values.
 
-## One-time legacy destination transition
+## Canonical five-object closure
 
-The first alias correction is deliberately a one-time, two-object, three-step
-transition. The guarded role permits only the existing `Application` and
-`AppProject` when both live objects still match the previously committed
-server-destination manifests byte-for-byte at the canonical spec level, retain
-the exact Ansible ownership labels/empty owner and finalizer sets, and carry the
-pinned live UIDs `e2016a99-2c4f-4e2e-ac28-0640cafa2a8e` (`Application`) and
-`6c04c48c-7d71-46c3-b4d0-7fc9f437f5d6` (`AppProject`). The pinned legacy manifest
-hashes are `29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1`
-(Application) and `4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2`
-(AppProject). A changed UID, any extra ownership metadata, or any foreign/extra
-drift fails closed. The exact all-legacy sequence is: (1) update only the
-AppProject to a temporary destination set containing exactly the old server and
-`cristexhub-prod-local`, (2) update only the Application to the alias, and (3)
-tighten the AppProject to the alias-only destination. A sequential apply conflict
-may leave exactly one object at the target alias and the other at the exact
-legacy or temporary spec; that exact mixed recovery pair is the only recovery
-state and
-update only the remaining step. The three other registration objects remain exact
-present-only objects and are never part of this transition.
-
-Check mode performs only read-only API GETs and predicts the exact three-step
-plan for the all-legacy state; it does not invoke a Kubernetes writer. Apply is a
-separately approved mutation. Each apply step dispatches only through the guarded
-`kubernetes.core.k8s_json_patch` action and sends an RFC 6902 patch containing:
-`test /metadata/uid`, `test /spec` against the complete exact prior spec, and one
-`replace` of `/spec/destination` or `/spec/destinations`. The patch contains no
-`metadata.resourceVersion`, status, retry, or blind-read/modify/write operation;
-status-only Argo churn therefore cannot create a false conflict. A UID/spec test
-failure is an API-level conflict and fails closed without retry. The next guarded
-run classifies the exact temporary or mixed state and executes only the remaining
-steps. A replacement, missing object, pair state other than exact
-legacy/temporary/final, or metadata key outside the exact server-generated set
-fails closed. No temporary AppProject destination widens namespace or resource
-whitelists. No delete, prune, sync, Namespace, workload, or public-route operation
-is included.
-
-## Exact source
-
-The Argo `Application` is pinned to the reviewed protected-main CristexHub
-revision `751885a42798d282e168131db147f13694a0a621`, repository
-`ssh://git@ssh.github.com:443/devraider/cristexhub.git`, and path
-`infra/kubernetes/cristexhub-prod`. Branch names, tags, and floating revisions
-are refused.
-
-The exact five-object registration closure is keyed by unique
-`apiVersion|kind|namespace|name` identities:
+The source contains exactly these Ansible-owned objects:
 
 1. `argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod`;
 2. `argoproj.io/v1alpha1|Application|argocd|cristexhub-prod`;
-3. `rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod`;
-4. `rbac.authorization.k8s.io/v1|RoleBinding|cristexhub-prod|argocd-application-controller-cristexhub-prod`;
+3. the namespaced PROD controller `Role`;
+4. its namespaced `RoleBinding`;
 5. `v1|Secret|argocd|argocd-cluster-cristexhub-prod`.
 
-The cluster Secret is value-free registration metadata for the in-cluster API.
-Its `namespaces` field is the exact comma-delimited Argo allowlist
-`cristexhub-dev,cristexhub-prod`; it has `clusterResources=false` and contains no
-token, password, kubeconfig, or private key. The shared allowlist prevents the
-same-server Argo cluster cache from selecting a narrower registration Secret,
-while this PROD AppProject and namespaced Role still permit only
-`cristexhub-prod`. The owner wrapper accepts the previous exact
-`namespaces=cristexhub-prod` Secret only as the bounded pre-state: `check`
-predicts its replacement, `apply` reconciles the shared allowlist, and apply
-post-validation re-reads the Secret and requires the exact five-object closure.
-The separate Infisical-owned `argocd-repository-cristexhub` Secret remains the only private Git credential;
-the guarded role validates only its metadata closure.
+The cluster Secret is value-free registration metadata. Its server is
+`https://kubernetes.default.svc`, its exact namespace allowlist is
+`cristexhub-dev,cristexhub-prod`, `clusterResources` is `false`, and `config`
+is `{}`. The cache-scope transition is a separate one-time lane that updates
+all three same-server cluster Secrets. This PROD lane requires the shared PROD
+Secret scope and refuses the old single-namespace value, preventing a partial
+cache repair from being silently overwritten.
 
-## Fail-closed registration
+The final Application is pinned to repository
+`ssh://git@ssh.github.com:443/devraider/cristexhub.git`, path
+`infra/kubernetes/cristexhub-prod`, and revision
+`751885a42798d282e168131db147f13694a0a621`. Its destination is exactly
+`server: https://kubernetes.default.svc` and `namespace: cristexhub-prod`.
+Its automated policy is `selfHeal=true`, `prune=false`, `allowEmpty=false`,
+with `CreateNamespace=false`, `Prune=false`, `Replace=false`, and
+`FailOnSharedResource=true`. The final AppProject permits only that server and
+namespace, has no cluster-resource whitelist, and permits only the reviewed
+ConfigMap, Service, Deployment, NetworkPolicy, and Ingress kinds.
+
+## One-time alias-to-direct-server transition
 
 `ansible/bin/bootstrap-cristexhub-prod-registration check|apply` is the only
-entrypoint. It pins `/home/paul/projects/cristexweb`, rejects symlinked entrypoint
-or controller paths, and uses the project `.venv`, an empty allowlisted environment,
-`--diff`, one inventory host, and a private one-run attestation that is removed
-when Ansible exits. Cancellation terminates the isolated controller process
-group, waits with a bounded TERM-to-KILL escalation, removes the attestation,
-and returns a signal-specific nonzero status.
-The role checks:
+registration entrypoint. After the cache-scope lane, the exact expected
+pre-state is the existing alias form:
 
-- the protected regular root:`k3s-admin` mode-`0640` kubeconfig;
-- the exact precreated and labelled `cristexhub-prod` Namespace;
-- the exact Infisical-owned Argo repository credential metadata;
-- raw manifest hashes and exact object count;
-- absence of foreign objects, extra data, annotations, finalizers, metadata keys,
-  or drifted fields at the five target identities;
-- exact five-object UID/resourceVersion/generation prestate binding with unique
-  identities and immediate re-query; transition JSON patches independently test
-  UID and the complete prior spec, without sending resourceVersion/status fields;
-- exact non-transition mutation results for the three unchanged registration objects,
-  plus the alias transition result: three bounded steps for all-legacy, only remaining
-  steps for exact mixed recovery, or zero when already final;
-- deletion/grace-period and owner/finalizer refusal;
-- managedFields are checked only structurally when the API returns them (a list
-  with non-empty manager fields), and no manager ownership/provenance claim is
-  made because this k3s API may omit managedFields;
-- the exact `cristexhub-prod-local` cluster-alias destination and automated non-pruning Application policy;
-- after live apply, a fresh post-wait query bound to the same UID/generation and pinned
-  sync revision, followed by `Synced/Healthy` assertions; check mode remains
-  read-only and plans the patch steps without dispatching a writer.
+- AppProject destinations: only `name: cristexhub-prod-local` with
+  `namespace: cristexhub-prod`;
+- Application destination: `name: cristexhub-prod-local`, empty `server`, and
+  `namespace: cristexhub-prod`.
 
-The action plugin accepts only the canonical role task, exact present-only
-objects, exact hashes, complete preflight binding, and wrapper attestation. It
-has no delete path. The controller operating-system user remains a trusted
-boundary: because that user owns the repository and Ansible process, source
-cannot cryptographically distinguish the wrapper from a deliberately reproduced
-canonical invocation. Human approval, reviewed source, and controller access
-therefore remain mandatory rather than being replaced by the attestation.
+The guarded transition is exactly three ordered JSON Patch operations:
 
-The AppProject permits only ConfigMaps, Services, Deployments, NetworkPolicies,
-and Ingresses in `cristexhub-prod`. It permits no Namespace, Secret, PVC, RBAC,
-or cluster-scoped application object. Controller RBAC is namespaced and has no
-`delete` verb.
+1. replace only AppProject `/spec/destinations` with the exact temporary list
+   containing the direct server and the alias, both for `cristexhub-prod`;
+2. replace only Application `/spec/destination` with the direct server while
+   preserving its exact source and non-pruning sync policy;
+3. replace only AppProject `/spec/destinations` with the direct-server-only
+   list.
 
-The active Application source uses the exact `cristexhub-prod-local` cluster
-alias with `server: ''`, `selfHeal=true`, `prune=false`, `allowEmpty=false`,
-`CreateNamespace=false`, `ServerSideApply=false`, `Replace=false`, and
-`FailOnSharedResource=true`. The AppProject accepts only that alias and the
-`cristexhub-prod` Namespace; it does not add a second destination.
+Each patch tests the immutable live UID and complete exact preceding `spec`
+first. A failed test is a conflict and stops without retrying or widening the
+operation. The accepted mixed recovery states are only:
 
-## Current registration/reconciliation status and remaining acceptance gates
+- alias AppProject + alias Application: all three steps;
+- temporary AppProject + alias Application: steps two and three;
+- temporary AppProject + direct Application: step three;
+- direct AppProject + direct Application: no steps (idempotent).
 
-The historical registration objects, Secret materialization, and private
-workload readiness remain observed, but the current Application status is
-`Unknown/Missing` until the alias correction is separately applied. The
-private workload sync transition is therefore not currently accepted. The
-corrected guarded apply must prove `Synced/Healthy` before this registration is
-again treated as reconciled. The following dependency gates remain observed or
-open:
+A final AppProject with an alias Application, an alias AppProject with a direct
+Application, a changed UID, metadata drift, a foreign spec, or any missing or
+extra object fails closed. The patch contains no delete, prune, sync,
+`resourceVersion`, status, workload, DEV, or Reactive Resume operation.
 
-- exact-main image promotion with immutable backend, frontend, and Keycloak
-  evidence; current source publication governance remains a separate gate;
-- separately approved Infisical Operator PROD watch/RBAC/admission expansion;
-- Universal Auth and exact `cristexhub-prod-runtime` plus
-  `cristexhub-prod-ghcr-pull` materialization;
-- runtime engine/connectivity evidence for PostgreSQL, MongoDB, RabbitMQ, and Redis
-  PROD consumers; this does not prove logical database authorization, cross-access
-  negatives, backup/restore, or production scope acceptance. MongoDB private ingress
-  isolation is still blocked by its NetworkPolicy gap;
-- exact Keycloak `cristexhub-prod` client reconciliation plus app-level OIDC smoke;
-  authenticated login/callback and live CONNECT positive/negative tests remain open;
-- private workload readiness and Argo sync transition.
+## Guard and post-validation
 
-Public cutover remains blocked by the MongoDB NetworkPolicy apply/enforcement probe,
-exposed MongoDB/RabbitMQ/GHCR/DeepSeek credential rotations, RabbitMQ identity and
-permission reconciliation, complete OIDC/CONNECT validation, and finally a protected
-DNS-capable Cloudflare credential plus exact two-change plan/apply.
+The wrapper rejects passthrough arguments, task-selection controls, symlinked
+paths, non-canonical repositories, and non-canonical source hashes. It runs the
+pinned project controller against only `crtxweb`, with `--diff`, a clean
+allowlisted environment, and a single-use `0600` attestation that is removed on
+exit. The role binds all five live UIDs, resourceVersions, generations, exact
+metadata, and ownership before any write. It reconciles only the three
+unchanged PROD support objects; the two transition objects are dispatched
+through `kubernetes.core.k8s_json_patch`.
+
+Check mode performs only read-only GETs and predicts the exact remaining
+transition steps. Apply is a separately approved mutation. After the transition
+it waits for a fresh PROD Application to become `Synced/Healthy`, then checks
+same-UID post-state, the pinned revision, direct-server
+`status.comparedTo.destination.server` and namespace, exact final AppProject
+and Application specs, no-prune policy, and unchanged support objects.
+
+No Cloudflare route or public DNS record is part of this lane. Public cutover
+remains blocked by the independent state-import, credential-rotation,
+NetworkPolicy, recovery, provider-authorization, and private acceptance gates.
 
 ## Offline validation
 
 ```bash
-.venv/bin/python -m unittest -v tests.test_cristexhub_prod_registration_contract
-.venv/bin/python -m compileall -q ansible/plugins/action tests
+/home/paul/projects/cristexweb/.venv/bin/python -m unittest -v tests.test_cristexhub_prod_registration_contract
+/home/paul/projects/cristexweb/.venv/bin/python -m compileall -q ansible/plugins/action tests
 sh -n ansible/bin/bootstrap-cristexhub-prod-registration
 sh -n tests/reject_cristexhub_prod_registration_resource_version.sh
 tests/reject_cristexhub_prod_registration_resource_version.sh
 cd ansible && ../.venv/bin/ansible-playbook playbooks/bootstrap_cristexhub_prod_registration.yml --syntax-check
 ```
 
-Expected result: these offline checks pass without mutation. They validate the
-alias-based source and guarded post-check only; they do not change the live
-`Unknown/Missing` Application status. A separately approved registration apply
-must restore and revalidate `Synced/Healthy`; no provider or Cloudflare route
-mutation is performed by these offline commands.
+These checks are source-only. They do not apply the transition, change Argo
+state, create Secrets, or alter the public route. A separately approved apply
+must be run only after the cache-scope check/apply and must record a fresh
+`Synced/Healthy` post-state.

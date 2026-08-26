@@ -25,19 +25,19 @@ TRANSITION_ARGS = {"transition", "state", "kubeconfig", "project_definition", "a
 EXPECTED_REPOSITORY_ROOT = "/home/paul/projects/cristexweb"
 TASK_SUFFIX = "/ansible/roles/cristexhub_prod_registration/tasks/main.yml"
 EXPECTED_CLUSTER_NAMESPACES = "cristexhub-dev,cristexhub-prod"
-LEGACY_TRANSITION_UIDS = {
+ALIAS_TRANSITION_UIDS = {
     "Application": "e2016a99-2c4f-4e2e-ac28-0640cafa2a8e",
     "AppProject": "6c04c48c-7d71-46c3-b4d0-7fc9f437f5d6",
 }
-LEGACY_TRANSITION_SPEC_HASHES = {
-    "Application": "efcaa04cff588189490810ec3dc2d799e9d09d9deb2e6ce45475d61f75021c34",
-    "AppProject": "7b51035757a7684cffb823339379e7fd3d80ada29a51a3bdc205b2f4b30027bf",
+ALIAS_TRANSITION_SPEC_HASHES = {
+    "Application": "9029099765f684eefcb75d1304064e94e690718d5af9f7e80b783e4bc577408e",
+    "AppProject": "59cd297c33dd12a0063cded64e132e77e70dcd2b3bebee2dd207686a2d9ab239",
 }
-LEGACY_TRANSITION_MANIFEST_HASHES = {
-    "Application": "29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1",
-    "AppProject": "4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2",
+ALIAS_TRANSITION_MANIFEST_HASHES = {
+    "Application": "107356ed772eec987ab8c4f19b05b2ebb5a84ddf21bd0f483044e434084a8c5a",
+    "AppProject": "113dcb263ec958430385b802e387658cd0f71b58751768b3a7ab5ffbb348b61b",
 }
-LEGACY_TRANSITION_METADATA_HASH = "a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30"
+ALIAS_TRANSITION_METADATA_HASH = "a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30"
 EXPECTED_IDENTITIES = {
     "argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod",
     "argoproj.io/v1alpha1|Application|argocd|cristexhub-prod",
@@ -57,18 +57,19 @@ def _valid_transition_kinds(value: Any) -> bool:
     )
 
 
-def valid_transition_pair(legacy: Any, target: Any) -> bool:
-    if not _valid_transition_kinds(legacy) or not _valid_transition_kinds(target):
+def valid_transition_pair(alias: Any, target: Any) -> bool:
+    """Validate the two complete endpoint sets used by the transition."""
+    if not _valid_transition_kinds(alias) or not _valid_transition_kinds(target):
         return False
-    if set(legacy) & set(target) or set(legacy) | set(target) != TRANSITION_KINDS:
+    if set(alias) & set(target) or set(alias) | set(target) != TRANSITION_KINDS:
         return False
-    return (len(legacy), len(target)) in {(2, 0), (1, 1), (0, 2)}
+    return (len(alias), len(target)) in {(2, 0), (1, 1), (0, 2)}
 
 
-def valid_transition_state(legacy: Any, target: Any, transitional: Any) -> bool:
-    if not all(_valid_transition_kinds(value) for value in (legacy, target, transitional)):
+def valid_transition_state(alias: Any, target: Any, transitional: Any) -> bool:
+    if not all(_valid_transition_kinds(value) for value in (alias, target, transitional)):
         return False
-    sets = [set(legacy), set(target), set(transitional)]
+    sets = [set(alias), set(target), set(transitional)]
     if any(left & right for index, left in enumerate(sets) for right in sets[index + 1:]):
         return False
     if set().union(*sets) != TRANSITION_KINDS:
@@ -79,11 +80,11 @@ def valid_transition_state(legacy: Any, target: Any, transitional: Any) -> bool:
         ((), ('Application',), ('AppProject',)),
         ((), ('AppProject', 'Application'), ()),
     }
-    return (tuple(sorted(legacy)), tuple(sorted(target)), tuple(sorted(transitional))) in allowed
+    return (tuple(sorted(alias)), tuple(sorted(target)), tuple(sorted(transitional))) in allowed
 
 
-EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-prod'): '113dcb263ec958430385b802e387658cd0f71b58751768b3a7ab5ffbb348b61b',
- ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-prod'): '107356ed772eec987ab8c4f19b05b2ebb5a84ddf21bd0f483044e434084a8c5a',
+EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'cristexhub-prod'): '4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2',
+ ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-prod'): '29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1',
  ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'c40a189cdf4a3b864fae8bb64f06b0473aae2b47771f1c22ddf4a86f0f669fc4',
  ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'd0f0b78eb5960d368631b4d0ed9dd0371bacf19efa0e1c7ba01599d94bb75a83',
  ('v1', 'Secret', 'argocd', 'argocd-cluster-cristexhub-prod'): '80bb4f88a9f3436f8a61e02de206207d6822681fd1f005c64f21c507273a4e11'}
@@ -166,7 +167,7 @@ def _transition_application_spec() -> dict[str, Any]:
             "targetRevision": _TRANSITION_REVISION,
             "path": "infra/kubernetes/cristexhub-prod",
         },
-        "destination": {"name": _TRANSITION_ALIAS, "server": "", "namespace": _TRANSITION_NAMESPACE},
+        "destination": {"server": _TRANSITION_OLD_SERVER, "namespace": _TRANSITION_NAMESPACE},
         "syncPolicy": {
             "automated": {"prune": False, "selfHeal": True, "allowEmpty": False},
             "syncOptions": [
@@ -180,18 +181,21 @@ def _transition_application_spec() -> dict[str, Any]:
     }
 
 
-_TRANSITION_FINAL_PROJECT_SPEC = _transition_project_spec([{"name": _TRANSITION_ALIAS, "namespace": _TRANSITION_NAMESPACE}])
+# The final source is direct-server. The alias forms are accepted only as the
+# bounded pre-state after the cache-scope transition, and the temporary
+# project form is the sole bridge that keeps the Application authorized.
+_TRANSITION_FINAL_PROJECT_SPEC = _transition_project_spec([{"server": _TRANSITION_OLD_SERVER, "namespace": _TRANSITION_NAMESPACE}])
 _TRANSITION_TEMP_PROJECT_SPEC = _transition_project_spec([
     {"server": _TRANSITION_OLD_SERVER, "namespace": _TRANSITION_NAMESPACE},
     {"name": _TRANSITION_ALIAS, "namespace": _TRANSITION_NAMESPACE},
 ])
-_TRANSITION_LEGACY_PROJECT_SPEC = _transition_project_spec([{"server": _TRANSITION_OLD_SERVER, "namespace": _TRANSITION_NAMESPACE}])
+_TRANSITION_ALIAS_PROJECT_SPEC = _transition_project_spec([{"name": _TRANSITION_ALIAS, "namespace": _TRANSITION_NAMESPACE}])
 _TRANSITION_FINAL_APPLICATION_SPEC = _transition_application_spec()
-_TRANSITION_LEGACY_APPLICATION_SPEC = copy.deepcopy(_TRANSITION_FINAL_APPLICATION_SPEC)
-_TRANSITION_LEGACY_APPLICATION_SPEC["destination"] = {"server": _TRANSITION_OLD_SERVER, "namespace": _TRANSITION_NAMESPACE}
+_TRANSITION_ALIAS_APPLICATION_SPEC = copy.deepcopy(_TRANSITION_FINAL_APPLICATION_SPEC)
+_TRANSITION_ALIAS_APPLICATION_SPEC["destination"] = {"name": _TRANSITION_ALIAS, "server": "", "namespace": _TRANSITION_NAMESPACE}
 _TRANSITION_UIDS = {
-    "AppProject": LEGACY_TRANSITION_UIDS["AppProject"],
-    "Application": LEGACY_TRANSITION_UIDS["Application"],
+    "AppProject": ALIAS_TRANSITION_UIDS["AppProject"],
+    "Application": ALIAS_TRANSITION_UIDS["Application"],
 }
 
 
@@ -219,15 +223,23 @@ def _transition_classify(project: dict[str, Any], application: dict[str, Any]) -
     project_state = (
         "final" if project_spec == _TRANSITION_FINAL_PROJECT_SPEC else
         "transition" if project_spec == _TRANSITION_TEMP_PROJECT_SPEC else
-        "legacy" if project_spec == _TRANSITION_LEGACY_PROJECT_SPEC else None
+        "alias" if project_spec == _TRANSITION_ALIAS_PROJECT_SPEC else None
     )
     application_state = (
         "final" if application_spec == _TRANSITION_FINAL_APPLICATION_SPEC else
-        "legacy" if application_spec == _TRANSITION_LEGACY_APPLICATION_SPEC else None
+        "alias" if application_spec == _TRANSITION_ALIAS_APPLICATION_SPEC else None
     )
     if project_state is None or application_state is None:
-        raise ValueError("transition object scope is not an exact legacy, transitional, or final form")
-    if (project_state, application_state) in {("legacy", "final"), ("final", "legacy")}:
+        raise ValueError("transition object scope is not an exact alias, transitional, or final form")
+    # Only states reachable by the ordered three-step plan are accepted. In
+    # particular, a final project with an alias Application is unsafe because
+    # the alias would no longer be authorized by the project.
+    if (project_state, application_state) not in {
+        ("alias", "alias"),
+        ("transition", "alias"),
+        ("transition", "final"),
+        ("final", "final"),
+    }:
         raise ValueError("unsafe mixed transition state")
     return project_state, application_state
 
@@ -236,9 +248,9 @@ def _transition_plan(project_state: str, application_state: str) -> list[str]:
     states = (project_state, application_state)
     if states == ("final", "final"):
         return []
-    if states == ("legacy", "legacy"):
+    if states == ("alias", "alias"):
         return ["AppProject:transition", "Application:final", "AppProject:final"]
-    if states == ("transition", "legacy"):
+    if states == ("transition", "alias"):
         return ["Application:final", "AppProject:final"]
     if states == ("transition", "final"):
         return ["AppProject:final"]
@@ -264,16 +276,16 @@ def _transition_prestate_objects(prestate: Any) -> tuple[dict[str, Any], dict[st
 
 def _transition_patch(kind: str, target: str) -> list[dict[str, Any]]:
     if kind == "AppProject" and target == "transition":
-        expected = _TRANSITION_LEGACY_PROJECT_SPEC
+        expected = _TRANSITION_ALIAS_PROJECT_SPEC
         destination = _TRANSITION_TEMP_PROJECT_SPEC["destinations"]
     elif kind == "Application" and target == "final":
-        expected = _TRANSITION_LEGACY_APPLICATION_SPEC
+        expected = _TRANSITION_ALIAS_APPLICATION_SPEC
         destination = _TRANSITION_FINAL_APPLICATION_SPEC["destination"]
     elif kind == "AppProject" and target == "final":
         expected = _TRANSITION_TEMP_PROJECT_SPEC
         destination = _TRANSITION_FINAL_PROJECT_SPEC["destinations"]
     else:
-        raise ValueError("unsupported alias transition patch")
+        raise ValueError("unsupported direct-server transition patch")
     destination_path = "/spec/destinations" if kind == "AppProject" else "/spec/destination"
     return [
         {"op": "test", "path": "/metadata/uid", "value": _TRANSITION_UIDS[kind]},
@@ -308,11 +320,11 @@ def _dispatch_transition_patch(self: Any, tmp: str | None, task_vars: dict[str, 
         self._task.action, self._task.args = original_action, original_args
 
 
-def run_alias_transition(self: Any, tmp: str | None, task_vars: dict[str, Any], project_definition: dict[str, Any], application_definition: dict[str, Any], check_mode: bool) -> dict[str, Any]:
+def run_direct_server_transition(self: Any, tmp: str | None, task_vars: dict[str, Any], project_definition: dict[str, Any], application_definition: dict[str, Any], check_mode: bool) -> dict[str, Any]:
     if object_identity(project_definition) != _transition_identity("AppProject") or object_identity(application_definition) != _transition_identity("Application"):
         raise ValueError("exact AppProject/Application identities required")
     if project_definition.get("spec") != _TRANSITION_FINAL_PROJECT_SPEC or application_definition.get("spec") != _TRANSITION_FINAL_APPLICATION_SPEC:
-        raise ValueError("final transition definitions drifted")
+        raise ValueError("direct-server final definitions drifted")
     prestate = task_vars.get("cristexhub_prod_registration_internal_prestate_recheck") if not check_mode else None
     if not isinstance(prestate, dict):
         prestate = task_vars.get("cristexhub_prod_registration_internal_prestate")
@@ -353,10 +365,10 @@ class ActionModule(KubernetesActionModule):
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: non-canonical registration task source"}
         if transition_mode:
             if set(args) != TRANSITION_ARGS or args.get("state") != "present" or args.get("kubeconfig") != "/etc/rancher/k3s/k3s.yaml":
-                return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: refusing alias transition arguments"}
+                return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: refusing direct-server transition arguments"}
             application_definition = args.get("application_definition")
             if not isinstance(definition, dict) or not isinstance(application_definition, dict):
-                return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: alias transition definitions are required"}
+                return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: direct-server transition definitions are required"}
             if canonical(definition) != EXPECTED_HASHES[("argoproj.io/v1alpha1", "AppProject", "argocd", "cristexhub-prod")]:
                 return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: drifted AppProject transition definition"}
             if canonical(application_definition) != EXPECTED_HASHES[("argoproj.io/v1alpha1", "Application", "argocd", "cristexhub-prod")]:
@@ -400,14 +412,14 @@ class ActionModule(KubernetesActionModule):
                 "namespace_contract",
                 "repository_contract",
                 "revision",
-                "legacy_transition_kinds",
+                "alias_transition_kinds",
                 "target_transition_kinds",
                 "transitional_transition_kinds",
-                "legacy_transition_change_count",
-                "legacy_transition_uids",
-                "legacy_transition_spec_hashes",
-                "legacy_transition_manifest_hashes",
-                "legacy_transition_metadata_hash",
+                "alias_transition_change_count",
+                "alias_transition_uids",
+                "alias_transition_spec_hashes",
+                "alias_transition_manifest_hashes",
+                "alias_transition_metadata_hash",
                 "prestate_object_count",
                 "prestate_bindings",
                 "transition_change_count",
@@ -426,17 +438,17 @@ class ActionModule(KubernetesActionModule):
             and strict_true(binding.get("repository_contract"))
             and binding.get("revision") == "751885a42798d282e168131db147f13694a0a621"
             and valid_transition_state(
-                binding.get("legacy_transition_kinds"),
+                binding.get("alias_transition_kinds"),
                 binding.get("target_transition_kinds"),
                 binding.get("transitional_transition_kinds"),
             )
             and isinstance(binding.get("transitional_transition_kinds"), list)
             and binding.get("transitional_transition_kinds") in ([], ["AppProject"])
-            and str(binding.get("legacy_transition_change_count")) == str(len(binding.get("legacy_transition_kinds")))
-            and binding.get("legacy_transition_uids") == LEGACY_TRANSITION_UIDS
-            and binding.get("legacy_transition_spec_hashes") == LEGACY_TRANSITION_SPEC_HASHES
-            and binding.get("legacy_transition_manifest_hashes") == LEGACY_TRANSITION_MANIFEST_HASHES
-            and binding.get("legacy_transition_metadata_hash") == LEGACY_TRANSITION_METADATA_HASH
+            and str(binding.get("alias_transition_change_count")) == str(len(binding.get("alias_transition_kinds")))
+            and binding.get("alias_transition_uids") == ALIAS_TRANSITION_UIDS
+            and binding.get("alias_transition_spec_hashes") == ALIAS_TRANSITION_SPEC_HASHES
+            and binding.get("alias_transition_manifest_hashes") == ALIAS_TRANSITION_MANIFEST_HASHES
+            and binding.get("alias_transition_metadata_hash") == ALIAS_TRANSITION_METADATA_HASH
             and str(binding.get("prestate_object_count")) == "5"
             and isinstance(binding.get("prestate_bindings"), list)
             and len(binding.get("prestate_bindings")) == 5
@@ -475,7 +487,7 @@ class ActionModule(KubernetesActionModule):
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: registration requires the guarded attestation and complete preflight binding"}
         if transition_mode:
             try:
-                return run_alias_transition(
+                return run_direct_server_transition(
                     self,
                     tmp,
                     task_vars,

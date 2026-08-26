@@ -12,7 +12,7 @@ spec:
   sourceRepos:
     - ssh://git@ssh.github.com:443/devraider/cristexhub.git
   destinations:
-    - name: cristexhub-prod-local
+    - server: https://kubernetes.default.svc
       namespace: cristexhub-prod
   clusterResourceWhitelist: []
   namespaceResourceWhitelist:

@@ -10,7 +10,7 @@
     - cristexhub_prod_registration_internal_argocd_namespace
     - cristexhub_prod_registration_internal_kubeconfig_state
     - cristexhub_prod_registration_internal_preflight_binding
-    - cristexhub_prod_registration_internal_legacy_transition_candidates
+    - cristexhub_prod_registration_internal_alias_transition_candidates
     - cristexhub_prod_registration_internal_target_transition_candidates
     - cristexhub_prod_registration_internal_transitional_transition_candidates
     - cristexhub_prod_registration_internal_alias_transition_plan
@@ -45,46 +45,50 @@
       - cristexhub_prod_registration_path == 'infra/kubernetes/cristexhub-prod'
       - cristexhub_prod_registration_cluster_namespaces == 'cristexhub-dev,cristexhub-prod'
       - cristexhub_prod_registration_cluster_namespaces.split(',') == ['cristexhub-dev', 'cristexhub-prod']
-      - cristexhub_prod_registration_legacy_transition_object_count == 2
+      - cristexhub_prod_registration_alias_transition_object_count == 2
       - >-
         cristexhub_prod_registration_transition_specs.AppProject |
         to_json(sort_keys=True, separators=(',', ':')) | hash('sha256') ==
         '1a05a11396770bbf579d4c3efffb90dfef802bd6f64e5d3946f3992ce071b1f6'
       - >-
-        cristexhub_prod_registration_legacy_transition_specs.Application |
+        cristexhub_prod_registration_alias_transition_specs.Application |
         to_json(sort_keys=True, separators=(',', ':')) | hash('sha256') ==
-        'efcaa04cff588189490810ec3dc2d799e9d09d9deb2e6ce45475d61f75021c34'
+        '9029099765f684eefcb75d1304064e94e690718d5af9f7e80b783e4bc577408e'
       - >-
-        cristexhub_prod_registration_legacy_transition_specs.AppProject |
+        cristexhub_prod_registration_alias_transition_specs.AppProject |
         to_json(sort_keys=True, separators=(',', ':')) | hash('sha256') ==
-        '7b51035757a7684cffb823339379e7fd3d80ada29a51a3bdc205b2f4b30027bf'
+        '59cd297c33dd12a0063cded64e132e77e70dcd2b3bebee2dd207686a2d9ab239'
       - >-
-        cristexhub_prod_registration_legacy_transition_spec_hashes.Application ==
-        (cristexhub_prod_registration_legacy_transition_specs.Application |
+        cristexhub_prod_registration_alias_transition_spec_hashes.Application ==
+        (cristexhub_prod_registration_alias_transition_specs.Application |
         to_json(sort_keys=True, separators=(',', ':')) | hash('sha256'))
       - >-
-        cristexhub_prod_registration_legacy_transition_spec_hashes.AppProject ==
-        (cristexhub_prod_registration_legacy_transition_specs.AppProject |
+        cristexhub_prod_registration_alias_transition_spec_hashes.AppProject ==
+        (cristexhub_prod_registration_alias_transition_specs.AppProject |
         to_json(sort_keys=True, separators=(',', ':')) | hash('sha256'))
       - >-
-        cristexhub_prod_registration_legacy_transition_uids ==
+        cristexhub_prod_registration_alias_transition_uids ==
         {'Application': 'e2016a99-2c4f-4e2e-ac28-0640cafa2a8e',
         'AppProject': '6c04c48c-7d71-46c3-b4d0-7fc9f437f5d6'}
       - >-
-        cristexhub_prod_registration_legacy_transition_spec_hashes ==
-        {'Application': 'efcaa04cff588189490810ec3dc2d799e9d09d9deb2e6ce45475d61f75021c34',
-        'AppProject': '7b51035757a7684cffb823339379e7fd3d80ada29a51a3bdc205b2f4b30027bf'}
+        cristexhub_prod_registration_alias_transition_spec_hashes ==
+        {'Application': '9029099765f684eefcb75d1304064e94e690718d5af9f7e80b783e4bc577408e',
+        'AppProject': '59cd297c33dd12a0063cded64e132e77e70dcd2b3bebee2dd207686a2d9ab239'}
       - >-
-        cristexhub_prod_registration_legacy_transition_manifest_hashes ==
-        {'Application': '29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1',
-        'AppProject': '4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2'}
+        cristexhub_prod_registration_alias_transition_manifest_hashes ==
+        {'Application': '2850c9c53ffb983f4a6ec43c3c787bfa5605312c1c0fe9ebd8df98e3045d7741',
+        'AppProject': '9e75e23f9c24b0280ca3d00c4e815b8517a94ba77a0e78feff061542a1e7b8a5'}
       - >-
-        cristexhub_prod_registration_legacy_transition_metadata_hash ==
+        cristexhub_prod_registration_alias_transition_metadata_hash ==
         'a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30'
-      - cristexhub_prod_registration_legacy_transition_specs.Application.destination.server == 'https://kubernetes.default.svc'
+      - cristexhub_prod_registration_alias_transition_specs.Application.destination.name == 'cristexhub-prod-local'
+      - cristexhub_prod_registration_alias_transition_specs.Application.destination.server == ''
       - >-
-        cristexhub_prod_registration_legacy_transition_specs.AppProject.destinations ==
-        [{'server': 'https://kubernetes.default.svc', 'namespace': 'cristexhub-prod'}]
+        cristexhub_prod_registration_alias_transition_specs.AppProject.destinations ==
+        [{'name': 'cristexhub-prod-local', 'namespace': 'cristexhub-prod'}]
+      - cristexhub_prod_registration_transition_specs.AppProject.destinations ==
+        [{'server': 'https://kubernetes.default.svc', 'namespace': 'cristexhub-prod'},
+        {'name': 'cristexhub-prod-local', 'namespace': 'cristexhub-prod'}]
     fail_msg: Refusing unapproved or non-canonical CristexHub PROD registration.
   changed_when: false
 - name: Inspect exact k3s administrator kubeconfig boundary
@@ -332,15 +336,15 @@
   changed_when: false
   no_log: true
 
-- name: Record exact legacy-to-alias transition candidates
+- name: Record exact alias-to-direct-server transition candidates
   ansible.builtin.set_fact:
-    cristexhub_prod_registration_internal_legacy_transition_candidates: >-
-      {{ (cristexhub_prod_registration_internal_legacy_transition_candidates | default([])) +
+    cristexhub_prod_registration_internal_alias_transition_candidates: >-
+      {{ (cristexhub_prod_registration_internal_alias_transition_candidates | default([])) +
       ([item.item.kind] if
       (item.resources | length == 1 and
        item.item.kind in ['Application', 'AppProject'] and
-       item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids[item.item.kind] and
-       item.resources[0].spec == cristexhub_prod_registration_legacy_transition_specs[item.item.kind])
+       item.resources[0].metadata.uid == cristexhub_prod_registration_alias_transition_uids[item.item.kind] and
+       item.resources[0].spec == cristexhub_prod_registration_alias_transition_specs[item.item.kind])
       else []) }}
   loop: '{{ cristexhub_prod_registration_internal_prestate.results }}'
   changed_when: false
@@ -353,7 +357,7 @@
       ([item.item.kind] if
       (item.resources | length == 1 and
        item.item.kind in ['Application', 'AppProject'] and
-       item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids[item.item.kind] and
+       item.resources[0].metadata.uid == cristexhub_prod_registration_alias_transition_uids[item.item.kind] and
        item.resources[0].spec == item.item.spec)
       else []) }}
   loop: '{{ cristexhub_prod_registration_internal_prestate.results }}'
@@ -367,64 +371,64 @@
       ([item.item.kind] if
       (item.resources | length == 1 and
        item.item.kind == 'AppProject' and
-       item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids.AppProject and
+       item.resources[0].metadata.uid == cristexhub_prod_registration_alias_transition_uids.AppProject and
        item.resources[0].spec == cristexhub_prod_registration_transition_specs.AppProject)
       else []) }}
   loop: '{{ cristexhub_prod_registration_internal_prestate.results }}'
   changed_when: false
   no_log: true
 
-- name: Reject partial or duplicate legacy-to-alias transitions
+- name: Reject partial or duplicate alias-to-direct-server transitions
   ansible.builtin.assert:
     that:
-      - cristexhub_prod_registration_legacy_transition_object_count == 2
+      - cristexhub_prod_registration_alias_transition_object_count == 2
       - >-
-        cristexhub_prod_registration_internal_legacy_transition_candidates | sort in
+        cristexhub_prod_registration_internal_alias_transition_candidates | sort in
         [[], ['AppProject'], ['Application'], ['Application', 'AppProject']]
       - >-
         cristexhub_prod_registration_internal_target_transition_candidates | sort in
         [[], ['AppProject'], ['Application'], ['Application', 'AppProject']]
       - >-
-        (cristexhub_prod_registration_internal_legacy_transition_candidates |
+        (cristexhub_prod_registration_internal_alias_transition_candidates |
         union(cristexhub_prod_registration_internal_target_transition_candidates) |
         union(cristexhub_prod_registration_internal_transitional_transition_candidates) |
         unique | sort) == ['Application', 'AppProject']
       - >-
-        cristexhub_prod_registration_internal_legacy_transition_candidates | intersect(
+        cristexhub_prod_registration_internal_alias_transition_candidates | intersect(
         cristexhub_prod_registration_internal_target_transition_candidates) | length == 0
       - >-
-        cristexhub_prod_registration_internal_legacy_transition_candidates | intersect(
+        cristexhub_prod_registration_internal_alias_transition_candidates | intersect(
         cristexhub_prod_registration_internal_transitional_transition_candidates) | length == 0
       - >-
         cristexhub_prod_registration_internal_target_transition_candidates | intersect(
         cristexhub_prod_registration_internal_transitional_transition_candidates) | length == 0
       - >-
-        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 2 and
+        (cristexhub_prod_registration_internal_alias_transition_candidates | length == 2 and
         cristexhub_prod_registration_internal_target_transition_candidates | length == 0 and
         cristexhub_prod_registration_internal_transitional_transition_candidates | length == 0) or
-        (cristexhub_prod_registration_internal_legacy_transition_candidates | sort == ['Application'] and
+        (cristexhub_prod_registration_internal_alias_transition_candidates | sort == ['Application'] and
         cristexhub_prod_registration_internal_target_transition_candidates | length == 0 and
         cristexhub_prod_registration_internal_transitional_transition_candidates == ['AppProject']) or
-        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 0 and
+        (cristexhub_prod_registration_internal_alias_transition_candidates | length == 0 and
         cristexhub_prod_registration_internal_target_transition_candidates == ['Application'] and
         cristexhub_prod_registration_internal_transitional_transition_candidates == ['AppProject']) or
-        (cristexhub_prod_registration_internal_legacy_transition_candidates | length == 0 and
+        (cristexhub_prod_registration_internal_alias_transition_candidates | length == 0 and
         cristexhub_prod_registration_internal_target_transition_candidates | sort == ['Application', 'AppProject'] and
         cristexhub_prod_registration_internal_transitional_transition_candidates | length == 0)
     fail_msg: >-
-      Refusing a partial, foreign, or unrecognized legacy-to-alias transition;
+      Refusing a partial, foreign, or unrecognized alias-to-direct-server transition;
       only the exact three-step plan or its bounded recovery states are accepted.
   changed_when: false
   no_log: true
 
-- name: Plan exact three-step alias transition
+- name: Plan exact three-step direct-server transition
   ansible.builtin.set_fact:
     cristexhub_prod_registration_internal_alias_transition_plan: >-
       {{
-      (['AppProject:transition'] if 'AppProject' in cristexhub_prod_registration_internal_legacy_transition_candidates else []) +
-      (['Application:final'] if 'Application' in cristexhub_prod_registration_internal_legacy_transition_candidates else []) +
+      (['AppProject:transition'] if 'AppProject' in cristexhub_prod_registration_internal_alias_transition_candidates else []) +
+      (['Application:final'] if 'Application' in cristexhub_prod_registration_internal_alias_transition_candidates else []) +
       (['AppProject:final'] if
-      ('AppProject' in cristexhub_prod_registration_internal_legacy_transition_candidates or
+      ('AppProject' in cristexhub_prod_registration_internal_alias_transition_candidates or
        'AppProject' in cristexhub_prod_registration_internal_transitional_transition_candidates) else [])
       }}
   changed_when: false
@@ -481,14 +485,14 @@
       - >-
         item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject'] or
         item.resources[0].spec == item.item.spec or
-        (item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids[item.item.kind] and
-        item.resources[0].spec == cristexhub_prod_registration_legacy_transition_specs[item.item.kind]) or
+        (item.resources[0].metadata.uid == cristexhub_prod_registration_alias_transition_uids[item.item.kind] and
+        item.resources[0].spec == cristexhub_prod_registration_alias_transition_specs[item.item.kind]) or
         (item.item.kind == 'AppProject' and
-        item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids.AppProject and
+        item.resources[0].metadata.uid == cristexhub_prod_registration_alias_transition_uids.AppProject and
         item.resources[0].spec == cristexhub_prod_registration_transition_specs.AppProject)
       - >-
         item.resources | length == 0 or item.item.kind not in ['Application', 'AppProject'] or
-        item.resources[0].metadata.uid == cristexhub_prod_registration_legacy_transition_uids[item.item.kind]
+        item.resources[0].metadata.uid == cristexhub_prod_registration_alias_transition_uids[item.item.kind]
       - >-
         item.resources | length == 0 or item.item.kind != 'Role' or
         item.resources[0].rules == item.item.rules
@@ -501,8 +505,8 @@
         (item.resources[0].data | default({})).keys() | list | sort == ['clusterResources', 'config', 'name', 'namespaces', 'server'] and
         item.resources[0].data.name | b64decode == 'cristexhub-prod-local' and
         item.resources[0].data.server | b64decode == 'https://kubernetes.default.svc' and
-        item.resources[0].data.namespaces | b64decode in
-        ['cristexhub-prod', cristexhub_prod_registration_cluster_namespaces] and
+        item.resources[0].data.namespaces | b64decode ==
+        cristexhub_prod_registration_cluster_namespaces and
         item.resources[0].data.clusterResources | b64decode == 'false' and
         item.resources[0].data.config | b64decode == '{}' and
         (item.resources[0].binaryData | default({}) | length) == 0 and
@@ -524,14 +528,14 @@
       namespace_contract: "{{ cristexhub_prod_registration_internal_namespace.resources | length == 1 }}"
       repository_contract: "{{ cristexhub_prod_registration_internal_repository_secret.resources | length == 1 }}"
       revision: '{{ cristexhub_prod_registration_revision }}'
-      legacy_transition_kinds: "{{ cristexhub_prod_registration_internal_legacy_transition_candidates | sort }}"
+      alias_transition_kinds: "{{ cristexhub_prod_registration_internal_alias_transition_candidates | sort }}"
       target_transition_kinds: "{{ cristexhub_prod_registration_internal_target_transition_candidates | sort }}"
       transitional_transition_kinds: "{{ cristexhub_prod_registration_internal_transitional_transition_candidates | sort }}"
-      legacy_transition_change_count: "{{ cristexhub_prod_registration_internal_legacy_transition_candidates | length }}"
-      legacy_transition_uids: "{{ cristexhub_prod_registration_legacy_transition_uids }}"
-      legacy_transition_spec_hashes: "{{ cristexhub_prod_registration_legacy_transition_spec_hashes }}"
-      legacy_transition_manifest_hashes: "{{ cristexhub_prod_registration_legacy_transition_manifest_hashes }}"
-      legacy_transition_metadata_hash: '{{ cristexhub_prod_registration_legacy_transition_metadata_hash }}'
+      alias_transition_change_count: "{{ cristexhub_prod_registration_internal_alias_transition_candidates | length }}"
+      alias_transition_uids: "{{ cristexhub_prod_registration_alias_transition_uids }}"
+      alias_transition_spec_hashes: "{{ cristexhub_prod_registration_alias_transition_spec_hashes }}"
+      alias_transition_manifest_hashes: "{{ cristexhub_prod_registration_alias_transition_manifest_hashes }}"
+      alias_transition_metadata_hash: '{{ cristexhub_prod_registration_alias_transition_metadata_hash }}'
       no_delete_path: true
       prestate_object_count: "{{ cristexhub_prod_registration_internal_prestate_bindings | length }}"
       prestate_bindings: "{{ cristexhub_prod_registration_internal_prestate_bindings }}"
@@ -630,15 +634,9 @@
   no_log: true
   when: not ansible_check_mode
 
-- name: Derive exact expected changed registration identities
+- name: Bind unchanged non-transition mutation expectation
   ansible.builtin.set_fact:
-    cristexhub_prod_registration_internal_expected_changed_identities: >-
-      {{
-      (['argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod']
-      if 'AppProject' in cristexhub_prod_registration_internal_legacy_transition_candidates else []) +
-      (['argoproj.io/v1alpha1|Application|argocd|cristexhub-prod']
-      if 'Application' in cristexhub_prod_registration_internal_legacy_transition_candidates else [])
-      }}
+    cristexhub_prod_registration_internal_expected_changed_identities: []
   changed_when: false
   no_log: true
   when: not ansible_check_mode
@@ -651,13 +649,14 @@
         cristexhub_prod_registration_internal_mutation_changed_identities |
         unique | list | length ==
         cristexhub_prod_registration_internal_mutation_changed_identities | length
-      - cristexhub_prod_registration_internal_mutation_changed_identities | length == 0
+      - cristexhub_prod_registration_internal_mutation_changed_identities ==
+        cristexhub_prod_registration_internal_expected_changed_identities
     fail_msg: Refusing registration mutation with an unexpected non-transition changed identity or count.
   changed_when: false
   no_log: true
   when: not ansible_check_mode
 
-- name: Reconcile exact bounded PROD alias transition
+- name: Reconcile exact bounded PROD direct-server transition
   cristexhub_prod_registration_guarded_k8s:
     transition: true
     state: present
@@ -672,13 +671,13 @@
   changed_when: cristexhub_prod_registration_internal_alias_transition.changed | default(false) | bool
   no_log: true
 
-- name: Require exact bounded PROD alias transition result
+- name: Require exact bounded PROD direct-server transition result
   ansible.builtin.assert:
     that:
       - cristexhub_prod_registration_internal_alias_transition.failed | default(false) | bool == false
       - cristexhub_prod_registration_internal_alias_transition.transition_change_count | int in [0, 1, 2, 3]
       - cristexhub_prod_registration_internal_alias_transition.transition_steps is sequence
-    fail_msg: Refusing an unbounded or incomplete PROD alias transition result.
+    fail_msg: Refusing an unbounded or incomplete PROD direct-server transition result.
   changed_when: false
   no_log: true
 
@@ -752,10 +751,20 @@
       - cristexhub_prod_registration_internal_finalstate.status.sync.revision |
         default('') == cristexhub_prod_registration_revision
       - >-
+        cristexhub_prod_registration_internal_finalstate.status.comparedTo.destination.server |
+        default('') == 'https://kubernetes.default.svc'
+      - >-
+        cristexhub_prod_registration_internal_finalstate.status.comparedTo.destination.namespace |
+        default('') == 'cristexhub-prod'
+      - >-
+        cristexhub_prod_registration_internal_finalstate.status.comparedTo.destination.name |
+        default('') == ''
+      - >-
         (cristexhub_prod_registration_internal_finalstate.metadata.generation | default(0) | int) ==
         (((cristexhub_prod_registration_internal_prestate_bindings |
         selectattr('kind', 'equalto', 'Application') | first).generation | int) +
-        (1 if 'Application' in cristexhub_prod_registration_internal_legacy_transition_candidates else 0))
+        (cristexhub_prod_registration_internal_alias_transition_plan |
+        select('match', '^Application:') | list | length))
     fail_msg: Refusing PROD registration while the fresh live Argo Application is not the waited-for Synced and Healthy revision.
 
   changed_when: false
@@ -774,7 +783,8 @@
       - >-
         (item.resources[0].metadata.generation | default(0) | int) ==
         ((cristexhub_prod_registration_internal_prestate_bindings[poststate_index].generation | int) +
-        (1 if item.item.kind in cristexhub_prod_registration_internal_legacy_transition_candidates else 0))
+        (cristexhub_prod_registration_internal_alias_transition_plan |
+        select('match', '^' ~ item.item.kind ~ ':') | list | length))
       - item.resources[0].metadata.labels == item.item.metadata.labels
       - >-
         (item.resources[0].metadata.keys() | list |
@@ -809,6 +819,10 @@
         selectattr('item.kind', 'equalto', 'Application') | first).resources[0].spec ==
         (cristexhub_prod_registration_internal_poststate.results |
         selectattr('item.kind', 'equalto', 'Application') | first).item.spec
+      - >-
+        (cristexhub_prod_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Application') | first).resources[0].spec.destination ==
+        {'server': 'https://kubernetes.default.svc', 'namespace': 'cristexhub-prod'}
       - >-
         (cristexhub_prod_registration_internal_poststate.results |
         selectattr('item.kind', 'equalto', 'Application') | first).resources[0].spec.syncPolicy.automated ==

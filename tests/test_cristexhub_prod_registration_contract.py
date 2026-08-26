@@ -64,7 +64,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         )
         self.assertEqual(["cristexhub-dev", "cristexhub-prod"], cluster["stringData"]["namespaces"].split(","))
 
-    def test_application_is_exact_revision_and_automated_without_prune(self) -> None:
+    def test_application_is_exact_revision_direct_server_and_automated_without_prune(self) -> None:
         application = next(manifest for manifest in objects() if manifest["kind"] == "Application")
         self.assertEqual(
             {
@@ -76,8 +76,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "name": "cristexhub-prod-local",
-                "server": "",
+                "server": "https://kubernetes.default.svc",
                 "namespace": "cristexhub-prod",
             },
             application["spec"]["destination"],
@@ -99,12 +98,12 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         )
         self.assertEqual([], application["metadata"].get("finalizers", []))
 
-    def test_project_is_namespaced_least_privilege_for_exact_cluster_alias(self) -> None:
+    def test_project_is_namespaced_least_privilege_for_direct_server(self) -> None:
         project = next(manifest for manifest in objects() if manifest["kind"] == "AppProject")
         spec = project["spec"]
         self.assertEqual([], spec["clusterResourceWhitelist"])
         self.assertEqual(
-            [{"name": "cristexhub-prod-local", "namespace": "cristexhub-prod"}],
+            [{"server": "https://kubernetes.default.svc", "namespace": "cristexhub-prod"}],
             spec["destinations"],
         )
         self.assertEqual(
@@ -148,15 +147,15 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             self.assertIn(canonical(manifest), plugin)
         self.assertIn(REVISION, defaults["cristexhub_prod_registration_revision"])
 
-    def test_legacy_alias_transition_is_exactly_two_object_scoped_and_hash_bound(self) -> None:
+    def test_alias_to_direct_server_transition_is_exactly_two_object_scoped_and_hash_bound(self) -> None:
         defaults = yaml.safe_load(DEFAULTS.read_text())
-        self.assertEqual(2, defaults["cristexhub_prod_registration_legacy_transition_object_count"])
-        self.assertEqual({"Application", "AppProject"}, set(defaults["cristexhub_prod_registration_legacy_transition_uids"]))
-        for kind, uid in defaults["cristexhub_prod_registration_legacy_transition_uids"].items():
+        self.assertEqual(2, defaults["cristexhub_prod_registration_alias_transition_object_count"])
+        self.assertEqual({"Application", "AppProject"}, set(defaults["cristexhub_prod_registration_alias_transition_uids"]))
+        for kind, uid in defaults["cristexhub_prod_registration_alias_transition_uids"].items():
             uuid.UUID(uid)
-            spec = defaults["cristexhub_prod_registration_legacy_transition_specs"][kind]
+            spec = defaults["cristexhub_prod_registration_alias_transition_specs"][kind]
             digest = hashlib.sha256(json.dumps(spec, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-            self.assertEqual(defaults["cristexhub_prod_registration_legacy_transition_spec_hashes"][kind], digest)
+            self.assertEqual(defaults["cristexhub_prod_registration_alias_transition_spec_hashes"][kind], digest)
             metadata = {
                 "name": "cristexhub-prod",
                 "namespace": "argocd",
@@ -169,19 +168,24 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             }
             manifest = {"apiVersion": "argoproj.io/v1alpha1", "kind": kind, "metadata": metadata, "spec": spec}
             manifest_digest = hashlib.sha256(json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-            self.assertEqual(defaults["cristexhub_prod_registration_legacy_transition_manifest_hashes"][kind], manifest_digest)
+            self.assertEqual(defaults["cristexhub_prod_registration_alias_transition_manifest_hashes"][kind], manifest_digest)
         self.assertEqual(
             "a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30",
-            defaults["cristexhub_prod_registration_legacy_transition_metadata_hash"],
+            defaults["cristexhub_prod_registration_alias_transition_metadata_hash"],
         )
-        self.assertIn("Record exact legacy-to-alias transition candidates", TASKS.read_text())
-        self.assertIn("Reject partial or duplicate legacy-to-alias transitions", TASKS.read_text())
-        self.assertIn("legacy_transition_uids", PLUGIN.read_text())
+        self.assertEqual(
+            [{"server": "https://kubernetes.default.svc", "namespace": "cristexhub-prod"},
+             {"name": "cristexhub-prod-local", "namespace": "cristexhub-prod"}],
+            defaults["cristexhub_prod_registration_transition_specs"]["AppProject"]["destinations"],
+        )
+        self.assertIn("Record exact alias-to-direct-server transition candidates", TASKS.read_text())
+        self.assertIn("Reject partial or duplicate alias-to-direct-server transitions", TASKS.read_text())
+        self.assertIn("alias_transition_uids", PLUGIN.read_text())
         self.assertIn("EXPECTED_CLUSTER_NAMESPACES", PLUGIN.read_text())
         self.assertIn("cristexhub_prod_registration_cluster_namespaces == 'cristexhub-dev,cristexhub-prod'", TASKS.read_text())
-        self.assertIn("legacy_transition_change_count", PLUGIN.read_text())
-        self.assertIn("legacy_transition_spec_hashes", PLUGIN.read_text())
-        self.assertIn("legacy_transition_manifest_hashes", PLUGIN.read_text())
+        self.assertIn("alias_transition_change_count", PLUGIN.read_text())
+        self.assertIn("alias_transition_spec_hashes", PLUGIN.read_text())
+        self.assertIn("alias_transition_manifest_hashes", PLUGIN.read_text())
         self.assertIn("resourceVersion", PLUGIN.read_text())
         self.assertIn("prestate_bindings", PLUGIN.read_text())
         self.assertIn("sort_keys=True", TASKS.read_text())
@@ -191,32 +195,26 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertIn('self._task.action = "kubernetes.core.k8s_json_patch"', PLUGIN.read_text())
         self.assertNotIn("_transition_put", PLUGIN.read_text())
         self.assertNotIn("call_api(", PLUGIN.read_text())
+        self.assertIn("status.comparedTo.destination.server", TASKS.read_text())
 
-    def test_transition_fixtures_allow_only_legacy_mixed_or_target_pairs(self) -> None:
-        defaults = yaml.safe_load(DEFAULTS.read_text())
-        target_specs = {
-            kind: next(obj["spec"] for obj in objects() if obj["kind"] == kind)
-            for kind in ("Application", "AppProject")
-        }
-        legacy_specs = defaults["cristexhub_prod_registration_legacy_transition_specs"]
-
-        def classify(current_specs: dict[str, dict]) -> tuple[list[str], list[str]]:
-            legacy = sorted(kind for kind, spec in current_specs.items() if spec == legacy_specs[kind])
-            target = sorted(kind for kind, spec in current_specs.items() if spec == target_specs[kind])
-            self.assertEqual(["AppProject", "Application"], sorted(set(legacy) | set(target)))
-            self.assertEqual([], sorted(set(legacy) & set(target)))
-            self.assertIn((len(legacy), len(target)), {(2, 0), (1, 1), (0, 2)})
-            return legacy, target
-
-        self.assertEqual((["AppProject", "Application"], []), classify(legacy_specs))
-        mixed = dict(legacy_specs)
-        mixed["AppProject"] = target_specs["AppProject"]
-        self.assertEqual((["Application"], ["AppProject"]), classify(mixed))
-        self.assertEqual(([], ["AppProject", "Application"]), classify(target_specs))
-        forged = dict(mixed)
-        forged["Application"] = {**legacy_specs["Application"], "destination": {"server": "foreign"}}
-        with self.assertRaises(AssertionError):
-            classify(forged)
+    def test_transition_fixtures_allow_only_alias_mixed_or_final_pairs(self) -> None:
+        import importlib.util
+        import sys
+        collection_root = ROOT / "ansible/.ansible/collections"
+        if (collection_root / "ansible_collections").is_dir():
+            sys.path.insert(0, str(collection_root))
+        spec = importlib.util.spec_from_file_location("prod_registration_transition_states", PLUGIN)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        loaded = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(loaded)
+        self.assertEqual(["AppProject:transition", "Application:final", "AppProject:final"], loaded._transition_plan("alias", "alias"))
+        self.assertEqual(["Application:final", "AppProject:final"], loaded._transition_plan("transition", "alias"))
+        self.assertEqual(["AppProject:final"], loaded._transition_plan("transition", "final"))
+        self.assertEqual([], loaded._transition_plan("final", "final"))
+        for unsafe in (("final", "alias"), ("alias", "final"), ("alias", "foreign")):
+            with self.assertRaises(ValueError):
+                loaded._transition_plan(*unsafe)
 
     def test_action_transition_pair_guard_matches_role_modes(self) -> None:
         import importlib.util
@@ -244,7 +242,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertTrue(module.valid_transition_state([], ["AppProject", "Application"], []))
         self.assertFalse(module.valid_transition_state(["AppProject"], [], []))
 
-    def test_three_step_alias_plan_and_json_patch_contract(self) -> None:
+    def test_three_step_alias_to_direct_server_plan_and_json_patch_contract(self) -> None:
         import importlib.util
         import sys
 
@@ -260,12 +258,12 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         spec.loader.exec_module(module)
         self.assertEqual(
             ["AppProject:transition", "Application:final", "AppProject:final"],
-            module._transition_plan("legacy", "legacy"),
+            module._transition_plan("alias", "alias"),
         )
-        self.assertEqual(["Application:final", "AppProject:final"], module._transition_plan("transition", "legacy"))
+        self.assertEqual(["Application:final", "AppProject:final"], module._transition_plan("transition", "alias"))
         self.assertEqual(["AppProject:final"], module._transition_plan("transition", "final"))
         with self.assertRaises(ValueError):
-            module._transition_plan("final", "legacy")
+            module._transition_plan("final", "alias")
 
         project_transition = module._transition_patch("AppProject", "transition")
         application_final = module._transition_patch("Application", "final")
@@ -283,16 +281,16 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             "apiVersion": module._TRANSITION_API_VERSION,
             "kind": "AppProject",
             "metadata": {"name": module._TRANSITION_NAME, "namespace": module._TRANSITION_ARGO_NAMESPACE, "uid": module._TRANSITION_UIDS["AppProject"], "labels": dict(module._TRANSITION_LABELS)},
-            "spec": module._TRANSITION_LEGACY_PROJECT_SPEC,
+            "spec": module._TRANSITION_ALIAS_PROJECT_SPEC,
         }
         application = {
             "apiVersion": module._TRANSITION_API_VERSION,
             "kind": "Application",
             "metadata": {"name": module._TRANSITION_NAME, "namespace": module._TRANSITION_ARGO_NAMESPACE, "uid": module._TRANSITION_UIDS["Application"], "labels": dict(module._TRANSITION_LABELS)},
-            "spec": module._TRANSITION_LEGACY_APPLICATION_SPEC,
+            "spec": module._TRANSITION_ALIAS_APPLICATION_SPEC,
         }
         prestate = {"results": [{"resources": [project]}, {"resources": [application]}]}
-        plan = module.run_alias_transition(
+        plan = module.run_direct_server_transition(
             None,
             None,
             {
@@ -324,7 +322,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         dispatched.assert_called_once()
         self.assertEqual("guarded", fake._task.action)
         self.assertEqual({"transition": True}, fake._task.args)
-        self.assertIn("Reconcile exact bounded PROD alias transition", TASKS.read_text())
+        self.assertIn("Reconcile exact bounded PROD direct-server transition", TASKS.read_text())
         self.assertIn("transition: true", TASKS.read_text())
         self.assertIn("when: not ansible_check_mode", TASKS.read_text())
 
@@ -351,7 +349,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertNotEqual(module.canonical(application), module.canonical(with_uid))
         self.assertIn("metadata.resourceVersion", module.canonical.__doc__ or "")
 
-    def test_legacy_alias_transition_binds_all_prestate_identity_fields(self) -> None:
+    def test_alias_to_direct_server_transition_binds_all_prestate_identity_fields(self) -> None:
         defaults = yaml.safe_load(DEFAULTS.read_text())
         tasks = TASKS.read_text()
         plugin = PLUGIN.read_text()
@@ -386,7 +384,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             self.assertIn(needle, plugin)
         self.assertEqual(5, defaults["cristexhub_prod_registration_object_count"])
 
-    def test_manifest_identity_and_legacy_hash_closure_is_exact(self) -> None:
+    def test_manifest_identity_and_direct_server_hash_closure_is_exact(self) -> None:
         expected = {
             "argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod",
             "argoproj.io/v1alpha1|Application|argocd|cristexhub-prod",
@@ -400,16 +398,16 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         }
         self.assertEqual(expected, actual)
         defaults = yaml.safe_load(DEFAULTS.read_text())
-        specs = defaults["cristexhub_prod_registration_legacy_transition_specs"]
-        hashes = defaults["cristexhub_prod_registration_legacy_transition_spec_hashes"]
+        specs = defaults["cristexhub_prod_registration_alias_transition_specs"]
+        hashes = defaults["cristexhub_prod_registration_alias_transition_spec_hashes"]
         for kind, spec in specs.items():
             self.assertEqual(hashes[kind], canonical(spec))
 
-    def test_legacy_alias_transition_rejects_foreign_uid_or_spec(self) -> None:
+    def test_alias_to_direct_server_transition_rejects_foreign_uid_or_spec(self) -> None:
         defaults = yaml.safe_load(DEFAULTS.read_text())
         kind = "Application"
-        expected_uid = defaults["cristexhub_prod_registration_legacy_transition_uids"][kind]
-        expected_spec = defaults["cristexhub_prod_registration_legacy_transition_specs"][kind]
+        expected_uid = defaults["cristexhub_prod_registration_alias_transition_uids"][kind]
+        expected_spec = defaults["cristexhub_prod_registration_alias_transition_specs"][kind]
 
         def candidate(uid: str, spec: dict) -> bool:
             return uid == expected_uid and spec == expected_spec
@@ -603,21 +601,19 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         runbook = RUNBOOK.read_text()
         for needle in (
             REVISION,
-            "LIVE STATUS UNKNOWN / RECONCILIATION APPLY PENDING",
+            "SOURCE DIRECT-SERVER READY",
             "cristexhub-prod-local",
-            "HISTORICAL REGISTRATION APPLIED",
             "Synced/Healthy",
-            "separately approved registration apply",
-            "does not create the Namespace",
+            "separately approved mutation",
+            "does not inspect or reconcile DEV or Reactive Resume",
             "prune=false",
             "Cloudflare",
-            "protected\nDNS-capable Cloudflare credential plus exact two-change plan/apply",
+            "public DNS record",
             "reject_cristexhub_prod_registration_resource_version.sh",
-            "RFC 6902",
+            "JSON Patch",
             "kubernetes.core.k8s_json_patch",
-            "fails closed without retry",
-            "exact mixed recovery pair",
-            "managedFields are checked only structurally",
+            "fails closed",
+            "accepted mixed recovery states",
         ):
             self.assertIn(needle, runbook)
 

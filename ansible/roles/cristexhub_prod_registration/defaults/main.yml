@@ -26,21 +26,21 @@ cristexhub_prod_registration_cluster_namespaces: 'cristexhub-dev,cristexhub-prod
 cristexhub_prod_registration_repository: ssh://git@ssh.github.com:443/devraider/cristexhub.git
 cristexhub_prod_registration_revision: 751885a42798d282e168131db147f13694a0a621
 cristexhub_prod_registration_path: infra/kubernetes/cristexhub-prod
-# The first alias correction is a bounded compatibility transition. These
-# immutable values describe only the previously committed server-destination
-# Application/AppProject and the exact live UIDs that may be updated once.
-cristexhub_prod_registration_legacy_transition_object_count: 2
-cristexhub_prod_registration_legacy_transition_uids:
+# The cache-scope lane must complete first. These immutable values describe
+# only the exact alias-form Application/AppProject and the live UIDs that may
+# be updated once to the direct in-cluster server destination.
+cristexhub_prod_registration_alias_transition_object_count: 2
+cristexhub_prod_registration_alias_transition_uids:
   Application: e2016a99-2c4f-4e2e-ac28-0640cafa2a8e
   AppProject: 6c04c48c-7d71-46c3-b4d0-7fc9f437f5d6
-cristexhub_prod_registration_legacy_transition_spec_hashes:
-  Application: efcaa04cff588189490810ec3dc2d799e9d09d9deb2e6ce45475d61f75021c34
-  AppProject: 7b51035757a7684cffb823339379e7fd3d80ada29a51a3bdc205b2f4b30027bf
-cristexhub_prod_registration_legacy_transition_manifest_hashes:
-  Application: 29a3bd87c83d881e73f6e50739e9b510d89f58d2d851be93276658f1ad35bdf1
-  AppProject: 4625c40d6030961d799f7b04b386f5a840273bc96b5d7031a507bf48ab57afa2
-cristexhub_prod_registration_legacy_transition_metadata_hash: a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30
-cristexhub_prod_registration_legacy_transition_specs:
+cristexhub_prod_registration_alias_transition_spec_hashes:
+  Application: 9029099765f684eefcb75d1304064e94e690718d5af9f7e80b783e4bc577408e
+  AppProject: 59cd297c33dd12a0063cded64e132e77e70dcd2b3bebee2dd207686a2d9ab239
+cristexhub_prod_registration_alias_transition_manifest_hashes:
+  Application: 107356ed772eec987ab8c4f19b05b2ebb5a84ddf21bd0f483044e434084a8c5a
+  AppProject: 113dcb263ec958430385b802e387658cd0f71b58751768b3a7ab5ffbb348b61b
+cristexhub_prod_registration_alias_transition_metadata_hash: a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30
+cristexhub_prod_registration_alias_transition_specs:
   Application:
     project: cristexhub-prod
     source:
@@ -48,7 +48,8 @@ cristexhub_prod_registration_legacy_transition_specs:
       targetRevision: 751885a42798d282e168131db147f13694a0a621
       path: infra/kubernetes/cristexhub-prod
     destination:
-      server: https://kubernetes.default.svc
+      name: cristexhub-prod-local
+      server: ''
       namespace: cristexhub-prod
     syncPolicy:
       automated:
@@ -65,7 +66,7 @@ cristexhub_prod_registration_legacy_transition_specs:
     sourceRepos:
       - ssh://git@ssh.github.com:443/devraider/cristexhub.git
     destinations:
-      - server: https://kubernetes.default.svc
+      - name: cristexhub-prod-local
         namespace: cristexhub-prod
     clusterResourceWhitelist: []
     namespaceResourceWhitelist:
@@ -108,11 +109,11 @@ cristexhub_prod_registration_expected_hashes:
   - path: >-
       {{ cristexhub_prod_registration_repository_root
       }}/ansible/files/components/cristexhub-prod-registration/config/appproject-cristexhub-prod.yaml
-    sha256: 9e75e23f9c24b0280ca3d00c4e815b8517a94ba77a0e78feff061542a1e7b8a5
+    sha256: 8bdd846ebe3d745a6abd9cd7eefaa8f9b1b3f9340e1910f1756736309c7b1467
   - path: >-
       {{ cristexhub_prod_registration_repository_root
       }}/ansible/files/components/cristexhub-prod-registration/config/application-cristexhub-prod.yaml
-    sha256: 2850c9c53ffb983f4a6ec43c3c787bfa5605312c1c0fe9ebd8df98e3045d7741
+    sha256: 81bf9a7e2c3bcfefc78540725a4b8f797eb34b037e693680504b33ac1a12f4a1
   - path: >-
       {{ cristexhub_prod_registration_repository_root
       }}/ansible/files/components/cristexhub-prod-registration/rbac/role-argocd-application-controller-cristexhub-prod.yaml

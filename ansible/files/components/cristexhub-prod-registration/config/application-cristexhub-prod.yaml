@@ -15,8 +15,7 @@ spec:
     targetRevision: 751885a42798d282e168131db147f13694a0a621
     path: infra/kubernetes/cristexhub-prod
   destination:
-    name: cristexhub-prod-local
-    server: ''
+    server: https://kubernetes.default.svc
     namespace: cristexhub-prod
   syncPolicy:
     automated:
