@@ -61,6 +61,10 @@ state or secret values. The guarded source closure also rejects any extra root
 `.tf`, `.tf.json`, auto-variable, override, symlink, directory, or other
 non-regular entry (apart from the explicitly allowed `bin`, `github`, and
 OpenTofu-generated `.terraform` directories) before a state consumer runs.
+OpenTofu's generated data is instead directed to a private mode-`0700`
+`TF_DATA_DIR` under the ephemeral work directory, so a clean source root remains
+clean after initialization; any pre-existing `.terraform` directory is still
+allowlisted only as a non-symlinked directory.
 
 ## Required sequence and approvals
 
@@ -88,13 +92,24 @@ OpenTofu-generated `.terraform` directories) before a state consumer runs.
    through an anonymous pipe, never argv, a file, plan output, state evidence,
    or a receipt. Provider output is captured in mode-`0600` temporary files and
    is never emitted.
-5. The pinned root is initialized and only the exact DNS address is imported
-   with the fixed `zone-id/record-id` form. There is no create, delete, destroy,
-   state-removal, state-push, or apply path.
-6. The six-address post-state is validated. The backup `test` and isolated
-   `restore` gates run again, and the six-address closure is validated again.
+5. The pinned root is initialized with `-lockfile=readonly` and only the exact
+   DNS address is imported with the fixed `zone-id/record-id` form. There is no
+   create, delete, destroy, state-removal, state-push, or apply path. OpenTofu
+   data is isolated under the ephemeral `TF_DATA_DIR`.
+6. The six-address post-state is validated, then a provider-backed
+   `plan -refresh-only` is rendered and validated as an exact six-address
+   no-op. This is a fail-closed state-refresh check and does not authorize the
+   pending PROD configuration plan. The backup `test` and isolated `restore`
+   gates run again, the six-address closure is validated again, and the
+   refresh-only no-op check is repeated.
 7. The entrypoint emits a sanitized success receipt saying the PROD plan is a
    separate gate. It does not run or approve that plan.
+
+The refresh-only plan JSON is mode-`0600`, consumed only by the local
+source-checked validator, and removed with the ephemeral work directory. The
+validator requires exactly the six post-reconciliation managed resources, empty
+plan actions, no resource drift, no deferred changes, no output changes, and no
+sensitive values; it rejects malformed, expanded, or mutating plans.
 
 The foundation backup/restore source must itself pass its own pinned source,
 recipient, rclone, immutable-readback, and isolated-restore contracts. A

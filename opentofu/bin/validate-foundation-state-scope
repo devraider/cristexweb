@@ -1,11 +1,13 @@
 #!/usr/bin/python3
-"""Validate exact protected foundation state scope and DNS resource metadata.
+"""Validate exact protected foundation state and refresh-only plan metadata.
 
-This helper consumes only mode-0600 temporary `tofu state list`/`state show`
-results. It never opens the configured backend and never calls a provider.
+This helper consumes only mode-0600 temporary `tofu state list`, `state show`,
+and `show -json` results. It never opens the configured backend and never calls
+a provider.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import stat
@@ -28,7 +30,7 @@ def fail(reason: str) -> "NoReturn":
     raise SystemExit(1)
 
 
-if len(sys.argv) == 3 and sys.argv[1] in {"pre", "post"}:
+if len(sys.argv) == 3 and sys.argv[1] in {"pre", "post", "plan"}:
     phase = sys.argv[1]
     path = Path(sys.argv[2])
 elif len(sys.argv) == 4 and sys.argv[1] == "resource" and sys.argv[2] == "reactive_resume_dev_tailscale":
@@ -45,9 +47,56 @@ if not stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode):
 if stat.S_IMODE(info.st_mode) != 0o600 or info.st_uid != os.getuid():
     fail("state_list_permissions")
 try:
-    lines = path.read_text(encoding="utf-8").splitlines()
+    content = path.read_text(encoding="utf-8")
 except (OSError, UnicodeError):
     fail("state_list_read")
+if phase == "plan":
+    try:
+        plan = json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        fail("plan_json")
+    if not isinstance(plan, dict):
+        fail("plan_shape")
+    resource_changes = plan.get("resource_changes")
+    if not isinstance(resource_changes, list):
+        fail("plan_resource_changes")
+    expected = set(POST)
+    addresses: list[str] = []
+    for change in resource_changes:
+        if not isinstance(change, dict):
+            fail("plan_resource_change_shape")
+        address = change.get("address")
+        if not isinstance(address, str):
+            fail("plan_resource_address")
+        addresses.append(address)
+        if change.get("mode") != "managed" or change.get("type") != address.split(".", 1)[0]:
+            fail("plan_resource_identity")
+        resource_change = change.get("change")
+        if not isinstance(resource_change, dict) or resource_change.get("actions") != []:
+            fail("plan_non_noop_resource")
+        if resource_change.get("before") is None or resource_change.get("after") is None:
+            fail("plan_missing_resource_state")
+        if resource_change.get("deposed") not in (None, []):
+            fail("plan_deposed_resource")
+        if resource_change.get("after_sensitive") not in ({}, None, False):
+            fail("plan_sensitive_values")
+    if len(addresses) != len(set(addresses)) or set(addresses) != expected:
+        fail("plan_resource_closure")
+    resource_drift = plan.get("resource_drift", [])
+    if resource_drift not in ([], None):
+        fail("plan_resource_drift")
+    deferred_changes = plan.get("deferred_changes", [])
+    if deferred_changes not in ([], None):
+        fail("plan_deferred_changes")
+    output_changes = plan.get("output_changes", {})
+    if not isinstance(output_changes, dict):
+        fail("plan_output_changes")
+    for output_change in output_changes.values():
+        if not isinstance(output_change, dict) or output_change.get("actions") != []:
+            fail("plan_non_noop_output")
+    print("state_scope=accepted phase=plan addresses=6 actions=no-op")
+    raise SystemExit(0)
+lines = content.splitlines()
 if phase == "resource":
     text = "\n".join(lines)
     required = (

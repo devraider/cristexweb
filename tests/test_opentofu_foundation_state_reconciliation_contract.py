@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import stat
@@ -76,6 +77,52 @@ class OpenTofuFoundationStateReconciliationContractTests(unittest.TestCase):
             ),
             sorted(paths),
         )
+        reconcile_text = RECONCILE.read_text()
+        manifest_pin = re.search(r"source_manifest_expected_sha256='([0-9a-f]{64})'", reconcile_text)
+        canonical_pin = re.search(r"source_reconcile_expected_canonical_sha256='([0-9a-f]{64})'", reconcile_text)
+        self.assertIsNotNone(manifest_pin)
+        self.assertIsNotNone(canonical_pin)
+        self.assertEqual(manifest_pin.group(1), hashlib.sha256(MANIFEST.read_bytes()).hexdigest())
+        canonical = re.sub(
+            r"^source_manifest_expected_sha256='[0-9a-f]{64}'$",
+            "source_manifest_expected_sha256='__SOURCE_MANIFEST_SHA256__'",
+            reconcile_text,
+            flags=re.MULTILINE,
+        )
+        canonical = re.sub(
+            r"^source_reconcile_expected_canonical_sha256='[0-9a-f]{64}'$",
+            "source_reconcile_expected_canonical_sha256='__SOURCE_RECONCILE_SHA256__'",
+            canonical,
+            flags=re.MULTILINE,
+        )
+        self.assertEqual(canonical_pin.group(1), hashlib.sha256(canonical.encode()).hexdigest())
+
+    def test_backup_gate_hashes_match_current_source_files(self) -> None:
+        text = RECONCILE.read_text()
+        source_checks = {
+            "backup_wrapper": ROOT / "ansible/bin/configure-opentofu-state-backup",
+            "backup_playbook": ROOT / "ansible/playbooks/configure_opentofu_state_backup.yml",
+            "backup_source/opentofu-state-backup": ROOT / "ansible/files/backup/opentofu-state-backup",
+            "backup_source/restore-opentofu-state-rehearsal": ROOT / "ansible/files/backup/restore-opentofu-state-rehearsal",
+            "backup_source/cristexweb-opentofu-state-backup.service": ROOT / "ansible/files/backup/cristexweb-opentofu-state-backup.service",
+            "backup_source/cristexweb-opentofu-state-backup.timer": ROOT / "ansible/files/backup/cristexweb-opentofu-state-backup.timer",
+        }
+        for shell_path, source_path in source_checks.items():
+            pattern = rf'sha256sum "\${re.escape(shell_path)}".*?= \'([0-9a-f]{{64}})\''
+            match = re.search(pattern, text)
+            self.assertIsNotNone(match, shell_path)
+            self.assertEqual(hashlib.sha256(source_path.read_bytes()).hexdigest(), match.group(1), shell_path)
+        installed_checks = {
+            "/usr/local/libexec/cristexweb/opentofu-state-backup": ROOT / "ansible/files/backup/opentofu-state-backup",
+            "/usr/local/libexec/cristexweb/restore-opentofu-state-rehearsal": ROOT / "ansible/files/backup/restore-opentofu-state-rehearsal",
+            "/etc/systemd/system/cristexweb-opentofu-state-backup.service": ROOT / "ansible/files/backup/cristexweb-opentofu-state-backup.service",
+            "/etc/systemd/system/cristexweb-opentofu-state-backup.timer": ROOT / "ansible/files/backup/cristexweb-opentofu-state-backup.timer",
+        }
+        for installed_path, source_path in installed_checks.items():
+            pattern = rf'{re.escape(installed_path)}:([0-9a-f]{{64}}):'
+            match = re.search(pattern, text)
+            self.assertIsNotNone(match, installed_path)
+            self.assertEqual(hashlib.sha256(source_path.read_bytes()).hexdigest(), match.group(1), installed_path)
 
     def test_entrypoint_is_direct_dash_and_exactly_scoped(self) -> None:
         text = RECONCILE.read_text()
@@ -100,8 +147,12 @@ class OpenTofuFoundationStateReconciliationContractTests(unittest.TestCase):
             "TF_CLI_CONFIG_FILE=/dev/null",
             "TF_WORKSPACE=default",
             "TOFU_DISABLE_CHECKPOINT=1",
+            "TF_DATA_DIR=",
+            "-lockfile=readonly",
             "CLOUDFLARE_API_TOKEN",
             "anonymous pipe",
+            "validate_plan_contract",
+            "plan -refresh-only -input=false -lock=true",
             "prod_plan=separate",
             "token_output=false",
             "root_expected_files",
@@ -173,6 +224,51 @@ class OpenTofuFoundationStateReconciliationContractTests(unittest.TestCase):
             )
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             self.assertIn("state_scope=accepted phase=resource", result.stdout)
+
+    def test_plan_validator_requires_exact_post_import_noop(self) -> None:
+        plan = {
+            "resource_changes": [
+                {
+                    "address": address,
+                    "mode": "managed",
+                    "type": address.split(".", 1)[0],
+                    "change": {
+                        "actions": [],
+                        "before": {},
+                        "after": {},
+                        "after_sensitive": {},
+                    },
+                }
+                for address in sorted(EXPECTED_POST)
+            ],
+            "resource_drift": [],
+            "deferred_changes": [],
+            "output_changes": {},
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "plan.json"
+            path.write_text(json.dumps(plan))
+            path.chmod(0o600)
+            accepted = subprocess.run(
+                ["/usr/bin/python3", str(SCOPE), "plan", str(path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, accepted.returncode, accepted.stdout + accepted.stderr)
+            self.assertIn("phase=plan addresses=6 actions=no-op", accepted.stdout)
+            changed = json.loads(path.read_text())
+            changed["resource_changes"][0]["change"]["actions"] = ["update"]
+            path.write_text(json.dumps(changed))
+            path.chmod(0o600)
+            refused = subprocess.run(
+                ["/usr/bin/python3", str(SCOPE), "plan", str(path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(0, refused.returncode)
+            self.assertIn("plan_non_noop_resource", refused.stdout)
 
     def test_source_only_docs_and_boundaries(self) -> None:
         docs = RUNBOOK.read_text()

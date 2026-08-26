@@ -29,6 +29,15 @@ Reactive Resume DEV records point to current Tailscale IPv4 `100.122.139.32`;
 access remains restricted by the host/cluster Tailscale-only ingress boundary and
 is not routed through the Cloudflare proxy or Tunnel.
 
+The guarded foundation reconciliation initializes with `-lockfile=readonly` and
+uses a private ephemeral `TF_DATA_DIR`, keeping a clean source root free of
+OpenTofu-generated provider data. After the exact sixth-address import it runs a
+provider-backed `plan -refresh-only` twice (before and after backup recovery).
+A local mode-`0600` validator accepts only the exact six managed resources with
+empty actions and rejects drift, deferred changes, outputs, sensitive values,
+or any expanded/mutating plan. This state-refresh gate does not run or authorize
+the separate PROD Tunnel/DNS plan.
+
 ## State and secret boundary
 
 The Cloudflare provider stores resource arguments and provider-managed attributes

@@ -44,8 +44,8 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
     exit 78
 }
 source_manifest="$root/bin/SOURCE.sha256"
-source_manifest_expected_sha256='56922bac59929758464689f5ed77bf195deee85530cfe4e4cce11f17fa5fac32'
-source_reconcile_expected_canonical_sha256='a06a5566b297ae145f5f24b701ed85263a343e0f3842c8402aaef28d93b998d0'
+source_manifest_expected_sha256='0476a8076356d8293530d5cf49af848c838f2f8271a8b5deb0701224d869591a'
+source_reconcile_expected_canonical_sha256='429390a5ff05c4fff70bf48efbb87f7ad32de0fa5db31264bfa5f29f465f534b'
 validator="$root/bin/validate-foundation-state-scope"
 [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
 [ -x "$validator" ] && [ ! -L "$validator" ] || exit 78
@@ -68,7 +68,8 @@ versions.tf
 EOF
 root_expected_files="$source_work/root-expected-files"
 root_actual_files="$source_work/root-actual-files"
-/usr/bin/cat >"$root_expected_files" <<'EOF'
+refresh_root_expected_files() {
+    /usr/bin/cat >"$root_expected_files" <<'EOF'
 f .terraform.lock.hcl
 f README.md
 f backend.tf
@@ -80,11 +81,17 @@ f providers.tf
 f variables.tf
 f versions.tf
 EOF
-if [ -d "$root/.terraform" ] && [ ! -L "$root/.terraform" ]; then
-    printf '%s\n' 'd .terraform' >>"$root_expected_files"
-fi
-/usr/bin/sort -o "$root_expected_files" "$root_expected_files"
+    if [ -d "$root/.terraform" ] && [ ! -L "$root/.terraform" ]; then
+        printf '%s\n' 'd .terraform' >>"$root_expected_files"
+    fi
+    /usr/bin/sort -o "$root_expected_files" "$root_expected_files"
+}
 revalidate_source_closure() {
+    # OpenTofu may create .terraform during init. Rebuild this allowlist on every
+    # boundary so a clean root remains valid after init while unrelated entries
+    # are still rejected. The import path also pins TF_DATA_DIR below to keep
+    # generated provider data out of this source root entirely.
+    refresh_root_expected_files
     [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_manifest")" = 'paul:paul:644' ] || exit 78
     [ "$(/usr/bin/sha256sum "$source_manifest" | /usr/bin/cut -d ' ' -f 1)" = "$source_manifest_expected_sha256" ] || {
         printf '%s\n' 'Refusing OpenTofu foundation source manifest drift.' >&2
@@ -182,7 +189,7 @@ exec 9<"$state_parent"
 clean_exec() {
     /usr/bin/env -i \
         HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
+        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
         "$@"
 }
 run_capture() {
@@ -208,7 +215,7 @@ run_capture_with_token() {
     chmod 0600 "$capture_file"
     printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
         HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
+        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
         TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
         TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
         /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' import-child "$@" >"$capture_file" 2>"$log" || {
@@ -235,6 +242,17 @@ validate_resource_contract() {
         exit 1
     }
 }
+validate_plan_contract() {
+    plan_file=$work/foundation-$1.tfplan
+    plan_json=$work/foundation-$1-plan.json
+    run_capture_with_token "$plan_file" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" plan -refresh-only -input=false -lock=true -no-color -out="$plan_file"
+    run_capture "$plan_json" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" show -json "$plan_file"
+    revalidate_source_closure
+    /usr/bin/python3 "$state_scope_validator" plan "$plan_json" >/dev/null || {
+        printf 'reconcile_status=failed stage=plan_%s\n' "$1" >&2
+        exit 1
+    }
+}
 
 backup_wrapper=/home/paul/projects/cristexweb/ansible/bin/configure-opentofu-state-backup
 backup_playbook=/home/paul/projects/cristexweb/ansible/playbooks/configure_opentofu_state_backup.yml
@@ -253,16 +271,16 @@ verify_backup_source() {
     [ "$(/usr/bin/stat -c '%a' "$backup_source/cristexweb-opentofu-state-backup.service")" = 644 ] || exit 78
     [ "$(/usr/bin/stat -c '%a' "$backup_source/cristexweb-opentofu-state-backup.timer")" = 644 ] || exit 78
     [ "$(/usr/bin/sha256sum "$backup_wrapper" | /usr/bin/cut -d ' ' -f 1)" = '7db15e9a20425da18a3a090900a1e50d0fcc09a31fc1b1a5073e3a19a2876cb6' ] || exit 78
-    [ "$(/usr/bin/sha256sum "$backup_playbook" | /usr/bin/cut -d ' ' -f 1)" = 'c84b49e3b255167e04955149adadd85b01dc20df1e169bb55608604a8db0511c' ] || exit 78
-    [ "$(/usr/bin/sha256sum "$backup_source/opentofu-state-backup" | /usr/bin/cut -d ' ' -f 1)" = 'cb6a474ae732b3b07e11f58b3ca9a1a4f1531e6b750d2112c6c6aa36a6ada3a3' ] || exit 78
-    [ "$(/usr/bin/sha256sum "$backup_source/restore-opentofu-state-rehearsal" | /usr/bin/cut -d ' ' -f 1)" = '9f92a5bd48bd35d44177c83cc991fb95a6be5857c8a91602e8490afd68dd1e00' ] || exit 78
+    [ "$(/usr/bin/sha256sum "$backup_playbook" | /usr/bin/cut -d ' ' -f 1)" = '5ec3193078ec3575546f43bd04b7b1d2a7c64f99dd8395637195aa02d784869b' ] || exit 78
+    [ "$(/usr/bin/sha256sum "$backup_source/opentofu-state-backup" | /usr/bin/cut -d ' ' -f 1)" = 'f2b0ec58f0dd61d092912251bc67ada5af2fd6660a07709c933ddfe7d9a2fa83' ] || exit 78
+    [ "$(/usr/bin/sha256sum "$backup_source/restore-opentofu-state-rehearsal" | /usr/bin/cut -d ' ' -f 1)" = '7dcdbe2758d82b7efe475b47824c03de3788b98acac4a3083a0e1648fc0d667a' ] || exit 78
     [ "$(/usr/bin/sha256sum "$backup_source/cristexweb-opentofu-state-backup.service" | /usr/bin/cut -d ' ' -f 1)" = 'bf5dfdf93fa3e4bfa5f8e933714faae33e139ae830d12d5c50e30a3ee946e925' ] || exit 78
     [ "$(/usr/bin/sha256sum "$backup_source/cristexweb-opentofu-state-backup.timer" | /usr/bin/cut -d ' ' -f 1)" = '64fa2f3fee275c3ad26d834dd2c51e1628ec20baf85b75e80da0d86b9bc35416' ] || exit 78
 }
 verify_backup_installed() {
     for backup_item in \
-        '/usr/local/libexec/cristexweb/opentofu-state-backup:cb6a474ae732b3b07e11f58b3ca9a1a4f1531e6b750d2112c6c6aa36a6ada3a3:755' \
-        '/usr/local/libexec/cristexweb/restore-opentofu-state-rehearsal:9f92a5bd48bd35d44177c83cc991fb95a6be5857c8a91602e8490afd68dd1e00:755' \
+        '/usr/local/libexec/cristexweb/opentofu-state-backup:f2b0ec58f0dd61d092912251bc67ada5af2fd6660a07709c933ddfe7d9a2fa83:755' \
+        '/usr/local/libexec/cristexweb/restore-opentofu-state-rehearsal:7dcdbe2758d82b7efe475b47824c03de3788b98acac4a3083a0e1648fc0d667a:755' \
         '/etc/systemd/system/cristexweb-opentofu-state-backup.service:bf5dfdf93fa3e4bfa5f8e933714faae33e139ae830d12d5c50e30a3ee946e925:644' \
         '/etc/systemd/system/cristexweb-opentofu-state-backup.timer:64fa2f3fee275c3ad26d834dd2c51e1628ec20baf85b75e80da0d86b9bc35416:644'; do
         backup_path=${backup_item%%:*}
@@ -326,13 +344,15 @@ case "$cloudflare_token" in *[[:space:]]*) exit 65 ;; esac
 
 # Only the pinned root is initialized; no backend path or workspace is selected
 # from input.  Import is the sole state-writing OpenTofu subcommand here.
-run_capture_with_token "$work/init.out" "$tofu" -chdir="$root" init -input=false -no-color
+run_capture_with_token "$work/init.out" "$tofu" -chdir="$root" init -input=false -lockfile=readonly -no-color
 run_capture_with_token "$work/import.out" "$tofu" -chdir="$root" import -input=false -lock=true -no-color \
     cloudflare_dns_record.reactive_resume_dev_tailscale "$cloudflare_zone_id/$cloudflare_record_id"
 validate_scope post
 validate_resource_contract
+validate_plan_contract post-import
 run_backup_gate test
 run_backup_gate restore
 validate_scope post
 validate_resource_contract
-printf 'reconcile_status=success state=foundation imported=reactive_resume_dev_tailscale pre_addresses=%s post_addresses=%s backup=immutable-readback restore=isolated post_backup=verified prod_plan=separate token_output=false\n' "$expected_pre_addresses" "$expected_post_addresses"
+validate_plan_contract post-recovery
+printf 'reconcile_status=success state=foundation imported=reactive_resume_dev_tailscale pre_addresses=%s post_addresses=%s backup=immutable-readback restore=isolated post_backup=verified plan=no-op refresh-only=true prod_plan=separate token_output=false\n' "$expected_pre_addresses" "$expected_post_addresses"
