@@ -54,8 +54,8 @@ repo_root=$(CDPATH= cd -- "$dir/../../.." && pwd -P)
 # leaf except itself; the manifest and this entrypoint's canonical form are
 # independently pinned below so a partial source review cannot authorize import.
 source_manifest="$github_root/SOURCE.sha256"
-source_manifest_expected_sha256='72c6fab322135623841244bd9675fe104b6e3c013e368aa9067d0c02ed17042c'
-source_import_expected_canonical_sha256='89d09b59fa4a13a65df52206edfe608ed06b532353f61ed0f94f1329b3eab640'
+source_manifest_expected_sha256='886c1eab6beacfc3545d8ddd1a490454d0efcdcee793e1db3110fbf0b5422d9b'
+source_import_expected_canonical_sha256='f7c54c0d3dd6add65e510ac852354e765b62b803407120cc0019e6ee20a8f813'
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-github-source.XXXXXX)
 chmod 0700 "$source_work"
 trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM
@@ -306,6 +306,15 @@ run_backup_interactive() {
     backup_installed_contract /etc/systemd/system/cristexweb-opentofu-github-state-backup.timer \
         'c2c4c1d3b18fdfb9ec151e7184af1e07a6a6c1f132d0b49bd3ff86fba27c3c2b' 644
 }
+# The restore-absence rehearsal validates the encrypted manifest's exact
+# expires_at_utc against the current clock and rejects an expired 15-minute
+# window. Run that complete proof again at the last possible point before the
+# first import, after confirmation and init; a stale earlier success is never
+# reused.
+revalidate_restore_absence_freshness() {
+    run_backup_interactive restore-absence
+    state_absence_recheck
+}
 
 printf '%s' 'GitHub token (input hidden): ' >&2
 /bin/stty -echo || fail protected_token_input
@@ -334,11 +343,10 @@ backup_wrapper="$repo_root/ansible/bin/configure-opentofu-github-state-backup"
 backup_playbook="$repo_root/ansible/playbooks/configure_opentofu_github_state_backup.yml"
 backup_source_dir="$repo_root/ansible/files/backup"
 [ -x "$backup_wrapper" ] || fail backup_wrapper
-run_backup_interactive restore-absence
+revalidate_restore_absence_freshness
 # The token remains only in this shell variable while the backup lane runs
 # without GITHUB_TOKEN. Recheck absence under the same lock immediately before
-# requesting approval, then again after init, before any import can create state.
-state_absence_recheck
+# requesting approval; the recovery proof is repeated after confirmation/init.
 printf '%s' 'Type IMPORT EXISTING devraider/cristex-reactive-resume to continue: ' >&2
 IFS= read -r confirmation || fail approval_input
 [ "$confirmation" = 'IMPORT EXISTING devraider/cristex-reactive-resume' ] || fail explicit_approval
@@ -346,8 +354,10 @@ unset confirmation
 run_quiet "$tofu" -chdir="$github_root" init -input=false -no-color
 state_absence_recheck
 # These are the only import addresses and IDs. No create/delete/apply path exists.
-# Revalidate the exact private repository immediately before every state import.
+# Revalidate the exact private repository before the final freshness gate; the
+# gate itself is the last operation before the first state mutation.
 run_quiet_with_token "$github_root/bin/check-repository-present"
+revalidate_restore_absence_freshness
 run_quiet_with_token "$tofu" -chdir="$github_root" import -input=false -lock=true -no-color \
     github_repository.reactive_resume_mirror devraider/cristex-reactive-resume
 [ -f "$state_file" ] && [ ! -L "$state_file" ] || fail first_import_state

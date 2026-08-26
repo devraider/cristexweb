@@ -172,6 +172,24 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
         self.assertLess(absence_recheck, approval_prompt)
         self.assertIn("requesting approval", source)
 
+    def test_restore_absence_freshness_is_revalidated_at_first_import(self) -> None:
+        source = IMPORT.read_text()
+        freshness = source.index("revalidate_restore_absence_freshness()")
+        initial_call = source.index("revalidate_restore_absence_freshness\n", freshness)
+        init = source.index('run_quiet "$tofu" -chdir="$github_root" init')
+        final_call = source.index("revalidate_restore_absence_freshness\n", init)
+        first_import = source.index(
+            'run_quiet_with_token "$tofu" -chdir="$github_root" import'
+        )
+        self.assertLess(freshness, initial_call)
+        self.assertLess(initial_call, init)
+        self.assertLess(init, final_call)
+        self.assertLess(final_call, first_import)
+        self.assertGreaterEqual(source.count("revalidate_restore_absence_freshness\n"), 2)
+        self.assertIn("expires_at_utc", source)
+        self.assertIn("15-minute", source)
+        self.assertIn("stale earlier success is never", source)
+
     def test_import_is_fixed_and_non_destructive(self) -> None:
         source = IMPORT.read_text()
         for value in (
@@ -330,6 +348,21 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             refused = subprocess.run([str(VALIDATE), str(path)], capture_output=True, text=True)
             self.assertNotEqual(0, refused.returncode)
             self.assertIn("reason=non_noop_action", refused.stdout)
+            adversarial = (
+                ("after_unknown", lambda value: value["resource_changes"][0]["change"].update({"after_unknown": {"name": True}}), "reason=unresolved_after_unknown"),
+                ("deferred_changes", lambda value: value.update({"deferred_changes": [{"address": "github_repository.reactive_resume_mirror"}]}), "reason=unresolved_deferred_changes"),
+                ("deposed", lambda value: value["resource_changes"][0].update({"deposed": "deposed-instance"}), "reason=deposed_resource"),
+                ("before_unknown", lambda value: value["resource_changes"][0]["change"].update({"before_unknown": {"name": True}}), "reason=unresolved_before_unknown"),
+                ("replace_paths", lambda value: value["resource_changes"][0]["change"].update({"replace_paths": [["name"]]}), "reason=replace_paths"),
+                ("before_sensitive", lambda value: value["resource_changes"][0]["change"].update({"before_sensitive": {"token": True}}), "reason=sensitive_values"),
+            )
+            for label, mutate, expected_reason in adversarial:
+                payload = plan()
+                mutate(payload)
+                path.write_text(json.dumps(payload))
+                refused_unresolved = subprocess.run([str(VALIDATE), str(path)], capture_output=True, text=True)
+                self.assertNotEqual(0, refused_unresolved.returncode, label)
+                self.assertIn(expected_reason, refused_unresolved.stdout, label)
             payload = plan()
             payload["resource_changes"][0]["change"]["after_sensitive"] = {"token": True}
             path.write_text(json.dumps(payload))

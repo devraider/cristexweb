@@ -135,6 +135,21 @@ if plan.get("output_changes") not in ({}, None):
     fail("outputs_present")
 if plan.get("resource_drift") not in ([], None):
     fail("resource_drift")
+# A no-op import plan must not contain deferred work or unresolved values.  The
+# OpenTofu JSON plan format represents these surfaces at both the top level and
+# on each resource change; accepting them would allow an apparently empty plan
+# to defer a create/update or hide an unknown value until apply.
+for field, allowed in (
+    ("deferred_changes", (None, [])),
+    ("proposed_unknown", (None, {})),
+    ("unknown", (None, {})),
+):
+    if field in plan and plan[field] not in allowed:
+        fail(f"unresolved_{field}")
+if plan.get("errored") not in (None, False):
+    fail("plan_errored")
+if plan.get("complete") is False:
+    fail("plan_incomplete")
 changes = plan.get("resource_changes")
 if not isinstance(changes, list):
     fail("resource_changes")
@@ -147,9 +162,25 @@ for address, contract in EXPECTED.items():
         fail("resource_identity")
     if item.get("provider_name") != PROVIDER:
         fail("provider_scope")
+    if item.get("deposed") not in (None, ""):
+        fail("deposed_resource")
     change = item.get("change")
     if not isinstance(change, dict) or change.get("actions") != []:
         fail("non_noop_action")
+    for field, allowed in (
+        ("after_unknown", (None, {})),
+        ("before_unknown", (None, {})),
+    ):
+        if field in change and change[field] not in allowed:
+            fail(f"unresolved_{field}")
+    if change.get("before_sensitive") not in (None, {}, [], False):
+        fail("sensitive_values")
+    if change.get("after_sensitive") not in (None, {}, [], False):
+        fail("sensitive_values")
+    if change.get("replace_paths") not in (None, []):
+        fail("replace_paths")
+    if change.get("action_reason") not in (None, ""):
+        fail("action_reason")
     if change.get("before") is None or change.get("after") is None:
         fail("missing_imported_state")
     after = change.get("after")

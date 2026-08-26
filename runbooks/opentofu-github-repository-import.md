@@ -94,12 +94,16 @@ before the first import.
    The import entrypoint requires the successful `restore-absence` gate immediately
    before mutation; that rehearsal never receives `GITHUB_TOKEN` and never writes
    the state file. The import lock remains held and state absence is rechecked
-   after this gate. If the recovery gate fails or expires, the entrypoint exits
-   before collecting the import confirmation.
+   after this gate. If the recovery gate fails or its exact 15-minute
+   `expires_at_utc` window has elapsed, the entrypoint exits before collecting
+   the import confirmation.
 3. After the successful recovery gate and absence recheck, obtain separate
    approval for importing an existing private repository and type the exact
    confirmation requested by the entrypoint. The entrypoint then rechecks state
-   absence after `tofu init`, immediately before the first import.
+   absence after `tofu init`, reruns the complete encrypted restore-absence
+   rehearsal, and rechecks state absence immediately before the first import.
+   This second recovery gate is mandatory: an attestation that expires while
+   waiting for confirmation or initialization is rejected fail-closed.
 4. The entrypoint initializes the pinned provider, then runs only the three exact
    `tofu import` commands above. It has no `tofu apply`, create, delete, destroy,
    `tofu state push`, or `tofu state rm` path. A partial import fails closed and requires
@@ -108,7 +112,8 @@ before the first import.
    `validate-import-plan` guard accepts only the exact three managed addresses,
    provider scope, the pinned provider's explicit after-attribute closure,
    expected private metadata, no sensitive values, and exactly `actions=[]` for
-   every resource. Any unknown attribute, drift, or replacement is refused.
+   every resource. Any unknown attribute, deferred change, deposed instance,
+   unresolved value, drift, or replacement is refused.
 6. After the no-op plan is accepted, run the separate guarded post-genesis backup
    test. It encrypts the state with the custody age recipient, uploads immutable
    ciphertext/checksum/manifest leaves, reads them back byte-for-byte, and emits
