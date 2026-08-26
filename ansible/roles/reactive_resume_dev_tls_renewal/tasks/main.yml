@@ -1,4 +1,20 @@
 ---
+- name: Reject externally supplied source marker variables
+  ansible.builtin.assert:
+    that:
+      - "'reactive_resume_dev_tls_renewal_task_self_hash' not in vars"
+      - "'reactive_resume_dev_tls_renewal_defaults_raw_hash' not in vars"
+    fail_msg: Refusing externally supplied TLS renewal source marker variables.
+  changed_when: false
+  no_log: true
+
+- name: Bind the canonical role task source marker
+  ansible.builtin.set_fact:
+    reactive_resume_dev_tls_renewal_task_self_hash: '0000000000000000000000000000000000000000000000000000000000000000'
+    reactive_resume_dev_tls_renewal_defaults_raw_hash: '658e8055f6b60e5968dce2ac77456e12502d9861f82ccc86139d227bb843cfd2'
+  changed_when: false
+  no_log: true
+
 - name: Reject externally supplied renewal internals
   ansible.builtin.assert:
     that:
@@ -68,6 +84,175 @@
   changed_when: false
   no_log: true
 
+- name: Require the immutable TLS renewal source paths and manifest contract
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_repository_root == '/home/paul/projects/cristexweb'
+      - >-
+        reactive_resume_dev_tls_renewal_component_root ==
+        '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/renewal'
+      - >-
+        reactive_resume_dev_tls_renewal_manifest_path ==
+        '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/MANIFESTS.sha256'
+      - reactive_resume_dev_tls_renewal_manifest_sha256 == '90cef6e9a07df37a319fd7c44a1d8a82841b10ef1b7bf7d7635519fcb73e19d5'
+      - reactive_resume_dev_tls_renewal_source_hashes | length == 5
+      - >-
+        reactive_resume_dev_tls_renewal_source_hashes[0].path ==
+        '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/renewal/validate-reactive-resume-dev-tls-material'
+      - reactive_resume_dev_tls_renewal_source_hashes[0].mode == '0755'
+      - reactive_resume_dev_tls_renewal_source_hashes[0].sha256 == '68c0fcde82cc3d3f394d5c14e9cffc3c2cf0dd42bb93ad496143b15cc86f1985'
+      - >-
+        reactive_resume_dev_tls_renewal_source_hashes[1].path ==
+        '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/renewal/cristexweb-reactive-resume-dev-tls-renew.service'
+      - reactive_resume_dev_tls_renewal_source_hashes[1].mode == '0644'
+      - reactive_resume_dev_tls_renewal_source_hashes[1].sha256 == 'ddadb603a2f580bd14af0461c60cc30163174ecade9328c73b39d7afb1bd6cb3'
+      - >-
+        reactive_resume_dev_tls_renewal_source_hashes[2].path ==
+        '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/renewal/reactive-resume-dev-tls-renew'
+      - reactive_resume_dev_tls_renewal_source_hashes[2].mode == '0755'
+      - reactive_resume_dev_tls_renewal_source_hashes[2].sha256 == 'c46ad711f8693fcbe783841a99542a7c0a74fefdfc4a03ab6f4cde198e36629b'
+      - >-
+        reactive_resume_dev_tls_renewal_source_hashes[3].path ==
+        '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/source/reactive-resume-dev-tls.yaml'
+      - reactive_resume_dev_tls_renewal_source_hashes[3].mode == '0644'
+      - reactive_resume_dev_tls_renewal_source_hashes[3].sha256 == 'bf9f6104f1e45c6f75bb86344dd151b05a2b4084cd76185a60ed3171f4d33ffe'
+      - >-
+        reactive_resume_dev_tls_renewal_source_hashes[4].path ==
+        '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/renewal/cristexweb-reactive-resume-dev-tls-renew.timer'
+      - reactive_resume_dev_tls_renewal_source_hashes[4].mode == '0644'
+      - reactive_resume_dev_tls_renewal_source_hashes[4].sha256 == 'cd0a8c3b01e623627854ed63da37e0d35d4cc9f7db0b675d93f52325f2fb3a0f'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes | length == 6
+      - >-
+        reactive_resume_dev_tls_renewal_execution_source_hashes[0].path ==
+        '/home/paul/projects/cristexweb/ansible/bin/configure-reactive-resume-dev-tls-renewal'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[0].mode == '0755'
+      - >-
+        reactive_resume_dev_tls_renewal_execution_source_hashes[1].path ==
+        '/home/paul/projects/cristexweb/ansible/playbooks/configure_reactive_resume_dev_tls_renewal.yml'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[1].mode == '0644'
+      - >-
+        reactive_resume_dev_tls_renewal_execution_source_hashes[2].path ==
+        '/home/paul/projects/cristexweb/ansible/roles/reactive_resume_dev_tls_renewal/tasks/main.yml'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[2].mode == '0644'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[2].normalized_digest_name == 'reactive_resume_dev_tls_renewal_task_self_hash'
+      - >-
+        reactive_resume_dev_tls_renewal_execution_source_hashes[3].path ==
+        '/home/paul/projects/cristexweb/ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[3].mode == '0644'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[3].normalized_digest_name == 'reactive_resume_dev_tls_renewal_defaults_self_hash'
+      - >-
+        reactive_resume_dev_tls_renewal_execution_source_hashes[4].path ==
+        '/home/paul/projects/cristexweb/ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[4].mode == '0644'
+      - >-
+        reactive_resume_dev_tls_renewal_execution_source_hashes[4].sha256 ==
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256')
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[5].path == '/home/paul/projects/cristexweb/ansible/ansible.cfg'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[5].mode == '0644'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[5].sha256 == '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+    fail_msg: Refusing TLS renewal source paths, modes, or hashes outside the fixed reviewed closure.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the fixed wrapper-bound controller inputs
+  ansible.builtin.stat:
+    path: '{{ item.path }}'
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  loop:
+    - path: /home/paul/projects/cristexweb/.venv/bin/ansible-playbook
+      mode: '0755'
+      sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER_SHA256') }}"
+    - path: /home/paul/projects/cristexweb/ansible/.ansible/inventory.local.yml
+      mode: '0600'
+      sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_INVENTORY_SHA256') }}"
+    - path: /home/paul/projects/cristexweb/ansible/ansible.cfg
+      mode: '0644'
+      sha256: 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9
+  register: reactive_resume_dev_tls_renewal_internal_controller_inputs
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the fixed wrapper-bound controller inputs
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_INVENTORY_SHA256') is match('^[0-9a-f]{64}$')
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ANSIBLE_CONFIG_SHA256') ==
+        '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == 'paul'
+      - item.stat.gr_name == 'paul'
+      - item.stat.mode == item.item.mode
+      - item.stat.checksum == item.item.sha256
+      - item.item.sha256 is match('^[0-9a-f]{64}$')
+    fail_msg: Refusing controller, inventory, or Ansible configuration drift outside the wrapper-bound inputs.
+  loop: '{{ reactive_resume_dev_tls_renewal_internal_controller_inputs.results }}'
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect the fixed role defaults source digest
+  ansible.builtin.stat:
+    path: /home/paul/projects/cristexweb/ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: reactive_resume_dev_tls_renewal_internal_defaults_digest
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the fixed role defaults source digest
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_defaults_digest.stat.isreg | default(false)
+      - not (reactive_resume_dev_tls_renewal_internal_defaults_digest.stat.islnk | default(false))
+      - reactive_resume_dev_tls_renewal_internal_defaults_digest.stat.pw_name == 'paul'
+      - reactive_resume_dev_tls_renewal_internal_defaults_digest.stat.gr_name == 'paul'
+      - reactive_resume_dev_tls_renewal_internal_defaults_digest.stat.mode == '0644'
+      - reactive_resume_dev_tls_renewal_internal_defaults_digest.stat.checksum == reactive_resume_dev_tls_renewal_defaults_raw_hash
+    fail_msg: Refusing a modified TLS renewal role defaults source.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Read the fixed role defaults source for override detection
+  ansible.builtin.slurp:
+    src: /home/paul/projects/cristexweb/ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml
+  register: reactive_resume_dev_tls_renewal_internal_defaults_raw
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require role source hash variables match the fixed defaults source
+  ansible.builtin.assert:
+    that:
+      - >-
+        (reactive_resume_dev_tls_renewal_source_hashes | map(attribute='sha256') | list) ==
+        ((reactive_resume_dev_tls_renewal_internal_defaults_raw.content | b64decode |
+        from_yaml).reactive_resume_dev_tls_renewal_source_hashes |
+        map(attribute='sha256') | list)
+      - >-
+        (reactive_resume_dev_tls_renewal_execution_source_hashes | map(attribute='sha256') | list) ==
+        ((reactive_resume_dev_tls_renewal_internal_defaults_raw.content | b64decode |
+        from_yaml).reactive_resume_dev_tls_renewal_execution_source_hashes |
+        map(attribute='sha256') | list)
+    fail_msg: Refusing TLS renewal source hash variables overridden outside the fixed defaults source.
+  changed_when: false
+  no_log: true
+
 - name: Inspect the hash-bound renewal source closure on the controller
   ansible.builtin.stat:
     path: '{{ item.path }}'
@@ -95,7 +280,10 @@
       - item.stat.mode == item.item.mode
       - >-
         (item.item.normalized_digest_name | default('') == '') or
-        item.item.normalized_digest_name == 'reactive_resume_dev_tls_renewal_defaults_self_hash'
+        item.item.normalized_digest_name in [
+          'reactive_resume_dev_tls_renewal_task_self_hash',
+          'reactive_resume_dev_tls_renewal_defaults_self_hash'
+        ]
       - >-
         (item.item.normalized_digest_name | default('') != '') or
         item.stat.checksum == item.item.sha256
@@ -150,6 +338,15 @@
         (reactive_resume_dev_tls_renewal_execution_source_hashes |
         selectattr('path', 'search', 'reactive_resume_dev_tls_renewal/defaults/main.yml') |
         map(attribute='sha256') | first)
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256') ==
+        (reactive_resume_dev_tls_renewal_execution_source_hashes |
+        selectattr('path', 'search', 'reactive_resume_dev_tls_renewal_guarded_linear.py') |
+        map(attribute='sha256') | first)
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ANSIBLE_CONFIG_SHA256') ==
+        '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
     fail_msg: Refusing TLS renewal source hashes not bound by the canonical wrapper.
   changed_when: false
   no_log: true
@@ -167,9 +364,22 @@
 - name: Require normalized execution closure source hashes
   ansible.builtin.assert:
     that:
-      - item.item.normalized_digest_name == 'reactive_resume_dev_tls_renewal_defaults_self_hash'
+      - item.item.normalized_digest_name in [
+          'reactive_resume_dev_tls_renewal_task_self_hash',
+          'reactive_resume_dev_tls_renewal_defaults_self_hash'
+        ]
       - >-
         item.content | b64decode |
+        regex_replace(
+          "^    reactive_resume_dev_tls_renewal_task_self_hash:[ ]+'?[0-9a-f]{64}'?$",
+          '    reactive_resume_dev_tls_renewal_task_self_hash: __TASK_SELF_HASH__',
+          multiline=True
+        ) |
+        regex_replace(
+          "^    reactive_resume_dev_tls_renewal_defaults_raw_hash:[ ]+'?[0-9a-f]{64}'?$",
+          '    reactive_resume_dev_tls_renewal_defaults_raw_hash: __DEFAULTS_RAW_HASH__',
+          multiline=True
+        ) |
         regex_replace(
           '^reactive_resume_dev_tls_renewal_defaults_self_hash:[ ]+[0-9a-f]{64}$',
           'reactive_resume_dev_tls_renewal_defaults_self_hash: __SELF_HASH__',
@@ -180,8 +390,13 @@
           '    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: __SELF_HASH__',
           multiline=True
         ) |
+        regex_replace(
+          '(?m)^    normalized_digest_name: reactive_resume_dev_tls_renewal_task_self_hash\n    sha256: [0-9a-f]{64}$',
+          '    normalized_digest_name: reactive_resume_dev_tls_renewal_task_self_hash\n    sha256: __TASK_SELF_HASH__',
+          multiline=True
+        ) |
         hash('sha256') == item.item.sha256
-    fail_msg: Refusing TLS renewal execution closure with modified role defaults.
+    fail_msg: Refusing TLS renewal execution closure with modified role tasks or defaults.
   loop: '{{ reactive_resume_dev_tls_renewal_internal_normalized_source_contents.results }}'
   delegate_to: localhost
   become: false

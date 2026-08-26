@@ -5,6 +5,7 @@
   become: true
   any_errors_fatal: true
   serial: 1
+  strategy: reactive_resume_dev_tls_renewal_guarded_linear
 
   vars:
     reactive_resume_dev_tls_renewal_approved: false

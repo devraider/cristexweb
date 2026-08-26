@@ -41,6 +41,7 @@ timer="$repository_root/ansible/files/components/reactive-resume-dev-tls/renewal
 playbook="$repository_root/ansible/playbooks/configure_reactive_resume_dev_tls_renewal.yml"
 tasks="$repository_root/ansible/roles/reactive_resume_dev_tls_renewal/tasks/main.yml"
 defaults="$repository_root/ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml"
+strategy="$repository_root/ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py"
 sha_file() { /usr/bin/sha256sum -- "$1" | /usr/bin/awk '{print $1}'; }
 canonical_sha256() {
   "$python_tool" - "$1" <<'PY'
@@ -77,11 +78,34 @@ if count != 1:
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
-wrapper_canonical_sha256_expected='39ed6715c16c0abeeb2b746483b66c256ea6bba1111e1f2cd3a87c55a4bb95cf'
+normalized_task_sha256() {
+  "$python_tool" - "$1" <<'PY'
+import hashlib, re, sys
+source = open(sys.argv[1], encoding='utf-8').read()
+source, count = re.subn(
+    r"(?m)^    reactive_resume_dev_tls_renewal_task_self_hash: '?[0-9a-f]{64}'?$",
+    "    reactive_resume_dev_tls_renewal_task_self_hash: __TASK_SELF_HASH__",
+    source,
+)
+if count != 1:
+    raise SystemExit(69)
+source, count = re.subn(
+    r"(?m)^    reactive_resume_dev_tls_renewal_defaults_raw_hash: '?[0-9a-f]{64}'?$",
+    "    reactive_resume_dev_tls_renewal_defaults_raw_hash: __DEFAULTS_RAW_HASH__",
+    source,
+)
+if count != 1:
+    raise SystemExit(69)
+print(hashlib.sha256(source.encode()).hexdigest())
+PY
+}
+wrapper_canonical_sha256_expected='25b61be3e80ffbc08fc9acd8b2c2cf24ad9de3bceee8545b1784c1952a43cf9e'
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
-for source in "$inventory" "$ansible_config" "$manifest" "$validator" "$renewal" "$service" "$timer" "$playbook" "$tasks" "$defaults"; do
+for source in "$inventory" "$ansible_config" "$manifest" "$validator" "$renewal" "$service" "$timer" "$playbook" "$tasks" "$defaults" "$strategy"; do
   [ -f "$source" ] && [ ! -L "$source" ] || exit 69
 done
+[ -f "$controller" ] && [ ! -L "$controller" ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$controller")" = 'paul:paul:755' ] || exit 69
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$inventory")" = 'paul:paul:600' ] || exit 69
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$ansible_config")" = 'paul:paul:644' ] || exit 69
 [ "$(canonical_sha256 "$script_path")" = "$wrapper_canonical_sha256_expected" ] || {
@@ -102,8 +126,9 @@ renewal_sha256=$(sha_file "$renewal")
 service_sha256=$(sha_file "$service")
 timer_sha256=$(sha_file "$timer")
 playbook_sha256=$(sha_file "$playbook")
-task_sha256=$(sha_file "$tasks")
+task_sha256=$(normalized_task_sha256 "$tasks")
 defaults_sha256=$(normalized_defaults_sha256 "$defaults")
+strategy_sha256=$(sha_file "$strategy")
 attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-dev-tls-renewal.XXXXXX")"
 attestation_token="$(/usr/bin/openssl rand -hex 32)"
 /bin/chmod 0600 "$attestation_file"
@@ -141,4 +166,8 @@ set -- \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_SHA256="$playbook_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256="$task_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_DEFAULTS_SHA256="$defaults_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256="$strategy_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER_SHA256="$controller_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_INVENTORY_SHA256="$inventory_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ANSIBLE_CONFIG_SHA256="$ansible_config_sha256" \
   "$@"

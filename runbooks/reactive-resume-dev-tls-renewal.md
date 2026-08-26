@@ -77,9 +77,11 @@ to prevent duplicate issuance.
 Install mode verifies the controller-side `MANIFESTS.sha256` closure and
 hash-binds every renewal source before copying it. It also hash-binds the
 canonical wrapper, playbook, role task file, and role defaults execution
-closure; only the explicitly named `reactive_resume_dev_tls_renewal_defaults_self_hash`
-digest literal is normalized to avoid that self-reference cycle. All other
-source-pin digest literals remain covered by the closure. A single-use,
+closure; the explicitly named task/defaults marker literals are normalized only
+to avoid their self-reference cycles, while all other source-pin digest literals
+remain covered by the closure. The wrapper-bound controller, ignored inventory,
+Ansible configuration, and guarded strategy are also validated by fixed paths,
+ownership, modes, and wrapper-computed SHA-256 digests. A single-use,
 controller-owned attestation is required in addition to the entrypoint marker;
 direct playbook invocation and externally supplied hash variables therefore
 fail before package or host tasks. The complete controller-local source/hash preflight runs before any package or

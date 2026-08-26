@@ -1,8 +1,10 @@
 import hashlib
+import importlib.util
 import re
 import stat
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -18,6 +20,7 @@ PLAYBOOK = ROOT / "ansible/playbooks/configure_reactive_resume_dev_tls_renewal.y
 ROLE = ROOT / "ansible/roles/reactive_resume_dev_tls_renewal/tasks/main.yml"
 DEFAULTS = ROOT / "ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml"
 RUNBOOK = ROOT / "runbooks/reactive-resume-dev-tls-renewal.md"
+STRATEGY = ROOT / "ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py"
 
 
 class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
@@ -176,6 +179,65 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "normalized_defaults_sha256",
         ):
             self.assertIn(required, wrapper)
+
+    def test_strategy_rejects_selection_controls_before_task_iteration(self) -> None:
+        spec = importlib.util.spec_from_file_location("rr_tls_strategy", STRATEGY)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        strategy = module.StrategyModule.__new__(module.StrategyModule)
+        with mock.patch.object(module.context, "CLIARGS", {"start_at_task": "mutation"}):
+            with self.assertRaisesRegex(Exception, "TASK_SELECTION_GUARD"):
+                strategy.run(None, None)
+        empty_selection = {"start_at_task": "", "step": False, "tags": [], "skip_tags": []}
+        with mock.patch.object(module.context, "CLIARGS", empty_selection):
+            for argv in (
+                ["ansible-playbook", "--start-at-task="],
+                ["ansible-playbook", "--step="],
+                ["ansible-playbook", "-t", "all"],
+                ["ansible-playbook", "-t=all"],
+                ["ansible-playbook", "-tall"],
+                ["ansible-playbook", "--ta", "all"],
+                ["ansible-playbook", "--tag=all"],
+            ):
+                with self.subTest(argv=argv):
+                    with mock.patch.object(module.sys, "argv", argv):
+                        with self.assertRaisesRegex(Exception, "TASK_SELECTION_GUARD"):
+                            strategy.run(None, None)
+
+    def test_playbook_and_role_pin_first_task_and_execution_inputs(self) -> None:
+        playbook = PLAYBOOK.read_text()
+        role = ROLE.read_text()
+        self.assertIn("strategy: reactive_resume_dev_tls_renewal_guarded_linear", playbook)
+        self.assertIn("Require the immutable TLS renewal source paths and manifest contract", role)
+        self.assertIn("Reject externally supplied source marker variables", role)
+        self.assertIn("Require the fixed wrapper-bound controller inputs", role)
+        self.assertIn("CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER_SHA256", role)
+        self.assertIn("CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_INVENTORY_SHA256", role)
+        self.assertIn("CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ANSIBLE_CONFIG_SHA256", role)
+        self.assertIn("reactive_resume_dev_tls_renewal_task_self_hash", role)
+        self.assertIn("reactive_resume_dev_tls_renewal_defaults_raw_hash", role)
+        self.assertIn("reactive_resume_dev_tls_renewal_guarded_linear.py", role)
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        execution = defaults["reactive_resume_dev_tls_renewal_execution_source_hashes"]
+        self.assertEqual(hashlib.sha256(STRATEGY.read_bytes()).hexdigest(), execution[4]["sha256"])
+        self.assertEqual(
+            hashlib.sha256((ROOT / "ansible/ansible.cfg").read_bytes()).hexdigest(),
+            execution[5]["sha256"],
+        )
+        wrapper = WRAPPER.read_text()
+        for digest_name in (
+            "CONTROLLER_SHA256",
+            "INVENTORY_SHA256",
+            "ANSIBLE_CONFIG_SHA256",
+            "STRATEGY_SHA256",
+        ):
+            self.assertIn(
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_" + digest_name,
+                wrapper,
+            )
+        self.assertNotIn("--start-at-task", wrapper)
 
     def test_role_is_separate_install_and_enable_boundary(self) -> None:
         text = ROLE.read_text()
