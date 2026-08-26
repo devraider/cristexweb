@@ -32,6 +32,7 @@ ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 TASK_SUFFIX = "/ansible/roles/reactive_resume_dev_argocd_registration/tasks/main.yml"
 EXPECTED_REVISION = "dd7d4cedd902e68266d9713d1dbb8e90f0b529b1"
 EXPECTED_MIGRATION_SOURCE_SHA256 = "b262ddb6834eb9d14d0eb279bb1a1c8686df83fedea56dc51d01fddc2281a3ac"
+EXPECTED_CLUSTER_NAMESPACES = "cristexhub-dev,cristexhub-prod"
 EXPECTED_DEPENDENCY_DATA_KEYS = {
     "reactive-resume-dev-runtime": [
         "APP_URL", "AUTH_SECRET", "DATABASE_URL", "OAUTH_CLIENT_ID",
@@ -48,7 +49,7 @@ EXPECTED_DEPENDENCY_DATA_KEYS = {
 EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {
     ("argoproj.io/v1alpha1", "Application", "argocd", "reactive-resume-dev"): "bd068ab20320ffd68de923f2887f5b9694e1f278317b7e865d30b8f6c6df6b57",
     ("argoproj.io/v1alpha1", "AppProject", "argocd", "reactive-resume-dev"): "a6c86514f1bef83d810515a9f59519687f2c23d82211bcfaedddac9a25417e03",
-    ("v1", "Secret", "argocd", "argocd-cluster-reactive-resume-dev"): "7bc10653f97ab05c96f515b555a51b9f7a6f219722e694facff518f278da14ea",
+    ("v1", "Secret", "argocd", "argocd-cluster-reactive-resume-dev"): "56a6232806695ddced609cebc519f16a9431d8fbbb75b77eebb8a82423fec764",
     ("rbac.authorization.k8s.io/v1", "Role", "cristexhub-dev", "argocd-application-controller-reactive-resume-dev"): "223fd10d51f8aad55d28b40a0f1bd85c6a44fb809e9d276aff256a18450e3f8e",
     ("rbac.authorization.k8s.io/v1", "RoleBinding", "cristexhub-dev", "argocd-application-controller-reactive-resume-dev"): "0d1c6d8b3bea0e358296ad96ef33ccfb7aaa545e753688cfcd79f0b0c57085ee",
 }
@@ -83,6 +84,10 @@ class ActionModule(KubernetesActionModule):
         identity = (definition.get("apiVersion"), definition.get("kind"), meta.get("namespace", ""), meta.get("name"))
         if identity not in EXPECTED or canonical(definition) != EXPECTED_HASHES.get(identity):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: unknown or drifted Reactive Resume DEV registration object"}
+        if identity == ("v1", "Secret", "argocd", "argocd-cluster-reactive-resume-dev"):
+            string_data = definition.get("stringData") or {}
+            if string_data.get("namespaces") != EXPECTED_CLUSTER_NAMESPACES or string_data.get("clusterResources") != "false":
+                return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: unbounded Argo cluster namespace scope"}
         if meta.get("labels", {}).get("cristex.io/component") != "reactive-resume-dev-argocd-registration" or meta.get("labels", {}).get("app.kubernetes.io/managed-by") != "ansible":
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: registration ownership labels drifted"}
         token = os.environ.get("CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_REGISTRATION_TOKEN", "")

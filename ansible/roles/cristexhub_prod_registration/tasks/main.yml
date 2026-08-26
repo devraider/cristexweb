@@ -43,6 +43,8 @@
       - cristexhub_prod_registration_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
       - cristexhub_prod_registration_revision == '751885a42798d282e168131db147f13694a0a621'
       - cristexhub_prod_registration_path == 'infra/kubernetes/cristexhub-prod'
+      - cristexhub_prod_registration_cluster_namespaces == 'cristexhub-dev,cristexhub-prod'
+      - cristexhub_prod_registration_cluster_namespaces.split(',') == ['cristexhub-dev', 'cristexhub-prod']
       - cristexhub_prod_registration_legacy_transition_object_count == 2
       - >-
         cristexhub_prod_registration_transition_specs.AppProject |
@@ -499,7 +501,8 @@
         (item.resources[0].data | default({})).keys() | list | sort == ['clusterResources', 'config', 'name', 'namespaces', 'server'] and
         item.resources[0].data.name | b64decode == 'cristexhub-prod-local' and
         item.resources[0].data.server | b64decode == 'https://kubernetes.default.svc' and
-        item.resources[0].data.namespaces | b64decode == 'cristexhub-prod' and
+        item.resources[0].data.namespaces | b64decode in
+        ['cristexhub-prod', cristexhub_prod_registration_cluster_namespaces] and
         item.resources[0].data.clusterResources | b64decode == 'false' and
         item.resources[0].data.config | b64decode == '{}' and
         (item.resources[0].binaryData | default({}) | length) == 0 and
@@ -849,7 +852,7 @@
       - >-
         (cristexhub_prod_registration_internal_poststate.results |
         selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.namespaces |
-        b64decode == 'cristexhub-prod'
+        b64decode == cristexhub_prod_registration_cluster_namespaces
       - >-
         (cristexhub_prod_registration_internal_poststate.results |
         selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.clusterResources |

@@ -45,7 +45,6 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             {manifest["kind"] for manifest in manifests},
         )
         text = "\n".join(path.read_text() for path in COMPONENT.rglob("*.yaml"))
-        self.assertNotIn("cristexhub-dev", text)
         self.assertNotIn("password", text.lower())
         self.assertNotIn("token", text.lower())
         self.assertNotIn("sshPrivateKey", text)
@@ -57,12 +56,13 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             {
                 "name": "cristexhub-prod-local",
                 "server": "https://kubernetes.default.svc",
-                "namespaces": "cristexhub-prod",
+                "namespaces": "cristexhub-dev,cristexhub-prod",
                 "clusterResources": "false",
                 "config": "{}",
             },
             cluster["stringData"],
         )
+        self.assertEqual(["cristexhub-dev", "cristexhub-prod"], cluster["stringData"]["namespaces"].split(","))
 
     def test_application_is_exact_revision_and_automated_without_prune(self) -> None:
         application = next(manifest for manifest in objects() if manifest["kind"] == "Application")
@@ -177,6 +177,8 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertIn("Record exact legacy-to-alias transition candidates", TASKS.read_text())
         self.assertIn("Reject partial or duplicate legacy-to-alias transitions", TASKS.read_text())
         self.assertIn("legacy_transition_uids", PLUGIN.read_text())
+        self.assertIn("EXPECTED_CLUSTER_NAMESPACES", PLUGIN.read_text())
+        self.assertIn("cristexhub_prod_registration_cluster_namespaces == 'cristexhub-dev,cristexhub-prod'", TASKS.read_text())
         self.assertIn("legacy_transition_change_count", PLUGIN.read_text())
         self.assertIn("legacy_transition_spec_hashes", PLUGIN.read_text())
         self.assertIn("legacy_transition_manifest_hashes", PLUGIN.read_text())

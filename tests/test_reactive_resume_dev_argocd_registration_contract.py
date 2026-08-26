@@ -35,6 +35,18 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
         self.assertIn('Prune=false', app['spec']['syncPolicy']['syncOptions'])
         self.assertNotIn('resources-finalizer.argocd.argoproj.io', app['metadata'].get('finalizers', []))
 
+    def test_same_server_cluster_registration_scope_is_exact_and_bounded(self):
+        cluster = next(x for x in docs(REG) if x['kind'] == 'Secret')
+        self.assertEqual({
+            'name': 'reactive-resume-dev-local',
+            'server': 'https://kubernetes.default.svc',
+            'namespaces': 'cristexhub-dev,cristexhub-prod',
+            'clusterResources': 'false',
+            'config': '{}',
+        }, cluster['stringData'])
+        self.assertEqual(['cristexhub-dev', 'cristexhub-prod'], cluster['stringData']['namespaces'].split(','))
+        self.assertNotIn(' ', cluster['stringData']['namespaces'])
+
     def test_project_and_rbac_are_least_privilege(self):
         project = next(x for x in docs(REG) if x['kind'] == 'AppProject')
         self.assertEqual([], project['spec']['clusterResourceWhitelist'])
@@ -150,6 +162,8 @@ class ReactiveResumeDevArgoRegistrationContractTests(unittest.TestCase):
         self.assertIn('managedFields', tasks)
         self.assertIn('argocd.argoproj.io/tracking-id', tasks)
         self.assertIn('EXPECTED_HANDOFF', plugin)
+        self.assertIn('EXPECTED_CLUSTER_NAMESPACES', plugin)
+        self.assertIn("reactive_resume_dev_argocd_registration_cluster_namespaces == 'cristexhub-dev,cristexhub-prod'", tasks)
         self.assertIn('dependency_names', plugin)
         self.assertIn('no_delete_path', plugin)
         self.assertIn('task selection controls are forbidden', plugin)

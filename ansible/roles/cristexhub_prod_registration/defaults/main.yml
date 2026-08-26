@@ -22,6 +22,7 @@ cristexhub_prod_registration_manifest_paths:
     {{ cristexhub_prod_registration_repository_root
     }}/ansible/files/components/cristexhub-prod-registration/config/secret-cluster-cristexhub-prod.yaml
 cristexhub_prod_registration_object_count: 5
+cristexhub_prod_registration_cluster_namespaces: 'cristexhub-dev,cristexhub-prod'
 cristexhub_prod_registration_repository: ssh://git@ssh.github.com:443/devraider/cristexhub.git
 cristexhub_prod_registration_revision: 751885a42798d282e168131db147f13694a0a621
 cristexhub_prod_registration_path: infra/kubernetes/cristexhub-prod
@@ -123,4 +124,4 @@ cristexhub_prod_registration_expected_hashes:
   - path: >-
       {{ cristexhub_prod_registration_repository_root
       }}/ansible/files/components/cristexhub-prod-registration/config/secret-cluster-cristexhub-prod.yaml
-    sha256: 65bbf39cc07645b9630e6fade5bae90a93e9f3299cf791534e532ff667765fb2
+    sha256: c6b7534728865115014979ea4d6aeeedd9f28fc7ff415bad8795bcc1dfd75193

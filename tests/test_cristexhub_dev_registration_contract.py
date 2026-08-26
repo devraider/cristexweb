@@ -16,7 +16,8 @@ class RegistrationContractTests(unittest.TestCase):
         self.assertEqual({'AppProject','Application','Role','RoleBinding','Secret'}, {o['kind'] for o in objs})
         cluster = next(o for o in objs if o['kind'] == 'Secret')
         self.assertEqual('argocd-cluster-cristexhub-dev', cluster['metadata']['name'])
-        self.assertEqual({'name':'cristexhub-dev-local','server':'https://kubernetes.default.svc','namespaces':'cristexhub-dev','clusterResources':'false','config':'{}'}, cluster['stringData'])
+        self.assertEqual({'name':'cristexhub-dev-local','server':'https://kubernetes.default.svc','namespaces':'cristexhub-dev,cristexhub-prod','clusterResources':'false','config':'{}'}, cluster['stringData'])
+        self.assertEqual(['cristexhub-dev', 'cristexhub-prod'], cluster['stringData']['namespaces'].split(','))
         self.assertNotIn('token', str(cluster).lower())
         self.assertNotIn('password', str(cluster).lower())
 
@@ -58,6 +59,8 @@ class RegistrationContractTests(unittest.TestCase):
         self.assertIn('cristexhub_dev_registration_expected_hashes:', defaults)
         tasks = (ROOT / 'ansible/roles/cristexhub_dev_registration/tasks/main.yml').read_text()
         self.assertIn('argocd-repository-cristexhub', tasks)
+        self.assertIn("cristexhub_dev_registration_cluster_namespaces == 'cristexhub-dev,cristexhub-prod'", tasks)
+        self.assertIn('unbounded Argo cluster namespace scope', (ROOT / 'ansible/plugins/action/cristexhub_dev_registration_guarded_k8s.py').read_text())
         self.assertIn("data.type | b64decode == 'git'", tasks)
         self.assertIn("data.url | b64decode == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'", tasks)
         self.assertIn('metadata.ownerReferences', tasks)

@@ -69,9 +69,16 @@ The exact five-object registration closure is keyed by unique
 5. `v1|Secret|argocd|argocd-cluster-cristexhub-prod`.
 
 The cluster Secret is value-free registration metadata for the in-cluster API.
-It selects only `cristexhub-prod`, has `clusterResources=false`, and contains no
-token, password, kubeconfig, or private key. The separate Infisical-owned
-`argocd-repository-cristexhub` Secret remains the only private Git credential;
+Its `namespaces` field is the exact comma-delimited Argo allowlist
+`cristexhub-dev,cristexhub-prod`; it has `clusterResources=false` and contains no
+token, password, kubeconfig, or private key. The shared allowlist prevents the
+same-server Argo cluster cache from selecting a narrower registration Secret,
+while this PROD AppProject and namespaced Role still permit only
+`cristexhub-prod`. The owner wrapper accepts the previous exact
+`namespaces=cristexhub-prod` Secret only as the bounded pre-state: `check`
+predicts its replacement, `apply` reconciles the shared allowlist, and apply
+post-validation re-reads the Secret and requires the exact five-object closure.
+The separate Infisical-owned `argocd-repository-cristexhub` Secret remains the only private Git credential;
 the guarded role validates only its metadata closure.
 
 ## Fail-closed registration

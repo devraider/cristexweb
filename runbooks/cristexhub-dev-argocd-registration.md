@@ -10,11 +10,17 @@ credential target owned by Infisical. The application source is pinned to
 The AppProject permits only ConfigMaps, Services, Deployments, and
 NetworkPolicies in the existing `cristexhub-dev` namespace. It permits no
 cluster-scoped application resource, Secret, Ingress, Namespace, PVC, Role, or
-RoleBinding. Namespace writes are bounded by a Role without delete. A non-sensitive Argo
-cluster-registration Secret selects only `cristexhub-dev`, sets
-`clusterResources=false`, and uses the controller's in-cluster identity. This
-keeps cache reads namespace-scoped; no ClusterRole or ClusterRoleBinding is
-created.
+RoleBinding. Namespace writes are bounded by a Role without delete. A non-sensitive
+Argo cluster-registration Secret uses the exact comma-delimited
+`namespaces=cristexhub-dev,cristexhub-prod` allowlist (the Argo cluster Secret
+syntax), sets `clusterResources=false`, and uses the controller's in-cluster
+identity. The shared cache allowlist is required because all three in-cluster
+registration Secrets use the same API server; the AppProject and namespaced Role
+still restrict this DEV Application to `cristexhub-dev`. The owner wrapper
+accepts the previous single-namespace Secret only as the exact bounded
+pre-state: `check` predicts its replacement, `apply` reconciles the shared
+allowlist, and apply post-validation re-reads the Secret and requires the exact
+five-object closure. No ClusterRole or ClusterRoleBinding is created.
 
 The repository deploy key is read-only, usable only through GitHub SSH on port
 443, and its private value exists only at Infisical `prod:/argocd`. Infisical
@@ -50,8 +56,9 @@ The guarded role refuses the transition unless every gate is observed in the
 private API: every DEV Deployment and init container uses a digest-qualified
 image and is Available; the orphaned Infisical-owned runtime Secret has exactly
 its ten keys, non-empty Browserless/code-runner credentials, and metadata closure; the Argo cluster Secret has
-`clusterResources=false` and only the `cristexhub-dev` namespace; the
-namespace-scoped controller Role exists; the OIDC proxy Deployment is Available;
+`clusterResources=false` and exactly the comma-delimited
+`cristexhub-dev,cristexhub-prod` namespace allowlist; the namespace-scoped
+controller Role and AppProject still restrict DEV writes to `cristexhub-dev`; the OIDC proxy Deployment is Available;
 and every declared PostgreSQL, MongoDB, RabbitMQ, and Redis dependency has a
 Service and ready Endpoints. It also requires the current Application to remain
 manual and the current AppProject deny window to be exact before writing either

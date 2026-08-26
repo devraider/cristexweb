@@ -24,6 +24,7 @@ ARGS = {"state", "definition", "kubeconfig", "wait", "wait_timeout"}
 TRANSITION_ARGS = {"transition", "state", "kubeconfig", "project_definition", "application_definition"}
 EXPECTED_REPOSITORY_ROOT = "/home/paul/projects/cristexweb"
 TASK_SUFFIX = "/ansible/roles/cristexhub_prod_registration/tasks/main.yml"
+EXPECTED_CLUSTER_NAMESPACES = "cristexhub-dev,cristexhub-prod"
 LEGACY_TRANSITION_UIDS = {
     "Application": "e2016a99-2c4f-4e2e-ac28-0640cafa2a8e",
     "AppProject": "6c04c48c-7d71-46c3-b4d0-7fc9f437f5d6",
@@ -85,7 +86,7 @@ EXPECTED_HASHES: dict[tuple[str, str, str, str], str] = {('argoproj.io/v1alpha1'
  ('argoproj.io/v1alpha1', 'Application', 'argocd', 'cristexhub-prod'): '107356ed772eec987ab8c4f19b05b2ebb5a84ddf21bd0f483044e434084a8c5a',
  ('rbac.authorization.k8s.io/v1', 'Role', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'c40a189cdf4a3b864fae8bb64f06b0473aae2b47771f1c22ddf4a86f0f669fc4',
  ('rbac.authorization.k8s.io/v1', 'RoleBinding', 'cristexhub-prod', 'argocd-application-controller-cristexhub-prod'): 'd0f0b78eb5960d368631b4d0ed9dd0371bacf19efa0e1c7ba01599d94bb75a83',
- ('v1', 'Secret', 'argocd', 'argocd-cluster-cristexhub-prod'): '3d8901d60df585bf9b5110e99fee323266acb9d8e41dbf55d174d82a1358d538'}
+ ('v1', 'Secret', 'argocd', 'argocd-cluster-cristexhub-prod'): '80bb4f88a9f3436f8a61e02de206207d6822681fd1f005c64f21c507273a4e11'}
 
 def canonical(value: dict[str, Any]) -> str:
     """Hash desired objects while ignoring only the bound metadata.resourceVersion."""
@@ -367,6 +368,10 @@ class ActionModule(KubernetesActionModule):
         identity = (definition.get("apiVersion"), definition.get("kind"), meta.get("namespace", ""), meta.get("name", ""))
         if identity not in EXPECTED or canonical(definition) != EXPECTED_HASHES.get(identity):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: unknown or drifted registration object"}
+        if identity == ("v1", "Secret", "argocd", "argocd-cluster-cristexhub-prod"):
+            string_data = definition.get("stringData") or {}
+            if string_data.get("namespaces") != EXPECTED_CLUSTER_NAMESPACES or string_data.get("clusterResources") != "false":
+                return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: unbounded Argo cluster namespace scope"}
         if meta.get("labels", {}).get("cristex.io/component") != "cristexhub-prod-registration" or meta.get("labels", {}).get("app.kubernetes.io/managed-by") != "ansible":
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: ownership labels drifted"}
         token = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TOKEN", "")

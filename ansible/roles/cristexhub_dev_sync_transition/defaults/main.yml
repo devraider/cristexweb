@@ -9,6 +9,7 @@ cristexhub_dev_sync_transition_manifest_paths:
   - '{{ cristexhub_dev_sync_transition_repository_root }}/ansible/files/components/cristexhub-dev-sync-transition/config/appproject-cristexhub-dev-automated.yaml'
   - '{{ cristexhub_dev_sync_transition_repository_root }}/ansible/files/components/cristexhub-dev-sync-transition/config/application-cristexhub-dev-automated.yaml'
 cristexhub_dev_sync_transition_object_count: 2
+cristexhub_dev_sync_transition_cluster_namespaces: 'cristexhub-dev,cristexhub-prod'
 cristexhub_dev_sync_transition_namespace: cristexhub-dev
 cristexhub_dev_sync_transition_runtime_secret: cristexhub-dev-runtime
 cristexhub_dev_sync_transition_runtime_secret_keys:

@@ -20,6 +20,8 @@
       - cristexhub_dev_registration_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
       - cristexhub_dev_registration_revision == '57fffab4585fed12161144de7114c8ad05f3ba94'
       - cristexhub_dev_registration_path == 'infra/kubernetes/cristexhub-dev'
+      - cristexhub_dev_registration_cluster_namespaces == 'cristexhub-dev,cristexhub-prod'
+      - cristexhub_dev_registration_cluster_namespaces.split(',') == ['cristexhub-dev', 'cristexhub-prod']
     fail_msg: Refusing unapproved or non-canonical CristexHub DEV registration.
   changed_when: false
 - name: Inspect canonical registration manifests
@@ -119,6 +121,41 @@
   changed_when: false
   no_log: true
   when: not ansible_check_mode
+- name: Require exact bounded cluster registration Secret post-state
+  ansible.builtin.assert:
+    that:
+      - >-
+        (cristexhub_dev_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].type == 'Opaque'
+      - >-
+        ((cristexhub_dev_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data | default({})).keys() | list | sort ==
+        ['clusterResources', 'config', 'name', 'namespaces', 'server']
+      - >-
+        (cristexhub_dev_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.name |
+        b64decode == 'cristexhub-dev-local'
+      - >-
+        (cristexhub_dev_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.server |
+        b64decode == 'https://kubernetes.default.svc'
+      - >-
+        (cristexhub_dev_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.namespaces |
+        b64decode == cristexhub_dev_registration_cluster_namespaces
+      - >-
+        (cristexhub_dev_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.clusterResources |
+        b64decode == 'false'
+      - >-
+        (cristexhub_dev_registration_internal_poststate.results |
+        selectattr('item.kind', 'equalto', 'Secret') | first).resources[0].data.config |
+        b64decode == '{}'
+    fail_msg: Refusing registration with an unbounded or mismatched Argo cluster Secret.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
 - name: Require manual-sync registration post-state
   ansible.builtin.assert:
     that:

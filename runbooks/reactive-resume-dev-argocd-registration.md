@@ -60,8 +60,15 @@ RoleBinding, and namespace-limited cluster Secret. The AppProject permits only
 Deployment, Service, ServiceAccount, Ingress, and NetworkPolicy in
 `cristexhub-dev`; it permits no Jobs, cluster-scoped resources, or Secrets. The
 Role has only get/list/watch/create/patch for those runtime object classes and
-no delete. The cluster Secret sets `clusterResources=false` and
-`namespaces=cristexhub-dev`.
+no delete. The cluster Secret sets `clusterResources=false` and the exact
+comma-delimited Argo allowlist
+`namespaces=cristexhub-dev,cristexhub-prod`. All three same-server registration
+Secrets use this identical cache scope; the Reactive Resume AppProject and
+namespaced Role still restrict writes to `cristexhub-dev`. The owner wrapper
+accepts the previous exact `namespaces=cristexhub-dev` Secret only as the
+bounded pre-state: `check` predicts its replacement, `apply` reconciles the
+shared allowlist, and apply post-validation re-reads the Secret and requires the
+exact five-object registration closure.
 
 The Application is automated only with safe controls:
 `prune=false`, `selfHeal=true`, `allowEmpty=false`, `Prune=false`, and

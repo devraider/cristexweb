@@ -46,6 +46,8 @@
       - reactive_resume_dev_argocd_registration_repository == 'ssh://git@ssh.github.com:443/devraider/cristexweb.git'
       - reactive_resume_dev_argocd_registration_revision is match('^[0-9a-f]{40}$')
       - reactive_resume_dev_argocd_registration_path == 'ansible/files/components/reactive-resume-dev-argocd'
+      - reactive_resume_dev_argocd_registration_cluster_namespaces == 'cristexhub-dev,cristexhub-prod'
+      - reactive_resume_dev_argocd_registration_cluster_namespaces.split(',') == ['cristexhub-dev', 'cristexhub-prod']
       - reactive_resume_dev_argocd_registration_handoff_manifest_paths | length == 8
       - reactive_resume_dev_argocd_registration_handoff_expected_hashes | length == 8
       - reactive_resume_dev_argocd_registration_handoff_object_count == 8
@@ -662,7 +664,13 @@
         item.resources | length == 0 or item.item.kind != 'Secret' or
         ((item.resources[0].type == 'Opaque') and
         (item.resources[0].data | default({})).keys() | list | sort ==
-        ['clusterResources', 'config', 'name', 'namespaces', 'server'])
+        ['clusterResources', 'config', 'name', 'namespaces', 'server']) and
+        item.resources[0].data.name | b64decode == 'reactive-resume-dev-local' and
+        item.resources[0].data.server | b64decode == 'https://kubernetes.default.svc' and
+        item.resources[0].data.namespaces | b64decode in
+        ['cristexhub-dev', reactive_resume_dev_argocd_registration_cluster_namespaces] and
+        item.resources[0].data.clusterResources | b64decode == 'false' and
+        item.resources[0].data.config | b64decode == '{}'
     fail_msg: Refusing to overwrite a foreign or drifted Reactive Resume DEV registration object.
   loop: '{{ reactive_resume_dev_argocd_registration_internal_prestate.results }}'
   changed_when: false
@@ -723,6 +731,25 @@
       - (item.resources[0].metadata.ownerReferences | default([]) | length) == 0
       - (item.resources[0].metadata.finalizers | default([]) | length) == 0
       - item.item.kind != 'Secret' or item.resources[0].type == 'Opaque'
+      - >-
+        item.item.kind != 'Secret' or
+        (item.resources[0].data | default({})).keys() | list | sort ==
+        ['clusterResources', 'config', 'name', 'namespaces', 'server']
+      - >-
+        item.item.kind != 'Secret' or
+        item.resources[0].data.name | b64decode == 'reactive-resume-dev-local'
+      - >-
+        item.item.kind != 'Secret' or
+        item.resources[0].data.server | b64decode == 'https://kubernetes.default.svc'
+      - >-
+        item.item.kind != 'Secret' or
+        item.resources[0].data.namespaces | b64decode == reactive_resume_dev_argocd_registration_cluster_namespaces
+      - >-
+        item.item.kind != 'Secret' or
+        item.resources[0].data.clusterResources | b64decode == 'false'
+      - >-
+        item.item.kind != 'Secret' or
+        item.resources[0].data.config | b64decode == '{}'
       - >-
         item.item.kind != 'Application' or
         item.resources[0].spec.project == item.item.spec.project
