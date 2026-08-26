@@ -192,6 +192,8 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertIn("prestate_bindings", PLUGIN.read_text())
         self.assertIn("sort_keys=True", TASKS.read_text())
         self.assertIn("target_transition_candidates", TASKS.read_text())
+        self.assertIn("map(attribute='server', default='')", TASKS.read_text())
+        self.assertIn("map(attribute='name', default='')", TASKS.read_text())
         self.assertIn("valid_transition_pair", PLUGIN.read_text())
         self.assertIn("kubernetes.core.plugins.action.k8s_json_patch", PLUGIN.read_text())
         self.assertIn('self._task.action = "kubernetes.core.k8s_json_patch"', PLUGIN.read_text())
