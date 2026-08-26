@@ -7,12 +7,11 @@ Private CristexHub PROD workloads remain live at the pinned revision
 Redis are each `1/1 Ready`, backend root returns `200`, oauth2-proxy returns the
 expected private `302`, and Celery is ready on the PROD RabbitMQ vhost. The live
 Argo Application currently reports `Unknown/Missing` with a ComparisonError
-because the historical registration used the server destination instead of the
-scoped `cristexhub-prod-local` cluster alias. The historical `Synced/Healthy`
-checkpoint is retained as dated evidence only. The source-only registration fix is
-committed but not applied; its current guarded check is pending a conflict-safe
-resolution for Kubernetes `409 Conflict` from Argo status churn. A separately
-approved apply must restore `Synced/Healthy`.
+after the bounded `cristexhub-prod-local` alias transition was applied. The
+historical `Synced/Healthy` checkpoint is retained as dated evidence only. The
+committed source now targets the direct in-cluster server; its guarded three-step
+check/apply remains pending, and a separately approved apply must restore
+`Synced/Healthy`.
 The guarded OIDC CONNECT proxy policy includes PROD clients and app-level `200`/`302`
 smoke passed; authenticated OIDC/callback and live positive/negative CONNECT
 validation remain open.

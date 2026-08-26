@@ -87,7 +87,7 @@ CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ATTESTATION_FILE="$attestation_file" \
 readonly status=$?
 set -e
 [[ $status -ne 0 ]]
-grep -Fq 'task selection controls are forbidden' "$output_file" || {
+grep -Fq 'TASK_SELECTION_GUARD' "$output_file" || {
   /bin/cat "$output_file" >&2
   exit 1
 }

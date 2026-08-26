@@ -78,12 +78,16 @@ class ArgoClusterCacheScopeTransitionContractTests(unittest.TestCase):
         module = ROOT / "ansible/library/argocd_cluster_cache_secret_metadata.py"
         text = module.read_text()
         self.assertIn("PartialObjectMetadataList", text)
+        self.assertIn('meta.k8s.io/v1', text)
+        self.assertIn('PartialObjectMetadata', text)
         self.assertIn("metadata_only=True", text)
         self.assertNotIn("read_namespaced_secret", text)
         tasks = TASKS.read_text()
         self.assertIn("argocd_cluster_cache_secret_metadata:", tasks)
         self.assertIn("label_selector: 'argocd.argoproj.io/secret-type=cluster'", tasks)
         self.assertIn("items | length == 3", tasks)
+        self.assertIn("item.stringData.keys() | list | sort", tasks)
+        self.assertIn("map(attribute='apiVersion')", tasks)
 
     def test_source_closure_and_wrapper_process_binding_are_pinned(self) -> None:
         module = load_plugin()
@@ -173,6 +177,26 @@ class ArgoClusterCacheScopeTransitionContractTests(unittest.TestCase):
         self.assertIn("argocd_cluster_cache_scope_transition_internal_target_bindings", text)
         self.assertIn("when: not ansible_check_mode", text)
         self.assertIn("argocd_cluster_cache_scope_transition_guarded_k8s:", text)
+
+    def test_wrapper_rejects_invalid_invocation_without_starting_ansible(self) -> None:
+        result = subprocess.run(
+            [str(WRAPPER)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(64, result.returncode)
+        self.assertIn("refusing passthrough arguments", result.stderr)
+        result = subprocess.run(
+            [str(WRAPPER), "unexpected"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(64, result.returncode)
+        self.assertNotIn("PLAY ", result.stdout + result.stderr)
 
     def test_wrapper_and_playbook_are_non_passthrough_and_attested(self) -> None:
         wrapper = WRAPPER.read_text()

@@ -42,11 +42,20 @@ def main() -> None:
         )
         if not isinstance(payload, dict) or set(payload) != _ALLOWED_TOP_LEVEL:
             module.fail_json(msg="SECRET_METADATA_GUARD: metadata-only list response required")
-        if payload.get("kind") != "PartialObjectMetadataList" or not isinstance(payload.get("items"), list):
+        if (
+            payload.get("apiVersion") != "meta.k8s.io/v1"
+            or payload.get("kind") != "PartialObjectMetadataList"
+            or not isinstance(payload.get("items"), list)
+        ):
             module.fail_json(msg="SECRET_METADATA_GUARD: malformed metadata list response")
         items = []
         for item in payload["items"]:
-            if not isinstance(item, dict) or set(item) != _ALLOWED_ITEM_TOP_LEVEL:
+            if (
+                not isinstance(item, dict)
+                or set(item) != _ALLOWED_ITEM_TOP_LEVEL
+                or item.get("apiVersion") != "meta.k8s.io/v1"
+                or item.get("kind") != "PartialObjectMetadata"
+            ):
                 module.fail_json(msg="SECRET_METADATA_GUARD: list item contained Secret data")
             metadata = item.get("metadata")
             if not isinstance(metadata, dict):

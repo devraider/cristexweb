@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -265,18 +266,20 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module._transition_plan("final", "alias")
 
-        project_transition = module._transition_patch("AppProject", "transition")
-        application_final = module._transition_patch("Application", "final")
-        project_final = module._transition_patch("AppProject", "final")
+        project_transition = module._transition_patch("AppProject", "transition", "42")
+        application_final = module._transition_patch("Application", "final", "43")
+        project_final = module._transition_patch("AppProject", "final", "44")
         for patch in (project_transition, application_final, project_final):
-            self.assertEqual(["test", "test", "replace"], [entry["op"] for entry in patch])
+            self.assertEqual(["test", "test", "test", "test", "replace"], [entry["op"] for entry in patch])
             self.assertEqual("/metadata/uid", patch[0]["path"])
-            self.assertEqual("/spec", patch[1]["path"])
-            self.assertIn(patch[2]["path"], {"/spec/destination", "/spec/destinations"})
-            self.assertNotIn("resourceVersion", json.dumps(patch))
-        self.assertEqual("/spec/destination", application_final[2]["path"])
-        self.assertEqual("/spec/destinations", project_transition[2]["path"])
-        self.assertEqual("/spec/destinations", project_final[2]["path"])
+            self.assertEqual("/metadata/resourceVersion", patch[1]["path"])
+            self.assertEqual("/metadata/labels", patch[2]["path"])
+            self.assertEqual("/spec", patch[3]["path"])
+            self.assertIn(patch[4]["path"], {"/spec/destination", "/spec/destinations"})
+        self.assertEqual("42", project_transition[1]["value"])
+        self.assertEqual("/spec/destination", application_final[4]["path"])
+        self.assertEqual("/spec/destinations", project_transition[4]["path"])
+        self.assertEqual("/spec/destinations", project_final[4]["path"])
         project = {
             "apiVersion": module._TRANSITION_API_VERSION,
             "kind": "AppProject",
@@ -317,7 +320,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         )
         with mock.patch.object(module.PatchActionModule, "run", return_value={"changed": True}) as dispatched:
             self.assertEqual({"changed": True}, module._dispatch_transition_patch(
-                fake, None, {}, "Application", "final"
+                fake, None, {}, "Application", "final", "43"
             ))
         dispatched.assert_called_once()
         self.assertEqual("guarded", fake._task.action)
@@ -377,6 +380,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             "prestate_object_count",
             "resourceVersion",
             "metadata.resourceVersion",
+            "_fresh_transition_objects",
             "EXPECTED_IDENTITIES",
             "set(entry) == {\"apiVersion\", \"kind\", \"namespace\", \"name\", \"identity\", \"uid\", \"resourceVersion\", \"generation\"}",
             "entry.get(\"identity\") == \"|\".join(object_identity(entry))",
@@ -472,7 +476,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         self.assertIn("/bin/kill -KILL -- \"-$child_pid\"", wrapper)
         self.assertIn("wait \"$child_pid\"", wrapper)
         self.assertIn("set -- \\\n  \"$controller\"", wrapper)
-        for forbidden in ("--tags", "--skip-tags", "--start-at-task", "kubectl", "state: absent"):
+        for forbidden in ("--tags", "--skip-tags", "--start-at-task", "--inventory", "kubectl", "state: absent"):
             self.assertNotIn(forbidden, wrapper)
         self.assertIn("cristexhub_prod_registration", PLAYBOOK.read_text())
 
@@ -485,13 +489,38 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             marker = sandbox / "controller.log"
             script.parent.mkdir(parents=True)
             controller.parent.mkdir(parents=True)
+            (root / "ansible").mkdir(parents=True, exist_ok=True)
             tmpdir.mkdir()
-            script.write_text(
-                wrapper.replace(
-                    "expected_repository_root=/home/paul/projects/cristexweb",
-                    f"expected_repository_root={root}",
-                )
+            for relative in (
+                "ansible/.ansible/inventory.local.yml",
+                "ansible/ansible.cfg",
+                "ansible/roles/cristexhub_prod_registration/tasks/main.yml",
+                "ansible/roles/cristexhub_prod_registration/defaults/main.yml",
+                "ansible/playbooks/bootstrap_cristexhub_prod_registration.yml",
+                "ansible/plugins/action/cristexhub_prod_registration_guarded_k8s.py",
+            ):
+                destination = root / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                source_file = ROOT / relative
+                if not source_file.exists():
+                    source_file = Path('/home/paul/projects/cristexweb') / relative
+                destination.write_bytes(source_file.read_bytes())
+            sandbox_wrapper = wrapper.replace(
+                "expected_repository_root=/home/paul/projects/cristexweb",
+                f"expected_repository_root={root}",
             )
+            canonical_wrapper = re.sub(
+                r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$",
+                "wrapper_canonical_sha256_expected='" + ("0" * 64) + "'",
+                sandbox_wrapper,
+            )
+            sandbox_wrapper = sandbox_wrapper.replace(
+                "wrapper_canonical_sha256_expected='0d6f0362ef90c4badbdcb8f131e9b211ba02a7aea49e2a4bc44636159eea1b87'",
+                "wrapper_canonical_sha256_expected='" + hashlib.sha256(canonical_wrapper.encode()).hexdigest() + "'",
+            )
+            script.write_text(sandbox_wrapper)
+            inventory = root / "ansible/.ansible/inventory.local.yml"
+            inventory.chmod(0o600)
             script.chmod(0o755)
             controller.write_text(
                 "#!/usr/bin/python3\n"
@@ -545,10 +574,20 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         for needle in (
             "EXPECTED_REPOSITORY_ROOT",
             "TASK_SUFFIX",
-            "task selection controls are forbidden",
+            "_source_closure_valid",
+            "_wrapper_binding_valid",
+            "_proc_starttime",
+            "_ancestor",
+            "TASK_SELECTION_GUARD",
+            "TASK_SELECTION_GUARD",
             'args.get("state") != "present"',
             "complete preflight binding",
             "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT",
+            "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_PID",
+            "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_INVENTORY_SHA256",
+            "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_CONTROLLER_SHA256",
+            "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_KUBECONFIG",
+            "_EXPECTED_TASK_NAMES",
             REVISION,
         ):
             self.assertIn(needle, plugin)
@@ -569,7 +608,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
                 {
                     "ANSIBLE_CONFIG": str(ROOT / "ansible/ansible.cfg"),
                     "CRISTEXWEB_REPOSITORY_ROOT": str(ROOT),
-                    "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT": "v1",
+                    "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT": "v2",
                     "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TOKEN": token,
                     "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ATTESTATION_FILE": str(attestation),
                 }

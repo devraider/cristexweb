@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class CurrentProdStatusDocsContractTests(unittest.TestCase):
-    def test_authoritative_docs_record_current_alias_pending_state(self) -> None:
+    def test_authoritative_docs_record_current_alias_applied_direct_server_pending_state(self) -> None:
         docs = {
             "AGENTS.md": (ROOT / "AGENTS.md").read_text(),
             "ansible/README.md": (ROOT / "ansible/README.md").read_text(),
@@ -27,10 +27,10 @@ class CurrentProdStatusDocsContractTests(unittest.TestCase):
         for path in ("AGENTS.md", "ansible/README.md", "specs/k3s-iac-foundation/status.md"):
             with self.subTest(path=path):
                 text = docs[path]
-                self.assertIn("409 Conflict", text)
-                self.assertIn("resourceVersion", text)
+                self.assertIn("direct-server", text)
                 self.assertIn("source", text.lower())
                 self.assertIn("check", text.lower())
+                self.assertIn("pending", text.lower())
                 self.assertTrue(
                     "not applied" in text.lower() or "unapplied" in text.lower()
                 )

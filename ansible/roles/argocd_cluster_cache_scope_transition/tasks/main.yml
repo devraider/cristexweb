@@ -20,7 +20,7 @@
 - name: Require the exact one-time cache-transition contract
   ansible.builtin.assert:
     that:
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ENTRYPOINT') == 'v2'
       - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_TOKEN') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ATTESTATION_FILE') | length > 0
       - argocd_cluster_cache_scope_transition_approved | bool
@@ -122,8 +122,7 @@
       - argocd_cluster_cache_scope_transition_internal_manifests | selectattr('binaryData', 'defined') | list | length == 0
       - >-
         argocd_cluster_cache_scope_transition_internal_manifests |
-        map(attribute='stringData') | map('dict2items') | map('map', attribute='key') |
-        map('list') | list | unique == [['clusterResources', 'config', 'name', 'namespaces', 'server']]
+        selectattr('stringData', 'defined') | list | length == 3
       - >-
         (argocd_cluster_cache_scope_transition_internal_manifests |
         map(attribute='stringData.namespaces') | list | unique) ==
@@ -142,6 +141,15 @@
         (argocd_cluster_cache_scope_transition_internal_manifests |
         map(attribute='metadata.labels') | list | unique | length) == 3
     fail_msg: Refusing a target closure other than the three original cluster Secret stringData definitions.
+  changed_when: false
+  no_log: true
+
+- name: Require exact stringData keys on every target Secret
+  ansible.builtin.assert:
+    that:
+      - item.stringData.keys() | list | sort == ['clusterResources', 'config', 'name', 'namespaces', 'server']
+    fail_msg: Refusing a target Secret with an incomplete or extra stringData key.
+  loop: '{{ argocd_cluster_cache_scope_transition_internal_manifests }}'
   changed_when: false
   no_log: true
 
@@ -169,7 +177,10 @@
         map(attribute='metadata.namespace') | list | unique) == ['argocd']
       - >-
         (argocd_cluster_cache_scope_transition_internal_cluster_secret_inventory.items |
-        map(attribute='kind') | list | unique) == ['Secret']
+        map(attribute='apiVersion') | list | unique) == ['meta.k8s.io/v1']
+      - >-
+        (argocd_cluster_cache_scope_transition_internal_cluster_secret_inventory.items |
+        map(attribute='kind') | list | unique) == ['PartialObjectMetadata']
     fail_msg: Refusing a duplicate, foreign, or incomplete Argo cluster Secret inventory.
   changed_when: false
   no_log: true

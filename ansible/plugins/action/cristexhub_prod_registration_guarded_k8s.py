@@ -6,6 +6,7 @@ import json
 import os
 import re
 import stat
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +39,40 @@ ALIAS_TRANSITION_MANIFEST_HASHES = {
     "AppProject": "113dcb263ec958430385b802e387658cd0f71b58751768b3a7ab5ffbb348b61b",
 }
 ALIAS_TRANSITION_METADATA_HASH = "a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30"
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+_TASK_SOURCE = _REPOSITORY_ROOT / "ansible/roles/cristexhub_prod_registration/tasks/main.yml"
+_DEFAULTS_SOURCE = _REPOSITORY_ROOT / "ansible/roles/cristexhub_prod_registration/defaults/main.yml"
+_PLAYBOOK_SOURCE = _REPOSITORY_ROOT / "ansible/playbooks/bootstrap_cristexhub_prod_registration.yml"
+_WRAPPER_SOURCE = _REPOSITORY_ROOT / "ansible/bin/bootstrap-cristexhub-prod-registration"
+_INVENTORY_SOURCE = _REPOSITORY_ROOT / "ansible/.ansible/inventory.local.yml"
+_ANSIBLE_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/ansible.cfg"
+_ACTION_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/action/cristexhub_prod_registration_guarded_k8s.py"
+_CONTROLLER_SOURCE = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
+_PYTHON_SOURCE = Path("/usr/bin/python3")
+_KUBECONFIG_SOURCE = Path("/etc/rancher/k3s/k3s.yaml")
+_EXPECTED_OPERATOR = "paul"
+_EXPECTED_TASK_NAMES = {
+    False: "Reconcile registration source without synchronization",
+    True: "Reconcile exact bounded PROD direct-server transition",
+}
+_EXPECTED_TASK_ACTION = "cristexhub_prod_registration_guarded_k8s"
+_ACTION_CANONICAL_SHA256 = "235d8f2e631658427f9924ee61ff066b1fce278847bd36c557eb5dc82d0ad030"
+_WRAPPER_CANONICAL_SHA256 = "0d6f0362ef90c4badbdcb8f131e9b211ba02a7aea49e2a4bc44636159eea1b87"
+_TASK_SHA256 = "a8d5d08d1298223add2bae2c4e6756693bf3904b575eaa97ef6ea4bd3bfc7fdd"
+_DEFAULTS_SHA256 = "0ca75dfa3eacdaecd14c98810a8a071a904538c7ca7528d6888aaebe4f5c2a57"
+_PLAYBOOK_SHA256 = "05f22011b423c7aafff5a93d4aa5ba2cd4d41f56fe2ff41b842f032f793a7458"
+_INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
+_ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
+_CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
+_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
+_SOURCE_CLOSURE_SHA256 = "2d0c1878f262b6ef95940f5a78b9f878d747ef8a19ea472799b7c414d6bc1306"
+EXPECTED_SOURCE_CLOSURE_ENTRIES = [
+    "cristexhub-prod=8bdd846ebe3d745a6abd9cd7eefaa8f9b1b3f9340e1910f1756736309c7b1467",
+    "cristexhub-prod=81bf9a7e2c3bcfefc78540725a4b8f797eb34b037e693680504b33ac1a12f4a1",
+    "argocd-application-controller-cristexhub-prod=f5606f2b58299fb1ce67dab48273513e57dd0ca0613795f9d976b1509fd33977",
+    "argocd-application-controller-cristexhub-prod=1957e9e7ab1cc9cbedf9ff70273cb6f5567eec41082300302bb17fecba6b37f5",
+    "argocd-cluster-cristexhub-prod=c6b7534728865115014979ea4d6aeeedd9f28fc7ff415bad8795bcc1dfd75193",
+]
 EXPECTED_IDENTITIES = {
     "argoproj.io/v1alpha1|AppProject|argocd|cristexhub-prod",
     "argoproj.io/v1alpha1|Application|argocd|cristexhub-prod",
@@ -46,6 +81,159 @@ EXPECTED_IDENTITIES = {
     "v1|Secret|argocd|argocd-cluster-cristexhub-prod",
 }
 TRANSITION_KINDS = {"Application", "AppProject"}
+
+
+def _sha256(path: Path) -> str:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return ""
+
+
+def _canonical_file_hash(path: Path, symbol: str) -> str:
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, count = re.subn(
+            rf"(?m)^({re.escape(symbol)}\s*=\s*[\"'])([0-9a-f]{{64}})([\"']\s*)$",
+            rf"\g<1>{'0' * 64}\g<3>",
+            source,
+        )
+        if count != 1:
+            return ""
+        return hashlib.sha256(source.encode("utf-8")).hexdigest()
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _proc_starttime(pid: int) -> str:
+    try:
+        return Path(f"/proc/{pid}/stat").read_text().split()[21]
+    except (OSError, IndexError):
+        return ""
+
+
+def _ancestor(pid: int) -> bool:
+    current = os.getpid()
+    seen: set[int] = set()
+    while current > 1 and current not in seen:
+        if current == pid:
+            return True
+        seen.add(current)
+        try:
+            status = Path(f"/proc/{current}/status").read_text()
+            current = int(next(line for line in status.splitlines() if line.startswith("PPid:")).split()[1])
+        except (OSError, StopIteration, ValueError):
+            return False
+    return False
+
+
+def _selection_is_canonical() -> bool:
+    tags = list(context.CLIARGS.get("tags") or [])
+    skip_tags = list(context.CLIARGS.get("skip_tags") or [])
+    inventory = context.CLIARGS.get("inventory") or []
+    if isinstance(inventory, str):
+        inventory = [inventory]
+    argv = sys.argv[1:]
+    extra_values: list[str] = []
+    selection_argv = False
+    index = 0
+    while index < len(argv):
+        argument = argv[index]
+        if argument in ("-e", "--extra-vars"):
+            if index + 1 >= len(argv):
+                return False
+            extra_values.append(argv[index + 1])
+            index += 2
+            continue
+        if argument.startswith("-e=") or argument.startswith("--extra-vars="):
+            extra_values.append(argument.split("=", 1)[1])
+        elif argument in ("-t", "-S", "--start-at-task", "--step", "--tags", "--skip-tags") or argument.startswith(("-t=", "-S=", "--start-at-task=", "--step=", "--tags=", "--skip-tags=")):
+            selection_argv = True
+        elif argument in ("-i", "--inventory", "--limit"):
+            if index + 1 >= len(argv):
+                return False
+            expected = ".ansible/inventory.local.yml" if argument in ("-i", "--inventory") else "crtxweb"
+            if argv[index + 1] != expected:
+                selection_argv = True
+            index += 1
+        index += 1
+    return (
+        not selection_argv
+        and (not extra_values or extra_values == ["cristexhub_prod_registration_approved=true"])
+        and context.CLIARGS.get("start_at_task") is None
+        and context.CLIARGS.get("step") in (None, False)
+        and tags in ([], ["all"])
+        and not skip_tags
+        and context.CLIARGS.get("subset") == "crtxweb"
+        and bool(context.CLIARGS.get("diff"))
+        and inventory in [[".ansible/inventory.local.yml"], [str(_INVENTORY_SOURCE)]]
+    )
+
+
+def _source_closure_valid() -> bool:
+    expected = (
+        (_TASK_SOURCE, _TASK_SHA256),
+        (_DEFAULTS_SOURCE, _DEFAULTS_SHA256),
+        (_PLAYBOOK_SOURCE, _PLAYBOOK_SHA256),
+        (_INVENTORY_SOURCE, _INVENTORY_SHA256),
+        (_ANSIBLE_CONFIG_SOURCE, _ANSIBLE_CONFIG_SHA256),
+    )
+    if any(not path.is_file() or path.is_symlink() or _sha256(path) != digest for path, digest in expected):
+        return False
+    try:
+        inventory_state = _INVENTORY_SOURCE.stat(follow_symlinks=False)
+        config_state = _ANSIBLE_CONFIG_SOURCE.stat(follow_symlinks=False)
+        controller_state = _CONTROLLER_SOURCE.stat(follow_symlinks=False)
+        return (
+            stat.S_IMODE(inventory_state.st_mode) == 0o600
+            and inventory_state.st_uid == os.getuid()
+            and stat.S_IMODE(config_state.st_mode) == 0o644
+            and config_state.st_uid == os.getuid()
+            and stat.S_ISREG(controller_state.st_mode)
+            and not _CONTROLLER_SOURCE.is_symlink()
+            and stat.S_IMODE(controller_state.st_mode) & 0o111
+            and _canonical_file_hash(_ACTION_SOURCE, "_ACTION_CANONICAL_SHA256") == _ACTION_CANONICAL_SHA256
+            and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") == _WRAPPER_CANONICAL_SHA256
+        )
+    except OSError:
+        return False
+
+
+def _wrapper_binding_valid(token: str) -> bool:
+    attestation_path = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ATTESTATION_FILE", "")
+    pid_text = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_PID", "")
+    starttime = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_STARTTIME", "")
+    wrapper_path = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_PATH", "")
+    wrapper_sha = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_SHA256", "")
+    try:
+        pid = int(pid_text)
+        state = os.stat(attestation_path, follow_symlinks=False)
+        content = Path(attestation_path).read_text(encoding="utf-8")
+    except (OSError, UnicodeError, ValueError):
+        return False
+    return (
+        os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT") == "v2"
+        and re.fullmatch(r"[0-9a-f]{64}", token) is not None
+        and pid > 1 and _ancestor(pid) and _proc_starttime(pid) == starttime
+        and state.st_uid == os.getuid() and stat.S_ISREG(state.st_mode)
+        and not stat.S_ISLNK(state.st_mode) and stat.S_IMODE(state.st_mode) == 0o600
+        and state.st_nlink == 1 and Path(wrapper_path) == _WRAPPER_SOURCE
+        and wrapper_sha == _sha256(_WRAPPER_SOURCE)
+        and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") == _WRAPPER_CANONICAL_SHA256
+        and content == f"{token}:entrypoint:{pid}:{starttime}:{wrapper_sha}\\n"
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_OPERATOR") == _EXPECTED_OPERATOR
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_CONTROLLER") == str(_CONTROLLER_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PYTHON") == str(_PYTHON_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_KUBECONFIG") == str(_KUBECONFIG_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TASK_SHA256") == _sha256(_TASK_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_DEFAULTS_SHA256") == _sha256(_DEFAULTS_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PLAYBOOK_SHA256") == _sha256(_PLAYBOOK_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_INVENTORY_SHA256") == _sha256(_INVENTORY_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ANSIBLE_CONFIG_SHA256") == _sha256(_ANSIBLE_CONFIG_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ACTION_SHA256") == _sha256(_ACTION_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_CONTROLLER_SHA256") == _sha256(_CONTROLLER_SOURCE)
+        and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PYTHON_SHA256") == _sha256(_PYTHON_SOURCE)
+    )
 
 
 def _valid_transition_kinds(value: Any) -> bool:
@@ -274,7 +462,7 @@ def _transition_prestate_objects(prestate: Any) -> tuple[dict[str, Any], dict[st
     return project, application
 
 
-def _transition_patch(kind: str, target: str) -> list[dict[str, Any]]:
+def _transition_patch(kind: str, target: str, resource_version: str | None = None) -> list[dict[str, Any]]:
     if kind == "AppProject" and target == "transition":
         expected = _TRANSITION_ALIAS_PROJECT_SPEC
         destination = _TRANSITION_TEMP_PROJECT_SPEC["destinations"]
@@ -287,15 +475,26 @@ def _transition_patch(kind: str, target: str) -> list[dict[str, Any]]:
     else:
         raise ValueError("unsupported direct-server transition patch")
     destination_path = "/spec/destinations" if kind == "AppProject" else "/spec/destination"
+    if resource_version is None or not re.fullmatch(r"[0-9]+", str(resource_version)):
+        raise ValueError("transition resourceVersion is required")
     return [
         {"op": "test", "path": "/metadata/uid", "value": _TRANSITION_UIDS[kind]},
+        {"op": "test", "path": "/metadata/resourceVersion", "value": str(resource_version)},
+        {"op": "test", "path": "/metadata/labels", "value": copy.deepcopy(_TRANSITION_LABELS)},
         {"op": "test", "path": "/spec", "value": copy.deepcopy(expected)},
         {"op": "replace", "path": destination_path, "value": copy.deepcopy(destination)},
     ]
 
 
-def _dispatch_transition_patch(self: Any, tmp: str | None, task_vars: dict[str, Any], kind: str, target: str) -> dict[str, Any]:
-    patch = _transition_patch(kind, target)
+def _dispatch_transition_patch(
+    self: Any,
+    tmp: str | None,
+    task_vars: dict[str, Any],
+    kind: str,
+    target: str,
+    resource_version: str,
+) -> dict[str, Any]:
+    patch = _transition_patch(kind, target, resource_version)
     original_action, original_args = self._task.action, self._task.args
     self._task.action = "kubernetes.core.k8s_json_patch"
     self._task.args = {
@@ -320,6 +519,30 @@ def _dispatch_transition_patch(self: Any, tmp: str | None, task_vars: dict[str, 
         self._task.action, self._task.args = original_action, original_args
 
 
+def _fresh_transition_objects(self: Any, tmp: str | None, task_vars: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    objects: dict[str, dict[str, Any]] = {}
+    for kind in ("AppProject", "Application"):
+        result = self._execute_module(
+            module_name="kubernetes.core.k8s_info",
+            module_args={
+                "api_version": _TRANSITION_API_VERSION,
+                "kind": kind,
+                "name": _TRANSITION_NAME,
+                "namespace": _TRANSITION_ARGO_NAMESPACE,
+                "kubeconfig": str(_KUBECONFIG_SOURCE),
+            },
+            task_vars=task_vars,
+            tmp=tmp,
+        )
+        if not isinstance(result, dict) or result.get("failed") or not isinstance(result.get("resources"), list) or len(result["resources"]) != 1:
+            raise ValueError("fresh transition prestate query failed")
+        obj = result["resources"][0]
+        if not isinstance(obj, dict) or obj.get("kind") != kind:
+            raise ValueError("fresh transition response kind drifted")
+        objects[kind] = obj
+    return objects["AppProject"], objects["Application"]
+
+
 def run_direct_server_transition(self: Any, tmp: str | None, task_vars: dict[str, Any], project_definition: dict[str, Any], application_definition: dict[str, Any], check_mode: bool) -> dict[str, Any]:
     if object_identity(project_definition) != _transition_identity("AppProject") or object_identity(application_definition) != _transition_identity("Application"):
         raise ValueError("exact AppProject/Application identities required")
@@ -337,9 +560,20 @@ def run_direct_server_transition(self: Any, tmp: str | None, task_vars: dict[str
     if check_mode:
         return {"changed": bool(plan), "transition_steps": plan, "transition_change_count": len(plan), "patch_dispatch": "kubernetes.core.k8s_json_patch"}
     changed: list[str] = []
+    expected_states = {
+        "AppProject:transition": ("alias", "alias"),
+        "Application:final": ("transition", "alias"),
+        "AppProject:final": ("transition", "final"),
+    }
     for step in plan:
         kind, target = step.split(":", 1)
-        result = _dispatch_transition_patch(self, tmp, task_vars, kind, target)
+        fresh_project, fresh_application = _fresh_transition_objects(self, tmp, task_vars)
+        current_state = _transition_classify(fresh_project, fresh_application)
+        if current_state != expected_states[step]:
+            raise ValueError("transition state changed before per-step CAS")
+        current = fresh_project if kind == "AppProject" else fresh_application
+        resource_version = current.get("metadata", {}).get("resourceVersion")
+        result = _dispatch_transition_patch(self, tmp, task_vars, kind, target, str(resource_version))
         if result.get("failed"):
             return result
         if result.get("changed"):
@@ -356,10 +590,14 @@ class ActionModule(KubernetesActionModule):
         transition_mode = args.get("transition") is True
         definition = args.get("definition") if not transition_mode else args.get("project_definition")
         task_vars = task_vars or {}
-        tags = list(context.CLIARGS.get("tags") or [])
-        skip_tags = list(context.CLIARGS.get("skip_tags") or [])
-        if context.CLIARGS.get("start_at_task") or context.CLIARGS.get("step") or tags not in ([], ["all"]) or skip_tags:
-            return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: task selection controls are forbidden"}
+        if (
+            source != str(_TASK_SOURCE)
+            or getattr(self._task, "action", None) != _EXPECTED_TASK_ACTION
+            or getattr(self._task, "name", None) != _EXPECTED_TASK_NAMES[transition_mode]
+        ):
+            return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: non-canonical registration task source/action/name"}
+        if not _selection_is_canonical():
+            return {"changed": False, "failed": True, "msg": "TASK_SELECTION_GUARD: complete guarded PROD registration is required"}
         repository_root = str(Path(os.environ.get("CRISTEXWEB_REPOSITORY_ROOT", "")).resolve())
         if repository_root != EXPECTED_REPOSITORY_ROOT or source != EXPECTED_REPOSITORY_ROOT + TASK_SUFFIX:
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: non-canonical registration task source"}
@@ -387,12 +625,6 @@ class ActionModule(KubernetesActionModule):
         if meta.get("labels", {}).get("cristex.io/component") != "cristexhub-prod-registration" or meta.get("labels", {}).get("app.kubernetes.io/managed-by") != "ansible":
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: ownership labels drifted"}
         token = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TOKEN", "")
-        attestation = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ATTESTATION_FILE", "")
-        try:
-            state = os.stat(attestation, follow_symlinks=False)
-            content = Path(attestation).read_text().strip()
-        except (OSError, ValueError):
-            state, content = None, ""
         binding = task_vars.get("cristexhub_prod_registration_internal_preflight_binding", {})
         expected_names = sorted(identity[3] for identity in EXPECTED)
         strict_true = lambda value: (
@@ -425,6 +657,18 @@ class ActionModule(KubernetesActionModule):
                 "transition_change_count",
                 "transition_plan",
                 "no_delete_path",
+                "task_sha256",
+                "defaults_sha256",
+                "playbook_sha256",
+                "inventory_sha256",
+                "ansible_config_sha256",
+                "wrapper_sha256",
+                "action_sha256",
+                "controller_sha256",
+                "python_sha256",
+                "operator",
+                "kubeconfig",
+                "source_closure_sha256",
             }
             and binding.get("attestation_sha256") == hashlib.sha256(token.encode()).hexdigest()
             and binding.get("manifest_names") == expected_names
@@ -468,6 +712,18 @@ class ActionModule(KubernetesActionModule):
             and isinstance(binding.get("transition_plan"), list)
             and str(binding.get("transition_change_count")) == str(len(binding.get("transition_plan")))
             and strict_true(binding.get("no_delete_path"))
+            and binding.get("task_sha256") == _TASK_SHA256
+            and binding.get("defaults_sha256") == _DEFAULTS_SHA256
+            and binding.get("playbook_sha256") == _PLAYBOOK_SHA256
+            and binding.get("inventory_sha256") == _INVENTORY_SHA256
+            and binding.get("ansible_config_sha256") == _ANSIBLE_CONFIG_SHA256
+            and binding.get("wrapper_sha256") == os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_SHA256")
+            and binding.get("action_sha256") == os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ACTION_SHA256")
+            and binding.get("controller_sha256") == _CONTROLLER_SHA256
+            and binding.get("python_sha256") == _PYTHON_SHA256
+            and binding.get("operator") == _EXPECTED_OPERATOR
+            and binding.get("kubeconfig") == str(_KUBECONFIG_SOURCE)
+            and binding.get("source_closure_sha256") == _SOURCE_CLOSURE_SHA256
         )
         prestate = bound_prestate(binding.get("prestate_bindings"), identity)
         resource_version = meta.get("resourceVersion")
@@ -475,11 +731,8 @@ class ActionModule(KubernetesActionModule):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: missing or changed UID/resourceVersion precondition"}
         valid = (
             valid_binding
-            and os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT") == "v1"
-            and re.fullmatch(r"[0-9a-f]{64}", token) is not None
-            and state is not None and stat.S_ISREG(state.st_mode) and not stat.S_ISLNK(state.st_mode)
-            and stat.S_IMODE(state.st_mode) == 0o600 and state.st_uid == os.getuid()
-            and content == f"{token}:entrypoint"
+            and _source_closure_valid()
+            and _wrapper_binding_valid(token)
             and strict_true(task_vars.get("cristexhub_prod_registration_approved"))
             and task_vars.get("cristexhub_prod_registration_state") == "present"
         )

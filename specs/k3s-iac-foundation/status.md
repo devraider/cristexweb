@@ -32,12 +32,11 @@ reactive_resume_checkpoint: |
 current_checkpoint: |
   Private CristexHub PROD workloads at revision `751885a42798d282e168131db147f13694a0a621`
   are each `1/1 Ready`, but the live Argo Application is currently `Unknown/Missing`
-  with a ComparisonError from the historical server-based destination. The
-  source-only registration correction now targets the exact `cristexhub-prod-local`
-  cluster alias. The latest guarded check remains pending because Kubernetes returns
-  `409 Conflict` when Argo status `resourceVersion` churns between preflight and
-  dry-run patch; a separately approved conflict-safe apply must restore
-  `Synced/Healthy` before Argo reconciliation is accepted. OIDC evidence is app-level smoke only: backend `200`,
+  with a ComparisonError after the bounded `cristexhub-prod-local` alias transition
+  was applied. The committed source-only correction now targets the direct in-cluster
+  server; its fresh guarded three-step check/apply remains pending. A separately
+  approved direct-server apply must restore `Synced/Healthy` before Argo reconciliation
+  is accepted. OIDC evidence is app-level smoke only: backend `200`,
   oauth2-proxy `302`, and Celery readiness; full authenticated OIDC/CONNECT tests
   remain open. The exact source allowlist is `auth.cristex-soft.com:443` and
   `api.deepseek.com:443`. RabbitMQ is live for Celery, but the observed PROD
@@ -58,7 +57,8 @@ current_checkpoint: |
 note: |
   The detailed paragraphs below preserve dated historical source/checkpoint evidence;
   earlier PROD `Synced/Healthy` statements remain historical and must not override
-  the current `Unknown/Missing` alias-repair checkpoint above. Use `current_checkpoint`
+  the current `Unknown/Missing` alias-applied checkpoint above; the direct-server
+  source/check/apply remains pending. Use `current_checkpoint`
   above for the current live-state claim.
   Operational implementation now includes the previously recorded dependency,
   administrator-access, recovery, stateful-service, backup, Infisical, Cloudflare,
@@ -84,9 +84,9 @@ note: |
   pins protected-main revision `751885a42798d282e168131db147f13694a0a621`, uses
   namespace-scoped no-delete RBAC and the exact `cristexhub-prod-local` cluster
   alias, and retains `selfHeal=true`, `prune=false`, and `allowEmpty=false`.
-  The live Application is currently `Unknown/Missing` from the historical
-  server-based destination; a separately approved apply must restore
-  `Synced/Healthy`. The Cloudflare route remains unapplied. A separate source-only, check-only
+  The live Application is currently `Unknown/Missing` after the alias transition;
+  the direct-server source/check/apply remains pending and a separately approved
+  apply must restore `Synced/Healthy`. The Cloudflare route remains unapplied. A separate source-only, check-only
   `k3s_datastore_preflight` role/playbook/wrapper is now offline-validated with
   fixed read-only argv under `no_log`, a bounded private mode-`0600` config slurp,
   strict duplicate/type/mapping/YAML and encryption-JSON parsers, exact

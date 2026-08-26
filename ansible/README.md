@@ -5,11 +5,10 @@
 The separately guarded PROD runtime seam and OIDC proxy policy remain applied/idempotent;
 backend, Celery, frontend, oauth2-proxy, and Redis are ready. The historical Argo
 registration checkpoint reported private PROD `Synced/Healthy`, but the fresh current
-snapshot is `Unknown/Missing` with a namespace/target management ComparisonError.
-The committed source contains the exact `cristexhub-prod-local` alias repair. Its
-check-only path currently stops on Kubernetes `409 Conflict` from Argo status
-`resourceVersion` churn, so the repair is source/check pending and no registration
-apply or workload sync has run. RabbitMQ is live for the PROD Celery worker, but
+snapshot is `Unknown/Missing` with a namespace/target management ComparisonError after
+the `cristexhub-prod-local` alias transition was applied. The committed source now
+targets the direct in-cluster server; its guarded three-step check/apply remains
+pending and no direct-server registration apply or workload sync has run. RabbitMQ is live for the PROD Celery worker, but
 observed principal/permission drift and credential rotation remain open. MongoDB
 `8.0.12` is live under its operator with TLS/SCRAM, but private acceptance is blocked
 by the absent/mismatched live MongoDB NetworkPolicy. Protected OpenTofu state contains
@@ -559,8 +558,8 @@ additive writer RBAC, hash-bound manifests, and the guarded
 `bin/bootstrap-infisical-cristexhub-prod-runtime check|apply` entrypoint. Its apply,
 target synchronization, and final `ok=62 changed=0 failed=0 skipped=3` idempotence
 pass; the historical private Argo workload checkpoint was `Synced/Healthy`, while
-the current Application is `Unknown/Missing` pending the alias repair and
-conflict-safe check. The public route and residual credential rotations remain
+the current Application is `Unknown/Missing` after the alias transition; the direct-server
+check/apply remains pending. The public route and residual credential rotations remain
 blocked. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 PostgreSQL and one MongoDB engine in `shared-services`; PostgreSQL and the

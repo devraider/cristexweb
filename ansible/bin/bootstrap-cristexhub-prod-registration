@@ -9,6 +9,18 @@ if [ "$#" -ne 1 ] || { [ "$1" != check ] && [ "$1" != apply ]; }; then
 fi
 mode=$1
 script_path=$0
+wrapper_canonical_sha256_expected='0d6f0362ef90c4badbdcb8f131e9b211ba02a7aea49e2a4bc44636159eea1b87'
+canonical_sha256() {
+  /usr/bin/python3 - "$1" <<'PY'
+import hashlib, re, sys
+source = open(sys.argv[1], encoding='utf-8').read()
+source, count = re.subn(r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$", "wrapper_canonical_sha256_expected='" + ('0' * 64) + "'", source)
+if count != 1:
+    raise SystemExit(69)
+print(hashlib.sha256(source.encode()).hexdigest())
+PY
+}
+
 if [ -L "$script_path" ]; then
   printf '%s\n' 'refusing a symlinked PROD registration entrypoint' >&2
   exit 66
@@ -20,14 +32,43 @@ if [ "$repository_root" != "$expected_repository_root" ]; then
   printf '%s\n' 'refusing PROD registration outside the pinned controller repository' >&2
   exit 78
 fi
+script_path="$repository_root/ansible/bin/bootstrap-cristexhub-prod-registration"
 controller_home="$(CDPATH= cd -- "$repository_root/../.." && /bin/pwd -P)"
 controller_user="$(/usr/bin/id -un)"
 controller="$repository_root/.venv/bin/ansible-playbook"
+python_tool=/usr/bin/python3
+inventory="$repository_root/ansible/.ansible/inventory.local.yml"
+ansible_config="$repository_root/ansible/ansible.cfg"
+task_source="$repository_root/ansible/roles/cristexhub_prod_registration/tasks/main.yml"
+defaults_source="$repository_root/ansible/roles/cristexhub_prod_registration/defaults/main.yml"
+playbook_source="$repository_root/ansible/playbooks/bootstrap_cristexhub_prod_registration.yml"
+action_source="$repository_root/ansible/plugins/action/cristexhub_prod_registration_guarded_k8s.py"
+sha256_file() { /usr/bin/sha256sum -- "$1" | /usr/bin/awk '{print $1}'; }
+wrapper_sha256="$(sha256_file "$script_path")"
+[ "$wrapper_sha256" != '' ] || exit 69
+[ "$(canonical_sha256 "$script_path")" = "$wrapper_canonical_sha256_expected" ] || {
+  printf '%s\n' 'refusing PROD registration wrapper source drift' >&2
+  exit 69
+}
+[ "$controller_user" = paul ] || exit 78
+[ -f "$inventory" ] && [ -f "$ansible_config" ] && [ -f "$task_source" ] && [ -f "$defaults_source" ] && [ -f "$playbook_source" ] && [ -f "$action_source" ] || exit 69
 if [ ! -f "$controller" ] || [ ! -x "$controller" ] || [ -L "$controller" ]; then
   printf '%s\n' 'refusing an absent, non-executable, or symlinked pinned Ansible controller' >&2
   exit 69
 fi
 cd -- "$repository_root/ansible"
+wrapper_pid=$$
+wrapper_starttime="$(/usr/bin/awk '{print $22}' "/proc/$wrapper_pid/stat")"
+[ "$wrapper_starttime" != '' ] || exit 69
+task_sha256="$(sha256_file "$task_source")"
+defaults_sha256="$(sha256_file "$defaults_source")"
+playbook_sha256="$(sha256_file "$playbook_source")"
+inventory_sha256="$(sha256_file "$inventory")"
+ansible_config_sha256="$(sha256_file "$ansible_config")"
+action_sha256="$(sha256_file "$action_source")"
+controller_sha256="$(sha256_file "$controller")"
+python_sha256="$(sha256_file "$python_tool")"
+[ "$task_sha256" != '' ] && [ "$defaults_sha256" != '' ] && [ "$playbook_sha256" != '' ] && [ "$inventory_sha256" != '' ] && [ "$ansible_config_sha256" != '' ] && [ "$action_sha256" != '' ] && [ "$controller_sha256" != '' ] && [ "$python_sha256" != '' ] || exit 69
 
 umask 077
 attestation_file=
@@ -62,7 +103,8 @@ trap 'terminate_child 130' INT
 trap 'terminate_child 143' TERM
 attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexhub-prod-registration.XXXXXX")"
 attestation_token="$(/usr/bin/openssl rand -hex 32)"
-printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+/bin/chmod 600 "$attestation_file"
+printf '%s:entrypoint:%s:%s:%s\n' "$attestation_token" "$wrapper_pid" "$wrapper_starttime" "$wrapper_sha256" >"$attestation_file"
 
 set -- \
   "$controller" \
@@ -85,11 +127,27 @@ trap 'pending_signal=143' TERM
   "LOGNAME=$controller_user" \
   'PATH=/usr/bin:/bin:/usr/sbin:/sbin' \
   'LC_ALL=C.UTF-8' \
-  "ANSIBLE_CONFIG=$PWD/ansible.cfg" \
+  "ANSIBLE_CONFIG=$ansible_config" \
   "CRISTEXWEB_REPOSITORY_ROOT=$repository_root" \
-  'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT=v1' \
+  'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT=v2' \
   "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TOKEN=$attestation_token" \
   "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ATTESTATION_FILE=$attestation_file" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_PID=$wrapper_pid" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_STARTTIME=$wrapper_starttime" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_PATH=$script_path" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_SHA256=$wrapper_sha256" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TASK_SHA256=$task_sha256" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_DEFAULTS_SHA256=$defaults_sha256" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PLAYBOOK_SHA256=$playbook_sha256" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_INVENTORY_SHA256=$inventory_sha256" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ANSIBLE_CONFIG_SHA256=$ansible_config_sha256" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ACTION_SHA256=$action_sha256" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_CONTROLLER=$controller" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_CONTROLLER_SHA256=$controller_sha256" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PYTHON=$python_tool" \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PYTHON_SHA256=$python_sha256" \
+  'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_KUBECONFIG=/etc/rancher/k3s/k3s.yaml' \
+  "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_OPERATOR=$controller_user" \
   "$@" &
 child_pid=$!
 trap 'terminate_child 129' HUP

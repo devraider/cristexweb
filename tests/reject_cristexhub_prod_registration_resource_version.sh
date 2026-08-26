@@ -71,6 +71,18 @@ binding = {
     "transition_change_count": 0,
     "transition_plan": [],
     "no_delete_path": True,
+    "task_sha256": module._TASK_SHA256,
+    "defaults_sha256": module._DEFAULTS_SHA256,
+    "playbook_sha256": module._PLAYBOOK_SHA256,
+    "inventory_sha256": module._INVENTORY_SHA256,
+    "ansible_config_sha256": module._ANSIBLE_CONFIG_SHA256,
+    "wrapper_sha256": "b" * 64,
+    "action_sha256": "c" * 64,
+    "controller_sha256": module._CONTROLLER_SHA256,
+    "python_sha256": module._PYTHON_SHA256,
+    "operator": module._EXPECTED_OPERATOR,
+    "kubeconfig": str(module._KUBECONFIG_SOURCE),
+    "source_closure_sha256": module._SOURCE_CLOSURE_SHA256,
 }
 task_vars = {
     "cristexhub_prod_registration_internal_preflight_binding": binding,
@@ -97,11 +109,14 @@ try:
     )
     env = {
         "CRISTEXWEB_REPOSITORY_ROOT": str(root),
-        "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT": "v1",
+        "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT": "v2",
         "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TOKEN": token,
         "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ATTESTATION_FILE": attestation_path,
+        "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_SHA256": "b" * 64,
+        "CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ACTION_SHA256": "c" * 64,
     }
-    with mock.patch.object(module.context, "CLIARGS", {"tags": [], "skip_tags": []}), mock.patch.dict(os.environ, env, clear=False):
+    cliargs = {"tags": [], "skip_tags": [], "subset": "crtxweb", "diff": True, "inventory": [".ansible/inventory.local.yml"]}
+    with mock.patch.object(module, "_source_closure_valid", return_value=True), mock.patch.object(module, "_wrapper_binding_valid", return_value=True), mock.patch.object(module.context, "CLIARGS", cliargs), mock.patch.dict(os.environ, env, clear=False):
         result = action.run(task_vars=task_vars)
     assert result.get("failed") is True, result
     assert "resourceVersion" in result.get("msg", ""), result

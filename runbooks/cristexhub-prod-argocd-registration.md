@@ -57,9 +57,9 @@ The guarded transition is exactly three ordered JSON Patch operations:
 3. replace only AppProject `/spec/destinations` with the direct-server-only
    list.
 
-Each patch tests the immutable live UID and complete exact preceding `spec`
-first. A failed test is a conflict and stops without retrying or widening the
-operation. The accepted mixed recovery states are only:
+Each patch is built from a fresh per-step GET and tests the immutable live UID,
+resourceVersion, exact ownership labels, and complete preceding `spec` first. A
+failed test is a conflict and stops without retrying or widening the operation. The accepted mixed recovery states are only:
 
 - alias AppProject + alias Application: all three steps;
 - temporary AppProject + alias Application: steps two and three;
@@ -68,13 +68,17 @@ operation. The accepted mixed recovery states are only:
 
 A final AppProject with an alias Application, an alias AppProject with a direct
 Application, a changed UID, metadata drift, a foreign spec, or any missing or
-extra object fails closed. The patch contains no delete, prune, sync,
-`resourceVersion`, status, workload, DEV, or Reactive Resume operation.
+extra object fails closed. The patch contains no delete, prune, sync, status,
+workload, DEV, or Reactive Resume operation; `resourceVersion` appears only as an
+optimistic-concurrency `test` precondition.
 
 ## Guard and post-validation
 
-The wrapper rejects passthrough arguments, task-selection controls, symlinked
-paths, non-canonical repositories, and non-canonical source hashes. It runs the
+The wrapper rejects passthrough arguments, task-selection controls, extra-variable
+and inventory overrides, symlinked paths, non-canonical repositories, and
+non-canonical source hashes. The action guard independently binds the canonical
+wrapper process, operator, controller, Python, kubeconfig, inventory, task/action
+identity, and source closure. It runs the
 pinned project controller against only `crtxweb`, with `--diff`, a clean
 allowlisted environment, and a single-use `0600` attestation that is removed on
 exit. The role binds all five live UIDs, resourceVersions, generations, exact

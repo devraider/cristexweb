@@ -29,9 +29,25 @@
 - name: Require the exact non-passthrough registration contract
   ansible.builtin.assert:
     that:
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ENTRYPOINT') == 'v2'
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TOKEN') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ATTESTATION_FILE') | length > 0
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_PID') is match('^[0-9]+$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_STARTTIME') is match('^[0-9]+$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_PATH') == '/home/paul/projects/cristexweb/ansible/bin/bootstrap-cristexhub-prod-registration'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TASK_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_DEFAULTS_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PLAYBOOK_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_INVENTORY_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ANSIBLE_CONFIG_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ACTION_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_CONTROLLER') == '/home/paul/projects/cristexweb/.venv/bin/ansible-playbook'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_CONTROLLER_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PYTHON') == '/usr/bin/python3'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PYTHON_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_KUBECONFIG') == '/etc/rancher/k3s/k3s.yaml'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_OPERATOR') == 'paul'
       - cristexhub_prod_registration_approved | bool
       - cristexhub_prod_registration_state == 'present'
       - ansible_diff_mode
@@ -547,6 +563,21 @@
       prestate_bindings: "{{ cristexhub_prod_registration_internal_prestate_bindings }}"
       transition_change_count: "{{ cristexhub_prod_registration_internal_alias_transition_plan | length }}"
       transition_plan: "{{ cristexhub_prod_registration_internal_alias_transition_plan }}"
+      task_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_TASK_SHA256') }}"
+      defaults_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_DEFAULTS_SHA256') }}"
+      playbook_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PLAYBOOK_SHA256') }}"
+      inventory_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_INVENTORY_SHA256') }}"
+      ansible_config_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ANSIBLE_CONFIG_SHA256') }}"
+      wrapper_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_WRAPPER_SHA256') }}"
+      action_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_ACTION_SHA256') }}"
+      controller_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_CONTROLLER_SHA256') }}"
+      python_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_PYTHON_SHA256') }}"
+      operator: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_OPERATOR') }}"
+      kubeconfig: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_REGISTRATION_KUBECONFIG') }}"
+      source_closure_sha256: >-
+        {{ (cristexhub_prod_registration_internal_manifests |
+        map(attribute='metadata.name') | zip(cristexhub_prod_registration_expected_hashes | map(attribute='sha256') | list) |
+        map('join', '=') | list | sort | join('|')) | hash('sha256') }}
   changed_when: false
   no_log: true
 

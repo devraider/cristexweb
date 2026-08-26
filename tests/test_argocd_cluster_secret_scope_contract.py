@@ -46,8 +46,8 @@ class ArgoClusterSecretScopeContractTests(unittest.TestCase):
             self.assertIn('b64decode', task_text, tasks)
             self.assertIn('cluster_namespaces', task_text, tasks)
             self.assertIn('when: not ansible_check_mode', task_text, tasks)
-        self.assertIn("['cristexhub-prod', cristexhub_prod_registration_cluster_namespaces]", (ROOT / 'ansible/roles/cristexhub_prod_registration/tasks/main.yml').read_text())
-        self.assertIn("['cristexhub-dev', reactive_resume_dev_argocd_registration_cluster_namespaces]", (ROOT / 'ansible/roles/reactive_resume_dev_argocd_registration/tasks/main.yml').read_text())
+        self.assertIn("cristexhub_prod_registration_cluster_namespaces == 'cristexhub-dev,cristexhub-prod'", (ROOT / 'ansible/roles/cristexhub_prod_registration/tasks/main.yml').read_text())
+        self.assertIn("reactive_resume_dev_argocd_registration_cluster_namespaces", (ROOT / 'ansible/roles/reactive_resume_dev_argocd_registration/tasks/main.yml').read_text())
         prod_plugin = (ROOT / 'ansible/plugins/action/cristexhub_prod_registration_guarded_k8s.py').read_text()
         self.assertIn('kubernetes.core.k8s_json_patch', prod_plugin)
         self.assertIn('op": "test"', prod_plugin)
@@ -62,7 +62,7 @@ class ArgoClusterSecretScopeContractTests(unittest.TestCase):
         )
         expected = (
             ('cristexhub-dev', ''),
-            ('cristexhub-prod', ''),
+            ('cristexhub-prod', 'https://kubernetes.default.svc'),
             ('cristexhub-dev', 'https://kubernetes.default.svc'),
         )
         for path, (namespace, server) in zip(app_specs, expected):
