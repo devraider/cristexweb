@@ -43,7 +43,7 @@ _PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989d
 _INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
 _ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 _K8S_JSON_PATCH_SHA256 = "3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b"
-_ACTION_CANONICAL_SHA256 = "6c1f1ed8f16c532f24ab29f9eeb99f57610702409c5072d5fbbc29e2081a916d"
+_ACTION_CANONICAL_SHA256 = "f508a8ecc2e1a2b07106d0f4a8fc7cf988e09944c5cea0fc01d5e7ccb242bed1"
 _WRAPPER_CANONICAL_SHA256 = "39b3ee06dde22201688d59f29a06131d9f92d76273b20e668a2c30a5f42beee2"
 _TASK_SHA256 = "225bf49548f0e6cb3a8ec850da9253612a1fd105b6d7333082202453123e0d7b"
 _DEFAULTS_SHA256 = "9c29d84393b18c56ca769fde990944f031ac9d042c2b618a014dbc5b0699a2c0"
@@ -139,7 +139,11 @@ def _proc_cmdline(pid: int) -> list[str]:
 
 
 def _strict_true(value: Any) -> bool:
-    return value is True or (type(value).__name__ == "_AnsibleTaggedBool" and bool(value))
+    return (
+        value is True
+        or (type(value).__name__ == "_AnsibleTaggedBool" and bool(value))
+        or (type(value).__name__ == "_AnsibleTaggedStr" and value == "true")
+    )
 
 
 def _expected_argv() -> list[str]:

@@ -137,6 +137,7 @@ class ArgoTargetCacheRepairContractTests(unittest.TestCase):
 
     def test_action_requires_complete_preflight_and_ordered_identity_binding(self) -> None:
         self.assertIn("_preflight_binding_valid", self.action)
+        self.assertIn('_AnsibleTaggedStr" and value == "true"', self.action)
         self.assertIn("_EXPECTED_TARGET_IDENTITIES_ORDER", self.action)
         self.assertIn("prestate_bindings", self.action)
         self.assertIn("resourceVersion", self.action)
