@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import stat
 import subprocess
+import sys
+import types
 import unittest
 
 import yaml
@@ -27,14 +29,61 @@ SOURCE_PATHS = (
 )
 
 
+def _install_action_import_stubs() -> None:
+    """Provide only import-time stand-ins when the optional collection is absent.
+
+    The action plugin's pure contract helpers must be testable from a clean
+    checkout.  These stubs are never used by Ansible runtime execution; the
+    real collection remains a runtime prerequisite enforced by the wrapper and
+    action source closure.
+    """
+    ansible = sys.modules.get("ansible")
+    if ansible is None:
+        ansible = types.ModuleType("ansible")
+        ansible.__path__ = []
+        sys.modules["ansible"] = ansible
+    if not hasattr(ansible, "context"):
+        ansible.context = types.SimpleNamespace(CLIARGS={})
+
+    package_names = (
+        "ansible_collections",
+        "ansible_collections.kubernetes",
+        "ansible_collections.kubernetes.core",
+        "ansible_collections.kubernetes.core.plugins",
+        "ansible_collections.kubernetes.core.plugins.action",
+    )
+    for name in package_names:
+        package = sys.modules.get(name)
+        if package is None:
+            package = types.ModuleType(name)
+            package.__path__ = []
+            sys.modules[name] = package
+
+    for name in (
+        "ansible_collections.kubernetes.core.plugins.action.k8s",
+        "ansible_collections.kubernetes.core.plugins.action.k8s_json_patch",
+    ):
+        action_module = sys.modules.get(name)
+        if action_module is None:
+            action_module = types.ModuleType(name)
+            action_module.ActionModule = type("ActionModule", (), {})
+            sys.modules[name] = action_module
+
+
 def load_plugin():
     collection_root = ROOT / "ansible/.ansible/collections"
-    import sys
-
-    if not (collection_root / "ansible_collections").is_dir():
-        collection_root = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections")
     if (collection_root / "ansible_collections").is_dir():
         sys.path.insert(0, str(collection_root))
+    try:
+        from ansible import context as _context  # noqa: F401
+        from ansible_collections.kubernetes.core.plugins.action.k8s import (  # noqa: F401
+            ActionModule as _KubernetesActionModule,
+        )
+        from ansible_collections.kubernetes.core.plugins.action.k8s_json_patch import (  # noqa: F401
+            ActionModule as _PatchActionModule,
+        )
+    except ImportError:
+        _install_action_import_stubs()
     spec = importlib.util.spec_from_file_location("argocd_cluster_cache_scope_transition", PLUGIN)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -138,7 +187,34 @@ class ArgoClusterCacheScopeTransitionContractTests(unittest.TestCase):
 
     def test_source_closure_and_wrapper_process_binding_are_pinned(self) -> None:
         module = load_plugin()
-        self.assertTrue(module._source_closure_valid())
+        # The host-specific inventory, kubeconfig, and pinned controller are
+        # intentionally ignored runtime inputs.  A clean checkout must not
+        # require those artifacts to exercise tracked-source contracts.
+        for path, digest in (
+            (TASKS, module._TASK_SHA256),
+            (DEFAULTS, module._DEFAULTS_SHA256),
+            (PLAYBOOK, module._PLAYBOOK_SHA256),
+            (ROOT / "ansible/ansible.cfg", module._ANSIBLE_CONFIG_SHA256),
+            (ROOT / "ansible/library/argocd_cluster_cache_secret_metadata.py", module._METADATA_MODULE_SHA256),
+        ):
+            self.assertEqual(digest, module._sha256(path), path)
+        self.assertEqual(
+            module._ACTION_CANONICAL_SHA256,
+            module._canonical_file_hash(PLUGIN, "_ACTION_CANONICAL_SHA256"),
+        )
+        self.assertEqual(
+            module._WRAPPER_CANONICAL_SHA256,
+            module._canonical_file_hash(WRAPPER, "wrapper_canonical_sha256_expected"),
+        )
+        plugin = PLUGIN.read_text()
+        for needle in (
+            "(_INVENTORY_SOURCE, _INVENTORY_SHA256, 0o600, os.getuid())",
+            "stat.S_IMODE(inventory_state.st_mode) == 0o600",
+            "stat.S_IMODE(controller_state.st_mode) == 0o775",
+            "_sha256(_CONTROLLER_SOURCE) == _CONTROLLER_SHA256",
+            "_sha256(_PYTHON_SOURCE) == _PYTHON_SHA256",
+        ):
+            self.assertIn(needle, plugin)
         self.assertNotEqual("0" * 64, module._ACTION_CANONICAL_SHA256)
         self.assertNotEqual("0" * 64, module._WRAPPER_CANONICAL_SHA256)
         self.assertNotEqual("0" * 64, module._TASK_SHA256)

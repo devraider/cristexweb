@@ -298,6 +298,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             for path in (ROOT / "ansible/files/policies/reactive-resume-dev-argocd-handoff").rglob("*")
             if path.is_file()
         )
+        expected_public_inputs.add("policies/cristexhub-prod-credential-rotation-gates.yml")
         for source_directory in ("database-provisioning", "backup"):
             expected_public_inputs.update(
                 str(path.relative_to(ROOT / "ansible/files"))
