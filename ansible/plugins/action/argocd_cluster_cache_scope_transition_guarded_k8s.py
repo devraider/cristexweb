@@ -40,9 +40,9 @@ _KUBECONFIG_SOURCE = Path("/etc/rancher/k3s/k3s.yaml")
 _EXPECTED_OPERATOR = "paul"
 _EXPECTED_TASK_NAME = "Apply only legacy cluster Secret scope patches with exact CAS bindings"
 _EXPECTED_TASK_ACTION = "argocd_cluster_cache_scope_transition_guarded_k8s"
-_ACTION_CANONICAL_SHA256 = "7d9123d0066a08e69045adfd8fd05b86c759aa71216b26146d670da922b7073a"
+_ACTION_CANONICAL_SHA256 = "1042d3819983f8e5879418ccbd56d60461fac79649206d4955107fc03c7a3db9"
 _WRAPPER_CANONICAL_SHA256 = "90d20b131c4286a9afece06c55ce7c99370f8902d5207fd894ec8cc47c623523"
-_TASK_SHA256 = "6cc4c8e7c5514b86e269e4fa3a4d7056bf6cc255ac2aa123b2cc413f6209a62a"
+_TASK_SHA256 = "15e1cb399cc1ae5549819838142587afe1cfd2372e9dd19520faa9ef137959b5"
 _DEFAULTS_SHA256 = "e5cf4171ce426332d7d16411797460a5c66280512d629fd924019848784f2b30"
 _PLAYBOOK_SHA256 = "c44ee2507e08cb2a52a3c091a0d47776e61e98e90a1e2d233da068553345a7b7"
 _INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
@@ -92,6 +92,7 @@ PRESTATE_FIELDS = {
     "resourceVersion",
     "legacy_namespaces",
     "target_namespaces",
+    "observed_name",
     "observed_namespaces",
 }
 
@@ -323,6 +324,8 @@ def transition_patch(prestate_binding: dict[str, Any], definition: dict[str, Any
         raise ValueError("cluster Secret prestate identity mismatch")
     if prestate_binding.get("legacy_namespaces") != LEGACY_NAMESPACES[name]:
         raise ValueError("cluster Secret legacy scope mismatch")
+    if prestate_binding.get("observed_name") != EXPECTED_NAMES[name]:
+        raise ValueError("cluster Secret logical name mismatch")
     if prestate_binding.get("target_namespaces") != EXPECTED_TARGET_NAMESPACES:
         raise ValueError("cluster Secret target scope mismatch")
     if prestate_binding.get("observed_namespaces") != prestate_binding.get("legacy_namespaces"):

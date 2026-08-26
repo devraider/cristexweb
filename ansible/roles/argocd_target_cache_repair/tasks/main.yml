@@ -16,6 +16,13 @@
     - argocd_target_cache_repair_internal_pods
     - argocd_target_cache_repair_internal_application
     - argocd_target_cache_repair_internal_preflight_binding
+    - argocd_target_cache_repair_internal_source_closure
+    - argocd_target_cache_repair_internal_application_prestate
+    - argocd_target_cache_repair_internal_application_poststate
+    - argocd_target_cache_repair_internal_peer_prestate
+    - argocd_target_cache_repair_internal_peer_poststate
+    - argocd_target_cache_repair_internal_kubeconfig_state
+    - argocd_target_cache_repair_internal_target_identities
   changed_when: false
 
 - name: Require the exact target-cache repair entrypoint contract
@@ -31,18 +38,96 @@
       - argocd_target_cache_repair_state == 'present'
       - ansible_diff_mode
       - (ansible_limit | default('')) == 'crtxweb'
+      - inventory_hostname == 'crtxweb'
+      - (ansible_user | default('paul')) == 'paul'
+      - (ansible_connection | default('local')) == 'local'
       - ansible_play_hosts_all | length == 1
       - (argocd_target_cache_repair_mode == 'check') or lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_APPLY_APPROVED') == 'v1'
       - argocd_target_cache_repair_repository_root == '/home/paul/projects/cristexweb'
       - argocd_target_cache_repair_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
       - argocd_target_cache_repair_namespace == 'argocd'
       - argocd_target_cache_repair_expected_server == 'https://kubernetes.default.svc'
+      - argocd_target_cache_repair_peer_targets | length == 2
+      - argocd_target_cache_repair_peer_targets | map(attribute='apiVersion') | list == ['apps/v1', 'apps/v1']
+      - argocd_target_cache_repair_peer_targets | map(attribute='kind') | list == ['Deployment', 'Deployment']
+      - argocd_target_cache_repair_peer_targets | map(attribute='namespace') | list == ['argocd', 'argocd']
+      - argocd_target_cache_repair_peer_targets | map(attribute='name') | list == ['argocd-server', 'argocd-repo-server']
       - argocd_target_cache_repair_object_count == 3
       - argocd_target_cache_repair_sources | length == 3
       - argocd_target_cache_repair_target_kinds | length == 3
-      - (argocd_target_cache_repair_sources | map(attribute='identity') | list | sort) == ['apps/v1|StatefulSet|argocd|argocd-application-controller', 'rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod', 'v1|ConfigMap|argocd|argocd-cm']
-    fail_msg: Refusing a non-canonical or widened target-cache repair.
+      - argocd_target_cache_repair_target_identities == [
+        'rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod',
+        'v1|ConfigMap|argocd|argocd-cm',
+        'apps/v1|StatefulSet|argocd|argocd-application-controller']
+      - >-
+        (argocd_target_cache_repair_target_kinds |
+        map(attribute='apiVersion') | list) ==
+        ['rbac.authorization.k8s.io/v1', 'v1', 'apps/v1']
+      - >-
+        (argocd_target_cache_repair_target_kinds |
+        map(attribute='kind') | list) ==
+        ['Role', 'ConfigMap', 'StatefulSet']
+      - >-
+        (argocd_target_cache_repair_target_kinds |
+        map(attribute='namespace') | list) ==
+        ['cristexhub-prod', 'argocd', 'argocd']
+      - >-
+        (argocd_target_cache_repair_target_kinds |
+        map(attribute='name') | list) ==
+        ['argocd-application-controller-cristexhub-prod', 'argocd-cm',
+        'argocd-application-controller']
+      - >-
+        (argocd_target_cache_repair_target_kinds |
+        map(attribute='apiVersion') | list) ==
+        (argocd_target_cache_repair_sources | map(attribute='apiVersion') | list)
+      - >-
+        (argocd_target_cache_repair_target_kinds |
+        map(attribute='kind') | list) ==
+        (argocd_target_cache_repair_sources | map(attribute='kind') | list)
+      - (argocd_target_cache_repair_sources | map(attribute='identity') | list) == argocd_target_cache_repair_target_identities
+      - (argocd_target_cache_repair_sources | map(attribute='identity') | list | unique | list | length) == 3
+      - >-
+        argocd_target_cache_repair_sources[0].path ==
+        '/home/paul/projects/cristexweb/ansible/files/components/'
+        ~ 'cristexhub-prod-registration/rbac/'
+        ~ 'role-argocd-application-controller-cristexhub-prod.yaml'
+      - >-
+        argocd_target_cache_repair_sources[1].path ==
+        '/home/paul/projects/cristexweb/ansible/files/components/argocd/'
+        ~ 'config/configmap-argocd-cm.yaml'
+      - >-
+        argocd_target_cache_repair_sources[2].path ==
+        '/home/paul/projects/cristexweb/ansible/files/components/argocd/'
+        ~ 'runtime/statefulset-argocd-application-controller.yaml'
+      - argocd_target_cache_repair_sources[0].sha256 == '9a12af899b86acdac58ad34ce707f8558d45dede27c4e362926c488be1fb44f9'
+      - argocd_target_cache_repair_sources[1].sha256 == 'bc167b1f4d2ccb20223c67bceb067459fed6a8057a6b4119aa0bd1dc9909c082'
+      - argocd_target_cache_repair_sources[2].sha256 == '6921a5e7c28e33d20c6c30b64bd8b70749eaf4319071e4b54088c2c76b53cdd0'
+    fail_msg: Refusing a non-canonical, reordered, duplicate, or widened target-cache repair.
   changed_when: false
+
+- name: Inspect the canonical k3s administrator kubeconfig boundary
+  ansible.builtin.stat:
+    path: '{{ argocd_target_cache_repair_kubeconfig }}'
+    follow: false
+    get_mime: false
+    get_checksum: false
+  register: argocd_target_cache_repair_internal_kubeconfig_state
+  changed_when: false
+  no_log: true
+
+- name: Require the canonical protected k3s administrator kubeconfig
+  ansible.builtin.assert:
+    that:
+      - argocd_target_cache_repair_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - argocd_target_cache_repair_internal_kubeconfig_state.stat.exists | default(false)
+      - argocd_target_cache_repair_internal_kubeconfig_state.stat.isreg | default(false)
+      - not (argocd_target_cache_repair_internal_kubeconfig_state.stat.islnk | default(false))
+      - argocd_target_cache_repair_internal_kubeconfig_state.stat.mode == '0640'
+      - argocd_target_cache_repair_internal_kubeconfig_state.stat.pw_name == 'root'
+      - argocd_target_cache_repair_internal_kubeconfig_state.stat.gr_name == 'k3s-admin'
+    fail_msg: Refusing a missing, swapped, symlinked, or weakly protected canonical k3s administrator kubeconfig.
+  changed_when: false
+  no_log: true
 
 - name: Inspect the private single-run target-cache repair attestation
   ansible.builtin.stat:
@@ -119,11 +204,35 @@
     that:
       - argocd_target_cache_repair_internal_manifests | length == 3
       - (argocd_target_cache_repair_internal_manifests | map(attribute='kind') | list | sort) == ['ConfigMap', 'Role', 'StatefulSet']
-      - (argocd_target_cache_repair_internal_manifests | map(attribute='metadata.name') | list | sort) == ['argocd-application-controller', 'argocd-application-controller-cristexhub-prod', 'argocd-cm']
+      - >-
+        (argocd_target_cache_repair_internal_manifests |
+        map(attribute='metadata.name') | list | sort) ==
+        ['argocd-application-controller',
+        'argocd-application-controller-cristexhub-prod', 'argocd-cm']
       - argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'Secret') | list | length == 0
       - argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'Deployment') | list | length == 0
       - argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'RoleBinding') | list | length == 0
     fail_msg: Refusing anything outside the exact three-object target-cache repair closure.
+  changed_when: false
+  no_log: true
+
+- name: Build full normalized StatefulSet target and legacy specs
+  ansible.builtin.set_fact:
+    argocd_target_cache_repair_internal_statefulset_target_spec: >-
+      {{ argocd_target_cache_repair_internal_manifests |
+      selectattr('kind', 'equalto', 'StatefulSet') |
+      map(attribute='spec') | first }}
+    argocd_target_cache_repair_internal_statefulset_legacy_spec: >-
+      {{ (argocd_target_cache_repair_internal_manifests |
+      selectattr('kind', 'equalto', 'StatefulSet') | map(attribute='spec') | first) |
+      combine({'template': {
+        'metadata': (
+          argocd_target_cache_repair_internal_manifests |
+          selectattr('kind', 'equalto', 'StatefulSet') |
+          map(attribute='spec.template.metadata') | first |
+          combine({'annotations': argocd_target_cache_repair_legacy_controller_annotations}, recursive=True)
+        )
+      }}, recursive=True) }}
   changed_when: false
   no_log: true
 
@@ -159,12 +268,28 @@
       'name': item.item.name,
       'uid': item.resources[0].metadata.uid,
       'resourceVersion': item.resources[0].metadata.resourceVersion,
+      'generation': item.resources[0].metadata.generation | default('0'),
+      'observed_generation': item.resources[0].status.observedGeneration | default('0'),
+      'current_revision': item.resources[0].status.currentRevision | default(''),
+      'update_revision': item.resources[0].status.updateRevision | default(''),
       'state': (
         'target' if (
-          (item.item.kind == 'ConfigMap' and item.resources[0].data == (argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'ConfigMap') | map(attribute='data') | first)) or
-          (item.item.kind == 'Role' and item.resources[0].rules == (argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'Role') | map(attribute='rules') | first)) or
-          (item.item.kind == 'StatefulSet' and item.resources[0].spec.template.metadata.annotations == (argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'StatefulSet') | map(attribute='spec.template.metadata.annotations') | first))
-        ) else 'legacy'
+          (item.item.kind == 'ConfigMap' and item.resources[0].data ==
+          (argocd_target_cache_repair_internal_manifests |
+          selectattr('kind', 'equalto', 'ConfigMap') | map(attribute='data') | first)) or
+          (item.item.kind == 'Role' and item.resources[0].rules ==
+          (argocd_target_cache_repair_internal_manifests |
+          selectattr('kind', 'equalto', 'Role') | map(attribute='rules') | first)) or
+          (item.item.kind == 'StatefulSet' and item.resources[0].spec == argocd_target_cache_repair_internal_statefulset_target_spec)
+        ) else (
+          'legacy' if (
+            (item.item.kind == 'ConfigMap' and item.resources[0].data ==
+            argocd_target_cache_repair_legacy_configmap_data) or
+            (item.item.kind == 'Role' and item.resources[0].rules ==
+            argocd_target_cache_repair_legacy_role_rules) or
+            (item.item.kind == 'StatefulSet' and item.resources[0].spec == argocd_target_cache_repair_internal_statefulset_legacy_spec)
+          ) else 'invalid'
+        )
       ),
       'observed_data': item.resources[0].data | default({}),
       'observed_rules': item.resources[0].rules | default([]),
@@ -179,12 +304,26 @@
 - name: Require exact target identities, UIDs, RVs, labels, and bounded old/new specs
   ansible.builtin.assert:
     that:
-      - item.identity in (argocd_target_cache_repair_sources | map(attribute='identity') | list)
+      - item.identity in (argocd_target_cache_repair_target_identities)
+      - item.apiVersion == item.identity.split('|')[0]
+      - item.kind == item.identity.split('|')[1]
+      - item.namespace == item.identity.split('|')[2]
+      - item.name == item.identity.split('|')[3]
       - item.uid == argocd_target_cache_repair_expected_uids[item.identity]
       - item.uid is match('^[0-9a-fA-F-]{36}$')
       - item.resourceVersion is match('^[0-9]+$')
+      - item.generation is match('^[0-9]+$')
       - item.state in ['legacy', 'target']
-      - item.observed_labels == (argocd_target_cache_repair_internal_manifests | selectattr('metadata.name', 'equalto', item.name) | map(attribute='metadata.labels') | first)
+      - >-
+        item.observed_labels ==
+        (argocd_target_cache_repair_internal_manifests |
+        selectattr('metadata.name', 'equalto', item.name) |
+        map(attribute='metadata.labels') | first)
+      - >-
+        ((argocd_target_cache_repair_internal_prestate.results |
+        selectattr('item.name', 'equalto', item.name) | first).resources[0].metadata.keys() |
+        list | difference(['name', 'namespace', 'uid', 'resourceVersion', 'generation',
+        'creationTimestamp', 'managedFields', 'labels', 'annotations']) | length) == 0
       - >-
         (argocd_target_cache_repair_internal_prestate.results |
         selectattr('item.name', 'equalto', item.name) | first).resources[0].metadata.ownerReferences | default([]) | length == 0
@@ -204,8 +343,16 @@
         (argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'Role') | map(attribute='rules') | first)]
       - >-
         (item.kind != 'StatefulSet') or
-        item.observed_annotations in [argocd_target_cache_repair_legacy_controller_annotations,
-        (argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'StatefulSet') | map(attribute='spec.template.metadata.annotations') | first)]
+        item.observed_spec in [
+        argocd_target_cache_repair_internal_statefulset_legacy_spec,
+        argocd_target_cache_repair_internal_statefulset_target_spec]
+      - >-
+        (item.kind != 'StatefulSet') or
+        item.observed_annotations in [
+        argocd_target_cache_repair_legacy_controller_annotations,
+        (argocd_target_cache_repair_internal_manifests |
+        selectattr('kind', 'equalto', 'StatefulSet') |
+        map(attribute='spec.template.metadata.annotations') | first)]
     fail_msg: Refusing a foreign, drifted, replaced, or partial target-cache repair prestate.
   loop: "{{ argocd_target_cache_repair_internal_bindings }}"
   changed_when: false
@@ -237,9 +384,85 @@
       legacy_count: "{{ argocd_target_cache_repair_internal_legacy_bindings | default([]) | length }}"
       target_count: "{{ argocd_target_cache_repair_internal_target_bindings | default([]) | length }}"
       identities: "{{ argocd_target_cache_repair_internal_bindings | map(attribute='identity') | list }}"
+      target_identities: "{{ argocd_target_cache_repair_target_identities }}"
+      source_hashes: >-
+        {{ dict(argocd_target_cache_repair_sources | map(attribute='identity') |
+        zip(argocd_target_cache_repair_sources | map(attribute='sha256'))) }}
+      definition_hashes:
+        - b360dc15ff78580772e2d74c6720796865a6b9e4303033d1ad822880e0a493e5
+        - 9aaac655d5ba9613b626738679ef793e20a7cf85c4e4f5511f1297d393d14c6f
+        - f4db45d6c8665af9197b2dcd698c3d40de485e584c0b6ad35afcded354887807
+      task_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_TASK_SHA256') }}"
+      defaults_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_DEFAULTS_SHA256') }}"
+      playbook_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_PLAYBOOK_SHA256') }}"
+      configmap_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_CONFIGMAP_SHA256') }}"
+      role_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_ROLE_SHA256') }}"
+      statefulset_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_STATEFULSET_SHA256') }}"
+      inventory_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_INVENTORY_SHA256') }}"
+      ansible_config_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_ANSIBLE_CONFIG_SHA256') }}"
+      action_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_ACTION_SHA256') }}"
+      controller_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_CONTROLLER_SHA256') }}"
+      python_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_PYTHON_SHA256') }}"
       prestate_bindings: "{{ argocd_target_cache_repair_internal_bindings }}"
       transition_plan: "{{ argocd_target_cache_repair_internal_legacy_bindings | map(attribute='identity') | list }}"
       no_delete_path: true
+  changed_when: false
+  no_log: true
+
+- name: Query PROD Application prestate before target-cache patch
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    namespace: argocd
+    name: cristexhub-prod
+    kubeconfig: "{{ argocd_target_cache_repair_kubeconfig }}"
+  register: argocd_target_cache_repair_internal_application_prestate
+  changed_when: false
+  no_log: true
+
+- name: Require exact PROD Application pre-RV state
+  ansible.builtin.assert:
+    that:
+      - argocd_target_cache_repair_internal_application_prestate.resources | length == 1
+      - argocd_target_cache_repair_internal_application_prestate.resources[0].apiVersion == 'argoproj.io/v1alpha1'
+      - argocd_target_cache_repair_internal_application_prestate.resources[0].kind == 'Application'
+      - argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.name == 'cristexhub-prod'
+      - argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.namespace == 'argocd'
+      - argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.uid is match('^[0-9a-fA-F-]{36}$')
+      - argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.resourceVersion is match('^[0-9]+$')
+      - argocd_target_cache_repair_internal_application_prestate.resources[0].spec.destination.server == argocd_target_cache_repair_expected_server
+      - argocd_target_cache_repair_internal_application_prestate.resources[0].spec.destination.name | default('') == ''
+      - argocd_target_cache_repair_internal_application_prestate.resources[0].spec.source.targetRevision == '751885a42798d282e168131db147f13694a0a621'
+    fail_msg: Refusing a PROD Application with a foreign identity, stale RV, alias destination, or revision drift.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact non-rollout Argo server and repo-server prestates
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.namespace }}"
+    name: "{{ item.name }}"
+    kubeconfig: "{{ argocd_target_cache_repair_kubeconfig }}"
+  loop: "{{ argocd_target_cache_repair_peer_targets }}"
+  register: argocd_target_cache_repair_internal_peer_prestate
+  changed_when: false
+  no_log: true
+
+- name: Require exact non-rollout peer prestates
+  ansible.builtin.assert:
+    that:
+      - argocd_target_cache_repair_internal_peer_prestate.results | length == 2
+      - argocd_target_cache_repair_internal_peer_prestate.results | map(attribute='resources') | map('length') | list == [1, 1]
+      - >-
+        argocd_target_cache_repair_internal_peer_prestate.results |
+        map(attribute='resources.0.metadata.uid') |
+        select('match', '^[0-9a-fA-F-]{36}$') | list | length == 2
+      - >-
+        argocd_target_cache_repair_internal_peer_prestate.results |
+        map(attribute='resources.0.metadata.resourceVersion') |
+        select('match', '^[0-9]+$') | list | length == 2
+    fail_msg: Refusing absent or ambiguous Argo server/repo-server non-rollout prestates.
   changed_when: false
   no_log: true
 
@@ -256,8 +479,13 @@
 - name: Require exact check or apply patch count
   ansible.builtin.assert:
     that:
-      - argocd_target_cache_repair_internal_mutation_results.results | length == (argocd_target_cache_repair_internal_legacy_bindings | default([]) | length)
-      - (argocd_target_cache_repair_internal_mutation_results.results | selectattr('changed', 'equalto', true) | list | length) == (argocd_target_cache_repair_internal_legacy_bindings | default([]) | length)
+      - >-
+        argocd_target_cache_repair_internal_mutation_results.results | length ==
+        (argocd_target_cache_repair_internal_legacy_bindings | default([]) | length)
+      - >-
+        (argocd_target_cache_repair_internal_mutation_results.results |
+        selectattr('changed', 'equalto', true) | list | length) ==
+        (argocd_target_cache_repair_internal_legacy_bindings | default([]) | length)
     fail_msg: Refusing an unexpected target-cache repair patch count.
   changed_when: false
   no_log: true
@@ -279,19 +507,40 @@
   ansible.builtin.assert:
     that:
       - argocd_target_cache_repair_internal_poststate.results | length == 3
-      - argocd_target_cache_repair_internal_poststate.results | map(attribute='resources') | map('length') | list == [1, 1, 1]
-      - item.resources[0].metadata.uid == (argocd_target_cache_repair_internal_bindings | selectattr('name', 'equalto', item.item.name) | map(attribute='uid') | first)
+      - >-
+        argocd_target_cache_repair_internal_poststate.results |
+        map(attribute='resources') | map('length') | list == [1, 1, 1]
+      - item.resources[0].apiVersion == item.item.apiVersion
+      - item.resources[0].kind == item.item.kind
+      - item.resources[0].metadata.namespace == item.item.namespace
+      - item.resources[0].metadata.name == item.item.name
+      - >-
+        item.resources[0].metadata.uid ==
+        (argocd_target_cache_repair_internal_bindings |
+        selectattr('identity', 'equalto', item.item.apiVersion ~ '|' ~
+        item.item.kind ~ '|' ~ item.item.namespace ~ '|' ~ item.item.name) |
+        map(attribute='uid') | first)
       - item.resources[0].metadata.resourceVersion is match('^[0-9]+$')
-      - item.resources[0].metadata.labels == (argocd_target_cache_repair_internal_manifests | selectattr('metadata.name', 'equalto', item.item.name) | map(attribute='metadata.labels') | first)
+      - >-
+        item.resources[0].metadata.labels ==
+        (argocd_target_cache_repair_internal_manifests |
+        selectattr('metadata.name', 'equalto', item.item.name) |
+        map(attribute='metadata.labels') | first)
       - >-
         (item.item.kind != 'ConfigMap') or
-        item.resources[0].data == (argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'ConfigMap') | map(attribute='data') | first)
+        item.resources[0].data ==
+        (argocd_target_cache_repair_internal_manifests |
+        selectattr('kind', 'equalto', 'ConfigMap') |
+        map(attribute='data') | first)
       - >-
         (item.item.kind != 'Role') or
-        item.resources[0].rules == (argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'Role') | map(attribute='rules') | first)
+        item.resources[0].rules ==
+        (argocd_target_cache_repair_internal_manifests |
+        selectattr('kind', 'equalto', 'Role') |
+        map(attribute='rules') | first)
       - >-
         (item.item.kind != 'StatefulSet') or
-        item.resources[0].spec.template.metadata.annotations == (argocd_target_cache_repair_internal_manifests | selectattr('kind', 'equalto', 'StatefulSet') | map(attribute='spec.template.metadata.annotations') | first)
+        item.resources[0].spec == argocd_target_cache_repair_internal_statefulset_target_spec
     fail_msg: Refusing a replaced or drifted target-cache repair poststate.
   loop: "{{ argocd_target_cache_repair_internal_poststate.results | default([]) }}"
   changed_when: false
@@ -312,9 +561,35 @@
     - argocd_target_cache_repair_internal_controller.resources[0].status.availableReplicas | default(0) | int == 1
     - argocd_target_cache_repair_internal_controller.resources[0].status.readyReplicas | default(0) | int == 1
     - argocd_target_cache_repair_internal_controller.resources[0].status.updatedReplicas | default(0) | int == 1
+    - >-
+      argocd_target_cache_repair_internal_controller.resources[0].status.observedGeneration ==
+      argocd_target_cache_repair_internal_controller.resources[0].metadata.generation
+    - >-
+      argocd_target_cache_repair_internal_controller.resources[0].status.currentRevision |
+      default('') != ''
+    - >-
+      argocd_target_cache_repair_internal_controller.resources[0].status.currentRevision ==
+      argocd_target_cache_repair_internal_controller.resources[0].status.updateRevision
   retries: 30
   delay: 5
   when: not ansible_check_mode
+  no_log: true
+
+- name: Require fresh application-controller rollout identity
+  ansible.builtin.assert:
+    that:
+      - argocd_target_cache_repair_internal_controller.resources | length == 1
+      - argocd_target_cache_repair_internal_controller.resources[0].metadata.uid ==
+        (argocd_target_cache_repair_internal_bindings |
+        selectattr('identity', 'equalto', 'apps/v1|StatefulSet|argocd|argocd-application-controller') |
+        map(attribute='uid') | first)
+      - argocd_target_cache_repair_internal_controller.resources[0].metadata.generation is match('^[0-9]+$')
+      - argocd_target_cache_repair_internal_controller.resources[0].status.observedGeneration ==
+        argocd_target_cache_repair_internal_controller.resources[0].metadata.generation
+      - argocd_target_cache_repair_internal_controller.resources[0].status.currentRevision ==
+        argocd_target_cache_repair_internal_controller.resources[0].status.updateRevision
+    fail_msg: Refusing an application-controller status that is not fresh for the repaired StatefulSet.
+  changed_when: false
   no_log: true
 
 - name: Wait for the restarted application-controller Pod Ready
@@ -332,10 +607,50 @@
     - >-
       (argocd_target_cache_repair_internal_pods.resources[0].status.conditions | default([]) |
       selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length) == 1
+    - >-
+      (argocd_target_cache_repair_internal_pods.resources[0].metadata.ownerReferences | default([]) |
+      selectattr('uid', 'equalto', argocd_target_cache_repair_internal_controller.resources[0].metadata.uid) |
+      selectattr('controller', 'equalto', true) | list | length) == 1
+    - >-
+      argocd_target_cache_repair_internal_pods.resources[0].metadata.labels['controller-revision-hash'] ==
+      argocd_target_cache_repair_internal_controller.resources[0].status.currentRevision
   retries: 30
   delay: 5
   when: not ansible_check_mode
   no_log: true
+
+- name: Query exact server and repo-server poststate after controller rollout
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.namespace }}"
+    name: "{{ item.name }}"
+    kubeconfig: "{{ argocd_target_cache_repair_kubeconfig }}"
+  loop: "{{ argocd_target_cache_repair_peer_targets }}"
+  register: argocd_target_cache_repair_internal_peer_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require server and repo-server did not roll out
+  ansible.builtin.assert:
+    that:
+      - argocd_target_cache_repair_internal_peer_poststate.results | length == 2
+      - argocd_target_cache_repair_internal_peer_poststate.results | map(attribute='resources') | map('length') | list == [1, 1]
+      - >-
+        (argocd_target_cache_repair_internal_peer_poststate.results |
+        map(attribute='resources.0.metadata.uid') | list) ==
+        (argocd_target_cache_repair_internal_peer_prestate.results |
+        map(attribute='resources.0.metadata.uid') | list)
+      - >-
+        (argocd_target_cache_repair_internal_peer_poststate.results |
+        map(attribute='resources.0.metadata.resourceVersion') | list) ==
+        (argocd_target_cache_repair_internal_peer_prestate.results |
+        map(attribute='resources.0.metadata.resourceVersion') | list)
+    fail_msg: Refusing an unexpected Argo server or repo-server rollout.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
 
 - name: Wait for the exact PROD Argo Application to be Synced and Healthy
   kubernetes.core.k8s_info:
@@ -352,7 +667,33 @@
     - argocd_target_cache_repair_internal_application.resources[0].status.health.status == 'Healthy'
     - argocd_target_cache_repair_internal_application.resources[0].spec.destination.server == argocd_target_cache_repair_expected_server
     - argocd_target_cache_repair_internal_application.resources[0].spec.destination.name | default('') == ''
+    - argocd_target_cache_repair_internal_application.resources[0].spec.source.targetRevision == '751885a42798d282e168131db147f13694a0a621'
+    - >-
+      argocd_target_cache_repair_internal_application.resources[0].metadata.uid ==
+      argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.uid
+    - >-
+      argocd_target_cache_repair_internal_application.resources[0].metadata.resourceVersion !=
+      argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.resourceVersion
   retries: 60
   delay: 5
   when: not ansible_check_mode
+  no_log: true
+
+- name: Require fresh direct-server PROD Application poststate
+  ansible.builtin.assert:
+    that:
+      - argocd_target_cache_repair_internal_application.resources | length == 1
+      - >-
+        argocd_target_cache_repair_internal_application.resources[0].metadata.uid ==
+        argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.uid
+      - >-
+        argocd_target_cache_repair_internal_application.resources[0].metadata.resourceVersion !=
+        argocd_target_cache_repair_internal_application_prestate.resources[0].metadata.resourceVersion
+      - argocd_target_cache_repair_internal_application.resources[0].spec.destination.server == argocd_target_cache_repair_expected_server
+      - argocd_target_cache_repair_internal_application.resources[0].spec.destination.name | default('') == ''
+      - argocd_target_cache_repair_internal_application.resources[0].spec.source.targetRevision == '751885a42798d282e168131db147f13694a0a621'
+      - argocd_target_cache_repair_internal_application.resources[0].status.sync.status == 'Synced'
+      - argocd_target_cache_repair_internal_application.resources[0].status.health.status == 'Healthy'
+    fail_msg: Refusing stale, aliased, drifted, or unhealthy PROD Application poststate.
+  changed_when: false
   no_log: true

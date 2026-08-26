@@ -10,18 +10,18 @@ argocd_target_cache_repair_controller_user: paul
 argocd_target_cache_repair_namespace: argocd
 argocd_target_cache_repair_object_count: 3
 argocd_target_cache_repair_expected_server: https://kubernetes.default.svc
+argocd_target_cache_repair_peer_targets:
+  - {apiVersion: apps/v1, kind: Deployment, namespace: argocd, name: argocd-server}
+  - {apiVersion: apps/v1, kind: Deployment, namespace: argocd, name: argocd-repo-server}
+argocd_target_cache_repair_target_identities:
+  - rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod
+  - v1|ConfigMap|argocd|argocd-cm
+  - apps/v1|StatefulSet|argocd|argocd-application-controller
 argocd_target_cache_repair_target_kinds:
-  - {apiVersion: v1, kind: ConfigMap, namespace: argocd, name: argocd-cm}
   - {apiVersion: rbac.authorization.k8s.io/v1, kind: Role, namespace: cristexhub-prod, name: argocd-application-controller-cristexhub-prod}
+  - {apiVersion: v1, kind: ConfigMap, namespace: argocd, name: argocd-cm}
   - {apiVersion: apps/v1, kind: StatefulSet, namespace: argocd, name: argocd-application-controller}
 argocd_target_cache_repair_sources:
-  - identity: v1|ConfigMap|argocd|argocd-cm
-    apiVersion: v1
-    kind: ConfigMap
-    namespace: argocd
-    name: argocd-cm
-    path: /home/paul/projects/cristexweb/ansible/files/components/argocd/config/configmap-argocd-cm.yaml
-    sha256: bc167b1f4d2ccb20223c67bceb067459fed6a8057a6b4119aa0bd1dc9909c082
   - identity: rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod
     apiVersion: rbac.authorization.k8s.io/v1
     kind: Role
@@ -29,13 +29,20 @@ argocd_target_cache_repair_sources:
     name: argocd-application-controller-cristexhub-prod
     path: /home/paul/projects/cristexweb/ansible/files/components/cristexhub-prod-registration/rbac/role-argocd-application-controller-cristexhub-prod.yaml
     sha256: 9a12af899b86acdac58ad34ce707f8558d45dede27c4e362926c488be1fb44f9
+  - identity: v1|ConfigMap|argocd|argocd-cm
+    apiVersion: v1
+    kind: ConfigMap
+    namespace: argocd
+    name: argocd-cm
+    path: /home/paul/projects/cristexweb/ansible/files/components/argocd/config/configmap-argocd-cm.yaml
+    sha256: bc167b1f4d2ccb20223c67bceb067459fed6a8057a6b4119aa0bd1dc9909c082
   - identity: apps/v1|StatefulSet|argocd|argocd-application-controller
     apiVersion: apps/v1
     kind: StatefulSet
     namespace: argocd
     name: argocd-application-controller
     path: /home/paul/projects/cristexweb/ansible/files/components/argocd/runtime/statefulset-argocd-application-controller.yaml
-    sha256: aa96028f0ab939d68b26d393c98f7ce0f8ae2c5d14525753a4292679c372329e
+    sha256: 6921a5e7c28e33d20c6c30b64bd8b70749eaf4319071e4b54088c2c76b53cdd0
 argocd_target_cache_repair_expected_uids:
   v1|ConfigMap|argocd|argocd-cm: 848966ad-8d11-41ff-8a26-5e17532f7a81
   rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod: 7ea319e9-2ad3-4f49-b529-e19eeb944690

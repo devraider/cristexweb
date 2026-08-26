@@ -26,35 +26,61 @@ _STATEFULSET_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/argocd/runtim
 _INVENTORY_SOURCE = Path("/home/paul/projects/cristexweb/ansible/.ansible/inventory.local.yml")
 _ANSIBLE_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/ansible.cfg"
 _CONTROLLER_SOURCE = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
-_PYTHON_SOURCE = Path("/usr/bin/python3")
+_PYTHON_SOURCE = Path("/usr/bin/python3.13")
 _KUBECONFIG_SOURCE = Path("/etc/rancher/k3s/k3s.yaml")
+_K8S_JSON_PATCH_SOURCE = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core/plugins/action/k8s_json_patch.py")
+_K8S_JSON_PATCH_REAL_SOURCE = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core/plugins/action/k8s_info.py")
 _EXPECTED_OPERATOR = "paul"
 _TASK_SUFFIX = "/ansible/roles/argocd_target_cache_repair/tasks/main.yml"
 _EXPECTED_TASK_NAME = "Apply only the exact target-cache repair patches"
 _EXPECTED_ACTION = "argocd_target_cache_repair_guarded_k8s"
 _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
 _PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
-_ACTION_CANONICAL_SHA256 = "61c10f1362be0094f3749bbb056932708cd1b10bff6ad378f708f7aba8027046"
-_WRAPPER_CANONICAL_SHA256 = "da7756c63fcd2bab2b53640a8e8850a4dd8379722f3f4853d46caf21aef21947"
-_TASK_SHA256 = "099d73d24c0e868883caf1bbb59c7ba0e6dc1c5be4d689baac19731879792a28"
-_DEFAULTS_SHA256 = "dff5ec4f0b87ca298e4bfac9b19a0ac6748ce09dd20ed67e63c674bd71288905"
-_PLAYBOOK_SHA256 = "eb1a22aa4a75438a8ad9f84b64c105059655fc03e5aae7d6ac76b12aa63195b7"
+_INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
+_ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
+_K8S_JSON_PATCH_SHA256 = "3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b"
+_ACTION_CANONICAL_SHA256 = "b21e8be025c8753a440d88631a0e71159f072c13629697f228aa32ec42d381d4"
+_WRAPPER_CANONICAL_SHA256 = "1c649ed8c8a99f536f6c05ab000cf2b4924a934fd25b916388d08e2ce0ca94ef"
+_TASK_SHA256 = "b9b35bbef3c2bdd238bbb6bb35bedb1e206893a40adc71072c65eb8a735c8c42"
+_DEFAULTS_SHA256 = "9c29d84393b18c56ca769fde990944f031ac9d042c2b618a014dbc5b0699a2c0"
+_PLAYBOOK_SHA256 = "31bd84fa42af384ae3b94498b0e624033bdac847162aed06903728bb3ed88a5f"
 _CONFIGMAP_SHA256 = "bc167b1f4d2ccb20223c67bceb067459fed6a8057a6b4119aa0bd1dc9909c082"
 _ROLE_SHA256 = "9a12af899b86acdac58ad34ce707f8558d45dede27c4e362926c488be1fb44f9"
-_STATEFULSET_SHA256 = "aa96028f0ab939d68b26d393c98f7ce0f8ae2c5d14525753a4292679c372329e"
+_STATEFULSET_SHA256 = "6921a5e7c28e33d20c6c30b64bd8b70749eaf4319071e4b54088c2c76b53cdd0"
 _EXPECTED_UIDS = {
     "v1|ConfigMap|argocd|argocd-cm": "848966ad-8d11-41ff-8a26-5e17532f7a81",
     "rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod": "7ea319e9-2ad3-4f49-b529-e19eeb944690",
     "apps/v1|StatefulSet|argocd|argocd-application-controller": "d18d7475-4dec-48ee-a284-b5a4d4629b01",
 }
 _ARGS = {"state", "definition", "kubeconfig", "prestate_binding"}
-_EXPECTED_TARGET_IDENTITIES = set(_EXPECTED_UIDS)
+_EXPECTED_TARGET_IDENTITIES_ORDER = (
+    "rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod",
+    "v1|ConfigMap|argocd|argocd-cm",
+    "apps/v1|StatefulSet|argocd|argocd-application-controller",
+)
+_EXPECTED_TARGET_IDENTITIES = set(_EXPECTED_TARGET_IDENTITIES_ORDER)
 _EXPECTED_INCLUSION = """- apiGroups:\n    - ''\n  kinds:\n    - ConfigMap\n    - Service\n    - ServiceAccount\n  clusters:\n    - https://kubernetes.default.svc\n- apiGroups:\n    - apps\n  kinds:\n    - Deployment\n  clusters:\n    - https://kubernetes.default.svc\n- apiGroups:\n    - networking.k8s.io\n  kinds:\n    - Ingress\n    - NetworkPolicy\n  clusters:\n    - https://kubernetes.default.svc\n"""
 _EXPECTED_ROLE_RULE = {"apiGroups": [""], "resources": ["serviceaccounts"], "verbs": ["get", "list", "watch"]}
+_LEGACY_CONFIGMAP_DATA = {
+    "admin.enabled": "true",
+    "application.instanceLabelKey": "argocd.argoproj.io/instance",
+    "resource.respectRBAC": "strict",
+    "timeout.reconciliation": "180s",
+}
+_LEGACY_ROLE_RULES = [
+    {"apiGroups": [""], "resources": ["configmaps", "services"], "verbs": ["get", "list", "watch", "create", "patch"]},
+    {"apiGroups": ["apps"], "resources": ["deployments"], "verbs": ["get", "list", "watch", "create", "patch"]},
+    {"apiGroups": ["networking.k8s.io"], "resources": ["networkpolicies", "ingresses"], "verbs": ["get", "list", "watch", "create", "patch"]},
+]
+_LEGACY_CONTROLLER_ANNOTATIONS = {
+    "checksum/cmd-params": "719e10663b1773800849f9da2234f3544e4c368d6b3f5568026bd4f71f303278",
+    "checksum/cm": "7311652314f5f1ec5d55f2e282f2ad0189c91a93a9079c8947fb42be3b7fd21e",
+    "checksum/cristexhub-dev-read-rbac": "23e8f7a228ebe53a9e7fde8ffc4ccf97dcb6a6dd433f70ed3b879e13d8558da1",
+}
 _EXPECTED_DEFINITION_HASHES = {
     "v1|ConfigMap|argocd|argocd-cm": "9aaac655d5ba9613b626738679ef793e20a7cf85c4e4f5511f1297d393d14c6f",
     "rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod": "b360dc15ff78580772e2d74c6720796865a6b9e4303033d1ad822880e0a493e5",
-    "apps/v1|StatefulSet|argocd|argocd-application-controller": "ff4f2de8fbc72c7677c862b04b96f749be784de5ccf7ad32cce0dda9824caa65",
+    "apps/v1|StatefulSet|argocd|argocd-application-controller": "f4db45d6c8665af9197b2dcd698c3d40de485e584c0b6ad35afcded354887807",
 }
 
 
@@ -151,22 +177,46 @@ def _source_closure_valid() -> bool:
         (_STATEFULSET_SOURCE, _STATEFULSET_SHA256, 0o644, os.getuid()),
         (_INVENTORY_SOURCE, _INVENTORY_SHA256, 0o600, os.getuid()),
         (_ANSIBLE_CONFIG_SOURCE, _ANSIBLE_CONFIG_SHA256, 0o644, os.getuid()),
+        (_ACTION_SOURCE, _ACTION_CANONICAL_SHA256, 0o644, os.getuid()),
     )
     for path, digest, mode, owner in expected:
         try:
             state = path.stat(follow_symlinks=False)
-            if not path.is_file() or path.is_symlink() or stat.S_IMODE(state.st_mode) != mode or state.st_uid != owner or _sha256(path) != digest:
+            if (
+                not path.is_file()
+                or path.is_symlink()
+                or stat.S_IMODE(state.st_mode) != mode
+                or state.st_uid != owner
+                or (
+                    _canonical_file_hash(path, "_ACTION_CANONICAL_SHA256") != digest
+                    if path == _ACTION_SOURCE
+                    else _sha256(path) != digest
+                )
+            ):
                 return False
         except OSError:
             return False
     try:
         controller = _CONTROLLER_SOURCE.stat(follow_symlinks=False)
         python = _PYTHON_SOURCE.stat(follow_symlinks=False)
+        json_patch = _K8S_JSON_PATCH_SOURCE.lstat()
+        json_patch_real = _K8S_JSON_PATCH_REAL_SOURCE.stat()
         return (
-            stat.S_IMODE(controller.st_mode) == 0o775 and controller.st_uid == os.getuid() and _sha256(_CONTROLLER_SOURCE) == _CONTROLLER_SHA256
-            and stat.S_IMODE(python.st_mode) == 0o755 and python.st_uid == 0 and _sha256(_PYTHON_SOURCE) == _PYTHON_SHA256
+            stat.S_IMODE(controller.st_mode) == 0o775
+            and controller.st_uid == os.getuid()
+            and _sha256(_CONTROLLER_SOURCE) == _CONTROLLER_SHA256
+            and stat.S_IMODE(python.st_mode) == 0o755
+            and python.st_uid == 0
+            and _sha256(_PYTHON_SOURCE) == _PYTHON_SHA256
+            and _ACTION_SOURCE == Path(str(_ACTION_SOURCE)).resolve()
+            and stat.S_ISREG(_ACTION_SOURCE.stat(follow_symlinks=False).st_mode)
             and _canonical_file_hash(_ACTION_SOURCE, "_ACTION_CANONICAL_SHA256") == _ACTION_CANONICAL_SHA256
             and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") == _WRAPPER_CANONICAL_SHA256
+            and (stat.S_ISLNK(json_patch.st_mode) or stat.S_ISREG(json_patch.st_mode))
+            and stat.S_ISREG(json_patch_real.st_mode)
+            and stat.S_IMODE(json_patch_real.st_mode) == 0o644
+            and json_patch_real.st_uid == os.getuid()
+            and _sha256(_K8S_JSON_PATCH_REAL_SOURCE) == _K8S_JSON_PATCH_SHA256
         )
     except OSError:
         return False
@@ -218,8 +268,93 @@ def _identity(value: dict[str, Any]) -> str:
     return "|".join((str(value.get("apiVersion", "")), str(value.get("kind", "")), str(metadata.get("namespace", "")), str(metadata.get("name", ""))))
 
 
+def _prestate_binding_valid(binding: dict[str, Any]) -> bool:
+    if not isinstance(binding, dict):
+        return False
+    identity = binding.get("identity")
+    expected_keys = {
+        "identity", "apiVersion", "kind", "namespace", "name", "uid",
+        "resourceVersion", "generation", "observed_generation", "current_revision",
+        "update_revision", "state", "observed_data", "observed_rules",
+        "observed_annotations", "observed_spec", "observed_labels",
+    }
+    return (
+        set(binding) == expected_keys
+        and identity in _EXPECTED_TARGET_IDENTITIES
+        and binding.get("uid") == _EXPECTED_UIDS[identity]
+        and re.fullmatch(r"[0-9a-fA-F-]{36}", str(binding.get("uid", ""))) is not None
+        and re.fullmatch(r"[0-9]+", str(binding.get("resourceVersion", ""))) is not None
+        and re.fullmatch(r"[0-9]+", str(binding.get("generation", ""))) is not None
+        and binding.get("state") in {"legacy", "target"}
+        and binding.get("apiVersion") == identity.split("|", 1)[0]
+        and binding.get("kind") == identity.split("|", 2)[1]
+        and "|".join((str(binding.get("apiVersion")), str(binding.get("kind")), str(binding.get("namespace")), str(binding.get("name")))) == identity
+        and isinstance(binding.get("observed_data"), dict)
+        and isinstance(binding.get("observed_rules"), list)
+        and isinstance(binding.get("observed_annotations"), dict)
+        and isinstance(binding.get("observed_spec"), dict)
+        and isinstance(binding.get("observed_labels"), dict)
+    )
+
+
+def _preflight_binding_valid(binding: Any) -> bool:
+    expected_keys = {
+        "attestation_sha256", "object_count", "legacy_count", "target_count",
+        "identities", "prestate_bindings", "transition_plan", "no_delete_path",
+        "source_hashes", "definition_hashes", "task_sha256", "defaults_sha256",
+        "playbook_sha256", "configmap_sha256", "role_sha256", "statefulset_sha256",
+        "inventory_sha256", "ansible_config_sha256", "action_sha256",
+        "controller_sha256", "python_sha256", "target_identities",
+    }
+    if not isinstance(binding, dict) or set(binding) != expected_keys:
+        return False
+    prestates = binding.get("prestate_bindings")
+    identities = binding.get("identities")
+    if identities != list(_EXPECTED_TARGET_IDENTITIES_ORDER) or binding.get("target_identities") != list(_EXPECTED_TARGET_IDENTITIES_ORDER):
+        return False
+    if not isinstance(prestates, list) or len(prestates) != 3:
+        return False
+    if [entry.get("identity") for entry in prestates] != list(_EXPECTED_TARGET_IDENTITIES_ORDER):
+        return False
+    if not all(_prestate_binding_valid(entry) for entry in prestates):
+        return False
+    legacy = [entry["identity"] for entry in prestates if entry.get("state") == "legacy"]
+    return (
+        binding.get("attestation_sha256") == hashlib.sha256(os.environ.get("CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_TOKEN", "").encode()).hexdigest()
+        and str(binding.get("object_count")) == "3"
+        and str(binding.get("legacy_count")) == str(len(legacy))
+        and str(binding.get("target_count")) == str(3 - len(legacy))
+        and binding.get("transition_plan") == legacy
+        and binding.get("source_hashes") == {
+            identity: digest for identity, digest in zip(_EXPECTED_TARGET_IDENTITIES_ORDER, (_ROLE_SHA256, _CONFIGMAP_SHA256, _STATEFULSET_SHA256))
+        }
+        and binding.get("definition_hashes") == [
+            _EXPECTED_DEFINITION_HASHES[identity]
+            for identity in _EXPECTED_TARGET_IDENTITIES_ORDER
+        ]
+        and binding.get("task_sha256") == _TASK_SHA256
+        and binding.get("defaults_sha256") == _DEFAULTS_SHA256
+        and binding.get("playbook_sha256") == _PLAYBOOK_SHA256
+        and binding.get("configmap_sha256") == _CONFIGMAP_SHA256
+        and binding.get("role_sha256") == _ROLE_SHA256
+        and binding.get("statefulset_sha256") == _STATEFULSET_SHA256
+        and binding.get("inventory_sha256") == _INVENTORY_SHA256
+        and binding.get("ansible_config_sha256") == _ANSIBLE_CONFIG_SHA256
+        and binding.get("action_sha256") == _sha256(_ACTION_SOURCE)
+        and binding.get("controller_sha256") == _CONTROLLER_SHA256
+        and binding.get("python_sha256") == _PYTHON_SHA256
+        and _strict_true(binding.get("no_delete_path"))
+    )
+
+
 def _canonical(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _legacy_statefulset_spec(definition: dict[str, Any]) -> dict[str, Any]:
+    spec = json.loads(json.dumps(definition["spec"]))
+    spec["template"]["metadata"]["annotations"] = _LEGACY_CONTROLLER_ANNOTATIONS
+    return spec
 
 
 def _patch_for(definition: dict[str, Any], binding: dict[str, Any]) -> list[dict[str, Any]]:
@@ -234,23 +369,22 @@ def _patch_for(definition: dict[str, Any], binding: dict[str, Any]) -> list[dict
     ]
     if identity == "v1|ConfigMap|argocd|argocd-cm":
         observed = binding.get("observed_data")
-        if not isinstance(observed, dict) or "resource.inclusions" in observed:
+        if observed != _LEGACY_CONFIGMAP_DATA:
             raise ValueError("ConfigMap is not the exact pre-repair state")
         return test + [{"op": "test", "path": "/data", "value": observed}, {"op": "add", "path": "/data/resource.inclusions", "value": _EXPECTED_INCLUSION}]
     if identity == "rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod":
         observed = binding.get("observed_rules")
-        if not isinstance(observed, list) or _EXPECTED_ROLE_RULE in observed:
+        if observed != _LEGACY_ROLE_RULES:
             raise ValueError("PROD Role is not the exact pre-repair state")
         return test + [{"op": "test", "path": "/rules", "value": observed}, {"op": "replace", "path": "/rules", "value": definition["rules"]}]
     observed = binding.get("observed_annotations")
-    if not isinstance(observed, dict) or "cristex.io/target-cache-repair" in observed:
+    if observed != _LEGACY_CONTROLLER_ANNOTATIONS:
         raise ValueError("controller is not the exact pre-repair state")
     observed_spec = binding.get("observed_spec")
-    if not isinstance(observed_spec, dict):
-        raise ValueError("controller spec prestate is required")
+    if observed_spec != _legacy_statefulset_spec(definition):
+        raise ValueError("controller spec prestate is not the exact legacy closure")
     return test + [
         {"op": "test", "path": "/spec", "value": observed_spec},
-        {"op": "test", "path": "/spec/template/metadata/annotations", "value": observed},
         {"op": "replace", "path": "/spec/template/metadata/annotations", "value": definition["spec"]["template"]["metadata"]["annotations"]},
     ]
 
@@ -282,7 +416,13 @@ class ActionModule(KubernetesActionModule):
         if set(args) != _ARGS or args.get("state") != "present" or args.get("kubeconfig") != str(_KUBECONFIG_SOURCE):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: unexpected target-cache repair arguments"}
         token = os.environ.get("CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_TOKEN", "")
-        if not _strict_true(task_vars.get("argocd_target_cache_repair_approved")) or task_vars.get("argocd_target_cache_repair_state") != "present" or not _wrapper_binding_valid(token):
+        preflight = task_vars.get("argocd_target_cache_repair_internal_preflight_binding")
+        if (
+            not _strict_true(task_vars.get("argocd_target_cache_repair_approved"))
+            or task_vars.get("argocd_target_cache_repair_state") != "present"
+            or not _wrapper_binding_valid(token)
+            or not _preflight_binding_valid(preflight)
+        ):
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: missing target-cache repair wrapper binding"}
         definition = args.get("definition")
         binding = args.get("prestate_binding")
@@ -292,7 +432,14 @@ class ActionModule(KubernetesActionModule):
         expected_source = {"v1|ConfigMap|argocd|argocd-cm": (_CONFIGMAP_SOURCE, _CONFIGMAP_SHA256), "rbac.authorization.k8s.io/v1|Role|cristexhub-prod|argocd-application-controller-cristexhub-prod": (_ROLE_SOURCE, _ROLE_SHA256), "apps/v1|StatefulSet|argocd|argocd-application-controller": (_STATEFULSET_SOURCE, _STATEFULSET_SHA256)}
         if identity not in expected_source or _canonical(definition) != _EXPECTED_DEFINITION_HASHES[identity]:
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: unknown or drifted target-cache definition"}
-        if _sha256(expected_source[identity][0]) != expected_source[identity][1] or binding.get("identity") != identity or binding.get("uid") != _EXPECTED_UIDS[identity]:
+        expected_binding = next((entry for entry in preflight["prestate_bindings"] if entry.get("identity") == identity), None)
+        if (
+            _sha256(expected_source[identity][0]) != expected_source[identity][1]
+            or binding.get("identity") != identity
+            or binding.get("uid") != _EXPECTED_UIDS[identity]
+            or expected_binding is None
+            or _canonical(binding) != _canonical(expected_binding)
+        ):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: source or prestate drift"}
         try:
             patch = _patch_for(definition, binding)

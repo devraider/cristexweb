@@ -9,9 +9,9 @@ fi
 mode=$1
 original_script_path=$0
 script_path=$0
-wrapper_canonical_sha256_expected='da7756c63fcd2bab2b53640a8e8850a4dd8379722f3f4853d46caf21aef21947'
+wrapper_canonical_sha256_expected='1c649ed8c8a99f536f6c05ab000cf2b4924a934fd25b916388d08e2ce0ca94ef'
 canonical_sha256() {
-  /usr/bin/python3 - "$1" <<'PY'
+  /usr/bin/python3.13 - "$1" <<'PY'
 import hashlib, re, sys
 source = open(sys.argv[1], encoding='utf-8').read()
 source, count = re.subn(r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$", "wrapper_canonical_sha256_expected='" + ('0' * 64) + "'", source)
@@ -33,8 +33,10 @@ controller_home="$(CDPATH= cd -- "$repository_root/../.." && /bin/pwd -P)"
 controller_user="$(/usr/bin/id -un)"
 [ "$controller_user" = paul ] || { printf '%s\n' 'refusing an unexpected controller user' >&2; exit 78; }
 controller="$repository_root/.venv/bin/ansible-playbook"
-python_tool=/usr/bin/python3
+python_tool=/usr/bin/python3.13
 inventory="$repository_root/ansible/.ansible/inventory.local.yml"
+json_patch_source="$repository_root/ansible/.ansible/collections/ansible_collections/kubernetes/core/plugins/action/k8s_json_patch.py"
+json_patch_real_source="$repository_root/ansible/.ansible/collections/ansible_collections/kubernetes/core/plugins/action/k8s_info.py"
 ansible_config="$repository_root/ansible/ansible.cfg"
 kubeconfig=/etc/rancher/k3s/k3s.yaml
 configmap_source="$repository_root/ansible/files/components/argocd/config/configmap-argocd-cm.yaml"
@@ -44,9 +46,11 @@ task_source="$repository_root/ansible/roles/argocd_target_cache_repair/tasks/mai
 defaults_source="$repository_root/ansible/roles/argocd_target_cache_repair/defaults/main.yml"
 playbook_source="$repository_root/ansible/playbooks/bootstrap_argocd_target_cache_repair.yml"
 action_source="$repository_root/ansible/plugins/action/argocd_target_cache_repair_guarded_k8s.py"
+[ -f "$action_source" ] && [ ! -L "$action_source" ] || { printf '%s\n' 'refusing an unsafe canonical target-cache action plugin' >&2; exit 69; }
 sha256_file() { /usr/bin/sha256sum -- "$1" | /usr/bin/awk '{print $1}'; }
+[ -f "$json_patch_source" ] && [ "$(/usr/bin/readlink -f -- "$json_patch_source")" = "$json_patch_real_source" ] && [ "$(/usr/bin/stat -c '%a:%u:%g:%F' -- "$json_patch_real_source")" = '644:1000:1000:regular file' ] && [ "$(sha256_file "$json_patch_real_source")" = '3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b' ] || { printf '%s\n' 'refusing an unpinned kubernetes.core JSON patch action' >&2; exit 69; }
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || { printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2; exit 69; }
-[ -f "$python_tool" ] && [ ! -L "$python_tool" ] || { printf '%s\n' 'refusing an unsafe Python controller' >&2; exit 69; }
+[ -f "$python_tool" ] && [ ! -L "$python_tool" ] && [ "$(/usr/bin/stat -c '%a:%u:%g:%F' -- "$python_tool")" = '755:0:0:regular file' ] || { printf '%s\n' 'refusing an unsafe Python controller' >&2; exit 69; }
 [ "$(canonical_sha256 "$script_path")" = "$wrapper_canonical_sha256_expected" ] || { printf '%s\n' 'refusing target-cache wrapper source drift' >&2; exit 69; }
 controller_sha256_expected=baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd
 python_sha256_expected=17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1
@@ -56,7 +60,7 @@ defaults_sha256="$(sha256_file "$defaults_source")"
 playbook_sha256="$(sha256_file "$playbook_source")"
 configmap_sha256=bc167b1f4d2ccb20223c67bceb067459fed6a8057a6b4119aa0bd1dc9909c082
 role_sha256=9a12af899b86acdac58ad34ce707f8558d45dede27c4e362926c488be1fb44f9
-statefulset_sha256=aa96028f0ab939d68b26d393c98f7ce0f8ae2c5d14525753a4292679c372329e1
+statefulset_sha256=6921a5e7c28e33d20c6c30b64bd8b70749eaf4319071e4b54088c2c76b53cdd0
 inventory_sha256="$(sha256_file "$inventory")"
 ansible_config_sha256="$(sha256_file "$ansible_config")"
 wrapper_sha256="$(sha256_file "$script_path")"
@@ -72,6 +76,7 @@ trap 'terminate_child 143' TERM
 /bin/chmod 600 "$attestation_file"
 attestation_token="$(/usr/bin/openssl rand -hex 32)"
 printf '%s:entrypoint:%s:%s:%s\n' "$attestation_token" "$wrapper_pid" "$wrapper_starttime" "$wrapper_sha256" >"$attestation_file"
+CDPATH= cd -- "$repository_root/ansible"
 set -- \
   "$controller" \
   -i .ansible/inventory.local.yml \
@@ -91,6 +96,7 @@ if [ "$mode" = check ]; then set -- "$@" --check; fi
   'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_ENTRYPOINT=v1' \
   "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_MODE=$mode" \
   'CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_APPLY_APPROVED=v1' \
+  "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_OPERATOR=$controller_user" \
   "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_TOKEN=$attestation_token" \
   "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_ATTESTATION_FILE=$attestation_file" \
   "CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_WRAPPER_PID=$wrapper_pid" \

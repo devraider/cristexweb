@@ -94,6 +94,13 @@ class ArgoClusterCacheScopeTransitionContractTests(unittest.TestCase):
         self.assertNotIn("data.namespaces | b64decode ==\n        argocd_cluster_cache_scope_transition_expected_target_namespaces", tasks)
         self.assertIn("map(attribute='apiVersion')", tasks)
 
+    def test_poststate_binds_each_secret_logical_name_to_its_identity(self) -> None:
+        tasks = TASKS.read_text()
+        self.assertIn("observed_name", tasks)
+        self.assertIn("data.name | b64decode", tasks)
+        self.assertIn("selectattr('name', 'equalto', item.item.metadata.name)", tasks)
+        self.assertIn("Safe failure and recovery states", (ROOT / "runbooks/argocd-cluster-cache-scope-transition.md").read_text())
+
     def test_strict_approval_accepts_only_canonical_boolean_forms(self) -> None:
         module = load_plugin()
 
@@ -164,7 +171,8 @@ class ArgoClusterCacheScopeTransitionContractTests(unittest.TestCase):
                 "identity": "v1|Secret|argocd|argocd-cluster-cristexhub-dev",
                 "uid": "01234567-89ab-cdef-0123-456789abcdef",
                 "resourceVersion": "42", "legacy_namespaces": "cristexhub-dev",
-                "target_namespaces": TARGET_NAMESPACES, "observed_namespaces": "cristexhub-dev",
+                "target_namespaces": TARGET_NAMESPACES, "observed_name": "cristexhub-dev-local",
+                "observed_namespaces": "cristexhub-dev",
             },
             yaml.safe_load(SOURCE_PATHS[0].read_text()),
         )})
@@ -175,7 +183,8 @@ class ArgoClusterCacheScopeTransitionContractTests(unittest.TestCase):
                 "identity": "v1|Secret|argocd|argocd-cluster-cristexhub-dev",
                 "uid": "01234567-89ab-cdef-0123-456789abcdef",
                 "resourceVersion": "42", "legacy_namespaces": "cristexhub-dev",
-                "target_namespaces": TARGET_NAMESPACES, "observed_namespaces": "cristexhub-dev",
+                "target_namespaces": TARGET_NAMESPACES, "observed_name": "cristexhub-dev-local",
+                "observed_namespaces": "cristexhub-dev",
             },
             yaml.safe_load(SOURCE_PATHS[0].read_text()),
         )

@@ -104,7 +104,7 @@ argocd_bootstrap_expected_hashes:
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/runtime/service-argocd-server.yaml'
   sha256: 1c2042b5b9772f2a7c3d6c6efb90be04afb80acd2d86a6eca4e033d844bf691e
 - path: '{{ argocd_bootstrap_repository_root }}/ansible/files/components/argocd/runtime/statefulset-argocd-application-controller.yaml'
-  sha256: aa96028f0ab939d68b26d393c98f7ce0f8ae2c5d14525753a4292679c372329e
+  sha256: 6921a5e7c28e33d20c6c30b64bd8b70749eaf4319071e4b54088c2c76b53cdd0
 argocd_bootstrap_secret_contract:
   argocd-secret:
     type: Opaque

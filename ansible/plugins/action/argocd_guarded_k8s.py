@@ -19,7 +19,7 @@ _EXPECTED_OBJECT_HASHES = {('apiextensions.k8s.io/v1', 'CustomResourceDefinition
  ('apps/v1', 'Deployment', 'argocd', 'argocd-redis'): '605bad4a1e8bf59bc0e1631135666b76203facd0f1243f858de744863a2b89ef',
  ('apps/v1', 'Deployment', 'argocd', 'argocd-repo-server'): 'f0094996acf1e9f26afa8fedb726ecbabb84d737a67506dbbac1815411d46483',
  ('apps/v1', 'Deployment', 'argocd', 'argocd-server'): 'd156f298fdbbe868d24c39adc70778a3d3f276b33ce6c6907fd30ff814682745',
- ('apps/v1', 'StatefulSet', 'argocd', 'argocd-application-controller'): 'ff4f2de8fbc72c7677c862b04b96f749be784de5ccf7ad32cce0dda9824caa65',
+ ('apps/v1', 'StatefulSet', 'argocd', 'argocd-application-controller'): 'f4db45d6c8665af9197b2dcd698c3d40de485e584c0b6ad35afcded354887807',
  ('argoproj.io/v1alpha1', 'AppProject', 'argocd', 'default'): 'e48d5332aaa18c8528ae19f1b83bf00c86450ab39a66c363e4816403ee6cfd56',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'argocd', 'argocd-controller-egress'): 'c7e9c0d012b82e87257fc939dea8592b0f9e9aca049a45ee0ca515d1043d7ef8',
  ('networking.k8s.io/v1', 'NetworkPolicy', 'argocd', 'argocd-default-deny'): 'f36487db6ef710d45665ca69007c57d8527f03587bab7a59b5e7e54700ba8485',

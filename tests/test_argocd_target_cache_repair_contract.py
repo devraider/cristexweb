@@ -74,8 +74,8 @@ class ArgoTargetCacheRepairContractTests(unittest.TestCase):
         self.assertNotIn("kind: Secret", self.tasks)
         self.assertNotIn("kind: Deployment", self.tasks)
         self.assertNotIn("kind: RoleBinding", self.tasks)
-        self.assertNotIn("repo-server", self.tasks)
-        self.assertNotIn("argocd-server", self.tasks)
+        self.assertIn("peer_targets", self.tasks)
+        self.assertIn("server/repo-server", self.tasks)
         self.assertIn("ConfigMap, PROD Role, and controller StatefulSet", self.tasks)
         self.assertIn("no_delete_path", self.tasks)
 
@@ -122,3 +122,39 @@ class ArgoTargetCacheRepairContractTests(unittest.TestCase):
         self.assertIn("apply", self.wrapper)
         self.assertNotIn("bootstrap_argocd.yml", self.wrapper)
         self.assertIn("argocd_target_cache_repair", PLAYBOOK.read_text())
+
+    def test_wrapper_process_and_dependency_pins_are_exact(self) -> None:
+        self.assertIn('CDPATH= cd -- "$repository_root/ansible"', self.wrapper)
+        self.assertIn("python_tool=/usr/bin/python3.13", self.wrapper)
+        self.assertIn("regular file", self.wrapper)
+        self.assertIn("CRISTEXWEB_ARGOCD_TARGET_CACHE_REPAIR_OPERATOR=$controller_user", self.wrapper)
+        self.assertIn("action_source=\"$repository_root/ansible/plugins/action/argocd_target_cache_repair_guarded_k8s.py\"", self.wrapper)
+        self.assertIn('[ ! -L "$action_source" ]', self.wrapper)
+        self.assertIn("k8s_json_patch.py", self.wrapper)
+        self.assertIn("3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b", self.wrapper)
+
+    def test_action_requires_complete_preflight_and_ordered_identity_binding(self) -> None:
+        self.assertIn("_preflight_binding_valid", self.action)
+        self.assertIn("_EXPECTED_TARGET_IDENTITIES_ORDER", self.action)
+        self.assertIn("prestate_bindings", self.action)
+        self.assertIn("resourceVersion", self.action)
+        self.assertIn("no_delete_path", self.action)
+        self.assertIn("_K8S_JSON_PATCH_SOURCE", self.action)
+        self.assertIn("python3.13", self.action)
+
+    def test_statefulset_requires_full_spec_and_safe_partial_recovery_is_documented(self) -> None:
+        self.assertIn("internal_statefulset_target_spec", self.tasks)
+        self.assertIn("internal_statefulset_legacy_spec", self.tasks)
+        self.assertIn("item.resources[0].spec ==", self.tasks)
+        runbook = (ROOT / "runbooks/argocd-target-cache-repair.md").read_text()
+        self.assertIn("Safe partial states and recovery", runbook)
+        self.assertIn("no automatic rollback", runbook)
+        self.assertIn("observedGeneration ==", runbook)
+        self.assertIn("server/repo-server", runbook)
+
+    def test_wrapper_rejects_passthrough_without_running_ansible(self) -> None:
+        import subprocess
+
+        result = subprocess.run([str(WRAPPER), "check", "unexpected"], cwd=ROOT, capture_output=True, text=True, check=False)
+        self.assertEqual(64, result.returncode)
+        self.assertNotIn("ansible-playbook", result.stdout + result.stderr)

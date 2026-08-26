@@ -223,6 +223,7 @@
       'legacy_namespaces': (argocd_cluster_cache_scope_transition_sources |
         selectattr('name', 'equalto', item.item.metadata.name) | map(attribute='legacy_namespaces') | first),
       'target_namespaces': argocd_cluster_cache_scope_transition_expected_target_namespaces,
+      'observed_name': (item.resources[0].data.name | b64decode),
       'observed_namespaces': (item.resources[0].data.namespaces | b64decode)
       }] }}
   loop: '{{ argocd_cluster_cache_scope_transition_internal_prestate.results }}'
@@ -240,6 +241,9 @@
       - item.resourceVersion is match('^[0-9]+$')
       - item.identity == 'v1|Secret|argocd|' ~ item.name
       - item.target_namespaces == argocd_cluster_cache_scope_transition_expected_target_namespaces
+      - item.observed_name == (argocd_cluster_cache_scope_transition_internal_manifests |
+        selectattr('metadata.name', 'equalto', item.name) |
+        map(attribute='stringData.name') | first)
       - >-
         (argocd_cluster_cache_scope_transition_internal_prestate.results |
         selectattr('item.metadata.name', 'equalto', item.name) | first).resources[0].metadata.ownerReferences |
@@ -504,6 +508,11 @@
       - item.resources[0].metadata.namespace == 'argocd'
       - item.resources[0].metadata.name == item.item.metadata.name
       - item.resources[0].metadata.labels == item.item.metadata.labels
+      - >-
+        (item.resources[0].data.name | b64decode) ==
+        (argocd_cluster_cache_scope_transition_internal_prestate_bindings |
+        selectattr('name', 'equalto', item.item.metadata.name) |
+        map(attribute='observed_name') | first)
       - item.resources[0].type == 'Opaque'
       - (item.resources[0].binaryData | default({})) | length == 0
       - item.resources[0].data.keys() | list | sort == ['clusterResources', 'config', 'name', 'namespaces', 'server']
