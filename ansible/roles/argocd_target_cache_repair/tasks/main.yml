@@ -640,6 +640,7 @@
     fail_msg: Refusing an application-controller status that is not fresh for the repaired StatefulSet.
   changed_when: false
   no_log: true
+  when: not ansible_check_mode
 
 - name: Wait for the restarted application-controller Pod Ready
   kubernetes.core.k8s_info:
