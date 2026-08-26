@@ -29,6 +29,10 @@
       - cristexhub_prod_private_acceptance_path == 'infra/kubernetes/cristexhub-prod'
       - cristexhub_prod_private_acceptance_revision == '751885a42798d282e168131db147f13694a0a621'
       - cristexhub_prod_private_acceptance_server == 'https://kubernetes.default.svc'
+      - cristexhub_prod_private_acceptance_private_origin_ip == '100.122.139.32'
+      - cristexhub_prod_private_acceptance_private_origin_url == 'http://100.122.139.32/'
+      - cristexhub_prod_private_acceptance_private_origin_host == 'hub.cristex-soft.com'
+      - cristexhub_prod_private_acceptance_repository_root == '/home/paul/projects/cristexweb'
       - cristexhub_prod_private_acceptance_workload_label == 'app.kubernetes.io/name'
       - cristexhub_prod_private_acceptance_workload_part_label == 'app.kubernetes.io/part-of'
       - cristexhub_prod_private_acceptance_workload_part_value == 'cristexhub'
@@ -56,8 +60,19 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ENTRYPOINT') == 'v1'
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TOKEN') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ATTESTATION_FILE') | length > 0
-      - cristexhub_prod_private_acceptance_controller_user is match('^[a-z_][a-z0-9_-]{0,31}$')
-      - cristexhub_prod_private_acceptance_controller_user == lookup('ansible.builtin.env', 'USER')
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PATH') ==
+        '/home/paul/projects/cristexweb/ansible/bin/check-cristexhub-prod-private-acceptance'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PID') is match('^[0-9]+$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_STARTTIME') is match('^[0-9]+$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_CANONICAL_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_SOURCE_CLOSURE_SHA256') is match('^[0-9a-f]{64}$')
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER') ==
+        '/home/paul/projects/cristexweb/.venv/bin/ansible-playbook'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON') == '/usr/bin/python3'
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TASK_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_DEFAULTS_SHA256') is match('^[0-9a-f]{64}$')
@@ -93,10 +108,51 @@
       - >-
         lookup('ansible.builtin.file', lookup('ansible.builtin.env',
         'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ATTESTATION_FILE')) ==
-        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TOKEN') ~ ':entrypoint'
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TOKEN') ~
+        ':entrypoint:' ~ lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PID') ~ ':' ~
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_STARTTIME') ~ ':' ~
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_SHA256')
     fail_msg: >-
       ENTRYPOINT_GUARD: refusing a missing, reusable, foreign-owned, symlinked,
       or invalid private PROD acceptance attestation.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect the canonical wrapper process identity
+  ansible.builtin.slurp:
+    path: "/proc/{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PID') }}/cmdline"
+  register: cristexhub_prod_private_acceptance_internal_wrapper_cmdline
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect the canonical wrapper process start time
+  ansible.builtin.slurp:
+    path: "/proc/{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PID') }}/stat"
+  register: cristexhub_prod_private_acceptance_internal_wrapper_proc_stat
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the live canonical wrapper process
+  ansible.builtin.assert:
+    that:
+      - >-
+        '/ansible/bin/check-cristexhub-prod-private-acceptance' in
+        (cristexhub_prod_private_acceptance_internal_wrapper_cmdline.content | b64decode)
+      - >-
+        (cristexhub_prod_private_acceptance_internal_wrapper_proc_stat.content | b64decode).split()[21] ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_STARTTIME')
+    fail_msg: >-
+      ENTRYPOINT_GUARD: refusing direct Ansible invocation or a forged private
+      PROD acceptance environment.
   delegate_to: localhost
   become: false
   changed_when: false
@@ -110,6 +166,7 @@
     checksum_algorithm: sha256
     get_mime: false
   loop:
+    - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/bin/check-cristexhub-prod-private-acceptance"
     - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/roles/cristexhub_prod_private_acceptance/tasks/main.yml"
     - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/roles/cristexhub_prod_private_acceptance/defaults/main.yml"
     - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/playbooks/check_cristexhub_prod_private_acceptance.yml"
@@ -124,13 +181,51 @@
     that:
       - item.stat.isreg | default(false)
       - not (item.stat.islnk | default(false))
-      - item.stat.mode == '0644'
+      - >-
+        item.stat.mode ==
+        ('0755' if item.item.endswith('/ansible/bin/check-cristexhub-prod-private-acceptance') else '0644')
       - item.item.startswith(cristexhub_prod_private_acceptance_repository_root ~ '/')
       - item.stat.checksum | length == 64
     fail_msg: Refusing missing, symlinked, or unsafe private PROD acceptance source.
   loop: "{{ cristexhub_prod_private_acceptance_internal_source_states.results }}"
   delegate_to: localhost
   become: false
+  changed_when: false
+  no_log: true
+
+- name: Bind the source closure hash supplied by the canonical wrapper
+  ansible.builtin.set_fact:
+    cristexhub_prod_private_acceptance_internal_source_closure_sha256: >-
+      {{ ([lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TASK_SHA256'),
+      lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_DEFAULTS_SHA256'),
+      lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PLAYBOOK_SHA256'),
+      lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_INVENTORY_SHA256'),
+      lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ANSIBLE_CONFIG_SHA256'),
+      lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER_SHA256'),
+      lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256')] |
+      join(':') | hash('sha256')) }}
+  changed_when: false
+  no_log: true
+
+- name: Require source leaves and hashes bound to the canonical wrapper
+  ansible.builtin.assert:
+    that:
+      - >-
+        cristexhub_prod_private_acceptance_internal_source_states.results[0].stat.checksum ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_SHA256')
+      - >-
+        cristexhub_prod_private_acceptance_internal_source_states.results[1].stat.checksum ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TASK_SHA256')
+      - >-
+        cristexhub_prod_private_acceptance_internal_source_states.results[2].stat.checksum ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_DEFAULTS_SHA256')
+      - >-
+        cristexhub_prod_private_acceptance_internal_source_states.results[3].stat.checksum ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PLAYBOOK_SHA256')
+      - >-
+        cristexhub_prod_private_acceptance_internal_source_closure_sha256 ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_SOURCE_CLOSURE_SHA256')
+    fail_msg: Refusing source hashes that are not cryptographically bound to the canonical wrapper.
   changed_when: false
   no_log: true
 
@@ -283,6 +378,31 @@
   changed_when: false
   no_log: true
 
+- name: Query the complete PROD Deployment inventory
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: "{{ cristexhub_prod_private_acceptance_namespace }}"
+    kubeconfig: "{{ cristexhub_prod_private_acceptance_kubeconfig }}"
+  register: cristexhub_prod_private_acceptance_internal_deployment_inventory
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require exactly the approved PROD Deployment inventory
+  ansible.builtin.assert:
+    that:
+      - >-
+        (cristexhub_prod_private_acceptance_internal_deployment_inventory.resources |
+        map(attribute='metadata.name') | list | sort) ==
+        (cristexhub_prod_private_acceptance_deployments | sort)
+      - >-
+        (cristexhub_prod_private_acceptance_internal_deployment_inventory.resources |
+        selectattr('metadata.deletionTimestamp', 'defined') | list | length) == 0
+    fail_msg: Refusing extra, missing, or terminating PROD Deployments.
+  changed_when: false
+  no_log: true
+
 - name: Query every exact PROD Deployment
   kubernetes.core.k8s_info:
     api_version: apps/v1
@@ -427,6 +547,7 @@
     cristexhub_prod_private_acceptance_internal_replicaset_bindings: >-
       {{ (cristexhub_prod_private_acceptance_internal_replicaset_bindings | default([])) +
       [{'name': item.item,
+      'replicaset_name': item.resources[0].metadata.name,
       'uid': item.resources[0].metadata.uid,
       'revision': item.resources[0].metadata.annotations['deployment.kubernetes.io/revision'],
       'pod_template_hash': item.resources[0].metadata.labels['pod-template-hash']}] }}
@@ -440,9 +561,10 @@
     kind: Pod
     namespace: "{{ cristexhub_prod_private_acceptance_namespace }}"
     label_selectors:
-      - "{{ cristexhub_prod_private_acceptance_workload_label }}={{ item }}"
+      - "{{ cristexhub_prod_private_acceptance_workload_label }}={{ item.name }}"
+      - "pod-template-hash={{ item.pod_template_hash }}"
     kubeconfig: "{{ cristexhub_prod_private_acceptance_kubeconfig }}"
-  loop: "{{ cristexhub_prod_private_acceptance_deployments }}"
+  loop: "{{ cristexhub_prod_private_acceptance_internal_replicaset_bindings }}"
   register: cristexhub_prod_private_acceptance_internal_pods
   check_mode: false
   changed_when: false
@@ -455,15 +577,10 @@
       - item.resources[0].metadata.namespace == cristexhub_prod_private_acceptance_namespace
       - >-
         item.resources[0].metadata.name.startswith(
-        (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
-        selectattr('name', 'equalto', item.item) | map(attribute='name') | first) ~ '-')
-      - item.resources[0].metadata.labels[cristexhub_prod_private_acceptance_workload_label] == item.item
+        (item.item.replicaset_name) ~ '-')
+      - item.resources[0].metadata.labels[cristexhub_prod_private_acceptance_workload_label] == item.item.name
       - item.resources[0].metadata.labels[cristexhub_prod_private_acceptance_workload_part_label] == cristexhub_prod_private_acceptance_workload_part_value
-      - >-
-        item.resources[0].metadata.labels['pod-template-hash'] ==
-        (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
-        selectattr('name', 'equalto', item.item) |
-        map(attribute='pod_template_hash') | first)
+      - item.resources[0].metadata.labels['pod-template-hash'] == item.item.pod_template_hash
       - item.resources[0].metadata.deletionTimestamp | default('') == ''
       - item.resources[0].metadata.resourceVersion is match('^[0-9]+$')
       - >-
@@ -471,22 +588,15 @@
       - >-
         item.resources[0].metadata.ownerReferences | default([]) |
         selectattr('kind', 'equalto', 'ReplicaSet') |
-        selectattr('name', 'equalto', (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
-        selectattr('name', 'equalto', item.item) | map(attribute='name') | first)) |
+        selectattr('name', 'equalto', item.item.replicaset_name) |
         selectattr('controller', 'equalto', true) | list | length == 1
       - >-
         (item.resources[0].metadata.ownerReferences | default([]) |
         selectattr('kind', 'equalto', 'ReplicaSet') |
-        selectattr('name', 'equalto', (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
-        selectattr('name', 'equalto', item.item) | map(attribute='name') | first)) |
+        selectattr('name', 'equalto', item.item.replicaset_name) |
         selectattr('controller', 'equalto', true) |
-        map(attribute='uid') | first) ==
-        (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
-        selectattr('name', 'equalto', item.item) | map(attribute='uid') | first)
-      - >-
-        item.resources[0].metadata.ownerReferences[0].uid ==
-        (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
-        selectattr('name', 'equalto', item.item) | map(attribute='uid') | first)
+        map(attribute='uid') | first) == item.item.uid
+      - item.resources[0].metadata.ownerReferences[0].uid == item.item.uid
       - item.resources[0].status.phase == 'Running'
       - item.resources[0].spec.hostNetwork | default(false) | bool == false
       - item.resources[0].spec.nodeName | default('') | length > 0
@@ -535,13 +645,14 @@
   changed_when: false
   no_log: true
 
-- name: Probe the private PROD application endpoint without reading response content
+- name: Probe the private PROD origin without public DNS
   ansible.builtin.uri:
-    url: https://hub.cristex-soft.com/
+    url: "{{ cristexhub_prod_private_acceptance_private_origin_url }}"
+    headers:
+      Host: "{{ cristexhub_prod_private_acceptance_private_origin_host }}"
     method: GET
     status_code: [200, 302]
     timeout: 30
-    validate_certs: true
     follow_redirects: none
     return_content: false
   delegate_to: localhost
@@ -551,11 +662,11 @@
   changed_when: false
   no_log: true
 
-- name: Require private PROD endpoint response
+- name: Require private PROD origin response
   ansible.builtin.assert:
     that:
       - cristexhub_prod_private_acceptance_internal_route.status in [200, 302]
-    fail_msg: The private PROD application endpoint did not return an expected 200/302 response over TLS.
+    fail_msg: The private PROD origin did not return an expected 200/302 response.
   changed_when: false
   no_log: true
 
@@ -612,11 +723,12 @@
       deployment_count: 5
       ready_pod_count: 5
       networkpolicy_inventory_present: true
-      route_status: "{{ cristexhub_prod_private_acceptance_internal_route.status }}"
+      private_origin_status: "{{ cristexhub_prod_private_acceptance_internal_route.status }}"
+      private_origin_host_header: verified
+      public_route: not-tested-and-not-authorized
       oidc_issuer: verified
       values_output: false
       credentials_rotation: separate-gate
       networkpolicy_enforcement: separate-probe
       backup_restore: separate-gate
-      public_route: not-tested-and-not-authorized
   changed_when: false

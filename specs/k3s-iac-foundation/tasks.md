@@ -395,8 +395,11 @@ logs, or bootstrap cannot be recovered.
 - [x] Complete the separately approved present-only `cristexhub-prod` Namespace
   checkpoint; check/first apply/idempotence passed and the Namespace is Active and
   idempotent. Earlier source-only absence evidence remains historical.
-- [ ] Keep all later `cristexhub-prod` resources absent until DEV validation, recovery,
-  soak, identity recovery, and separate PROD resource approvals satisfy KIF-025.
+- [ ] Keep any not-yet-approved `cristexhub-prod` resources and all public routes
+  absent until DEV validation, recovery, soak, identity recovery, and separate PROD
+  resource approvals satisfy KIF-025. The separately approved PROD Namespace,
+  credential seam, Argo registration, and private workloads are live; private
+  acceptance and public cutover remain independent gates.
 - [x] Add the source-only, fail-closed CristexHub PROD runtime Infisical seam with
   independent Auth/Universal Auth names, exact `/cristexhub/prod/runtime` source,
   historical nine-key runtime plus GHCR-pull target and the blocked ten-key Browserless source update, PROD-scoped VAP/bindings, least-privilege

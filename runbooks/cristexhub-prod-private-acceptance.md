@@ -38,16 +38,17 @@ The role is bound to:
 - exactly five PROD Deployments: `backend`, `celery-worker`, `frontend`,
   `oauth2-proxy`, and `redis`, each with one observed/updated/available/ready
   replica;
-- exactly one Running/Ready, non-host-network Pod for each workload label;
+- exactly one Running/Ready, non-host-network Pod for each current ReplicaSet;
 - a stable non-empty PROD NetworkPolicy inventory; and
 - host `k3s` and `tailscaled` services in the running state.
 
-The preflight also performs content-free HTTPS probes of the private application
-hostname and reviewed shared-realm OIDC discovery. The application probe accepts
-only HTTP `200` or the expected unauthenticated `302` and never follows the
-redirect or records response content. OIDC content is held under `no_log` and
-must identify only the reviewed issuer, authorization endpoint, token endpoint,
-and JWKS endpoint for realm `cristexhub`.
+The preflight also performs a content-free HTTP probe directly against the private
+Tailscale origin `100.122.139.32`, sending `Host: hub.cristex-soft.com`. This avoids
+public DNS and does not test or require the unapplied Cloudflare route. The probe
+accepts only HTTP `200` or the expected unauthenticated `302`, never follows the
+redirect, and never records response content. OIDC content is held under `no_log`
+and must identify only the reviewed issuer, authorization endpoint, token
+endpoint, and JWKS endpoint for realm `cristexhub`.
 
 The result is a **preflight**, not final PROD acceptance. A successful result
 proves only the above metadata/readiness and transport conditions. It does not
@@ -80,9 +81,10 @@ following independent evidence must be fresh and sanitized:
 9. separate public-cutover authorization after private acceptance.
 
 No result from this preflight authorizes any of those operations. In particular,
-`hub.cristex-soft.com` remains unapplied until the state, plan, provider
-permission, credential, recovery, validation, and public-cutover approvals all
-pass.
+`hub.cristex-soft.com` remains an HTTP Host header used only for the private-origin
+probe here and remains unapplied as a public Cloudflare route until the state,
+plan, provider permission, credential, recovery, validation, and public-cutover
+approvals all pass.
 
 ## Offline validation
 

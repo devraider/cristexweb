@@ -10,6 +10,9 @@ cristexhub_prod_private_acceptance_repository: ssh://git@ssh.github.com:443/devr
 cristexhub_prod_private_acceptance_path: infra/kubernetes/cristexhub-prod
 cristexhub_prod_private_acceptance_revision: 751885a42798d282e168131db147f13694a0a621
 cristexhub_prod_private_acceptance_server: https://kubernetes.default.svc
+cristexhub_prod_private_acceptance_private_origin_ip: 100.122.139.32
+cristexhub_prod_private_acceptance_private_origin_url: http://100.122.139.32/
+cristexhub_prod_private_acceptance_private_origin_host: hub.cristex-soft.com
 cristexhub_prod_private_acceptance_deployments:
   - backend
   - celery-worker

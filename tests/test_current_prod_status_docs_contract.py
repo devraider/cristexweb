@@ -79,6 +79,20 @@ class CurrentProdStatusDocsContractTests(unittest.TestCase):
         self.assertIn("defines seven resource addresses", tofu)
         self.assertIn("import prerequisite", tofu)
 
+    def test_readme_labels_sixth_and_seventh_cloudflare_addresses(self) -> None:
+        readme = (ROOT / "README.md").read_text()
+        self.assertIn("reactive_resume_dev_tailscale", readme)
+        self.assertIn("that record is the sixth address", readme)
+        self.assertIn("cloudflare_dns_record.cristexhub_prod", readme)
+        self.assertIn("seventh address", readme)
+        self.assertNotIn("sixth PROD DNS resource", readme)
+
+    def test_backlog_distinguishes_live_prod_from_unapproved_future_resources(self) -> None:
+        tasks = (ROOT / "specs/k3s-iac-foundation/tasks.md").read_text()
+        self.assertIn("any not-yet-approved", tasks)
+        self.assertIn("credential seam, Argo registration, and private workloads are live", tasks)
+        self.assertNotIn("Keep all later `cristexhub-prod` resources absent", tasks)
+
 
 if __name__ == "__main__":
     unittest.main()

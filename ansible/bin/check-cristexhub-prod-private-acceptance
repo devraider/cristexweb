@@ -44,7 +44,14 @@ if count != 1:
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
-wrapper_canonical_sha256_expected='ce9b194b937eb27e6d30bdd21ca24ce84b25600fd0ea22c618d9c17ba7419e7f'
+wrapper_canonical_sha256_expected='59102260e187c5f684a2d1bc2b661658f4eed6cb76475fe9c2a3cbed3c3870f5'
+task_sha256_expected='099d94147b2205fbeeaab444ebdb1e2e3d2c005330627ec0d09fed5f1044aa4d'
+defaults_sha256_expected='b9ea7657475e7591a44e7d0e611f052ed995e898f6b3d18e48eec3955afef514'
+playbook_sha256_expected='92505aada40b1073fad99cdb9bd12b7776f1551476a5bf439c384ea39341abab'
+inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
+ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+controller_sha256_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
+python_sha256_expected='17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
 [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
 for source in "$inventory" "$ansible_config" "$task_source" "$defaults_source" "$playbook_source"; do
   [ -f "$source" ] && [ ! -L "$source" ] || exit 69
@@ -70,15 +77,23 @@ ansible_config_sha256="$(sha_file "$ansible_config")"
 task_sha256="$(sha_file "$task_source")"
 defaults_sha256="$(sha_file "$defaults_source")"
 playbook_sha256="$(sha_file "$playbook_source")"
-[ "$controller_sha256" = baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd ] || exit 69
-[ "$python_sha256" = 17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1 ] || exit 69
-[ "$inventory_sha256" = 652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0 ] || exit 69
-[ "$ansible_config_sha256" = 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9 ] || exit 69
+[ "$task_sha256" = "$task_sha256_expected" ] || exit 69
+[ "$defaults_sha256" = "$defaults_sha256_expected" ] || exit 69
+[ "$playbook_sha256" = "$playbook_sha256_expected" ] || exit 69
+[ "$controller_sha256" = "$controller_sha256_expected" ] || exit 69
+[ "$python_sha256" = "$python_sha256_expected" ] || exit 69
+[ "$inventory_sha256" = "$inventory_sha256_expected" ] || exit 69
+[ "$ansible_config_sha256" = "$ansible_config_sha256_expected" ] || exit 69
+source_closure_sha256="$(printf '%s' "$task_sha256:$defaults_sha256:$playbook_sha256:$inventory_sha256:$ansible_config_sha256:$controller_sha256:$python_sha256" | sha_file -)"
+[ "$source_closure_sha256" = "$(printf '%s' "$task_sha256_expected:$defaults_sha256_expected:$playbook_sha256_expected:$inventory_sha256_expected:$ansible_config_sha256_expected:$controller_sha256_expected:$python_sha256_expected" | sha_file -)" ] || exit 69
 umask 077
+wrapper_pid=$$
+wrapper_starttime="$(/usr/bin/awk '{print $22}' "/proc/$wrapper_pid/stat")"
+[ "$wrapper_starttime" != '' ] || exit 69
 attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-cristexhub-prod-private-acceptance.XXXXXX")"
 attestation_token="$(/usr/bin/openssl rand -hex 32)"
 /bin/chmod 0600 "$attestation_file"
-printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+printf '%s:entrypoint:%s:%s:%s\n' "$attestation_token" "$wrapper_pid" "$wrapper_starttime" "$wrapper_sha256" >"$attestation_file"
 cleanup() { /bin/rm -f -- "$attestation_file"; }
 trap cleanup EXIT HUP INT TERM
 set -- \
@@ -100,7 +115,14 @@ set -- \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ENTRYPOINT=v1 \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TOKEN="$attestation_token" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ATTESTATION_FILE="$attestation_file" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PATH="$script_path" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PID="$wrapper_pid" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_STARTTIME="$wrapper_starttime" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_CANONICAL_SHA256="$wrapper_canonical_sha256_expected" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_SOURCE_CLOSURE_SHA256="$source_closure_sha256" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_SHA256="$wrapper_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER="$controller" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON="$python_tool" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TASK_SHA256="$task_sha256" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_DEFAULTS_SHA256="$defaults_sha256" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PLAYBOOK_SHA256="$playbook_sha256" \

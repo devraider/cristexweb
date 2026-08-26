@@ -27,10 +27,13 @@ verified rotation before public cutover. The exposed DeepSeek key also remains a
 separate revoke/replace residual.
 
 OpenTofu protected host state currently contains five imported Cloudflare resource
-addresses, while the committed source defines seven. The existing DEV DNS record is
-pending separate import before state reaches six; the PROD Tunnel-ingress/DNS
-resources remain unapplied because the available OAuth credential lacks DNS-record
-permission, so `hub.cristex-soft.com` remains unresolved. Historical source-only
+addresses, while the committed source defines seven. The existing
+`reactive_resume_dev_tailscale` DEV DNS record is pending separate import before
+state reaches six; that record is the sixth address. The seventh address,
+`cloudflare_dns_record.cristexhub_prod`, remains absent, while the existing Tunnel
+configuration's PROD ingress update remains unapplied because the available OAuth
+credential lacks DNS-record permission; `hub.cristex-soft.com` therefore remains
+unresolved. Historical source-only
 checkpoints below are retained as evidence and are explicitly not current-state
 claims.
 
@@ -507,8 +510,10 @@ The repository includes guarded Argo, Infisical, PostgreSQL, MongoDB,
 Secret-materialization, protected-value, datastore-preflight, logical-provisioning,
 and cloudflared closures under `ansible/`; each runbook distinguishes live from
 source-only checkpoints. The reviewed OpenTofu source manages five imported protected
-Cloudflare resources; its sixth PROD DNS resource and associated Tunnel-config update
-remain unapplied. Exactly five persistent Namespace manifests exist under
+Cloudflare resources; its sixth address is the existing Reactive Resume DEV
+Tailscale DNS record awaiting import, while the seventh address is the unapplied
+CristexHub PROD DNS record. The existing Tunnel-config PROD ingress update remains
+unapplied. Exactly five persistent Namespace manifests exist under
 `kubernetes/`, including live `cristexhub-prod`. Its credential seam, Argo registration,
 and private workloads are live/idempotent; MongoDB NetworkPolicy apply/enforcement,
 credential rotations, and public routing remain blocked. Earlier source-only absence

@@ -45,6 +45,18 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             self.defaults["cristexhub_prod_private_acceptance_server"],
         )
         self.assertEqual(
+            "100.122.139.32",
+            self.defaults["cristexhub_prod_private_acceptance_private_origin_ip"],
+        )
+        self.assertEqual(
+            "http://100.122.139.32/",
+            self.defaults["cristexhub_prod_private_acceptance_private_origin_url"],
+        )
+        self.assertEqual(
+            "hub.cristex-soft.com",
+            self.defaults["cristexhub_prod_private_acceptance_private_origin_host"],
+        )
+        self.assertEqual(
             "751885a42798d282e168131db147f13694a0a621",
             self.defaults["cristexhub_prod_private_acceptance_revision"],
         )
@@ -104,6 +116,9 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ENTRYPOINT",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TOKEN",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ATTESTATION_FILE",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PID",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_STARTTIME",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_SOURCE_CLOSURE_SHA256",
             "INTERNAL_VARIABLE_GUARD",
             "check_mode: false",
             "delegate_to: localhost",
@@ -124,9 +139,17 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "wrapper_canonical_sha256_expected",
             "refusing traced shell execution",
             "ANSIBLE_CONFIG=",
+            "WRAPPER_PATH=",
+            "WRAPPER_PID=",
+            "WRAPPER_STARTTIME=",
+            "SOURCE_CLOSURE_SHA256=",
+            "task_sha256_expected=",
+            "refusing private PROD acceptance wrapper source drift",
         ):
             self.assertIn(required, self.wrapper_text)
         self.assertIn('set -- \\\n  "$controller"', self.wrapper_text)
+        self.assertIn(":entrypoint:%s:%s:%s", self.wrapper_text)
+        self.assertIn("Require source leaves and hashes bound to the canonical wrapper", self.tasks_text)
         self.assertNotIn("--start-at-task", self.wrapper_text)
         self.assertNotIn("--tags", self.wrapper_text)
         self.assertNotIn("--skip-tags", self.wrapper_text)
@@ -143,6 +166,10 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "prune=false",
             "allowEmpty=false",
             "exactly five PROD Deployments",
+            "current ReplicaSet",
+            "100.122.139.32",
+            "Host: hub.cristex-soft.com",
+            "does not test or require the unapplied Cloudflare route",
             "backend",
             "celery-worker",
             "frontend",
@@ -182,6 +209,8 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "Bind exact PROD Deployment revision and selector identities",
             "Query the exact current ReplicaSet for each PROD Deployment",
             "Require each PROD ReplicaSet to be the fresh Deployment controller result",
+            "replicaset_name",
+            "pod-template-hash={{ item.pod_template_hash }}",
             "metadata.ownerReferences",
             "Bind exact PROD ReplicaSet controller identities",
             "Require each PROD Pod to be owned by the expected current ReplicaSet",
@@ -190,8 +219,11 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "status.containerStatuses",
         ):
             self.assertIn(required, self.tasks_text)
-        self.assertEqual(7, self.tasks_text.count("kubernetes.core.k8s_info:"))
-        self.assertGreaterEqual(self.tasks_text.count("kubeconfig: \"{{ cristexhub_prod_private_acceptance_kubeconfig }}\""), 7)
+        self.assertEqual(8, self.tasks_text.count("kubernetes.core.k8s_info:"))
+        self.assertGreaterEqual(self.tasks_text.count("kubeconfig: \"{{ cristexhub_prod_private_acceptance_kubeconfig }}\""), 8)
+        self.assertIn("Query the complete PROD Deployment inventory", self.tasks_text)
+        self.assertIn("Require exactly the approved PROD Deployment inventory", self.tasks_text)
+        self.assertNotIn("url: https://hub.cristex-soft.com/", self.tasks_text)
 
     def test_credential_policy_freezes_four_scopes_without_values(self) -> None:
         self.assertEqual("source-only-rotation-blocked", self.policy["policy_status"])
@@ -245,6 +277,22 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "No result from this preflight authorizes",
         ):
             self.assertIn(required.lower(), (self.policy_text + self.runbook_text).lower())
+
+    def test_adversarial_direct_invocation_and_public_dns_bypass_are_rejected(self) -> None:
+        direct = subprocess.run(
+            [str(WRAPPER)],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={"PATH": "/usr/bin:/bin"},
+        )
+        self.assertEqual(64, direct.returncode)
+        self.assertNotIn("ansible-playbook", direct.stdout + direct.stderr)
+        self.assertNotIn("url: https://hub.cristex-soft.com/", self.tasks_text)
+        self.assertIn("private_origin_url", self.tasks_text)
+        self.assertIn("Host:", self.tasks_text)
+        self.assertIn("WRAPPER_STARTTIME", self.tasks_text)
+        self.assertIn("proc_stat", self.tasks_text)
 
     def test_wrapper_shell_syntax(self) -> None:
         result = subprocess.run(
