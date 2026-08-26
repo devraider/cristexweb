@@ -163,6 +163,15 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
         ):
             self.assertIn(value, source, value)
 
+    def test_import_approval_follows_absence_recovery_gate(self) -> None:
+        source = IMPORT.read_text()
+        restore_gate = source.index("run_backup_interactive restore-absence")
+        approval_prompt = source.index("Type IMPORT EXISTING devraider/cristex-reactive-resume")
+        absence_recheck = source.index("state_absence_recheck", restore_gate)
+        self.assertLess(restore_gate, absence_recheck)
+        self.assertLess(absence_recheck, approval_prompt)
+        self.assertIn("requesting approval", source)
+
     def test_import_is_fixed_and_non_destructive(self) -> None:
         source = IMPORT.read_text()
         for value in (
@@ -310,6 +319,12 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             path.write_text(json.dumps(payload))
             fork = subprocess.run([str(VALIDATE), str(path)], capture_output=True, text=True)
             self.assertEqual(0, fork.returncode, fork.stdout + fork.stderr)
+            payload = plan()
+            payload["resource_changes"][0]["change"]["after"]["unexpected_after_attribute"] = False
+            path.write_text(json.dumps(payload))
+            unexpected = subprocess.run([str(VALIDATE), str(path)], capture_output=True, text=True)
+            self.assertNotEqual(0, unexpected.returncode)
+            self.assertIn("reason=unexpected_after_attributes", unexpected.stdout)
             payload = plan(["create"])
             path.write_text(json.dumps(payload))
             refused = subprocess.run([str(VALIDATE), str(path)], capture_output=True, text=True)
@@ -350,6 +365,8 @@ class OpenTofuGithubImportContractTests(unittest.TestCase):
             "second no-op plan",
             "exact private-repository API postcheck",
             "tofu state list",
+            "explicit after-attribute closure",
+            "before collecting the import confirmation",
         ):
             self.assertIn(value, text, value)
         self.assertIn("tofu apply", text)

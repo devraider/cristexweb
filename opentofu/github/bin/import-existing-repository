@@ -54,8 +54,8 @@ repo_root=$(CDPATH= cd -- "$dir/../../.." && pwd -P)
 # leaf except itself; the manifest and this entrypoint's canonical form are
 # independently pinned below so a partial source review cannot authorize import.
 source_manifest="$github_root/SOURCE.sha256"
-source_manifest_expected_sha256='57fad123d6623950234a248d17f82aba629ec7299fe4a908aec21220677bf26e'
-source_import_expected_canonical_sha256='e0f81bc2d6943e8c52d454f4dfd5f2e1492b1cb044c44ac973fdde9112a03cd6'
+source_manifest_expected_sha256='72c6fab322135623841244bd9675fe104b6e3c013e368aa9067d0c02ed17042c'
+source_import_expected_canonical_sha256='89d09b59fa4a13a65df52206edfe608ed06b532353f61ed0f94f1329b3eab640'
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-github-source.XXXXXX)
 chmod 0700 "$source_work"
 trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM
@@ -326,13 +326,10 @@ if [ "$mode" = check ]; then
     exit 0
 fi
 
-printf '%s' 'Type IMPORT EXISTING devraider/cristex-reactive-resume to continue: ' >&2
-IFS= read -r confirmation || fail approval_input
-[ "$confirmation" = 'IMPORT EXISTING devraider/cristex-reactive-resume' ] || fail explicit_approval
-unset confirmation
-
 # The first-genesis absence attestation/readback is a required separate gate;
-# it never receives GITHUB_TOKEN and never writes the OpenTofu state.
+# it never receives GITHUB_TOKEN and never writes the OpenTofu state. Keep this
+# gate before the human import confirmation so approval cannot be collected for
+# a mutation whose recovery proof has already failed or expired.
 backup_wrapper="$repo_root/ansible/bin/configure-opentofu-github-state-backup"
 backup_playbook="$repo_root/ansible/playbooks/configure_opentofu_github_state_backup.yml"
 backup_source_dir="$repo_root/ansible/files/backup"
@@ -340,8 +337,12 @@ backup_source_dir="$repo_root/ansible/files/backup"
 run_backup_interactive restore-absence
 # The token remains only in this shell variable while the backup lane runs
 # without GITHUB_TOKEN. Recheck absence under the same lock immediately before
-# initialization and again after init, before any import can create state.
+# requesting approval, then again after init, before any import can create state.
 state_absence_recheck
+printf '%s' 'Type IMPORT EXISTING devraider/cristex-reactive-resume to continue: ' >&2
+IFS= read -r confirmation || fail approval_input
+[ "$confirmation" = 'IMPORT EXISTING devraider/cristex-reactive-resume' ] || fail explicit_approval
+unset confirmation
 run_quiet "$tofu" -chdir="$github_root" init -input=false -no-color
 state_absence_recheck
 # These are the only import addresses and IDs. No create/delete/apply path exists.

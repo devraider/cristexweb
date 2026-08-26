@@ -39,6 +39,75 @@ EXPECTED = {
 }
 PROVIDER = "registry.opentofu.org/integrations/github"
 
+# The provider's imported github_repository state contains both configured values
+# and a bounded set of read-only/computed fields. Keep this closure explicit so a
+# new provider attribute (or an injected plan field) cannot silently widen the
+# import acceptance surface. The provider is pinned to 6.13.0 in versions.tf.
+ALLOWED_AFTER_KEYS = {
+    "github_repository": {
+        "name",
+        "description",
+        "homepage_url",
+        "private",
+        "visibility",
+        "fork",
+        "source_owner",
+        "source_repo",
+        "security_and_analysis",
+        "has_issues",
+        "has_discussions",
+        "has_projects",
+        "has_downloads",
+        "has_wiki",
+        "is_template",
+        "allow_merge_commit",
+        "allow_squash_merge",
+        "allow_rebase_merge",
+        "allow_auto_merge",
+        "allow_forking",
+        "squash_merge_commit_title",
+        "squash_merge_commit_message",
+        "merge_commit_title",
+        "merge_commit_message",
+        "delete_branch_on_merge",
+        "web_commit_signoff_required",
+        "auto_init",
+        "default_branch",
+        "license_template",
+        "gitignore_template",
+        "archived",
+        "archive_on_destroy",
+        "pages",
+        "topics",
+        "vulnerability_alerts",
+        "ignore_vulnerability_alerts_during_read",
+        "full_name",
+        "html_url",
+        "ssh_clone_url",
+        "svn_url",
+        "git_clone_url",
+        "http_clone_url",
+        "etag",
+        "primary_language",
+        "template",
+        "node_id",
+        "repo_id",
+        "allow_update_branch",
+    },
+    "github_repository_vulnerability_alerts": {
+        "repository",
+        "repository_id",
+        "enabled",
+    },
+    "github_actions_repository_permissions": {
+        "allowed_actions",
+        "allowed_actions_config",
+        "enabled",
+        "repository",
+        "sha_pinning_required",
+    },
+}
+
 
 def fail(reason: str) -> None:
     print(f"plan_status=refused reason={reason}")
@@ -86,6 +155,9 @@ for address, contract in EXPECTED.items():
     after = change.get("after")
     if not isinstance(after, dict):
         fail("after_shape")
+    unexpected_after = set(after) - ALLOWED_AFTER_KEYS[contract["type"]]
+    if unexpected_after:
+        fail("unexpected_after_attributes")
     for key, expected in contract["after"].items():
         if after.get(key) != expected:
             fail(f"after_contract_{contract['type']}_{key}")
@@ -93,27 +165,56 @@ for address, contract in EXPECTED.items():
         for key in ("archived", "allow_auto_merge", "allow_forking", "has_discussions", "has_downloads", "is_template"):
             if after.get(key) not in (None, False):
                 fail("repository_permissive_feature")
-        if after.get("fork") not in (None, False, True):
+        for key, expected in (
+            ("allow_merge_commit", True),
+            ("allow_squash_merge", True),
+            ("allow_rebase_merge", True),
+            ("delete_branch_on_merge", False),
+            ("web_commit_signoff_required", False),
+            ("archive_on_destroy", False),
+            ("ignore_vulnerability_alerts_during_read", False),
+        ):
+            if after.get(key) not in (None, expected):
+                fail("repository_permissive_feature")
+        if after.get("private") not in (None, True):
+            fail("repository_visibility")
+        if after.get("homepage_url") not in (None, ""):
+            fail("repository_homepage_present")
+        if after.get("security_and_analysis") not in (None, [], {}):
+            fail("repository_security_policy_present")
+        if after.get("license_template") not in (None, "") or after.get("gitignore_template") not in (None, ""):
+            fail("repository_generated_content")
+        fork = after.get("fork")
+        if fork not in (None, False, True, "false", "true"):
             fail("repository_fork_shape")
         # The imported repository is an existing private upstream fork. Preserve
         # its provenance without allowing a different fork source or configuring
         # a fork/create operation in this root.
-        if after.get("fork") is True:
+        if fork in (True, "true"):
             if after.get("source_owner") not in (None, "", "amruthpillai"):
                 fail("repository_fork_source_present")
             if after.get("source_repo") not in (None, "", "reactive-resume"):
                 fail("repository_fork_source_present")
         elif after.get("source_owner") not in (None, "") or after.get("source_repo") not in (None, ""):
             fail("repository_fork_source_present")
+        if after.get("full_name") not in (None, "devraider/cristex-reactive-resume"):
+            fail("repository_identity_metadata")
+        if after.get("vulnerability_alerts") not in (None, True):
+            fail("repository_vulnerability_policy")
         if after.get("pages") not in (None, [], {}):
             fail("repository_pages_present")
         if after.get("template") not in (None, [], {}):
             fail("repository_template_present")
+    if contract["type"] == "github_repository_vulnerability_alerts":
+        if after.get("repository_id") not in (None, 0) and not isinstance(after.get("repository_id"), int):
+            fail("alerts_repository_id_shape")
     if contract["type"] == "github_actions_repository_permissions":
         if after.get("allowed_actions") not in (None, "all"):
             fail("actions_policy_present")
         if after.get("allowed_actions_config") not in (None, [], {}):
             fail("actions_selected_config_present")
+        if after.get("sha_pinning_required") not in (None, False):
+            fail("actions_unexpected_sha_policy")
     sensitive = change.get("after_sensitive")
     if sensitive not in ({}, None, False):
         fail("sensitive_values")

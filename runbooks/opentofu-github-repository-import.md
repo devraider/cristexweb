@@ -94,17 +94,21 @@ before the first import.
    The import entrypoint requires the successful `restore-absence` gate immediately
    before mutation; that rehearsal never receives `GITHUB_TOKEN` and never writes
    the state file. The import lock remains held and state absence is rechecked
-   after this gate and after `tofu init`.
-3. Obtain separate approval for importing an existing private repository and type
-   the exact confirmation requested by the entrypoint.
+   after this gate. If the recovery gate fails or expires, the entrypoint exits
+   before collecting the import confirmation.
+3. After the successful recovery gate and absence recheck, obtain separate
+   approval for importing an existing private repository and type the exact
+   confirmation requested by the entrypoint. The entrypoint then rechecks state
+   absence after `tofu init`, immediately before the first import.
 4. The entrypoint initializes the pinned provider, then runs only the three exact
    `tofu import` commands above. It has no `tofu apply`, create, delete, destroy,
    `tofu state push`, or `tofu state rm` path. A partial import fails closed and requires
    operator review; it is never repaired by deleting a remote repository.
 5. Render a protected mode-0600 binary plan and JSON plan. The
    `validate-import-plan` guard accepts only the exact three managed addresses,
-   provider scope, expected private metadata, no sensitive values, and exactly
-   `actions=[]` for every resource. Any drift or replacement is refused.
+   provider scope, the pinned provider's explicit after-attribute closure,
+   expected private metadata, no sensitive values, and exactly `actions=[]` for
+   every resource. Any unknown attribute, drift, or replacement is refused.
 6. After the no-op plan is accepted, run the separate guarded post-genesis backup
    test. It encrypts the state with the custody age recipient, uploads immutable
    ciphertext/checksum/manifest leaves, reads them back byte-for-byte, and emits
