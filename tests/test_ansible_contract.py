@@ -75,6 +75,7 @@ class AnsibleLayoutTests(unittest.TestCase):
         allowed_library_plugins = {
             Path("ansible/library/reactive_resume_dev_secret_metadata.py"),
             Path("ansible/library/reactive_resume_object_storage_metadata.py"),
+            Path("ansible/library/argocd_cluster_cache_secret_metadata.py"),
         }
         self.assertTrue(
             all(
@@ -480,6 +481,7 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "roles/reactive_resume_dev_successor/defaults/main.yml",
                 "roles/reactive_resume_dev_successor/tasks/main.yml",
                 "library/reactive_resume_object_storage_metadata.py",
+                "library/argocd_cluster_cache_secret_metadata.py",
                 "bin/check-reactive-resume-object-storage-source",
                 "playbooks/check_reactive_resume_object_storage_source.yml",
                 "roles/reactive_resume_object_storage_source_check/defaults/main.yml",

@@ -24,6 +24,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "argocd-candidate-provenance.md",
+                "argocd-cluster-cache-scope-transition.md",
                 "argocd-hardened-design.md",
                 "argocd-private-ui-route.md",
                 "argocd-release-selection.md",
@@ -74,6 +75,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "rclone-host-transfer.md",
                 "opentofu-github-state-backup.md",
                 "opentofu-github-repository-import.md",
+                "opentofu-foundation-state-reconciliation.md",
                 "reactive-resume-object-storage-source-recovery.md",
             },
             {path.name for path in RUNBOOKS.iterdir() if path.is_file()},

@@ -40,7 +40,7 @@ _KUBECONFIG_SOURCE = Path("/etc/rancher/k3s/k3s.yaml")
 _EXPECTED_OPERATOR = "paul"
 _EXPECTED_TASK_NAME = "Apply only legacy cluster Secret scope patches with exact CAS bindings"
 _EXPECTED_TASK_ACTION = "argocd_cluster_cache_scope_transition_guarded_k8s"
-_ACTION_CANONICAL_SHA256 = "b458cba3a1b3040cf1cfe762ae9eae3ef00a17386dae1d06fad3d1fc1d24b054"
+_ACTION_CANONICAL_SHA256 = "de07c0b997b6810ce1156778f9fbc1a0022e6a4896c334dda21697a138e13e27"
 _WRAPPER_CANONICAL_SHA256 = "90d20b131c4286a9afece06c55ce7c99370f8902d5207fd894ec8cc47c623523"
 _TASK_SHA256 = "88a0aeb6ab7ff6a4470808ee72606ad9f0a9e79b88f4ff31a6dbfccfa43ee21e"
 _DEFAULTS_SHA256 = "e5cf4171ce426332d7d16411797460a5c66280512d629fd924019848784f2b30"
@@ -123,6 +123,21 @@ def _proc_starttime(pid: int) -> str:
         return Path(f"/proc/{pid}/stat").read_text().split()[21]
     except (OSError, IndexError):
         return ""
+
+
+def _ancestor(pid: int) -> bool:
+    current = os.getpid()
+    seen: set[int] = set()
+    while current > 1 and current not in seen:
+        if current == pid:
+            return True
+        seen.add(current)
+        try:
+            status = Path(f"/proc/{current}/status").read_text()
+            current = int(next(line for line in status.splitlines() if line.startswith("PPid:")).split()[1])
+        except (OSError, StopIteration, ValueError):
+            return False
+    return False
 
 
 def _proc_cmdline(pid: int) -> list[str]:

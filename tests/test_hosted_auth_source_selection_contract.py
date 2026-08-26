@@ -606,6 +606,8 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
             {
                 "bootstrap-argocd",
                 "bootstrap_argocd.yml",
+                "bootstrap-argocd-cluster-cache-scope-transition",
+                "bootstrap_argocd_cluster_cache_scope_transition.yml",
                 "bootstrap-infisical-argocd-secrets",
                 "bootstrap_infisical_argocd_secrets.yml",
                 "bootstrap-argocd-route",

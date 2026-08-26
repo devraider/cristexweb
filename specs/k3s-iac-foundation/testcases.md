@@ -89,10 +89,14 @@ The source-only rows above intentionally preserve their pre-activation checkpoin
 They are historical evidence, not current absence claims.
 
 - **PROD runtime/Argo:** The Infisical runtime seam apply and final idempotence
-  passed at `ok=62 changed=0 failed=0 skipped=3`. Argo registration at revision
-  `751885a42798d282e168131db147f13694a0a621` uses the exact in-cluster server and
-  `selfHeal=true`, `prune=false`, `allowEmpty=false`; Argo is `Synced/Healthy` and
-  the five PROD Deployments are each `1/1 Ready`.
+  passed at `ok=62 changed=0 failed=0 skipped=3`. The five PROD Deployments remain
+  `1/1 Ready` at revision `751885a42798d282e168131db147f13694a0a621`, with
+  `selfHeal=true`, `prune=false`, and `allowEmpty=false`. The earlier
+  `Synced/Healthy` result is historical evidence only. After the separately approved
+  alias transition, current Argo status is `Unknown/Missing` because duplicate
+  same-server registrations resolve through the wrong namespace-scoped cache. The
+  guarded shared-cache/direct-server correction is source-only and remains pending
+  check and separate apply approval.
 - **OIDC:** The CONNECT proxy policy is applied and includes the PROD backend,
   Celery, and oauth2-proxy clients. App-level smoke returned backend `200`,
   oauth2-proxy root/start `302`, and Celery readiness; this is not full authenticated

@@ -13,16 +13,20 @@ Create a small, educational infrastructure-as-code path at repository-root
 `ansible/`, `opentofu/`, `kubernetes/`, and `runbooks/` that can reproduce and
 recover DEV and PROD without presenting a single node as highly available.
 
-## Current live checkpoint — 2026-08-21
+## Current live checkpoint — 2026-08-26
 
-Private CristexHub PROD activation is live at revision
-`751885a42798d282e168131db147f13694a0a621`: Argo is `Synced/Healthy`, all five
-PROD Deployments are ready, backend root returns `200`, oauth2-proxy returns the
-expected private `302`, and Celery is ready on the PROD RabbitMQ vhost. The OIDC
-CONNECT proxy admits the reviewed PROD clients. App-level OIDC smoke (backend `200`,
-oauth2-proxy `302`, Celery readiness) passed, but this is not full authenticated
-OIDC/CONNECT validation. The source allowlist is exact: `auth.cristex-soft.com:443`
-and `api.deepseek.com:443`; arbitrary HTTPS destinations remain denied.
+Private CristexHub PROD workloads remain live at revision
+`751885a42798d282e168131db147f13694a0a621`: all five PROD Deployments are ready,
+backend root returns `200`, oauth2-proxy returns the expected private `302`, and
+Celery is ready on the PROD RabbitMQ vhost. The 2026-08-21 Argo
+`Synced/Healthy` result is historical evidence only. After the separately approved
+cluster-alias transition, current Argo status is `Unknown/Missing` because duplicate
+same-server cluster registrations resolve through the wrong namespace-scoped cache.
+The guarded shared-cache/direct-server correction remains pending check and separate
+apply approval. The OIDC CONNECT proxy admits the reviewed PROD clients. App-level
+OIDC smoke passed, but this is not full authenticated OIDC/CONNECT validation. The
+source allowlist is exact: `auth.cristex-soft.com:443` and `api.deepseek.com:443`;
+arbitrary HTTPS destinations remain denied.
 
 MongoDB `8.0.12` is live as an operator-managed one-member replica set with
 TLS/SCRAM, but private acceptance remains blocked: the live `shared-mongodb-0` has
