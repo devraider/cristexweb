@@ -92,8 +92,8 @@
         'AppProject': '59cd297c33dd12a0063cded64e132e77e70dcd2b3bebee2dd207686a2d9ab239'}
       - >-
         cristexhub_prod_registration_alias_transition_manifest_hashes ==
-        {'Application': '2850c9c53ffb983f4a6ec43c3c787bfa5605312c1c0fe9ebd8df98e3045d7741',
-        'AppProject': '9e75e23f9c24b0280ca3d00c4e815b8517a94ba77a0e78feff061542a1e7b8a5'}
+        {'Application': '107356ed772eec987ab8c4f19b05b2ebb5a84ddf21bd0f483044e434084a8c5a',
+        'AppProject': '113dcb263ec958430385b802e387658cd0f71b58751768b3a7ab5ffbb348b61b'}
       - >-
         cristexhub_prod_registration_alias_transition_metadata_hash ==
         'a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30'

@@ -170,6 +170,7 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             manifest = {"apiVersion": "argoproj.io/v1alpha1", "kind": kind, "metadata": metadata, "spec": spec}
             manifest_digest = hashlib.sha256(json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
             self.assertEqual(defaults["cristexhub_prod_registration_alias_transition_manifest_hashes"][kind], manifest_digest)
+            self.assertIn(manifest_digest, TASKS.read_text())
         self.assertEqual(
             "a4ef801de0c6aaf91a3c44e718afa10d17ab11727ce9b06b3d40727fd4c3ad30",
             defaults["cristexhub_prod_registration_alias_transition_metadata_hash"],
