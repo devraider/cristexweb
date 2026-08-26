@@ -83,7 +83,7 @@ The separately approved one-reboot recovery and manual post-reboot checks passed
 | KIF-NS-07 | KIF-002, KIF-005, KIF-006, KIF-010, KIF-016, KIF-025, KIF-030 | CristexHub PROD Namespace guarded bootstrap | Dedicated non-passthrough source defines only `cristexhub-prod` with exact four PROD labels, the mandatory Kubernetes Namespace-name label at runtime, a non-overridable literal SHA-256 manifest binding, canonical task-source/action-only guard, private attestation/preflight binding, foreign-existing refusal, present-only semantics, and no deletion path | PASS RUNTIME — approved check predicted the single absent Namespace at `ok=20 changed=1 failed=0 skipped=2`; first apply created it but the historical four-label post-check stopped after mutation; read-only inspection confirmed exact intended labels plus Kubernetes' mandatory label and `Active`; corrected check passed at `ok=20 changed=0 failed=0 skipped=2`; separately approved idempotence passed at `ok=22 changed=0 unreachable=0 failed=0 skipped=0`, with exact post-state and k3s/Tailscale health |
 | KIF-ARGO-12 | KIF-005, KIF-006, KIF-010, KIF-016, KIF-021, KIF-025, KIF-030 | CristexHub PROD Argo registration source-only closure | Exactly five value-free objects pin protected-main revision `751885a42798d282e168131db147f13694a0a621` and path `infra/kubernetes/cristexhub-prod`; the Project/destination/cluster-registration Secret/RBAC are PROD-only, no-delete, no-cluster-resource, `CreateNamespace=false`, `Prune=false`, manual, and protected by an always-active deny window plus present-only attestation/preflight/hash/foreign-object guards | HISTORICAL PASS SOURCE-ONLY — 11 focused offline contracts, action compile, wrapper shell, and playbook syntax validate the exact closure; the live Namespace was `Active` at this checkpoint. Current registration/sync evidence is recorded below |
 
-## Current runtime evidence — 2026-08-21
+## Current runtime evidence — 2026-08-26
 
 The source-only rows above intentionally preserve their pre-activation checkpoints.
 They are historical evidence, not current absence claims.
@@ -91,12 +91,12 @@ They are historical evidence, not current absence claims.
 - **PROD runtime/Argo:** The Infisical runtime seam apply and final idempotence
   passed at `ok=62 changed=0 failed=0 skipped=3`. The five PROD Deployments remain
   `1/1 Ready` at revision `751885a42798d282e168131db147f13694a0a621`, with
-  `selfHeal=true`, `prune=false`, and `allowEmpty=false`. The earlier
-  `Synced/Healthy` result is historical evidence only. After the separately approved
-  alias transition, current Argo status is `Unknown/Missing` because duplicate
-  same-server registrations resolve through the wrong namespace-scoped cache. The
-  guarded shared-cache/direct-server correction is source-only and remains pending
-  check and separate apply approval.
+  `selfHeal=true`, `prune=false`, and `allowEmpty=false`. The direct-server Argo
+  Application is now `Synced/Healthy` at that pinned revision. The target-cache
+  repair applied the exact Role, ConfigMap, and application-controller StatefulSet
+  changes, rolled only the controller, and its idempotence apply passed with
+  `changed=0`. The earlier alias-era `Unknown/Missing` status and cache collision
+  are retained as dated historical evidence only.
 - **OIDC:** The CONNECT proxy policy is applied and includes the PROD backend,
   Celery, and oauth2-proxy clients. App-level smoke returned backend `200`,
   oauth2-proxy root/start `302`, and Celery readiness; this is not full authenticated

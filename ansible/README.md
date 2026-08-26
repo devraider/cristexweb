@@ -1,26 +1,25 @@
 # Guarded Ansible operations and read-only discovery
 
-## Current live checkpoint — 2026-08-25
+## Current live checkpoint — 2026-08-26
 
 The separately guarded PROD runtime seam and OIDC proxy policy remain applied/idempotent;
-backend, Celery, frontend, oauth2-proxy, and Redis are ready. The historical Argo
-registration checkpoint reported private PROD `Synced/Healthy`, but the fresh current
-snapshot is `Unknown/Missing` with a namespace/target management ComparisonError after
-the `cristexhub-prod-local` alias transition was applied. The committed source now
-targets the direct in-cluster server; its guarded three-step check/apply remains
-pending and no direct-server registration apply or workload sync has run. The
-source-only target-cache repair lane is separately bounded to argocd-cm, the PROD
-controller Role's read-only ServiceAccount rule, and the application-controller
-pod-template checksum/annotation; it remains unapplied. RabbitMQ is live for the PROD Celery worker, but
-observed principal/permission drift and credential rotation remain open. MongoDB
-`8.0.12` is live under its operator with TLS/SCRAM, but private acceptance is blocked
-by the absent/mismatched live MongoDB NetworkPolicy. Protected OpenTofu state contains
-exactly five imported Cloudflare resource addresses; committed source defines seven,
-and the existing DEV DNS record is pending separate import before state reaches six.
-The PROD Tunnel-config/DNS plan remains unapplied and requires fresh backup, exact
-plan review, separate provider/DNS/public-cutover approvals, and post-validation.
-Historical source-only paragraphs below retain dated checkpoint wording and are not
-current-state claims.
+backend, Celery, frontend, oauth2-proxy, and Redis are ready. The PROD Argo
+Application now uses the direct-server destination
+`https://kubernetes.default.svc` and is `Synced/Healthy` at pinned revision
+`751885a42798d282e168131db147f13694a0a621`. The target-cache repair applied the
+exact Role, ConfigMap, and application-controller StatefulSet changes; its
+controller-only rollout and subsequent idempotence apply passed (`changed=0`). The
+prior alias-era `Unknown/Missing` snapshot is retained as dated historical evidence
+only. RabbitMQ is live for the PROD Celery worker, but observed principal/permission
+drift and credential rotation remain open. MongoDB `8.0.12` is live under its
+operator with TLS/SCRAM, but private acceptance is blocked by the absent/mismatched
+live MongoDB NetworkPolicy. Protected OpenTofu state contains exactly five imported
+Cloudflare resource addresses; committed source defines seven, and the existing DEV
+DNS record is pending separate import before state reaches six. The PROD
+Tunnel-config/DNS plan remains unapplied and requires fresh backup, exact plan review,
+separate provider/DNS/public-cutover approvals, and post-validation. Historical
+source-only paragraphs below retain dated checkpoint wording and are not current-state
+claims.
 
 Reactive Resume DEV has a live private runtime/Argo checkpoint: pinned revision
 `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` has exactly seven Argo-managed
@@ -560,10 +559,10 @@ runtime keys plus `cristexhub-prod-ghcr-pull`, exact PROD-scoped VAP/bindings,
 additive writer RBAC, hash-bound manifests, and the guarded
 `bin/bootstrap-infisical-cristexhub-prod-runtime check|apply` entrypoint. Its apply,
 target synchronization, and final `ok=62 changed=0 failed=0 skipped=3` idempotence
-pass; the historical private Argo workload checkpoint was `Synced/Healthy`, while
-the current Application is `Unknown/Missing` after the alias transition; the direct-server
-check/apply remains pending. The public route and residual credential rotations remain
-blocked. The value-free
+pass; the historical alias-era Argo checkpoint is retained as dated evidence, while
+the current Application uses the direct server and is `Synced/Healthy` at revision
+`751885a42798d282e168131db147f13694a0a621` after the target-cache repair apply and
+idempotence pass. The public route and residual credential rotations remain blocked. The value-free
 [shared database policy](../runbooks/shared-database-architecture.md) records one
 PostgreSQL and one MongoDB engine in `shared-services`; PostgreSQL and the
 operator-managed MongoDB runtime are live under separate engine checkpoints, but

@@ -1,23 +1,21 @@
 # Cristex infrastructure
 
-## Current live checkpoint — 2026-08-25
+## Current live checkpoint — 2026-08-26
 
 Private CristexHub PROD workloads remain live at the pinned revision
 `751885a42798d282e168131db147f13694a0a621`: backend/Celery/frontend/oauth2-proxy/
 Redis are each `1/1 Ready`, backend root returns `200`, oauth2-proxy returns the
 expected private `302`, and Celery is ready on the PROD RabbitMQ vhost. The live
-Argo Application currently reports `Unknown/Missing` with a ComparisonError
-after the bounded `cristexhub-prod-local` alias transition was applied. The
-historical `Synced/Healthy` checkpoint is retained as dated evidence only. The
-committed source now targets the direct in-cluster server; its guarded three-step
-check/apply remains pending, and a separately approved apply must restore
-`Synced/Healthy`. The dedicated target-cache repair source now narrows
-`resource.inclusions` to `https://kubernetes.default.svc` and the exact managed
-ConfigMap/Service/ServiceAccount, Deployment, Ingress, and NetworkPolicy union;
-it remains source-only pending its separate approval.
-The guarded OIDC CONNECT proxy policy includes PROD clients and app-level `200`/`302`
-smoke passed; authenticated OIDC/callback and live positive/negative CONNECT
-validation remain open.
+Argo Application now uses the direct `https://kubernetes.default.svc` server and
+reports `Synced/Healthy` at that pinned revision. The target-cache repair applied
+exactly the bounded Role, ConfigMap, and application-controller StatefulSet changes;
+the controller-only rollout and subsequent idempotence apply passed (`changed=0`).
+The prior alias-era `Unknown/Missing` snapshot is retained as dated historical
+evidence only. The canonical target-cache source now narrows `resource.inclusions`
+to the exact server and managed ConfigMap/Service/ServiceAccount, Deployment,
+Ingress, and NetworkPolicy union. The guarded OIDC CONNECT proxy policy includes
+PROD clients and app-level `200`/`302` smoke passed; authenticated OIDC/callback and
+live positive/negative CONNECT validation remain open.
 
 The shared MongoDB engine is live as operator-managed MongoDB `8.0.12` with
 TLS/SCRAM, but **private PROD acceptance is blocked**: no NetworkPolicy currently

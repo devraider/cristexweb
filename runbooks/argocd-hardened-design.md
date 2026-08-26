@@ -56,11 +56,11 @@ is added.
 The dedicated wrapper/action/role bind the exact source hashes, object identities,
 UIDs, resourceVersions, definitions, process command line, canonical inventory,
 configuration, controller/Python digests, and single-run attestation. Check mode
-predicts only the three bounded CAS patches; apply verifies post-state and rolls
-only the application-controller using its pod-template checksums/repair annotation.
-It waits for that StatefulSet and Pod to be Available/Ready and then validates the
-PROD Application as `Synced/Healthy`. The lane remains source-only pending its
-separate operational approval; see [the target-cache repair runbook](argocd-target-cache-repair.md).
+predicted only the three bounded CAS patches; the separately approved apply
+verified post-state and rolled only the application-controller using its pod-template
+checksums/repair annotation. It waited for that StatefulSet and Pod to be
+Available/Ready and validated the PROD Application as `Synced/Healthy`. A subsequent
+apply converged at `changed=0`; see [the target-cache repair runbook](argocd-target-cache-repair.md).
 
 The retained minimal core is one application-controller StatefulSet, one repo-server
 Deployment, one server Deployment, and standalone Redis. Argo uses

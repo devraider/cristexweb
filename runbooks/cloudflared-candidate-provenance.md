@@ -1,15 +1,18 @@
 # cloudflared provenance — historical candidate evidence
 
-## Current OpenTofu boundary — 2026-08-21
+## Current OpenTofu boundary — 2026-08-26
 
 The protected OpenTofu state contains exactly five imported Cloudflare resource
 addresses and the tracked provider lockfile pins the reviewed selection. The
-committed source defines six addresses; only `cloudflare_dns_record.cristexhub_prod`
-is absent from state. The pending PROD change is one Tunnel-config update plus one
-proxied DNS create; no apply has run for that two-change plan. The cloudflared token
-handoff and existing private Tunnel/Keycloak/DEV route checkpoints are complete, but
-public PROD route acceptance remains unapplied. This document's candidate evidence
-is historical and must not be read as provider or runtime evidence.
+committed source defines seven addresses. The existing
+`cloudflare_dns_record.reactive_resume_dev_tailscale` DEV DNS record remains a
+separate import prerequisite, so state stays at five until that import brings it to
+six; `cloudflare_dns_record.cristexhub_prod` remains absent from state. The pending
+PROD change is one Tunnel-config update plus one proxied DNS create; no apply has run
+for that two-change plan. The cloudflared token handoff and existing private
+Tunnel/Keycloak/DEV route checkpoints are complete, but public PROD route acceptance
+remains unapplied. This document's candidate evidence is historical and must not be
+read as provider or runtime evidence.
 
 ## Historical status and boundary
 

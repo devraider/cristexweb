@@ -673,11 +673,12 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
         runbook = RUNBOOK.read_text()
         for needle in (
             REVISION,
-            "SOURCE DIRECT-SERVER READY",
+            "DIRECT-SERVER LIVE",
             "cristexhub-prod-local",
             "Synced/Healthy",
             "separately approved mutation",
-            "does not inspect or reconcile DEV or Reactive Resume",
+            "does not inspect or reconcile DEV or",
+            "Reactive Resume registration objects",
             "prune=false",
             "Cloudflare",
             "public DNS record",

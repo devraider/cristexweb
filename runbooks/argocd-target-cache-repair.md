@@ -2,10 +2,15 @@
 
 ## Scope and status
 
-This is a one-time, source-only guarded repair for the already-running private Argo
+This is a one-time guarded repair for the already-running private Argo
 application-controller. It is not the 32-object Argo bootstrap and does not own
 any Secret, Deployment, server, repo-server, Application, AppProject, or
-RoleBinding. No live operation is claimed by this source change.
+RoleBinding. The separately approved apply completed the exact three-object repair
+(Role, ConfigMap, and application-controller StatefulSet), rolled only the controller,
+and the idempotence apply passed with `ok=33 changed=0 failed=0`. PROD Argo is now
+`Synced/Healthy` at revision
+`751885a42798d282e168131db147f13694a0a621`. The former alias-era `Unknown/Missing`
+state is retained as dated historical evidence only.
 
 The exact mutation closure contains three existing objects only, applied in this
 order: `cristexhub-prod/argocd-application-controller-cristexhub-prod` Role,
@@ -51,7 +56,10 @@ source/hash drift, incomplete preflight binding, unsafe kubeconfig, or partial
 state fails closed. StatefulSet final state is accepted only when its full
 normalized `spec` and target annotations match; annotations alone never classify
 a final state. Post-validation checks every object identity/UID/RV/labels and
-full ConfigMap data, Role rules, or StatefulSet spec.
+full ConfigMap data, Role rules, or StatefulSet spec. The completed apply passed
+these postconditions, controller/Pod readiness, unchanged server/repo-server
+identity, and fresh direct-server PROD `Synced/Healthy` validation; a rerun was
+idempotent with `changed=0`.
 
 The StatefulSet patch changes only
 `spec.template.metadata.annotations`, including the ConfigMap and PROD Role

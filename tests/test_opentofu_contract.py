@@ -33,7 +33,7 @@ class OpenTofuContractTests(unittest.TestCase):
         self.assertIn(name, self.task_blocks)
         return self.task_blocks[name]
 
-    def test_source_is_cloudflare_only_with_reviewable_lockfile_and_six_resource_addresses(self) -> None:
+    def test_source_is_cloudflare_only_with_reviewable_lockfile_and_seven_resource_addresses(self) -> None:
         self.assertEqual(
             {
                 "README.md", "backend.tf", "cloudflare.tf", "outputs.tf",
@@ -475,7 +475,7 @@ class OpenTofuContractTests(unittest.TestCase):
             self.assertIn(required, self.readme)
         for required in (
             "protected host state contains exactly five imported",
-            "source defines six resource addresses",
+            "source defines seven resource addresses",
             "pending PROD route still requires one Tunnel-config update",
             "provider lockfile is tracked",
             "At the earlier source-only capture, provider initialization, state, plan, and apply",

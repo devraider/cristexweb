@@ -18,12 +18,12 @@ recover DEV and PROD without presenting a single node as highly available.
 Private CristexHub PROD workloads remain live at revision
 `751885a42798d282e168131db147f13694a0a621`: all five PROD Deployments are ready,
 backend root returns `200`, oauth2-proxy returns the expected private `302`, and
-Celery is ready on the PROD RabbitMQ vhost. The 2026-08-21 Argo
-`Synced/Healthy` result is historical evidence only. After the separately approved
-cluster-alias transition, current Argo status is `Unknown/Missing` because duplicate
-same-server cluster registrations resolve through the wrong namespace-scoped cache.
-The guarded shared-cache/direct-server correction remains pending check and separate
-apply approval. The OIDC CONNECT proxy admits the reviewed PROD clients. App-level
+Celery is ready on the PROD RabbitMQ vhost. The direct-server Argo Application is
+now `Synced/Healthy` at that pinned revision. The bounded target-cache repair
+applied the exact Role, ConfigMap, and application-controller StatefulSet changes;
+controller-only rollout and the subsequent idempotence apply passed (`changed=0`).
+The prior cluster-alias-era `Unknown/Missing` status is retained as dated historical
+evidence only. The OIDC CONNECT proxy admits the reviewed PROD clients. App-level
 OIDC smoke passed, but this is not full authenticated OIDC/CONNECT validation. The
 source allowlist is exact: `auth.cristex-soft.com:443` and `api.deepseek.com:443`;
 arbitrary HTTPS destinations remain denied.
@@ -40,8 +40,9 @@ key remains a separate revoke/replace residual.
 
 OpenTofu current checkpoint: protected host state contains exactly five imported
 resource addresses (Tunnel, Tunnel configuration, Keycloak DNS, DEV DNS, and private
-Argo DNS). The source defines six resource addresses; only the PROD DNS resource is
-absent from state. The pending PROD route still requires one Tunnel-config update
+Argo DNS). The source defines seven resource addresses. The existing DEV DNS
+record remains pending separate import, so protected state stays at five; the PROD
+DNS resource is also absent from state. The pending PROD route still requires one Tunnel-config update
 and one proxied `hub.cristex-soft.com` DNS create; no apply has run for those two
 changes. The provider lockfile is tracked, the cloudflared token handoff is complete,
 and the public route remains unapplied. Reactive Resume DEV has a private

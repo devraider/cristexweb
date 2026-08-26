@@ -2,8 +2,8 @@
 
 state: agent:in-progress
 phase: implementing
-build: offline contracts and playbook syntax checks pass; private PROD workloads are Ready but the Argo Application is currently Unknown/Missing after the scoped cluster-alias registration apply, due to duplicate same-server cluster-cache resolution; the committed direct-server correction remains pending; the public route remains unapplied
-date: 2026-08-25
+build: offline contracts and playbook syntax checks pass; private PROD workloads are Ready and the direct-server Argo Application is Synced/Healthy at the pinned revision after the target-cache repair apply and idempotence pass; the public route remains unapplied
+date: 2026-08-26
 deploy_required_after_acceptance: yes
 
 reactive_resume_checkpoint: |
@@ -31,14 +31,13 @@ reactive_resume_checkpoint: |
 
 current_checkpoint: |
   Private CristexHub PROD workloads at revision `751885a42798d282e168131db147f13694a0a621`
-  are each `1/1 Ready`, but the live Argo Application is currently `Unknown/Missing`
-  with a ComparisonError after the bounded `cristexhub-prod-local` alias transition
-  was applied. The committed source-only correction now targets the direct in-cluster
-  server; its fresh guarded three-step check/apply remains pending. A separately
-  approved direct-server apply must restore `Synced/Healthy` before Argo reconciliation
-  is accepted. A separate source-only target-cache repair now binds the exact
+  are each `1/1 Ready`, and the direct-server Argo Application is `Synced/Healthy`
+  at that pinned revision. The bounded target-cache repair applied the exact
   `argocd-cm`, PROD controller Role read-only ServiceAccount rule, and
-  application-controller pod-template checksum/annotation; it has not run live.
+  application-controller pod-template changes, rolled only that controller, and its
+  subsequent idempotence apply passed with `changed=0`. The prior
+  `cristexhub-prod-local` alias-era `Unknown/Missing` snapshot is retained as dated
+  historical evidence only.
   OIDC evidence is app-level smoke only: backend `200`,
   oauth2-proxy `302`, and Celery readiness; full authenticated OIDC/CONNECT tests
   remain open. The exact source allowlist is `auth.cristex-soft.com:443` and
@@ -59,10 +58,10 @@ current_checkpoint: |
 
 note: |
   The detailed paragraphs below preserve dated historical source/checkpoint evidence;
-  earlier PROD `Synced/Healthy` statements remain historical and must not override
-  the current `Unknown/Missing` alias-applied checkpoint above; the direct-server
-  source/check/apply remains pending. Use `current_checkpoint`
-  above for the current live-state claim.
+  the earlier alias-era `Unknown/Missing` snapshot and pending direct-server transition
+  remain historical evidence only. Use `current_checkpoint` above for the current
+  live-state claim: direct-server `Synced/Healthy` at the pinned revision after the
+  target-cache repair apply and idempotence pass.
   Operational implementation now includes the previously recorded dependency,
   administrator-access, recovery, stateful-service, backup, Infisical, Cloudflare,
   Keycloak, and private Argo checkpoints. The latest approved checkpoint adds a
@@ -86,12 +85,11 @@ note: |
   NOT RUN/BLOCKED. The five-object PROD Argo registration source
   pins protected-main revision `751885a42798d282e168131db147f13694a0a621`, uses
   namespace-scoped no-delete RBAC and retains `selfHeal=true`, `prune=false`, and
-  `allowEmpty=false`. The bounded `cristexhub-prod-local` alias transition was
-  applied, but the live Application is currently `Unknown/Missing` because
-  duplicate same-server cluster registrations resolve through the wrong cache
-  entry. The direct-server source/check/apply remains pending and a separately
-  approved apply must restore `Synced/Healthy`. The Cloudflare route remains
-  unapplied. A separate source-only, check-only
+  `allowEmpty=false`. The bounded alias-to-direct-server transition and target-cache
+  repair are complete; the current Application is `Synced/Healthy` at that pinned
+  revision, and target-cache apply/idempotence validation passed. The former
+  `Unknown/Missing` alias-era cache collision is retained as dated historical
+  evidence only. The Cloudflare route remains unapplied. A separate source-only, check-only
   `k3s_datastore_preflight` role/playbook/wrapper is now offline-validated with
   fixed read-only argv under `no_log`, a bounded private mode-`0600` config slurp,
   strict duplicate/type/mapping/YAML and encryption-JSON parsers, exact
