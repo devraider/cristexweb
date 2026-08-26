@@ -28,6 +28,45 @@
     - shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_poststate
   changed_when: false
 
+- name: Require fixed shared MongoDB NetworkPolicy source closure configuration
+  ansible.builtin.assert:
+    that:
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_DEFAULTS_SHA256') ==
+        '2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PLAYBOOK_SHA256') ==
+        '7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_INVENTORY_SHA256') ==
+        '652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ANSIBLE_CONFIG_SHA256') ==
+        '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CONTROLLER_SHA256') ==
+        'baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
+      - shared_mongodb_networkpolicy_bootstrap_repository_root == (playbook_dir | dirname | dirname)
+      - >-
+        shared_mongodb_networkpolicy_bootstrap_component_root ==
+        shared_mongodb_networkpolicy_bootstrap_repository_root ~
+        '/ansible/files/components/shared-mongodb-networkpolicy'
+      - shared_mongodb_networkpolicy_bootstrap_manifest_paths == [
+          shared_mongodb_networkpolicy_bootstrap_component_root ~ '/network/shared-mongodb-networkpolicy-default-deny.yaml',
+          shared_mongodb_networkpolicy_bootstrap_component_root ~ '/network/shared-mongodb-networkpolicy-allow.yaml'
+        ]
+      - >-
+        (shared_mongodb_networkpolicy_bootstrap_expected_hashes | map(attribute='path') | list) == [
+        shared_mongodb_networkpolicy_bootstrap_component_root ~ '/network/shared-mongodb-networkpolicy-default-deny.yaml',
+        shared_mongodb_networkpolicy_bootstrap_component_root ~ '/network/shared-mongodb-networkpolicy-allow.yaml']
+      - >-
+        (shared_mongodb_networkpolicy_bootstrap_expected_hashes | map(attribute='sha256') | list) == [
+        '531923114cb79b0c73adc64014422a0b8ded8d39550ffe0d5adb1e7c361843fc',
+        'b3f492e663a99f2264fa64bbf3accdb12a42767f67b5e2819c4fb24246cd3bfd']
+      - shared_mongodb_networkpolicy_bootstrap_controller_user == lookup('ansible.builtin.env', 'USER')
+    fail_msg: Refusing overridden paths, hashes, or controller identity for the shared MongoDB NetworkPolicy closure.
+  changed_when: false
+
 - name: Require source-only shared MongoDB NetworkPolicy approval contract
   ansible.builtin.assert:
     that:
@@ -434,6 +473,12 @@
       - item.resources | length in [0, 1]
       - item.resources | length == 0 or item.resources[0].metadata.labels.get('app.kubernetes.io/managed-by') == 'ansible'
       - item.resources | length == 0 or item.resources[0].metadata.labels.get('cristex.io/component') == 'shared-mongodb-networkpolicy'
+      - item.resources | length == 0 or (item.resources[0].metadata.annotations | default({}) | length) == 0
+      - item.resources | length == 0 or
+        (item.resources[0].metadata.managedFields | default([]) | selectattr('manager', 'undefined') | list | length) == 0
+      - item.resources | length == 0 or
+        (item.resources[0].metadata.managedFields | default([]) | selectattr('manager', 'defined') |
+        map(attribute='manager') | list | difference(['ansible']) | length) == 0
       - >-
         item.resources | length == 0 or
         (
@@ -566,6 +611,23 @@
   changed_when: false
   no_log: true
 
+- name: Require create-only UID binding after deny-first step
+  ansible.builtin.assert:
+    that:
+      - >-
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate |
+        selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-default-deny') | list | length) == 1 or
+        (
+        shared_mongodb_networkpolicy_bootstrap_internal_default_deny_mutation.created_uid | default('') | length > 0 and
+        shared_mongodb_networkpolicy_bootstrap_internal_default_deny_mutation.created_uid ==
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate |
+        selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-default-deny') |
+        map(attribute='uid') | first)
+        )
+    fail_msg: Refusing a deny-first create that did not bind the server-assigned UID.
+  changed_when: false
+  no_log: true
+
 - name: Reconcile the exact allow policy only after deny-first state is bound
   shared_mongodb_networkpolicy_guarded_k8s:
     state: present
@@ -651,6 +713,24 @@
   no_log: true
   when: not ansible_check_mode
 
+- name: Require create-only UID binding after complete closure mutation
+  ansible.builtin.assert:
+    that:
+      - >-
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate |
+        selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-allow') | list | length) == 1 or
+        (
+        shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation.created_uid | default('') | length > 0 and
+        shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation.created_uid ==
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_poststate |
+        selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-allow') |
+        map(attribute='uid') | first)
+        )
+    fail_msg: Refusing an allow-policy create that did not bind the server-assigned UID.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
 - name: Bind the fresh poststate inventory to the guarded validator
   ansible.builtin.set_fact:
     shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies: "{{ shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_poststate }}"
@@ -706,6 +786,11 @@
         'ownerReferences' not in item.resources[0].metadata
       - >-
         (item.resources[0].metadata.annotations | default({}) | length) == 0
+      - >-
+        (item.resources[0].metadata.managedFields | default([]) | selectattr('manager', 'undefined') | list | length) == 0
+      - >-
+        (item.resources[0].metadata.managedFields | default([]) | selectattr('manager', 'defined') |
+        map(attribute='manager') | list | difference(['ansible']) | length) == 0
       - >-
         (item.resources[0].metadata.keys() | list |
         difference(['name', 'namespace', 'uid', 'resourceVersion', 'generation',

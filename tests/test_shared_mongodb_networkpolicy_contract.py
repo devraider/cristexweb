@@ -5,10 +5,12 @@ import copy
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import ModuleType, SimpleNamespace
 from unittest import mock
 
@@ -205,6 +207,72 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
                 'resource_version': 'stale',
             })
 
+    def test_preflight_rejects_annotations_and_foreign_managed_field_ownership(self) -> None:
+        definitions = copy.deepcopy(self.objects)
+        pod = {
+            'metadata': {'name': 'shared-mongodb-0', 'labels': self.plugin._MONGODB_POD_LABELS}
+        }
+        live = copy.deepcopy(definitions)
+        for index, policy in enumerate(live):
+            policy['metadata'].update({'uid': f'uid-{index}', 'resourceVersion': str(index + 1)})
+        ledger = [
+            {
+                'name': policy['metadata']['name'],
+                'uid': policy['metadata']['uid'],
+                'resource_version': policy['metadata']['resourceVersion'],
+            }
+            for policy in live
+        ]
+        live[0]['metadata']['annotations'] = {'foreign.example/claim': 'x'}
+        self.assertIn(
+            'target NetworkPolicy drift',
+            self.plugin._networkpolicy_preflight_error(live, definitions, pod, ledger),
+        )
+        live[0]['metadata'].pop('annotations')
+        live[0]['metadata']['managedFields'] = [
+            {'manager': 'argocd-application-controller', 'operation': 'Apply'}
+        ]
+        self.assertIn(
+            'target NetworkPolicy drift',
+            self.plugin._networkpolicy_preflight_error(live, definitions, pod, ledger),
+        )
+        live[0]['metadata']['managedFields'] = [
+            {'manager': 'ansible', 'operation': 'Apply'}
+        ]
+        self.assertIsNone(
+            self.plugin._networkpolicy_preflight_error(live, definitions, pod, ledger)
+        )
+
+    def test_portable_lock_requires_atomic_directory_owner_and_live_pid(self) -> None:
+        with TemporaryDirectory() as directory:
+            lock = Path(directory) / 'lock'
+            lock.mkdir(mode=0o700)
+            token = 'a' * 64
+            (lock / 'owner').write_text(f'{token}:{os.getpid()}\n')
+            (lock / 'owner').chmod(0o600)
+            with mock.patch.object(self.plugin, '_EXPECTED_LOCK_FILE', str(lock)), mock.patch.dict(
+                os.environ,
+                {
+                    'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE': str(lock),
+                    'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN': token,
+                    'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID': str(os.getpid()),
+                },
+                clear=False,
+            ):
+                self.assertTrue(self.plugin._cooperative_lock_valid())
+                (lock / 'owner').write_text(f'{token}:99999999\n')
+                self.assertFalse(self.plugin._cooperative_lock_valid())
+
+    def test_absent_target_uses_create_only_module_not_merge_update(self) -> None:
+        plugin = PLUGIN.read_text()
+        module = ROOT / 'ansible/library/shared_mongodb_networkpolicy_create.py'
+        module_text = module.read_text()
+        self.assertIn("module_name='shared_mongodb_networkpolicy_create'", plugin)
+        self.assertIn('CREATE_ONLY_CONFLICT', module_text)
+        self.assertIn('resource.create(', module_text)
+        self.assertNotIn("self._task.action = 'kubernetes.core.k8s'", plugin)
+        self.assertNotIn('state: absent', module_text)
+
     def test_selector_overlap_negative_cases_are_fail_closed(self) -> None:
         labels = {
             **self.plugin._MONGODB_POD_LABELS,
@@ -341,9 +409,19 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         self.assertIn('Enumerate every NetworkPolicy after the complete closure mutation', TASKS.read_text())
         self.assertIn('Reconcile the exact default-deny policy before any allow policy', TASKS.read_text())
         self.assertIn("lock_file='/tmp/cristexweb-shared-mongodb-networkpolicy.lock'", WRAPPER.read_text())
-        self.assertIn('/usr/bin/flock -n 9', WRAPPER.read_text())
-        self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE="$lock_file"', WRAPPER.read_text())
+        self.assertIn('/bin/mkdir "$lock_file"', WRAPPER.read_text())
+        self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE=$lock_file', WRAPPER.read_text())
+        self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID=$wrapper_pid', WRAPPER.read_text())
         self.assertIn('_cooperative_lock_valid', PLUGIN.read_text())
+        self.assertIn('_source_closure_valid', PLUGIN.read_text())
+        self.assertIn('_runtime_binding_valid', PLUGIN.read_text())
+        self.assertIn('managedFields', TASKS.read_text())
+        self.assertIn('difference([\'ansible\'])', TASKS.read_text())
+        self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_DEFAULTS_SHA256', TASKS.read_text())
+        self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CONTROLLER_SHA256', TASKS.read_text())
+        self.assertIn('shared_mongodb_networkpolicy_create.py', WRAPPER.read_text())
+        self.assertIn('resource.create(', (ROOT / 'ansible/library/shared_mongodb_networkpolicy_create.py').read_text())
+        self.assertNotIn('/usr/bin/flock', WRAPPER.read_text())
         self.assertIn("binding.get('pod_owner_uid') == binding.get('statefulset_uid')", PLUGIN.read_text())
         self.assertIn('k8s-app=kube-dns', TASKS.read_text())
         self.assertIn('root:k3s-admin', TASKS.read_text())

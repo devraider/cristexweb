@@ -52,13 +52,17 @@ separate, explicit mutation gate: it requires the operator to set
 `CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED=v1`, runs without
 `--check`, and still uses the same pinned repository controller, clean
 allowlisted environment, one host, exact attestation, source hashes, action
-plugin, and pre-state UID/resourceVersion ledger. The wrapper also acquires a
-non-blocking cooperative lock (`flock`) for the complete run, so authorized closure
-writers cannot interleave their preflight and mutations; a held lock fails
-closed. Existing targets are reconciled through one JSON-patch request whose
-`test` operations condition UID, resourceVersion, labels, and spec at mutation
-time. The deny policy is written first, followed by a fresh inventory/ledger
-refresh and the allow policy. Apply then performs a fresh namespace-wide
+plugin, and pre-state UID/resourceVersion ledger. The wrapper also acquires a portable, atomically-created cooperative lock
+directory (`mkdir`) for the complete run. Its mode-0600 owner record binds the
+attestation token to the live wrapper PID, so a held or stale lock fails closed;
+this works on the supported Linux and macOS controller paths without requiring a
+platform-specific `flock` utility. Existing targets are reconciled through one
+JSON-patch request whose `test` operations condition UID, resourceVersion,
+labels, and spec at mutation time. Absent targets use a focused create-only API
+module: a concurrent creator returns a conflict and is never merged or updated;
+the server-assigned UID/resourceVersion is required in the create result and is
+bound again in the post-create ledger. The deny policy is written first, followed
+by a fresh inventory/ledger refresh and the allow policy. Apply then performs a fresh namespace-wide
 inventory and exact target readback, preserving existing UIDs and rejecting
 foreign overlapping selectors. Direct Ansible invocation, task selection, and
 an apply without that approval are refused. Neither mode reads Secret values or
@@ -73,6 +77,10 @@ CoreDNS selected by `k8s-app=kube-dns`. It enumerates every existing
 match the live Mongo labels, including empty and expression selectors. It refuses
 foreign, terminating, and replacement target drift and all task-selection controls.
 The action plugin requires the exact mode, approval, source, and pre-state ledger.
+Before any mutation it rejects target annotations and foreign managed-field
+owners, and the wrapper/action pair bind fixed hashes for the wrapper, action,
+role defaults/tasks, playbook, controller, inventory, and Ansible configuration.
+Role path/hash overrides and inherited controller/toolchain overrides are refused.
 
 The wrapper never touches the legacy five-object standalone MongoDB closure:
 `ansible/bin/bootstrap-mongodb`, `mongodb_bootstrap`, and

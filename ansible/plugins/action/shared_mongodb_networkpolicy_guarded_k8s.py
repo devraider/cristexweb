@@ -31,12 +31,29 @@ _EXPECTED_ARGUMENT_KEYS = {
     'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout',
     'prestate_binding', 'validation_only',
 }
-_EXPECTED_TASK_SOURCES = {
-    '/Users/paul/Projects/cristexweb/ansible/roles/shared_mongodb_networkpolicy_bootstrap/tasks/main.yml',
-    '/home/paul/projects/cristexweb/ansible/roles/shared_mongodb_networkpolicy_bootstrap/tasks/main.yml',
-}
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+_TASK_SOURCE = _REPOSITORY_ROOT / 'ansible/roles/shared_mongodb_networkpolicy_bootstrap/tasks/main.yml'
+_DEFAULTS_SOURCE = _REPOSITORY_ROOT / 'ansible/roles/shared_mongodb_networkpolicy_bootstrap/defaults/main.yml'
+_PLAYBOOK_SOURCE = _REPOSITORY_ROOT / 'ansible/playbooks/bootstrap_shared_mongodb_networkpolicy.yml'
+_WRAPPER_SOURCE = _REPOSITORY_ROOT / 'ansible/bin/bootstrap-shared-mongodb-networkpolicy'
+_ACTION_SOURCE = _REPOSITORY_ROOT / 'ansible/plugins/action/shared_mongodb_networkpolicy_guarded_k8s.py'
+_CREATE_MODULE_SOURCE = _REPOSITORY_ROOT / 'ansible/library/shared_mongodb_networkpolicy_create.py'
+_INVENTORY_SOURCE = _REPOSITORY_ROOT / 'ansible/.ansible/inventory.local.yml'
+_ANSIBLE_CONFIG_SOURCE = _REPOSITORY_ROOT / 'ansible/ansible.cfg'
+_CONTROLLER_SOURCE = _REPOSITORY_ROOT / '.venv/bin/ansible-playbook'
+_EXPECTED_TASK_SOURCES = {str(_TASK_SOURCE)}
 _EXPECTED_IDENTITY_SET_SHA256 = '11352b9439d10f2ffdfad385ee31f524885fead8d74d38937101614f742ab575'
 _EXPECTED_LOCK_FILE = '/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
+_EXPECTED_TASK_SHA256 = '96e67586550ee4850f1275988265d5f4ea507566a7da417fb83f26ff5d5ed0cb'
+_EXPECTED_DEFAULTS_SHA256 = '2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
+_EXPECTED_PLAYBOOK_SHA256 = '7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
+_EXPECTED_ACTION_CANONICAL_SHA256 = '61321b0be7c73db6400e405daf6ffe3859f3957593398c0453fbc355af3a515a'
+_EXPECTED_CREATE_MODULE_SHA256 = '7fed1d8a3655dad7dad7fdab1e204d9c4907abd144b2c1f2ce0e5caee88e177f'
+_EXPECTED_INVENTORY_SHA256 = '652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
+_EXPECTED_ANSIBLE_CONFIG_SHA256 = '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+_EXPECTED_CONTROLLER_SHA256 = 'baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
+_EXPECTED_CONTROLLER_MODE = 0o775
+_ALLOWED_MANAGED_FIELD_MANAGERS = {'ansible'}
 _MONGODB_POD_LABELS = {
     'app': 'shared-mongodb-svc',
     'app.kubernetes.io/part-of': 'shared-databases',
@@ -97,6 +114,22 @@ def _policy_identity(policy: dict[str, Any]) -> tuple[str, str, str, str]:
     )
 
 
+def _managed_fields_are_owned(metadata: dict[str, Any]) -> bool:
+    fields = metadata.get('managedFields', [])
+    if fields in (None, []):
+        return fields in (None, [])
+    if not isinstance(fields, list):
+        return False
+    return all(
+        isinstance(entry, dict)
+        and isinstance(entry.get('manager'), str)
+        and entry.get('manager') in _ALLOWED_MANAGED_FIELD_MANAGERS
+        and entry.get('operation') in {'Apply', 'Update'}
+        and entry.get('subresource') in (None, '')
+        for entry in fields
+    )
+
+
 def _target_policy_matches_source(current: dict[str, Any], source: dict[str, Any]) -> bool:
     """Require a live, nonterminating object rather than a replacement candidate."""
     current_metadata = current.get('metadata') or {}
@@ -123,6 +156,8 @@ def _target_policy_matches_source(current: dict[str, Any], source: dict[str, Any
         and isinstance(current_metadata.get('resourceVersion'), str)
         and bool(current_metadata.get('resourceVersion'))
         and current_metadata.get('labels', {}) == source_metadata.get('labels', {})
+        and (current_metadata.get('annotations') or {}) == (source_metadata.get('annotations') or {})
+        and _managed_fields_are_owned(current_metadata)
         and current.get('spec') == source.get('spec')
     )
 
@@ -138,13 +173,130 @@ def _as_bool(value: Any) -> bool:
     return value is True or (isinstance(value, str) and value.lower() == 'true')
 
 
-def _cooperative_lock_valid() -> bool:
-    """Require the wrapper's inherited lock descriptor, not just its marker."""
-    if os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE') != _EXPECTED_LOCK_FILE:
+def _sha256(path: Path) -> str:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except (OSError, ValueError):
+        return ''
+
+
+def _canonical_file_hash(path: Path, symbol: str) -> str:
+    try:
+        source = path.read_text(encoding='utf-8')
+        source, count = re.subn(
+            rf'(?m)^({re.escape(symbol)}\s*=\s*[\"\'])([0-9a-f]{{64}})([\"\']\s*)$',
+            rf'\g<1>{"0" * 64}\g<3>',
+            source,
+        )
+        return hashlib.sha256(source.encode()).hexdigest() if count == 1 else ''
+    except (OSError, UnicodeError, ValueError):
+        return ''
+
+
+def _regular_file(path: Path, mode: int, owner: int | None = None) -> bool:
+    try:
+        state = path.stat(follow_symlinks=False)
+        return (
+            stat.S_ISREG(state.st_mode)
+            and not path.is_symlink()
+            and stat.S_IMODE(state.st_mode) == mode
+            and (owner is None or state.st_uid == owner)
+        )
+    except OSError:
+        return False
+
+
+def _source_closure_valid() -> bool:
+    expected = (
+        (_TASK_SOURCE, _EXPECTED_TASK_SHA256, 0o644),
+        (_DEFAULTS_SOURCE, _EXPECTED_DEFAULTS_SHA256, 0o644),
+        (_PLAYBOOK_SOURCE, _EXPECTED_PLAYBOOK_SHA256, 0o644),
+        (_INVENTORY_SOURCE, _EXPECTED_INVENTORY_SHA256, 0o600),
+        (_ANSIBLE_CONFIG_SOURCE, _EXPECTED_ANSIBLE_CONFIG_SHA256, 0o644),
+    )
+    for path, digest, mode in expected:
+        if not _regular_file(path, mode, os.getuid()) or _sha256(path) != digest:
+            return False
+    if not _regular_file(_WRAPPER_SOURCE, 0o755, os.getuid()):
+        return False
+    wrapper_canonical = _canonical_file_hash(_WRAPPER_SOURCE, 'wrapper_canonical_sha256_expected')
+    if not wrapper_canonical or os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_CANONICAL_SHA256') != wrapper_canonical:
+        return False
+    if not _regular_file(_ACTION_SOURCE, 0o644, os.getuid()):
+        return False
+    if _canonical_file_hash(_ACTION_SOURCE, '_EXPECTED_ACTION_CANONICAL_SHA256') != _EXPECTED_ACTION_CANONICAL_SHA256:
+        return False
+    if not _regular_file(_CREATE_MODULE_SOURCE, 0o755, os.getuid()):
+        return False
+    if _sha256(_CREATE_MODULE_SOURCE) != _EXPECTED_CREATE_MODULE_SHA256:
         return False
     try:
-        return os.path.realpath('/proc/self/fd/9') == _EXPECTED_LOCK_FILE
+        state = _CONTROLLER_SOURCE.stat(follow_symlinks=False)
+        return (
+            stat.S_ISREG(state.st_mode)
+            and not _CONTROLLER_SOURCE.is_symlink()
+            and stat.S_IMODE(state.st_mode) == _EXPECTED_CONTROLLER_MODE
+            and state.st_uid == os.getuid()
+            and _sha256(_CONTROLLER_SOURCE) == _EXPECTED_CONTROLLER_SHA256
+        )
     except OSError:
+        return False
+
+
+def _runtime_binding_valid() -> bool:
+    expected = {
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TASK_SHA256': _EXPECTED_TASK_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_DEFAULTS_SHA256': _EXPECTED_DEFAULTS_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PLAYBOOK_SHA256': _EXPECTED_PLAYBOOK_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_CANONICAL_SHA256': _canonical_file_hash(_WRAPPER_SOURCE, 'wrapper_canonical_sha256_expected'),
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ACTION_CANONICAL_SHA256': _EXPECTED_ACTION_CANONICAL_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CREATE_MODULE_SHA256': _EXPECTED_CREATE_MODULE_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_INVENTORY_SHA256': _EXPECTED_INVENTORY_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ANSIBLE_CONFIG_SHA256': _EXPECTED_ANSIBLE_CONFIG_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CONTROLLER_SHA256': _EXPECTED_CONTROLLER_SHA256,
+    }
+    expected_mode = 'check' if bool(context.CLIARGS.get('check')) else 'apply'
+    return (
+        os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_MODE') == expected_mode
+        and all(os.environ.get(name) == value for name, value in expected.items())
+    )
+
+
+def _cooperative_lock_valid() -> bool:
+    """Require an atomically-created, live wrapper-owned lock directory."""
+    if os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE') != _EXPECTED_LOCK_FILE:
+        return False
+    token = os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN', '')
+    pid_text = os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID', '')
+    try:
+        pid = int(pid_text)
+        lock = Path(_EXPECTED_LOCK_FILE)
+        owner = lock / 'owner'
+        lock_state = lock.stat(follow_symlinks=False)
+        owner_state = owner.stat(follow_symlinks=False)
+        owner_text = owner.read_text(encoding='utf-8').strip()
+        return (
+            stat.S_ISDIR(lock_state.st_mode)
+            and not lock.is_symlink()
+            and stat.S_IMODE(lock_state.st_mode) == 0o700
+            and lock_state.st_uid == os.getuid()
+            and stat.S_ISREG(owner_state.st_mode)
+            and not owner.is_symlink()
+            and stat.S_IMODE(owner_state.st_mode) == 0o600
+            and owner_state.st_uid == os.getuid()
+            and owner_text == f'{token}:{pid}'
+            and re.fullmatch(r'[0-9a-f]{64}', token) is not None
+            and pid > 1
+        ) and _pid_alive(pid)
+    except (OSError, ValueError, UnicodeError):
+        return False
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except (OSError, ValueError):
         return False
 
 
@@ -382,6 +534,8 @@ class ActionModule(KubernetesActionModule):
         if (
             not valid_attestation
             or not _cooperative_lock_valid()
+            or not _source_closure_valid()
+            or not _runtime_binding_valid()
             or not valid_binding
             or not policy_inventory_present
             or policy_preflight_error is not None
@@ -493,10 +647,54 @@ class ActionModule(KubernetesActionModule):
                 }
             finally:
                 self._task.action, self._task.args = original_action, original_args
-        original_action = self._task.action
-        self._task.action = 'kubernetes.core.k8s'
-        try:
-            result = super().run(tmp=tmp, task_vars=task_vars)
-            return {**result, 'identity': '|'.join(str(value) for value in identity), 'cas': False}
-        finally:
-            self._task.action = original_action
+        # An absent target is create-only.  The focused module performs an
+        # atomic server-side POST after its GET and fails on a concurrent 409;
+        # it must never fall back to a merge/update operation.
+        if context.CLIARGS.get('check'):
+            return {
+                'changed': True,
+                'identity': '|'.join(str(value) for value in identity),
+                'create': True,
+                'cas': True,
+            }
+        result = self._execute_module(
+            module_name='shared_mongodb_networkpolicy_create',
+            module_args={
+                'api_version': definition['apiVersion'],
+                'kind': definition['kind'],
+                'namespace': metadata['namespace'],
+                'name': metadata['name'],
+                'kubeconfig': '/etc/rancher/k3s/k3s.yaml',
+                'definition': definition,
+            },
+            task_vars=task_vars,
+        )
+        if result.get('failed') or result.get('method') != 'create':
+            return {
+                **result,
+                'changed': False,
+                'identity': '|'.join(str(value) for value in identity),
+                'create': True,
+                'cas': True,
+            }
+        created = result.get('resource') or result.get('result') or {}
+        created_metadata = created.get('metadata', {}) if isinstance(created, dict) else {}
+        if (
+            created_metadata.get('name') != metadata.get('name')
+            or created_metadata.get('namespace') != metadata.get('namespace')
+            or not created_metadata.get('uid')
+            or not created_metadata.get('resourceVersion')
+        ):
+            return {
+                'changed': False,
+                'failed': True,
+                'msg': 'CREATE_ONLY_GUARD: create response did not bind UID/resourceVersion',
+            }
+        return {
+            **result,
+            'identity': '|'.join(str(value) for value in identity),
+            'create': True,
+            'cas': True,
+            'created_uid': created_metadata['uid'],
+            'created_resource_version': created_metadata['resourceVersion'],
+        }
