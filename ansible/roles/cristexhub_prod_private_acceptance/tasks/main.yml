@@ -1,0 +1,402 @@
+---
+- name: Reject externally supplied private PROD acceptance internals
+  ansible.builtin.assert:
+    that:
+      - >-
+        (vars.keys() |
+        select('match', '^cristexhub_prod_private_acceptance_internal_') |
+        list | length) == 0
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied private PROD
+      acceptance state.
+  changed_when: false
+
+- name: Require the exact check-only private PROD acceptance invocation
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_private_acceptance_approved | bool
+      - ansible_check_mode
+      - ansible_diff_mode
+      - (ansible_limit | default('') | string) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - inventory_hostname == 'crtxweb'
+      - cristexhub_prod_private_acceptance_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - cristexhub_prod_private_acceptance_namespace == 'cristexhub-prod'
+      - cristexhub_prod_private_acceptance_argocd_namespace == 'argocd'
+      - cristexhub_prod_private_acceptance_application == 'cristexhub-prod'
+      - cristexhub_prod_private_acceptance_appproject == 'cristexhub-prod'
+      - cristexhub_prod_private_acceptance_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
+      - cristexhub_prod_private_acceptance_path == 'infra/kubernetes/cristexhub-prod'
+      - cristexhub_prod_private_acceptance_revision == '751885a42798d282e168131db147f13694a0a621'
+      - cristexhub_prod_private_acceptance_server == 'https://kubernetes.default.svc'
+      - cristexhub_prod_private_acceptance_deployments == ['backend', 'celery-worker', 'frontend', 'oauth2-proxy', 'redis']
+      - cristexhub_prod_private_acceptance_expected_project_kinds | length == 5
+    fail_msg: >-
+      The private PROD acceptance lane is check-only, one-host, direct-server,
+      and bound to the exact pinned application and five-workload closure.
+  changed_when: false
+
+- name: Require the canonical private PROD acceptance wrapper
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ATTESTATION_FILE') | length > 0
+      - cristexhub_prod_private_acceptance_controller_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - cristexhub_prod_private_acceptance_controller_user == lookup('ansible.builtin.env', 'USER')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TASK_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_DEFAULTS_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PLAYBOOK_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_INVENTORY_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ANSIBLE_CONFIG_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256') is match('^[0-9a-f]{64}$')
+    fail_msg: >-
+      ENTRYPOINT_GUARD: use only the canonical non-passthrough private PROD
+      acceptance wrapper.
+  changed_when: false
+
+- name: Inspect the ephemeral private PROD acceptance attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: cristexhub_prod_private_acceptance_internal_attestation_state
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the private single-run acceptance attestation
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_private_acceptance_internal_attestation_state.stat.isreg | default(false)
+      - not (cristexhub_prod_private_acceptance_internal_attestation_state.stat.islnk | default(false))
+      - cristexhub_prod_private_acceptance_internal_attestation_state.stat.pw_name == cristexhub_prod_private_acceptance_controller_user
+      - cristexhub_prod_private_acceptance_internal_attestation_state.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TOKEN') ~ ':entrypoint'
+    fail_msg: >-
+      ENTRYPOINT_GUARD: refusing a missing, reusable, foreign-owned, symlinked,
+      or invalid private PROD acceptance attestation.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect the exact private PROD acceptance source closure
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop:
+    - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/roles/cristexhub_prod_private_acceptance/tasks/main.yml"
+    - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/roles/cristexhub_prod_private_acceptance/defaults/main.yml"
+    - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/playbooks/check_cristexhub_prod_private_acceptance.yml"
+  register: cristexhub_prod_private_acceptance_internal_source_states
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require regular private PROD acceptance source leaves
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == '0644'
+      - item.item.startswith(cristexhub_prod_private_acceptance_repository_root ~ '/')
+      - item.stat.checksum | length == 64
+    fail_msg: Refusing missing, symlinked, or unsafe private PROD acceptance source.
+  loop: "{{ cristexhub_prod_private_acceptance_internal_source_states.results }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Capture host service health without mutation
+  ansible.builtin.service_facts:
+  register: cristexhub_prod_private_acceptance_internal_services
+  check_mode: false
+  changed_when: false
+
+- name: Require k3s and Tailscale health
+  ansible.builtin.assert:
+    that:
+      - >-
+        (cristexhub_prod_private_acceptance_internal_services.ansible_facts.services |
+        default({})).get('k3s.service', {}).get('state', '') == 'running'
+      - >-
+        (cristexhub_prod_private_acceptance_internal_services.ansible_facts.services |
+        default({})).get('tailscaled.service', {}).get('state', '') == 'running'
+    fail_msg: Refusing private PROD acceptance while host service health is not proven.
+  changed_when: false
+
+- name: Query the existing PROD Namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ cristexhub_prod_private_acceptance_namespace }}"
+    kubeconfig: "{{ cristexhub_prod_private_acceptance_kubeconfig }}"
+  register: cristexhub_prod_private_acceptance_internal_namespace
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require the established PROD Namespace
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_private_acceptance_internal_namespace.resources | length == 1
+      - cristexhub_prod_private_acceptance_internal_namespace.resources[0].status.phase == 'Active'
+      - cristexhub_prod_private_acceptance_internal_namespace.resources[0].metadata.name == 'cristexhub-prod'
+      - cristexhub_prod_private_acceptance_internal_namespace.resources[0].metadata.labels.get('kubernetes.io/metadata.name') == 'cristexhub-prod'
+    fail_msg: Refusing private PROD acceptance without the exact Active Namespace.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact PROD Argo Application
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    namespace: "{{ cristexhub_prod_private_acceptance_argocd_namespace }}"
+    name: "{{ cristexhub_prod_private_acceptance_application }}"
+    kubeconfig: "{{ cristexhub_prod_private_acceptance_kubeconfig }}"
+  register: cristexhub_prod_private_acceptance_internal_application
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require direct-server pinned PROD Argo health
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_private_acceptance_internal_application.resources | length == 1
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].metadata.name == 'cristexhub-prod'
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.destination.server == cristexhub_prod_private_acceptance_server
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.destination.name | default('') == ''
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.destination.namespace == 'cristexhub-prod'
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.source.repoURL == cristexhub_prod_private_acceptance_repository
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.source.path == cristexhub_prod_private_acceptance_path
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.source.targetRevision == cristexhub_prod_private_acceptance_revision
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.syncPolicy.automated.prune | bool == false
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.syncPolicy.automated.selfHeal | bool == true
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.syncPolicy.automated.allowEmpty | bool == false
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].status.sync.status == 'Synced'
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].status.health.status == 'Healthy'
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].status.sync.revision == cristexhub_prod_private_acceptance_revision
+      - >-
+        cristexhub_prod_private_acceptance_internal_application.resources[0].status.sync.comparedTo.destination.server ==
+        cristexhub_prod_private_acceptance_server
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].status.sync.comparedTo.destination.namespace == 'cristexhub-prod'
+      - >-
+        cristexhub_prod_private_acceptance_internal_application.resources[0].status.sync.comparedTo.source.targetRevision ==
+        cristexhub_prod_private_acceptance_revision
+    fail_msg: Refusing stale, aliased, drifted, unpinned, or unhealthy PROD Argo state.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact PROD AppProject
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: AppProject
+    namespace: "{{ cristexhub_prod_private_acceptance_argocd_namespace }}"
+    name: "{{ cristexhub_prod_private_acceptance_appproject }}"
+    kubeconfig: "{{ cristexhub_prod_private_acceptance_kubeconfig }}"
+  register: cristexhub_prod_private_acceptance_internal_appproject
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require the exact deny-by-default PROD AppProject boundary
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_private_acceptance_internal_appproject.resources | length == 1
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].metadata.name == 'cristexhub-prod'
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.sourceRepos == [cristexhub_prod_private_acceptance_repository]
+      - >-
+        cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.destinations ==
+        [{'server': cristexhub_prod_private_acceptance_server, 'namespace': 'cristexhub-prod'}]
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.clusterResourceWhitelist == []
+      - >-
+        cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.namespaceResourceWhitelist ==
+        cristexhub_prod_private_acceptance_expected_project_kinds
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.orphanedResources.warn | bool == true
+    fail_msg: Refusing a widened, aliased, or drifted PROD AppProject.
+  changed_when: false
+  no_log: true
+
+- name: Query every exact PROD Deployment
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: "{{ cristexhub_prod_private_acceptance_namespace }}"
+    name: "{{ item }}"
+    kubeconfig: "{{ cristexhub_prod_private_acceptance_kubeconfig }}"
+  loop: "{{ cristexhub_prod_private_acceptance_deployments }}"
+  register: cristexhub_prod_private_acceptance_internal_deployments
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require exactly one Ready replica for every PROD Deployment
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name in cristexhub_prod_private_acceptance_deployments
+      - item.resources[0].metadata.namespace == 'cristexhub-prod'
+      - item.resources[0].metadata.deletionTimestamp | default('') == ''
+      - item.resources[0].spec.replicas | int == 1
+      - item.resources[0].status.replicas | int == 1
+      - item.resources[0].status.updatedReplicas | int == 1
+      - item.resources[0].status.availableReplicas | int == 1
+      - item.resources[0].status.readyReplicas | int == 1
+      - item.resources[0].status.observedGeneration | int == item.resources[0].metadata.generation | int
+    fail_msg: Refusing private PROD acceptance without five exact Ready Deployments.
+  loop: "{{ cristexhub_prod_private_acceptance_internal_deployments.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Query one Pod for each exact PROD Deployment label
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ cristexhub_prod_private_acceptance_namespace }}"
+    label_selectors:
+      - "{{ cristexhub_prod_private_acceptance_workload_label }}={{ item }}"
+  loop: "{{ cristexhub_prod_private_acceptance_deployments }}"
+  register: cristexhub_prod_private_acceptance_internal_pods
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require one Running Ready non-host-network Pod per PROD Deployment
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.labels[cristexhub_prod_private_acceptance_workload_label] == item.item
+      - item.resources[0].metadata.labels[cristexhub_prod_private_acceptance_workload_part_label] == cristexhub_prod_private_acceptance_workload_part_value
+      - item.resources[0].metadata.deletionTimestamp | default('') == ''
+      - item.resources[0].status.phase == 'Running'
+      - item.resources[0].spec.hostNetwork | default(false) | bool == false
+      - item.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length == 1
+    fail_msg: Refusing private PROD acceptance with a missing, terminating, host-network, or unready workload Pod.
+  loop: "{{ cristexhub_prod_private_acceptance_internal_pods.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Query the existing PROD NetworkPolicy inventory
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    namespace: "{{ cristexhub_prod_private_acceptance_namespace }}"
+    kubeconfig: "{{ cristexhub_prod_private_acceptance_kubeconfig }}"
+  register: cristexhub_prod_private_acceptance_internal_networkpolicies
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require non-empty nonterminating PROD NetworkPolicy inventory
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_private_acceptance_internal_networkpolicies.resources | length > 0
+      - >-
+        (cristexhub_prod_private_acceptance_internal_networkpolicies.resources |
+        selectattr('metadata.namespace', 'equalto', 'cristexhub-prod') | list | length) ==
+        cristexhub_prod_private_acceptance_internal_networkpolicies.resources | length
+      - >-
+        (cristexhub_prod_private_acceptance_internal_networkpolicies.resources |
+        selectattr('metadata.deletionTimestamp', 'defined') | list | length) == 0
+    fail_msg: Refusing private PROD acceptance without a stable namespace policy inventory.
+  changed_when: false
+  no_log: true
+
+- name: Probe the private PROD application endpoint without reading response content
+  ansible.builtin.uri:
+    url: https://hub.cristex-soft.com/
+    method: GET
+    status_code: [200, 302]
+    timeout: 30
+    validate_certs: true
+    follow_redirects: none
+    return_content: false
+  delegate_to: localhost
+  become: false
+  register: cristexhub_prod_private_acceptance_internal_route
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require private PROD endpoint response
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_private_acceptance_internal_route.status in [200, 302]
+    fail_msg: The private PROD application endpoint did not return an expected 200/302 response over TLS.
+  changed_when: false
+  no_log: true
+
+- name: Probe the reviewed shared-realm OIDC discovery endpoint
+  ansible.builtin.uri:
+    url: https://auth.cristex-soft.com/realms/cristexhub/.well-known/openid-configuration
+    method: GET
+    headers:
+      Accept: application/json
+    status_code: [200]
+    timeout: 30
+    validate_certs: true
+    return_content: true
+  delegate_to: localhost
+  become: false
+  register: cristexhub_prod_private_acceptance_internal_oidc
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Parse OIDC discovery without output
+  ansible.builtin.set_fact:
+    cristexhub_prod_private_acceptance_internal_oidc_payload: "{{ cristexhub_prod_private_acceptance_internal_oidc.content | from_json }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the exact reviewed OIDC issuer and endpoints
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_private_acceptance_internal_oidc.status == 200
+      - cristexhub_prod_private_acceptance_internal_oidc_payload.issuer == 'https://auth.cristex-soft.com/realms/cristexhub'
+      - >-
+        cristexhub_prod_private_acceptance_internal_oidc_payload.authorization_endpoint ==
+        'https://auth.cristex-soft.com/realms/cristexhub/protocol/openid-connect/auth'
+      - >-
+        cristexhub_prod_private_acceptance_internal_oidc_payload.token_endpoint ==
+        'https://auth.cristex-soft.com/realms/cristexhub/protocol/openid-connect/token'
+      - cristexhub_prod_private_acceptance_internal_oidc_payload.jwks_uri == 'https://auth.cristex-soft.com/realms/cristexhub/protocol/openid-connect/certs'
+    fail_msg: Refusing private PROD acceptance against an unexpected OIDC issuer or endpoint set.
+  changed_when: false
+  no_log: true
+
+- name: Emit the sanitized private PROD acceptance preflight receipt
+  ansible.builtin.debug:
+    msg:
+      receipt: cristexhub-prod-private-acceptance
+      receipt_format: sanitized-v1
+      result: preflight-pass-not-final-acceptance
+      namespace: cristexhub-prod
+      application: cristexhub-prod
+      revision: "{{ cristexhub_prod_private_acceptance_revision }}"
+      deployment_count: 5
+      ready_pod_count: 5
+      networkpolicy_inventory_present: true
+      route_status: "{{ cristexhub_prod_private_acceptance_internal_route.status }}"
+      oidc_issuer: verified
+      values_output: false
+      credentials_rotation: separate-gate
+      networkpolicy_enforcement: separate-probe
+      backup_restore: separate-gate
+      public_route: not-tested-and-not-authorized
+  changed_when: false

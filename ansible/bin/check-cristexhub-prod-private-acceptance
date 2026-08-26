@@ -1,0 +1,112 @@
+#!/bin/dash
+set -eu
+
+usage='usage: ansible/bin/check-cristexhub-prod-private-acceptance check'
+if [ "$#" -ne 1 ] || [ "$1" != check ]; then
+  printf '%s\n' "$usage" >&2
+  printf '%s\n' 'refusing mutation, passthrough arguments, or task-selection controls' >&2
+  exit 64
+fi
+case $- in
+  *x*|*v*) printf '%s\n' 'refusing traced shell execution' >&2; exit 65 ;;
+esac
+script_path=$0
+[ ! -L "$script_path" ] || {
+  printf '%s\n' 'refusing a symlinked private PROD acceptance entrypoint' >&2
+  exit 66
+}
+script_directory="$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && /bin/pwd -P)"
+repository_root="$(CDPATH= cd -- "$script_directory/../.." && /bin/pwd -P)"
+[ "$repository_root" = /home/paul/projects/cristexweb ] || {
+  printf '%s\n' 'refusing a repository outside the pinned controller path' >&2
+  exit 78
+}
+script_path="$repository_root/ansible/bin/check-cristexhub-prod-private-acceptance"
+controller="$repository_root/.venv/bin/ansible-playbook"
+python_tool=/usr/bin/python3
+inventory="$repository_root/ansible/.ansible/inventory.local.yml"
+ansible_config="$repository_root/ansible/ansible.cfg"
+task_source="$repository_root/ansible/roles/cristexhub_prod_private_acceptance/tasks/main.yml"
+defaults_source="$repository_root/ansible/roles/cristexhub_prod_private_acceptance/defaults/main.yml"
+playbook_source="$repository_root/ansible/playbooks/check_cristexhub_prod_private_acceptance.yml"
+sha_file() { /usr/bin/sha256sum -- "$1" | /usr/bin/awk '{print $1}'; }
+canonical_sha256() {
+  /usr/bin/python3 - "$1" <<'PY'
+import hashlib, re, sys
+source = open(sys.argv[1], encoding='utf-8').read()
+source, count = re.subn(
+    r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$",
+    "wrapper_canonical_sha256_expected='" + ('0' * 64) + "'",
+    source,
+)
+if count != 1:
+    raise SystemExit(69)
+print(hashlib.sha256(source.encode()).hexdigest())
+PY
+}
+wrapper_canonical_sha256_expected='ce9b194b937eb27e6d30bdd21ca24ce84b25600fd0ea22c618d9c17ba7419e7f'
+[ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
+for source in "$inventory" "$ansible_config" "$task_source" "$defaults_source" "$playbook_source"; do
+  [ -f "$source" ] && [ ! -L "$source" ] || exit 69
+done
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$inventory")" = 'paul:paul:600' ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$ansible_config")" = 'paul:paul:644' ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$task_source")" = 'paul:paul:644' ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$defaults_source")" = 'paul:paul:644' ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$playbook_source")" = 'paul:paul:644' ] || exit 69
+[ "$(canonical_sha256 "$script_path")" = "$wrapper_canonical_sha256_expected" ] || {
+  printf '%s\n' 'refusing private PROD acceptance wrapper source drift' >&2
+  exit 69
+}
+controller_user=$(/usr/bin/id -un)
+[ "$controller_user" = paul ] || exit 78
+controller_home="$(CDPATH= cd -- "$repository_root/../.." && /bin/pwd -P)"
+cd -- "$repository_root/ansible"
+wrapper_sha256="$(sha_file "$script_path")"
+controller_sha256="$(sha_file "$controller")"
+python_sha256="$(sha_file "$python_tool")"
+inventory_sha256="$(sha_file "$inventory")"
+ansible_config_sha256="$(sha_file "$ansible_config")"
+task_sha256="$(sha_file "$task_source")"
+defaults_sha256="$(sha_file "$defaults_source")"
+playbook_sha256="$(sha_file "$playbook_source")"
+[ "$controller_sha256" = baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd ] || exit 69
+[ "$python_sha256" = 17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1 ] || exit 69
+[ "$inventory_sha256" = 652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0 ] || exit 69
+[ "$ansible_config_sha256" = 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9 ] || exit 69
+umask 077
+attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-cristexhub-prod-private-acceptance.XXXXXX")"
+attestation_token="$(/usr/bin/openssl rand -hex 32)"
+/bin/chmod 0600 "$attestation_file"
+printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+cleanup() { /bin/rm -f -- "$attestation_file"; }
+trap cleanup EXIT HUP INT TERM
+set -- \
+  "$controller" \
+  -i "$inventory" \
+  playbooks/check_cristexhub_prod_private_acceptance.yml \
+  --check \
+  --diff \
+  --limit crtxweb \
+  --extra-vars '{"cristexhub_prod_private_acceptance_approved":true}'
+/usr/bin/env -i \
+  HOME="$controller_home" \
+  USER="$controller_user" \
+  LOGNAME="$controller_user" \
+  PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+  LC_ALL=C.UTF-8 \
+  ANSIBLE_CONFIG="$ansible_config" \
+  ANSIBLE_HOST_PATTERN_MISMATCH=error \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ENTRYPOINT=v1 \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TOKEN="$attestation_token" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ATTESTATION_FILE="$attestation_file" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_SHA256="$wrapper_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TASK_SHA256="$task_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_DEFAULTS_SHA256="$defaults_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PLAYBOOK_SHA256="$playbook_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_INVENTORY_SHA256="$inventory_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ANSIBLE_CONFIG_SHA256="$ansible_config_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER_SHA256="$controller_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256="$python_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+  "$@"

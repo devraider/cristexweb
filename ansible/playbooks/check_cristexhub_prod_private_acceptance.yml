@@ -1,0 +1,10 @@
+---
+- name: Check private CristexHub PROD acceptance prerequisites
+  hosts: crtxweb
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+
+  roles:
+    - role: cristexhub_prod_private_acceptance

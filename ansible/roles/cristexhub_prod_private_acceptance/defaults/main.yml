@@ -1,0 +1,29 @@
+---
+# Check-only private PROD acceptance contract. It never writes Kubernetes objects.
+cristexhub_prod_private_acceptance_approved: false
+cristexhub_prod_private_acceptance_kubeconfig: /etc/rancher/k3s/k3s.yaml
+cristexhub_prod_private_acceptance_namespace: cristexhub-prod
+cristexhub_prod_private_acceptance_argocd_namespace: argocd
+cristexhub_prod_private_acceptance_application: cristexhub-prod
+cristexhub_prod_private_acceptance_appproject: cristexhub-prod
+cristexhub_prod_private_acceptance_repository: ssh://git@ssh.github.com:443/devraider/cristexhub.git
+cristexhub_prod_private_acceptance_path: infra/kubernetes/cristexhub-prod
+cristexhub_prod_private_acceptance_revision: 751885a42798d282e168131db147f13694a0a621
+cristexhub_prod_private_acceptance_server: https://kubernetes.default.svc
+cristexhub_prod_private_acceptance_deployments:
+  - backend
+  - celery-worker
+  - frontend
+  - oauth2-proxy
+  - redis
+cristexhub_prod_private_acceptance_workload_label: app.kubernetes.io/name
+cristexhub_prod_private_acceptance_workload_part_label: app.kubernetes.io/part-of
+cristexhub_prod_private_acceptance_workload_part_value: cristexhub
+cristexhub_prod_private_acceptance_expected_project_kinds:
+  - {group: '', kind: ConfigMap}
+  - {group: '', kind: Service}
+  - {group: apps, kind: Deployment}
+  - {group: networking.k8s.io, kind: NetworkPolicy}
+  - {group: networking.k8s.io, kind: Ingress}
+cristexhub_prod_private_acceptance_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+cristexhub_prod_private_acceptance_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
