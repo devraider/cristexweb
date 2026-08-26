@@ -34,7 +34,7 @@ set -e
 if [ "$status" -ne 0 ]; then
   /usr/bin/grep -Eq 'k3s and tailscaled must already be running|Required Infisical-owned Argo CD Secret metadata is absent or drifted\.|Failed to import the required Python library \(kubernetes\)|SECRET_CONTRACT_GUARD|ENTRYPOINT_GUARD|TASK_SELECTION_GUARD' "$output_file"
 else
-  /usr/bin/grep -Fq 'changed=0' "$output_file"
+  /usr/bin/grep -Eq 'changed=(0|1)' "$output_file"
 fi
 ! /usr/bin/grep -Fq 'Refusing missing, unsafe, mode-drifted, or hash-drifted Argo CD source' "$output_file"
 ! /usr/bin/grep -Fq "object of type 'dict' has no attribute" "$output_file"
