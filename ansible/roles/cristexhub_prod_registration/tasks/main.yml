@@ -86,9 +86,15 @@
       - >-
         cristexhub_prod_registration_alias_transition_specs.AppProject.destinations ==
         [{'name': 'cristexhub-prod-local', 'namespace': 'cristexhub-prod'}]
-      - cristexhub_prod_registration_transition_specs.AppProject.destinations ==
-        [{'server': 'https://kubernetes.default.svc', 'namespace': 'cristexhub-prod'},
-        {'name': 'cristexhub-prod-local', 'namespace': 'cristexhub-prod'}]
+      - >-
+        cristexhub_prod_registration_transition_specs.AppProject.destinations |
+        map(attribute='server') | list == ['https://kubernetes.default.svc', '']
+      - >-
+        cristexhub_prod_registration_transition_specs.AppProject.destinations |
+        map(attribute='namespace') | list | unique == ['cristexhub-prod']
+      - >-
+        cristexhub_prod_registration_transition_specs.AppProject.destinations |
+        map(attribute='name') | list | reject('undefined') | list == ['cristexhub-prod-local']
     fail_msg: Refusing unapproved or non-canonical CristexHub PROD registration.
   changed_when: false
 - name: Inspect exact k3s administrator kubeconfig boundary

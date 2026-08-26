@@ -6,6 +6,7 @@ import json
 import os
 import re
 import stat
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,29 @@ EXPECTED_IDENTITIES = {
 ARGS = {"state", "definition", "kubeconfig", "prestate_binding"}
 TASK_SUFFIX = "/ansible/roles/argocd_cluster_cache_scope_transition/tasks/main.yml"
 EXPECTED_REPOSITORY_ROOT = "/home/paul/projects/cristexweb"
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+_TASK_SOURCE = _REPOSITORY_ROOT / "ansible/roles/argocd_cluster_cache_scope_transition/tasks/main.yml"
+_DEFAULTS_SOURCE = _REPOSITORY_ROOT / "ansible/roles/argocd_cluster_cache_scope_transition/defaults/main.yml"
+_PLAYBOOK_SOURCE = _REPOSITORY_ROOT / "ansible/playbooks/bootstrap_argocd_cluster_cache_scope_transition.yml"
+_WRAPPER_SOURCE = _REPOSITORY_ROOT / "ansible/bin/bootstrap-argocd-cluster-cache-scope-transition"
+_INVENTORY_SOURCE = Path("/home/paul/projects/cristexweb/ansible/.ansible/inventory.local.yml")
+_ANSIBLE_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/ansible.cfg"
+_ACTION_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/action/argocd_cluster_cache_scope_transition_guarded_k8s.py"
+_METADATA_MODULE_SOURCE = _REPOSITORY_ROOT / "ansible/library/argocd_cluster_cache_secret_metadata.py"
+_CONTROLLER_SOURCE = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
+_PYTHON_SOURCE = Path("/usr/bin/python3")
+_KUBECONFIG_SOURCE = Path("/etc/rancher/k3s/k3s.yaml")
+_EXPECTED_OPERATOR = "paul"
+_EXPECTED_TASK_NAME = "Apply only legacy cluster Secret scope patches with exact CAS bindings"
+_EXPECTED_TASK_ACTION = "argocd_cluster_cache_scope_transition_guarded_k8s"
+_ACTION_CANONICAL_SHA256 = "e1bc271b9acc0f55e24a87663aec840eae66edb176c91a0ece5d1e546e8fe13b"
+_WRAPPER_CANONICAL_SHA256 = "22314904d86ead629a88ff3d61f355d3b871d6ffb8404b5f015519a37fb24a5d"
+_TASK_SHA256 = "b7c05b36b14a4fc610396c8827dc09e3e9ff57db804b72f45df753e1b69e8bc6"
+_DEFAULTS_SHA256 = "e5cf4171ce426332d7d16411797460a5c66280512d629fd924019848784f2b30"
+_PLAYBOOK_SHA256 = "c44ee2507e08cb2a52a3c091a0d47776e61e98e90a1e2d233da068553345a7b7"
+_INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
+_ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
+_METADATA_MODULE_SHA256 = "8a7839ea1fe802bd03360050fb1b6d8a8fa265ab38cd4acd64a207d4e4a1327b"
 EXPECTED_SERVER = "https://kubernetes.default.svc"
 EXPECTED_TARGET_NAMESPACES = "cristexhub-dev,cristexhub-prod"
 EXPECTED_CLUSTER_RESOURCES = "false"
@@ -46,6 +70,11 @@ EXPECTED_HASHES = {
     ("v1", "Secret", "argocd", "argocd-cluster-cristexhub-prod"): "80bb4f88a9f3436f8a61e02de206207d6822681fd1f005c64f21c507273a4e11",
     ("v1", "Secret", "argocd", "argocd-cluster-reactive-resume-dev"): "56a6232806695ddced609cebc519f16a9431d8fbbb75b77eebb8a82423fec764",
 }
+EXPECTED_SOURCE_HASHES = {
+    ("v1", "Secret", "argocd", "argocd-cluster-cristexhub-dev"): "4fe913fe414a6d9ffa93286c7ba0c760ebc2671bcc90c202dccfc645b7f209c9",
+    ("v1", "Secret", "argocd", "argocd-cluster-cristexhub-prod"): "c6b7534728865115014979ea4d6aeeedd9f28fc7ff415bad8795bcc1dfd75193",
+    ("v1", "Secret", "argocd", "argocd-cluster-reactive-resume-dev"): "9e59d72f0085490e77f89be74a91a4f4d882f9ba07e89b334bd8ef7feef466d2",
+}
 EXPECTED_LABELS = {
     "app.kubernetes.io/part-of": "cristexhub",
     "app.kubernetes.io/managed-by": "ansible",
@@ -63,6 +92,143 @@ PRESTATE_FIELDS = {
     "target_namespaces",
     "observed_namespaces",
 }
+
+
+def _sha256(path: Path) -> str:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return ""
+
+
+def _canonical_file_hash(path: Path, symbol: str) -> str:
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, count = re.subn(
+            rf"(?m)^({re.escape(symbol)}\s*=\s*[\"\'])([0-9a-f]{{64}})([\"\']\s*)$",
+            rf"\g<1>{'0' * 64}\g<3>",
+            source,
+        )
+        if count != 1:
+            return ""
+        return hashlib.sha256(source.encode("utf-8")).hexdigest()
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _proc_starttime(pid: int) -> str:
+    try:
+        return Path(f"/proc/{pid}/stat").read_text().split()[21]
+    except (OSError, IndexError):
+        return ""
+
+
+def _ancestor(pid: int) -> bool:
+    current = os.getpid()
+    seen: set[int] = set()
+    while current > 1 and current not in seen:
+        if current == pid:
+            return True
+        seen.add(current)
+        try:
+            status = Path(f"/proc/{current}/status").read_text()
+            current = int(next(line for line in status.splitlines() if line.startswith("PPid:")).split()[1])
+        except (OSError, StopIteration, ValueError):
+            return False
+    return False
+
+
+def _selection_is_canonical() -> bool:
+    tags = list(context.CLIARGS.get("tags") or [])
+    skip_tags = list(context.CLIARGS.get("skip_tags") or [])
+    inventory = context.CLIARGS.get("inventory") or []
+    if isinstance(inventory, str):
+        inventory = [inventory]
+    forbidden = ("--start-at-task", "--step", "--tags", "--skip-tags")
+    selection_argv = any(
+        argument in ("-t", "-S")
+        or argument.startswith("-t=")
+        or argument.startswith("-S=")
+        or (argument.startswith("-t") and len(argument) > 2)
+        or argument.startswith("--start-at-task=")
+        or argument.startswith("--step=")
+        or argument.startswith("--tags=")
+        or argument.startswith("--skip-tags=")
+        or argument in forbidden
+        for argument in sys.argv[1:]
+    )
+    return (
+        not selection_argv
+        and context.CLIARGS.get("start_at_task") is None
+        and context.CLIARGS.get("step") in (None, False)
+        and tags in ([], ["all"])
+        and not skip_tags
+        and context.CLIARGS.get("subset") == "crtxweb"
+        and bool(context.CLIARGS.get("diff"))
+        and inventory in [[".ansible/inventory.local.yml"], [str(_INVENTORY_SOURCE)]]
+    )
+
+
+def _source_closure_valid() -> bool:
+    expected = (
+        (_TASK_SOURCE, _TASK_SHA256),
+        (_DEFAULTS_SOURCE, _DEFAULTS_SHA256),
+        (_PLAYBOOK_SOURCE, _PLAYBOOK_SHA256),
+        (_INVENTORY_SOURCE, _INVENTORY_SHA256),
+        (_ANSIBLE_CONFIG_SOURCE, _ANSIBLE_CONFIG_SHA256),
+        (_METADATA_MODULE_SOURCE, _METADATA_MODULE_SHA256),
+    )
+    if any(not path.is_file() or path.is_symlink() or _sha256(path) != digest for path, digest in expected):
+        return False
+    try:
+        inventory_state = _INVENTORY_SOURCE.stat(follow_symlinks=False)
+        config_state = _ANSIBLE_CONFIG_SOURCE.stat(follow_symlinks=False)
+        return (
+            stat.S_IMODE(inventory_state.st_mode) == 0o600
+            and inventory_state.st_uid == os.getuid()
+            and stat.S_IMODE(config_state.st_mode) == 0o644
+            and config_state.st_uid == os.getuid()
+            and _canonical_file_hash(_ACTION_SOURCE, "_ACTION_CANONICAL_SHA256") == _ACTION_CANONICAL_SHA256
+            and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") == _WRAPPER_CANONICAL_SHA256
+        )
+    except OSError:
+        return False
+
+
+def _wrapper_binding_valid(token: str) -> bool:
+    attestation_path = os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ATTESTATION_FILE", "")
+    pid_text = os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_WRAPPER_PID", "")
+    starttime = os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_WRAPPER_STARTTIME", "")
+    wrapper_path = os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_WRAPPER_PATH", "")
+    wrapper_sha = os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_WRAPPER_SHA256", "")
+    try:
+        pid = int(pid_text)
+        state = os.stat(attestation_path, follow_symlinks=False)
+        content = Path(attestation_path).read_text(encoding="utf-8")
+    except (OSError, UnicodeError, ValueError):
+        return False
+    return (
+        os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ENTRYPOINT") == "v2"
+        and re.fullmatch(r"[0-9a-f]{64}", token) is not None
+        and pid > 1
+        and _ancestor(pid)
+        and _proc_starttime(pid) == starttime
+        and state.st_uid == os.getuid()
+        and stat.S_ISREG(state.st_mode)
+        and not stat.S_ISLNK(state.st_mode)
+        and stat.S_IMODE(state.st_mode) == 0o600
+        and state.st_nlink == 1
+        and Path(wrapper_path) == _WRAPPER_SOURCE
+        and wrapper_sha == _sha256(_WRAPPER_SOURCE)
+        and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") == _WRAPPER_CANONICAL_SHA256
+        and content == f"{token}:entrypoint:{pid}:{starttime}:{wrapper_sha}\n"
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_OPERATOR") == _EXPECTED_OPERATOR
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_CONTROLLER") == str(_CONTROLLER_SOURCE)
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_PYTHON") == str(_PYTHON_SOURCE)
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_KUBECONFIG") == str(_KUBECONFIG_SOURCE)
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_CONTROLLER_SHA256") == _sha256(_CONTROLLER_SOURCE)
+        and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_PYTHON_SHA256") == _sha256(_PYTHON_SOURCE)
+    )
 
 
 def canonical(value: dict[str, Any]) -> str:
@@ -177,15 +343,17 @@ class ActionModule(KubernetesActionModule):
         source = str(Path(re.sub(r":\d+(?::\d+)?$", "", str(self._task.get_path()))).resolve())
         args = self._task.args
         task_vars = task_vars or {}
-        if source != EXPECTED_REPOSITORY_ROOT + TASK_SUFFIX:
+        if (
+            source != str(_TASK_SOURCE)
+            or getattr(self._task, "name", None) != _EXPECTED_TASK_NAME
+            or getattr(self._task, "action", None) != _EXPECTED_TASK_ACTION
+        ):
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: non-canonical cache transition task source"}
-        tags = list(context.CLIARGS.get("tags") or [])
-        skip_tags = list(context.CLIARGS.get("skip_tags") or [])
-        if context.CLIARGS.get("start_at_task") or context.CLIARGS.get("step") or tags not in ([], ["all"]) or skip_tags:
-            return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: task selection controls are forbidden"}
+        if not _selection_is_canonical():
+            return {"changed": False, "failed": True, "msg": "TASK_SELECTION_GUARD: complete guarded cache play is required"}
         definition = args.get("definition")
         binding = args.get("prestate_binding")
-        if set(args) != ARGS or args.get("state") != "present" or args.get("kubeconfig") != "/etc/rancher/k3s/k3s.yaml":
+        if set(args) != ARGS or args.get("state") != "present" or args.get("kubeconfig") != str(_KUBECONFIG_SOURCE):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: refusing cache transition arguments"}
         if not isinstance(definition, dict) or not isinstance(binding, dict):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: target and prestate binding are required"}
@@ -193,16 +361,21 @@ class ActionModule(KubernetesActionModule):
         if identity not in EXPECTED_IDENTITIES or canonical(definition) != EXPECTED_HASHES.get(identity):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: unknown or drifted cluster Secret source"}
         token = os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_TOKEN", "")
-        attestation = os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ATTESTATION_FILE", "")
-        try:
-            state = os.stat(attestation, follow_symlinks=False)
-            content = Path(attestation).read_text().strip()
-        except (OSError, ValueError):
-            state, content = None, ""
         binding_from_vars = task_vars.get("argocd_cluster_cache_scope_transition_internal_preflight_binding", {})
+        closure = ":".join(
+            f"{identity[3]}={EXPECTED_SOURCE_HASHES[identity]}" for identity in sorted(EXPECTED_IDENTITIES)
+        )
+        expected_binding_keys = {
+            "source_sha256", "object_count", "target_namespaces", "prestate_bindings", "no_delete_path",
+            "source_closure_sha256", "task_sha256", "defaults_sha256", "playbook_sha256",
+            "inventory_sha256", "ansible_config_sha256", "metadata_module_sha256", "wrapper_sha256", "action_sha256",
+            "controller_sha256", "python_sha256", "operator", "kubeconfig",
+        }
         valid_binding = (
             isinstance(binding_from_vars, dict)
+            and set(binding_from_vars) == expected_binding_keys
             and binding_from_vars.get("source_sha256") == hashlib.sha256(token.encode()).hexdigest()
+            and binding_from_vars.get("source_closure_sha256") == hashlib.sha256(closure.encode()).hexdigest()
             and binding_from_vars.get("object_count") in (3, "3")
             and binding_from_vars.get("no_delete_path") is True
             and binding_from_vars.get("target_namespaces") == EXPECTED_TARGET_NAMESPACES
@@ -210,6 +383,18 @@ class ActionModule(KubernetesActionModule):
             and len(binding_from_vars["prestate_bindings"]) == 3
             and all(isinstance(entry, dict) and set(entry) == PRESTATE_FIELDS for entry in binding_from_vars["prestate_bindings"])
             and binding in binding_from_vars["prestate_bindings"]
+            and binding_from_vars.get("task_sha256") == _TASK_SHA256
+            and binding_from_vars.get("defaults_sha256") == _DEFAULTS_SHA256
+            and binding_from_vars.get("playbook_sha256") == _PLAYBOOK_SHA256
+            and binding_from_vars.get("inventory_sha256") == _INVENTORY_SHA256
+            and binding_from_vars.get("ansible_config_sha256") == _ANSIBLE_CONFIG_SHA256
+            and binding_from_vars.get("metadata_module_sha256") == _METADATA_MODULE_SHA256
+            and binding_from_vars.get("wrapper_sha256") == os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_WRAPPER_SHA256")
+            and binding_from_vars.get("action_sha256") == _sha256(_ACTION_SOURCE)
+            and binding_from_vars.get("controller_sha256") == _sha256(_CONTROLLER_SOURCE)
+            and binding_from_vars.get("python_sha256") == _sha256(_PYTHON_SOURCE)
+            and binding_from_vars.get("operator") == _EXPECTED_OPERATOR
+            and binding_from_vars.get("kubeconfig") == str(_KUBECONFIG_SOURCE)
         )
         try:
             patch = transition_patch(binding, definition)
@@ -217,19 +402,13 @@ class ActionModule(KubernetesActionModule):
             return {"changed": False, "failed": True, "msg": "MUTATION_ARGUMENT_GUARD: invalid cache transition prestate"}
         valid = (
             valid_binding
-            and os.environ.get("CRISTEXWEB_ARGO_CLUSTER_CACHE_SCOPE_TRANSITION_ENTRYPOINT") == "v1"
-            and re.fullmatch(r"[0-9a-f]{64}", token) is not None
-            and state is not None
-            and stat.S_ISREG(state.st_mode)
-            and not stat.S_ISLNK(state.st_mode)
-            and stat.S_IMODE(state.st_mode) == 0o600
-            and state.st_uid == os.getuid()
-            and content == f"{token}:entrypoint"
+            and _source_closure_valid()
+            and _wrapper_binding_valid(token)
             and _strict_true(task_vars.get("argocd_cluster_cache_scope_transition_approved"))
             and task_vars.get("argocd_cluster_cache_scope_transition_state") == "present"
         )
         if not valid:
-            return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: cache transition requires the guarded attestation and binding"}
+            return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: cache transition requires the canonical wrapper, source closure, and binding"}
         if bool(context.CLIARGS.get("check") or getattr(self._task, "check_mode", False)):
             return {"changed": True, "transition": "legacy-to-shared", "patch_operation_count": len(patch)}
         return _dispatch_patch(self, tmp, task_vars, definition, patch)

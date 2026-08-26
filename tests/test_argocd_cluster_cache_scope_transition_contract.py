@@ -62,6 +62,55 @@ class ArgoClusterCacheScopeTransitionContractTests(unittest.TestCase):
             self.assertNotIn("data", manifest)
             self.assertNotIn("binaryData", manifest)
 
+    def test_rendered_source_paths_are_single_exact_files_without_folded_space(self) -> None:
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        for entry in defaults["argocd_cluster_cache_scope_transition_sources"]:
+            rendered = entry["path"].replace(
+                "{{ argocd_cluster_cache_scope_transition_repository_root }}",
+                str(ROOT),
+            )
+            self.assertEqual(rendered, " ".join(rendered.split()))
+            self.assertNotIn("components/ ", rendered)
+            self.assertTrue(rendered.startswith(str(ROOT / "ansible/files/components/")))
+            self.assertTrue(Path(rendered).name.startswith("secret-cluster-"))
+
+    def test_metadata_inventory_never_requests_secret_json_values(self) -> None:
+        module = ROOT / "ansible/library/argocd_cluster_cache_secret_metadata.py"
+        text = module.read_text()
+        self.assertIn("PartialObjectMetadataList", text)
+        self.assertIn("metadata_only=True", text)
+        self.assertNotIn("read_namespaced_secret", text)
+        tasks = TASKS.read_text()
+        self.assertIn("argocd_cluster_cache_secret_metadata:", tasks)
+        self.assertIn("label_selector: 'argocd.argoproj.io/secret-type=cluster'", tasks)
+        self.assertIn("items | length == 3", tasks)
+
+    def test_source_closure_and_wrapper_process_binding_are_pinned(self) -> None:
+        module = load_plugin()
+        self.assertTrue(module._source_closure_valid())
+        self.assertNotEqual("0" * 64, module._ACTION_CANONICAL_SHA256)
+        self.assertNotEqual("0" * 64, module._WRAPPER_CANONICAL_SHA256)
+        self.assertNotEqual("0" * 64, module._TASK_SHA256)
+        plugin = PLUGIN.read_text()
+        wrapper = WRAPPER.read_text()
+        for needle in (
+            "_proc_starttime", "_ancestor", "WRAPPER_PID", "WRAPPER_STARTTIME",
+            "WRAPPER_PATH", "WRAPPER_SHA256", "_canonical_file_hash",
+            "_TASK_SHA256", "_DEFAULTS_SHA256", "_PLAYBOOK_SHA256",
+            "_INVENTORY_SHA256", "_ANSIBLE_CONFIG_SHA256", "_METADATA_MODULE_SHA256",
+            "_CONTROLLER_SOURCE", "_PYTHON_SOURCE", "_KUBECONFIG_SOURCE",
+            "_EXPECTED_OPERATOR", "_EXPECTED_TASK_NAME", "_EXPECTED_TASK_ACTION",
+        ):
+            self.assertIn(needle, plugin)
+        for needle in (
+            "wrapper_pid=$$", "wrapper_starttime=", "WRAPPER_PID=",
+            "WRAPPER_STARTTIME=", "WRAPPER_PATH=", "WRAPPER_SHA256=",
+            "TASK_SHA256=", "DEFAULTS_SHA256=", "PLAYBOOK_SHA256=",
+            "INVENTORY_SHA256=", "ANSIBLE_CONFIG_SHA256=", "METADATA_MODULE_SHA256=",
+            "CONTROLLER_SHA256=", "PYTHON_SHA256=", "KUBECONFIG=", "OPERATOR=",
+        ):
+            self.assertIn(needle, wrapper)
+
     def test_plugin_target_hashes_and_patch_are_exact_scope_only(self) -> None:
         module = load_plugin()
         self.assertEqual({"/metadata/uid", "/metadata/resourceVersion", "/data/namespaces"}, {op["path"] for op in module.transition_patch(
