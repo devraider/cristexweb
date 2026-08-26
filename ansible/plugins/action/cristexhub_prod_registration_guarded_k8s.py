@@ -56,7 +56,7 @@ _EXPECTED_TASK_NAMES = {
     True: "Reconcile exact bounded PROD direct-server transition",
 }
 _EXPECTED_TASK_ACTION = "cristexhub_prod_registration_guarded_k8s"
-_ACTION_CANONICAL_SHA256 = "1e0c34cbc655e548b81196d180efd84311581cce08c5051cf330005f6dbf7786"
+_ACTION_CANONICAL_SHA256 = "f7bf8eba21a5a4b967cc72d4262eb291cf1c63dd9d4b16481f8cde9732e45cb7"
 _WRAPPER_CANONICAL_SHA256 = "3c01e867e7effa0a091fac46e6cbe855dd6b0cd30ae2f6341817df76fac55ee2"
 _TASK_SHA256 = "a8d5d08d1298223add2bae2c4e6756693bf3904b575eaa97ef6ea4bd3bfc7fdd"
 _DEFAULTS_SHA256 = "0ca75dfa3eacdaecd14c98810a8a071a904538c7ca7528d6888aaebe4f5c2a57"
@@ -160,6 +160,8 @@ def _selection_is_canonical() -> bool:
     inventory = context.CLIARGS.get("inventory") or []
     if isinstance(inventory, str):
         inventory = [inventory]
+    else:
+        inventory = list(inventory)
     return (
         sys.argv == _expected_ansible_argv()
         and context.CLIARGS.get("start_at_task") is None

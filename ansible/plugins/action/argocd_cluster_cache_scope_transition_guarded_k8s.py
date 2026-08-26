@@ -40,7 +40,7 @@ _KUBECONFIG_SOURCE = Path("/etc/rancher/k3s/k3s.yaml")
 _EXPECTED_OPERATOR = "paul"
 _EXPECTED_TASK_NAME = "Apply only legacy cluster Secret scope patches with exact CAS bindings"
 _EXPECTED_TASK_ACTION = "argocd_cluster_cache_scope_transition_guarded_k8s"
-_ACTION_CANONICAL_SHA256 = "922bb066577fa7a3bd1a4625ff80868ce93ac2dc997b40f2f79eeefca0f55b7d"
+_ACTION_CANONICAL_SHA256 = "33818f1c5c8ba565b7c3ce0d4f280e613d6751ca2a5aebf75196937dc5f3b71a"
 _WRAPPER_CANONICAL_SHA256 = "90d20b131c4286a9afece06c55ce7c99370f8902d5207fd894ec8cc47c623523"
 _TASK_SHA256 = "d8bcb1aadecc7009d1c7ab794c077818916f4405fff4bb3ee436de017e582563"
 _DEFAULTS_SHA256 = "e5cf4171ce426332d7d16411797460a5c66280512d629fd924019848784f2b30"
@@ -173,6 +173,8 @@ def _selection_is_canonical() -> bool:
     inventory = context.CLIARGS.get("inventory") or []
     if isinstance(inventory, str):
         inventory = [inventory]
+    else:
+        inventory = list(inventory)
     return (
         sys.argv == _expected_ansible_argv()
         and context.CLIARGS.get("start_at_task") is None
