@@ -19,6 +19,18 @@ cristexhub_prod_private_acceptance_deployments:
 cristexhub_prod_private_acceptance_workload_label: app.kubernetes.io/name
 cristexhub_prod_private_acceptance_workload_part_label: app.kubernetes.io/part-of
 cristexhub_prod_private_acceptance_workload_part_value: cristexhub
+cristexhub_prod_private_acceptance_expected_deployment_revisions:
+  backend: '1'
+  celery-worker: '1'
+  frontend: '1'
+  oauth2-proxy: '1'
+  redis: '1'
+cristexhub_prod_private_acceptance_expected_application_sync_options:
+  - CreateNamespace=false
+  - Prune=false
+  - ServerSideApply=false
+  - Replace=false
+  - FailOnSharedResource=true
 cristexhub_prod_private_acceptance_expected_project_kinds:
   - {group: '', kind: ConfigMap}
   - {group: '', kind: Service}

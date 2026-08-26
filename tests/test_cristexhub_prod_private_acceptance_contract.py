@@ -48,6 +48,26 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "751885a42798d282e168131db147f13694a0a621",
             self.defaults["cristexhub_prod_private_acceptance_revision"],
         )
+        self.assertEqual(
+            {
+                "backend": "1",
+                "celery-worker": "1",
+                "frontend": "1",
+                "oauth2-proxy": "1",
+                "redis": "1",
+            },
+            self.defaults["cristexhub_prod_private_acceptance_expected_deployment_revisions"],
+        )
+        self.assertEqual(
+            [
+                "CreateNamespace=false",
+                "Prune=false",
+                "ServerSideApply=false",
+                "Replace=false",
+                "FailOnSharedResource=true",
+            ],
+            self.defaults["cristexhub_prod_private_acceptance_expected_application_sync_options"],
+        )
         self.assertIn("role: cristexhub_prod_private_acceptance", self.playbook_text)
 
     def test_no_secret_reads_or_mutation_modules(self) -> None:
@@ -89,8 +109,8 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "delegate_to: localhost",
             "follow_redirects: none",
             "validate_certs: true",
-            "status.sync.comparedTo.destination.server",
-            "status.sync.comparedTo.source.targetRevision",
+            "status.sync.comparedTo ==",
+            "status.operationState.syncResult.source",
         ):
             self.assertIn(required, self.tasks_text)
         for required in (
@@ -138,6 +158,40 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             self.assertIn(required, normalized)
         self.assertIn("cristexhub-prod-private-acceptance", self.tasks_text)
         self.assertIn("preflight-pass-not-final-acceptance", self.tasks_text)
+
+    def test_argocd_and_workload_identity_is_complete(self) -> None:
+        for required in (
+            "Require direct-server pinned PROD Argo health and exact sync policy",
+            "status.sync.comparedTo ==",
+            "status.operationState.syncResult.source ==",
+            "operationState.operation.sync.syncOptions ==",
+            "Require the exact deny-by-default PROD AppProject boundary and exclusions",
+            "clusterResourceBlacklist | default([]) == []",
+            "namespaceResourceBlacklist | default([]) == []",
+            "roles | default([]) == []",
+            "syncWindows | default([]) == []",
+            "signatureKeys | default([]) == []",
+            "sourceNamespaces | default([]) == []",
+            "'Secret'} not in",
+            "'ServiceAccount'} not in",
+            "'Namespace'} not in",
+            "Require exactly one fresh Ready replica for every PROD Deployment",
+            "deployment.kubernetes.io/revision",
+            "status.observedGeneration | int == item.resources[0].metadata.generation | int",
+            "NewReplicaSetAvailable",
+            "Bind exact PROD Deployment revision and selector identities",
+            "Query the exact current ReplicaSet for each PROD Deployment",
+            "Require each PROD ReplicaSet to be the fresh Deployment controller result",
+            "metadata.ownerReferences",
+            "Bind exact PROD ReplicaSet controller identities",
+            "Require each PROD Pod to be owned by the expected current ReplicaSet",
+            "pod-template-hash",
+            "ContainersReady",
+            "status.containerStatuses",
+        ):
+            self.assertIn(required, self.tasks_text)
+        self.assertEqual(7, self.tasks_text.count("kubernetes.core.k8s_info:"))
+        self.assertGreaterEqual(self.tasks_text.count("kubeconfig: \"{{ cristexhub_prod_private_acceptance_kubeconfig }}\""), 7)
 
     def test_credential_policy_freezes_four_scopes_without_values(self) -> None:
         self.assertEqual("source-only-rotation-blocked", self.policy["policy_status"])

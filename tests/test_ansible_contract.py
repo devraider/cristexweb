@@ -498,6 +498,11 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "plugins/action/argocd_target_cache_repair_guarded_k8s.py",
                 "roles/argocd_target_cache_repair/defaults/main.yml",
                 "roles/argocd_target_cache_repair/tasks/main.yml",
+                "bin/check-cristexhub-prod-private-acceptance",
+                "playbooks/check_cristexhub_prod_private_acceptance.yml",
+                "roles/cristexhub_prod_private_acceptance/defaults/main.yml",
+                "roles/cristexhub_prod_private_acceptance/tasks/main.yml",
+                "files/policies/cristexhub-prod-credential-rotation-gates.yml",
             ]
         )
         self.assertEqual([], [path for path in required if not (ANSIBLE / path).is_file()])

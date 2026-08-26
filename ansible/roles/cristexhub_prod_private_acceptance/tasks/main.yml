@@ -29,8 +29,22 @@
       - cristexhub_prod_private_acceptance_path == 'infra/kubernetes/cristexhub-prod'
       - cristexhub_prod_private_acceptance_revision == '751885a42798d282e168131db147f13694a0a621'
       - cristexhub_prod_private_acceptance_server == 'https://kubernetes.default.svc'
+      - cristexhub_prod_private_acceptance_workload_label == 'app.kubernetes.io/name'
+      - cristexhub_prod_private_acceptance_workload_part_label == 'app.kubernetes.io/part-of'
+      - cristexhub_prod_private_acceptance_workload_part_value == 'cristexhub'
       - cristexhub_prod_private_acceptance_deployments == ['backend', 'celery-worker', 'frontend', 'oauth2-proxy', 'redis']
-      - cristexhub_prod_private_acceptance_expected_project_kinds | length == 5
+      - >-
+        cristexhub_prod_private_acceptance_expected_deployment_revisions ==
+        {'backend': '1', 'celery-worker': '1', 'frontend': '1', 'oauth2-proxy': '1', 'redis': '1'}
+      - >-
+        cristexhub_prod_private_acceptance_expected_application_sync_options ==
+        ['CreateNamespace=false', 'Prune=false', 'ServerSideApply=false', 'Replace=false', 'FailOnSharedResource=true']
+      - >-
+        cristexhub_prod_private_acceptance_expected_project_kinds ==
+        [{'group': '', 'kind': 'ConfigMap'}, {'group': '', 'kind': 'Service'},
+        {'group': 'apps', 'kind': 'Deployment'},
+        {'group': 'networking.k8s.io', 'kind': 'NetworkPolicy'},
+        {'group': 'networking.k8s.io', 'kind': 'Ingress'}]
     fail_msg: >-
       The private PROD acceptance lane is check-only, one-host, direct-server,
       and bound to the exact pinned application and five-workload closure.
@@ -172,30 +186,50 @@
   changed_when: false
   no_log: true
 
-- name: Require direct-server pinned PROD Argo health
+- name: Require direct-server pinned PROD Argo health and exact sync policy
   ansible.builtin.assert:
     that:
       - cristexhub_prod_private_acceptance_internal_application.resources | length == 1
-      - cristexhub_prod_private_acceptance_internal_application.resources[0].metadata.name == 'cristexhub-prod'
-      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.destination.server == cristexhub_prod_private_acceptance_server
-      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.destination.name | default('') == ''
-      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.destination.namespace == 'cristexhub-prod'
-      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.source.repoURL == cristexhub_prod_private_acceptance_repository
-      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.source.path == cristexhub_prod_private_acceptance_path
-      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.source.targetRevision == cristexhub_prod_private_acceptance_revision
-      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.syncPolicy.automated.prune | bool == false
-      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.syncPolicy.automated.selfHeal | bool == true
-      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.syncPolicy.automated.allowEmpty | bool == false
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].metadata.name == cristexhub_prod_private_acceptance_application
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].metadata.namespace == cristexhub_prod_private_acceptance_argocd_namespace
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].metadata.deletionTimestamp | default('') == ''
+      - >-
+        cristexhub_prod_private_acceptance_internal_application.resources[0].spec ==
+        {'destination': {'namespace': cristexhub_prod_private_acceptance_namespace,
+        'server': cristexhub_prod_private_acceptance_server},
+        'project': cristexhub_prod_private_acceptance_appproject,
+        'source': {'path': cristexhub_prod_private_acceptance_path,
+        'repoURL': cristexhub_prod_private_acceptance_repository,
+        'targetRevision': cristexhub_prod_private_acceptance_revision},
+        'syncPolicy': {'automated': {'allowEmpty': false, 'prune': false,
+        'selfHeal': true}, 'syncOptions': cristexhub_prod_private_acceptance_expected_application_sync_options}}
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.sources | default([]) == []
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].spec.ignoreDifferences | default([]) == []
       - cristexhub_prod_private_acceptance_internal_application.resources[0].status.sync.status == 'Synced'
       - cristexhub_prod_private_acceptance_internal_application.resources[0].status.health.status == 'Healthy'
       - cristexhub_prod_private_acceptance_internal_application.resources[0].status.sync.revision == cristexhub_prod_private_acceptance_revision
       - >-
-        cristexhub_prod_private_acceptance_internal_application.resources[0].status.sync.comparedTo.destination.server ==
-        cristexhub_prod_private_acceptance_server
-      - cristexhub_prod_private_acceptance_internal_application.resources[0].status.sync.comparedTo.destination.namespace == 'cristexhub-prod'
+        cristexhub_prod_private_acceptance_internal_application.resources[0].status.sync.comparedTo ==
+        {'destination': {'namespace': cristexhub_prod_private_acceptance_namespace,
+        'server': cristexhub_prod_private_acceptance_server},
+        'source': {'path': cristexhub_prod_private_acceptance_path,
+        'repoURL': cristexhub_prod_private_acceptance_repository,
+        'targetRevision': cristexhub_prod_private_acceptance_revision}}
+      - cristexhub_prod_private_acceptance_internal_application.resources[0].status.operationState.phase == 'Succeeded'
       - >-
-        cristexhub_prod_private_acceptance_internal_application.resources[0].status.sync.comparedTo.source.targetRevision ==
+        cristexhub_prod_private_acceptance_internal_application.resources[0].status.operationState.syncResult.revision ==
         cristexhub_prod_private_acceptance_revision
+      - >-
+        cristexhub_prod_private_acceptance_internal_application.resources[0].status.operationState.syncResult.source ==
+        {'path': cristexhub_prod_private_acceptance_path,
+        'repoURL': cristexhub_prod_private_acceptance_repository,
+        'targetRevision': cristexhub_prod_private_acceptance_revision}
+      - >-
+        cristexhub_prod_private_acceptance_internal_application.resources[0].status.operationState.operation.sync.revision ==
+        cristexhub_prod_private_acceptance_revision
+      - >-
+        cristexhub_prod_private_acceptance_internal_application.resources[0].status.operationState.operation.sync.syncOptions ==
+        cristexhub_prod_private_acceptance_expected_application_sync_options
     fail_msg: Refusing stale, aliased, drifted, unpinned, or unhealthy PROD Argo state.
   changed_when: false
   no_log: true
@@ -212,20 +246,39 @@
   changed_when: false
   no_log: true
 
-- name: Require the exact deny-by-default PROD AppProject boundary
+- name: Require the exact deny-by-default PROD AppProject boundary and exclusions
   ansible.builtin.assert:
     that:
       - cristexhub_prod_private_acceptance_internal_appproject.resources | length == 1
-      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].metadata.name == 'cristexhub-prod'
-      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.sourceRepos == [cristexhub_prod_private_acceptance_repository]
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].metadata.name == cristexhub_prod_private_acceptance_appproject
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].metadata.namespace == cristexhub_prod_private_acceptance_argocd_namespace
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].metadata.deletionTimestamp | default('') == ''
       - >-
-        cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.destinations ==
-        [{'server': cristexhub_prod_private_acceptance_server, 'namespace': 'cristexhub-prod'}]
-      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.clusterResourceWhitelist == []
+        cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec ==
+        {'clusterResourceWhitelist': [],
+        'destinations': [{'namespace': cristexhub_prod_private_acceptance_namespace,
+        'server': cristexhub_prod_private_acceptance_server}],
+        'namespaceResourceWhitelist': cristexhub_prod_private_acceptance_expected_project_kinds,
+        'orphanedResources': {'warn': true},
+        'sourceRepos': [cristexhub_prod_private_acceptance_repository]}
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.clusterResourceBlacklist | default([]) == []
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.namespaceResourceBlacklist | default([]) == []
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.roles | default([]) == []
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.syncWindows | default([]) == []
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.signatureKeys | default([]) == []
+      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.sourceNamespaces | default([]) == []
       - >-
-        cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.namespaceResourceWhitelist ==
-        cristexhub_prod_private_acceptance_expected_project_kinds
-      - cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.orphanedResources.warn | bool == true
+        {'group': '', 'kind': 'Secret'} not in
+        cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.namespaceResourceWhitelist
+      - >-
+        {'group': '', 'kind': 'ServiceAccount'} not in
+        cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.namespaceResourceWhitelist
+      - >-
+        {'group': '', 'kind': 'Namespace'} not in
+        cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.namespaceResourceWhitelist
+      - >-
+        {'group': '*', 'kind': '*'} not in
+        cristexhub_prod_private_acceptance_internal_appproject.resources[0].spec.namespaceResourceWhitelist
     fail_msg: Refusing a widened, aliased, or drifted PROD AppProject.
   changed_when: false
   no_log: true
@@ -243,48 +296,215 @@
   changed_when: false
   no_log: true
 
-- name: Require exactly one Ready replica for every PROD Deployment
+- name: Require exactly one fresh Ready replica for every PROD Deployment
   ansible.builtin.assert:
     that:
       - item.resources | length == 1
       - item.resources[0].metadata.name in cristexhub_prod_private_acceptance_deployments
-      - item.resources[0].metadata.namespace == 'cristexhub-prod'
+      - item.resources[0].metadata.namespace == cristexhub_prod_private_acceptance_namespace
       - item.resources[0].metadata.deletionTimestamp | default('') == ''
+      - item.resources[0].metadata.resourceVersion is match('^[0-9]+$')
+      - item.resources[0].metadata.generation | int > 0
+      - >-
+        item.resources[0].metadata.annotations['deployment.kubernetes.io/revision'] ==
+        cristexhub_prod_private_acceptance_expected_deployment_revisions[item.item]
       - item.resources[0].spec.replicas | int == 1
-      - item.resources[0].status.replicas | int == 1
-      - item.resources[0].status.updatedReplicas | int == 1
-      - item.resources[0].status.availableReplicas | int == 1
-      - item.resources[0].status.readyReplicas | int == 1
+      - >-
+        item.resources[0].spec.selector.matchLabels ==
+        {'app.kubernetes.io/name': item.item}
+      - item.resources[0].spec.template.metadata.labels[cristexhub_prod_private_acceptance_workload_label] == item.item
+      - >-
+        item.resources[0].spec.template.metadata.labels[cristexhub_prod_private_acceptance_workload_part_label] ==
+        cristexhub_prod_private_acceptance_workload_part_value
       - item.resources[0].status.observedGeneration | int == item.resources[0].metadata.generation | int
-    fail_msg: Refusing private PROD acceptance without five exact Ready Deployments.
+      - item.resources[0].status.replicas | int == item.resources[0].spec.replicas | int
+      - item.resources[0].status.updatedReplicas | int == item.resources[0].spec.replicas | int
+      - item.resources[0].status.availableReplicas | int == item.resources[0].spec.replicas | int
+      - item.resources[0].status.readyReplicas | int == item.resources[0].spec.replicas | int
+      - item.resources[0].status.unavailableReplicas | default(0) | int == 0
+      - >-
+        (item.resources[0].status.conditions | default([]) |
+        selectattr('type', 'equalto', 'Available') |
+        selectattr('status', 'equalto', 'True') | list | length) == 1
+      - >-
+        (item.resources[0].status.conditions | default([]) |
+        selectattr('type', 'equalto', 'Progressing') |
+        selectattr('status', 'equalto', 'True') | list | length) == 1
+      - >-
+        (item.resources[0].status.conditions | default([]) |
+        selectattr('type', 'equalto', 'Progressing') |
+        selectattr('status', 'equalto', 'True') |
+        map(attribute='reason') | first) == 'NewReplicaSetAvailable'
+    fail_msg: Refusing private PROD acceptance without five exact, fresh, Ready Deployments.
   loop: "{{ cristexhub_prod_private_acceptance_internal_deployments.results }}"
   changed_when: false
   no_log: true
 
-- name: Query one Pod for each exact PROD Deployment label
+- name: Bind exact PROD Deployment revision and selector identities
+  ansible.builtin.set_fact:
+    cristexhub_prod_private_acceptance_internal_deployment_bindings: >-
+      {{ (cristexhub_prod_private_acceptance_internal_deployment_bindings | default([])) +
+      [{'name': item.item,
+      'uid': item.resources[0].metadata.uid,
+      'generation': item.resources[0].metadata.generation,
+      'revision': item.resources[0].metadata.annotations['deployment.kubernetes.io/revision'],
+      'selector': item.resources[0].spec.selector.matchLabels,
+      'template_labels': item.resources[0].spec.template.metadata.labels}] }}
+  loop: "{{ cristexhub_prod_private_acceptance_internal_deployments.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Query the exact current ReplicaSet for each PROD Deployment
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: ReplicaSet
+    namespace: "{{ cristexhub_prod_private_acceptance_namespace }}"
+    label_selectors:
+      - "{{ cristexhub_prod_private_acceptance_workload_label }}={{ item }}"
+    kubeconfig: "{{ cristexhub_prod_private_acceptance_kubeconfig }}"
+  loop: "{{ cristexhub_prod_private_acceptance_deployments }}"
+  register: cristexhub_prod_private_acceptance_internal_replicasets
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Require each PROD ReplicaSet to be the fresh Deployment controller result
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.namespace == cristexhub_prod_private_acceptance_namespace
+      - item.resources[0].metadata.name.startswith(item.item ~ '-')
+      - item.resources[0].metadata.deletionTimestamp | default('') == ''
+      - item.resources[0].metadata.resourceVersion is match('^[0-9]+$')
+      - item.resources[0].metadata.labels[cristexhub_prod_private_acceptance_workload_label] == item.item
+      - >-
+        item.resources[0].metadata.labels[cristexhub_prod_private_acceptance_workload_part_label] ==
+        cristexhub_prod_private_acceptance_workload_part_value
+      - item.resources[0].metadata.labels['pod-template-hash'] is match('^[0-9a-z]+$')
+      - >-
+        item.resources[0].metadata.annotations['deployment.kubernetes.io/revision'] ==
+        cristexhub_prod_private_acceptance_expected_deployment_revisions[item.item]
+      - >-
+        item.resources[0].metadata.annotations['deployment.kubernetes.io/revision'] ==
+        (cristexhub_prod_private_acceptance_internal_deployment_bindings |
+        selectattr('name', 'equalto', item.item) | map(attribute='revision') | first)
+      - >-
+        item.resources[0].metadata.ownerReferences | default([]) | length == 1
+      - >-
+        item.resources[0].metadata.ownerReferences | default([]) |
+        selectattr('kind', 'equalto', 'Deployment') |
+        selectattr('name', 'equalto', item.item) |
+        selectattr('controller', 'equalto', true) | list | length == 1
+      - >-
+        (item.resources[0].metadata.ownerReferences | default([]) |
+        selectattr('kind', 'equalto', 'Deployment') |
+        selectattr('name', 'equalto', item.item) |
+        selectattr('controller', 'equalto', true) |
+        map(attribute='uid') | first) ==
+        (cristexhub_prod_private_acceptance_internal_deployment_bindings |
+        selectattr('name', 'equalto', item.item) | map(attribute='uid') | first)
+      - item.resources[0].spec.replicas | int == 1
+      - >-
+        item.resources[0].spec.selector.matchLabels ==
+        {'app.kubernetes.io/name': item.item,
+        'pod-template-hash': item.resources[0].metadata.labels['pod-template-hash']}
+      - item.resources[0].spec.template.metadata.labels[cristexhub_prod_private_acceptance_workload_label] == item.item
+      - >-
+        item.resources[0].spec.template.metadata.labels[cristexhub_prod_private_acceptance_workload_part_label] ==
+        cristexhub_prod_private_acceptance_workload_part_value
+      - item.resources[0].spec.template.metadata.labels['pod-template-hash'] == item.resources[0].metadata.labels['pod-template-hash']
+      - item.resources[0].status.observedGeneration | int == item.resources[0].metadata.generation | int
+      - item.resources[0].status.replicas | int == 1
+      - item.resources[0].status.readyReplicas | int == 1
+      - item.resources[0].status.availableReplicas | int == 1
+    fail_msg: Refusing a stale, widened, unowned, or non-current PROD ReplicaSet.
+  loop: "{{ cristexhub_prod_private_acceptance_internal_replicasets.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind exact PROD ReplicaSet controller identities
+  ansible.builtin.set_fact:
+    cristexhub_prod_private_acceptance_internal_replicaset_bindings: >-
+      {{ (cristexhub_prod_private_acceptance_internal_replicaset_bindings | default([])) +
+      [{'name': item.item,
+      'uid': item.resources[0].metadata.uid,
+      'revision': item.resources[0].metadata.annotations['deployment.kubernetes.io/revision'],
+      'pod_template_hash': item.resources[0].metadata.labels['pod-template-hash']}] }}
+  loop: "{{ cristexhub_prod_private_acceptance_internal_replicasets.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Query one Pod for each exact current PROD ReplicaSet label
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Pod
     namespace: "{{ cristexhub_prod_private_acceptance_namespace }}"
     label_selectors:
       - "{{ cristexhub_prod_private_acceptance_workload_label }}={{ item }}"
+    kubeconfig: "{{ cristexhub_prod_private_acceptance_kubeconfig }}"
   loop: "{{ cristexhub_prod_private_acceptance_deployments }}"
   register: cristexhub_prod_private_acceptance_internal_pods
   check_mode: false
   changed_when: false
   no_log: true
 
-- name: Require one Running Ready non-host-network Pod per PROD Deployment
+- name: Require each PROD Pod to be owned by the expected current ReplicaSet
   ansible.builtin.assert:
     that:
       - item.resources | length == 1
+      - item.resources[0].metadata.namespace == cristexhub_prod_private_acceptance_namespace
+      - >-
+        item.resources[0].metadata.name.startswith(
+        (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
+        selectattr('name', 'equalto', item.item) | map(attribute='name') | first) ~ '-')
       - item.resources[0].metadata.labels[cristexhub_prod_private_acceptance_workload_label] == item.item
       - item.resources[0].metadata.labels[cristexhub_prod_private_acceptance_workload_part_label] == cristexhub_prod_private_acceptance_workload_part_value
+      - >-
+        item.resources[0].metadata.labels['pod-template-hash'] ==
+        (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
+        selectattr('name', 'equalto', item.item) |
+        map(attribute='pod_template_hash') | first)
       - item.resources[0].metadata.deletionTimestamp | default('') == ''
+      - item.resources[0].metadata.resourceVersion is match('^[0-9]+$')
+      - >-
+        item.resources[0].metadata.ownerReferences | default([]) | length == 1
+      - >-
+        item.resources[0].metadata.ownerReferences | default([]) |
+        selectattr('kind', 'equalto', 'ReplicaSet') |
+        selectattr('name', 'equalto', (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
+        selectattr('name', 'equalto', item.item) | map(attribute='name') | first)) |
+        selectattr('controller', 'equalto', true) | list | length == 1
+      - >-
+        (item.resources[0].metadata.ownerReferences | default([]) |
+        selectattr('kind', 'equalto', 'ReplicaSet') |
+        selectattr('name', 'equalto', (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
+        selectattr('name', 'equalto', item.item) | map(attribute='name') | first)) |
+        selectattr('controller', 'equalto', true) |
+        map(attribute='uid') | first) ==
+        (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
+        selectattr('name', 'equalto', item.item) | map(attribute='uid') | first)
+      - >-
+        item.resources[0].metadata.ownerReferences[0].uid ==
+        (cristexhub_prod_private_acceptance_internal_replicaset_bindings |
+        selectattr('name', 'equalto', item.item) | map(attribute='uid') | first)
       - item.resources[0].status.phase == 'Running'
       - item.resources[0].spec.hostNetwork | default(false) | bool == false
-      - item.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length == 1
-    fail_msg: Refusing private PROD acceptance with a missing, terminating, host-network, or unready workload Pod.
+      - item.resources[0].spec.nodeName | default('') | length > 0
+      - item.resources[0].status.startTime | default('') | length > 0
+      - >-
+        (item.resources[0].status.conditions | default([]) |
+        selectattr('type', 'equalto', 'Ready') |
+        selectattr('status', 'equalto', 'True') | list | length) == 1
+      - >-
+        (item.resources[0].status.conditions | default([]) |
+        selectattr('type', 'equalto', 'ContainersReady') |
+        selectattr('status', 'equalto', 'True') | list | length) == 1
+      - item.resources[0].status.containerStatuses | default([]) | length > 0
+      - >-
+        (item.resources[0].status.containerStatuses | default([]) |
+        selectattr('ready', 'equalto', true) | list | length) ==
+        (item.resources[0].status.containerStatuses | default([]) | length)
+    fail_msg: Refusing a missing, stale, terminating, unowned, host-network, or unready PROD workload Pod.
   loop: "{{ cristexhub_prod_private_acceptance_internal_pods.results }}"
   changed_when: false
   no_log: true
