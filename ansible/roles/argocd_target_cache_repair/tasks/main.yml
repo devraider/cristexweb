@@ -649,6 +649,7 @@
     namespace: argocd
     label_selectors:
       - app.kubernetes.io/name=argocd-application-controller
+    kubeconfig: "{{ argocd_target_cache_repair_kubeconfig }}"
   register: argocd_target_cache_repair_internal_pods
   changed_when: false
   until:

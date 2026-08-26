@@ -171,6 +171,11 @@ class ArgoTargetCacheRepairContractTests(unittest.TestCase):
         self.assertIn("mode=$1", self.wrapper)
         self.assertIn("if [ \"$mode\" = check ]; then set -- \"$@\" --check; fi", self.wrapper)
         self.assertIn("kubernetes.core.k8s_info", self.tasks)
+        self.assertIn("app.kubernetes.io/name=argocd-application-controller", self.tasks)
+        self.assertGreaterEqual(
+            self.tasks.count('kubeconfig: "{{ argocd_target_cache_repair_kubeconfig }}"'),
+            6,
+        )
         self.assertIn("Query the exact three target-cache repair prestates", self.tasks)
         self.assertIn("Query exact target-cache repair poststate", self.tasks)
         self.assertIn("when: not ansible_check_mode", self.tasks)
