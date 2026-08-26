@@ -89,6 +89,8 @@ class ArgoClusterCacheScopeTransitionContractTests(unittest.TestCase):
         self.assertIn("item.stringData.keys() | list | sort", tasks)
         self.assertIn("item.observed_namespaces in [item.legacy_namespaces, item.target_namespaces]", tasks)
         self.assertIn("item.observed_namespaces", tasks)
+        self.assertIn("map('b64decode') | list | unique | list) ==", tasks)
+        self.assertIn("map('list') | list | unique) ==", tasks)
         self.assertNotIn("data.namespaces | b64decode ==\n        argocd_cluster_cache_scope_transition_expected_target_namespaces", tasks)
         self.assertIn("map(attribute='apiVersion')", tasks)
 

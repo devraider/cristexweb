@@ -448,12 +448,12 @@
         selectattr('resources.0.type', 'equalto', 'Opaque') | list | length) == 3
       - >-
         (argocd_cluster_cache_scope_transition_internal_poststate.results |
-        map(attribute='resources.0.data.namespaces') | map('b64decode') | list | unique | list ==
+        map(attribute='resources.0.data.namespaces') | map('b64decode') | list | unique | list) ==
         [argocd_cluster_cache_scope_transition_expected_target_namespaces]
       - >-
         (argocd_cluster_cache_scope_transition_internal_poststate.results |
         map(attribute='resources.0.data') | map('dict2items') | map('map', attribute='key') |
-        map('list') | list | unique == [['clusterResources', 'config', 'name', 'namespaces', 'server']]
+        map('list') | list | unique) == [['clusterResources', 'config', 'name', 'namespaces', 'server']]
       - >-
         (argocd_cluster_cache_scope_transition_internal_poststate.results |
         selectattr('resources.0.metadata.ownerReferences', 'undefined') | list | length == 3)
