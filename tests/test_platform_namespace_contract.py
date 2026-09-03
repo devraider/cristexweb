@@ -218,7 +218,8 @@ metadata:
                 ANSIBLE / "bin/bootstrap-infisical-reactive-resume-dev-ca",
                 ANSIBLE / "bin/check-reactive-resume-dev-successor",
                 ANSIBLE / "bin/check-reactive-resume-object-storage-source",
-                ANSIBLE / "bin/check-cristexhub-prod-private-acceptance"
+                ANSIBLE / "bin/check-cristexhub-prod-private-acceptance",
+                ANSIBLE / "bin/check-cristexhub-prod-ghcr-pull-rotation"
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()},
         )

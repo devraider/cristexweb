@@ -20,7 +20,7 @@ sequence; this document does not replace or widen it.
 |---|---|---|---|---|
 | MongoDB URL credential | Infisical `prod:/shared-services/mongodb` | `shared-mongodb-cristexhub-prod`, keys `username`/`password` | PROD runtime `MONGODB_URL`, database `cristexhub_prod` | no dedicated writer/CAS or proven authorization/recovery lane |
 | RabbitMQ URL credential | Infisical `prod:/shared-services/rabbitmq` | `shared-rabbitmq-cristexhub-prod`, keys `username`/`password`/`passwordHash` | PROD runtime `RABBITMQ_URL`, vhost `/cristexhub-prod` | definitions recovery, message disposition, least-privilege proof, and writer/CAS are blocked |
-| GHCR pull credential | Infisical `prod:/cristexhub/prod/runtime`, key `DOCKER_CONFIG_JSON` | `cristexhub-prod-ghcr-pull`, `.dockerconfigjson` | the five existing PROD image consumers | registry revocation/successor custody and writer/CAS are blocked; image digests must not change |
+| GHCR pull credential | Infisical `prod:/cristexhub/prod/runtime`, key `DOCKER_CONFIG_JSON` | `cristexhub-prod-ghcr-pull`, `.dockerconfigjson` | the five existing PROD image consumers | metadata-only preflight exists at [`check-cristexhub-prod-ghcr-pull-rotation`](cristexhub-prod-ghcr-pull-rotation.md); registry revocation/successor custody and writer/CAS remain blocked; image digests must not change |
 | DeepSeek API key | owner/source not identified in this infrastructure repository | no target in this repository | PROD application through exact proxy destination `api.deepseek.com:443` | provider-side revocation and the application-owned successor path are unknown |
 
 The DeepSeek row is intentionally unresolved. The infrastructure repository must
@@ -91,7 +91,9 @@ message reconciliation are separate hard preconditions.
 
 ### GHCR
 
-The successor must be scoped only to the private GHCR registry and must not alter
+The source-only metadata preflight is implemented at
+[`cristexhub-prod-ghcr-pull-rotation.md`](cristexhub-prod-ghcr-pull-rotation.md).
+It does not replace the absent writer or revocation lane. The successor must be scoped only to the private GHCR registry and must not alter
 any deployed image digest or source revision. The source writer must preserve all
 unrelated `/cristexhub/prod/runtime` keys and update only `DOCKER_CONFIG_JSON`
 through a proven conditional write. Before predecessor revocation, prove that all

@@ -1,0 +1,164 @@
+#!/bin/sh
+set -eu
+usage='usage: ansible/bin/check-cristexhub-prod-ghcr-pull-rotation check'
+[ "$#" -eq 1 ] && [ "$1" = check ] || {
+  printf '%s\n' "$usage" >&2
+  printf '%s\n' 'refusing apply, provider, registry, passthrough, or task-selection arguments' >&2
+  exit 64
+}
+if [ -n "${BASH_ENV-}" ] || [ -n "${ENV-}" ] || [ -n "${SHELLOPTS-}" ]; then
+  printf '%s\n' 'refusing inherited shell execution controls' >&2
+  exit 78
+fi
+script_path=$0
+[ ! -L "$script_path" ] || {
+  printf '%s\n' 'refusing a symlinked GHCR rotation entrypoint' >&2
+  exit 66
+}
+script_directory=$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd -P)
+repository_root=$(CDPATH= cd -- "$script_directory/../.." && pwd -P)
+case "$repository_root" in
+  /home/paul/projects/cristexweb) ;;
+  *)
+    printf '%s\n' 'refusing an unpinned repository path' >&2
+    exit 78
+    ;;
+esac
+controller_user=$(/usr/bin/id -un)
+sha_tool=/usr/bin/sha256sum
+openssl_tool=/usr/bin/openssl
+stat_tool=/usr/bin/stat
+awk_tool=/usr/bin/awk
+sed_tool=/usr/bin/sed
+mktemp_tool=/usr/bin/mktemp
+[ -x "$sha_tool" ] && [ -x "$openssl_tool" ] && [ -x "$stat_tool" ] && [ -x "$awk_tool" ] && [ -x "$sed_tool" ] && [ -x "$mktemp_tool" ] || {
+  printf '%s\n' 'refusing missing protected source-validation tools' >&2
+  exit 69
+}
+umask 077
+sha_file() {
+  "$sha_tool" "$1" | /usr/bin/cut -d' ' -f1
+}
+source_manifest="$repository_root/ansible/files/components/cristexhub-prod-ghcr-pull-rotation/SOURCE-CLOSURE.sha256"
+source_manifest_expected='b7fd00ceb6093291d487301e0d908e3c2c68c6478dee7a876bec14a5617bdc11'
+wrapper_canonical_sha256_expected='efd7df0fa4765dd90f859161a375ea94ebff0b7a4d19c27737e13e113c4cdb66'
+action_source="$repository_root/ansible/library/cristexhub_prod_ghcr_pull_secret_metadata.py"
+task_source="$repository_root/ansible/roles/cristexhub_prod_ghcr_pull_rotation_preflight/tasks/main.yml"
+defaults_source="$repository_root/ansible/roles/cristexhub_prod_ghcr_pull_rotation_preflight/defaults/main.yml"
+playbook_source="$repository_root/ansible/playbooks/check_cristexhub_prod_ghcr_pull_rotation.yml"
+policy_source="$repository_root/ansible/files/policies/cristexhub-prod-ghcr-pull-rotation.yml"
+config_source="$repository_root/ansible/ansible.cfg"
+inventory_source="$repository_root/ansible/inventory/hosts.yml"
+toolchain_path="$repository_root/.venv/bin/ansible-playbook"
+closure_paths='ansible/roles/cristexhub_prod_ghcr_pull_rotation_preflight/tasks/main.yml ansible/roles/cristexhub_prod_ghcr_pull_rotation_preflight/defaults/main.yml ansible/playbooks/check_cristexhub_prod_ghcr_pull_rotation.yml ansible/library/cristexhub_prod_ghcr_pull_secret_metadata.py ansible/files/policies/cristexhub-prod-ghcr-pull-rotation.yml'
+temporary_files=''
+cleanup() {
+  for path in $temporary_files; do
+    [ -n "$path" ] && /bin/rm -f -- "$path"
+  done
+}
+trap cleanup EXIT
+canonical_wrapper_file=$($mktemp_tool "${TMPDIR:-/tmp}/cristexweb-ghcr-pull-rotation-wrapper.XXXXXX")
+temporary_files="$canonical_wrapper_file"
+$sed_tool -E \
+  -e 's/^source_manifest_expected=\x27[0-9a-f]{64}\x27$/source_manifest_expected=\x2700000000000000000000000000000000000000000000000000000000000000\x27/' \
+  -e 's/^wrapper_canonical_sha256_expected=\x27[0-9a-f]{64}\x27$/wrapper_canonical_sha256_expected=\x2700000000000000000000000000000000000000000000000000000000000000\x27/' \
+  "$script_path" >"$canonical_wrapper_file"
+[ "$(sha_file "$canonical_wrapper_file")" = "$wrapper_canonical_sha256_expected" ] || {
+  printf '%s\n' 'refusing GHCR rotation wrapper source drift' >&2
+  exit 69
+}
+[ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 69
+[ "$($stat_tool -c '%U:%G:%a' "$source_manifest")" = "$controller_user:$controller_user:644" ] || exit 69
+[ "$(sha_file "$source_manifest")" = "$source_manifest_expected" ] || {
+  printf '%s\n' 'refusing GHCR rotation source manifest drift' >&2
+  exit 69
+}
+manifest_entry() {
+  $awk_tool -v expected_path="$1" '$2 == expected_path { print $1 }' "$source_manifest"
+}
+set -- $closure_paths
+[ "$($awk_tool 'END { print NR }' "$source_manifest")" -eq "$#" ] || exit 69
+for relative in "$@"; do
+  [ "$($awk_tool -v expected_path="$relative" '$2 == expected_path { count++ } END { print count + 0 }' "$source_manifest")" -eq 1 ] || exit 69
+done
+verify_source() {
+  relative=$1
+  path=$2
+  expected_mode=$3
+  expected=$(manifest_entry "$relative")
+  case "$expected" in ''|*[!0-9a-f]*) exit 69 ;; esac
+  [ -f "$path" ] && [ ! -L "$path" ] || exit 69
+  [ "$($stat_tool -c '%a' "$path")" = "$expected_mode" ] || exit 69
+  [ "$(sha_file "$path")" = "$expected" ] || exit 69
+}
+verify_source ansible/roles/cristexhub_prod_ghcr_pull_rotation_preflight/tasks/main.yml "$task_source" 644
+verify_source ansible/roles/cristexhub_prod_ghcr_pull_rotation_preflight/defaults/main.yml "$defaults_source" 644
+verify_source ansible/playbooks/check_cristexhub_prod_ghcr_pull_rotation.yml "$playbook_source" 644
+verify_source ansible/library/cristexhub_prod_ghcr_pull_secret_metadata.py "$action_source" 644
+verify_source ansible/files/policies/cristexhub-prod-ghcr-pull-rotation.yml "$policy_source" 644
+[ -f "$config_source" ] && [ ! -L "$config_source" ] && [ "$($stat_tool -c '%a' "$config_source")" = 644 ] || exit 69
+[ -f "$inventory_source" ] && [ ! -L "$inventory_source" ] && [ "$($stat_tool -c '%a' "$inventory_source")" = 644 ] || exit 69
+$awk_tool 'NR == 1 { ok = ($0 == "[defaults]") } NR == 2 { ok = ok && ($0 == "inventory = inventory/hosts.yml") } NR == 3 { ok = ok && ($0 == "roles_path = roles") } NR == 4 { ok = ok && ($0 == "action_plugins = plugins/action") } NR == 5 { ok = ok && ($0 == "strategy_plugins = plugins/strategy") } NR == 6 { ok = ok && ($0 == "library = library") } NR == 7 { ok = ok && ($0 == "collections_path = .ansible/collections") } END { exit !(ok && NR >= 7) }' "$config_source" || exit 69
+$awk_tool 'NR == 1 { ok = ($0 == "---") } NR == 2 { ok = ok && ($0 == "all:") } NR == 3 { ok = ok && ($0 == "  children:") } NR == 4 { ok = ok && ($0 == "    k3s_servers:") } NR == 5 { ok = ok && ($0 == "      hosts:") } NR == 6 { ok = ok && ($0 == "        crtxweb:") } END { exit !(ok && NR == 6) }' "$inventory_source" || exit 69
+[ -f "$toolchain_path" ] && [ ! -L "$toolchain_path" ] || exit 69
+[ "$($stat_tool -c '%U:%G:%a' "$toolchain_path")" = "$controller_user:$controller_user:755" ] || exit 69
+cd -- "$repository_root"
+[ -z "$(/usr/bin/git status --porcelain=v1 --untracked-files=all)" ] || {
+  printf '%s\n' 'refusing a dirty source tree' >&2
+  exit 77
+}
+wrapper_sha=$(sha_file "$script_path")
+wrapper_pid=$$
+wrapper_starttime=$($awk_tool '{print $22}' "/proc/$wrapper_pid/stat")
+attestation_file=$($mktemp_tool "${TMPDIR:-/tmp}/cristexweb-ghcr-pull-rotation-attestation.XXXXXX")
+temporary_files="$temporary_files $attestation_file"
+token=$($openssl_tool rand -hex 32)
+printf '%s:entrypoint:%s:%s\n' "$token" "$wrapper_pid" "$wrapper_sha" >"$attestation_file"
+/bin/chmod 600 "$attestation_file"
+task_sha=$(sha_file "$task_source")
+defaults_sha=$(sha_file "$defaults_source")
+playbook_sha=$(sha_file "$playbook_source")
+metadata_module_sha=$(sha_file "$action_source")
+policy_sha=$(sha_file "$policy_source")
+source_closure_sha=$(printf '%s' "$task_sha:$defaults_sha:$playbook_sha:$metadata_module_sha:$policy_sha" | /usr/bin/sha256sum | /usr/bin/cut -d' ' -f1)
+cd -- "$repository_root/ansible"
+set -- "$toolchain_path" -i inventory/hosts.yml playbooks/check_cristexhub_prod_ghcr_pull_rotation.yml --check --diff --limit crtxweb --connection local --extra-vars '{"cristexhub_prod_ghcr_pull_rotation_preflight_approved":true}'
+child_pid=''
+forward_signal() {
+  signal=$1
+  if [ -n "$child_pid" ]; then
+    /bin/kill -"$signal" "$child_pid" 2>/dev/null || :
+    wait "$child_pid" 2>/dev/null || :
+  fi
+  exit 128
+}
+trap 'forward_signal TERM' TERM
+trap 'forward_signal HUP' HUP
+trap 'forward_signal INT' INT
+set +e
+/usr/bin/env -i \
+  HOME="$repository_root" \
+  USER="$controller_user" LOGNAME="$controller_user" \
+  PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C.UTF-8 \
+  ANSIBLE_CONFIG="$repository_root/ansible/ansible.cfg" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_ENTRYPOINT=v1 \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_TOKEN="$token" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_ATTESTATION_FILE="$attestation_file" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_WRAPPER_PID="$wrapper_pid" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_WRAPPER_STARTTIME="$wrapper_starttime" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_WRAPPER_PATH="$repository_root/ansible/bin/check-cristexhub-prod-ghcr-pull-rotation" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_WRAPPER_SHA256="$wrapper_sha" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_SOURCE_CLOSURE_SHA256="$source_closure_sha" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_TASK_SHA256="$task_sha" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_DEFAULTS_SHA256="$defaults_sha" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_PLAYBOOK_SHA256="$playbook_sha" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_METADATA_MODULE_SHA256="$metadata_module_sha" \
+  CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_POLICY_SHA256="$policy_sha" \
+  "$@" &
+child_pid=$!
+wait_status=0
+wait "$child_pid" || wait_status=$?
+child_pid=''
+set -e
+exit "$wait_status"

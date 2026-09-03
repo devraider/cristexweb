@@ -1,0 +1,88 @@
+---
+policy_schema: cristexhub-prod-ghcr-pull-rotation-preflight-v1
+policy_status: source-only-check-only-not-run
+purpose: >-
+  Freeze the value-free, metadata-only preflight for replacing the CristexHub
+  PROD private GHCR image-pull credential. This file is not a registry client,
+  Infisical writer, Kubernetes Secret writer, workload rollout controller, or
+  predecessor revocation mechanism.
+
+custody:
+  value_owner: infisical-cloud
+  project_id: 619656da-14f3-4872-857b-be103cdc5326
+  environment_slug: prod
+  secret_path: /cristexhub/prod/runtime
+  source_key: DOCKER_CONFIG_JSON
+  recursive: false
+  target:
+    name: cristexhub-prod-ghcr-pull
+    namespace: cristexhub-prod
+    type: kubernetes.io/dockerconfigjson
+    keys: [.dockerconfigjson]
+    creation_policy: Orphan
+    metadata_labels:
+      app.kubernetes.io/managed-by: infisical
+      app.kubernetes.io/part-of: cristexhub
+      cristex.io/value-owner: infisical-cloud
+  source_declaration:
+    kind: InfisicalStaticSecret
+    api_version: secrets.infisical.com/v1beta1
+    name: cristexhub-prod-runtime
+    namespace: cristexhub-prod
+    auth_ref: cristexhub-prod-infisical-auth
+  registry:
+    owner: github-container-registry
+    scope: private-ghcr-only
+    token_values_in_source: false
+    token_values_in_argv: false
+    token_values_in_environment: false
+    token_values_in_logs: false
+
+preflight:
+  mode: check-only
+  metadata_request: PartialObjectMetadata
+  ordinary_secret_json: forbidden
+  direct_secret_write: forbidden
+  direct_infisical_write: forbidden
+  registry_api_call: forbidden
+  Kubernetes_mutation: forbidden
+  workload_rollout: observation-only
+  expected_consumers:
+    - backend
+    - celery-worker
+    - frontend
+    - oauth2-proxy
+    - redis
+  image_pull_secret_must_not_change: true
+  images_must_be_digest_pinned: true
+  rollout_gate: FUTURE-CONTROLLED-ONE-WORKLOAD-AT-A-TIME
+  predecessor_revoke_gate: NOT-RUN-BLOCKED
+
+future_rotation_sequence:
+  - protected_metadata_preflight_and_predecessor_identity
+  - encrypted_predecessor_and_successor_custody
+  - conditional_Infisical_update_preserving_unrelated_keys
+  - Infisical-owned_target_reconciliation
+  - controlled_one-workload-at-a-time_rollout_and_readiness
+  - immutable_image_reference_validation
+  - separate_registry_predecessor_revoke_approval
+  - fresh_authentication_failure_after_revoke
+  - sanitized_receipt_and_plaintext_cleanup
+
+stop_states:
+  - UNKNOWN-STOP
+  - source-revision-drift
+  - target-owner-drift
+  - image-digest-drift
+  - target-metadata-drift
+  - workload-not-ready
+  - predecessor-recovery-missing
+  - conditional-write-unproven
+  - revocation-unproven
+
+status:
+  writer_source: absent
+  source_only_preflight: present
+  live_check: not-run
+  live_mutation: forbidden
+  predecessor_revocation: not-run-blocked

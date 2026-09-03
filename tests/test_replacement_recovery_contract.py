@@ -79,6 +79,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "opentofu-foundation-state-reconciliation.md",
                 "cristexhub-prod-credential-rotation-gates.md",
                 "cristexhub-prod-private-acceptance.md",
+                "cristexhub-prod-ghcr-pull-rotation.md",
                 "reactive-resume-object-storage-source-recovery.md",
             },
             {path.name for path in RUNBOOKS.iterdir() if path.is_file()},

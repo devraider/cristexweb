@@ -1,0 +1,8 @@
+---
+- name: Check-only CristexHub PROD GHCR pull credential rotation preflight
+  hosts: crtxweb
+  gather_facts: false
+  connection: local
+  become: false
+  roles:
+    - role: cristexhub_prod_ghcr_pull_rotation_preflight

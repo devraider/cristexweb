@@ -82,6 +82,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/library/argocd_cluster_cache_secret_metadata.py"),
             Path("ansible/library/shared_mongodb_networkpolicy_create.py"),
             Path("ansible/library/rabbitmq_prod_credential_metadata.py"),
+            Path("ansible/library/cristexhub_prod_ghcr_pull_secret_metadata.py"),
         }
         self.assertTrue(
             all(
@@ -518,6 +519,13 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "library/rabbitmq_prod_credential_metadata.py",
                 "roles/rabbitmq_prod_credential_rotation_check/defaults/main.yml",
                 "roles/rabbitmq_prod_credential_rotation_check/tasks/main.yml",
+                "files/policies/cristexhub-prod-ghcr-pull-rotation.yml",
+                "files/components/cristexhub-prod-ghcr-pull-rotation/SOURCE-CLOSURE.sha256",
+                "library/cristexhub_prod_ghcr_pull_secret_metadata.py",
+                "playbooks/check_cristexhub_prod_ghcr_pull_rotation.yml",
+                "bin/check-cristexhub-prod-ghcr-pull-rotation",
+                "roles/cristexhub_prod_ghcr_pull_rotation_preflight/defaults/main.yml",
+                "roles/cristexhub_prod_ghcr_pull_rotation_preflight/tasks/main.yml",
             ]
         )
         self.assertEqual([], [path for path in required if not (ANSIBLE / path).is_file()])

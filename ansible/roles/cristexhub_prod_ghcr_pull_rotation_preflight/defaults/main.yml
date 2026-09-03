@@ -1,0 +1,32 @@
+---
+# Value-free, check-only GHCR pull credential rotation preflight.
+# This role never writes Infisical, Kubernetes, registry, or workload state.
+cristexhub_prod_ghcr_pull_rotation_preflight_approved: false
+cristexhub_prod_ghcr_pull_rotation_preflight_state: check-only
+cristexhub_prod_ghcr_pull_rotation_preflight_kubeconfig: /etc/rancher/k3s/k3s.yaml
+cristexhub_prod_ghcr_pull_rotation_preflight_namespace: cristexhub-prod
+cristexhub_prod_ghcr_pull_rotation_preflight_argocd_namespace: argocd
+cristexhub_prod_ghcr_pull_rotation_preflight_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+cristexhub_prod_ghcr_pull_rotation_preflight_project_id: 619656da-14f3-4872-857b-be103cdc5326
+cristexhub_prod_ghcr_pull_rotation_preflight_environment_slug: prod
+cristexhub_prod_ghcr_pull_rotation_preflight_secret_path: /cristexhub/prod/runtime
+cristexhub_prod_ghcr_pull_rotation_preflight_source_key: DOCKER_CONFIG_JSON
+cristexhub_prod_ghcr_pull_rotation_preflight_source_cr_name: cristexhub-prod-runtime
+cristexhub_prod_ghcr_pull_rotation_preflight_target_name: cristexhub-prod-ghcr-pull
+cristexhub_prod_ghcr_pull_rotation_preflight_target_type: kubernetes.io/dockerconfigjson
+cristexhub_prod_ghcr_pull_rotation_preflight_target_key: .dockerconfigjson
+cristexhub_prod_ghcr_pull_rotation_preflight_value_owner: infisical-cloud
+cristexhub_prod_ghcr_pull_rotation_preflight_registry_owner: github-container-registry
+cristexhub_prod_ghcr_pull_rotation_preflight_registry_scope: private-ghcr-only
+cristexhub_prod_ghcr_pull_rotation_preflight_deployments:
+  - backend
+  - celery-worker
+  - frontend
+  - oauth2-proxy
+  - redis
+cristexhub_prod_ghcr_pull_rotation_preflight_expected_image_pull_secret:
+  name: cristexhub-prod-ghcr-pull
+cristexhub_prod_ghcr_pull_rotation_preflight_predecessor_gate: NOT-RUN-BLOCKED
+cristexhub_prod_ghcr_pull_rotation_preflight_rollout_gate: FUTURE-CONTROLLED-ONE-WORKLOAD-AT-A-TIME
+cristexhub_prod_ghcr_pull_rotation_preflight_revoke_approved: false
+cristexhub_prod_ghcr_pull_rotation_preflight_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
