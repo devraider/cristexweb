@@ -12,7 +12,7 @@
     mongodb_shared_backup_age_version: 1.2.1-1+b5
     mongodb_shared_backup_recipient_sha256: ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
     mongodb_shared_backup_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
-    mongodb_shared_backup_source_closure_sha256: 3f9f8d255e0ffd52729126c7bf7647ca52ef279a4e77a2e09f377b9024785e1b
+    mongodb_shared_backup_source_closure_sha256: 37bb6333362f3f9553a8611dc81d0a68e2094ce8779db885c3128acaab61bcfc
 
   pre_tasks:
     - name: Require the canonical backup scheduler contract
@@ -199,7 +199,7 @@
         that:
           - >-
             mongodb_shared_backup_restore_result.stdout is match(
-            '^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z '
+            '^restore_status=success schema=1 source_timestamp=20[0-9]{6}T[0-9]{6}Z '
             ~ 'source_closure_sha256=' ~ mongodb_shared_backup_source_closure_sha256 ~ ' '
             ~ 'target=isolated-emptydir application_database_count=[0-9]+ '
             ~ 'checksum=verified private_residue=none$')
@@ -259,22 +259,55 @@
       changed_when: false
       no_log: true
 
+    - name: Parse exact persisted acceptance identities without output
+      ansible.builtin.set_fact:
+        mongodb_shared_backup_acceptance_backup_receipt: "{{ mongodb_shared_backup_acceptance_contents.results[0].content | b64decode }}"
+        mongodb_shared_backup_acceptance_restore_receipt: "{{ mongodb_shared_backup_acceptance_contents.results[1].content | b64decode }}"
+        mongodb_shared_backup_acceptance_backup_timestamp: >-
+          {{ mongodb_shared_backup_acceptance_contents.results[0].content | b64decode |
+          regex_findall('timestamp=(20[0-9]{6}T[0-9]{6}Z)') | first | default('') }}
+        mongodb_shared_backup_acceptance_restore_source_timestamp: >-
+          {{ mongodb_shared_backup_acceptance_contents.results[1].content | b64decode |
+          regex_findall('source_timestamp=(20[0-9]{6}T[0-9]{6}Z)') | first | default('') }}
+        mongodb_shared_backup_acceptance_backup_schema: >-
+          {{ mongodb_shared_backup_acceptance_contents.results[0].content | b64decode |
+          regex_findall('schema=([0-9]+)') | first | default('') }}
+        mongodb_shared_backup_acceptance_restore_schema: >-
+          {{ mongodb_shared_backup_acceptance_contents.results[1].content | b64decode |
+          regex_findall('schema=([0-9]+)') | first | default('') }}
+        mongodb_shared_backup_acceptance_backup_closure: >-
+          {{ mongodb_shared_backup_acceptance_contents.results[0].content | b64decode |
+          regex_findall('source_closure_sha256=([0-9a-f]{64})') | first | default('') }}
+        mongodb_shared_backup_acceptance_restore_closure: >-
+          {{ mongodb_shared_backup_acceptance_contents.results[1].content | b64decode |
+          regex_findall('source_closure_sha256=([0-9a-f]{64})') | first | default('') }}
+      when:
+        - mongodb_shared_backup_mode == 'enable'
+      changed_when: false
+      no_log: true
+
     - name: Require exact current-source-bound acceptance receipts
       ansible.builtin.assert:
         that:
           - >-
-            (item.item is search('/backup\.receipt$') and
-             item.content | b64decode is search('backup_status=success')) or
-            (item.item is search('/restore\.receipt$') and
-             item.content | b64decode is search('restore_status=success'))
-          - item.content | b64decode is search('source_closure_sha256=' ~ mongodb_shared_backup_source_closure_sha256)
+            mongodb_shared_backup_acceptance_backup_receipt is match(
+            '^backup_status=success schema=1 service=mongodb purpose=shared-mongodb '
+            ~ 'timestamp=20[0-9]{6}T[0-9]{6}Z archive_bytes=[1-9][0-9]* '
+            ~ 'duration_seconds=[0-9]+ readback=verified consistency=oplog '
+            ~ 'private_residue=none source_closure_sha256=' ~ mongodb_shared_backup_source_closure_sha256 ~ '$')
           - >-
-            (item.item is search('/backup\\.receipt$') and
-             item.content | b64decode is search('readback=verified')) or
-            (item.item is search('/restore\\.receipt$') and
-             item.content | b64decode is search('checksum=verified'))
-          - item.content | b64decode is search('private_residue=none')
-      loop: "{{ mongodb_shared_backup_acceptance_contents.results | default([]) }}"
+            mongodb_shared_backup_acceptance_restore_receipt is match(
+            '^restore_status=success schema=1 source_timestamp=20[0-9]{6}T[0-9]{6}Z '
+            ~ 'source_closure_sha256=' ~ mongodb_shared_backup_source_closure_sha256 ~ ' '
+            ~ 'target=isolated-emptydir application_database_count=[0-9]+ '
+            ~ 'checksum=verified private_residue=none$')
+          - mongodb_shared_backup_acceptance_backup_timestamp | length == 16
+          - mongodb_shared_backup_acceptance_restore_source_timestamp | length == 16
+          - mongodb_shared_backup_acceptance_backup_timestamp == mongodb_shared_backup_acceptance_restore_source_timestamp
+          - mongodb_shared_backup_acceptance_backup_schema == '1'
+          - mongodb_shared_backup_acceptance_restore_schema == '1'
+          - mongodb_shared_backup_acceptance_backup_closure == mongodb_shared_backup_source_closure_sha256
+          - mongodb_shared_backup_acceptance_restore_closure == mongodb_shared_backup_source_closure_sha256
       when:
         - mongodb_shared_backup_mode == 'enable'
       changed_when: false

@@ -9,7 +9,7 @@
     rabbitmq_definitions_backup_approved: false
     rabbitmq_definitions_backup_mode: install
     rabbitmq_definitions_backup_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
-    rabbitmq_definitions_backup_source_closure_sha256: b74df1f0e962332b6d7fab6f2bbf71648323a644e37f5e7f4ed132224f03418a
+    rabbitmq_definitions_backup_source_closure_sha256: c062dc74683066438aaf123804f5af83ff5bc72b15dd9d192e48d2034e85dffc
   pre_tasks:
     - name: Require bounded RabbitMQ backup approval
       ansible.builtin.assert:
@@ -128,7 +128,7 @@
         that:
           - >-
             rabbitmq_restore_result.stdout is match(
-            '^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z '
+            '^restore_status=success schema=1 source_timestamp=20[0-9]{6}T[0-9]{6}Z '
             ~ 'source_closure_sha256=' ~ rabbitmq_definitions_backup_source_closure_sha256 ~ ' '
             ~ 'target=isolated-emptydir checksum=verified private_residue=none '
             ~ 'definitions_only=true message_recovery=not_claimed$')
@@ -186,22 +186,55 @@
       changed_when: false
       no_log: true
 
+    - name: Parse exact persisted acceptance identities without output
+      ansible.builtin.set_fact:
+        rabbitmq_definitions_backup_acceptance_backup_receipt: "{{ rabbitmq_definitions_backup_acceptance_contents.results[0].content | b64decode }}"
+        rabbitmq_definitions_backup_acceptance_restore_receipt: "{{ rabbitmq_definitions_backup_acceptance_contents.results[1].content | b64decode }}"
+        rabbitmq_definitions_backup_acceptance_backup_timestamp: >-
+          {{ rabbitmq_definitions_backup_acceptance_contents.results[0].content | b64decode |
+          regex_findall('timestamp=(20[0-9]{6}T[0-9]{6}Z)') | first | default('') }}
+        rabbitmq_definitions_backup_acceptance_restore_source_timestamp: >-
+          {{ rabbitmq_definitions_backup_acceptance_contents.results[1].content | b64decode |
+          regex_findall('source_timestamp=(20[0-9]{6}T[0-9]{6}Z)') | first | default('') }}
+        rabbitmq_definitions_backup_acceptance_backup_schema: >-
+          {{ rabbitmq_definitions_backup_acceptance_contents.results[0].content | b64decode |
+          regex_findall('schema=([0-9]+)') | first | default('') }}
+        rabbitmq_definitions_backup_acceptance_restore_schema: >-
+          {{ rabbitmq_definitions_backup_acceptance_contents.results[1].content | b64decode |
+          regex_findall('schema=([0-9]+)') | first | default('') }}
+        rabbitmq_definitions_backup_acceptance_backup_closure: >-
+          {{ rabbitmq_definitions_backup_acceptance_contents.results[0].content | b64decode |
+          regex_findall('source_closure_sha256=([0-9a-f]{64})') | first | default('') }}
+        rabbitmq_definitions_backup_acceptance_restore_closure: >-
+          {{ rabbitmq_definitions_backup_acceptance_contents.results[1].content | b64decode |
+          regex_findall('source_closure_sha256=([0-9a-f]{64})') | first | default('') }}
+      when:
+        - rabbitmq_definitions_backup_mode == 'enable'
+      changed_when: false
+      no_log: true
+
     - name: Require exact current-source-bound acceptance receipts
       ansible.builtin.assert:
         that:
           - >-
-            (item.item is search('/backup\.receipt$') and
-             item.content | b64decode is search('backup_status=success')) or
-            (item.item is search('/restore\.receipt$') and
-             item.content | b64decode is search('restore_status=success'))
-          - item.content | b64decode is search('source_closure_sha256=' ~ rabbitmq_definitions_backup_source_closure_sha256)
+            rabbitmq_definitions_backup_acceptance_backup_receipt is match(
+            '^backup_status=success schema=1 service=rabbitmq purpose=definitions '
+            ~ 'timestamp=20[0-9]{6}T[0-9]{6}Z archive_bytes=[1-9][0-9]* '
+            ~ 'duration_seconds=[0-9]+ readback=verified '
+            ~ 'source_closure_sha256=' ~ rabbitmq_definitions_backup_source_closure_sha256 ~ '$')
           - >-
-            (item.item is search('/backup\\.receipt$') and
-             item.content | b64decode is search('readback=verified')) or
-            (item.item is search('/restore\\.receipt$') and
-             item.content | b64decode is search('checksum=verified'))
-          - item.content | b64decode is search('private_residue=none')
-      loop: "{{ rabbitmq_definitions_backup_acceptance_contents.results | default([]) }}"
+            rabbitmq_definitions_backup_acceptance_restore_receipt is match(
+            '^restore_status=success schema=1 source_timestamp=20[0-9]{6}T[0-9]{6}Z '
+            ~ 'source_closure_sha256=' ~ rabbitmq_definitions_backup_source_closure_sha256 ~ ' '
+            ~ 'target=isolated-emptydir checksum=verified private_residue=none '
+            ~ 'definitions_only=true message_recovery=not_claimed$')
+          - rabbitmq_definitions_backup_acceptance_backup_timestamp | length == 16
+          - rabbitmq_definitions_backup_acceptance_restore_source_timestamp | length == 16
+          - rabbitmq_definitions_backup_acceptance_backup_timestamp == rabbitmq_definitions_backup_acceptance_restore_source_timestamp
+          - rabbitmq_definitions_backup_acceptance_backup_schema == '1'
+          - rabbitmq_definitions_backup_acceptance_restore_schema == '1'
+          - rabbitmq_definitions_backup_acceptance_backup_closure == rabbitmq_definitions_backup_source_closure_sha256
+          - rabbitmq_definitions_backup_acceptance_restore_closure == rabbitmq_definitions_backup_source_closure_sha256
       when:
         - rabbitmq_definitions_backup_mode == 'enable'
       changed_when: false

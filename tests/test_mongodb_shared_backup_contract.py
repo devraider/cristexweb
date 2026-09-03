@@ -54,6 +54,7 @@ class MongoDBSharedBackupContractTests(unittest.TestCase):
             "gzip -9 -c \"$run_directory/shared-mongodb.archive\" >\"$run_directory/shared-mongodb.archive.gz\"",
             "/usr/bin/rm -f -- \"$run_directory/shared-mongodb.archive\" \"$run_directory/shared-mongodb.archive.gz\"",
             "source_closure_sha256=",
+            "backup_status=success schema=1",
         ):
             self.assertIn(value, self.backup)
         for forbidden in ("rclone sync", "rclone move", "rclone purge", "rclone delete"):
@@ -89,6 +90,28 @@ class MongoDBSharedBackupContractTests(unittest.TestCase):
         self.assertNotIn("shared-mongodb-auth", self.restore)
         self.assertNotIn('age -d -i "$work/identity" "$work/shared-mongodb.archive.gz.age" |', self.restore)
         self.assertNotIn('delete_restore_pod >/dev/null 2>&1 || true', self.restore)
+        self.assertIn("discover_restore_pod", self.restore)
+        self.assertIn("pod_uid_discovery", self.restore)
+        self.assertNotIn("tail -1", self.restore)
+        self.assertIn("lsf --files-only", self.restore)
+        self.assertIn('cmp -s \"$sorted\" \"$expected_sorted\"', self.restore)
+        self.assertIn("source_timestamp", self.playbook)
+        self.assertIn(
+            "acceptance_backup_timestamp == mongodb_shared_backup_acceptance_restore_source_timestamp",
+            self.playbook,
+        )
+        self.assertIn("acceptance_backup_schema == '1'", self.playbook)
+        self.assertIn("acceptance_restore_schema == '1'", self.playbook)
+
+    def test_catalog_selection_is_complete_and_fail_closed(self) -> None:
+        self.assertIn("lsf --dirs-only", self.restore)
+        self.assertIn("lsf --files-only", self.restore)
+        self.assertIn("catalog-valid", self.restore)
+        self.assertIn("grep -Fxq", self.restore)
+        self.assertIn("return 1", self.restore)
+        self.assertIn('cmp -s "$sorted" "$expected_sorted"', self.restore)
+        self.assertNotIn("tail -1", self.restore)
+        self.assertNotRegex(self.restore, r"rclone[^\n]*\|")
 
     def test_systemd_is_separate_hardened_and_offset(self) -> None:
         for value in (

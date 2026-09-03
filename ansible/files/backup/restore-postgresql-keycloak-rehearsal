@@ -12,7 +12,7 @@ export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null
 project_id=619656da-14f3-4872-857b-be103cdc5326
 infisical_path=/shared-services/backup-recovery
 remote_root=drive:cristexweb-recovery/postgresql/keycloak
-source_closure_sha256=68db89264245076b8dd2a12235849c06bd7f0b9ade19cec0e84bc14b8989de30
+source_closure_sha256=c05afb66756249152de4a5a289adc643b3a484db0fbc03eb6ed90606ba67dbe7
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'restore_status=failed stage=source_closure_contract'
   exit 1
@@ -24,17 +24,59 @@ run_id=$(/usr/bin/date -u +%Y%m%dt%H%M%Sz | /usr/bin/tr '[:upper:]' '[:lower:]')
 pod=keycloak-restore-rehearsal-$run_id
 work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-keycloak-restore.XXXXXX)
 uid=
+restore_label=keycloak-restore-rehearsal
+discover_restore_pod() {
+  discovery="$work/pod-discovery"
+  if ! /usr/local/bin/kubectl -n "$namespace" get pods \
+      -l "app.kubernetes.io/name=$restore_label,cristex.io/run-id=$run_id" \
+      -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.uid}{"\n"}{end}' >"$discovery"; then
+    return 1
+  fi
+  discovered_count=0
+  discovered_name=
+  discovered_uid=
+  while IFS='	' read -r candidate_name candidate_uid; do
+    [ -n "$candidate_name" ] || continue
+    discovered_count=$((discovered_count + 1))
+    [ "$candidate_name" = "$pod" ] || return 1
+    [ -n "$candidate_uid" ] || return 1
+    discovered_name="$candidate_name"
+    discovered_uid="$candidate_uid"
+  done <"$discovery"
+  if [ "$discovered_count" -eq 0 ]; then
+    return 0
+  fi
+  [ "$discovered_count" -eq 1 ] && [ "$discovered_name" = "$pod" ] || return 1
+  uid="$discovered_uid"
+}
 delete_restore_pod() {
-  [ -n "$uid" ] || return 0
-  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  if [ -z "$uid" ]; then
+    discover_restore_pod || return 1
+    [ "$discovered_count" -eq 0 ] && return 0
+  fi
+  if ! current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}'); then
+    return 1
+  fi
+  [ -z "$current_uid" ] && { uid=; return 0; }
   [ "$current_uid" = "$uid" ] || return 1
+  if ! current_owner=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.labels.app\\.kubernetes\\.io/name}'); then
+    return 1
+  fi
+  if ! current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.labels.cristex\\.io/run-id}'); then
+    return 1
+  fi
+  [ "$current_owner" = "$restore_label" ] && [ "$current_run_id" = "$run_id" ] || return 1
   /usr/bin/printf '{"kind":"DeleteOptions","apiVersion":"v1","propagationPolicy":"Orphan","preconditions":{"uid":"%s"}}\n' "$uid" >"$work/delete.json"
   /usr/local/bin/kubectl delete --raw "/api/v1/namespaces/$namespace/pods/$pod" -f "$work/delete.json" >/dev/null
   if ! /usr/local/bin/kubectl -n "$namespace" wait --for=delete "pod/$pod" --timeout=120s >/dev/null 2>&1; then
-    current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+    if ! current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}'); then
+      return 1
+    fi
     [ -z "$current_uid" ] || return 1
   fi
-  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  if ! current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}'); then
+    return 1
+  fi
   [ -z "$current_uid" ] || return 1
   uid=
 }
@@ -50,12 +92,51 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 chmod 0700 "$work"
-
-latest=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sort | /usr/bin/tail -1 | /usr/bin/tr -d '/')
-printf '%s\n' "$latest" | /usr/bin/grep -Eq '^20[0-9]{6}T[0-9]{6}Z$' || {
+archive_leaf=keycloak.dump.gz.age
+checksum_leaf=keycloak.dump.gz.age.sha256
+select_latest_complete_catalog() {
+  expected="$work/expected-leaves"
+  expected_sorted="$work/expected-leaves.sorted"
+  catalog="$work/catalog-dirs"
+  valid="$work/catalog-valid"
+  printf '%s\n' "$archive_leaf" "$checksum_leaf" manifest.json >"$expected"
+  if ! LC_ALL=C /usr/bin/sort "$expected" >"$expected_sorted"; then
+    return 1
+  fi
+  if ! /usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" >"$catalog"; then
+    return 1
+  fi
+  : >"$valid"
+  latest=
+  while IFS='	' read -r raw; do
+    candidate=${raw%/}
+    [ -n "$candidate" ] || continue
+    printf '%s\n' "$candidate" >"$work/catalog-candidate"
+    /usr/bin/grep -Eq '^20[0-9]{6}T[0-9]{6}Z$' "$work/catalog-candidate" || continue
+    if /usr/bin/grep -Fxq "$candidate" "$valid"; then
+      return 1
+    fi
+    printf '%s\n' "$candidate" >>"$valid"
+    listing="$work/catalog-$candidate"
+    if ! /usr/local/bin/rclone --config "$rclone_config" lsf --files-only "$remote_root/$candidate" >"$listing"; then
+      return 1
+    fi
+    sorted="$work/catalog-$candidate.sorted"
+    if ! LC_ALL=C /usr/bin/sort "$listing" >"$sorted"; then
+      return 1
+    fi
+    if /usr/bin/cmp -s "$sorted" "$expected_sorted"; then
+      if [ -z "$latest" ] || [ "$candidate" \> "$latest" ]; then
+        latest="$candidate"
+      fi
+    fi
+  done <"$catalog"
+  [ -n "$latest" ]
+}
+if ! select_latest_complete_catalog; then
   printf '%s\n' 'restore_status=failed stage=remote_catalog'
   exit 1
-}
+fi
 remote="$remote_root/$latest"
 for leaf in keycloak.dump.gz.age keycloak.dump.gz.age.sha256 manifest.json; do
   /usr/local/bin/rclone --config "$rclone_config" copyto "$remote/$leaf" "$work/$leaf"
@@ -163,8 +244,19 @@ spec:
       emptyDir: {}
 EOF
 /usr/local/bin/kubectl apply -f "$work/pod.yaml" >/dev/null
-uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.metadata.uid}')
-[ -n "$uid" ]
+if ! uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.metadata.uid}'); then
+  uid=
+fi
+if [ -z "$uid" ]; then
+  discover_restore_pod || {
+    printf '%s\n' 'restore_status=failed stage=pod_uid_discovery' >&2
+    exit 1
+  }
+fi
+[ -n "$uid" ] || {
+  printf '%s\n' 'restore_status=failed stage=pod_uid_discovery' >&2
+  exit 1
+}
 /usr/local/bin/kubectl -n "$namespace" wait --for=condition=Ready "pod/$pod" --timeout=180s >/dev/null
 /usr/local/bin/kubectl -n "$namespace" cp "$work/keycloak.dump" "$pod:/restore/keycloak.dump" -c postgres >/dev/null
 /usr/local/bin/kubectl -n "$namespace" exec "$pod" -c postgres -- \
@@ -175,4 +267,4 @@ catalog_count=$(/usr/local/bin/kubectl -n "$namespace" exec "$pod" -c postgres -
 printf '%s\n' "$catalog_count" | /usr/bin/grep -Eq '^[0-9]+$'
 /usr/bin/rm -f -- "$work/keycloak.dump"
 delete_restore_pod
-printf 'restore_status=success source_timestamp=%s source_closure_sha256=%s target=isolated-emptydir catalog_table_count=%s checksum=verified private_residue=none\n' "$latest" "$source_closure_sha256" "$catalog_count"
+printf 'restore_status=success schema=1 source_timestamp=%s source_closure_sha256=%s target=isolated-emptydir catalog_table_count=%s checksum=verified private_residue=none\n' "$latest" "$source_closure_sha256" "$catalog_count"

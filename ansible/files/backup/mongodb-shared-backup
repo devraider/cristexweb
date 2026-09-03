@@ -9,7 +9,7 @@ resource=shared-mongodb
 pod=shared-mongodb-0
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
-source_closure_sha256=3f9f8d255e0ffd52729126c7bf7647ca52ef279a4e77a2e09f377b9024785e1b
+source_closure_sha256=37bb6333362f3f9553a8611dc81d0a68e2094ce8779db885c3128acaab61bcfc
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'backup_status=failed stage=source_closure_contract'
   exit 1
@@ -97,4 +97,4 @@ done
 trap - EXIT HUP INT TERM
 /usr/bin/find "$archive_root" -mindepth 1 -maxdepth 1 -type d -mtime +14 \
   -name '20[0-9][0-9][01][0-9][0-3][0-9]T[0-2][0-9][0-5][0-9][0-5][0-9]Z' -exec /usr/bin/rm -rf -- {} +
-printf 'backup_status=success service=mongodb purpose=shared-mongodb timestamp=%s archive_bytes=%s duration_seconds=%s readback=verified consistency=oplog source_closure_sha256=%s\n' "$timestamp" "$archive_bytes" "$duration_seconds" "$source_closure_sha256"
+printf 'backup_status=success schema=1 service=mongodb purpose=shared-mongodb timestamp=%s archive_bytes=%s duration_seconds=%s readback=verified consistency=oplog private_residue=none source_closure_sha256=%s\n' "$timestamp" "$archive_bytes" "$duration_seconds" "$source_closure_sha256"

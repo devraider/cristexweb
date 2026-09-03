@@ -92,7 +92,7 @@ value is committed, passed in argv/environment, written to evidence, or logged.
 
 The PostgreSQL Keycloak manifest is schema `1` with an exact
 `source_closure_sha256` field. The current closure is
-`224c26ed0e1f4099212cf81401cee441c26ff0e78a8face8a9d406aa04774ed0`; it is computed
+`c05afb66756249152de4a5a289adc643b3a484db0fbc03eb6ed90606ba67dbe7`; it is computed
 from the restore executable (with its self-pin canonicalized), the service unit, and
 the timer unit. The backup writes the digest as a JSON value, not a shell literal.
 The restore requires the exact pinned digest, archive checksum, archive size, and
@@ -107,15 +107,17 @@ source-closure correction before any timer-enable gate can be accepted.
 A successful upload is not recovery evidence. Before timer activation, the rehearsal
 must:
 
-1. select one exact timestamped Google Drive archive;
-2. download archive, checksum, and manifest into mode-`0700` temporary storage;
-3. verify manifest closure and SHA-256 before decryption;
-4. retrieve the exact age identity from Infisical without output;
-5. decrypt and decompress only inside the trapped directory;
-6. restore into a temporary PostgreSQL `17.10` runtime with isolated empty storage;
-7. validate the restored database/catalog and expected Keycloak schema state;
-8. remove the temporary runtime and all plaintext/key residue; and
-9. record only sanitized duration, checksum status, restore result, and zero residue.
+1. enumerate timestamp directories with an explicit, checked `rclone` result;
+2. select the newest directory whose exact three-leaf set is complete; newer incomplete directories are ignored and never deleted;
+3. reject duplicate timestamps, extra leaves, missing leaves, and duplicate leaves;
+4. download archive, checksum, and manifest into mode-`0700` temporary storage;
+5. verify manifest closure and SHA-256 before decryption;
+6. retrieve the exact age identity from Infisical without output;
+7. decrypt and decompress only inside the trapped directory;
+8. restore into a temporary PostgreSQL `17.10` runtime with isolated empty storage;
+9. validate the restored database/catalog and expected Keycloak schema state;
+10. remove the temporary runtime and all plaintext/key residue; and
+11. record only sanitized duration, checksum status, restore result, and zero residue.
 
 The production `shared-postgresql` Cluster, database `keycloak`, role, Secret, and PVC
 remained unchanged throughout. The final enable apply converged at `changed=0` and
@@ -140,10 +142,7 @@ missing or mismatched digest. Restore decrypts and decompresses through separate
 staged files with independent status checks, so an age failure cannot be masked
 by gzip. The management request uses the username/password
 pair; `passwordHash` is validated as required
-custody material but is never emitted or used as a substitute credential. Backup
-receipts carry `readback=verified`; isolated restore receipts carry the exact
-source-closure digest and `checksum=verified`, while enablement checks each
-receipt type against only the fields it emits. RabbitMQ
+custody material but is never emitted or used as a substitute credential. Backup receipts carry `schema=1` and `readback=verified`; isolated restore receipts carry `schema=1`, the exact source-closure digest, and `checksum=verified`. Enablement parses both receipts without output, requires exact field sets, and binds the backup `timestamp` to the restore `source_timestamp`; mismatched timestamps, schemas, or closure digests cannot enable a timer. RabbitMQ
 definitions recovery is not queued-message recovery, and it does not prove consumer
 identity, permissions, or message disposition. Each future service or consumer
 requires an exact archive path, capacity/retention review, integrity check, isolated

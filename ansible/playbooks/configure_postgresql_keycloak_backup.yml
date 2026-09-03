@@ -12,7 +12,7 @@
     postgresql_keycloak_backup_age_version: 1.2.1-1+b5
     postgresql_keycloak_backup_recipient_sha256: ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
     postgresql_keycloak_backup_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
-    postgresql_keycloak_backup_source_closure_sha256: 68db89264245076b8dd2a12235849c06bd7f0b9ade19cec0e84bc14b8989de30
+    postgresql_keycloak_backup_source_closure_sha256: c05afb66756249152de4a5a289adc643b3a484db0fbc03eb6ed90606ba67dbe7
 
   pre_tasks:
     - name: Require the canonical backup scheduler contract
@@ -197,7 +197,7 @@
         that:
           - >-
             postgresql_keycloak_backup_restore_result.stdout is match(
-            '^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z '
+            '^restore_status=success schema=1 source_timestamp=20[0-9]{6}T[0-9]{6}Z '
             ~ 'source_closure_sha256=' ~ postgresql_keycloak_backup_source_closure_sha256 ~ ' '
             ~ 'target=isolated-emptydir catalog_table_count=[0-9]+ '
             ~ 'checksum=verified private_residue=none$')
@@ -257,22 +257,55 @@
       changed_when: false
       no_log: true
 
+    - name: Parse exact persisted acceptance identities without output
+      ansible.builtin.set_fact:
+        postgresql_keycloak_backup_acceptance_backup_receipt: "{{ postgresql_keycloak_backup_acceptance_contents.results[0].content | b64decode }}"
+        postgresql_keycloak_backup_acceptance_restore_receipt: "{{ postgresql_keycloak_backup_acceptance_contents.results[1].content | b64decode }}"
+        postgresql_keycloak_backup_acceptance_backup_timestamp: >-
+          {{ postgresql_keycloak_backup_acceptance_contents.results[0].content | b64decode |
+          regex_findall('timestamp=(20[0-9]{6}T[0-9]{6}Z)') | first | default('') }}
+        postgresql_keycloak_backup_acceptance_restore_source_timestamp: >-
+          {{ postgresql_keycloak_backup_acceptance_contents.results[1].content | b64decode |
+          regex_findall('source_timestamp=(20[0-9]{6}T[0-9]{6}Z)') | first | default('') }}
+        postgresql_keycloak_backup_acceptance_backup_schema: >-
+          {{ postgresql_keycloak_backup_acceptance_contents.results[0].content | b64decode |
+          regex_findall('schema=([0-9]+)') | first | default('') }}
+        postgresql_keycloak_backup_acceptance_restore_schema: >-
+          {{ postgresql_keycloak_backup_acceptance_contents.results[1].content | b64decode |
+          regex_findall('schema=([0-9]+)') | first | default('') }}
+        postgresql_keycloak_backup_acceptance_backup_closure: >-
+          {{ postgresql_keycloak_backup_acceptance_contents.results[0].content | b64decode |
+          regex_findall('source_closure_sha256=([0-9a-f]{64})') | first | default('') }}
+        postgresql_keycloak_backup_acceptance_restore_closure: >-
+          {{ postgresql_keycloak_backup_acceptance_contents.results[1].content | b64decode |
+          regex_findall('source_closure_sha256=([0-9a-f]{64})') | first | default('') }}
+      when:
+        - postgresql_keycloak_backup_mode == 'enable'
+      changed_when: false
+      no_log: true
+
     - name: Require exact current-source-bound acceptance receipts
       ansible.builtin.assert:
         that:
           - >-
-            (item.item is search('/backup\.receipt$') and
-             item.content | b64decode is search('backup_status=success')) or
-            (item.item is search('/restore\.receipt$') and
-             item.content | b64decode is search('restore_status=success'))
-          - item.content | b64decode is search('source_closure_sha256=' ~ postgresql_keycloak_backup_source_closure_sha256)
+            postgresql_keycloak_backup_acceptance_backup_receipt is match(
+            '^backup_status=success schema=1 service=postgresql database=keycloak '
+            ~ 'timestamp=20[0-9]{6}T[0-9]{6}Z archive_bytes=[1-9][0-9]* '
+            ~ 'duration_seconds=[0-9]+ readback=verified private_residue=none '
+            ~ 'source_closure_sha256=' ~ postgresql_keycloak_backup_source_closure_sha256 ~ '$')
           - >-
-            (item.item is search('/backup\\.receipt$') and
-             item.content | b64decode is search('readback=verified')) or
-            (item.item is search('/restore\\.receipt$') and
-             item.content | b64decode is search('checksum=verified'))
-          - item.content | b64decode is search('private_residue=none')
-      loop: "{{ postgresql_keycloak_backup_acceptance_contents.results | default([]) }}"
+            postgresql_keycloak_backup_acceptance_restore_receipt is match(
+            '^restore_status=success schema=1 source_timestamp=20[0-9]{6}T[0-9]{6}Z '
+            ~ 'source_closure_sha256=' ~ postgresql_keycloak_backup_source_closure_sha256 ~ ' '
+            ~ 'target=isolated-emptydir catalog_table_count=[0-9]+ '
+            ~ 'checksum=verified private_residue=none$')
+          - postgresql_keycloak_backup_acceptance_backup_timestamp | length == 16
+          - postgresql_keycloak_backup_acceptance_restore_source_timestamp | length == 16
+          - postgresql_keycloak_backup_acceptance_backup_timestamp == postgresql_keycloak_backup_acceptance_restore_source_timestamp
+          - postgresql_keycloak_backup_acceptance_backup_schema == '1'
+          - postgresql_keycloak_backup_acceptance_restore_schema == '1'
+          - postgresql_keycloak_backup_acceptance_backup_closure == postgresql_keycloak_backup_source_closure_sha256
+          - postgresql_keycloak_backup_acceptance_restore_closure == postgresql_keycloak_backup_source_closure_sha256
       when:
         - postgresql_keycloak_backup_mode == 'enable'
       changed_when: false

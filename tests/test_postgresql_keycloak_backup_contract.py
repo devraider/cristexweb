@@ -42,6 +42,7 @@ class PostgreSQLKeycloakBackupContractTests(unittest.TestCase):
             "readback=verified",
             "gzip -9 -c \"$run_directory/keycloak.dump\" >\"$run_directory/keycloak.dump.gz\"",
             "source_closure_sha256=",
+            "backup_status=success schema=1",
         ):
             self.assertIn(value, self.script)
         self.assertNotRegex(self.script, r"rclone[^\n]*(sync|move|purge|delete)")
@@ -138,9 +139,31 @@ class PostgreSQLKeycloakBackupContractTests(unittest.TestCase):
         self.assertIn("x['source_closure_sha256']==os.environ['EXPECTED_SOURCE_CLOSURE_SHA256']", self.restore)
         self.assertIn("restore_status=failed stage=manifest_contract", self.restore)
         self.assertIn(
-            "restore_status=success source_timestamp=%s source_closure_sha256=%s",
+            "restore_status=success schema=1 source_timestamp=%s source_closure_sha256=%s",
             self.restore,
         )
+        self.assertIn("discover_restore_pod", self.restore)
+        self.assertIn("pod_uid_discovery", self.restore)
+        self.assertNotIn("tail -1", self.restore)
+        self.assertIn("lsf --files-only", self.restore)
+        self.assertIn('cmp -s \"$sorted\" \"$expected_sorted\"', self.restore)
+        self.assertIn("source_timestamp", PLAYBOOK.read_text())
+        self.assertIn(
+            "acceptance_backup_timestamp == postgresql_keycloak_backup_acceptance_restore_source_timestamp",
+            PLAYBOOK.read_text(),
+        )
+        self.assertIn("acceptance_backup_schema == '1'", PLAYBOOK.read_text())
+        self.assertIn("acceptance_restore_schema == '1'", PLAYBOOK.read_text())
+
+    def test_catalog_selection_is_complete_and_fail_closed(self) -> None:
+        self.assertIn("lsf --dirs-only", self.restore)
+        self.assertIn("lsf --files-only", self.restore)
+        self.assertIn("catalog-valid", self.restore)
+        self.assertIn("grep -Fxq", self.restore)
+        self.assertIn("return 1", self.restore)
+        self.assertIn('cmp -s \"$sorted\" \"$expected_sorted\"', self.restore)
+        self.assertNotIn("tail -1", self.restore)
+        self.assertNotRegex(self.restore, r"rclone[^\n]*\|")
 
     def test_historical_manifests_fail_closed_before_decryption(self) -> None:
         validator = re.search(

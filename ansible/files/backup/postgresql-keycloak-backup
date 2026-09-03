@@ -10,7 +10,7 @@ cluster=shared-postgresql
 database=keycloak
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
-source_closure_sha256=68db89264245076b8dd2a12235849c06bd7f0b9ade19cec0e84bc14b8989de30
+source_closure_sha256=c05afb66756249152de4a5a289adc643b3a484db0fbc03eb6ed90606ba67dbe7
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'backup_status=failed stage=source_closure_contract'
   exit 1
@@ -112,5 +112,5 @@ trap - EXIT HUP INT TERM
 /usr/bin/find "$archive_root" -mindepth 1 -maxdepth 1 -type d -mtime +14 \
   -name '20[0-9][0-9][01][0-9][0-3][0-9]T[0-2][0-9][0-5][0-9][0-5][0-9]Z' \
   -exec /usr/bin/rm -rf -- {} +
-printf 'backup_status=success service=postgresql database=keycloak timestamp=%s archive_bytes=%s duration_seconds=%s readback=verified source_closure_sha256=%s\n' \
+printf 'backup_status=success schema=1 service=postgresql database=keycloak timestamp=%s archive_bytes=%s duration_seconds=%s readback=verified private_residue=none source_closure_sha256=%s\n' \
   "$timestamp" "$archive_bytes" "$duration_seconds" "$source_closure_sha256"

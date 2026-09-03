@@ -10,7 +10,7 @@ admin_secret=shared-rabbitmq-admin
 tls_secret=shared-rabbitmq-tls
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
-source_closure_sha256=b74df1f0e962332b6d7fab6f2bbf71648323a644e37f5e7f4ed132224f03418a
+source_closure_sha256=c062dc74683066438aaf123804f5af83ff5bc72b15dd9d192e48d2034e85dffc
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'backup_status=failed stage=source_closure_contract'
   exit 1
@@ -100,4 +100,4 @@ done
 /usr/bin/rm -rf -- "$readback"
 trap - EXIT HUP INT TERM
 /usr/bin/find "$archive_root" -mindepth 1 -maxdepth 1 -type d -mtime +14 -name '20[0-9][0-9][01][0-9][0-3][0-9]T[0-2][0-9][0-5][0-9][0-5][0-9]Z' -exec /usr/bin/rm -rf -- {} +
-printf 'backup_status=success service=rabbitmq purpose=definitions timestamp=%s archive_bytes=%s duration_seconds=%s readback=verified source_closure_sha256=%s\n' "$timestamp" "$archive_bytes" "$duration_seconds" "$source_closure_sha256"
+printf 'backup_status=success schema=1 service=rabbitmq purpose=definitions timestamp=%s archive_bytes=%s duration_seconds=%s readback=verified private_residue=none source_closure_sha256=%s\n' "$timestamp" "$archive_bytes" "$duration_seconds" "$source_closure_sha256"
