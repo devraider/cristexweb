@@ -20,6 +20,7 @@ DEFAULTS = ANSIBLE / "roles/cristexhub_prod_ghcr_pull_rotation_preflight/default
 PLAYBOOK = ANSIBLE / "playbooks/check_cristexhub_prod_ghcr_pull_rotation.yml"
 MODULE = ANSIBLE / "library/cristexhub_prod_ghcr_pull_secret_metadata.py"
 POLICY = ANSIBLE / "files/policies/cristexhub-prod-ghcr-pull-rotation.yml"
+INFISICAL_SOURCE = ANSIBLE / "files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
 RUNBOOK = ROOT / "runbooks/cristexhub-prod-ghcr-pull-rotation.md"
 
 
@@ -31,6 +32,7 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
         cls.defaults = yaml.safe_load(DEFAULTS.read_text())
         cls.playbook = yaml.safe_load(PLAYBOOK.read_text())
         cls.policy = yaml.safe_load(POLICY.read_text())
+        cls.infisical_source = yaml.safe_load(INFISICAL_SOURCE.read_text())
         cls.runbook = RUNBOOK.read_text()
         cls.manifest_lines = MANIFEST.read_text().splitlines()
 
@@ -71,6 +73,16 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
             flags=re.MULTILINE,
         )
         self.assertEqual(match.group(1), hashlib.sha256(canonical.encode()).hexdigest())
+
+    def test_wrapper_canonicalizer_uses_exactly_64_zero_placeholders(self) -> None:
+        for prefix in (
+            "s/^source_manifest_expected=",
+            "s/^wrapper_canonical_sha256_expected=",
+        ):
+            line = next(line for line in self.wrapper.splitlines() if prefix in line)
+            placeholder = re.search(r"\\x27(0+)\\x27", line)
+            self.assertIsNotNone(placeholder, line)
+            self.assertEqual(64, len(placeholder.group(1)), line)
 
     def test_exact_value_free_custody_contract(self) -> None:
         self.assertEqual("source-only-check-only-not-run", self.policy["policy_status"])
@@ -135,6 +147,17 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
         self.assertIn("data reads", self.tasks)
 
     def test_exact_infisical_and_target_contract_is_in_source(self) -> None:
+        targets = self.infisical_source["spec"]["targets"]
+        self.assertEqual(
+            ["cristexhub-prod-runtime", "cristexhub-prod-ghcr-pull"],
+            [target["name"] for target in targets],
+        )
+        pull_target = targets[1]
+        self.assertEqual({}, pull_target["metadata"]["annotations"])
+        self.assertEqual(
+            "{{ .DOCKER_CONFIG_JSON.Value }}",
+            pull_target["template"]["data"][".dockerconfigjson"],
+        )
         for required in (
             "InfisicalStaticSecret",
             "secrets.infisical.com/v1beta1",
@@ -148,6 +171,9 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
             "Query only imagePullSecret metadata through PartialObjectMetadata",
             "metadata_only | bool",
             "ownerReferences == []",
+            "map(attribute='name') | list == ['cristexhub-prod-runtime', 'cristexhub-prod-ghcr-pull']",
+            "deployment.kubernetes.io/revision",
+            "^[1-9][0-9]*$",
         ):
             self.assertIn(required, self.tasks)
         expected_template = base64.b64encode(b"{{ .DOCKER_CONFIG_JSON.Value }}").decode()
@@ -181,6 +207,8 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
         self.assertIn("'resource_version': item.resources[0].metadata.resourceVersion", self.tasks)
         self.assertIn("Require the bound Deployment UID and resourceVersion closure", self.tasks)
         self.assertIn("metadata.deletionTimestamp | default('', true) == ''", self.tasks)
+        self.assertIn("metadata.uid ==\n        (cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory.resources", self.tasks)
+        self.assertIn("metadata.resourceVersion ==\n        (cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory.resources", self.tasks)
         self.assertIn(
             "metadata.labels == {\n        'app.kubernetes.io/name': item.item,\n        'app.kubernetes.io/part-of': 'cristexhub'}",
             self.tasks,
@@ -196,7 +224,8 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
         self.assertIn("source_cr_binding.uid ==", self.tasks)
         self.assertIn("source_cr_binding.resource_version ==", self.tasks)
         self.assertIn("cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings | length == 5", self.tasks)
-        self.assertNotIn("metadata.deletionTimestamp | default('') == ''", self.tasks)
+        self.assertIn("map(attribute='revision') | select('match', '^[1-9][0-9]*$') | list | length == 5", self.tasks)
+        self.assertIn("metadata.deletionTimestamp | default('', true) == ''", self.tasks)
 
     def test_exact_five_immutable_ready_consumers_and_gates(self) -> None:
         names = ["backend", "celery-worker", "frontend", "oauth2-proxy", "redis"]

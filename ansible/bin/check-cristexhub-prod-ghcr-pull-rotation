@@ -40,8 +40,8 @@ sha_file() {
   "$sha_tool" "$1" | /usr/bin/cut -d' ' -f1
 }
 source_manifest="$repository_root/ansible/files/components/cristexhub-prod-ghcr-pull-rotation/SOURCE-CLOSURE.sha256"
-source_manifest_expected='0048735229d31732d6f85f698d67d3157851041128460ce3533f77e6d7bf3efc'
-wrapper_canonical_sha256_expected='efd7df0fa4765dd90f859161a375ea94ebff0b7a4d19c27737e13e113c4cdb66'
+source_manifest_expected='9201116ad15977b4f73e5b8c7988a77dcee879df7bc62c31619b56a2ef51533c'
+wrapper_canonical_sha256_expected='6943b8083826b7ea920075aa4f6ec786c05f7ed1bdce511f76fd0ba96d97d2f1'
 action_source="$repository_root/ansible/library/cristexhub_prod_ghcr_pull_secret_metadata.py"
 task_source="$repository_root/ansible/roles/cristexhub_prod_ghcr_pull_rotation_preflight/tasks/main.yml"
 defaults_source="$repository_root/ansible/roles/cristexhub_prod_ghcr_pull_rotation_preflight/defaults/main.yml"
@@ -61,8 +61,8 @@ trap cleanup EXIT
 canonical_wrapper_file=$($mktemp_tool "${TMPDIR:-/tmp}/cristexweb-ghcr-pull-rotation-wrapper.XXXXXX")
 temporary_files="$canonical_wrapper_file"
 $sed_tool -E \
-  -e 's/^source_manifest_expected=\x27[0-9a-f]{64}\x27$/source_manifest_expected=\x2700000000000000000000000000000000000000000000000000000000000000\x27/' \
-  -e 's/^wrapper_canonical_sha256_expected=\x27[0-9a-f]{64}\x27$/wrapper_canonical_sha256_expected=\x2700000000000000000000000000000000000000000000000000000000000000\x27/' \
+  -e 's/^source_manifest_expected=\x27[0-9a-f]{64}\x27$/source_manifest_expected=\x270000000000000000000000000000000000000000000000000000000000000000\x27/' \
+  -e 's/^wrapper_canonical_sha256_expected=\x27[0-9a-f]{64}\x27$/wrapper_canonical_sha256_expected=\x270000000000000000000000000000000000000000000000000000000000000000\x27/' \
   "$script_path" >"$canonical_wrapper_file"
 [ "$(sha_file "$canonical_wrapper_file")" = "$wrapper_canonical_sha256_expected" ] || {
   printf '%s\n' 'refusing GHCR rotation wrapper source drift' >&2

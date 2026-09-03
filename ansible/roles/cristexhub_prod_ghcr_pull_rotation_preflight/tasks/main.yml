@@ -212,8 +212,11 @@
         {'refreshInterval': '1h', 'instantUpdates': false}
       - >-
         cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].spec.targets |
+        map(attribute='name') | list == ['cristexhub-prod-runtime', 'cristexhub-prod-ghcr-pull']
+      - >-
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].spec.targets |
         selectattr('name', 'equalto', 'cristexhub-prod-ghcr-pull') | list | length == 1
-    fail_msg: Refusing a source path, Infisical owner, or custody declaration outside the GHCR rotation contract.
+    fail_msg: Refusing a source path, Infisical owner, target set, or custody declaration outside the GHCR rotation contract.
   changed_when: false
   no_log: true
 
@@ -365,6 +368,19 @@
       - item.resources[0].metadata.resourceVersion is match('^[0-9]+$')
       - item.resources[0].metadata.deletionTimestamp | default('', true) == ''
       - >-
+        item.resources[0].metadata.uid ==
+        (cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory.resources |
+        selectattr('metadata.name', 'equalto', item.item) |
+        map(attribute='metadata.uid') | first)
+      - >-
+        item.resources[0].metadata.resourceVersion ==
+        (cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory.resources |
+        selectattr('metadata.name', 'equalto', item.item) |
+        map(attribute='metadata.resourceVersion') | first)
+      - >-
+        (item.resources[0].metadata.annotations | default({})).get('deployment.kubernetes.io/revision', '') |
+        string is match('^[1-9][0-9]*$')
+      - >-
         item.resources[0].metadata.labels == {
         'app.kubernetes.io/name': item.item,
         'app.kubernetes.io/part-of': 'cristexhub'}
@@ -406,7 +422,7 @@
       'uid': item.resources[0].metadata.uid,
       'resource_version': item.resources[0].metadata.resourceVersion,
       'generation': item.resources[0].metadata.generation,
-      'revision': item.resources[0].metadata.annotations['deployment.kubernetes.io/revision'] | default(''),
+      'revision': (item.resources[0].metadata.annotations | default({})).get('deployment.kubernetes.io/revision', ''),
       'images': item.resources[0].spec.template.spec.containers | map(attribute='image') | list,
       'image_pull_secret': item.resources[0].spec.template.spec.imagePullSecrets}] }}
   loop: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployments.results }}"
@@ -426,7 +442,10 @@
       - >-
         cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings |
         map(attribute='resource_version') | select('match', '^[0-9]+$') | list | length == 5
-    fail_msg: Refusing an incomplete or unbound PROD Deployment identity closure.
+      - >-
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings |
+        map(attribute='revision') | select('match', '^[1-9][0-9]*$') | list | length == 5
+    fail_msg: Refusing an incomplete, unbound, or unrevised PROD Deployment identity closure.
   changed_when: false
   no_log: true
 
