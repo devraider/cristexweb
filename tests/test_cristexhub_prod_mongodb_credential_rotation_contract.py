@@ -84,6 +84,12 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             "controller_sha256_expected=",
             "env -i",
             "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ATTESTATION_FILE",
+            "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_PID",
+            "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_STARTTIME",
+            "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ROLES_PATH",
+            "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_LIBRARY_PATH",
+            "ANSIBLE_ROLES_PATH",
+            "ANSIBLE_LIBRARY",
         ):
             self.assertIn(required, self.wrapper)
         self.assertNotIn("--extra-vars.*apply", self.wrapper)
@@ -298,6 +304,14 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             match = re.search(rf"(?m)^{re.escape(variable)}='([0-9a-f]{{64}})'$", self.wrapper)
             self.assertIsNotNone(match, variable)
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), match.group(1))
+        marker = re.search(r'(?m)^_STRATEGY_CANONICAL_SHA256 = "([0-9a-f]{64})"$', STRATEGY.read_text())
+        self.assertIsNotNone(marker)
+        normalized_strategy = re.sub(
+            r'(?m)^(_STRATEGY_CANONICAL_SHA256 = ")[0-9a-f]{64}("\s*)$',
+            r'\g<1>' + ('0' * 64) + r'\g<2>',
+            STRATEGY.read_text(),
+        )
+        self.assertEqual(marker.group(1), hashlib.sha256(normalized_strategy.encode()).hexdigest())
         for path in (
             ENGINE_CONNECTION_SOURCE, ENGINE_AUTH_SOURCE, ENGINE_SOURCE,
             RUNTIME_CONNECTION_SOURCE, RUNTIME_AUTH_SOURCE, RUNTIME_SOURCE,
@@ -456,11 +470,49 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
 
     def test_provenance_guard_is_non_skippable_before_role_tasks(self) -> None:
         self.assertEqual("cristexhub_prod_mongodb_credential_rotation_check_guarded_linear", self.playbook[0]["strategy"])
-        for phrase in ("_canonical_argv", "_source_contract", "TASK_SELECTION_GUARD", "start_at_task", "skip_tags", "_canonical_hash"):
+        for phrase in (
+            "_canonical_argv", "_source_contract", "_wrapper_binding_valid", "_is_ancestor",
+            "_proc_starttime", "_proc_cmdline", "TASK_SELECTION_GUARD", "start_at_task",
+            "skip_tags", "_canonical_hash", "_POLICY_SOURCE", "_METADATA_SOURCE",
+            "_SELECTOR_SOURCE", "_ROLES_PATH", "ANSIBLE_ROLES_PATH",
+        ):
             self.assertIn(phrase, STRATEGY.read_text())
         self.assertIn("plugins/strategy/cristexhub_prod_mongodb_credential_rotation_check_guarded_linear.py", self.wrapper)
         self.assertIn("ansible/playbooks/check_cristexhub_prod_mongodb_credential_rotation.yml", self.wrapper)
         self.assertIn('set -- "$controller" -i "$inventory" "$playbook_source"', self.wrapper)
+        self.assertNotIn("CRISTEXWEB_PROD_MONGODB_ROTATION_", self.wrapper)
+        self.assertNotIn("CRISTEXWEB_PROD_MONGODB_ROTATION_", STRATEGY.read_text())
+        self.assertNotIn("CRISTEXWEB_PROD_MONGODB_ROTATION_", self.tasks)
+
+    def test_strategy_pins_complete_role_policy_and_module_source_closure(self) -> None:
+        strategy = STRATEGY.read_text()
+        for suffix in (
+            "TASK_SHA256", "DEFAULTS_SHA256", "PLAYBOOK_SHA256", "POLICY_SHA256",
+            "METADATA_MODULE_SHA256", "NETWORKPOLICY_SELECTOR_MODULE_SHA256",
+            "ENGINE_CONNECTION_SOURCE_SHA256", "ENGINE_AUTH_SOURCE_SHA256",
+            "ENGINE_SOURCE_MANIFEST_SHA256", "RUNTIME_CONNECTION_SOURCE_SHA256",
+            "RUNTIME_AUTH_SOURCE_SHA256", "RUNTIME_SOURCE_MANIFEST_SHA256",
+            "NETWORKPOLICY_DEFAULT_DENY_SHA256", "NETWORKPOLICY_ALLOW_SHA256",
+        ):
+            self.assertIn(f'"{suffix}"', strategy)
+        self.assertIn("_ROLE_PATH", strategy)
+        self.assertIn("_ROLES_PATH", strategy)
+        self.assertIn('os.environ.get("ANSIBLE_ROLES_PATH") != str(_ROLES_PATH)', strategy)
+        self.assertIn("_source_contract()", strategy)
+
+    def test_direct_task_selected_and_forged_environment_invocations_are_rejected(self) -> None:
+        strategy = STRATEGY.read_text()
+        self.assertIn("selection_argv", strategy)
+        self.assertIn("--start-at-task", strategy)
+        self.assertIn("--skip-tags", strategy)
+        self.assertIn('context.CLIARGS.get("start_at_task")', strategy)
+        self.assertIn('context.CLIARGS.get("step")', strategy)
+        self.assertIn("not any(name in os.environ for name in _FORBIDDEN_ENV)", strategy)
+        self.assertIn("_is_ancestor", strategy)
+        self.assertIn("_proc_cmdline", strategy)
+        for argv in ([], ["check", "extra"], ["apply"]):
+            result = subprocess.run([str(WRAPPER), *argv], capture_output=True, text=True, check=False)
+            self.assertEqual(64, result.returncode, argv)
 
     def test_role_is_explicitly_check_only_and_operator_owned(self) -> None:
         for phrase in (

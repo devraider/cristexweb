@@ -200,26 +200,26 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_TOKEN') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ATTESTATION_FILE') | length > 0
       - >-
-        lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_WRAPPER_PATH') ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_PATH') ==
         '/home/paul/projects/cristexweb/ansible/bin/check-cristexhub-prod-mongodb-credential-rotation'
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_WRAPPER_CANONICAL_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_WRAPPER_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_TASK_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_DEFAULTS_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_PLAYBOOK_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_POLICY_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_METADATA_MODULE_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_NETWORKPOLICY_SELECTOR_MODULE_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_STRATEGY_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_STRATEGY_CANONICAL_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ENGINE_CONNECTION_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ENGINE_AUTH_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_RUNTIME_CONNECTION_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_RUNTIME_AUTH_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_INVENTORY_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ANSIBLE_CONFIG_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_CONTROLLER_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_REPOSITORY_ROOT') == '/home/paul/projects/cristexweb'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_CANONICAL_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_TASK_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_DEFAULTS_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_PLAYBOOK_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_POLICY_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_METADATA_MODULE_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_NETWORKPOLICY_SELECTOR_MODULE_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_STRATEGY_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_STRATEGY_CANONICAL_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ENGINE_CONNECTION_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ENGINE_AUTH_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_RUNTIME_CONNECTION_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_RUNTIME_AUTH_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_INVENTORY_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ANSIBLE_CONFIG_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_CONTROLLER_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_REPOSITORY_ROOT') == '/home/paul/projects/cristexweb'
     fail_msg: >-
       ENTRYPOINT_GUARD: use only the canonical check-only MongoDB PROD
       credential rotation wrapper.
@@ -246,10 +246,18 @@
       - not (cristexhub_prod_mongodb_credential_rotation_check_internal_attestation.stat.islnk | default(false))
       - cristexhub_prod_mongodb_credential_rotation_check_internal_attestation.stat.pw_name == cristexhub_prod_mongodb_credential_rotation_check_controller_user
       - cristexhub_prod_mongodb_credential_rotation_check_internal_attestation.stat.mode == '0600'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_PID') is match('^[0-9]+$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_STARTTIME') is match('^[0-9]+$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'ANSIBLE_ROLES_PATH') == '/home/paul/projects/cristexweb/ansible/roles'
+      - lookup('ansible.builtin.env', 'ANSIBLE_LIBRARY') == '/home/paul/projects/cristexweb/ansible/library'
       - >-
         lookup('ansible.builtin.file', lookup('ansible.builtin.env',
-        'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ATTESTATION_FILE')) ==
-        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_TOKEN') ~ ':entrypoint'
+        'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ATTESTATION_FILE'), rstrip=False) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_TOKEN') ~ ':entrypoint:' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_PID') ~ ':' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_STARTTIME') ~ ':' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_SHA256') ~ '\n'
     fail_msg: Refusing a missing, reusable, foreign-owned, or invalid rotation-check attestation.
   delegate_to: localhost
   become: false
@@ -296,37 +304,37 @@
       - item.stat.mode == item.item.mode
       - >-
         (item.item.path == 'ansible/bin/check-cristexhub-prod-mongodb-credential-rotation' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_WRAPPER_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_SHA256')) or
         (item.item.path == 'ansible/roles/cristexhub_prod_mongodb_credential_rotation_check/tasks/main.yml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_TASK_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_TASK_SHA256')) or
         (item.item.path == 'ansible/roles/cristexhub_prod_mongodb_credential_rotation_check/defaults/main.yml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_DEFAULTS_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_DEFAULTS_SHA256')) or
         (item.item.path == 'ansible/playbooks/check_cristexhub_prod_mongodb_credential_rotation.yml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_PLAYBOOK_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_PLAYBOOK_SHA256')) or
         (item.item.path == 'ansible/files/policies/cristexhub-prod-mongodb-credential-rotation.yml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_POLICY_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_POLICY_SHA256')) or
         (item.item.path == 'ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_METADATA_MODULE_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_METADATA_MODULE_SHA256')) or
         (item.item.path == 'ansible/library/cristexhub_prod_mongodb_networkpolicy_selector.py' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_NETWORKPOLICY_SELECTOR_MODULE_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_NETWORKPOLICY_SELECTOR_MODULE_SHA256')) or
         (item.item.path == 'ansible/plugins/strategy/cristexhub_prod_mongodb_credential_rotation_check_guarded_linear.py' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_STRATEGY_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_STRATEGY_SHA256')) or
         (item.item.path == 'ansible/files/components/infisical-database-secrets/source/infisical-cloud-connection.yaml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ENGINE_CONNECTION_SOURCE_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ENGINE_CONNECTION_SOURCE_SHA256')) or
         (item.item.path == 'ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-auth.yaml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ENGINE_AUTH_SOURCE_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ENGINE_AUTH_SOURCE_SHA256')) or
         (item.item.path == 'ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ENGINE_SOURCE_MANIFEST_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ENGINE_SOURCE_MANIFEST_SHA256')) or
         (item.item.path == 'ansible/files/components/infisical-cristexhub-prod-runtime/source/infisical-cloud-connection.yaml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_RUNTIME_CONNECTION_SOURCE_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_RUNTIME_CONNECTION_SOURCE_SHA256')) or
         (item.item.path == 'ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-infisical-auth.yaml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_RUNTIME_AUTH_SOURCE_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_RUNTIME_AUTH_SOURCE_SHA256')) or
         (item.item.path == 'ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_RUNTIME_SOURCE_MANIFEST_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_RUNTIME_SOURCE_MANIFEST_SHA256')) or
         (item.item.path == 'ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_NETWORKPOLICY_DEFAULT_DENY_SHA256')) or
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_NETWORKPOLICY_DEFAULT_DENY_SHA256')) or
         (item.item.path == 'ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_NETWORKPOLICY_ALLOW_SHA256'))
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_NETWORKPOLICY_ALLOW_SHA256'))
     fail_msg: Refusing source closure drift, symlinks, or mode/owner drift.
   loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_source_states.results }}"
   loop_control:
