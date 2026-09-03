@@ -551,6 +551,40 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             self.assertIn(digest, wrapper)
             self.assertIn(f"sha256: {digest}", playbook)
 
+    def test_strategy_digest_is_bound_across_playbook_wrapper_and_action(self):
+        actual = hashlib.sha256(STRATEGY_GUARD.read_bytes()).hexdigest()
+        playbook = PLAYBOOK.read_text()
+        wrapper = WRAPPER.read_text()
+        action = ENTRYPOINT_GUARD.read_text()
+        declared = re.search(
+            r"^    reactive_resume_dev_backup_strategy_sha256: ([0-9a-f]{64})$",
+            playbook,
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(declared)
+        self.assertEqual(actual, declared.group(1))
+        self.assertIn(
+            f"reactive_resume_dev_backup_strategy_sha256 == '{actual}'",
+            playbook,
+        )
+        self.assertIn(
+            "- path: ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py\n"
+            "          mode: '0644'\n"
+            f"          sha256: {actual}",
+            playbook,
+        )
+        self.assertIn(
+            f"verify_source \"$repository_root/ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py\" 644 {actual}",
+            wrapper,
+        )
+        self.assertGreaterEqual(
+            wrapper.count(
+                f"CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_STRATEGY_SHA256=\"{actual}\""
+            ),
+            2,
+        )
+        self.assertIn(f'_STRATEGY_SHA256 = "{actual}"', action)
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.backup = BACKUP.read_text()

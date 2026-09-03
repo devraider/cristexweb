@@ -49,7 +49,7 @@ collection_manifest_expected='dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c1896
 }
 # The self hash replaces this literal with zeros before hashing, so changing
 # any wrapper logic or closure pin fails without creating a circular digest.
-reactive_resume_dev_backup_wrapper_sha256='fa11b5be83ec0b54d71bd8256618acfd6c00eec2227f381d4a9fc84804b1f062'
+reactive_resume_dev_backup_wrapper_sha256='bdaa5d3a7fb8dad625816575aa31bbc6cdf9d23850bc774109abd775fb847677'
 canonical_sha256() {
   /usr/bin/python3 -I - "$1" <<'PY'
 import hashlib
@@ -109,7 +109,7 @@ verify_source() {
 }
 verify_source "$ansible_config" 644 4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9
 verify_source "$repository_root/ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py" 644 852257239327e457e910980417e478ee28654d330df2ebeff88374ddb21c3e3c
-verify_source "$repository_root/ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py" 644 ff418271895ea6f0224bb105ac8cbae9caf18d56ad2a34bf77a1a1afff8dddfb
+verify_source "$repository_root/ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py" 644 b7f1502ec810cd21c710d24bea775df8c845ea8f85a7df853a11b0f6770219da
 verify_source "$controller" 755 "$controller_expected"
 verify_source "$inventory" 600 "$inventory_expected"
 verify_source "$collection_manifest" 644 "$collection_manifest_expected"
