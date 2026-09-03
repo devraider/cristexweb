@@ -75,6 +75,7 @@ class AnsibleLayoutTests(unittest.TestCase):
         allowed_strategy_plugins = {
             Path("ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py"),
             Path("ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py"),
+            Path("ansible/plugins/strategy/cristexhub_prod_private_acceptance_guarded_linear.py"),
         }
         allowed_library_plugins = {
             Path("ansible/library/reactive_resume_dev_secret_metadata.py"),
@@ -511,6 +512,7 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "bin/check-cristexhub-prod-private-acceptance",
                 "playbooks/check_cristexhub_prod_private_acceptance.yml",
                 "plugins/action/cristexhub_prod_private_acceptance_process_guarded.py",
+                "plugins/strategy/cristexhub_prod_private_acceptance_guarded_linear.py",
                 "roles/cristexhub_prod_private_acceptance/defaults/main.yml",
                 "roles/cristexhub_prod_private_acceptance/tasks/main.yml",
                 "files/policies/cristexhub-prod-credential-rotation-gates.yml",

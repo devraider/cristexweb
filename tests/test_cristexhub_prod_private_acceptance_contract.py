@@ -19,6 +19,7 @@ DEFAULTS = ANSIBLE / "roles/cristexhub_prod_private_acceptance/defaults/main.yml
 TASKS = ANSIBLE / "roles/cristexhub_prod_private_acceptance/tasks/main.yml"
 PLAYBOOK = ANSIBLE / "playbooks/check_cristexhub_prod_private_acceptance.yml"
 PROCESS_GUARD = ANSIBLE / "plugins/action/cristexhub_prod_private_acceptance_process_guarded.py"
+STRATEGY = ANSIBLE / "plugins/strategy/cristexhub_prod_private_acceptance_guarded_linear.py"
 WRAPPER = ANSIBLE / "bin/check-cristexhub-prod-private-acceptance"
 RUNBOOK = ROOT / "runbooks/cristexhub-prod-private-acceptance.md"
 POLICY = ANSIBLE / "files/policies/cristexhub-prod-credential-rotation-gates.yml"
@@ -32,6 +33,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         cls.playbook_text = PLAYBOOK.read_text()
         cls.wrapper_text = WRAPPER.read_text()
         cls.process_guard_text = PROCESS_GUARD.read_text()
+        cls.strategy_text = STRATEGY.read_text()
         cls.runbook_text = RUNBOOK.read_text()
         cls.policy_text = POLICY.read_text()
         cls.defaults = yaml.safe_load(cls.defaults_text)
@@ -43,6 +45,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         self.assertEqual(0o644, stat.S_IMODE(TASKS.stat().st_mode))
         self.assertEqual(0o644, stat.S_IMODE(PLAYBOOK.stat().st_mode))
         self.assertEqual(0o644, stat.S_IMODE(PROCESS_GUARD.stat().st_mode))
+        self.assertEqual(0o644, stat.S_IMODE(STRATEGY.stat().st_mode))
         self.assertEqual("cristexhub-prod", self.defaults["cristexhub_prod_private_acceptance_namespace"])
         self.assertEqual(
             ["backend", "celery-worker", "frontend", "oauth2-proxy", "redis"],
@@ -91,7 +94,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         self.assertIn("role: cristexhub_prod_private_acceptance", self.playbook_text)
 
     def test_no_secret_reads_or_mutation_modules(self) -> None:
-        combined = f"{self.tasks_text}\n{self.playbook_text}\n{self.wrapper_text}\n{self.process_guard_text}"
+        combined = f"{self.tasks_text}\n{self.playbook_text}\n{self.wrapper_text}\n{self.process_guard_text}\n{self.strategy_text}"
         self.assertNotIn("kind: Secret", combined)
         self.assertNotIn("kind: secret", combined.lower())
         self.assertNotIn("secret.data", combined)
@@ -128,6 +131,9 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_STARTTIME",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_SOURCE_CLOSURE_SHA256",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_SHA256",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_CANONICAL_SHA256",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_ATTESTED",
             "INTERNAL_VARIABLE_GUARD",
             "check_mode: false",
             "delegate_to: localhost",
@@ -146,6 +152,11 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "env -i",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ENTRYPOINT=v2",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256=",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_SHA256=",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_CANONICAL_SHA256=",
+            "strategy_sha256_expected=",
+            "strategy_canonical_sha256_expected=",
+            "/usr/bin/python3 -I -",
             "wrapper_canonical_sha256_expected",
             "refusing traced shell execution",
             "ANSIBLE_CONFIG=",
@@ -158,6 +169,19 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         ):
             self.assertIn(required, self.wrapper_text)
         self.assertIn('set -- \\\n  "$controller"', self.wrapper_text)
+        self.assertIn('"$playbook_source"', self.wrapper_text)
+        self.assertIn("strategy: cristexhub_prod_private_acceptance_guarded_linear", self.playbook_text)
+        for required in (
+            "class StrategyModule(LinearStrategyModule)",
+            "_canonical_argv",
+            "_selection_contract",
+            "_source_contract",
+            "start_at_task",
+            "skip_tags",
+            "_STRATEGY_CANONICAL_SHA256",
+            "STRATEGY_ATTESTED",
+        ):
+            self.assertIn(required, self.strategy_text)
         self.assertIn(":entrypoint:%s:%s:%s", self.wrapper_text)
         self.assertIn("Require source leaves and hashes bound to the canonical wrapper", self.tasks_text)
         for required in (
@@ -167,6 +191,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "_proc_cmdline",
             "sys.argv == _expected_argv()",
             "_proc_cmdline(pid) == [\"/bin/dash\", str(_WRAPPER_SOURCE), \"check\"]",
+            "STRATEGY_ATTESTED",
             "and _ancestor(pid)",
             "and _proc_starttime(pid) == starttime",
         ):
@@ -174,6 +199,75 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         self.assertNotIn("--start-at-task", self.wrapper_text)
         self.assertNotIn("--tags", self.wrapper_text)
         self.assertNotIn("--skip-tags", self.wrapper_text)
+
+    def test_guarded_strategy_rejects_task_selection_and_alternate_argv(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "private_acceptance_guarded_strategy", STRATEGY
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        original_argv = module.sys.argv
+        original_cliargs = module.context.CLIARGS
+        expected = [str(module._CONTROLLER_SOURCE)] + [
+            "-i",
+            str(module._INVENTORY_SOURCE),
+            str(module._PLAYBOOK_SOURCE),
+            "--check",
+            "--diff",
+            "--limit",
+            "crtxweb",
+            "--extra-vars",
+            '{"cristexhub_prod_private_acceptance_approved":true}',
+        ]
+        module.sys.argv = expected
+        module.context.CLIARGS = {
+            "start_at_task": None,
+            "step": False,
+            "tags": [],
+            "skip_tags": [],
+            "subset": "crtxweb",
+            "check": True,
+            "diff": True,
+            "inventory": [str(module._INVENTORY_SOURCE)],
+        }
+        try:
+            self.assertTrue(module._canonical_argv())
+            self.assertTrue(module._selection_contract())
+            for field, value in (
+                ("start_at_task", "Query the exact PROD AppProject"),
+                ("tags", ["queries"]),
+                ("skip_tags", ["always"]),
+            ):
+                with self.subTest(field=field):
+                    module.context.CLIARGS[field] = value
+                    self.assertFalse(module._selection_contract())
+                    module.context.CLIARGS[field] = {
+                        "start_at_task": None,
+                        "step": False,
+                        "tags": [],
+                        "skip_tags": [],
+                        "subset": "crtxweb",
+                        "check": True,
+                        "diff": True,
+                        "inventory": [str(module._INVENTORY_SOURCE)],
+                    }[field]
+            module.sys.argv = expected[:2] + [str(module._REPOSITORY_ROOT / "alternate.yml")] + expected[3:]
+            self.assertFalse(module._canonical_argv())
+        finally:
+            module.sys.argv = original_argv
+            module.context.CLIARGS = original_cliargs
+
+    def test_every_post_guard_task_requires_process_guard_completion(self) -> None:
+        task_names = self.tasks_text.count("- name: ")
+        guarded_tasks = self.tasks_text.count(
+            "cristexhub_prod_private_acceptance_internal_process_guard.process_guarded"
+        )
+        self.assertGreaterEqual(task_names, 36)
+        self.assertEqual(task_names - 1, guarded_tasks)
+        self.assertIn("tags: [always]", self.tasks_text)
+        self.assertIn("cannot report success when", self.tasks_text)
 
     def test_exact_argocd_and_workload_contract_is_documented(self) -> None:
         normalized = " ".join(self.runbook_text.split())
@@ -351,12 +445,26 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "DEFAULTS_SHA256": module._sha256(module._DEFAULTS_SOURCE),
             "PLAYBOOK_SHA256": module._sha256(module._PLAYBOOK_SOURCE),
             "ACTION_SHA256": module._sha256(module._ACTION_SOURCE),
+            "STRATEGY_SHA256": module._sha256(module._STRATEGY_SOURCE),
             "INVENTORY_SHA256": module._sha256(module._INVENTORY_SOURCE),
             "ANSIBLE_CONFIG_SHA256": module._sha256(module._ANSIBLE_CONFIG_SOURCE),
             "CONTROLLER_SHA256": module._sha256(module._CONTROLLER_SOURCE),
             "PYTHON_SHA256": module._sha256(python_target),
         }
-        source_closure = ":".join(hash_values.values())
+        source_closure = ":".join(
+            hash_values[name]
+            for name in (
+                "TASK_SHA256",
+                "DEFAULTS_SHA256",
+                "PLAYBOOK_SHA256",
+                "ACTION_SHA256",
+                "INVENTORY_SHA256",
+                "ANSIBLE_CONFIG_SHA256",
+                "CONTROLLER_SHA256",
+                "PYTHON_SHA256",
+                "STRATEGY_SHA256",
+            )
+        )
         attestation_fd, attestation_name = tempfile.mkstemp(prefix="cristexweb-operator-")
         os.close(attestation_fd)
         attestation_path = Path(attestation_name)
@@ -376,6 +484,10 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             prefix + "WRAPPER_PATH": str(module._WRAPPER_SOURCE),
             prefix + "WRAPPER_SHA256": wrapper_sha,
             prefix + "WRAPPER_CANONICAL_SHA256": wrapper_canonical,
+            prefix + "STRATEGY_CANONICAL_SHA256": module._canonical_file_hash(
+                module._STRATEGY_SOURCE, "_STRATEGY_CANONICAL_SHA256"
+            ),
+            prefix + "STRATEGY_ATTESTED": "v1",
             prefix + "SOURCE_CLOSURE_SHA256": hashlib.sha256(source_closure.encode()).hexdigest(),
             prefix + "CONTROLLER": str(module._CONTROLLER_SOURCE),
             prefix + "PYTHON": str(module._PYTHON_SOURCE),
@@ -512,6 +624,10 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             canonical(PROCESS_GUARD, "_ACTION_CANONICAL_SHA256"),
             re.search(r'(?m)^_ACTION_CANONICAL_SHA256 = "([0-9a-f]{64})"$', self.process_guard_text).group(1),
         )
+        self.assertEqual(
+            canonical(STRATEGY, "_STRATEGY_CANONICAL_SHA256"),
+            re.search(r'(?m)^_STRATEGY_CANONICAL_SHA256 = "([0-9a-f]{64})"$', self.strategy_text).group(1),
+        )
         wrapper_hashes = {
             name: value
             for name, value in re.findall(r"(?m)^([a-z_]+_sha256_expected)='([0-9a-f]{64})'$", self.wrapper_text)
@@ -521,6 +637,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             ("defaults_sha256_expected", DEFAULTS),
             ("playbook_sha256_expected", PLAYBOOK),
             ("action_sha256_expected", PROCESS_GUARD),
+            ("strategy_sha256_expected", STRATEGY),
         ):
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), wrapper_hashes[name])
 

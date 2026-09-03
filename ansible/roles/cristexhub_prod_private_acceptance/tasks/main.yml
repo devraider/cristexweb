@@ -2,6 +2,8 @@
 - name: Require the exact private PROD acceptance process ancestry
   cristexhub_prod_private_acceptance_process_guarded:
     state: check
+  register: cristexhub_prod_private_acceptance_internal_process_guard
+  tags: [always]
   changed_when: false
   no_log: true
 
@@ -11,12 +13,15 @@
       - >-
         (vars.keys() |
         select('match', '^cristexhub_prod_private_acceptance_internal_') |
+        reject('equalto', 'cristexhub_prod_private_acceptance_internal_process_guard') |
         list | length) == 0
     fail_msg: >-
       INTERNAL_VARIABLE_GUARD: refusing externally supplied private PROD
       acceptance state.
   changed_when: false
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require the exact check-only private PROD acceptance invocation
   ansible.builtin.assert:
     that:
@@ -60,6 +65,8 @@
       and bound to the exact pinned application and five-workload closure.
   changed_when: false
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require the canonical private PROD acceptance wrapper
   ansible.builtin.assert:
     that:
@@ -88,11 +95,16 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_CANONICAL_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_ATTESTED') == 'v1'
     fail_msg: >-
       ENTRYPOINT_GUARD: use only the canonical non-passthrough private PROD
       acceptance wrapper.
   changed_when: false
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Inspect the ephemeral private PROD acceptance attestation
   ansible.builtin.stat:
     path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ATTESTATION_FILE') }}"
@@ -105,6 +117,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require the private single-run acceptance attestation
   ansible.builtin.assert:
     that:
@@ -130,6 +144,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Inspect the exact private PROD acceptance source closure
   ansible.builtin.stat:
     path: "{{ item }}"
@@ -143,12 +159,15 @@
     - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/roles/cristexhub_prod_private_acceptance/defaults/main.yml"
     - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/playbooks/check_cristexhub_prod_private_acceptance.yml"
     - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/plugins/action/cristexhub_prod_private_acceptance_process_guarded.py"
+    - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/plugins/strategy/cristexhub_prod_private_acceptance_guarded_linear.py"
   register: cristexhub_prod_private_acceptance_internal_source_states
   delegate_to: localhost
   become: false
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require regular private PROD acceptance source leaves
   ansible.builtin.assert:
     that:
@@ -166,6 +185,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Bind the source closure hash supplied by the canonical wrapper
   ansible.builtin.set_fact:
     cristexhub_prod_private_acceptance_internal_source_closure_sha256: >-
@@ -176,11 +197,14 @@
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_INVENTORY_SHA256'),
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ANSIBLE_CONFIG_SHA256'),
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER_SHA256'),
-      lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256')] |
+      lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256'),
+      lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_SHA256')] |
       join(':') | hash('sha256')) }}
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require source leaves and hashes bound to the canonical wrapper
   ansible.builtin.assert:
     that:
@@ -200,18 +224,25 @@
         cristexhub_prod_private_acceptance_internal_source_states.results[4].stat.checksum ==
         lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256')
       - >-
+        cristexhub_prod_private_acceptance_internal_source_states.results[5].stat.checksum ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_SHA256')
+      - >-
         cristexhub_prod_private_acceptance_internal_source_closure_sha256 ==
         lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_SOURCE_CLOSURE_SHA256')
     fail_msg: Refusing source hashes that are not cryptographically bound to the canonical wrapper.
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Capture host service health without mutation
   ansible.builtin.service_facts:
   register: cristexhub_prod_private_acceptance_internal_services
   check_mode: false
   changed_when: false
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require k3s and Tailscale health
   ansible.builtin.assert:
     that:
@@ -224,6 +255,8 @@
     fail_msg: Refusing private PROD acceptance while host service health is not proven.
   changed_when: false
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Query the existing PROD Namespace
   kubernetes.core.k8s_info:
     api_version: v1
@@ -235,6 +268,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require the established PROD Namespace
   ansible.builtin.assert:
     that:
@@ -246,6 +281,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Query the exact PROD Argo Application
   kubernetes.core.k8s_info:
     api_version: argoproj.io/v1alpha1
@@ -258,6 +295,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require direct-server pinned PROD Argo health and exact sync policy
   ansible.builtin.assert:
     that:
@@ -306,6 +345,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Query the exact PROD AppProject
   kubernetes.core.k8s_info:
     api_version: argoproj.io/v1alpha1
@@ -318,6 +359,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require the exact deny-by-default PROD AppProject boundary and exclusions
   ansible.builtin.assert:
     that:
@@ -355,6 +398,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Query the complete PROD Deployment inventory
   kubernetes.core.k8s_info:
     api_version: apps/v1
@@ -366,6 +411,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require exactly the approved PROD Deployment inventory
   ansible.builtin.assert:
     that:
@@ -380,6 +427,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Query every exact PROD Deployment
   kubernetes.core.k8s_info:
     api_version: apps/v1
@@ -393,6 +442,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require exactly one fresh Ready replica for every PROD Deployment
   ansible.builtin.assert:
     that:
@@ -437,6 +488,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Bind exact PROD Deployment revision and selector identities
   ansible.builtin.set_fact:
     cristexhub_prod_private_acceptance_internal_deployment_bindings: >-
@@ -451,6 +504,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Query the exact current ReplicaSet for each PROD Deployment
   kubernetes.core.k8s_info:
     api_version: apps/v1
@@ -465,6 +520,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require each PROD ReplicaSet to be the fresh Deployment controller result
   ansible.builtin.assert:
     that:
@@ -519,6 +576,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Bind exact PROD ReplicaSet controller identities
   ansible.builtin.set_fact:
     cristexhub_prod_private_acceptance_internal_replicaset_bindings: >-
@@ -532,6 +591,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Query one Pod for each exact current PROD ReplicaSet label
   kubernetes.core.k8s_info:
     api_version: v1
@@ -547,6 +608,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require each PROD Pod to be owned by the expected current ReplicaSet
   ansible.builtin.assert:
     that:
@@ -596,6 +659,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Query the existing PROD NetworkPolicy inventory
   kubernetes.core.k8s_info:
     api_version: networking.k8s.io/v1
@@ -607,6 +672,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require non-empty nonterminating PROD NetworkPolicy inventory
   ansible.builtin.assert:
     that:
@@ -622,6 +689,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Probe the private PROD origin without public DNS
   ansible.builtin.uri:
     url: "{{ cristexhub_prod_private_acceptance_private_origin_url }}"
@@ -639,6 +708,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require private PROD origin response
   ansible.builtin.assert:
     that:
@@ -647,6 +718,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Probe the reviewed shared-realm OIDC discovery endpoint
   ansible.builtin.uri:
     url: https://auth.cristex-soft.com/realms/cristexhub/.well-known/openid-configuration
@@ -664,6 +737,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Parse OIDC discovery without output
   ansible.builtin.set_fact:
     cristexhub_prod_private_acceptance_internal_oidc_payload: "{{ cristexhub_prod_private_acceptance_internal_oidc.content | from_json }}"
@@ -672,6 +747,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Require the exact reviewed OIDC issuer and endpoints
   ansible.builtin.assert:
     that:
@@ -688,6 +765,8 @@
   changed_when: false
   no_log: true
 
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
 - name: Emit the sanitized private PROD acceptance preflight receipt
   ansible.builtin.debug:
     msg:
@@ -709,3 +788,17 @@
       networkpolicy_enforcement: separate-probe
       backup_restore: separate-gate
   changed_when: false
+  when: >-
+    cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
+
+- name: Require the private PROD process guard before reporting acceptance
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_private_acceptance_internal_process_guard is defined
+      - cristexhub_prod_private_acceptance_internal_process_guard.process_guarded | default(false) | bool
+    fail_msg: >-
+      ENTRYPOINT_GUARD: private PROD acceptance cannot report success when
+      the canonical process guard was skipped.
+  tags: [always]
+  changed_when: false
+  no_log: true

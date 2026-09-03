@@ -15,9 +15,14 @@ ansible/bin/check-cristexhub-prod-private-acceptance check
 ```
 
 The wrapper is non-passthrough, one-host, direct-controller `dash`, check/diff
-only, and uses a single-use mode-0600 attestation. Direct Ansible invocation,
-task selection, extra variables, alternate inventory, alternate kubeconfig, and
-apply mode are outside this closure. Every Kubernetes query is `kubernetes.core.k8s_info`
+only, and uses a single-use mode-0600 attestation. The playbook selects the
+`cristexhub_prod_private_acceptance_guarded_linear` strategy, which verifies the
+canonical wrapper/source closure before task iteration. The first action guard
+is tagged `always`, and every later task requires its successful result; the
+final assertion fails if that guard was skipped. Direct Ansible invocation,
+`--start-at-task`, `--tags`, `--skip-tags`, extra variables, alternate
+playbooks, alternate inventory, alternate kubeconfig, and apply mode are outside
+this closure. Every Kubernetes query is `kubernetes.core.k8s_info`
 with the protected k3s administrator kubeconfig and `check_mode: false` only to
 permit read-only observation during an Ansible check run. No query requests a
 Secret object.

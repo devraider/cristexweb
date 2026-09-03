@@ -5,6 +5,7 @@
   become: false
   any_errors_fatal: true
   serial: 1
+  strategy: cristexhub_prod_private_acceptance_guarded_linear
 
   roles:
     - role: cristexhub_prod_private_acceptance

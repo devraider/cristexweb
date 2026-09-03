@@ -19,6 +19,7 @@ _WRAPPER_SOURCE = _REPOSITORY_ROOT / "ansible/bin/check-cristexhub-prod-private-
 _INVENTORY_SOURCE = _REPOSITORY_ROOT / "ansible/.ansible/inventory.local.yml"
 _ANSIBLE_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/ansible.cfg"
 _ACTION_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/action/cristexhub_prod_private_acceptance_process_guarded.py"
+_STRATEGY_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/strategy/cristexhub_prod_private_acceptance_guarded_linear.py"
 _CONTROLLER_SOURCE = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
 _PYTHON_SOURCE = Path("/usr/bin/python3")
 _EXPECTED_OPERATOR = "paul"
@@ -32,7 +33,8 @@ _PYTHON_MAX_LINK_DEPTH = 8
 
 # These values are source pins, not task inputs. They are refreshed whenever one
 # of the leaves changes; the action's own pin is canonicalized by zeroing it.
-_ACTION_CANONICAL_SHA256 = "54b2ed9138a46dfd3f34505144cc94ede03870153a09e198546d8e1ca504d6fa"
+_ACTION_CANONICAL_SHA256 = "409c328166c245e671c7e82605c6a7aa6d59b92bd6e0e5ccc1ed43164156e5ce"
+_STRATEGY_CANONICAL_SHA256 = "e1a2e9732aa96ae62646f2c0264bce3d6cb8be211dddf49e700b9726f15835ab"
 
 
 def _sha256(path: Path) -> str:
@@ -180,7 +182,7 @@ def _expected_argv() -> list[str]:
         str(_CONTROLLER_SOURCE),
         "-i",
         str(_INVENTORY_SOURCE),
-        "playbooks/check_cristexhub_prod_private_acceptance.yml",
+        str(_PLAYBOOK_SOURCE),
         "--check",
         "--diff",
         "--limit",
@@ -225,6 +227,7 @@ def _source_closure_valid() -> bool:
         (_INVENTORY_SOURCE, "INVENTORY_SHA256", 0o600),
         (_ANSIBLE_CONFIG_SOURCE, "ANSIBLE_CONFIG_SHA256", 0o644),
         (_ACTION_SOURCE, "ACTION_SHA256", 0o644),
+        (_STRATEGY_SOURCE, "STRATEGY_SHA256", 0o644),
         (_WRAPPER_SOURCE, "WRAPPER_SHA256", 0o755),
     )
     for path, suffix, mode in expected:
@@ -253,6 +256,9 @@ def _source_closure_valid() -> bool:
             and _sha256(_CONTROLLER_SOURCE) == os.environ.get(prefix + "CONTROLLER_SHA256")
             and _python_runtime_contract()
             and _canonical_file_hash(_ACTION_SOURCE, "_ACTION_CANONICAL_SHA256") == _ACTION_CANONICAL_SHA256
+            and _canonical_file_hash(_STRATEGY_SOURCE, "_STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
+            and os.environ.get(prefix + "STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
+            and os.environ.get(prefix + "STRATEGY_ATTESTED") == "v1"
             and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected")
             == os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256")
         )
@@ -285,6 +291,7 @@ def _wrapper_binding_valid(task_vars: dict[str, Any]) -> bool:
             "ANSIBLE_CONFIG_SHA256",
             "CONTROLLER_SHA256",
             "PYTHON_SHA256",
+            "STRATEGY_SHA256",
         )
     )
     expected_closure = hashlib.sha256(source_closure.encode("utf-8")).hexdigest()
@@ -316,6 +323,9 @@ def _wrapper_binding_valid(task_vars: dict[str, Any]) -> bool:
         and os.environ.get(prefix + "DEFAULTS_SHA256") == _sha256(_DEFAULTS_SOURCE)
         and os.environ.get(prefix + "PLAYBOOK_SHA256") == _sha256(_PLAYBOOK_SOURCE)
         and os.environ.get(prefix + "ACTION_SHA256") == _sha256(_ACTION_SOURCE)
+        and os.environ.get(prefix + "STRATEGY_SHA256") == _sha256(_STRATEGY_SOURCE)
+        and os.environ.get(prefix + "STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
+        and os.environ.get(prefix + "STRATEGY_ATTESTED") == "v1"
         and os.environ.get(prefix + "INVENTORY_SHA256") == _sha256(_INVENTORY_SOURCE)
         and os.environ.get(prefix + "ANSIBLE_CONFIG_SHA256") == _sha256(_ANSIBLE_CONFIG_SOURCE)
         and os.environ.get(prefix + "CONTROLLER_SHA256") == _sha256(_CONTROLLER_SOURCE)
@@ -335,11 +345,20 @@ class ActionModule(ActionBase):
     def run(self, tmp: str | None = None, task_vars: dict[str, Any] | None = None) -> dict[str, Any]:
         result = super().run(tmp=tmp, task_vars=task_vars)
         task_vars = task_vars or {}
+        if any(
+            key.startswith("cristexhub_prod_private_acceptance_internal_")
+            for key in task_vars
+        ):
+            return {
+                "changed": False,
+                "failed": True,
+                "msg": "ENTRYPOINT_GUARD: externally supplied private PROD acceptance internals",
+            }
         if self._task.args != {"state": "check"}:
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: invalid process guard arguments"}
         if not _selection_is_canonical():
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: non-canonical private PROD acceptance argv or task selection"}
         if not _source_closure_valid() or not _wrapper_binding_valid(task_vars):
             return {"changed": False, "failed": True, "msg": "ENTRYPOINT_GUARD: private PROD acceptance requires the canonical wrapper ancestor"}
-        result.update(changed=False, failed=False)
+        result.update(changed=False, failed=False, process_guarded=True)
         return result

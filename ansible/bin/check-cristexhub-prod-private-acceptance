@@ -34,9 +34,10 @@ task_source="$repository_root/ansible/roles/cristexhub_prod_private_acceptance/t
 defaults_source="$repository_root/ansible/roles/cristexhub_prod_private_acceptance/defaults/main.yml"
 playbook_source="$repository_root/ansible/playbooks/check_cristexhub_prod_private_acceptance.yml"
 action_source="$repository_root/ansible/plugins/action/cristexhub_prod_private_acceptance_process_guarded.py"
+strategy_source="$repository_root/ansible/plugins/strategy/cristexhub_prod_private_acceptance_guarded_linear.py"
 sha_file() { /usr/bin/sha256sum -- "$1" | /usr/bin/awk '{print $1}'; }
 canonical_sha256() {
-  /usr/bin/python3 - "$1" <<'PY'
+  /usr/bin/python3 -I - "$1" <<'PY'
 import hashlib, re, sys
 source = open(sys.argv[1], encoding='utf-8').read()
 source, count = re.subn(
@@ -49,17 +50,19 @@ if count != 1:
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
-wrapper_canonical_sha256_expected='b09b4373abed09761ed069227762754b2c231ccc3cc72d04a2ba3b9497640e8b'
-task_sha256_expected='7bc95cec69adcdbd81c24049c7c6bae845dfb671c005adfba755678e6e697d09'
+wrapper_canonical_sha256_expected='df44ff2448c2143851b16fa7dd57302ae82a6bb5a5880a9d649fd7e6b97e781d'
+task_sha256_expected='b97e8c136adb58a2a5632b0d335ae607778688b23b52e8b3893bb9c8deca36d4'
 defaults_sha256_expected='b9ea7657475e7591a44e7d0e611f052ed995e898f6b3d18e48eec3955afef514'
-playbook_sha256_expected='92505aada40b1073fad99cdb9bd12b7776f1551476a5bf439c384ea39341abab'
-action_sha256_expected='a69ab478519083ceedacd26406f4357c970e2d46f1820eed0af37550b74c4a54'
+playbook_sha256_expected='d0ffeba954788465b0472721ee2c1dd446452ceb8c73eb050dd619c97493fed2'
+action_sha256_expected='2222cc095816dbde5b0b890b00f6f6ffd9f39db2b463d9fb3abeb482dd9813ef'
+strategy_sha256_expected='415679390c951b99e29d48a65562aedc0968834b0621b4de0782849c46880a7f'
+strategy_canonical_sha256_expected='e1a2e9732aa96ae62646f2c0264bce3d6cb8be211dddf49e700b9726f15835ab'
 inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
 controller_sha256_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
 python_sha256_expected='17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
 [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
-for source in "$inventory" "$ansible_config" "$task_source" "$defaults_source" "$playbook_source" "$action_source"; do
+for source in "$inventory" "$ansible_config" "$task_source" "$defaults_source" "$playbook_source" "$action_source" "$strategy_source"; do
   [ -f "$source" ] && [ ! -L "$source" ] || exit 69
 done
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$inventory")" = 'paul:paul:600' ] || exit 69
@@ -68,6 +71,7 @@ done
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$defaults_source")" = 'paul:paul:644' ] || exit 69
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$playbook_source")" = 'paul:paul:644' ] || exit 69
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$action_source")" = 'paul:paul:644' ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$strategy_source")" = 'paul:paul:644' ] || exit 69
 [ "$(canonical_sha256 "$script_path")" = "$wrapper_canonical_sha256_expected" ] || {
   printf '%s\n' 'refusing private PROD acceptance wrapper source drift' >&2
   exit 69
@@ -104,16 +108,32 @@ task_sha256="$(sha_file "$task_source")"
 defaults_sha256="$(sha_file "$defaults_source")"
 playbook_sha256="$(sha_file "$playbook_source")"
 action_sha256="$(sha_file "$action_source")"
+strategy_sha256="$(sha_file "$strategy_source")"
+strategy_canonical_sha256="$(/usr/bin/python3 -I - "$strategy_source" <<'PY'
+import hashlib, re, sys
+source = open(sys.argv[1], encoding='utf-8').read()
+source, count = re.subn(
+    r"(?m)^(_STRATEGY_CANONICAL_SHA256\s*=\s*[\"'])([0-9a-f]{64})([\"']\s*)$",
+    r"\g<1>" + ("0" * 64) + r"\g<3>",
+    source,
+)
+if count != 1:
+    raise SystemExit(69)
+print(hashlib.sha256(source.encode()).hexdigest())
+PY
+)"
 [ "$task_sha256" = "$task_sha256_expected" ] || exit 69
 [ "$defaults_sha256" = "$defaults_sha256_expected" ] || exit 69
 [ "$playbook_sha256" = "$playbook_sha256_expected" ] || exit 69
 [ "$action_sha256" = "$action_sha256_expected" ] || exit 69
+[ "$strategy_sha256" = "$strategy_sha256_expected" ] || exit 69
+[ "$strategy_canonical_sha256" = "$strategy_canonical_sha256_expected" ] || exit 69
 [ "$controller_sha256" = "$controller_sha256_expected" ] || exit 69
 [ "$python_sha256" = "$python_sha256_expected" ] || exit 69
 [ "$inventory_sha256" = "$inventory_sha256_expected" ] || exit 69
 [ "$ansible_config_sha256" = "$ansible_config_sha256_expected" ] || exit 69
-source_closure_sha256="$(printf '%s' "$task_sha256:$defaults_sha256:$playbook_sha256:$action_sha256:$inventory_sha256:$ansible_config_sha256:$controller_sha256:$python_sha256" | sha_file -)"
-[ "$source_closure_sha256" = "$(printf '%s' "$task_sha256_expected:$defaults_sha256_expected:$playbook_sha256_expected:$action_sha256_expected:$inventory_sha256_expected:$ansible_config_sha256_expected:$controller_sha256_expected:$python_sha256_expected" | sha_file -)" ] || exit 69
+source_closure_sha256="$(printf '%s' "$task_sha256:$defaults_sha256:$playbook_sha256:$action_sha256:$inventory_sha256:$ansible_config_sha256:$controller_sha256:$python_sha256:$strategy_sha256" | sha_file -)"
+[ "$source_closure_sha256" = "$(printf '%s' "$task_sha256_expected:$defaults_sha256_expected:$playbook_sha256_expected:$action_sha256_expected:$inventory_sha256_expected:$ansible_config_sha256_expected:$controller_sha256_expected:$python_sha256_expected:$strategy_sha256_expected" | sha_file -)" ] || exit 69
 umask 077
 wrapper_pid=$$
 wrapper_starttime="$(/usr/bin/awk '{print $22}' "/proc/$wrapper_pid/stat")"
@@ -127,7 +147,7 @@ trap cleanup EXIT HUP INT TERM
 set -- \
   "$controller" \
   -i "$inventory" \
-  playbooks/check_cristexhub_prod_private_acceptance.yml \
+  "$playbook_source" \
   --check \
   --diff \
   --limit crtxweb \
@@ -156,6 +176,8 @@ set -- \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_DEFAULTS_SHA256="$defaults_sha256" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PLAYBOOK_SHA256="$playbook_sha256" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256="$action_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_SHA256="$strategy_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_CANONICAL_SHA256="$strategy_canonical_sha256" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_INVENTORY_SHA256="$inventory_sha256" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ANSIBLE_CONFIG_SHA256="$ansible_config_sha256" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER_SHA256="$controller_sha256" \
