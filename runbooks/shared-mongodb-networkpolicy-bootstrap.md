@@ -54,9 +54,13 @@ separate, explicit mutation gate: it requires the operator to set
 allowlisted environment, one host, exact attestation, source hashes, action
 plugin, and pre-state UID/resourceVersion ledger. The wrapper also acquires a portable, atomically-created cooperative lock
 directory (`mkdir`) for the complete run. Its mode-0600 owner record binds the
-attestation token to the live wrapper PID, so a held or stale lock fails closed;
-this works on the supported Linux and macOS controller paths without requiring a
-platform-specific `flock` utility. Existing targets are reconciled through one
+attestation token to the live wrapper PID, Linux process starttime, and a digest
+of the exact canonical `/bin/sh <wrapper> <mode>` argv. The action plugin also
+verifies the wrapper executable/argv and walks PPID ancestry from the running
+Ansible action back to that PID; unrelated live processes, forged lock/env
+records, and direct playbook invocation fail closed. A held or stale lock fails
+closed; this works on the supported Linux and macOS controller paths without
+requiring a platform-specific `flock` utility. Existing targets are reconciled through one
 JSON-patch request whose `test` operations condition UID, resourceVersion,
 labels, and spec at mutation time. Absent targets use a focused create-only API
 module: a concurrent creator returns a conflict and is never merged or updated;

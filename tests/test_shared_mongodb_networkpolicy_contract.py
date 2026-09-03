@@ -250,20 +250,72 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
             lock = Path(directory) / 'lock'
             lock.mkdir(mode=0o700)
             token = 'a' * 64
-            (lock / 'owner').write_text(f'{token}:{os.getpid()}\n')
+            starttime = '17'
+            argv_sha256 = 'b' * 64
+            (lock / 'owner').write_text(f'{token}:{os.getpid()}:{starttime}:{argv_sha256}\n')
             (lock / 'owner').chmod(0o600)
-            with mock.patch.object(self.plugin, '_EXPECTED_LOCK_FILE', str(lock)), mock.patch.dict(
+            with mock.patch.object(self.plugin, '_EXPECTED_LOCK_FILE', str(lock)), mock.patch.object(
+                self.plugin, '_wrapper_process_valid', return_value=True
+            ), mock.patch.dict(
                 os.environ,
                 {
                     'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE': str(lock),
                     'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN': token,
                     'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID': str(os.getpid()),
+                    'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_STARTTIME': starttime,
+                    'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARGV_SHA256': argv_sha256,
+                    'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_MODE': 'check',
                 },
                 clear=False,
             ):
                 self.assertTrue(self.plugin._cooperative_lock_valid())
-                (lock / 'owner').write_text(f'{token}:99999999\n')
+                (lock / 'owner').write_text(f'{token}:99999999:{starttime}:{argv_sha256}\n')
                 self.assertFalse(self.plugin._cooperative_lock_valid())
+
+    def test_cooperative_lock_rejects_unrelated_live_sleep_process(self) -> None:
+        with TemporaryDirectory() as directory:
+            lock = Path(directory) / 'lock'
+            lock.mkdir(mode=0o700)
+            token = 'c' * 64
+            process = subprocess.Popen(['/bin/sleep', '5'])
+            try:
+                for _ in range(50):
+                    observed = self.plugin._proc_stat(process.pid)
+                    if observed is not None:
+                        break
+                    __import__('time').sleep(0.02)
+                self.assertIsNotNone(observed)
+                starttime = observed[1]
+                argv_sha256 = 'd' * 64
+                (lock / 'owner').write_text(
+                    f'{token}:{process.pid}:{starttime}:{argv_sha256}\n'
+                )
+                (lock / 'owner').chmod(0o600)
+                with mock.patch.object(self.plugin, '_EXPECTED_LOCK_FILE', str(lock)), mock.patch.dict(
+                    os.environ,
+                    {
+                        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE': str(lock),
+                        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN': token,
+                        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID': str(process.pid),
+                        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_STARTTIME': str(starttime),
+                        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARGV_SHA256': argv_sha256,
+                        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_MODE': 'check',
+                    },
+                    clear=False,
+                ):
+                    self.assertFalse(self.plugin._cooperative_lock_valid())
+            finally:
+                process.terminate()
+                process.wait(timeout=5)
+
+    def test_direct_action_process_cannot_claim_wrapper_ancestry(self) -> None:
+        observed = self.plugin._proc_stat(os.getpid())
+        self.assertIsNotNone(observed)
+        self.assertFalse(
+            self.plugin._wrapper_process_valid(
+                os.getpid(), observed[1], 'check', 'e' * 64
+            )
+        )
 
     def test_wrapper_and_action_canonical_pins_match_their_source(self) -> None:
         for path, symbol in (
@@ -908,6 +960,12 @@ exit "$status"
         self.assertIn('/bin/mkdir "$lock_file"', WRAPPER.read_text())
         self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE=$lock_file', WRAPPER.read_text())
         self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID=$wrapper_pid', WRAPPER.read_text())
+        self.assertIn('printf \'%s:%s:%s:%s\\n\' "$attestation_token" "$wrapper_pid" "$wrapper_starttime" "$wrapper_argv_sha256"', WRAPPER.read_text())
+        self.assertIn("printf '%s\\0%s\\0%s' '/bin/sh' \"$script_path\" \"$mode\"", WRAPPER.read_text())
+        self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_STARTTIME=$wrapper_starttime', WRAPPER.read_text())
+        self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARGV_SHA256=$wrapper_argv_sha256', WRAPPER.read_text())
+        self.assertIn('_wrapper_process_valid', PLUGIN.read_text())
+        self.assertIn('_proc_cmdline', PLUGIN.read_text())
         self.assertIn('_cooperative_lock_valid', PLUGIN.read_text())
         self.assertIn('_source_closure_valid', PLUGIN.read_text())
         self.assertIn('_runtime_binding_valid', PLUGIN.read_text())

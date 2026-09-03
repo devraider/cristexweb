@@ -57,10 +57,12 @@ _PYTHON_LINK_TARGET = '/usr/bin/python3'
 _EXPECTED_TASK_SOURCES = {str(_TASK_SOURCE)}
 _EXPECTED_IDENTITY_SET_SHA256 = '11352b9439d10f2ffdfad385ee31f524885fead8d74d38937101614f742ab575'
 _EXPECTED_LOCK_FILE = '/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
-_EXPECTED_TASK_SHA256 = 'f39c12c75931831f1183a519dc4459f24e8d9d862b5b394635e048154e69b6f0'
+_EXPECTED_WRAPPER_EXECUTABLE = '/bin/sh'
+_EXPECTED_WRAPPER_ARG0 = '/bin/sh'
+_EXPECTED_TASK_SHA256 = 'c5aeb6c47ded3191d7738587c3110058cad189cdecbaafcfe14692319d983111'
 _EXPECTED_DEFAULTS_SHA256 = '2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 _EXPECTED_PLAYBOOK_SHA256 = '7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-_EXPECTED_ACTION_CANONICAL_SHA256 = '0b9075f2fbfdeebf2719de6df24a6ed8d5e1763624cf4d870a1acedeed5a6e9f'
+_EXPECTED_ACTION_CANONICAL_SHA256 = 'aeecba55cfaca7f41dbd27d3756b209c27539d482be6db496434325ebedaf2bd'
 _EXPECTED_CREATE_MODULE_SHA256 = '21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 _EXPECTED_INVENTORY_SHA256 = '652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 _EXPECTED_ANSIBLE_CONFIG_SHA256 = '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
@@ -625,6 +627,8 @@ def _source_closure_valid() -> bool:
 
 def _runtime_binding_valid() -> bool:
     expected = {
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_EXECUTABLE': _EXPECTED_WRAPPER_EXECUTABLE,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARG0': _EXPECTED_WRAPPER_ARG0,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TASK_SHA256': _EXPECTED_TASK_SHA256,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_DEFAULTS_SHA256': _EXPECTED_DEFAULTS_SHA256,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PLAYBOOK_SHA256': _EXPECTED_PLAYBOOK_SHA256,
@@ -662,19 +666,27 @@ def _runtime_binding_valid() -> bool:
 
 
 def _cooperative_lock_valid() -> bool:
-    """Require an atomically-created, live wrapper-owned lock directory."""
+    """Require the exact live wrapper process to own the cooperative lock."""
     if os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE') != _EXPECTED_LOCK_FILE:
         return False
     token = os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN', '')
     pid_text = os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID', '')
+    starttime_text = os.environ.get(
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_STARTTIME', ''
+    )
+    argv_sha256 = os.environ.get(
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARGV_SHA256', ''
+    )
+    mode = os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_MODE', '')
     try:
         pid = int(pid_text)
+        starttime = int(starttime_text)
         lock = Path(_EXPECTED_LOCK_FILE)
         owner = lock / 'owner'
         lock_state = lock.stat(follow_symlinks=False)
         owner_state = owner.stat(follow_symlinks=False)
         owner_text = owner.read_text(encoding='utf-8').strip()
-        return (
+        if not (
             stat.S_ISDIR(lock_state.st_mode)
             and not lock.is_symlink()
             and stat.S_IMODE(lock_state.st_mode) == 0o700
@@ -683,10 +695,12 @@ def _cooperative_lock_valid() -> bool:
             and not owner.is_symlink()
             and stat.S_IMODE(owner_state.st_mode) == 0o600
             and owner_state.st_uid == os.getuid()
-            and owner_text == f'{token}:{pid}'
             and re.fullmatch(r'[0-9a-f]{64}', token) is not None
-            and pid > 1
-        ) and _pid_alive(pid)
+            and mode in {'check', 'apply'}
+            and owner_text == f'{token}:{pid}:{starttime}:{argv_sha256}'
+        ):
+            return False
+        return _wrapper_process_valid(pid, starttime, mode, argv_sha256)
     except (OSError, ValueError, UnicodeError):
         return False
 
@@ -697,6 +711,86 @@ def _pid_alive(pid: int) -> bool:
         return True
     except (OSError, ValueError):
         return False
+
+
+def _proc_stat(pid: int) -> tuple[int, int] | None:
+    """Read PPID and Linux starttime without trusting a reused PID."""
+    try:
+        raw = Path(f'/proc/{pid}/stat').read_text(encoding='utf-8')
+        closing = raw.rfind(')')
+        if closing < 0:
+            return None
+        fields = raw[closing + 2:].split()
+        if len(fields) < 20:
+            return None
+        ppid = int(fields[1])
+        starttime = int(fields[19])
+        return ppid, starttime
+    except (OSError, UnicodeError, ValueError):
+        return None
+
+
+def _proc_cmdline(pid: int) -> list[str] | None:
+    try:
+        raw = Path(f'/proc/{pid}/cmdline').read_bytes()
+        values = raw.rstrip(b'\0').split(b'\0')
+        return [value.decode('utf-8') for value in values if value]
+    except (OSError, UnicodeError, ValueError):
+        return None
+
+
+def _wrapper_argv_sha256(mode: str) -> str:
+    payload = b'\0'.join(
+        value.encode('utf-8')
+        for value in (_EXPECTED_WRAPPER_ARG0, str(_WRAPPER_SOURCE), mode)
+    )
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _wrapper_process_valid(
+    pid: int, starttime: int, mode: str, argv_sha256: str
+) -> bool:
+    """Require the exact canonical /bin/sh wrapper to own the Ansible ancestry."""
+    if pid <= 1 or starttime <= 0 or not re.fullmatch(r'[0-9a-f]{64}', argv_sha256):
+        return False
+    observed = _proc_stat(pid)
+    if observed is None or observed[1] != starttime:
+        return False
+    argv = _proc_cmdline(pid)
+    if argv is None or len(argv) != 3:
+        return False
+    try:
+        executable = Path('/proc') / str(pid) / 'exe'
+        shell_target = Path(_EXPECTED_WRAPPER_EXECUTABLE).resolve(strict=True)
+        process_target = executable.resolve(strict=True)
+        shell_state = process_target.stat()
+        if (
+            process_target != shell_target
+            or not stat.S_ISREG(shell_state.st_mode)
+            or shell_state.st_uid != 0
+            or stat.S_IMODE(shell_state.st_mode) != 0o755
+        ):
+            return False
+    except (OSError, RuntimeError):
+        return False
+    if (
+        Path(argv[0]).resolve() != Path(_EXPECTED_WRAPPER_ARG0).resolve()
+        or argv[1] != str(_WRAPPER_SOURCE)
+        or argv[2] != mode
+        or _wrapper_argv_sha256(mode) != argv_sha256
+    ):
+        return False
+    current = os.getpid()
+    visited: set[int] = set()
+    while current > 1 and current not in visited:
+        if current == pid:
+            return True
+        visited.add(current)
+        process = _proc_stat(current)
+        if process is None or process[0] <= 0:
+            return False
+        current = process[0]
+    return False
 
 
 def _networkpolicy_cas_patch(
@@ -836,6 +930,15 @@ class ActionModule(KubernetesActionModule):
         args = self._task.args
         task_vars = task_vars or {}
         token = os.environ.get('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN', '')
+        wrapper_pid = os.environ.get(
+            'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID', ''
+        )
+        wrapper_starttime = os.environ.get(
+            'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_STARTTIME', ''
+        )
+        wrapper_argv_sha256 = os.environ.get(
+            'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARGV_SHA256', ''
+        )
         attestation_path = os.environ.get(
             'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE', ''
         )
@@ -914,7 +1017,13 @@ class ActionModule(KubernetesActionModule):
             and not stat.S_ISLNK(attestation_state.st_mode)
             and stat.S_IMODE(attestation_state.st_mode) == 0o600
             and attestation_state.st_uid == os.getuid()
-            and attestation_content == f'{token}:entrypoint'
+            and wrapper_pid.isdigit()
+            and wrapper_starttime.isdigit()
+            and re.fullmatch(r'[0-9a-f]{64}', wrapper_argv_sha256) is not None
+            and attestation_content == (
+                f'{token}:entrypoint:{wrapper_pid}:{wrapper_starttime}:'
+                f'{wrapper_argv_sha256}'
+            )
         )
         live_pods = (
             live_pod_result.get('resources', [])

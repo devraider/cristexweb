@@ -16,7 +16,7 @@ if [ "$mode" = apply ] && [ "${CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APP
 fi
 original_script_path=$0
 script_path=$0
-wrapper_canonical_sha256_expected='62db9375a335ed5e3f4b1af161efe3575e176a83406113e8edb3c2ef1d19e892'
+wrapper_canonical_sha256_expected='d188908a2d4a3bffeeb0e1d0e9ecb9be09f46cd4075ca3990de1b153abe30a04'
 sha256_stdin() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum | awk '{print $1}'
@@ -329,10 +329,10 @@ is_owned_regular_mode "$collection_files" 644 || exit 69
 [ -f "$create_module_source" ] && [ ! -L "$create_module_source" ] || exit 69
 # These pins are intentionally fixed in the wrapper; changing any source leaf
 # requires a reviewed source/hash update rather than an environment override.
-task_sha256_expected='f39c12c75931831f1183a519dc4459f24e8d9d862b5b394635e048154e69b6f0'
+task_sha256_expected='c5aeb6c47ded3191d7738587c3110058cad189cdecbaafcfe14692319d983111'
 defaults_sha256_expected='2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 playbook_sha256_expected='7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-action_canonical_sha256_expected='0b9075f2fbfdeebf2719de6df24a6ed8d5e1763624cf4d870a1acedeed5a6e9f'
+action_canonical_sha256_expected='aeecba55cfaca7f41dbd27d3756b209c27539d482be6db496434325ebedaf2bd'
 create_module_sha256_expected='21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
@@ -441,6 +441,16 @@ pending_signal=
 forced_cleanup_status=
 cleanup_in_progress=0
 wrapper_pid=$$
+proc_starttime() {
+  /usr/bin/awk '{print $22}' "/proc/$1/stat"
+}
+wrapper_starttime=$(proc_starttime "$wrapper_pid") || {
+  printf '%s\n' 'refusing a wrapper without a process starttime' >&2
+  exit 69
+}
+wrapper_argv_sha256=$(printf '%s\0%s\0%s' '/bin/sh' "$script_path" "$mode" | sha256_stdin)
+wrapper_executable='/bin/sh'
+wrapper_arg0='/bin/sh'
 
 # Keep the old advisory lock held while removing its path.  A nonblocking lock
 # acquisition on the already-open inode proves that no old wrapper still holds
@@ -545,7 +555,7 @@ cleanup() {
       /bin/rm -f -- "$owner_tmp"
     fi
     if [ "$owner_written" = 1 ] && is_owned_regular_mode "$owner_path" 600 &&
-      [ "$(cat "$owner_path" 2>/dev/null || true)" = "$attestation_token:$wrapper_pid" ]; then
+      [ "$(cat "$owner_path" 2>/dev/null || true)" = "$attestation_token:$wrapper_pid:$wrapper_starttime:$wrapper_argv_sha256" ]; then
       /bin/rm -f -- "$owner_path"
     fi
     /bin/rmdir -- "$lock_file" 2>/dev/null || true
@@ -581,12 +591,12 @@ attestation_file=$(mktemp "${TMPDIR:-/tmp}/cristexweb-shared-mongodb-networkpoli
 attestation_token=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
 /bin/chmod 600 "$attestation_file"
 owner_tmp="$lock_file/.owner.$$"
-printf '%s:%s\n' "$attestation_token" "$wrapper_pid" >"$owner_tmp"
+printf '%s:%s:%s:%s\n' "$attestation_token" "$wrapper_pid" "$wrapper_starttime" "$wrapper_argv_sha256" >"$owner_tmp"
 /bin/chmod 600 "$owner_tmp"
 /bin/mv -f -- "$owner_tmp" "$lock_file/owner"
 owner_tmp=
 owner_written=1
-printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+printf '%s:entrypoint:%s:%s:%s\n' "$attestation_token" "$wrapper_pid" "$wrapper_starttime" "$wrapper_argv_sha256" >"$attestation_file"
 [ -z "$pending_signal" ] || exit "$pending_signal"
 apply_approval=
 case "$mode" in
@@ -625,6 +635,10 @@ if [ -x /usr/bin/setsid ]; then
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE=$attestation_file" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE=$lock_file" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID=$wrapper_pid" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_STARTTIME=$wrapper_starttime" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_EXECUTABLE=$wrapper_executable" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARG0=$wrapper_arg0" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARGV_SHA256=$wrapper_argv_sha256" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TASK_SHA256=$task_sha256_expected" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_DEFAULTS_SHA256=$defaults_sha256_expected" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PLAYBOOK_SHA256=$playbook_sha256_expected" \
@@ -670,6 +684,10 @@ else
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE=$attestation_file" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE=$lock_file" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID=$wrapper_pid" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_STARTTIME=$wrapper_starttime" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_EXECUTABLE=$wrapper_executable" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARG0=$wrapper_arg0" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARGV_SHA256=$wrapper_argv_sha256" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TASK_SHA256=$task_sha256_expected" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_DEFAULTS_SHA256=$defaults_sha256_expected" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PLAYBOOK_SHA256=$playbook_sha256_expected" \

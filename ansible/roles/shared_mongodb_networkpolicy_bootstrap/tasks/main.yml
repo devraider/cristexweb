@@ -146,9 +146,19 @@
       - shared_mongodb_networkpolicy_bootstrap_internal_attestation_state.stat.pw_name == shared_mongodb_networkpolicy_bootstrap_controller_user
       - shared_mongodb_networkpolicy_bootstrap_internal_attestation_state.stat.mode == '0600'
       - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_EXECUTABLE') == '/bin/sh'
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARG0') == '/bin/sh'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID') is match('^[0-9]+$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_STARTTIME') is match('^[0-9]+$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARGV_SHA256') is match('^[0-9a-f]{64}$')
+      - >-
         lookup('ansible.builtin.file', lookup('ansible.builtin.env',
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE')) ==
-        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN') ~ ':entrypoint'
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN') ~ ':entrypoint:' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID') ~ ':' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_STARTTIME') ~ ':' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARGV_SHA256')
     fail_msg: Refusing missing, reusable, foreign-owned, symlinked, or invalid source-only attestation.
   delegate_to: localhost
   changed_when: false
