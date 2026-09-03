@@ -595,6 +595,10 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
                 "ansible/playbooks/bootstrap_shared_mongodb_networkpolicy.yml",
                 "ansible/roles/shared_mongodb_networkpolicy_bootstrap/defaults/main.yml",
                 "ansible/roles/shared_mongodb_networkpolicy_bootstrap/tasks/main.yml",
+                "ansible/bin/check-cristexhub-prod-mongodb-credential-rotation",
+                "ansible/playbooks/check_cristexhub_prod_mongodb_credential_rotation.yml",
+                "ansible/roles/cristexhub_prod_mongodb_credential_rotation_check/defaults/main.yml",
+                "ansible/roles/cristexhub_prod_mongodb_credential_rotation_check/tasks/main.yml",
             },
             {
                 str(path.relative_to(ROOT))
