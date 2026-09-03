@@ -19,10 +19,18 @@
     - shared_mongodb_networkpolicy_bootstrap_internal_client_pods
     - shared_mongodb_networkpolicy_bootstrap_internal_coredns_pods
     - shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies
+    - shared_mongodb_networkpolicy_bootstrap_internal_services
     - shared_mongodb_networkpolicy_bootstrap_internal_kubeconfig_state
     - shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding
     - shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate
     - shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate
+    - shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_between
+    - shared_mongodb_networkpolicy_bootstrap_internal_between_prestate
+    - shared_mongodb_networkpolicy_bootstrap_internal_default_deny_mutation
+    - shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation
+    - shared_mongodb_networkpolicy_bootstrap_internal_immediate_poststate
+    - shared_mongodb_networkpolicy_bootstrap_internal_check
+    - shared_mongodb_networkpolicy_bootstrap_internal_poststate_validation
     - shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies_poststate
     - shared_mongodb_networkpolicy_bootstrap_internal_poststate
     - shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_poststate

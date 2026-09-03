@@ -57,10 +57,10 @@ _PYTHON_LINK_TARGET = '/usr/bin/python3'
 _EXPECTED_TASK_SOURCES = {str(_TASK_SOURCE)}
 _EXPECTED_IDENTITY_SET_SHA256 = '11352b9439d10f2ffdfad385ee31f524885fead8d74d38937101614f742ab575'
 _EXPECTED_LOCK_FILE = '/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
-_EXPECTED_TASK_SHA256 = 'a4945c6dc7538c2d6fb99622e418483ee31d36e4db5de3751edb683220b52b29'
+_EXPECTED_TASK_SHA256 = 'f39c12c75931831f1183a519dc4459f24e8d9d862b5b394635e048154e69b6f0'
 _EXPECTED_DEFAULTS_SHA256 = '2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 _EXPECTED_PLAYBOOK_SHA256 = '7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-_EXPECTED_ACTION_CANONICAL_SHA256 = 'affcf8c3edde05af93df59ec554d1e00b7dd2e76f36d2e821d2bced7a5a41d0b'
+_EXPECTED_ACTION_CANONICAL_SHA256 = '467592803f2b4dc2b02b37944ad64c90dbfd9e2ec0a8e7f8c6f432cec04d4600'
 _EXPECTED_CREATE_MODULE_SHA256 = '21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 _EXPECTED_INVENTORY_SHA256 = '652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 _EXPECTED_ANSIBLE_CONFIG_SHA256 = '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
@@ -91,6 +91,52 @@ _EXPECTED_COLLECTION_MODULE_UTILS = {
     'plugins/module_utils/k8sdynamicclient.py': '6b44b539981affc25ede49cc8a7f994fe19b5c60aaa1e400a480e735f7ed1be6',
     'plugins/module_utils/selector.py': 'd5e15a8ac4f916ee4b578450449a525dbda727b77178941a81c21e9e228e7987',
     'plugins/module_utils/version.py': 'c009a2e470b5c1e2cfc73efb061b3289f3da5064c85ad31dd664433ddb7b97b7',
+}
+_EXPECTED_COLLECTION_ACTION_PATHS = {
+    'helm.py': 'k8s_info.py',
+    'helm_info.py': 'k8s_info.py',
+    'helm_plugin.py': 'k8s_info.py',
+    'helm_plugin_info.py': 'k8s_info.py',
+    'helm_repository.py': 'k8s_info.py',
+    'k8s.py': 'k8s_info.py',
+    'k8s_cluster_info.py': 'k8s_info.py',
+    'k8s_cp.py': 'k8s_info.py',
+    'k8s_drain.py': 'k8s_info.py',
+    'k8s_exec.py': 'k8s_info.py',
+    'k8s_json_patch.py': 'k8s_info.py',
+    'k8s_log.py': 'k8s_info.py',
+    'k8s_rollback.py': 'k8s_info.py',
+    'k8s_scale.py': 'k8s_info.py',
+    'k8s_service.py': 'k8s_info.py',
+    'k8s_info.py': None,
+}
+_EXPECTED_COLLECTION_MODULES = {
+    '__init__.py': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    'helm.py': '9c4d458c103a3af799958449283c3f5f201e289855387b3c19a714678dd35883',
+    'helm_info.py': '86cad6e59f97bdcbebbf53eeb0ea9eaf7a031eef477ecd76bf109cb872c7fa1e',
+    'helm_plugin.py': 'c99d47fc5fcffafc060416fae69f740b6d18700f00843f0de2315eb32432c113',
+    'helm_plugin_info.py': '42afe7b57c92837736d4df8f9e48fe3b71c2f529970acb65ad6b6fb5cf8e0148',
+    'helm_pull.py': '051273964c4dd1d9498bca767673641ebabcc4f61b06ac95b741dcd4a38562ff',
+    'helm_registry_auth.py': '59a27d6856c4af04d206c6eea6d3e844062e40073bda04bda0536a2857a6694d',
+    'helm_repository.py': 'c38905b50074a1337e41434e78ae6b79410e46c7c72632197544e6cf431172b0',
+    'helm_template.py': 'e736084eaa09c21be061d93d5ee21676103bd4955898e906aa17db4184e78545',
+    'k8s.py': '079286f5c97131e6486b55624223c7800c64ba370729240bba7ceea2b8e8e848',
+    'k8s_cluster_info.py': '0616d8c6ac9c83a572a1afe2d7cc68f5870bfac77a618171f003b9eb25c5877c',
+    'k8s_cp.py': '8f19067c472d4761792fdbf93578c9224714bf241bf0eae4015892589ce3c237',
+    'k8s_drain.py': '4fbe4f78cb74344bb8231315f27d3f09da3d23df1ed3a88f13771659652719ac',
+    'k8s_exec.py': 'c7e7ea0d37b1c65904ea29b07aa2fc41e085482216bcf9f97fd27486347ae062',
+    'k8s_info.py': 'e035cfa69a8955c1f97dc4aabf4763784691f20973a8638461ffaa699dfbc21d',
+    'k8s_json_patch.py': '75b605254a576da3a146019e448d319a4cefdee2d2f3d4ada80e2c2b1c51d0ef',
+    'k8s_log.py': 'fc05e30eb060ff3bce8403eeb5f9748ab82242ef28a34dfe5ae20227e57fcbc5',
+    'k8s_rollback.py': 'f8bf4bf26cc8634882fd70e704cef6033642a15a316a4859cc03544fd3c31013',
+    'k8s_scale.py': 'cf508fa2f02619293fa664cf55531d5dd1b15d8d35f2bfe382fdc9f756a826c3',
+    'k8s_service.py': '079bdfa6f65254fc1547b985e4713d25e6c5ff9c28332b9358e7a4456ff57979',
+    'k8s_taint.py': '85d951125ea30ae907d40e79ef22d6e6be5aa5613cfa561de361be7ad5bb30ec',
+}
+_EXPECTED_COLLECTION_MODULE_UTILS_DIRECTORIES = {
+    'plugins/module_utils',
+    'plugins/module_utils/client',
+    'plugins/module_utils/k8s',
 }
 _EXPECTED_K8S_ACTION_TARGET_SHA256 = '3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b'
 _EXPECTED_K8S_INFO_MODULE_SHA256 = 'e035cfa69a8955c1f97dc4aabf4763784691f20973a8638461ffaa699dfbc21d'
@@ -303,18 +349,76 @@ def _python_interpreter_valid() -> bool:
         return False
 
 
+def _collection_tree_entries(path: Path) -> set[str]:
+    return {
+        entry.relative_to(path).as_posix()
+        for entry in path.rglob('*')
+        if entry.is_symlink() or entry.is_file()
+    }
+
+
+def _collection_tree_directories(path: Path) -> set[str]:
+    return {
+        entry.relative_to(path).as_posix()
+        for entry in path.rglob('*')
+        if entry.is_dir() and not entry.is_symlink()
+    }
+
+
+def _collection_has_forbidden_artifacts(path: Path) -> bool:
+    forbidden_suffixes = {'.pyc', '.pyo', '.so', '.dylib', '.dll', '.pyd'}
+    try:
+        return any(
+            entry.name == '__pycache__'
+            or entry.suffix.lower() in forbidden_suffixes
+            for entry in path.rglob('*')
+        )
+    except (OSError, RuntimeError):
+        return True
+
+
 def _collection_toolchain_valid() -> bool:
     """Pin the exact installed kubernetes.core action/module closure."""
     try:
+        collection_plugins = _COLLECTION_ROOT / 'plugins'
+        collection_actions = collection_plugins / 'action'
+        collection_modules = collection_plugins / 'modules'
+        collection_module_utils = collection_plugins / 'module_utils'
         if not all(
             _directory(path, 0o755, os.getuid())
             for path in (
                 _COLLECTION_ROOT,
-                _COLLECTION_ROOT / 'plugins',
-                _COLLECTION_ROOT / 'plugins/action',
-                _COLLECTION_ROOT / 'plugins/modules',
+                collection_plugins,
+                collection_actions,
+                collection_modules,
+                collection_module_utils,
             )
         ):
+            return False
+        if _collection_has_forbidden_artifacts(collection_actions):
+            return False
+        if _collection_has_forbidden_artifacts(collection_modules):
+            return False
+        if _collection_has_forbidden_artifacts(collection_module_utils):
+            return False
+        if _collection_tree_entries(collection_actions) != set(_EXPECTED_COLLECTION_ACTION_PATHS):
+            return False
+        if _collection_tree_directories(collection_actions):
+            return False
+        if _collection_tree_entries(collection_modules) != set(_EXPECTED_COLLECTION_MODULES):
+            return False
+        if _collection_tree_directories(collection_modules):
+            return False
+        if _collection_tree_entries(collection_module_utils) != {
+            name.removeprefix('plugins/module_utils/')
+            for name in _EXPECTED_COLLECTION_MODULE_UTILS
+        }:
+            return False
+        if _collection_tree_directories(collection_module_utils) != {
+            name.removeprefix('plugins/module_utils/')
+            for name in _EXPECTED_COLLECTION_MODULE_UTILS_DIRECTORIES
+            if name != 'plugins/module_utils'
+        }:
             return False
         if not _regular_file(_REQUIREMENTS_SOURCE, 0o644, os.getuid()):
             return False
@@ -329,29 +433,36 @@ def _collection_toolchain_valid() -> bool:
         if _sha256(_COLLECTION_FILES_SOURCE) != _EXPECTED_COLLECTION_FILES_SHA256:
             return False
         files_manifest = json.loads(_COLLECTION_FILES_SOURCE.read_text(encoding='utf-8'))
-        module_utils = {
+        manifest_files = {
             item.get('name'): item.get('chksum_sha256')
             for item in files_manifest.get('files', [])
             if isinstance(item, dict)
             and item.get('ftype') == 'file'
             and isinstance(item.get('name'), str)
-            and item.get('name', '').startswith('plugins/module_utils/')
+            and (
+                item['name'].startswith('plugins/action/')
+                or item['name'].startswith('plugins/modules/')
+                or item['name'].startswith('plugins/module_utils/')
+            )
         }
-        if module_utils != _EXPECTED_COLLECTION_MODULE_UTILS:
+        expected_manifest_files = {
+            **{
+                f'plugins/action/{name}': _EXPECTED_K8S_ACTION_TARGET_SHA256
+                for name in _EXPECTED_COLLECTION_ACTION_PATHS
+            },
+            **{
+                f'plugins/modules/{name}': digest
+                for name, digest in _EXPECTED_COLLECTION_MODULES.items()
+            },
+            **_EXPECTED_COLLECTION_MODULE_UTILS,
+        }
+        if manifest_files != expected_manifest_files:
             return False
-        actual_module_utils = {
-            path.relative_to(_COLLECTION_ROOT).as_posix()
-            for path in (_COLLECTION_ROOT / 'plugins/module_utils').rglob('*')
-            if path.is_file() and '__pycache__' not in path.parts
-        }
-        if actual_module_utils != set(_EXPECTED_COLLECTION_MODULE_UTILS):
-            return False
-        module_utils_directories = {
-            (_COLLECTION_ROOT / name).parent
-            for name in _EXPECTED_COLLECTION_MODULE_UTILS
-        }
-        module_utils_directories.add(_COLLECTION_ROOT / 'plugins/module_utils')
-        if not all(_directory(path, 0o755, os.getuid()) for path in module_utils_directories):
+        if not all(
+            _regular_file(collection_modules / name, 0o644, os.getuid())
+            and _sha256(collection_modules / name) == digest
+            for name, digest in _EXPECTED_COLLECTION_MODULES.items()
+        ):
             return False
         if not all(
             _regular_file(_COLLECTION_ROOT / name, 0o644, os.getuid())
@@ -359,41 +470,25 @@ def _collection_toolchain_valid() -> bool:
             for name, digest in _EXPECTED_COLLECTION_MODULE_UTILS.items()
         ):
             return False
+        module_utils_directories = {
+            _COLLECTION_ROOT / name for name in _EXPECTED_COLLECTION_MODULE_UTILS_DIRECTORIES
+        }
+        if not all(_directory(path, 0o755, os.getuid()) for path in module_utils_directories):
+            return False
         manifest = json.loads(_COLLECTION_MANIFEST_SOURCE.read_text(encoding='utf-8'))
         info = manifest.get('collection_info', {})
         if info.get('namespace') != 'kubernetes' or info.get('name') != 'core' or info.get('version') != '6.1.0':
             return False
-        if not _pinned_relative_symlink(
-            _K8S_ACTION_SOURCE,
-            _K8S_ACTION_TARGET,
-            'k8s_info.py',
-            os.getuid(),
-        ):
-            return False
-        if not _pinned_relative_symlink(
-            _JSON_PATCH_ACTION_SOURCE,
-            _JSON_PATCH_ACTION_TARGET,
-            'k8s_info.py',
-            os.getuid(),
-        ):
-            return False
-        return (
-            _pinned_regular_file(
-                _K8S_ACTION_TARGET,
-                _EXPECTED_K8S_ACTION_TARGET_SHA256,
-                os.getuid(),
-            )
-            and _pinned_regular_file(
-                _K8S_INFO_MODULE_SOURCE,
-                _EXPECTED_K8S_INFO_MODULE_SHA256,
-                os.getuid(),
-            )
-            and _pinned_regular_file(
-                _JSON_PATCH_MODULE_SOURCE,
-                _EXPECTED_JSON_PATCH_MODULE_SHA256,
-                os.getuid(),
-            )
-        )
+        for name, target in _EXPECTED_COLLECTION_ACTION_PATHS.items():
+            action_path = collection_actions / name
+            if target is None:
+                if not _pinned_regular_file(
+                    action_path, _EXPECTED_K8S_ACTION_TARGET_SHA256, os.getuid()
+                ):
+                    return False
+            elif not _pinned_relative_symlink(action_path, _K8S_ACTION_TARGET, target, os.getuid()):
+                return False
+        return True
     except (OSError, RuntimeError, UnicodeError, ValueError, TypeError):
         return False
 
@@ -464,6 +559,9 @@ def _runtime_binding_valid() -> bool:
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION_TARGET_SHA256': _EXPECTED_JSON_PATCH_ACTION_TARGET_SHA256,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_MODULE': str(_JSON_PATCH_MODULE_SOURCE),
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_MODULE_SHA256': _EXPECTED_JSON_PATCH_MODULE_SHA256,
+        'PYTHONDONTWRITEBYTECODE': '1',
+        'PYTHONNOUSERSITE': '1',
+        'PYTHONPATH': '',
     }
     expected_mode = 'check' if bool(context.CLIARGS.get('check')) else 'apply'
     return (

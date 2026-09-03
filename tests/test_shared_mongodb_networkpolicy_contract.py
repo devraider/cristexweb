@@ -327,6 +327,9 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         self.assertIn("_collection_toolchain_valid", plugin)
         self.assertIn("collection_manifest", wrapper)
         self.assertIn("collection_module_utils_expected", wrapper)
+        self.assertIn("collection_modules_expected", wrapper)
+        self.assertIn("check_exact_flat_collection_tree", wrapper)
+        self.assertIn("check_collection_artifacts", wrapper)
         self.assertIn("is_owned_directory_mode", wrapper)
         self.assertIn("kubernetes.core collection", wrapper)
 
@@ -383,6 +386,8 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
             with self.subTest(relative=relative), TemporaryDirectory() as directory:
                 collection_root = Path(directory) / 'core'
                 shutil.copytree(source_root, collection_root, symlinks=True)
+                for pycache in collection_root.rglob('__pycache__'):
+                    shutil.rmtree(pycache)
                 patches = {
                     '_COLLECTION_ROOT': collection_root,
                     '_COLLECTION_MANIFEST_SOURCE': collection_root / 'MANIFEST.json',
@@ -405,6 +410,114 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
                         victim.chmod(0o644)
                     self.assertFalse(self.plugin._collection_toolchain_valid())
 
+    def test_internal_registered_facts_are_all_guarded_before_task_execution(self) -> None:
+        tasks = TASKS.read_text()
+        initial_guard = tasks.split('- name: Require fixed shared MongoDB NetworkPolicy source closure configuration', 1)[0]
+        internal_names = set(re.findall(r'\b(shared_mongodb_networkpolicy_bootstrap_internal_[A-Za-z0-9_]+)', tasks))
+        guarded_names = set(re.findall(r'\b(shared_mongodb_networkpolicy_bootstrap_internal_[A-Za-z0-9_]+)', initial_guard))
+        self.assertEqual(internal_names, guarded_names)
+        for name in internal_names:
+            self.assertIn(f'    - {name}', initial_guard)
+
+    def test_collection_exact_tree_rejects_bytecode_native_and_extra_precedence_leaves(self) -> None:
+        source_root = Path('/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core')
+        if not source_root.is_dir():
+            self.skipTest('pinned kubernetes.core installation is not available')
+        with TemporaryDirectory() as directory:
+            collection_root = Path(directory) / 'core'
+            shutil.copytree(source_root, collection_root, symlinks=True)
+            for pycache in collection_root.rglob('__pycache__'):
+                shutil.rmtree(pycache)
+            patches = {
+                '_COLLECTION_ROOT': collection_root,
+                '_COLLECTION_MANIFEST_SOURCE': collection_root / 'MANIFEST.json',
+                '_COLLECTION_FILES_SOURCE': collection_root / 'FILES.json',
+                '_K8S_ACTION_SOURCE': collection_root / 'plugins/action/k8s.py',
+                '_K8S_ACTION_TARGET': collection_root / 'plugins/action/k8s_info.py',
+                '_K8S_INFO_MODULE_SOURCE': collection_root / 'plugins/modules/k8s_info.py',
+                '_JSON_PATCH_ACTION_SOURCE': collection_root / 'plugins/action/k8s_json_patch.py',
+                '_JSON_PATCH_ACTION_TARGET': collection_root / 'plugins/action/k8s_info.py',
+                '_JSON_PATCH_MODULE_SOURCE': collection_root / 'plugins/modules/k8s_json_patch.py',
+            }
+            with mock.patch.multiple(self.plugin, **patches):
+                self.assertTrue(self.plugin._collection_toolchain_valid())
+                (collection_root / 'plugins/action/k8s.py').unlink()
+                (collection_root / 'plugins/action/k8s.py').write_text('evil action precedence')
+                self.assertFalse(self.plugin._collection_toolchain_valid())
+        for relative in (
+            'plugins/action/k8s_info.py',
+            'plugins/modules/k8s_info.py',
+            'plugins/module_utils/version.py',
+            'plugins/action/__init__.py',
+            'plugins/modules/extra.py',
+            'plugins/module_utils/client/extra.py',
+            'plugins/action/empty-dir',
+            'plugins/modules/empty-dir',
+            'plugins/module_utils/k8s/empty-dir',
+        ):
+            with TemporaryDirectory() as directory:
+                collection_root = Path(directory) / 'core'
+                shutil.copytree(source_root, collection_root, symlinks=True)
+                for pycache in collection_root.rglob('__pycache__'):
+                    shutil.rmtree(pycache)
+                patches = {
+                    '_COLLECTION_ROOT': collection_root,
+                    '_COLLECTION_MANIFEST_SOURCE': collection_root / 'MANIFEST.json',
+                    '_COLLECTION_FILES_SOURCE': collection_root / 'FILES.json',
+                    '_K8S_ACTION_SOURCE': collection_root / 'plugins/action/k8s.py',
+                    '_K8S_ACTION_TARGET': collection_root / 'plugins/action/k8s_info.py',
+                    '_K8S_INFO_MODULE_SOURCE': collection_root / 'plugins/modules/k8s_info.py',
+                    '_JSON_PATCH_ACTION_SOURCE': collection_root / 'plugins/action/k8s_json_patch.py',
+                    '_JSON_PATCH_ACTION_TARGET': collection_root / 'plugins/action/k8s_info.py',
+                    '_JSON_PATCH_MODULE_SOURCE': collection_root / 'plugins/modules/k8s_json_patch.py',
+                }
+                with mock.patch.multiple(self.plugin, **patches):
+                    self.assertTrue(self.plugin._collection_toolchain_valid())
+                    victim = collection_root / relative
+                    victim.parent.mkdir(parents=True, exist_ok=True)
+                    if victim.relative_to(collection_root).name == 'empty-dir':
+                        victim.mkdir()
+                    else:
+                        if victim.is_symlink():
+                            victim.unlink()
+                            victim.symlink_to('k8s_info.py')
+                        victim.write_bytes(b'evil')
+                        victim.chmod(0o644)
+                    self.assertFalse(self.plugin._collection_toolchain_valid())
+        for relative in ('plugins/action/__pycache__/evil.pyc', 'plugins/modules/evil.so'):
+            with TemporaryDirectory() as directory:
+                collection_root = Path(directory) / 'core'
+                shutil.copytree(source_root, collection_root, symlinks=True)
+                for pycache in collection_root.rglob('__pycache__'):
+                    shutil.rmtree(pycache)
+                patches = {
+                    '_COLLECTION_ROOT': collection_root,
+                    '_COLLECTION_MANIFEST_SOURCE': collection_root / 'MANIFEST.json',
+                    '_COLLECTION_FILES_SOURCE': collection_root / 'FILES.json',
+                    '_K8S_ACTION_SOURCE': collection_root / 'plugins/action/k8s.py',
+                    '_K8S_ACTION_TARGET': collection_root / 'plugins/action/k8s_info.py',
+                    '_K8S_INFO_MODULE_SOURCE': collection_root / 'plugins/modules/k8s_info.py',
+                    '_JSON_PATCH_ACTION_SOURCE': collection_root / 'plugins/action/k8s_json_patch.py',
+                    '_JSON_PATCH_ACTION_TARGET': collection_root / 'plugins/action/k8s_info.py',
+                    '_JSON_PATCH_MODULE_SOURCE': collection_root / 'plugins/modules/k8s_json_patch.py',
+                }
+                with mock.patch.multiple(self.plugin, **patches):
+                    self.assertTrue(self.plugin._collection_toolchain_valid())
+                    victim = collection_root / relative
+                    victim.parent.mkdir(parents=True, exist_ok=True)
+                    victim.write_bytes(b'evil')
+                    self.assertFalse(self.plugin._collection_toolchain_valid())
+
+    def test_isolated_no_user_bytecode_environment_is_required(self) -> None:
+        wrapper = WRAPPER.read_text()
+        plugin = PLUGIN.read_text()
+        self.assertGreaterEqual(wrapper.count('PYTHONDONTWRITEBYTECODE=1'), 2)
+        self.assertGreaterEqual(wrapper.count('PYTHONNOUSERSITE=1'), 2)
+        self.assertGreaterEqual(wrapper.count('PYTHONPATH='), 2)
+        self.assertIn("'PYTHONDONTWRITEBYTECODE': '1'", plugin)
+        self.assertIn("'PYTHONNOUSERSITE': '1'", plugin)
+        self.assertIn("'PYTHONPATH': ''", plugin)
+
     def test_complete_module_utils_closure_is_explicitly_hash_bound(self) -> None:
         wrapper = WRAPPER.read_text()
         tree = ast.parse(PLUGIN.read_text())
@@ -423,6 +536,14 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         for path, digest in closure.items():
             self.assertIn(f'{path} {digest}', wrapper)
         self.assertIn('FILES.json', wrapper)
+        module_tree = ast.literal_eval(next(
+            node.value for node in ast.parse(PLUGIN.read_text()).body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == '_EXPECTED_COLLECTION_MODULES'
+                    for target in node.targets)
+        ))
+        for path, digest in module_tree.items():
+            self.assertIn(f'{path} {digest}', wrapper)
 
     def test_create_response_binds_numeric_uid_and_resource_version(self) -> None:
         module = (ROOT / 'ansible/library/shared_mongodb_networkpolicy_create.py').read_text()

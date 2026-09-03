@@ -16,7 +16,7 @@ if [ "$mode" = apply ] && [ "${CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APP
 fi
 original_script_path=$0
 script_path=$0
-wrapper_canonical_sha256_expected='8aa43037e56ca6a2c1348270929cafcce777261b5a4673f7ba64430460ec0e32'
+wrapper_canonical_sha256_expected='295cd1d93766bf8202c174e996eca04819298bfcc0aeb136621f04313618711c'
 sha256_stdin() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum | awk '{print $1}'
@@ -61,6 +61,43 @@ is_owned_directory_mode() {
   [ -d "$1" ] && [ ! -L "$1" ] &&
     [ "$(find "$1" -prune -type d -user "$controller_user" -perm "$2" -print 2>/dev/null)" = "$1" ]
 }
+check_exact_flat_collection_tree() {
+  tree_root=$1
+  allowed_names=$2
+  for tree_entry in "$tree_root"/* "$tree_root"/.[!.]* "$tree_root"/..?*; do
+    [ -e "$tree_entry" ] || [ -L "$tree_entry" ] || continue
+    [ -f "$tree_entry" ] || [ -L "$tree_entry" ] || return 1
+    tree_name=${tree_entry##*/}
+    case " $allowed_names " in
+      *" $tree_name "*) ;;
+      *) return 1 ;;
+    esac
+  done
+  for tree_name in $allowed_names; do
+    [ -f "$tree_root/$tree_name" ] || [ -L "$tree_root/$tree_name" ] || return 1
+  done
+}
+check_collection_artifacts() {
+  tree_root=$1
+  [ -z "$(find "$tree_root" \( -name '__pycache__' -o -name '*.pyc' -o -name '*.pyo' -o -name '*.so' -o -name '*.dylib' -o -name '*.dll' -o -name '*.pyd' \) -print -quit 2>/dev/null)" ]
+}
+check_module_utils_root_tree() {
+  tree_root=$1
+  for tree_entry in "$tree_root"/* "$tree_root"/.[!.]* "$tree_root"/..?*; do
+    [ -e "$tree_entry" ] || [ -L "$tree_entry" ] || continue
+    tree_name=${tree_entry##*/}
+    case " $collection_module_utils_root_names " in
+      *" $tree_name ") [ -f "$tree_entry" ] || [ -L "$tree_entry" ] || return 1 ;;
+      *) case " client k8s " in *" $tree_name ") [ -d "$tree_entry" ] && [ ! -L "$tree_entry" ] || return 1 ;; *) return 1 ;; esac ;;
+    esac
+  done
+  for tree_name in $collection_module_utils_root_names; do
+    [ -f "$tree_root/$tree_name" ] || [ -L "$tree_root/$tree_name" ] || return 1
+  done
+  for tree_name in client k8s; do
+    [ -d "$tree_root/$tree_name" ] && [ ! -L "$tree_root/$tree_name" ] || return 1
+  done
+}
 controller="$repository_root/.venv/bin/ansible-playbook"
 python_tool="$repository_root/.venv/bin/python"
 python_real_source=/usr/bin/python3.13
@@ -74,6 +111,11 @@ collection_files="$collection_root/FILES.json"
 collection_plugins="$collection_root/plugins"
 collection_actions="$collection_plugins/action"
 collection_modules="$collection_plugins/modules"
+collection_action_names='helm.py helm_info.py helm_plugin.py helm_plugin_info.py helm_repository.py k8s.py k8s_cluster_info.py k8s_cp.py k8s_drain.py k8s_exec.py k8s_json_patch.py k8s_log.py k8s_rollback.py k8s_scale.py k8s_service.py k8s_info.py'
+collection_module_names='__init__.py helm.py helm_info.py helm_plugin.py helm_plugin_info.py helm_pull.py helm_registry_auth.py helm_repository.py helm_template.py k8s.py k8s_cluster_info.py k8s_cp.py k8s_drain.py k8s_exec.py k8s_info.py k8s_json_patch.py k8s_log.py k8s_rollback.py k8s_scale.py k8s_service.py k8s_taint.py'
+collection_module_utils_root_names='__init__.py _version.py ansiblemodule.py apply.py args_common.py common.py copy.py exceptions.py hashes.py helm.py helm_args_common.py k8sdynamicclient.py selector.py version.py'
+collection_module_utils_client_names='discovery.py resource.py'
+collection_module_utils_k8s_names='client.py core.py exceptions.py resource.py runner.py service.py waiter.py'
 k8s_action_source="$collection_actions/k8s.py"
 k8s_action_target="$collection_root/plugins/action/k8s_info.py"
 k8s_info_module_source="$collection_modules/k8s_info.py"
@@ -101,6 +143,27 @@ is_owned_directory_mode "$collection_root" 755 || exit 69
 is_owned_directory_mode "$collection_plugins" 755 || exit 69
 is_owned_directory_mode "$collection_actions" 755 || exit 69
 is_owned_directory_mode "$collection_modules" 755 || exit 69
+is_owned_directory_mode "$collection_plugins/module_utils" 755 || exit 69
+is_owned_directory_mode "$collection_plugins/module_utils/client" 755 || exit 69
+is_owned_directory_mode "$collection_plugins/module_utils/k8s" 755 || exit 69
+check_collection_artifacts "$collection_actions" || exit 69
+check_collection_artifacts "$collection_modules" || exit 69
+check_collection_artifacts "$collection_plugins/module_utils" || exit 69
+check_exact_flat_collection_tree "$collection_actions" "$collection_action_names" || exit 69
+check_exact_flat_collection_tree "$collection_modules" "$collection_module_names" || exit 69
+check_module_utils_root_tree "$collection_plugins/module_utils" || exit 69
+check_exact_flat_collection_tree "$collection_plugins/module_utils/client" "$collection_module_utils_client_names" || exit 69
+check_exact_flat_collection_tree "$collection_plugins/module_utils/k8s" "$collection_module_utils_k8s_names" || exit 69
+for action_name in $collection_action_names; do
+  action_path="$collection_actions/$action_name"
+  if [ "$action_name" = k8s_info.py ]; then
+    is_owned_regular_mode "$action_path" 644 || exit 69
+  else
+    is_owned_symlink "$action_path" || exit 69
+    [ "$(readlink "$action_path")" = k8s_info.py ] || exit 69
+    [ "$(readlink -f "$action_path")" = "$k8s_action_target" ] || exit 69
+  fi
+done
 is_owned_symlink "$json_patch_source" && [ "$(readlink "$json_patch_source")" = 'k8s_info.py' ] && [ "$(readlink -f "$json_patch_source")" = "$json_patch_real_source" ] || {
   printf '%s\n' 'refusing an unpinned kubernetes.core JSON patch action symlink' >&2
   exit 69
@@ -134,10 +197,10 @@ is_owned_regular_mode "$collection_files" 644 || exit 69
 [ -f "$create_module_source" ] && [ ! -L "$create_module_source" ] || exit 69
 # These pins are intentionally fixed in the wrapper; changing any source leaf
 # requires a reviewed source/hash update rather than an environment override.
-task_sha256_expected='a4945c6dc7538c2d6fb99622e418483ee31d36e4db5de3751edb683220b52b29'
+task_sha256_expected='f39c12c75931831f1183a519dc4459f24e8d9d862b5b394635e048154e69b6f0'
 defaults_sha256_expected='2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 playbook_sha256_expected='7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-action_canonical_sha256_expected='affcf8c3edde05af93df59ec554d1e00b7dd2e76f36d2e821d2bced7a5a41d0b'
+action_canonical_sha256_expected='467592803f2b4dc2b02b37944ad64c90dbfd9e2ec0a8e7f8c6f432cec04d4600'
 create_module_sha256_expected='21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
@@ -196,6 +259,36 @@ while IFS=' ' read -r module_util_relative module_util_expected; do
   [ "$(sha256_file "$module_util_path")" = "$module_util_expected" ] || exit 69
 done <<EOF
 $collection_module_utils_expected
+EOF
+collection_modules_expected='
+__init__.py e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+helm.py 9c4d458c103a3af799958449283c3f5f201e289855387b3c19a714678dd35883
+helm_info.py 86cad6e59f97bdcbebbf53eeb0ea9eaf7a031eef477ecd76bf109cb872c7fa1e
+helm_plugin.py c99d47fc5fcffafc060416fae69f740b6d18700f00843f0de2315eb32432c113
+helm_plugin_info.py 42afe7b57c92837736d4df8f9e48fe3b71c2f529970acb65ad6b6fb5cf8e0148
+helm_pull.py 051273964c4dd1d9498bca767673641ebabcc4f61b06ac95b741dcd4a38562ff
+helm_registry_auth.py 59a27d6856c4af04d206c6eea6d3e844062e40073bda04bda0536a2857a6694d
+helm_repository.py c38905b50074a1337e41434e78ae6b79410e46c7c72632197544e6cf431172b0
+helm_template.py e736084eaa09c21be061d93d5ee21676103bd4955898e906aa17db4184e78545
+k8s.py 079286f5c97131e6486b55624223c7800c64ba370729240bba7ceea2b8e8e848
+k8s_cluster_info.py 0616d8c6ac9c83a572a1afe2d7cc68f5870bfac77a618171f003b9eb25c5877c
+k8s_cp.py 8f19067c472d4761792fdbf93578c9224714bf241bf0eae4015892589ce3c237
+k8s_drain.py 4fbe4f78cb74344bb8231315f27d3f09da3d23df1ed3a88f13771659652719ac
+k8s_exec.py c7e7ea0d37b1c65904ea29b07aa2fc41e085482216bcf9f97fd27486347ae062
+k8s_info.py e035cfa69a8955c1f97dc4aabf4763784691f20973a8638461ffaa699dfbc21d
+k8s_json_patch.py 75b605254a576da3a146019e448d319a4cefdee2d2f3d4ada80e2c2b1c51d0ef
+k8s_log.py fc05e30eb060ff3bce8403eeb5f9748ab82242ef28a34dfe5ae20227e57fcbc5
+k8s_rollback.py f8bf4bf26cc8634882fd70e704cef6033642a15a316a4859cc03544fd3c31013
+k8s_scale.py cf508fa2f02619293fa664cf55531d5dd1b15d8d35f2bfe382fdc9f756a826c3
+k8s_service.py 079bdfa6f65254fc1547b985e4713d25e6c5ff9c28332b9358e7a4456ff57979
+k8s_taint.py 85d951125ea30ae907d40e79ef22d6e6be5aa5613cfa561de361be7ad5bb30ec'
+while IFS=' ' read -r module_name module_expected; do
+  [ -n "$module_name" ] || continue
+  module_path="$collection_modules/$module_name"
+  is_owned_regular_mode "$module_path" 644 || exit 69
+  [ "$(sha256_file "$module_path")" = "$module_expected" ] || exit 69
+done <<EOF
+$collection_modules_expected
 EOF
 [ "$(sha256_file "$python_real_source")" = "$python_sha256_expected" ] || { printf '%s\n' 'refusing Python interpreter drift' >&2; exit 69; }
 [ "$(sha256_file "$controller")" = "$controller_sha256_expected" ] || { printf '%s\n' 'refusing controller drift' >&2; exit 69; }
@@ -374,6 +467,9 @@ set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_shared_
 if [ -x /usr/bin/setsid ]; then
   child_process_group=1
   /usr/bin/setsid /usr/bin/env -i \
+    'PYTHONDONTWRITEBYTECODE=1' \
+    'PYTHONNOUSERSITE=1' \
+    'PYTHONPATH=' \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_FILES_SHA256=$collection_files_sha256_expected" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION=$k8s_action_source" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION_TARGET=$k8s_action_target" \
@@ -416,6 +512,9 @@ if [ -x /usr/bin/setsid ]; then
 else
   child_process_group=0
   /usr/bin/env -i \
+    'PYTHONDONTWRITEBYTECODE=1' \
+    'PYTHONNOUSERSITE=1' \
+    'PYTHONPATH=' \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_FILES_SHA256=$collection_files_sha256_expected" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION=$k8s_action_source" \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION_TARGET=$k8s_action_target" \
