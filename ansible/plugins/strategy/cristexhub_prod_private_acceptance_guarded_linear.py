@@ -33,8 +33,8 @@ _STRATEGY_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/strategy/cristexhub_prod_
 # This pin is canonicalized by zeroing it before hashing. The wrapper and action
 # hold independent raw and canonical pins, so this strategy cannot self-authorize
 # a modified source before task iteration.
-_STRATEGY_CANONICAL_SHA256 = "ad1dc5ad87d9f3a1f906cf95d1e5b2eb5c1af866f9132af6615e41da14b99972"
-_WRAPPER_CANONICAL_SHA256 = "07539510ed84f36a0db45d52fcac5b2836a09622371dd93ffe2935e35604656c"
+_STRATEGY_CANONICAL_SHA256 = "5fe254ac133a4c761020881d1033ffb20974201520aad0b71678e5dffff56f0e"
+_WRAPPER_CANONICAL_SHA256 = "50c41be6a5a0d78ce0ee8b040fa96c1c8add60f023b1d1af36e3d3da23f72eea"
 _EXPECTED_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
 _EXPECTED_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
 _EXPECTED_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"

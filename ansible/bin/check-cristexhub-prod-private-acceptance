@@ -63,13 +63,13 @@ if count != len(fields):
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
-wrapper_canonical_sha256_expected='07539510ed84f36a0db45d52fcac5b2836a09622371dd93ffe2935e35604656c'
+wrapper_canonical_sha256_expected='50c41be6a5a0d78ce0ee8b040fa96c1c8add60f023b1d1af36e3d3da23f72eea'
 task_sha256_expected='c885079b180a5b3df9bd63594730aa2cfe2394868cd9df958178637342396d36'
 defaults_sha256_expected='b9ea7657475e7591a44e7d0e611f052ed995e898f6b3d18e48eec3955afef514'
 playbook_sha256_expected='d0ffeba954788465b0472721ee2c1dd446452ceb8c73eb050dd619c97493fed2'
-action_sha256_expected='1bbccd244ed0b4c17a9f4bd89c080f2d6e7630e1784fd84bea6546df1035a35c'
-strategy_sha256_expected='c72a1fc25bb5d4488b98c94be8b0d5868e31a04fd255bf66023d972671cd3000'
-strategy_canonical_sha256_expected='e4963b39d85cfe28ade1d0d23812002f8cf64311d9ad515869b52917877ea46f'
+action_sha256_expected='7c99317b7e6200e4e0390d9c138e2eef2e5e7ab8e1f90faeefe46d09cd18adcc'
+strategy_sha256_expected='598956488ff3cba267e90c95c396b821737d46fad20ff156ebbf5f66210804ef'
+strategy_canonical_sha256_expected='5fe254ac133a4c761020881d1033ffb20974201520aad0b71678e5dffff56f0e'
 inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
 controller_sha256_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
@@ -185,6 +185,7 @@ set -- \
   USER="$controller_user" \
   LOGNAME="$controller_user" \
   PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+  PYTHONDONTWRITEBYTECODE=1 \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_OPERATOR="$inventory_operator" \
   LC_ALL=C.UTF-8 \
   ANSIBLE_CONFIG="$ansible_config" \

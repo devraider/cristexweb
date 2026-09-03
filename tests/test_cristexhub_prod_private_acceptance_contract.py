@@ -7,6 +7,7 @@ import os
 import re
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -744,6 +745,43 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
                 (root / "plugins/modules/k8s_info.py").write_bytes(files["plugins/modules/k8s_info.py"])
                 (root / "plugins/action/extra.py").write_bytes(b"extra\\n")
                 self.assertFalse(module._collection_tree_contract())
+
+    def test_two_consecutive_disposable_collection_imports_do_not_create_bytecode(self) -> None:
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1", self.wrapper_text)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            module = root / "ansible_collections/kubernetes/core/plugins/action/k8s_info.py"
+            module.parent.mkdir(parents=True)
+            for parent in (
+                root / "ansible_collections",
+                root / "ansible_collections/kubernetes",
+                root / "ansible_collections/kubernetes/core",
+                root / "ansible_collections/kubernetes/core/plugins",
+                root / "ansible_collections/kubernetes/core/plugins/action",
+            ):
+                (parent / "__init__.py").write_text("", encoding="utf-8")
+            module.write_text("def run():\n    return 'ok'\n", encoding="utf-8")
+            runner = (
+                "import importlib, pathlib, sys; "
+                "sys.path.insert(0, sys.argv[1]); "
+                "assert importlib.import_module("
+                "'ansible_collections.kubernetes.core.plugins.action.k8s_info').run() == 'ok'; "
+                "assert not list(pathlib.Path(sys.argv[1]).rglob('__pycache__'))"
+            )
+            environment = {
+                "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+                "PYTHONDONTWRITEBYTECODE": "1",
+            }
+            for _ in range(2):
+                result = subprocess.run(
+                    [sys.executable, "-S", "-c", runner, str(root)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env=environment,
+                )
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertEqual([], list(root.rglob("__pycache__")))
 
     def test_wrapper_shell_syntax(self) -> None:
         result = subprocess.run(

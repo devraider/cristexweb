@@ -51,9 +51,9 @@ _PYTHON_MAX_LINK_DEPTH = 8
 
 # These values are source pins, not task inputs. They are refreshed whenever one
 # of the leaves changes; the action's own pin is canonicalized by zeroing it.
-_ACTION_CANONICAL_SHA256 = "9487be3c11392e8dde2c248a49cf3e09b95d4f24cc7735ab26d9480195107ae0"
-_STRATEGY_CANONICAL_SHA256 = "ad1dc5ad87d9f3a1f906cf95d1e5b2eb5c1af866f9132af6615e41da14b99972"
-_WRAPPER_CANONICAL_SHA256 = "07539510ed84f36a0db45d52fcac5b2836a09622371dd93ffe2935e35604656c"
+_ACTION_CANONICAL_SHA256 = "82728623a83fba687a9e94aa898102a7d3e398b3a8a4720fbc05c40558fbbf72"
+_STRATEGY_CANONICAL_SHA256 = "5fe254ac133a4c761020881d1033ffb20974201520aad0b71678e5dffff56f0e"
+_WRAPPER_CANONICAL_SHA256 = "50c41be6a5a0d78ce0ee8b040fa96c1c8add60f023b1d1af36e3d3da23f72eea"
 
 
 def _sha256(path: Path) -> str:
