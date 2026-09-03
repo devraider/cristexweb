@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 import os
 import re
 import stat
@@ -911,6 +912,51 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn("storage_uid=", self.restore)
         self.assertNotRegex(self.backup, r"cleanup_helper[^\n]*\|\| true")
         self.assertNotRegex(self.restore, r"cleanup_pod[^\n]*\|\| true")
+
+    def test_backup_networkpolicy_cleanup_uses_exact_uid_and_valid_json(self) -> None:
+        cleanup_start = self.backup.index("cleanup_policy()")
+        cleanup_end = self.backup.index("cleanup_helper()", cleanup_start)
+        cleanup = self.backup[cleanup_start:cleanup_end]
+        self.assertIn(
+            r"jsonpath='{.metadata.labels.cristex\.io/component}'",
+            cleanup,
+        )
+        self.assertIn(
+            r"jsonpath='{.metadata.labels.cristex\.io/run-id}'",
+            cleanup,
+        )
+        self.assertNotIn(r"cristex\\.io", cleanup)
+        delete_line = next(
+            line for line in cleanup.splitlines() if "DeleteOptions" in line
+        )
+        format_match = re.search(r"/usr/bin/printf '([^']+)' \"\$uid\"", delete_line)
+        self.assertIsNotNone(format_match)
+        rendered = subprocess.run(
+            ["/usr/bin/printf", format_match.group(1), "uid-123"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        self.assertEqual(
+            {"kind": "DeleteOptions", "apiVersion": "v1", "preconditions": {"uid": "uid-123"}},
+            json.loads(rendered),
+        )
+        self.assertTrue(rendered.endswith("\n"))
+        self.assertEqual(2, self.backup.count("cleanup_policy "))
+        for policy_variable in ("helper_ingress_policy", "helper_egress_policy"):
+            self.assertIn(
+                f'cleanup_policy "${{{policy_variable}:-}}" "${{{policy_variable}_uid:-}}" backup-networkpolicy',
+                self.backup,
+            )
+        self.assertIn("cleanup_status=0", self.backup)
+        self.assertIn("cleanup_policy", self.backup)
+        self.assertIn("cleanup_status=1", self.backup)
+        self.assertIn("backup_status=failed stage=cleanup", self.backup)
+        self.assertIn("exit 1", self.backup[self.backup.index("if [ \"$cleanup_status\" -ne 0 ]"):])
+        delete_endpoint = "/apis/networking.k8s.io/v1/namespaces/$namespace/networkpolicies/$name"
+        self.assertIn(delete_endpoint, cleanup)
+        self.assertIn('current_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" --ignore-not-found', cleanup)
+        self.assertIn("[ -z \"$current_uid\" ]", cleanup)
 
     def test_age_custody_and_plaintext_cleanup(self) -> None:
         combined = self.backup + "\n" + self.restore

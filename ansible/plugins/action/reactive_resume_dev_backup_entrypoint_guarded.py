@@ -20,7 +20,7 @@ _EXPECTED_TASK_SOURCE = str(
 _EXPECTED_TASK_NAME = "Mark the complete guarded backup preflight"
 _EXPECTED_TASK_ACTION = "reactive_resume_dev_backup_entrypoint_guarded"
 _PLAYBOOK_SOURCE = _REPOSITORY_ROOT / "ansible/playbooks/configure_reactive_resume_dev_backup.yml"
-_PLAYBOOK_CANONICAL_SHA256 = "07a50aa9e7d52cc985962b81b1599e280669e542bb6a7fcda505f674078f3f2d"
+_PLAYBOOK_CANONICAL_SHA256 = "c4770ddaaeca649f984e3230049c939380aed122c9a289a39104ba1406e7b469"
 _EXPECTED_SOURCE_REGISTER = "reactive_resume_dev_backup_source_states"
 _SELF_SOURCE_SHA256 = "__SELF_SOURCE_SHA256__"
 _WRAPPER_SOURCE_SHA256 = "__WRAPPER_SOURCE_SHA256__"
@@ -77,7 +77,7 @@ _EXPECTED_SOURCE_RESULTS = (
     {
         "path": "ansible/files/backup/reactive-resume-dev-backup",
         "mode": "0755",
-        "sha256": "da128785db27a39c338ffad195b05ae745f315b55cd8ce84b4314560be7272ec",
+        "sha256": "5adfde670a12d26948ab4ecccb9435c62dca38df9ec24590d1712e22e5e48728",
     },
     {
         "path": "ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal",
@@ -100,7 +100,7 @@ _EXPECTED_SOURCE_RESULTS = (
         "sha256": "4bfdf41939c1a6f3312c3f703c235efe14959fb1062c5573f16e8d337e1d1ec6",
     },
 )
-_SOURCE_CONTRACT_SHA256 = "45a6c12164e0d57c834b21792af85809c5a821396dcdd7ef91121c4b5cc27306"
+_SOURCE_CONTRACT_SHA256 = "bdddd0a79bf4cd6d663e370719b87eb2b5f0be1610b9d954c74d3299ad532769"
 _EXPECTED_BINDING = {
     "schema": 1,
     "task_source": "ansible/playbooks/configure_reactive_resume_dev_backup.yml",

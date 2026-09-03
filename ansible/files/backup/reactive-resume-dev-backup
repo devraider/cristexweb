@@ -123,10 +123,10 @@ cleanup_policy() {
   [ -n "$name" ] || return 0
   current_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
   [ -n "$current_uid" ] || return 0
-  current_component=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" -o jsonpath='{.metadata.labels.cristex\\.io/component}') || return 1
-  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" -o jsonpath='{.metadata.labels.cristex\\.io/run-id}') || return 1
+  current_component=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" -o jsonpath='{.metadata.labels.cristex\.io/component}') || return 1
+  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" -o jsonpath='{.metadata.labels.cristex\.io/run-id}') || return 1
   [ "$current_uid" = "$uid" ] && [ "$current_component" = "$expected_component" ] && [ "$current_run_id" = "$pod_run_id" ] || return 1
-  /usr/bin/printf '{"kind":"DeleteOptions","apiVersion":"v1","preconditions":{"uid":"%s"}}\\n' "$uid" >"$work/delete-policy-$name.json"
+  /usr/bin/printf '{"kind":"DeleteOptions","apiVersion":"v1","preconditions":{"uid":"%s"}}\n' "$uid" >"$work/delete-policy-$name.json"
   /usr/local/bin/kubectl delete --raw "/apis/networking.k8s.io/v1/namespaces/$namespace/networkpolicies/$name" -f "$work/delete-policy-$name.json" >/dev/null || return 1
   current_uid=$(/usr/local/bin/kubectl -n "$namespace" get networkpolicy "$name" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
   [ -z "$current_uid" ]
