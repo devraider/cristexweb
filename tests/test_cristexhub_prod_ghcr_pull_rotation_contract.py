@@ -3,13 +3,17 @@ from __future__ import annotations
 import base64
 import hashlib
 import importlib.util
+import os
 import re
+import shutil
 import stat
 import subprocess
 import tempfile
+import sys
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -185,6 +189,117 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
             finally:
                 process.terminate()
                 process.wait(timeout=3)
+
+    def test_collection_toolchain_matches_pinned_files_manifest(self) -> None:
+        source_root = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core")
+        if not source_root.is_dir():
+            self.skipTest("pinned kubernetes.core installation is not available")
+        spec = importlib.util.spec_from_file_location("ghcr_rotation_collection_test", STRATEGY)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        strategy = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(strategy)
+        with tempfile.TemporaryDirectory() as directory:
+            collection_root = Path(directory) / "core"
+            shutil.copytree(source_root, collection_root, symlinks=True)
+            for pycache in collection_root.rglob("__pycache__"):
+                shutil.rmtree(pycache)
+            patches = {
+                "_COLLECTION_ROOT": collection_root,
+                "_COLLECTION_MANIFEST_SOURCE": collection_root / "MANIFEST.json",
+                "_COLLECTION_FILES_SOURCE": collection_root / "FILES.json",
+            }
+            with mock.patch.multiple(strategy, **patches):
+                self.assertTrue(strategy._collection_toolchain_valid())
+
+    def test_collection_toolchain_rejects_adversarial_temp_copy_mutations(self) -> None:
+        source_root = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core")
+        if not source_root.is_dir():
+            self.skipTest("pinned kubernetes.core installation is not available")
+        spec = importlib.util.spec_from_file_location("ghcr_rotation_collection_adversarial_test", STRATEGY)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        strategy = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(strategy)
+        mutations = (
+            ("plugins/action/k8s.py", "replace"),
+            ("plugins/action/k8s_info.py", "replace"),
+            ("plugins/modules/k8s_info.py", "replace"),
+            ("plugins/modules/__init__.py", "replace"),
+            ("plugins/module_utils/version.py", "replace"),
+            ("__init__.py", "extra"),
+            ("plugins/__init__.py", "extra"),
+            ("plugins/action/__init__.py", "extra"),
+            ("plugins/modules/evil.so", "extra"),
+            ("plugins/action/__pycache__/evil.pyc", "extra"),
+        )
+        for relative, kind in mutations:
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as directory:
+                collection_root = Path(directory) / "core"
+                shutil.copytree(source_root, collection_root, symlinks=True)
+                for pycache in collection_root.rglob("__pycache__"):
+                    shutil.rmtree(pycache)
+                patches = {
+                    "_COLLECTION_ROOT": collection_root,
+                    "_COLLECTION_MANIFEST_SOURCE": collection_root / "MANIFEST.json",
+                    "_COLLECTION_FILES_SOURCE": collection_root / "FILES.json",
+                }
+                with mock.patch.multiple(strategy, **patches):
+                    self.assertTrue(strategy._collection_toolchain_valid())
+                    victim = collection_root / relative
+                    victim.parent.mkdir(parents=True, exist_ok=True)
+                    if victim.is_symlink():
+                        victim.unlink()
+                    if kind == "extra" and relative.endswith("evil.pyc"):
+                        victim.write_bytes(b"malicious bytecode")
+                    else:
+                        victim.write_bytes(b"malicious collection content")
+                    victim.chmod(0o644)
+                    self.assertFalse(strategy._collection_toolchain_valid())
+
+    def test_collection_package_initializers_and_native_artifacts_are_not_unchecked(self) -> None:
+        source_root = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core")
+        if not source_root.is_dir():
+            self.skipTest("pinned kubernetes.core installation is not available")
+        strategy_spec = importlib.util.spec_from_file_location("ghcr_rotation_collection_init_test", STRATEGY)
+        self.assertIsNotNone(strategy_spec)
+        self.assertIsNotNone(strategy_spec.loader)
+        strategy = importlib.util.module_from_spec(strategy_spec)
+        strategy_spec.loader.exec_module(strategy)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            collection_root = root / "ansible_collections/kubernetes/core"
+            shutil.copytree(source_root, collection_root, symlinks=True)
+            for pycache in collection_root.rglob("__pycache__"):
+                shutil.rmtree(pycache)
+            marker = root / "executed"
+            victim = collection_root / "plugins/__init__.py"
+            victim.write_text(
+                "from pathlib import Path\n"
+                f"Path({str(marker)!r}).write_text('executed')\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "import importlib; importlib.import_module('ansible_collections.kubernetes.core.plugins')",
+                ],
+                cwd=root,
+                env={**os.environ, "PYTHONPATH": str(root), "PYTHONDONTWRITEBYTECODE": "1"},
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual("executed", marker.read_text(encoding="utf-8"))
+            with mock.patch.multiple(
+                strategy,
+                _COLLECTION_ROOT=collection_root,
+                _COLLECTION_MANIFEST_SOURCE=collection_root / "MANIFEST.json",
+                _COLLECTION_FILES_SOURCE=collection_root / "FILES.json",
+            ):
+                self.assertFalse(strategy._collection_toolchain_valid())
 
     def test_attestation_contains_wrapper_starttime(self) -> None:
         self.assertIn(
@@ -414,6 +529,8 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
             "_selection_is_canonical",
             "_wrapper_binding_valid",
             "_source_contract",
+            "_collection_toolchain_valid",
+            "_collection_manifest_tree_valid",
             "TASK_SELECTION_GUARD",
             "start_at_task",
             "skip_tags",
