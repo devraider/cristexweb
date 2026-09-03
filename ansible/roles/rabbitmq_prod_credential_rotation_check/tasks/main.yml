@@ -344,6 +344,9 @@
     rabbitmq_prod_credential_rotation_check_internal_live_pod_container: >-
       {{ rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0].spec.containers |
       selectattr('name', 'equalto', 'rabbitmq') | first }}
+    rabbitmq_prod_credential_rotation_check_internal_live_pod_init_container: >-
+      {{ rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0].spec.initContainers |
+      selectattr('name', 'equalto', 'definitions') | first }}
   changed_when: false
   no_log: true
 
@@ -358,6 +361,13 @@
       - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.uid is string
       - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.uid | length > 0
       - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.resourceVersion is match('^[0-9]+$')
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.annotations | default({})) ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_statefulset.metadata.annotations | default({}))
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.ownerReferences | default([])) ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_statefulset.metadata.ownerReferences | default([]))
+      - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.deletionTimestamp | default(none) is none
       - >-
         rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.labels ==
         rabbitmq_prod_credential_rotation_check_internal_source_statefulset.metadata.labels
@@ -382,6 +392,21 @@
       - >-
         rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.metadata.labels ==
         rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.labels
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.metadata.annotations | default({})) ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.annotations | default({}))
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.spec.containers | length ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.containers | length
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.spec.containers | map(attribute='name') | list | sort ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.containers | map(attribute='name') | list | sort
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.spec.initContainers | length ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.initContainers | length
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.spec.initContainers | map(attribute='name') | list | sort ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.initContainers | map(attribute='name') | list | sort
       - >-
         rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.spec.serviceAccountName ==
         rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.serviceAccountName
@@ -443,6 +468,10 @@
       - >-
         rabbitmq_prod_credential_rotation_check_internal_live_container.volumeMounts ==
         rabbitmq_prod_credential_rotation_check_internal_source_container.volumeMounts
+      - rabbitmq_prod_credential_rotation_check_internal_live_container.command | default(none) ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.command | default(none)
+      - rabbitmq_prod_credential_rotation_check_internal_live_container.args | default(none) ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.args | default(none)
       - >-
         rabbitmq_prod_credential_rotation_check_internal_live_init_container.name ==
         rabbitmq_prod_credential_rotation_check_internal_source_init_container.name
@@ -462,6 +491,13 @@
         rabbitmq_prod_credential_rotation_check_internal_live_init_container.securityContext ==
         rabbitmq_prod_credential_rotation_check_internal_source_init_container.securityContext
       - >-
+        (rabbitmq_prod_credential_rotation_check_internal_live_init_container.resources | default({})) ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_init_container.resources | default({}))
+      - rabbitmq_prod_credential_rotation_check_internal_live_init_container.command ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.command
+      - rabbitmq_prod_credential_rotation_check_internal_live_init_container.args ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.args
+      - >-
         rabbitmq_prod_credential_rotation_check_internal_live_init_container.volumeMounts ==
         rabbitmq_prod_credential_rotation_check_internal_source_init_container.volumeMounts
       - rabbitmq_prod_credential_rotation_check_internal_live_pod.apiVersion == 'v1'
@@ -471,6 +507,14 @@
       - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.uid is string
       - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.uid | length > 0
       - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.resourceVersion is match('^[0-9]+$')
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.deletionTimestamp | default(none) is none
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.annotations | default({})) ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.annotations | default({}))
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.labels.keys() | list |
+        difference(rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.labels.keys() | list |
+        union(['controller-revision-hash', 'statefulset.kubernetes.io/pod-name', 'apps.kubernetes.io/pod-index']))) | length == 0
       - >-
         rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.labels | dict2items | selectattr('key', 'in',
         rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.labels.keys() | list) |
@@ -502,6 +546,26 @@
         rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.uid
       - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.ownerReferences[0].controller is true
       - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.ownerReferences[0].blockOwnerDeletion is true
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.labels['statefulset.kubernetes.io/pod-name'] ==
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.name
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.labels['apps.kubernetes.io/pod-index'] | default('0') == '0'
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.containers | length ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.containers | length
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.containers | map(attribute='name') | list | sort ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.containers | map(attribute='name') | list | sort
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.initContainers | length ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.initContainers | length
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.initContainers | map(attribute='name') | list | sort ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.initContainers | map(attribute='name') | list | sort
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.volumes
       - >-
         rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.serviceAccountName ==
         rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.serviceAccountName
@@ -542,6 +606,34 @@
       - >-
         rabbitmq_prod_credential_rotation_check_internal_live_pod_container.volumeMounts ==
         rabbitmq_prod_credential_rotation_check_internal_source_container.volumeMounts
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod_container.command | default(none) ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.command | default(none)
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod_container.args | default(none) ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.args | default(none)
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_init_container.name ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.name
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_init_container.image ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.image
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_init_container.imagePullPolicy ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.imagePullPolicy
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_init_container.command ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.command
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_init_container.args ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.args
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_init_container.securityContext ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.securityContext
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_live_pod_init_container.resources | default({})) ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_init_container.resources | default({}))
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_init_container.volumeMounts ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.volumeMounts
       - >-
         rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes | selectattr('name', 'equalto',
         'rabbitmq-data') | map(attribute='persistentVolumeClaim.claimName') | list == ['rabbitmq-data-shared-rabbitmq-0']
@@ -654,6 +746,12 @@
         rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.labels ==
         rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.metadata.labels
       - >-
+        (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.annotations | default({})) ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.metadata.annotations | default({}))
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.ownerReferences | default([])) ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.metadata.ownerReferences | default([]))
+      - >-
         rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.infisicalAuthRef ==
         rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.infisicalAuthRef
       - >-
@@ -674,6 +772,12 @@
       - >-
         rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.labels ==
         rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.metadata.labels
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.annotations | default({})) ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.metadata.annotations | default({}))
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.ownerReferences | default([])) ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.metadata.ownerReferences | default([]))
       - >-
         rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.infisicalAuthRef ==
         rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.infisicalAuthRef

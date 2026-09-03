@@ -333,6 +333,9 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("item.metadata.deletionTimestamp", self.tasks)
         self.assertIn("Require live Infisical source declarations to match canonical manifests", self.tasks)
         self.assertIn("spec.infisicalAuthRef ==", self.tasks)
+        self.assertIn("metadata.annotations | default({})) ==", self.tasks)
+        self.assertIn("metadata.ownerReferences | default([])) ==", self.tasks)
+        self.assertIn("spec.infisicalAuthRef ==", self.tasks)
         for field in ("metadata.uid", "metadata.resourceVersion", "metadata.ownerReferences", "spec.template.metadata.labels", "image", "volumeMounts", "startupProbe", "readinessProbe", "livenessProbe"):
             self.assertIn(field, self.tasks, field)
         self.assertIn("spec.targets ==", self.tasks)
@@ -343,6 +346,40 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256", self.wrapper)
         self.assertNotIn("== '{{ .RABBITMQ_URL.Value }}'", self.tasks)
         self.assertIn("'{' ~ '{ .RABBITMQ_URL.Value }' ~ '}'", self.tasks)
+
+    def test_live_broker_shape_rejects_extra_components_and_metadata_drift(self) -> None:
+        broker = yaml.safe_load(BROKER_SOURCE.read_text())
+        template = broker["spec"]["template"]
+        pod_spec = template["spec"]
+        self.assertEqual(1, len(pod_spec["containers"]))
+        self.assertEqual(1, len(pod_spec["initContainers"]))
+        self.assertEqual({}, broker["metadata"].get("annotations", {}))
+        self.assertEqual([], broker["metadata"].get("ownerReferences", []))
+        self.assertEqual({}, template["metadata"].get("annotations", {}))
+        required_guards = (
+            "metadata.annotations | default({})) ==",
+            "metadata.ownerReferences | default([])) ==",
+            "metadata.deletionTimestamp | default(none) is none",
+            "spec.template.spec.containers | length ==",
+            "spec.template.spec.containers | map(attribute='name') | list | sort ==",
+            "spec.template.spec.initContainers | length ==",
+            "spec.template.spec.initContainers | map(attribute='name') | list | sort ==",
+            "internal_live_pod.metadata.annotations | default({})) ==",
+            "internal_live_pod.metadata.deletionTimestamp | default(none) is none",
+            "internal_live_pod.spec.containers | length ==",
+            "internal_live_pod.spec.containers | map(attribute='name') | list | sort ==",
+            "internal_live_pod.spec.initContainers | length ==",
+            "internal_live_pod.spec.initContainers | map(attribute='name') | list | sort ==",
+            "internal_live_pod.spec.volumes ==",
+            "internal_live_pod_init_container.image ==",
+            "internal_live_pod_init_container.args ==",
+            "spec.infisicalAuthRef ==",
+        )
+        for guard in required_guards:
+            self.assertIn(guard, self.tasks, guard)
+        self.assertIn("difference(", self.tasks)
+        self.assertIn("controller-revision-hash", self.tasks)
+        self.assertIn("statefulset.kubernetes.io/pod-name", self.tasks)
 
     def test_source_manifests_have_fixed_hashes_and_exact_mappings(self) -> None:
         expected = {
