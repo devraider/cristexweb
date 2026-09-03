@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -190,6 +191,72 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
             finally:
                 process.terminate()
                 process.wait(timeout=3)
+
+    def test_clean_environment_keeps_two_consecutive_collection_starts_exact_and_cache_free(self) -> None:
+        source_root = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core")
+        if not source_root.is_dir():
+            self.skipTest("pinned kubernetes.core installation is not available")
+        controller_python = Path(sys.executable)
+        try:
+            subprocess.run(
+                [controller_python, "-c", "import ansible"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except (OSError, subprocess.CalledProcessError):
+            self.skipTest("controller Python cannot import ansible")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            collection_root = root / "ansible_collections/kubernetes/core"
+            shutil.copytree(source_root, collection_root, symlinks=True)
+            files_manifest = json.loads((collection_root / "FILES.json").read_text(encoding="utf-8"))
+            expected_tree = {
+                item["name"]: item["ftype"]
+                for item in files_manifest["files"]
+                if item["name"] != "."
+            }
+            expected_tree.update({"FILES.json": "file", "MANIFEST.json": "file"})
+
+            def tree_snapshot() -> dict[str, str]:
+                snapshot: dict[str, str] = {}
+                for entry in collection_root.rglob("*"):
+                    relative = entry.relative_to(collection_root).as_posix()
+                    if entry.is_symlink() or entry.is_file():
+                        snapshot[relative] = "file"
+                    elif entry.is_dir():
+                        snapshot[relative] = "dir"
+                    else:
+                        self.fail(f"unexpected collection filesystem entry: {relative}")
+                return snapshot
+
+            self.assertEqual(expected_tree, tree_snapshot())
+            self.assertFalse(any("__pycache__" in entry for entry in expected_tree))
+            startup = (
+                "import importlib; "
+                "importlib.import_module('ansible_collections.kubernetes.core.plugins.action.k8s_info'); "
+                "importlib.import_module('ansible_collections.kubernetes.core.plugins.modules.k8s_info')"
+            )
+            environment = {
+                **os.environ,
+                "PYTHONPATH": str(root),
+                "PYTHONDONTWRITEBYTECODE": "1",
+            }
+            for attempt in range(2):
+                with self.subTest(attempt=attempt + 1):
+                    result = subprocess.run(
+                        [str(controller_python), "-c", startup],
+                        cwd=root,
+                        env=environment,
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertEqual(0, result.returncode, result.stderr)
+                    actual_tree = tree_snapshot()
+                    self.assertEqual(expected_tree, actual_tree)
+                    self.assertFalse(any("__pycache__" in entry for entry in actual_tree))
+                    self.assertEqual([], list(collection_root.rglob("*.pyc")))
 
     def test_collection_toolchain_matches_pinned_files_manifest(self) -> None:
         source_root = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core")
@@ -700,6 +767,7 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
             "--limit crtxweb",
             "--connection local",
             "env -i",
+            "PYTHONDONTWRITEBYTECODE=1 \\",
             "CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_ENTRYPOINT=v1",
             "SOURCE_CLOSURE_SHA256",
             "WRAPPER_PID",
