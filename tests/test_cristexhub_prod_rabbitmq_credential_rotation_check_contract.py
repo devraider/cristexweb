@@ -117,6 +117,8 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("env -i", self.wrapper)
         self.assertIn("umask 077", self.wrapper)
         self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ATTESTATION_FILE", self.wrapper)
+        self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE=check", self.wrapper)
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1", self.wrapper)
         self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_STARTTIME", self.wrapper)
         self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256", self.wrapper)
         self.assertIn("canonical_action_sha256", self.wrapper)
@@ -125,6 +127,8 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn('[ "$controller_user" = paul ]', self.wrapper)
         self.assertIn("HOME=/home/paul", self.wrapper)
         self.assertIn("python_real_source=/usr/bin/python3.13", self.wrapper)
+        self.assertIn('regular file:root:root:755', self.wrapper)
+        self.assertIn('17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1', self.wrapper)
         self.assertIn("collection_files", self.wrapper)
         self.assertIn("ANSIBLE_ROLES_PATH", self.wrapper)
         self.assertIn("ANSIBLE_LIBRARY", self.wrapper)
@@ -134,6 +138,28 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         rejected = subprocess.run([str(WRAPPER), "check", "--start-at-task", "mutation"], check=False, capture_output=True, text=True)
         self.assertEqual(64, rejected.returncode)
         self.assertNotIn("ansible-playbook", rejected.stdout + rejected.stderr)
+
+    def test_python_target_is_root_owned_exact_mode_and_digest_bound(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_strategy_python_target", STRATEGY
+        )
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        self.assertIsNotNone(spec.loader)
+        spec.loader.exec_module(module)
+        target = Path("/usr/bin/python3.13")
+        self.assertTrue(module._regular_file(target, 0o755, 0, 0))
+        self.assertFalse(module._regular_file(target, 0o775, 0, 0))
+        self.assertFalse(module._regular_file(target, 0o755, 65534, 65534))
+        self.assertEqual(
+            "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+            module._sha256(target),
+        )
+
+    def test_wrapper_exports_check_mode_and_disables_bytecode_for_reruns(self) -> None:
+        env_block = self.wrapper.split("/usr/bin/env -i ", 1)[1]
+        self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE=check \\\n", env_block)
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1 \\\n", env_block)
 
     def test_strategy_binds_ancestor_argv_and_fixed_source_closure(self) -> None:
         for required in (

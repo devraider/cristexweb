@@ -56,8 +56,8 @@ _EXPECTED_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635
 _EXPECTED_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
 _EXPECTED_COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
 _ACTION_CANONICAL_SHA256 = "53f292f110cd28a9799b863dd2eefe7a166885ee00c2e0dd611a1b26ef8a5204"
-_STRATEGY_CANONICAL_SHA256 = "24a74b0a3988859451a6b8a6800783674347ab0f51ab3cd945cd6226e2a9d781"
-_WRAPPER_CANONICAL_SHA256 = "f58b1973c4c9485b133226d4ccf774f8b54deb6d040d8a31c27e9df4c7e10824"
+_STRATEGY_CANONICAL_SHA256 = "e7460cc3a84d18737628e8b169573af63265557e67fa74f244ee2a348e19df93"
+_WRAPPER_CANONICAL_SHA256 = "79807a56d4dc7e09665fdf2d141db550601a4ac9d11af1bc72a81b3592b2079b"
 _TASK_SHA256 = "78104b5277c14ac6071c21250769d74184b12128c7c74591f50b01556fbb0250"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
@@ -155,16 +155,23 @@ def _canonical_hash(path: Path, symbol: str) -> str:
         return ""
 
 
-def _regular_file(path: Path, mode: int, owner: int | None = None) -> bool:
+def _regular_file(
+    path: Path,
+    mode: int,
+    owner: int | None = None,
+    group: int | None = None,
+) -> bool:
     try:
         state = path.stat(follow_symlinks=False)
     except OSError:
         return False
+    expected_group = os.getgid() if owner is not None and group is None else group
     return (
         stat.S_ISREG(state.st_mode)
         and not path.is_symlink()
         and stat.S_IMODE(state.st_mode) == mode
-        and (owner is None or (state.st_uid == owner and state.st_gid == os.getgid()))
+        and (owner is None or state.st_uid == owner)
+        and (expected_group is None or state.st_gid == expected_group)
     )
 
 
@@ -434,7 +441,7 @@ def _python_interpreter_valid() -> bool:
             and link_state.st_uid == os.getuid()
             and os.readlink(_PYTHON_SOURCE) == _PYTHON_LINK_TARGET
             and _PYTHON_SOURCE.resolve(strict=True) == _PYTHON_REAL_SOURCE
-            and _regular_file(_PYTHON_REAL_SOURCE, 0o755, 0)
+            and _regular_file(_PYTHON_REAL_SOURCE, 0o755, 0, 0)
             and _sha256(_PYTHON_REAL_SOURCE) == _EXPECTED_PYTHON_SHA256
         )
     except (OSError, RuntimeError):
