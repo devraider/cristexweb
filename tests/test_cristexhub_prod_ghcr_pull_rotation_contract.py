@@ -418,7 +418,6 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
                     "replicas": 1,
                     "template": {
                         "spec": {
-                            "imagePullSecrets": [{"name": "cristexhub-prod-ghcr-pull"}],
                             "containers": [{"image": f"registry.example/{name}@sha256:{'c' * 64}"}],
                         }
                     },
@@ -436,6 +435,10 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
                     ],
                 },
             }
+            if name in {"backend", "celery-worker", "frontend"}:
+                deployment["spec"]["template"]["spec"]["imagePullSecrets"] = [
+                    {"name": "cristexhub-prod-ghcr-pull"}
+                ]
             return {"item": name, "resources": [deployment]}
 
         deployment_results = [deployment_result(name) for name in names]
@@ -472,6 +475,12 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
                                     "results": deployment_results
                                 },
                                 "cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory": inventory,
+                                "cristexhub_prod_ghcr_pull_rotation_preflight_private_deployments": [
+                                    "backend", "celery-worker", "frontend"
+                                ],
+                                "cristexhub_prod_ghcr_pull_rotation_preflight_public_deployments": [
+                                    "oauth2-proxy", "redis"
+                                ],
                             },
                             "tasks": [
                                 source_task,
@@ -679,13 +688,20 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
 
     def test_exact_five_immutable_ready_consumers_and_gates(self) -> None:
         names = ["backend", "celery-worker", "frontend", "oauth2-proxy", "redis"]
+        private = ["backend", "celery-worker", "frontend"]
+        public = ["oauth2-proxy", "redis"]
         self.assertEqual(names, self.defaults["cristexhub_prod_ghcr_pull_rotation_preflight_deployments"])
+        self.assertEqual(private, self.defaults["cristexhub_prod_ghcr_pull_rotation_preflight_private_deployments"])
+        self.assertEqual(public, self.defaults["cristexhub_prod_ghcr_pull_rotation_preflight_public_deployments"])
         for required in (
             "Query the complete PROD workload inventory for the rollout gate",
             "Require exactly the five approved GHCR consumers",
             "Require immutable images, exact pull Secret, and current readiness",
             "Bind sanitized consumer rollout identities and image digests",
             "imagePullSecrets",
+            "imagePullSecrets | default([])",
+            "cristexhub_prod_ghcr_pull_rotation_preflight_private_deployments",
+            "cristexhub_prod_ghcr_pull_rotation_preflight_public_deployments",
             "@sha256:[0-9a-f]{64}",
             "status.readyReplicas | int == 1",
             "FUTURE-CONTROLLED-ONE-WORKLOAD-AT-A-TIME",
@@ -697,6 +713,50 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
         self.assertTrue(self.policy["preflight"]["image_pull_secret_must_not_change"])
         self.assertTrue(self.policy["preflight"]["images_must_be_digest_pinned"])
         self.assertEqual("github-container-registry", self.policy["custody"]["registry"]["owner"])
+
+    def test_live_deployment_shape_fixture_distinguishes_private_and_public_pull_secrets(self) -> None:
+        private = {"backend", "celery-worker", "frontend"}
+        public = {"oauth2-proxy", "redis"}
+        expected = private | public
+        pull_secret = [{"name": "cristexhub-prod-ghcr-pull"}]
+        fixtures = [
+            {"metadata": {"name": name}, "spec": {"template": {"spec": {"imagePullSecrets": pull_secret}}}}
+            for name in sorted(private)
+        ] + [
+            {"metadata": {"name": "oauth2-proxy"}, "spec": {"template": {"spec": {}}}},
+            {"metadata": {"name": "redis"}, "spec": {"template": {"spec": {"imagePullSecrets": []}}}},
+        ]
+
+        def valid_shape(items: list[dict[str, object]]) -> bool:
+            names = [item["metadata"]["name"] for item in items]
+            if len(items) != len(expected) or len(names) != len(set(names)) or set(names) != expected:
+                return False
+            for item in items:
+                name = item["metadata"]["name"]
+                spec = item["spec"]["template"]["spec"]
+                image_pull_secrets = spec.get("imagePullSecrets", [])
+                required = pull_secret if name in private else []
+                if image_pull_secrets != required:
+                    return False
+            return True
+
+        self.assertTrue(valid_shape(fixtures))
+        adversarial = (
+            fixtures + [{"metadata": {"name": "extra"}, "spec": {"template": {"spec": {}}}}],
+            fixtures[:1] + fixtures[2:],
+            [
+                *fixtures[:-2],
+                {"metadata": {"name": "oauth2-proxy"}, "spec": {"template": {"spec": {"imagePullSecrets": pull_secret}}}},
+                fixtures[-1],
+            ],
+            [
+                *fixtures[:-1],
+                {"metadata": {"name": "redis"}, "spec": {"template": {"spec": {"imagePullSecrets": pull_secret}}}},
+            ],
+        )
+        for candidate in adversarial:
+            with self.subTest(candidate=candidate):
+                self.assertFalse(valid_shape(candidate))
 
     def test_strategy_hash_pin_and_canonical_binding_are_consistent(self) -> None:
         strategy_digest = hashlib.sha256(STRATEGY.read_bytes()).hexdigest()

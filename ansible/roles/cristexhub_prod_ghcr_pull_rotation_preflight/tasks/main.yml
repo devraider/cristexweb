@@ -36,7 +36,12 @@
       - cristexhub_prod_ghcr_pull_rotation_preflight_value_owner == 'infisical-cloud'
       - cristexhub_prod_ghcr_pull_rotation_preflight_registry_owner == 'github-container-registry'
       - cristexhub_prod_ghcr_pull_rotation_preflight_registry_scope == 'private-ghcr-only'
+      - cristexhub_prod_ghcr_pull_rotation_preflight_private_deployments == ['backend', 'celery-worker', 'frontend']
+      - cristexhub_prod_ghcr_pull_rotation_preflight_public_deployments == ['oauth2-proxy', 'redis']
       - cristexhub_prod_ghcr_pull_rotation_preflight_deployments == ['backend', 'celery-worker', 'frontend', 'oauth2-proxy', 'redis']
+      - >-
+        (cristexhub_prod_ghcr_pull_rotation_preflight_private_deployments |
+        union(cristexhub_prod_ghcr_pull_rotation_preflight_public_deployments) | list | length) == 5
       - >-
         cristexhub_prod_ghcr_pull_rotation_preflight_expected_image_pull_secret ==
         {'name': 'cristexhub-prod-ghcr-pull'}
@@ -380,6 +385,10 @@
 - name: Require exactly the five approved GHCR consumers
   ansible.builtin.assert:
     that:
+      - cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory.resources | length == 5
+      - >-
+        (cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory.resources |
+        map(attribute='metadata.name') | list | unique | length) == 5
       - >-
         (cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory.resources |
         map(attribute='metadata.name') | list | sort) ==
@@ -394,7 +403,7 @@
       - >-
         (cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory.resources |
         map(attribute='metadata.resourceVersion') | select('match', '^[0-9]+$') | list | length) == 5
-    fail_msg: Refusing extra, missing, or terminating PROD GHCR consumers.
+    fail_msg: Refusing extra, missing, duplicate, or terminating PROD GHCR consumers.
   changed_when: false
   no_log: true
 
@@ -443,8 +452,11 @@
         {'app.kubernetes.io/name': item.item}
       - item.resources[0].spec.replicas | int == 1
       - >-
-        item.resources[0].spec.template.spec.imagePullSecrets ==
-        [{'name': 'cristexhub-prod-ghcr-pull'}]
+        ((item.item in cristexhub_prod_ghcr_pull_rotation_preflight_private_deployments and
+        (item.resources[0].spec.template.spec.imagePullSecrets | default([])) ==
+        [{'name': 'cristexhub-prod-ghcr-pull'}]) or
+        (item.item in cristexhub_prod_ghcr_pull_rotation_preflight_public_deployments and
+        (item.resources[0].spec.template.spec.imagePullSecrets | default([])) == []))
       - item.resources[0].spec.template.spec.containers | length > 0
       - >-
         item.resources[0].spec.template.spec.containers |
@@ -481,7 +493,7 @@
       'generation': item.resources[0].metadata.generation,
       'revision': (item.resources[0].metadata.annotations | default({})).get('deployment.kubernetes.io/revision', ''),
       'images': item.resources[0].spec.template.spec.containers | map(attribute='image') | list,
-      'image_pull_secret': item.resources[0].spec.template.spec.imagePullSecrets}] }}
+      'image_pull_secret': (item.resources[0].spec.template.spec.imagePullSecrets | default([]))}] }}
   loop: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployments.results }}"
   changed_when: false
   no_log: true

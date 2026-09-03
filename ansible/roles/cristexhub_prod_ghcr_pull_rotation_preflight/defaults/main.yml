@@ -19,6 +19,15 @@ cristexhub_prod_ghcr_pull_rotation_preflight_target_key: .dockerconfigjson
 cristexhub_prod_ghcr_pull_rotation_preflight_value_owner: infisical-cloud
 cristexhub_prod_ghcr_pull_rotation_preflight_registry_owner: github-container-registry
 cristexhub_prod_ghcr_pull_rotation_preflight_registry_scope: private-ghcr-only
+# Private image consumers must carry the Infisical-materialized GHCR pull Secret.
+cristexhub_prod_ghcr_pull_rotation_preflight_private_deployments:
+  - backend
+  - celery-worker
+  - frontend
+# Public/base-image consumers must not carry a private registry credential.
+cristexhub_prod_ghcr_pull_rotation_preflight_public_deployments:
+  - oauth2-proxy
+  - redis
 cristexhub_prod_ghcr_pull_rotation_preflight_deployments:
   - backend
   - celery-worker
