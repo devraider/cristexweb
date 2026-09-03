@@ -11,6 +11,11 @@ export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null
 project_id=619656da-14f3-4872-857b-be103cdc5326
 infisical_path=/shared-services/backup-recovery
 remote_root=drive:cristexweb-recovery/rabbitmq/definitions
+source_closure_sha256=e155acf588d37fcb8c2dc7ebddba399ca140ecc213998de9f2dfd504a6291974
+printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
+  printf '%s\n' 'restore_status=failed stage=source_closure_contract'
+  exit 1
+}
 rclone_config=/home/paul/.config/rclone/rclone.conf
 namespace=shared-services
 image='rabbitmq:4.3.4-management@sha256:cd4fd60136781671d125ed68ac4b67900c0726b55e2e8b98719daa616a63240b'
@@ -42,14 +47,16 @@ done
 (cd "$work" && /usr/bin/sha256sum -c rabbitmq-definitions.json.gz.age.sha256 >/dev/null)
 expected_sha=$(/usr/bin/cut -d ' ' -f 1 "$work/rabbitmq-definitions.json.gz.age.sha256")
 archive_bytes=$(/usr/bin/stat -c %s "$work/rabbitmq-definitions.json.gz.age")
-FILE="$work/manifest.json" TIMESTAMP="$latest" EXPECTED_SHA="$expected_sha" ARCHIVE_BYTES="$archive_bytes" /usr/bin/python3 - <<'PY'
-import json,os
+FILE="$work/manifest.json" TIMESTAMP="$latest" EXPECTED_SHA="$expected_sha" ARCHIVE_BYTES="$archive_bytes" EXPECTED_SOURCE_CLOSURE_SHA256="$source_closure_sha256" /usr/bin/python3 - <<'PY'
+import json,os,re
 x=json.load(open(os.environ['FILE']))
-assert set(x)=={'schema','service','purpose','created_at_utc','archive','archive_bytes','archive_sha256','encryption','source_version','consistency'}
+assert set(x)=={'schema','service','purpose','created_at_utc','archive','archive_bytes','archive_sha256','encryption','source_version','consistency','source_closure_sha256'}
 assert x['schema']==1 and x['service']=='rabbitmq' and x['purpose']=='definitions'
 assert x['created_at_utc']==os.environ['TIMESTAMP'] and x['archive']=='rabbitmq-definitions.json.gz.age'
 assert x['encryption']=='age-x25519' and x['source_version']=='4.3.4' and x['consistency']=='definitions-and-policies'
 assert x['archive_sha256']==os.environ['EXPECTED_SHA'] and x['archive_bytes']==int(os.environ['ARCHIVE_BYTES'])
+assert re.fullmatch(r'[0-9a-f]{64}', x['source_closure_sha256'])
+assert x['source_closure_sha256']==os.environ['EXPECTED_SOURCE_CLOSURE_SHA256']
 PY
 /home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity"
 chmod 0600 "$work/identity"

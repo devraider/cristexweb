@@ -11,6 +11,11 @@ export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null
 project_id=619656da-14f3-4872-857b-be103cdc5326
 infisical_path=/shared-services/backup-recovery
 remote_root=drive:cristexweb-recovery/mongodb/shared-mongodb
+source_closure_sha256=35a6cb65e255510ab9213e858f1ab449501b2d222433b5b089a7dfe93f061e96
+printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
+  printf '%s\n' 'restore_status=failed stage=source_closure_contract'
+  exit 1
+}
 rclone_config=/home/paul/.config/rclone/rclone.conf
 namespace=shared-services
 image='quay.io/mongodb/mongodb-community-server:8.0.12-ubi8@sha256:5500852ab0693ac56134cecf5ad45d3b81d25e4681f4f960a834e48cd34fe71b'
@@ -42,15 +47,17 @@ done
 (cd "$work" && /usr/bin/sha256sum -c shared-mongodb.archive.gz.age.sha256 >/dev/null)
 expected_sha=$(/usr/bin/cut -d ' ' -f 1 "$work/shared-mongodb.archive.gz.age.sha256")
 archive_bytes=$(/usr/bin/stat -c %s "$work/shared-mongodb.archive.gz.age")
-FILE="$work/manifest.json" TIMESTAMP="$latest" EXPECTED_SHA="$expected_sha" ARCHIVE_BYTES="$archive_bytes" /usr/bin/python3 - <<'PY'
-import json,os
+FILE="$work/manifest.json" TIMESTAMP="$latest" EXPECTED_SHA="$expected_sha" ARCHIVE_BYTES="$archive_bytes" EXPECTED_SOURCE_CLOSURE_SHA256="$source_closure_sha256" /usr/bin/python3 - <<'PY'
+import json,os,re
 x=json.load(open(os.environ['FILE']))
-assert set(x)=={'schema','service','purpose','created_at_utc','archive','archive_bytes','archive_sha256','encryption','source_version','consistency'}
+assert set(x)=={'schema','service','purpose','created_at_utc','archive','archive_bytes','archive_sha256','encryption','source_version','consistency','source_closure_sha256'}
 assert x['schema']==1 and x['service']=='mongodb' and x['purpose']=='shared-mongodb'
 assert x['created_at_utc']==os.environ['TIMESTAMP'] and x['archive']=='shared-mongodb.archive.gz.age'
 assert x['encryption']=='age-x25519' and x['source_version']=='8.0.12' and x['consistency']=='replica-set-oplog'
 assert x['archive_sha256']==os.environ['EXPECTED_SHA']
 assert x['archive_bytes']==int(os.environ['ARCHIVE_BYTES'])
+assert re.fullmatch(r'[0-9a-f]{64}', x['source_closure_sha256'])
+assert x['source_closure_sha256']==os.environ['EXPECTED_SOURCE_CLOSURE_SHA256']
 PY
 /home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY \
   --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity"

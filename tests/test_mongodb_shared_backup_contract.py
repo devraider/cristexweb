@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import re
 import unittest
 from pathlib import Path
 
@@ -127,6 +129,37 @@ class MongoDBSharedBackupContractTests(unittest.TestCase):
         self.assertNotIn("SHARED_DATABASE_BACKUP_AGE_IDENTITY=", combined)
         self.assertNotIn("MONGODB_ADMIN_PASSWORD", combined)
         self.assertNotIn("shared-database-backup.agekey", combined)
+
+    def test_source_closure_is_expanded_and_restore_requires_exact_digest(self) -> None:
+        closure_paths = (
+            ROOT / "ansible/files/backup/restore-mongodb-shared-rehearsal",
+            ROOT / "ansible/files/backup/cristexweb-mongodb-shared-backup.service",
+            ROOT / "ansible/files/backup/cristexweb-mongodb-shared-backup.timer",
+        )
+        digest = hashlib.sha256()
+        for path in closure_paths:
+            content = path.read_bytes()
+            if path.name == "restore-mongodb-shared-rehearsal":
+                content, count = re.subn(
+                    rb"(?m)^source_closure_sha256=[0-9a-f]{64}$",
+                    b"source_closure_sha256=" + b"0" * 64,
+                    content,
+                )
+                self.assertEqual(1, count)
+            digest.update(str(path.relative_to(ROOT)).encode())
+            digest.update(b"\0")
+            digest.update(hashlib.sha256(content).hexdigest().encode())
+            digest.update(b"\n")
+        closure = digest.hexdigest()
+        self.assertIn(f"source_closure_sha256={closure}", self.backup)
+        self.assertIn(f"source_closure_sha256={closure}", self.restore)
+        self.assertIn(f"source_closure_sha256: {closure}", self.playbook)
+        self.assertIn('"source_closure_sha256":"%s"', self.backup)
+        self.assertNotIn('"source_closure_sha256":"$source_closure_sha256"', self.backup)
+        self.assertIn("'source_closure_sha256'", self.restore)
+        self.assertIn('EXPECTED_SOURCE_CLOSURE_SHA256="$source_closure_sha256"', self.restore)
+        self.assertIn("re.fullmatch(r'[0-9a-f]{64}', x['source_closure_sha256'])", self.restore)
+        self.assertIn("x['source_closure_sha256']==os.environ['EXPECTED_SOURCE_CLOSURE_SHA256']", self.restore)
 
 
 if __name__ == "__main__":

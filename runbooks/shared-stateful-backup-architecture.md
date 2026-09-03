@@ -119,10 +119,19 @@ archive. MongoDB uses one replica-set-wide oplog-consistent archive; the MongoDB
 Community Operator plus Infisical remain declarative owners for user/SCRAM recreation,
 while the archive recovers application data and compatible database metadata. Its
 restore rehearsal uses the same immutable `8.0.12` image digest, isolated `emptyDir`,
-no Service/PVC/Secret, and exact UID-precondition cleanup. RabbitMQ definitions recovery is not queued-message recovery. Each future
-service or consumer requires an exact archive path, capacity/retention review,
-integrity check, isolated restore, RPO/RTO disposition, and policy/test/runbook
-change; wildcard admission is forbidden.
+no Service/PVC/Secret, and exact UID-precondition cleanup. The RabbitMQ definitions
+scheduler requires the exact Infisical-owned `shared-rabbitmq-admin` target contract:
+only `username`, `password`, and `passwordHash` keys are accepted. Each backup
+manifest carries the actual source-closure digest (the restore self-pin is
+canonicalized before hashing to avoid a circular pin), and restore rejects any
+missing or mismatched digest. The management request uses the username/password
+pair; `passwordHash` is validated as required
+custody material but is never emitted or used as a substitute credential. RabbitMQ
+definitions recovery is not queued-message recovery, and it does not prove consumer
+identity, permissions, or message disposition. Each future service or consumer
+requires an exact archive path, capacity/retention review, integrity check, isolated
+restore, RPO/RTO disposition, and policy/test/runbook change; wildcard admission is
+forbidden.
 
 No CronJob, Job, PVC, Kubernetes Secret, Service, or public download endpoint is
 created by this host scheduler. Backup credentials remain isolated from application

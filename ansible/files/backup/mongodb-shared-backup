@@ -9,7 +9,11 @@ resource=shared-mongodb
 pod=shared-mongodb-0
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
-source_closure_sha256=6a1b54304d0f67f34c6565821d590a539c859ff24aff709a616ebefbdc6ce400
+source_closure_sha256=35a6cb65e255510ab9213e858f1ab449501b2d222433b5b089a7dfe93f061e96
+printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
+  printf '%s\n' 'backup_status=failed stage=source_closure_contract'
+  exit 1
+}
 rclone_config=/home/paul/.config/rclone/rclone.conf
 archive_root=/var/lib/cristexweb-backup/mongodb/shared-mongodb
 remote_root=drive:cristexweb-recovery/mongodb/shared-mongodb
@@ -78,8 +82,8 @@ trap - EXIT HUP INT TERM
 archive_bytes=$(/usr/bin/stat -c %s "$run_directory/shared-mongodb.archive.gz.age")
 archive_sha256=$(/usr/bin/cut -d ' ' -f 1 "$run_directory/shared-mongodb.archive.gz.age.sha256")
 duration_seconds=$(( $(/usr/bin/date +%s) - start_epoch ))
-/usr/bin/printf '{"schema":1,"service":"mongodb","purpose":"shared-mongodb","created_at_utc":"%s","archive":"shared-mongodb.archive.gz.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","source_version":"8.0.12","consistency":"replica-set-oplog","source_closure_sha256":"$source_closure_sha256"}\n' \
-  "$timestamp" "$archive_bytes" "$archive_sha256" >"$run_directory/manifest.json"
+/usr/bin/printf '{"schema":1,"service":"mongodb","purpose":"shared-mongodb","created_at_utc":"%s","archive":"shared-mongodb.archive.gz.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","source_version":"8.0.12","consistency":"replica-set-oplog","source_closure_sha256":"%s"}\n' \
+  "$timestamp" "$archive_bytes" "$archive_sha256" "$source_closure_sha256" >"$run_directory/manifest.json"
 for leaf in shared-mongodb.archive.gz.age shared-mongodb.archive.gz.age.sha256 manifest.json; do
   /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/$leaf" "$remote_directory/$leaf"
 done
