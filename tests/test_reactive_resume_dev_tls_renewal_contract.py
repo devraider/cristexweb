@@ -2,7 +2,10 @@ import hashlib
 import importlib.util
 import json
 import re
+import shlex
 import stat
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -450,6 +453,109 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             altered = Path(directory) / 'tasks.yml'
             altered.write_text(module._TASK_SOURCE.read_text() + '\n# altered\n', encoding='utf-8')
             self.assertNotEqual(module._TASK_SHA256, module._normalized_yaml_hash(altered, task=True))
+
+    def test_cross_file_hash_parity_executes_wrapper_and_strategy_helpers(self) -> None:
+        spec = importlib.util.spec_from_file_location("rr_tls_strategy_parity", STRATEGY)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        wrapper_source = WRAPPER.read_text()
+        start = wrapper_source.index("clean_python() {")
+        end = wrapper_source.index("# Immutable pre-launch pins.")
+        helper_script = "python_tool=/usr/bin/python3\n" + wrapper_source[start:end]
+        command = helper_script + "\nprintf '%s\\n' " + " ".join(
+            (
+                f"$(canonical_sha256 {shlex.quote(str(WRAPPER))} wrapper_canonical_sha256_expected)",
+                f"$(normalized_strategy_sha256 {shlex.quote(str(STRATEGY))})",
+                f"$(canonical_strategy_sha256 {shlex.quote(str(STRATEGY))})",
+                f"$(normalized_task_sha256 {shlex.quote(str(ROLE))})",
+                f"$(normalized_defaults_sha256 {shlex.quote(str(DEFAULTS))})",
+            )
+        )
+        result = subprocess.run(
+            ["/bin/dash", "-c", command],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(
+            [
+                module._WRAPPER_CANONICAL_SHA256,
+                module._STRATEGY_NORMALIZED_SHA256,
+                module._STRATEGY_CANONICAL_SHA256,
+                module._TASK_SHA256,
+                module._DEFAULTS_SHA256,
+            ],
+            result.stdout.splitlines(),
+        )
+        wrapper = WRAPPER.read_text()
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        execution = defaults["reactive_resume_dev_tls_renewal_execution_source_hashes"]
+        self.assertIn(
+            f"strategy_canonical_sha256_expected='{module._STRATEGY_CANONICAL_SHA256}'",
+            wrapper,
+        )
+        self.assertIn(
+            f"strategy_normalized_sha256_expected='{module._STRATEGY_NORMALIZED_SHA256}'",
+            wrapper,
+        )
+        self.assertIn(
+            f"wrapper_canonical_sha256_expected='{module._WRAPPER_CANONICAL_SHA256}'",
+            wrapper,
+        )
+        self.assertEqual(module._sha256(STRATEGY), execution[4]["sha256"])
+        self.assertEqual(module._sha256(WRAPPER), execution[0]["sha256"])
+        self.assertEqual(
+            hashlib.sha256(DEFAULTS.read_bytes()).hexdigest(),
+            "e2d6e4e548a416bd803a98353019e84676ebc35c5db1b612e316ea9d0cc03f59",
+        )
+        role = ROLE.read_text()
+        for digest in (
+            module._STRATEGY_CANONICAL_SHA256,
+            module._STRATEGY_NORMALIZED_SHA256,
+            module._WRAPPER_CANONICAL_SHA256,
+            module._TASK_SHA256,
+            module._DEFAULTS_SHA256,
+        ):
+            self.assertIn(digest, role)
+        self.assertIn(
+            "reactive_resume_dev_tls_renewal_defaults_raw_hash: "
+            "'e2d6e4e548a416bd803a98353019e84676ebc35c5db1b612e316ea9d0cc03f59'",
+            role,
+        )
+
+    def test_playbook_adjacent_ansible_become_exe_injection_is_rejected(self) -> None:
+        spec = importlib.util.spec_from_file_location("rr_tls_strategy_adjacency", STRATEGY)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        wrapper = WRAPPER.read_text()
+        for path in (
+            "$repository_root/ansible/inventory/group_vars",
+            "$repository_root/ansible/inventory/host_vars",
+            "$repository_root/ansible/playbooks/group_vars",
+            "$repository_root/ansible/playbooks/host_vars",
+        ):
+            self.assertIn(path, wrapper)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inventory_directory = root / "ansible/.ansible"
+            inventory_directory.mkdir(parents=True)
+            playbook_host_vars = root / "ansible/playbooks/host_vars"
+            playbook_host_vars.mkdir(parents=True)
+            (playbook_host_vars / "crtxweb.yml").write_text(
+                "ansible_become_exe: /tmp/evil-become\\n",
+                encoding="utf-8",
+            )
+            with (
+                mock.patch.object(module, "_REPOSITORY_ROOT", root),
+                mock.patch.object(module, "_INVENTORY_DIRECTORY", inventory_directory),
+            ):
+                self.assertFalse(module._inventory_adjacency_contract())
 
     def test_role_mutations_require_strategy_attestation(self) -> None:
         tasks = yaml.safe_load(ROLE.read_text())

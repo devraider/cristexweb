@@ -39,14 +39,14 @@ _PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989d
 _ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 # These are immutable source pins. Self-referential source pins are normalized
 # before hashing; all other pins are ordinary SHA-256 digests.
-_STRATEGY_CANONICAL_SHA256 = "2e19b00fcefbac155ac380e5760301161495153471760493f82a698b2257fca7"
+_STRATEGY_CANONICAL_SHA256 = "729b83b6a5a3c67191d408c6d9cdcbb43a554491434c3fd24eda5154f63c5902"
 # This canonical pin normalizes both self-referential provenance markers.
 # The wrapper can therefore pin it without creating a cross-file hash cycle.
 # This normalized pin removes only the provenance marker values below.
 # It is independent of the wrapper's canonical marker and therefore cannot
 # participate in a wrapper/strategy self-hash cycle.
-_STRATEGY_NORMALIZED_SHA256 = "76e621c959c153ccbdd1a36f1cdc8251426d2e4f09aba54c07cbf79f8a370913"
-_WRAPPER_CANONICAL_SHA256 = "c545ee8704e9df413bb1496766007b0c4a407922909c5fff700bfff6e4d21057"
+_STRATEGY_NORMALIZED_SHA256 = "7e01e59bec0f0f1a2c61b899165805025cd5d26f182859d8bdaaa60b01678570"
+_WRAPPER_CANONICAL_SHA256 = "f05f96f742042f33b4bf9d7d818fdebc915658da61704925447eb292ca7f7f5d"
 _PLAYBOOK_SHA256 = "630e9df627998edf9292e8961afd0d514e2982f7444cf7646333df8f55a3cbb9"
 _TASK_SHA256 = "1b92858b989b8d953c67760f5d28c9507758361bcaebeafdf2c22d4e24177f22"
 _DEFAULTS_SHA256 = "ae8ff4cf2eacd8839632066391b4881df15eea6833c3ea1b55d7b2a3d31920b3"
@@ -270,6 +270,12 @@ def _inventory_adjacency_contract() -> bool:
         _INVENTORY_DIRECTORY / "group_vars",
         _INVENTORY_DIRECTORY / "host_vars",
         _INVENTORY_DIRECTORY / "vars_plugins",
+        _REPOSITORY_ROOT / "ansible/inventory/group_vars",
+        _REPOSITORY_ROOT / "ansible/inventory/host_vars",
+        _REPOSITORY_ROOT / "ansible/inventory/vars_plugins",
+        _REPOSITORY_ROOT / "ansible/playbooks/group_vars",
+        _REPOSITORY_ROOT / "ansible/playbooks/host_vars",
+        _REPOSITORY_ROOT / "ansible/playbooks/vars_plugins",
         _REPOSITORY_ROOT / "ansible/group_vars",
         _REPOSITORY_ROOT / "ansible/host_vars",
         _REPOSITORY_ROOT / "ansible/vars_plugins",

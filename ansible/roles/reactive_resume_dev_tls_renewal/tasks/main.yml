@@ -10,19 +10,19 @@
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_CANONICAL_SHA256') ==
-        '50cdb97e0983233b0226deae0b1d47432fd1204f9594551be7060672e0cc9407'
+        '729b83b6a5a3c67191d408c6d9cdcbb43a554491434c3fd24eda5154f63c5902'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256') ==
-        '561e6cc9cad58b66772c888e2642cf0f6a6e948ef6d526147b74b708d0723cdd'
+        'd5c31c8c58f1ffb48e085618ee1d296bb34673ea71a28c80e8edd4f91f1fbe16'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_NORMALIZED_SHA256') ==
-        '4b395dd26c0099b350971a933bf9163711d936cf56f1b313abb09de2c6f39d8b'
+        '7e01e59bec0f0f1a2c61b899165805025cd5d26f182859d8bdaaa60b01678570'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256') ==
-        'c545ee8704e9df413bb1496766007b0c4a407922909c5fff700bfff6e4d21057'
+        'f05f96f742042f33b4bf9d7d818fdebc915658da61704925447eb292ca7f7f5d'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTATION_SHA256') ==
@@ -145,7 +145,7 @@
 - name: Bind the canonical role task source marker
   ansible.builtin.set_fact:
     reactive_resume_dev_tls_renewal_task_self_hash: '0000000000000000000000000000000000000000000000000000000000000000'
-    reactive_resume_dev_tls_renewal_defaults_raw_hash: '2b441331d2e696dd42c363bfdc07b61bde9fd58fcfcb07325baded16bf567b88'
+    reactive_resume_dev_tls_renewal_defaults_raw_hash: 'e2d6e4e548a416bd803a98353019e84676ebc35c5db1b612e316ea9d0cc03f59'
   changed_when: false
   no_log: true
 

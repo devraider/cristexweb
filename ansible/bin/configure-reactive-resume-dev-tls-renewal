@@ -181,10 +181,10 @@ ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa
 playbook_sha256_expected='630e9df627998edf9292e8961afd0d514e2982f7444cf7646333df8f55a3cbb9'
 task_sha256_expected='1b92858b989b8d953c67760f5d28c9507758361bcaebeafdf2c22d4e24177f22'
 defaults_sha256_expected='ae8ff4cf2eacd8839632066391b4881df15eea6833c3ea1b55d7b2a3d31920b3'
-strategy_canonical_sha256_expected='50cdb97e0983233b0226deae0b1d47432fd1204f9594551be7060672e0cc9407'
-strategy_normalized_sha256_expected='4b395dd26c0099b350971a933bf9163711d936cf56f1b313abb09de2c6f39d8b'
+strategy_canonical_sha256_expected='729b83b6a5a3c67191d408c6d9cdcbb43a554491434c3fd24eda5154f63c5902'
+strategy_normalized_sha256_expected='7e01e59bec0f0f1a2c61b899165805025cd5d26f182859d8bdaaa60b01678570'
 strategy_attestation_sha256_expected='aa8ef9124552f3d1a1f65d7fdbeb2ec37bc28f84f1a77e8fffdf3f636a9c6dbb'
-wrapper_canonical_sha256_expected='c545ee8704e9df413bb1496766007b0c4a407922909c5fff700bfff6e4d21057'
+wrapper_canonical_sha256_expected='f05f96f742042f33b4bf9d7d818fdebc915658da61704925447eb292ca7f7f5d'
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
 [ -L "$python_tool" ] || exit 69
 [ "$(/usr/bin/readlink -f -- "$python_tool")" = "$python_target" ] || exit 69
@@ -195,6 +195,12 @@ for forbidden in \
   "$inventory_directory/group_vars" \
   "$inventory_directory/host_vars" \
   "$inventory_directory/vars_plugins" \
+  "$repository_root/ansible/inventory/group_vars" \
+  "$repository_root/ansible/inventory/host_vars" \
+  "$repository_root/ansible/inventory/vars_plugins" \
+  "$repository_root/ansible/playbooks/group_vars" \
+  "$repository_root/ansible/playbooks/host_vars" \
+  "$repository_root/ansible/playbooks/vars_plugins" \
   "$repository_root/ansible/group_vars" \
   "$repository_root/ansible/host_vars" \
   "$repository_root/ansible/vars_plugins" \
