@@ -695,6 +695,31 @@
   changed_when: false
   no_log: true
 
+- name: Query exact metadata-only shared MongoDB StatefulSet identity
+  cristexhub_prod_mongodb_credential_rotation_metadata:
+    kubeconfig: "{{ cristexhub_prod_mongodb_credential_rotation_check_kubeconfig }}"
+    api_path: /apis/apps/v1/namespaces/shared-services/statefulsets/shared-mongodb
+    resource_kind: StatefulSet
+    resource_api_version: apps/v1
+    expected_name: shared-mongodb
+    expected_namespace: shared-services
+    include_spec: false
+  register: cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_statefulset_result
+  changed_when: false
+  no_log: true
+
+- name: Require exact metadata-only shared MongoDB StatefulSet identity
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_statefulset_result.metadata.name == 'shared-mongodb'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_statefulset_result.metadata.namespace == 'shared-services'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_statefulset_result.metadata.uid is match('^[0-9a-fA-F-]+$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_statefulset_result.metadata.resourceVersion is match('^[0-9]+$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_statefulset_result.metadata.deletionTimestamp is none
+    fail_msg: Refusing NetworkPolicy overlap evaluation without the exact live shared-mongodb StatefulSet identity.
+  changed_when: false
+  no_log: true
+
 - name: Query exact metadata-only shared MongoDB pod identity
   cristexhub_prod_mongodb_credential_rotation_metadata:
     kubeconfig: "{{ cristexhub_prod_mongodb_credential_rotation_check_kubeconfig }}"
@@ -722,8 +747,11 @@
       - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.ownerReferences[0].apiVersion == 'apps/v1'
       - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.ownerReferences[0].kind == 'StatefulSet'
       - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.ownerReferences[0].name == 'shared-mongodb'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.ownerReferences[0].uid ==
+        cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_statefulset_result.metadata.uid
       - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.ownerReferences[0].controller | bool
-    fail_msg: Refusing NetworkPolicy overlap evaluation without the exact live shared-mongodb-0 metadata identity.
+    fail_msg: Refusing NetworkPolicy overlap evaluation without the exact live shared-mongodb-0 metadata identity and StatefulSet owner.
   changed_when: false
   no_log: true
 

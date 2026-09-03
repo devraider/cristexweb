@@ -342,16 +342,25 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
 
     def test_metadata_only_live_pod_identity_binds_selector_evaluation(self) -> None:
         for phrase in (
+            "Query exact metadata-only shared MongoDB StatefulSet identity",
+            "api_path: /apis/apps/v1/namespaces/shared-services/statefulsets/shared-mongodb",
+            "resource_kind: StatefulSet",
+            "resource_api_version: apps/v1",
+            "expected_name: shared-mongodb",
+            "expected_namespace: shared-services",
+            "internal_mongodb_statefulset_result.metadata.uid",
+            "internal_mongodb_statefulset_result.metadata.resourceVersion",
             "Query exact metadata-only shared MongoDB pod identity",
             "api_path: /api/v1/namespaces/shared-services/pods/shared-mongodb-0",
             "resource_kind: Pod",
             "expected_name: shared-mongodb-0",
-            "expected_namespace: shared-services",
             "internal_mongodb_pod_uid",
             "internal_mongodb_pod_resource_version",
             "pod_labels: \"{{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_labels }}\"",
             "pod_uid: \"{{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_uid }}\"",
             "pod_resource_version: \"{{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_resource_version }}\"",
+            "ownerReferences[0].uid ==",
+            "cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_statefulset_result.metadata.uid",
             "selector_evaluation.pod_uid ==",
             "selector_evaluation.pod_resource_version ==",
         ):
@@ -483,6 +492,51 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
         self.assertEqual("u", module._metadata(with_owner)["ownerReferences"][0]["uid"])
         self.assertIsNone(module._metadata({**payload, "metadata": {**payload["metadata"], "deletionTimestamp": 7}}))
         self.assertIn("deletionTimestamp is none", self.tasks)
+
+    def test_pod_owner_uid_is_bound_to_live_statefulset_identity(self) -> None:
+        self.assertIn(
+            "api_path: /apis/apps/v1/namespaces/shared-services/statefulsets/shared-mongodb",
+            self.tasks,
+        )
+        self.assertIn(
+            "cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_statefulset_result",
+            self.tasks,
+        )
+        self.assertIn("ownerReferences[0].uid ==", self.tasks)
+        self.assertIn(
+            "cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_statefulset_result.metadata.uid",
+            self.tasks,
+        )
+        self.assertIn(
+            "cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_statefulset_result.metadata.resourceVersion is match('^[0-9]+$')",
+            self.tasks,
+        )
+        metadata_spec = importlib.util.spec_from_file_location("mongodb_metadata_owner_uid", METADATA)
+        self.assertIsNotNone(metadata_spec)
+        self.assertIsNotNone(metadata_spec.loader)
+        metadata_module = importlib.util.module_from_spec(metadata_spec)
+        metadata_spec.loader.exec_module(metadata_module)
+        payload = {
+            "apiVersion": "meta.k8s.io/v1",
+            "kind": "PartialObjectMetadata",
+            "metadata": {
+                "name": "shared-mongodb-0",
+                "namespace": "shared-services",
+                "uid": "pod-uid",
+                "resourceVersion": "42",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "StatefulSet",
+                        "name": "shared-mongodb",
+                        "uid": "statefulset-uid",
+                        "controller": True,
+                    }
+                ],
+            },
+        }
+        projected = metadata_module._metadata(payload)
+        self.assertEqual("statefulset-uid", projected["ownerReferences"][0]["uid"])
 
     def test_metadata_response_identity_is_bound_to_requested_resource(self) -> None:
         spec = importlib.util.spec_from_file_location("mongodb_metadata_identity", METADATA)
