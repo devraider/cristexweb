@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import re
 import stat
@@ -19,6 +20,10 @@ PLAYBOOK = ANSIBLE / "playbooks/check_cristexhub_prod_rabbitmq_credential_rotati
 WRAPPER = ANSIBLE / "bin/check-cristexhub-prod-rabbitmq-credential-rotation"
 ACTION = ANSIBLE / "plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py"
 METADATA = ANSIBLE / "library/rabbitmq_prod_credential_metadata.py"
+BROKER_SOURCE = ANSIBLE / "files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml"
+CONFIG_SOURCE = ANSIBLE / "files/components/rabbitmq/runtime/configmap-rabbitmq.yaml"
+ENGINE_SOURCE = ANSIBLE / "files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml"
+RUNTIME_SOURCE = ANSIBLE / "files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
 
 
 class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
@@ -136,9 +141,100 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("PartialObjectMetadata", self.metadata)
         self.assertIn("set(payload) != _TOP_LEVEL", self.metadata)
         self.assertIn("payload.get(\"kind\") != \"PartialObjectMetadata\"", self.metadata)
+        self.assertIn("metadata.get(\"name\") != name", self.metadata)
+        self.assertIn("metadata.get(\"namespace\") != namespace", self.metadata)
+        self.assertIn("creationTimestamp", self.metadata)
+        self.assertIn("annotations", self.metadata)
+        self.assertIn("deletionTimestamp", self.metadata)
+        self.assertIn("terminating Secret refused", self.metadata)
         self.assertIn("module.exit_json(changed=False, items=items, metadata_only=True)", self.metadata)
         self.assertNotIn('"data"', self.metadata)
         self.assertNotIn('"stringData"', self.metadata)
+
+    def test_partial_metadata_adversarial_shapes_and_identity_are_rejected(self) -> None:
+        spec = importlib.util.spec_from_file_location("rabbitmq_prod_credential_metadata", METADATA)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        self.assertIsNotNone(spec.loader)
+        spec.loader.exec_module(module)
+
+        class Client:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def call_api(self, *args, **kwargs):
+                return self.payload
+
+        base = {
+            "apiVersion": "meta.k8s.io/v1",
+            "kind": "PartialObjectMetadata",
+            "metadata": {
+                "name": "shared-rabbitmq-cristexhub-prod",
+                "namespace": "shared-services",
+                "uid": "uid-1",
+                "resourceVersion": "123",
+                "creationTimestamp": "2026-08-26T00:00:00Z",
+                "annotations": {"secrets.infisical.com/version": "7"},
+                "labels": {"app.kubernetes.io/managed-by": "infisical"},
+                "managedFields": [],
+            },
+        }
+        result = module._metadata(Client(base), "shared-services", "shared-rabbitmq-cristexhub-prod")
+        self.assertEqual("shared-rabbitmq-cristexhub-prod", result["metadata"]["name"])
+        self.assertEqual("shared-services", result["metadata"]["namespace"])
+        self.assertEqual("7", result["metadata"]["annotations"]["secrets.infisical.com/version"])
+        for payload in (
+            {**base, "data": {}},
+            {**base, "metadata": {**base["metadata"], "name": "other"}},
+            {**base, "metadata": {**base["metadata"], "namespace": "other"}},
+            {**base, "metadata": {**base["metadata"], "deletionTimestamp": "2026-08-26T00:00:01Z"}},
+            {**base, "metadata": {**base["metadata"], "annotations": {"bad": 1}}},
+        ):
+            with self.assertRaises(ValueError):
+                module._metadata(Client(payload), "shared-services", "shared-rabbitmq-cristexhub-prod")
+
+    def test_tasks_parse_and_bind_query_set_without_nested_jinja(self) -> None:
+        parsed = yaml.safe_load(self.tasks)
+        self.assertIsInstance(parsed, list)
+        self.assertEqual(24, len(parsed))
+        for task in parsed:
+            self.assertIsInstance(task, dict)
+            if "ansible.builtin.assert" in task:
+                self.assertIn("fail_msg", task["ansible.builtin.assert"])
+                self.assertNotIn("fail_msg", task)
+        self.assertIn("queries:", self.tasks)
+        self.assertIn('binding.get("queries") == sorted(_EXPECTED_QUERIES)', self.action)
+        self.assertIn("args.get(\"query\") in binding.get(\"queries\", [])", self.action)
+        self.assertIn("_RABBITMQ_CONFIG_SOURCE", self.action)
+        self.assertIn("_ANSIBLE_CONFIG_SOURCE", self.action)
+        self.assertNotIn("== '{{ .RABBITMQ_URL.Value }}'", self.tasks)
+        self.assertIn("'{' ~ '{ .RABBITMQ_URL.Value }' ~ '}'", self.tasks)
+
+    def test_source_manifests_have_fixed_hashes_and_exact_mappings(self) -> None:
+        expected = {
+            BROKER_SOURCE: "5ea7cfa66e72615e5ff50657e934740907a90d4219c221323e3b91af3efe6242",
+            CONFIG_SOURCE: "663c006190e6e5e03e7c22d198cb41245d2ab3b7dab406acb4fdefe00a10a2d5",
+            ENGINE_SOURCE: "b5eeaa0abc5b9ee91d392d6ac064862026b64f0d4c74f6431fe5dca517c506d0",
+            RUNTIME_SOURCE: "3204aab3fc0f5b55f9af3623fb658d5ffd8289437d5d0ea91ab0480dc4126ee0",
+        }
+        for path, digest in expected.items():
+            self.assertEqual(0o644, stat.S_IMODE(path.stat().st_mode), path)
+            self.assertEqual(digest, hashlib.sha256(path.read_bytes()).hexdigest(), path)
+            self.assertIn(digest, self.action)
+            self.assertIn(digest, self.wrapper)
+        broker = yaml.safe_load(BROKER_SOURCE.read_text())
+        config = yaml.safe_load(CONFIG_SOURCE.read_text())
+        engine = yaml.safe_load(ENGINE_SOURCE.read_text())
+        runtime = yaml.safe_load(RUNTIME_SOURCE.read_text())
+        self.assertEqual("shared-rabbitmq-config", next(v["configMap"]["name"] for v in broker["spec"]["template"]["spec"]["volumes"] if v["name"] == "config"))
+        self.assertEqual("shared-rabbitmq-cristexhub-prod", next(v["secret"]["secretName"] for v in broker["spec"]["template"]["spec"]["volumes"] if v["name"] == "prod-secret"))
+        self.assertEqual({"enabled_plugins", "rabbitmq.conf"}, set(config["data"]))
+        self.assertIn("management.load_definitions = /etc/rabbitmq/definitions/definitions.json", config["data"]["rabbitmq.conf"])
+        targets = {item["name"]: item for item in engine["spec"]["targets"]}
+        self.assertEqual({"username", "password", "passwordHash"}, set(targets["shared-rabbitmq-cristexhub-prod"]["template"]["data"]))
+        self.assertEqual("{{ .RABBITMQ_CRISTEXHUB_PROD_USERNAME.Value }}", targets["shared-rabbitmq-cristexhub-prod"]["template"]["data"]["username"])
+        runtime_target = {item["name"]: item for item in runtime["spec"]["targets"]}["cristexhub-prod-runtime"]
+        self.assertEqual("{{ .RABBITMQ_URL.Value }}", runtime_target["template"]["data"]["RABBITMQ_URL"])
 
     def test_source_modes_and_hashes_are_explicit(self) -> None:
         expected_modes = {

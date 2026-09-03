@@ -4,25 +4,40 @@ from __future__ import annotations
 
 from ansible.module_utils.basic import AnsibleModule
 
+_PARTIAL_METADATA_API_VERSION = "meta.k8s.io/v1"
+_PARTIAL_METADATA_KIND = "PartialObjectMetadata"
+_PARTIAL_METADATA_ACCEPT = (
+    "application/json;as=PartialObjectMetadata;g=meta.k8s.io;v=v1"
+)
 _TOP_LEVEL = {"apiVersion", "kind", "metadata"}
 _METADATA_ALLOWED = {
+    "annotations",
+    "clusterName",
+    "creationTimestamp",
+    "deletionGracePeriodSeconds",
+    "deletionTimestamp",
+    "finalizers",
+    "generateName",
+    "generation",
+    "labels",
+    "managedFields",
     "name",
     "namespace",
-    "uid",
+    "ownerReferences",
     "resourceVersion",
-    "labels",
+    "selfLink",
+    "uid",
 }
 
 
 def _metadata(client: object, namespace: str, name: str) -> dict:
+    """Fetch and validate only metadata for the requested Secret identity."""
     payload = client.call_api(
         "/api/v1/namespaces/{namespace}/secrets/{name}",
         "GET",
         path_params={"namespace": namespace, "name": name},
         query_params=[],
-        header_params={
-            "Accept": "application/json;as=PartialObjectMetadata;g=meta.k8s.io;v=v1"
-        },
+        header_params={"Accept": _PARTIAL_METADATA_ACCEPT},
         body=None,
         post_params=[],
         files={},
@@ -41,12 +56,28 @@ def _metadata(client: object, namespace: str, name: str) -> dict:
     metadata = payload.get("metadata")
     if not isinstance(metadata, dict) or not set(metadata).issubset(_METADATA_ALLOWED):
         raise ValueError("Secret payload or unsupported metadata returned")
-    labels = metadata.get("labels", {})
-    if not isinstance(labels, dict):
-        raise ValueError("malformed Secret labels")
+    if metadata.get("name") != name or metadata.get("namespace") != namespace:
+        raise ValueError("Secret identity changed during metadata read")
     required = ("name", "namespace", "uid", "resourceVersion")
     if any(not isinstance(metadata.get(key), str) or not metadata[key] for key in required):
         raise ValueError("incomplete Secret metadata")
+    labels = metadata.get("labels", {})
+    annotations = metadata.get("annotations", {})
+    if not isinstance(labels, dict) or not isinstance(annotations, dict):
+        raise ValueError("malformed Secret labels or annotations")
+    if any(not isinstance(key, str) or not key for key in labels):
+        raise ValueError("malformed Secret label key")
+    if any(not isinstance(key, str) or not key for key in annotations):
+        raise ValueError("malformed Secret annotation key")
+    if any(not isinstance(value, str) for value in labels.values()):
+        raise ValueError("malformed Secret label value")
+    if any(not isinstance(value, str) for value in annotations.values()):
+        raise ValueError("malformed Secret annotation value")
+    deletion_timestamp = metadata.get("deletionTimestamp")
+    if deletion_timestamp is not None:
+        if not isinstance(deletion_timestamp, str) or not deletion_timestamp:
+            raise ValueError("malformed Secret deletion timestamp")
+        raise ValueError("terminating Secret refused")
     return {
         "apiVersion": payload["apiVersion"],
         "kind": payload["kind"],
@@ -55,7 +86,8 @@ def _metadata(client: object, namespace: str, name: str) -> dict:
             "namespace": metadata["namespace"],
             "uid": metadata["uid"],
             "resourceVersion": metadata["resourceVersion"],
-            "labels": labels,
+            "labels": dict(labels),
+            "annotations": dict(annotations),
         },
     }
 

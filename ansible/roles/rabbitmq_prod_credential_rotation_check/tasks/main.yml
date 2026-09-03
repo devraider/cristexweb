@@ -40,6 +40,13 @@
       - rabbitmq_prod_credential_rotation_check_runtime_namespace == 'cristexhub-prod'
       - rabbitmq_prod_credential_rotation_check_runtime_keys | length == 10
       - rabbitmq_prod_credential_rotation_check_engine_target_keys | sort == ['password', 'passwordHash', 'username']
+      - >-
+        rabbitmq_prod_credential_rotation_check_commands == {
+        'readiness': ['rabbitmq-diagnostics', '-q', 'check_running'],
+        'users': ['rabbitmqctl', 'list_users', '--formatter=json'],
+        'prod_permissions': ['rabbitmqctl', 'list_permissions', '--formatter=json', '--vhost', '/cristexhub-prod'],
+        'all_permissions': ['rabbitmqctl', 'list_permissions', '--formatter=json'],
+        'vhosts': ['rabbitmqctl', 'list_vhosts', '--formatter=json']}
       - rabbitmq_prod_credential_rotation_check_candidate_permissions ==
         dict(configure='^(default|high_priority|low_priority)$', write='^default$', read='^(default|high_priority|low_priority)$')
       - not rabbitmq_prod_credential_rotation_check_writer_available
@@ -97,10 +104,30 @@
     checksum_algorithm: sha256
     get_mime: false
   loop:
-    - {path: 'ansible/roles/rabbitmq_prod_credential_rotation_check/defaults/main.yml', sha256: '3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac', mode: '0644'}
-    - {path: 'ansible/playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml', sha256: '593d0c3b0109af5db6e1453fb5f40461ce64319b832009109e0a55bdc2a08123', mode: '0644'}
-    - {path: 'ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml', sha256: 'b4cd58058ccbbd236b44511b63637bda5fb61a6ca2df56f4f78e24f2da8a409f', mode: '0644'}
-    - {path: 'ansible/library/rabbitmq_prod_credential_metadata.py', sha256: '1d54b59e95550606749026d2acd54f7001003fec93ad76f4fbb80f0b40655246', mode: '0755'}
+    - path: ansible/roles/rabbitmq_prod_credential_rotation_check/defaults/main.yml
+      sha256: 3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac
+      mode: '0644'
+    - path: ansible/playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml
+      sha256: 593d0c3b0109af5db6e1453fb5f40461ce64319b832009109e0a55bdc2a08123
+      mode: '0644'
+    - path: ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml
+      sha256: b4cd58058ccbbd236b44511b63637bda5fb61a6ca2df56f4f78e24f2da8a409f
+      mode: '0644'
+    - path: ansible/library/rabbitmq_prod_credential_metadata.py
+      sha256: 365e9f7f9471a0cad356d7807b32f836636c714ed4f2335c28f5c0a16012c5c1
+      mode: '0755'
+    - path: ansible/files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml
+      sha256: 5ea7cfa66e72615e5ff50657e934740907a90d4219c221323e3b91af3efe6242
+      mode: '0644'
+    - path: ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml
+      sha256: 663c006190e6e5e03e7c22d198cb41245d2ab3b7dab406acb4fdefe00a10a2d5
+      mode: '0644'
+    - path: ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml
+      sha256: b5eeaa0abc5b9ee91d392d6ac064862026b64f0d4c74f6431fe5dca517c506d0
+      mode: '0644'
+    - path: ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml
+      sha256: 3204aab3fc0f5b55f9af3623fb658d5ffd8289437d5d0ea91ab0480dc4126ee0
+      mode: '0644'
   register: rabbitmq_prod_credential_rotation_check_internal_source_states
   loop_control:
     label: rabbitmq-prod-rotation-source
@@ -139,6 +166,9 @@
       runtime: >-
         {{ lookup('ansible.builtin.file', rabbitmq_prod_credential_rotation_check_repository_root ~
         '/ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml') | from_yaml }}
+      config: >-
+        {{ lookup('ansible.builtin.file', rabbitmq_prod_credential_rotation_check_repository_root ~
+        '/ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml') | from_yaml }}
       policy: >-
         {{ lookup('ansible.builtin.file', rabbitmq_prod_credential_rotation_check_repository_root ~
         '/ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml') | from_yaml }}
@@ -159,7 +189,38 @@
       - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326'
       - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.sources[0].environmentSlug == 'prod'
       - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.sources[0].secretPath == '/shared-services/rabbitmq'
-      - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets | map(attribute='name') | list | sort == ['shared-rabbitmq-admin', 'shared-rabbitmq-cristexhub-dev', 'shared-rabbitmq-cristexhub-prod', 'shared-rabbitmq-tls'] | sort
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets |
+        map(attribute='name') | list | sort ==
+        ['shared-rabbitmq-admin', 'shared-rabbitmq-cristexhub-dev',
+        'shared-rabbitmq-cristexhub-prod', 'shared-rabbitmq-tls'] | sort
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets | map(attribute='namespace') | unique | list == ['shared-services']
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets | map(attribute='kind') | unique | list == ['Secret']
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets | map(attribute='creationPolicy') | unique | list == ['Orphan']
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets |
+        selectattr('name', 'equalto', 'shared-rabbitmq-admin') | first).template.data == {
+        'username': ('{' ~ '{ .RABBITMQ_ADMIN_USERNAME.Value }' ~ '}'),
+        'password': ('{' ~ '{ .RABBITMQ_ADMIN_PASSWORD.Value }' ~ '}'),
+        'passwordHash': ('{' ~ '{ .RABBITMQ_ADMIN_PASSWORD_HASH.Value }' ~ '}')}
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets |
+        selectattr('name', 'equalto', 'shared-rabbitmq-cristexhub-dev') | first).template.data == {
+        'username': ('{' ~ '{ .RABBITMQ_CRISTEXHUB_DEV_USERNAME.Value }' ~ '}'),
+        'password': ('{' ~ '{ .RABBITMQ_CRISTEXHUB_DEV_PASSWORD.Value }' ~ '}'),
+        'passwordHash': ('{' ~ '{ .RABBITMQ_CRISTEXHUB_DEV_PASSWORD_HASH.Value }' ~ '}')}
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets |
+        selectattr('name', 'equalto', 'shared-rabbitmq-cristexhub-prod') | first).template.data == {
+        'username': ('{' ~ '{ .RABBITMQ_CRISTEXHUB_PROD_USERNAME.Value }' ~ '}'),
+        'password': ('{' ~ '{ .RABBITMQ_CRISTEXHUB_PROD_PASSWORD.Value }' ~ '}'),
+        'passwordHash': ('{' ~ '{ .RABBITMQ_CRISTEXHUB_PROD_PASSWORD_HASH.Value }' ~ '}')}
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets |
+        selectattr('name', 'equalto', 'shared-rabbitmq-tls') | first).template.data == {
+        'ca.crt': ('{' ~ '{ .RABBITMQ_TLS_CA_CRT.Value }' ~ '}'),
+        'tls.crt': ('{' ~ '{ .RABBITMQ_TLS_CRT.Value }' ~ '}'),
+        'tls.key': ('{' ~ '{ .RABBITMQ_TLS_KEY.Value }' ~ '}')}
       - >-
         (rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets |
         selectattr('name', 'equalto', 'shared-rabbitmq-cristexhub-prod') | first).template.data.keys() | sort ==
@@ -173,11 +234,45 @@
         selectattr('name', 'equalto', 'cristexhub-prod-runtime') | first).namespace == 'cristexhub-prod'
       - >-
         (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.targets |
-        selectattr('name', 'equalto', 'cristexhub-prod-runtime') | first).template.data.keys() | sort ==
-        ['BROWSERLESS_TOKEN', 'CODE_RUNNER_AUTH_TOKEN', 'FERNET_KEY', 'MONGODB_URL', 'OAUTH2_PROXY_COOKIE_SECRET', 'OIDC_CLIENT_SECRET', 'PRIVATE_CA_BUNDLE', 'RABBITMQ_URL', 'REDIS_PASSWORD', 'REDIS_URL']
+        map(attribute='namespace') | unique | list) == ['cristexhub-prod']
       - >-
         (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.targets |
-        selectattr('name', 'equalto', 'cristexhub-prod-runtime') | first).template.data.RABBITMQ_URL == '{{ .RABBITMQ_URL.Value }}'
+        map(attribute='kind') | unique | list) == ['Secret']
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.targets |
+        selectattr('name', 'equalto', 'cristexhub-prod-runtime') | first).template.data.keys() | sort ==
+        ['BROWSERLESS_TOKEN', 'CODE_RUNNER_AUTH_TOKEN', 'FERNET_KEY',
+        'MONGODB_URL', 'OAUTH2_PROXY_COOKIE_SECRET', 'OIDC_CLIENT_SECRET',
+        'PRIVATE_CA_BUNDLE', 'RABBITMQ_URL', 'REDIS_PASSWORD', 'REDIS_URL']
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.targets |
+        selectattr('name', 'equalto', 'cristexhub-prod-ghcr-pull') | first).template.data == {
+        '.dockerconfigjson': ('{' ~ '{ .DOCKER_CONFIG_JSON.Value }' ~ '}')}
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.targets |
+        selectattr('name', 'equalto', 'cristexhub-prod-runtime') | first).template.data.RABBITMQ_URL ==
+        ('{' ~ '{ .RABBITMQ_URL.Value }' ~ '}')
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.config.apiVersion == 'v1'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.config.kind == 'ConfigMap'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.config.metadata.name == 'shared-rabbitmq-config'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.config.metadata.namespace == 'shared-services'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.config.data.keys() | sort == ['enabled_plugins', 'rabbitmq.conf']
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.config.data.enabled_plugins | trim == '[rabbitmq_management].'
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.config.data['rabbitmq.conf'] is search('listeners.tcp = none')
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.config.data['rabbitmq.conf'] |
+        search('management.load_definitions = ' ~
+        '/etc/rabbitmq/definitions/definitions.json')
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.spec.template.spec.volumes |
+        selectattr('name', 'equalto', 'config') | map(attribute='configMap.name') | list == ['shared-rabbitmq-config']
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.spec.template.spec.volumes |
+        selectattr('name', 'equalto', 'prod-secret') | map(attribute='secret.secretName') | list == ['shared-rabbitmq-cristexhub-prod']
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.spec.template.spec.containers[0].env |
+        selectattr('name', 'equalto', 'RABBITMQ_CONFIG_FILE') | map(attribute='value') | list == ['/etc/rabbitmq/rabbitmq.conf']
       - rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.execution.check_only
       - not rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.execution.runtime_mutation_allowed
       - rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.revisions_and_cas.writer_available is false
@@ -205,7 +300,7 @@
       - item.resources | length == 1
       - item.resources[0].status.phase == 'Active'
     loop: "{{ rabbitmq_prod_credential_rotation_check_internal_namespaces.results }}"
-  fail_msg: Refusing RabbitMQ rotation preflight outside established Namespaces.
+    fail_msg: Refusing RabbitMQ rotation preflight outside established Namespaces.
   changed_when: false
   no_log: true
 
@@ -230,7 +325,9 @@
       - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources | length == 1
       - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources | length == 1
       - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources[0].spec.replicas == 1
-      - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources[0].spec.template.spec.containers | selectattr('name', 'equalto', 'rabbitmq') | list | length == 1
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources[0].spec.template.spec.containers |
+        selectattr('name', 'equalto', 'rabbitmq') | list | length == 1
       - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0].status.phase == 'Running'
       - >-
         rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0].status.containerStatuses |
@@ -268,7 +365,7 @@
     loop: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results }}"
     loop_control:
       label: infisical-source-metadata
-  fail_msg: Refusing missing, terminating, or revisionless Infisical source metadata.
+    fail_msg: Refusing missing, terminating, or revisionless Infisical source metadata.
   changed_when: false
   no_log: true
 
@@ -277,8 +374,15 @@
     that:
       - rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.sources[0].secretPath == '/shared-services/rabbitmq'
       - rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.sources[0].secretPath == '/cristexhub/prod/runtime'
-      - rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.targets | map(attribute='name') | list | sort == ['shared-rabbitmq-admin', 'shared-rabbitmq-cristexhub-dev', 'shared-rabbitmq-cristexhub-prod', 'shared-rabbitmq-tls'] | sort
-      - rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.targets | map(attribute='name') | list | sort == ['cristexhub-prod-ghcr-pull', 'cristexhub-prod-runtime'] | sort
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.targets |
+        map(attribute='name') | list | sort ==
+        ['shared-rabbitmq-admin', 'shared-rabbitmq-cristexhub-dev',
+        'shared-rabbitmq-cristexhub-prod', 'shared-rabbitmq-tls'] | sort
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.targets |
+        map(attribute='name') | list | sort ==
+        ['cristexhub-prod-ghcr-pull', 'cristexhub-prod-runtime'] | sort
       - >-
         (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources |
         first).spec.targets | selectattr('name', 'equalto', 'cristexhub-prod-runtime') | list | length == 1
@@ -302,6 +406,15 @@
     that:
       - rabbitmq_prod_credential_rotation_check_internal_secret_metadata.metadata_only is true
       - rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items | length == 3
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items |
+        map(attribute='metadata.name') | list ==
+        ['shared-rabbitmq-cristexhub-prod', 'cristexhub-prod-runtime',
+        'cristexhub-prod-ghcr-pull']
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items |
+        map(attribute='metadata.namespace') | list ==
+        ['shared-services', 'cristexhub-prod', 'cristexhub-prod']
       - item.metadata.name in ['shared-rabbitmq-cristexhub-prod', 'cristexhub-prod-runtime', 'cristexhub-prod-ghcr-pull']
       - item.metadata.namespace in ['shared-services', 'cristexhub-prod']
       - item.metadata.uid is string
@@ -312,7 +425,7 @@
     loop: "{{ rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items }}"
     loop_control:
       label: secret-metadata
-  fail_msg: Refusing missing, foreign, or payload-bearing target Secret metadata.
+    fail_msg: Refusing missing, foreign, or payload-bearing target Secret metadata.
   changed_when: false
   no_log: true
 
@@ -371,7 +484,7 @@
     loop: "{{ rabbitmq_prod_credential_rotation_check_internal_consumers.results }}"
     loop_control:
       label: consumer-readiness
-  fail_msg: Refusing RabbitMQ rotation without one Ready backend and Celery consumer.
+    fail_msg: Refusing RabbitMQ rotation without one Ready backend and Celery consumer.
   changed_when: false
   no_log: true
 
@@ -386,6 +499,7 @@
       runtime_path: /cristexhub/prod/runtime
       source_resource_version: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.resourceVersion }}"
       runtime_resource_version: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.resourceVersion }}"
+      queries: "{{ rabbitmq_prod_credential_rotation_check_commands.keys() | list | sort }}"
       query_count: 5
   changed_when: false
   no_log: true
@@ -402,21 +516,6 @@
   loop_control:
     label: rabbitmq-metadata
   register: rabbitmq_prod_credential_rotation_check_internal_broker_metadata
-  changed_when: false
-  no_log: true
-
-- name: Bind exact source-only RabbitMQ PROD rotation preflight
-  ansible.builtin.set_fact:
-    rabbitmq_prod_credential_rotation_check_internal_binding:
-      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_TOKEN') | hash('sha256') }}"
-      metadata_only: true
-      no_secret_payloads: true
-      no_apply_path: true
-      source_path: /shared-services/rabbitmq
-      runtime_path: /cristexhub/prod/runtime
-      source_resource_version: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.resourceVersion }}"
-      runtime_resource_version: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.resourceVersion }}"
-      query_count: 5
   changed_when: false
   no_log: true
 

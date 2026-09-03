@@ -20,15 +20,23 @@ _PLAYBOOK_SOURCE = _REPOSITORY_ROOT / "ansible/playbooks/check_cristexhub_prod_r
 _POLICY_SOURCE = _REPOSITORY_ROOT / "ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml"
 _WRAPPER_SOURCE = _REPOSITORY_ROOT / "ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation"
 _INVENTORY_SOURCE = _REPOSITORY_ROOT / "ansible/.ansible/inventory.local.yml"
-_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/ansible.cfg"
+_ANSIBLE_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/ansible.cfg"
 _CONTROLLER_SOURCE = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
 _METADATA_SOURCE = _REPOSITORY_ROOT / "ansible/library/rabbitmq_prod_credential_metadata.py"
-_ACTION_CANONICAL_SHA256 = "cd65f0ba3eaeb8b5e059599cf0b0fb4fc19f0cfccba88df6b0e23d18b9efe34d"
-_TASK_SHA256 = "a9bea6b2e1570d5e965df4c45707a59c0e32068881c929895239340b2684faf8"
+_BROKER_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml"
+_RABBITMQ_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml"
+_ENGINE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml"
+_RUNTIME_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
+_ACTION_CANONICAL_SHA256 = "f3c575bc40f972b4b3e3cd04ca4b00342259339e20b385dcfba69d25bdfb7f7c"
+_TASK_SHA256 = "60602ffd9fff35cba8efc1eda4a228a9bc4dd4f56c36d492ad327393f8955f90"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "593d0c3b0109af5db6e1453fb5f40461ce64319b832009109e0a55bdc2a08123"
 _POLICY_SHA256 = "b4cd58058ccbbd236b44511b63637bda5fb61a6ca2df56f4f78e24f2da8a409f"
-_METADATA_SHA256 = "1d54b59e95550606749026d2acd54f7001003fec93ad76f4fbb80f0b40655246"
+_METADATA_SHA256 = "365e9f7f9471a0cad356d7807b32f836636c714ed4f2335c28f5c0a16012c5c1"
+_BROKER_SOURCE_SHA256 = "5ea7cfa66e72615e5ff50657e934740907a90d4219c221323e3b91af3efe6242"
+_RABBITMQ_CONFIG_SOURCE_SHA256 = "663c006190e6e5e03e7c22d198cb41245d2ab3b7dab406acb4fdefe00a10a2d5"
+_ENGINE_SOURCE_SHA256 = "b5eeaa0abc5b9ee91d392d6ac064862026b64f0d4c74f6431fe5dca517c506d0"
+_RUNTIME_SOURCE_SHA256 = "3204aab3fc0f5b55f9af3623fb658d5ffd8289437d5d0ea91ab0480dc4126ee0"
 _CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 _INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
 _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
@@ -131,7 +139,7 @@ def _expected_argv() -> list[str]:
 def _toolchain_valid() -> bool:
     try:
         inventory_state = _INVENTORY_SOURCE.stat(follow_symlinks=False)
-        config_state = _CONFIG_SOURCE.stat(follow_symlinks=False)
+        config_state = _ANSIBLE_CONFIG_SOURCE.stat(follow_symlinks=False)
         controller_state = _CONTROLLER_SOURCE.stat(follow_symlinks=False)
         return (
             stat.S_ISREG(inventory_state.st_mode)
@@ -140,10 +148,10 @@ def _toolchain_valid() -> bool:
             and inventory_state.st_uid == os.getuid()
             and _sha256(_INVENTORY_SOURCE) == _INVENTORY_SHA256
             and stat.S_ISREG(config_state.st_mode)
-            and not _CONFIG_SOURCE.is_symlink()
+            and not _ANSIBLE_CONFIG_SOURCE.is_symlink()
             and stat.S_IMODE(config_state.st_mode) == 0o644
             and config_state.st_uid == os.getuid()
-            and _sha256(_CONFIG_SOURCE) == _CONFIG_SHA256
+            and _sha256(_ANSIBLE_CONFIG_SOURCE) == _CONFIG_SHA256
             and stat.S_ISREG(controller_state.st_mode)
             and not _CONTROLLER_SOURCE.is_symlink()
             and stat.S_IMODE(controller_state.st_mode) == 0o775
@@ -311,6 +319,10 @@ class ActionModule(ActionBase):
             and _sha256(_PLAYBOOK_SOURCE) == _PLAYBOOK_SHA256
             and _sha256(_POLICY_SOURCE) == _POLICY_SHA256
             and _sha256(_METADATA_SOURCE) == _METADATA_SHA256
+            and _sha256(_BROKER_SOURCE) == _BROKER_SOURCE_SHA256
+            and _sha256(_RABBITMQ_CONFIG_SOURCE) == _RABBITMQ_CONFIG_SOURCE_SHA256
+            and _sha256(_ENGINE_SOURCE) == _ENGINE_SOURCE_SHA256
+            and _sha256(_RUNTIME_SOURCE) == _RUNTIME_SOURCE_SHA256
             and _canonical_action_hash(Path(__file__)) == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_SHA256") == expected_env["CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_SHA256"]
             and expected_env["CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_CANONICAL_SHA256"] == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_CANONICAL_SHA256")
         )
@@ -318,7 +330,8 @@ class ActionModule(ActionBase):
         valid_binding = (
             isinstance(binding, dict)
             and binding.get("attestation_sha256") == hashlib.sha256(token.encode()).hexdigest()
-            and binding.get("query") == args.get("query")
+            and binding.get("queries") == sorted(_EXPECTED_QUERIES)
+            and args.get("query") in binding.get("queries", [])
             and binding.get("metadata_only") is True
             and binding.get("no_apply_path") is True
             and binding.get("no_secret_payloads") is True
