@@ -19,7 +19,7 @@ reactive_resume_dev_tls_renewal_manifest_sha256: 90cef6e9a07df37a319fd7c44a1d8a8
 # This self-reference digest and its matching closure entry are normalized when
 # hashing this self-referential defaults file. Every other source pin remains in
 # the normalized digest.
-reactive_resume_dev_tls_renewal_defaults_self_hash: 67990fc4fa0890e5b6c823cccaae89119bbdb805bb982e898db8d81ef2364cb0
+reactive_resume_dev_tls_renewal_defaults_self_hash: 03985ffef4229ed63a147ad0f29ea7fb67caa12d7adfb50a8d80a144660b7bf6
 reactive_resume_dev_tls_renewal_source_hashes:
   - path: >-
       {{ reactive_resume_dev_tls_renewal_component_root }}/validate-reactive-resume-dev-tls-material
@@ -45,7 +45,7 @@ reactive_resume_dev_tls_renewal_execution_source_hashes:
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/bin/configure-reactive-resume-dev-tls-renewal
     mode: '0755'
-    sha256: cc92788107685167dacfa1b5e4a16a864cfdf3f57ab1b027a4233d4155e32498
+    sha256: fe7896511caa0781982a3230ec82a9b1f82e548ecd8083b19889fc525376bcef
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/playbooks/configure_reactive_resume_dev_tls_renewal.yml
     mode: '0644'
@@ -59,11 +59,11 @@ reactive_resume_dev_tls_renewal_execution_source_hashes:
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml
     mode: '0644'
     normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash
-    sha256: 67990fc4fa0890e5b6c823cccaae89119bbdb805bb982e898db8d81ef2364cb0
+    sha256: 03985ffef4229ed63a147ad0f29ea7fb67caa12d7adfb50a8d80a144660b7bf6
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py
     mode: '0644'
-    sha256: a2a55c88ba64dc97f9740c16c7d43e82a7be3d7670744eb45d08949b578f6542
+    sha256: 56a196f4f302d6ca8491377b1bfee6cd53ef9cf18f06a6a48c18331f61cde8c9
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/ansible.cfg
     mode: '0644'

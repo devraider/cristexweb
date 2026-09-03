@@ -351,8 +351,10 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         self.assertIn("/usr/bin/env -i", wrapper)
         self.assertIn("PYTHONNOUSERSITE=1", wrapper)
         self.assertIn("PYTHONHASHSEED=0", wrapper)
-        self.assertNotIn('  "$python_tool" - "$1" <<\'PY\'', wrapper)
-        self.assertEqual(3, wrapper.count("clean_python - \"$1\" <<'PY'"))
+        self.assertIn('"$python_tool" -I "$@"', wrapper)
+        self.assertIn('clean_python - "$1" wrapper_canonical_sha256_expected', wrapper)
+        self.assertIn('python_target=/usr/bin/python3.13', wrapper)
+        self.assertEqual(2, wrapper.count("clean_python - \"$1\" <<'PY'"))
 
     def test_operational_defaults_are_immutable_and_nonempty(self) -> None:
         defaults = yaml.safe_load(DEFAULTS.read_text())
@@ -380,6 +382,8 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         playbook = PLAYBOOK.read_text()
         role = ROLE.read_text()
         self.assertIn("strategy: reactive_resume_dev_tls_renewal_guarded_linear", playbook)
+        self.assertIn("Require strategy provenance attestation before any TLS task", role)
+        self.assertIn("STRATEGY_ATTESTED", role)
         self.assertIn("Require the immutable TLS renewal source paths and manifest contract", role)
         self.assertIn("Reject externally supplied source marker variables", role)
         self.assertIn("Require the fixed wrapper-bound controller inputs", role)
@@ -416,6 +420,40 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
                 wrapper,
             )
         self.assertNotIn("--start-at-task", wrapper)
+
+    def test_strategy_hashes_and_interpreter_are_fixed_before_task_iteration(self) -> None:
+        spec = importlib.util.spec_from_file_location("rr_tls_strategy_hashes", STRATEGY)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertTrue(module._python_contract())
+        self.assertEqual(module._TASK_SHA256, module._normalized_yaml_hash(module._TASK_SOURCE, task=True))
+        self.assertEqual(module._DEFAULTS_SHA256, module._normalized_yaml_hash(module._DEFAULTS_SOURCE))
+        self.assertTrue(module._source_closure_contract())
+        with __import__('tempfile').TemporaryDirectory() as directory:
+            altered = Path(directory) / 'tasks.yml'
+            altered.write_text(module._TASK_SOURCE.read_text() + '\n# altered\n', encoding='utf-8')
+            self.assertNotEqual(module._TASK_SHA256, module._normalized_yaml_hash(altered, task=True))
+
+    def test_role_mutations_require_strategy_attestation(self) -> None:
+        tasks = yaml.safe_load(ROLE.read_text())
+        mutation_names = {
+            'Install exact renewal dependencies',
+            'Create protected renewal directories during install mode',
+            'Install the value-free TLS validator during install mode',
+            'Install the guarded renewal executable during install mode',
+            'Install the renewal service unit during install mode',
+            'Install the renewal timer unit during install mode',
+            'Reload systemd after install-mode renewal unit changes',
+            'Keep renewal timer disabled during install mode',
+            'Enable and start the guarded renewal timer',
+        }
+        for task in tasks:
+            if task.get('name') in mutation_names:
+                when = task.get('when', [])
+                when = when if isinstance(when, list) else [when]
+                self.assertTrue(any('STRATEGY_ATTESTED' in str(condition) for condition in when), task['name'])
 
     def test_role_is_separate_install_and_enable_boundary(self) -> None:
         text = ROLE.read_text()
@@ -536,6 +574,12 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             defaults,
         )
         self.assertIsNotNone(defaults_expected)
+        defaults_normalized, strategy_count = re.subn(
+            r"(?m)^(  - path: >-\n      .*reactive_resume_dev_tls_renewal_guarded_linear\.py\n    mode: '0644'\n    sha256: )[0-9a-f]{64}$",
+            r"\1__STRATEGY_SHA256__",
+            defaults_normalized,
+        )
+        self.assertEqual(1, strategy_count)
         self.assertEqual(hashlib.sha256(defaults_normalized.encode()).hexdigest(), defaults_expected.group(1))
         runbook = RUNBOOK.read_text()
         for required in (

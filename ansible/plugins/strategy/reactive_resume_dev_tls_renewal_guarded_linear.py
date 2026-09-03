@@ -26,18 +26,23 @@ _ANSIBLE_CONFIG = _REPOSITORY_ROOT / "ansible/ansible.cfg"
 _CONTROLLER = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
 _PLAYBOOK = _REPOSITORY_ROOT / "ansible/playbooks/configure_reactive_resume_dev_tls_renewal.yml"
 _TASK_SOURCE = _REPOSITORY_ROOT / "ansible/roles/reactive_resume_dev_tls_renewal/tasks/main.yml"
+_DEFAULTS_SOURCE = _REPOSITORY_ROOT / "ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml"
 _MANIFEST_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/reactive-resume-dev-tls/MANIFESTS.sha256"
 _WRAPPER_SOURCE = _REPOSITORY_ROOT / "ansible/bin/configure-reactive-resume-dev-tls-renewal"
 _STRATEGY = Path(__file__).resolve()
 _SOURCE_ROOT = _REPOSITORY_ROOT / "ansible/files/components/reactive-resume-dev-tls"
 _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
+_PYTHON_SOURCE = Path("/usr/bin/python3")
+_PYTHON_TARGET = Path("/usr/bin/python3.13")
+_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
 _ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
-# These are immutable source pins. The strategy's own digest is canonicalized by
-# replacing its pin with zeroes; all other source pins are ordinary SHA-256
-# digests or the normalized self-referential YAML digests used by the role.
-_STRATEGY_CANONICAL_SHA256 = "c81ecc6a79f4d0e00c8badc1a17543c491c861ecd9bf41397b74805778a275a5"
+# These are immutable source pins. Self-referential source pins are normalized
+# before hashing; all other pins are ordinary SHA-256 digests.
+_STRATEGY_CANONICAL_SHA256 = "caede73387de3101f5d4b9e14efc1ce3345f037c784d08f99c7a47cbf19b8492"
+_WRAPPER_CANONICAL_SHA256 = "567eac9573579c55c6e06fcbac0eadeaa7a2ffd084120caabaefbb07355ca85f"
 _PLAYBOOK_SHA256 = "630e9df627998edf9292e8961afd0d514e2982f7444cf7646333df8f55a3cbb9"
-_TASK_SHA256 = "ffb76f0c91e1466e3e71226d70a6d9a2bd38c40fe1d7c329f7b995674db9c497"
+_TASK_SHA256 = "383a7042ddef0b4bbc54b542f13b2606cc6e3415cbfc32fdfde6c294bca3a9fc"
+_DEFAULTS_SHA256 = "03985ffef4229ed63a147ad0f29ea7fb67caa12d7adfb50a8d80a144660b7bf6"
 _MANIFEST_SHA256 = "90cef6e9a07df37a319fd7c44a1d8a82841b10ef1b7bf7d7635519fcb73e19d5"
 _SOURCE_HASHES = (
     ("renewal/validate-reactive-resume-dev-tls-material", "68c0fcde82cc3d3f394d5c14e9cffc3c2cf0dd42bb93ad496143b15cc86f1985", 0o755),
@@ -110,6 +115,68 @@ def _file_contract(path: Path, mode: int, digest: str) -> bool:
         return False
 
 
+def _normalized_yaml_hash(path: Path, task: bool = False) -> str:
+    """Hash the exact role YAML while removing only its fixed self markers."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        if task:
+            source, task_count = re.subn(
+                r"(?m)^    reactive_resume_dev_tls_renewal_task_self_hash: '?[0-9a-f]{64}'?$",
+                "    reactive_resume_dev_tls_renewal_task_self_hash: __TASK_SELF_HASH__",
+                source,
+            )
+            source, defaults_count = re.subn(
+                r"(?m)^    reactive_resume_dev_tls_renewal_defaults_raw_hash: '?[0-9a-f]{64}'?$",
+                "    reactive_resume_dev_tls_renewal_defaults_raw_hash: __DEFAULTS_RAW_HASH__",
+                source,
+            )
+            if task_count != 1 or defaults_count != 1:
+                return ""
+        else:
+            source, self_count = re.subn(
+                r"(?m)^reactive_resume_dev_tls_renewal_defaults_self_hash: [0-9a-f]{64}$",
+                "reactive_resume_dev_tls_renewal_defaults_self_hash: __SELF_HASH__",
+                source,
+            )
+            source, nested_count = re.subn(
+                r"(?m)^(    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: )[0-9a-f]{64}$",
+                r"\1__SELF_HASH__",
+                source,
+            )
+            if self_count != 1 or nested_count != 1:
+                return ""
+            source, strategy_count = re.subn(
+                r"(?m)^(  - path: >-\n      .*reactive_resume_dev_tls_renewal_guarded_linear\.py\n    mode: '0644'\n    sha256: )[0-9a-f]{64}$",
+                r"\1__STRATEGY_SHA256__",
+                source,
+            )
+            if strategy_count != 1:
+                return ""
+        return hashlib.sha256(source.encode("utf-8")).hexdigest()
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _python_contract() -> bool:
+    try:
+        link = _PYTHON_SOURCE.lstat()
+        target = _PYTHON_SOURCE.resolve(strict=True)
+        target_state = _PYTHON_TARGET.stat()
+        return (
+            stat.S_ISLNK(link.st_mode)
+            and link.st_uid == 0
+            and link.st_gid == 0
+            and target == _PYTHON_TARGET
+            and stat.S_ISREG(target_state.st_mode)
+            and target_state.st_uid == 0
+            and target_state.st_gid == 0
+            and stat.S_IMODE(target_state.st_mode) == 0o755
+            and _sha256(_PYTHON_TARGET) == _PYTHON_SHA256
+        )
+    except OSError:
+        return False
+
+
 def _inventory_contract() -> bool:
     try:
         state = _INVENTORY_SOURCE.stat(follow_symlinks=False)
@@ -132,9 +199,13 @@ def _source_closure_contract() -> bool:
         return False
     if _normalized_yaml_hash(_TASK_SOURCE, task=True) != _TASK_SHA256:
         return False
+    if _normalized_yaml_hash(_DEFAULTS_SOURCE) != _DEFAULTS_SHA256:
+        return False
     if not _file_contract(_MANIFEST_SOURCE, 0o644, _MANIFEST_SHA256):
         return False
     if _canonical_file_hash(_STRATEGY, "_STRATEGY_CANONICAL_SHA256") != _STRATEGY_CANONICAL_SHA256:
+        return False
+    if _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") != _WRAPPER_CANONICAL_SHA256:
         return False
     for relative, digest, mode in _SOURCE_HASHES:
         if not _file_contract(_SOURCE_ROOT / relative, mode, digest):
@@ -149,17 +220,25 @@ def _runtime_contract() -> bool:
         return False
     return (
         _file_contract(_CONTROLLER, 0o755, _CONTROLLER_SHA256)
+        and _python_contract()
         and _file_contract(_ANSIBLE_CONFIG, 0o644, _ANSIBLE_CONFIG_SHA256)
         and _source_closure_contract()
         and _inventory_contract()
         and controller_first_line == f"#!{_REPOSITORY_ROOT}/.venv/bin/python"
         and os.environ.get("ANSIBLE_CONFIG") == str(_ANSIBLE_CONFIG)
         and os.environ.get(_WRAPPER_ENV_PREFIX + "CONTROLLER_SHA256") == _CONTROLLER_SHA256
+        and os.environ.get(_WRAPPER_ENV_PREFIX + "PYTHON") == str(_PYTHON_SOURCE)
+        and os.environ.get(_WRAPPER_ENV_PREFIX + "PYTHON_SHA256") == _PYTHON_SHA256
         and os.environ.get(_WRAPPER_ENV_PREFIX + "ANSIBLE_CONFIG_SHA256") == _ANSIBLE_CONFIG_SHA256
         and os.environ.get(_WRAPPER_ENV_PREFIX + "INVENTORY_SHA256") == _INVENTORY_SHA256
+        and os.environ.get(_WRAPPER_ENV_PREFIX + "PLAYBOOK_PATH") == str(_PLAYBOOK)
         and os.environ.get(_WRAPPER_ENV_PREFIX + "PLAYBOOK_SHA256") == _PLAYBOOK_SHA256
         and os.environ.get(_WRAPPER_ENV_PREFIX + "TASK_SHA256") == _TASK_SHA256
+        and os.environ.get(_WRAPPER_ENV_PREFIX + "DEFAULTS_SHA256") == _DEFAULTS_SHA256
         and os.environ.get(_WRAPPER_ENV_PREFIX + "MANIFEST_SHA256") == _MANIFEST_SHA256
+        and os.environ.get(_WRAPPER_ENV_PREFIX + "STRATEGY_PATH") == str(_STRATEGY)
+        and os.environ.get(_WRAPPER_ENV_PREFIX + "STRATEGY_SHA256") == _sha256(_STRATEGY)
+        and os.environ.get(_WRAPPER_ENV_PREFIX + "STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
         and not any(name in os.environ for name in _FORBIDDEN_ENV)
     )
 
@@ -328,4 +407,7 @@ class StrategyModule(LinearStrategyModule):
             raise AnsibleError("TASK_SELECTION_GUARD: TLS renewal requires the complete guarded play")
         if not (_canonical_argv() and _wrapper_binding_valid() and _runtime_contract()):
             raise AnsibleError("ENTRYPOINT_GUARD: TLS renewal requires the complete guarded wrapper invocation")
+        os.environ[_WRAPPER_ENV_PREFIX + "STRATEGY_ATTESTED"] = "v1"
+        os.environ[_WRAPPER_ENV_PREFIX + "STRATEGY_PATH"] = str(_STRATEGY)
+        os.environ[_WRAPPER_ENV_PREFIX + "STRATEGY_CANONICAL_SHA256"] = _STRATEGY_CANONICAL_SHA256
         return super().run(iterator, play_context)

@@ -35,13 +35,14 @@ if [ "$0" != "$script_path" ]; then
 fi
 controller="$repository_root/.venv/bin/ansible-playbook"
 python_tool=/usr/bin/python3
+python_target=/usr/bin/python3.13
 clean_python() {
   /usr/bin/env -i \
     PATH=/usr/bin:/bin \
     LC_ALL=C.UTF-8 \
     PYTHONNOUSERSITE=1 \
     PYTHONHASHSEED=0 \
-    "$python_tool" "$@"
+    "$python_tool" -I "$@"
 }
 inventory="$repository_root/ansible/.ansible/inventory.local.yml"
 ansible_config="$repository_root/ansible/ansible.cfg"
@@ -56,12 +57,13 @@ defaults="$repository_root/ansible/roles/reactive_resume_dev_tls_renewal/default
 strategy="$repository_root/ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py"
 sha_file() { /usr/bin/sha256sum -- "$1" | /usr/bin/awk '{print $1}'; }
 canonical_sha256() {
-  clean_python - "$1" <<'PY'
+  clean_python - "$1" wrapper_canonical_sha256_expected <<'PY'
 import hashlib, re, sys
 source = open(sys.argv[1], encoding='utf-8').read()
+symbol = sys.argv[2]
 source, count = re.subn(
-    r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$",
-    "wrapper_canonical_sha256_expected='" + ('0' * 64) + "'",
+    rf"(?m)^({re.escape(symbol)}\s*=\s*[\"'])([0-9a-f]{{64}})([\"']\s*)$",
+    rf"\g<1>{'0' * 64}\g<3>",
     source,
 )
 if count != 1:
@@ -83,6 +85,13 @@ if count != 1:
 source, count = re.subn(
     r"(?m)^(    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: )[0-9a-f]{64}$",
     r"\1__SELF_HASH__",
+    source,
+)
+if count != 1:
+    raise SystemExit(69)
+source, count = re.subn(
+    r"(?m)^(  - path: >-\n      .*reactive_resume_dev_tls_renewal_guarded_linear\.py\n    mode: '0644'\n    sha256: )[0-9a-f]{64}$",
+    r"\1__STRATEGY_SHA256__",
     source,
 )
 if count != 1:
@@ -111,8 +120,12 @@ if count != 1:
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
-wrapper_canonical_sha256_expected='86491536bc6f1fc926b61daf0c85c5ea0e9e71b192351a81d0acf9d44898c0a1'
+wrapper_canonical_sha256_expected='567eac9573579c55c6e06fcbac0eadeaa7a2ffd084120caabaefbb07355ca85f'
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
+[ -L "$python_tool" ] || exit 69
+[ "$(/usr/bin/readlink -f -- "$python_tool")" = "$python_target" ] || exit 69
+[ -f "$python_target" ] && [ ! -L "$python_target" ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$python_target")" = 'root:root:755' ] || exit 69
 for source in "$inventory" "$ansible_config" "$manifest" "$validator" "$renewal" "$service" "$timer" "$playbook" "$tasks" "$defaults" "$strategy"; do
   [ -f "$source" ] && [ ! -L "$source" ] || exit 69
 done
@@ -120,7 +133,7 @@ done
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$controller")" = 'paul:paul:755' ] || exit 69
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$inventory")" = 'paul:paul:600' ] || exit 69
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$ansible_config")" = 'paul:paul:644' ] || exit 69
-[ "$(canonical_sha256 "$script_path")" = "$wrapper_canonical_sha256_expected" ] || {
+[ "$(canonical_sha256 "$script_path" wrapper_canonical_sha256_expected)" = "$wrapper_canonical_sha256_expected" ] || {
   printf '%s\n' 'refusing TLS renewal wrapper source drift' >&2
   exit 69
 }
@@ -130,6 +143,7 @@ cd -- "$repository_root/ansible"
 wrapper_sha256=$(sha_file "$script_path")
 controller_sha256=$(sha_file "$controller")
 python_sha256=$(sha_file "$python_tool")
+[ "$python_sha256" = '17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1' ] || exit 69
 inventory_sha256=$(sha_file "$inventory")
 ansible_config_sha256=$(sha_file "$ansible_config")
 manifest_sha256=$(sha_file "$manifest")
@@ -141,12 +155,13 @@ playbook_sha256=$(sha_file "$playbook")
 task_sha256=$(normalized_task_sha256 "$tasks")
 defaults_sha256=$(normalized_defaults_sha256 "$defaults")
 strategy_sha256=$(sha_file "$strategy")
+strategy_canonical_sha256=$(canonical_sha256 "$strategy" _STRATEGY_CANONICAL_SHA256)
 wrapper_pid=$$
 wrapper_starttime=$(/usr/bin/awk '{print $22}' "/proc/$wrapper_pid/stat")
 case "$wrapper_starttime" in
   ''|*[!0-9]*) printf '%s\n' 'refusing an unidentifiable wrapper process' >&2; exit 69 ;;
 esac
-wrapper_canonical_sha256=$(canonical_sha256 "$script_path")
+wrapper_canonical_sha256=$(canonical_sha256 "$script_path" wrapper_canonical_sha256_expected)
 attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-dev-tls-renewal.XXXXXX")"
 attestation_token="$(/usr/bin/openssl rand -hex 32)"
 /bin/chmod 0600 "$attestation_file"
@@ -175,6 +190,7 @@ set -- \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ENTRYPOINT=v2 \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER="$controller" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PYTHON="$python_tool" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PYTHON_SHA256="$python_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ANSIBLE_CONFIG="$ansible_config" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TOKEN="$attestation_token" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ATTESTATION_FILE="$attestation_file" \
@@ -191,7 +207,9 @@ set -- \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_SHA256="$playbook_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256="$task_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_DEFAULTS_SHA256="$defaults_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_PATH="$strategy" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256="$strategy_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_CANONICAL_SHA256="$strategy_canonical_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_PATH="$playbook" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER_SHA256="$controller_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_INVENTORY_SHA256="$inventory_sha256" \
