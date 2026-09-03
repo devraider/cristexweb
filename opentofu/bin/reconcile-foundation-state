@@ -44,8 +44,8 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
     exit 78
 }
 source_manifest="$root/bin/SOURCE.sha256"
-source_manifest_expected_sha256='0476a8076356d8293530d5cf49af848c838f2f8271a8b5deb0701224d869591a'
-source_reconcile_expected_canonical_sha256='429390a5ff05c4fff70bf48efbb87f7ad32de0fa5db31264bfa5f29f465f534b'
+source_manifest_expected_sha256='e31b6e3fb2326b55ef44946bf504dca4f7e816fbb0daa0764adbf03afcadc3db'
+source_reconcile_expected_canonical_sha256='4c85048d6e2d99a9ba9c3cd7700769785d474bd72370db2cf99629caa5bb9776'
 validator="$root/bin/validate-foundation-state-scope"
 [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
 [ -x "$validator" ] && [ ! -L "$validator" ] || exit 78
@@ -273,14 +273,14 @@ verify_backup_source() {
     [ "$(/usr/bin/sha256sum "$backup_wrapper" | /usr/bin/cut -d ' ' -f 1)" = '7db15e9a20425da18a3a090900a1e50d0fcc09a31fc1b1a5073e3a19a2876cb6' ] || exit 78
     [ "$(/usr/bin/sha256sum "$backup_playbook" | /usr/bin/cut -d ' ' -f 1)" = '5ec3193078ec3575546f43bd04b7b1d2a7c64f99dd8395637195aa02d784869b' ] || exit 78
     [ "$(/usr/bin/sha256sum "$backup_source/opentofu-state-backup" | /usr/bin/cut -d ' ' -f 1)" = 'f2b0ec58f0dd61d092912251bc67ada5af2fd6660a07709c933ddfe7d9a2fa83' ] || exit 78
-    [ "$(/usr/bin/sha256sum "$backup_source/restore-opentofu-state-rehearsal" | /usr/bin/cut -d ' ' -f 1)" = '7dcdbe2758d82b7efe475b47824c03de3788b98acac4a3083a0e1648fc0d667a' ] || exit 78
+    [ "$(/usr/bin/sha256sum "$backup_source/restore-opentofu-state-rehearsal" | /usr/bin/cut -d ' ' -f 1)" = '62028c82e8609bcef01ec36e763e015a7de1bc3dd0c9a194e8b6456a9d0cf8bd' ] || exit 78
     [ "$(/usr/bin/sha256sum "$backup_source/cristexweb-opentofu-state-backup.service" | /usr/bin/cut -d ' ' -f 1)" = 'bf5dfdf93fa3e4bfa5f8e933714faae33e139ae830d12d5c50e30a3ee946e925' ] || exit 78
     [ "$(/usr/bin/sha256sum "$backup_source/cristexweb-opentofu-state-backup.timer" | /usr/bin/cut -d ' ' -f 1)" = '64fa2f3fee275c3ad26d834dd2c51e1628ec20baf85b75e80da0d86b9bc35416' ] || exit 78
 }
 verify_backup_installed() {
     for backup_item in \
         '/usr/local/libexec/cristexweb/opentofu-state-backup:f2b0ec58f0dd61d092912251bc67ada5af2fd6660a07709c933ddfe7d9a2fa83:755' \
-        '/usr/local/libexec/cristexweb/restore-opentofu-state-rehearsal:7dcdbe2758d82b7efe475b47824c03de3788b98acac4a3083a0e1648fc0d667a:755' \
+        '/usr/local/libexec/cristexweb/restore-opentofu-state-rehearsal:62028c82e8609bcef01ec36e763e015a7de1bc3dd0c9a194e8b6456a9d0cf8bd:755' \
         '/etc/systemd/system/cristexweb-opentofu-state-backup.service:bf5dfdf93fa3e4bfa5f8e933714faae33e139ae830d12d5c50e30a3ee946e925:644' \
         '/etc/systemd/system/cristexweb-opentofu-state-backup.timer:64fa2f3fee275c3ad26d834dd2c51e1628ec20baf85b75e80da0d86b9bc35416:644'; do
         backup_path=${backup_item%%:*}

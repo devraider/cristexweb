@@ -18,8 +18,62 @@ work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-restore.XXXXXX)
 cleanup() { /usr/bin/rm -rf -- "$work"; }
 trap cleanup EXIT HUP INT TERM
 chmod 0700 "$work"
-latest=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sort | /usr/bin/tail -1 | /usr/bin/tr -d '/')
-printf '%s\n' "$latest" | /usr/bin/grep -Eq '^20[0-9]{6}T[0-9]{6}Z$' || { printf '%s\n' 'restore_status=failed stage=remote_catalog'; exit 1; }
+archive_leaf=foundation.tfstate.age
+checksum_leaf=foundation.tfstate.age.sha256
+manifest_leaf=manifest.json
+select_latest_complete_catalog() {
+  expected="$work/expected-leaves"
+  expected_sorted="$work/expected-leaves.sorted"
+  catalog="$work/catalog-dirs"
+  valid="$work/catalog-valid"
+  printf '%s\n' "$archive_leaf" "$checksum_leaf" "$manifest_leaf" >"$expected"
+  if ! LC_ALL=C /usr/bin/sort "$expected" >"$expected_sorted"; then
+    return 1
+  fi
+  if ! /usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" >"$catalog"; then
+    return 1
+  fi
+  : >"$valid"
+  latest=
+  while IFS= read -r raw; do
+    candidate=${raw%/}
+    [ -n "$candidate" ] || continue
+    printf '%s\n' "$candidate" >"$work/catalog-candidate"
+    /usr/bin/grep -Eq '^20[0-9]{6}T[0-9]{6}Z$' "$work/catalog-candidate" || continue
+    if /usr/bin/grep -Fxq "$candidate" "$valid"; then
+      return 1
+    fi
+    printf '%s\n' "$candidate" >>"$valid"
+    nested="$work/catalog-$candidate.dirs"
+    if ! /usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root/$candidate" >"$nested"; then
+      return 1
+    fi
+    [ ! -s "$nested" ] || continue
+    listing="$work/catalog-$candidate.files"
+    if ! /usr/local/bin/rclone --config "$rclone_config" lsf --files-only "$remote_root/$candidate" >"$listing"; then
+      return 1
+    fi
+    sorted="$work/catalog-$candidate.files.sorted"
+    if ! LC_ALL=C /usr/bin/sort "$listing" >"$sorted"; then
+      return 1
+    fi
+    duplicates="$work/catalog-$candidate.duplicates"
+    if ! /usr/bin/uniq -d "$sorted" >"$duplicates"; then
+      return 1
+    fi
+    [ ! -s "$duplicates" ] || continue
+    if /usr/bin/cmp -s "$sorted" "$expected_sorted"; then
+      if [ -z "$latest" ] || [ "$candidate" \> "$latest" ]; then
+        latest="$candidate"
+      fi
+    fi
+  done <"$catalog"
+  [ -n "$latest" ]
+}
+if ! select_latest_complete_catalog; then
+  printf '%s\n' 'restore_status=failed stage=remote_catalog'
+  exit 1
+fi
 remote="$remote_root/$latest"
 for leaf in foundation.tfstate.age foundation.tfstate.age.sha256 manifest.json; do /usr/local/bin/rclone --config "$rclone_config" copyto "$remote/$leaf" "$work/$leaf"; done
 (cd "$work" && /usr/bin/sha256sum -c foundation.tfstate.age.sha256 >/dev/null)

@@ -110,8 +110,11 @@ recipient, uploads immutable timestamped leaves to Google Drive under
 The private identity is retrieved only during the isolated restore rehearsal from
 Infisical `prod:/shared-services/backup-recovery`; it is never retained on the
 host, in OpenTofu state, or in Git. Approved backup, decrypt, `tofu state list` validation, cleanup, and non-mutation
-restore rehearsal have passed. Source authoring itself still runs no backup or
-restore command.
+restore rehearsal have passed. Restore selects the newest strict UTC timestamp
+archive with no nested directories and exactly the three expected leaves;
+newer incomplete or extra-leaf directories are ignored without remote deletion,
+while duplicate candidates and every rclone listing error fail closed. Source
+authoring itself still runs no backup or restore command.
 
 The separate GitHub root has an independent, fixed source-only backup lane at
 [`runbooks/opentofu-github-state-backup.md`](../runbooks/opentofu-github-state-backup.md).

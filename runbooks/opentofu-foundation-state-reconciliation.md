@@ -84,7 +84,13 @@ allowlisted only as a non-symlinked directory.
    an independent `run_id`, matching `source_run_id`/`source_timestamp`, the exact
    address scope, and the current source-closure digest. Duplicate manifest or state
    JSON keys fail closed. Their become prompt remains attached to the controlling
-   terminal; passwords are never piped, logged, or entered in chat. The pre-state
+   terminal; passwords are never piped, logged, or entered in chat. The restore
+   catalog captures every rclone listing directly and fails closed on any listing
+   error. It considers only strict UTC timestamp directories with no nested
+   directories and the exact three leaves `foundation.tfstate.age`,
+   `foundation.tfstate.age.sha256`, and `manifest.json`; extra leaves and duplicate
+   leaves are rejected, while newer incomplete directories are ignored without
+   remote deletion. The newest complete candidate is selected, and the pre-state
    closure is rechecked after recovery.
 4. The operator enters the account ID, zone ID, existing DNS record ID, and
    Cloudflare API token through protected prompts. IDs are validated as fixed
