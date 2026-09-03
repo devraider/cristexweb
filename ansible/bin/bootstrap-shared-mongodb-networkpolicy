@@ -16,7 +16,7 @@ if [ "$mode" = apply ] && [ "${CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APP
 fi
 original_script_path=$0
 script_path=$0
-wrapper_canonical_sha256_expected='e0c065fb6f2b8b12d6ee7c3f20f940fb662383fa66843b1b2ac736d2dff0434e'
+wrapper_canonical_sha256_expected='713325d9638023976f59e8ff2452f7bc4fd8bf0e9c954a8f330edc18fa6aa179'
 sha256_stdin() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum | awk '{print $1}'
@@ -266,7 +266,7 @@ defaults_source="$repository_root/ansible/roles/shared_mongodb_networkpolicy_boo
 playbook_source="$repository_root/ansible/playbooks/bootstrap_shared_mongodb_networkpolicy.yml"
 action_source="$repository_root/ansible/plugins/action/shared_mongodb_networkpolicy_guarded_k8s.py"
 create_module_source="$repository_root/ansible/library/shared_mongodb_networkpolicy_create.py"
-[ -x "$controller" ] && [ ! -L "$controller" ] || { printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2; exit 69; }
+is_owned_regular_mode "$controller" 755 || { printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2; exit 69; }
 is_owned_symlink "$python_tool" && [ "$(readlink "$python_tool")" = "$python_link_target_expected" ] &&
   [ -L "$python_link_target_expected" ] && [ "$(readlink "$python_link_target_expected")" = 'python3.13' ] &&
   [ "$(find "$python_real_source" -prune -type f -user root -perm 755 -print 2>/dev/null)" = "$python_real_source" ] || {
@@ -340,7 +340,7 @@ is_owned_regular_mode "$collection_files" 644 || exit 69
 task_sha256_expected='c5aeb6c47ded3191d7738587c3110058cad189cdecbaafcfe14692319d983111'
 defaults_sha256_expected='2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 playbook_sha256_expected='7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-action_canonical_sha256_expected='aeecba55cfaca7f41dbd27d3756b209c27539d482be6db496434325ebedaf2bd'
+action_canonical_sha256_expected='563047072059d5dea0786f71fe605dba54d1580721e3ec04990bb34cc0179d90'
 create_module_sha256_expected='21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'

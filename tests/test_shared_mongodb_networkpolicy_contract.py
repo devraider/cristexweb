@@ -924,6 +924,105 @@ exit "$status"
         self.assertFalse(overlap({'matchExpressions': [{'key': 'unknown', 'operator': 'Exists'}]}, labels))
         self.assertFalse(overlap({'matchExpressions': [{'key': 'app', 'operator': 'DoesNotExist'}]}, labels))
 
+    def test_action_accepts_exact_role_preflight_binding_with_tagged_booleans(self) -> None:
+        """The live role emits strings for templated values under Ansible 2.19."""
+        definition = copy.deepcopy(self.by_name['shared-mongodb-networkpolicy-default-deny'])
+        pod = {
+            'metadata': {
+                'name': 'shared-mongodb-0',
+                'labels': dict(self.plugin._MONGODB_POD_LABELS),
+            },
+            'status': {
+                'phase': 'Running',
+                'conditions': [{'type': 'Ready', 'status': 'True'}],
+            },
+        }
+        token = 'a' * 64
+        wrapper_pid = str(os.getpid())
+        wrapper_starttime = '12345'
+        wrapper_argv_sha256 = 'b' * 64
+        binding = {
+            'attestation_sha256': hashlib.sha256(token.encode()).hexdigest(),
+            'object_count': '2',
+            'identity_set_sha256': self.plugin._EXPECTED_IDENTITY_SET_SHA256,
+            'prestate_count': '0',
+            'initial_prestate_count': '0',
+            'networkpolicy_prestate': [],
+            'transition_phase': 'initial',
+            'mongodb_count': '1',
+            'statefulset_count': '1',
+            'statefulset_uid': 'statefulset-uid',
+            'pod_count': '1',
+            'pod_name': 'shared-mongodb-0',
+            'pod_phase': 'Running',
+            'pod_ready': 'True',
+            'pod_terminating': 'False',
+            'pod_owner_api_version': 'apps/v1',
+            'pod_owner_kind': 'StatefulSet',
+            'pod_owner_name': 'shared-mongodb',
+            'pod_owner_uid': 'statefulset-uid',
+            'pod_owner_controller': 'True',
+            'networkpolicy_count': '0',
+            'networkpolicy_names': [],
+            'client_environment_count': '2',
+            'coredns_count': '1',
+            'kubeconfig_contract': 'True',
+            'namespace_contract': 'True',
+            'no_delete_path': 'True',
+        }
+        action = object.__new__(self.plugin.ActionModule)
+        action._task = SimpleNamespace(
+            args={
+                'state': 'present',
+                'definition': definition,
+                'kubeconfig': '/etc/rancher/k3s/k3s.yaml',
+                'wait': False,
+                'wait_timeout': 60,
+                'prestate_binding': {},
+                'validation_only': False,
+            },
+            get_path=lambda: str(self.plugin._TASK_SOURCE),
+        )
+        original_cliargs = self.plugin.context.CLIARGS
+        env = {
+            'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ENTRYPOINT': 'v1',
+            'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN': token,
+            'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE': '',
+            'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID': wrapper_pid,
+            'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_STARTTIME': wrapper_starttime,
+            'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_ARGV_SHA256': wrapper_argv_sha256,
+        }
+        with TemporaryDirectory() as directory, mock.patch.dict(os.environ, env, clear=False):
+            attestation = Path(directory) / 'attestation'
+            attestation.write_text(
+                f'{token}:entrypoint:{wrapper_pid}:{wrapper_starttime}:{wrapper_argv_sha256}\n',
+                encoding='utf-8',
+            )
+            attestation.chmod(0o600)
+            os.environ['CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE'] = str(attestation)
+            with mock.patch.object(self.plugin, '_cooperative_lock_valid', return_value=True), \
+                mock.patch.object(self.plugin, '_source_closure_valid', return_value=True), \
+                mock.patch.object(self.plugin, '_runtime_binding_valid', return_value=True):
+                self.plugin.context.CLIARGS = {
+                    'check': True,
+                    'start_at_task': None,
+                    'step': False,
+                    'tags': [],
+                    'skip_tags': [],
+                }
+                result = action.run(task_vars={
+                    'shared_mongodb_networkpolicy_bootstrap_mode': 'check',
+                    'shared_mongodb_networkpolicy_bootstrap_approved': 'true',
+                    'shared_mongodb_networkpolicy_bootstrap_state': 'present',
+                    'shared_mongodb_networkpolicy_bootstrap_internal_preflight_binding': binding,
+                    'shared_mongodb_networkpolicy_bootstrap_internal_all_networkpolicies': {'resources': []},
+                    'shared_mongodb_networkpolicy_bootstrap_internal_manifests': copy.deepcopy(self.objects),
+                    'shared_mongodb_networkpolicy_bootstrap_internal_pod': {'resources': [pod]},
+                })
+        self.plugin.context.CLIARGS = original_cliargs
+        self.assertFalse(result.get('failed', False), result)
+        self.assertTrue(result.get('create'))
+
     def test_action_guard_rejects_apply_and_task_selection_before_kubernetes(self) -> None:
         context = self.plugin.context
         original = context.CLIARGS
@@ -1060,6 +1159,8 @@ exit "$status"
         self.assertIn('difference([\'ansible\'])', TASKS.read_text())
         self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_DEFAULTS_SHA256', TASKS.read_text())
         self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CONTROLLER_SHA256', TASKS.read_text())
+        self.assertIn('is_owned_regular_mode "$controller" 755', WRAPPER.read_text())
+        self.assertIn('_EXPECTED_CONTROLLER_MODE = 0o755', PLUGIN.read_text())
         self.assertIn('shared_mongodb_networkpolicy_create.py', WRAPPER.read_text())
         self.assertIn('resource.create(', (ROOT / 'ansible/library/shared_mongodb_networkpolicy_create.py').read_text())
         self.assertIn('/usr/bin/flock -n 9', WRAPPER.read_text())

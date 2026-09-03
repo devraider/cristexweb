@@ -62,7 +62,7 @@ _EXPECTED_WRAPPER_ARG0 = '/bin/sh'
 _EXPECTED_TASK_SHA256 = 'c5aeb6c47ded3191d7738587c3110058cad189cdecbaafcfe14692319d983111'
 _EXPECTED_DEFAULTS_SHA256 = '2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 _EXPECTED_PLAYBOOK_SHA256 = '7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-_EXPECTED_ACTION_CANONICAL_SHA256 = 'aeecba55cfaca7f41dbd27d3756b209c27539d482be6db496434325ebedaf2bd'
+_EXPECTED_ACTION_CANONICAL_SHA256 = '563047072059d5dea0786f71fe605dba54d1580721e3ec04990bb34cc0179d90'
 _EXPECTED_CREATE_MODULE_SHA256 = '21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 _EXPECTED_INVENTORY_SHA256 = '652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 _EXPECTED_ANSIBLE_CONFIG_SHA256 = '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
@@ -146,7 +146,7 @@ _EXPECTED_JSON_PATCH_ACTION_TARGET_SHA256 = _EXPECTED_K8S_ACTION_TARGET_SHA256
 _EXPECTED_JSON_PATCH_MODULE_SHA256 = '75b605254a576da3a146019e448d319a4cefdee2d2f3d4ada80e2c2b1c51d0ef'
 _EXPECTED_PYTHON_SHA256 = '17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
 _EXPECTED_CONTROLLER_SHA256 = 'baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
-_EXPECTED_CONTROLLER_MODE = 0o775
+_EXPECTED_CONTROLLER_MODE = 0o755
 _ALLOWED_MANAGED_FIELD_MANAGERS = {'ansible'}
 _MONGODB_POD_LABELS = {
     'app': 'shared-mongodb-svc',
@@ -1004,9 +1004,9 @@ class ActionModule(KubernetesActionModule):
             )
             and _safe_int(binding.get('client_environment_count')) == 2
             and _safe_int(binding.get('coredns_count')) >= 1
-            and binding.get('kubeconfig_contract') is True
-            and binding.get('namespace_contract') is True
-            and binding.get('no_delete_path') is True
+            and _as_bool(binding.get('kubeconfig_contract'))
+            and _as_bool(binding.get('namespace_contract'))
+            and _as_bool(binding.get('no_delete_path'))
             and isinstance(binding.get('networkpolicy_prestate'), list)
         )
         valid_attestation = (
@@ -1039,21 +1039,30 @@ class ActionModule(KubernetesActionModule):
             live_pods[0] if len(live_pods) == 1 else {},
             binding.get('networkpolicy_prestate', []),
         )
-        if (
-            not valid_attestation
-            or not _cooperative_lock_valid()
-            or not _source_closure_valid()
-            or not _runtime_binding_valid()
-            or not valid_binding
-            or not policy_inventory_present
-            or policy_preflight_error is not None
-            or task_vars.get('shared_mongodb_networkpolicy_bootstrap_approved') is not True
-            or task_vars.get('shared_mongodb_networkpolicy_bootstrap_state') != 'present'
-        ):
+        guard_failures = []
+        if not valid_attestation:
+            guard_failures.append('attestation')
+        if not _cooperative_lock_valid():
+            guard_failures.append('lock')
+        if not _source_closure_valid():
+            guard_failures.append('source')
+        if not _runtime_binding_valid():
+            guard_failures.append('runtime')
+        if not valid_binding:
+            guard_failures.append('binding')
+        if not policy_inventory_present:
+            guard_failures.append('inventory')
+        if policy_preflight_error is not None:
+            guard_failures.append('policy')
+        if not _as_bool(task_vars.get('shared_mongodb_networkpolicy_bootstrap_approved')):
+            guard_failures.append('approval')
+        if task_vars.get('shared_mongodb_networkpolicy_bootstrap_state') != 'present':
+            guard_failures.append('state')
+        if guard_failures:
             return {
                 'changed': False,
                 'failed': True,
-                'msg': 'ENTRYPOINT_GUARD: refusing without validated source-only attestation and preflight binding',
+                'msg': 'ENTRYPOINT_GUARD: refusing without validated source-only attestation and preflight binding (' + ','.join(guard_failures) + ')',
             }
         definition = args.get('definition')
         if (
