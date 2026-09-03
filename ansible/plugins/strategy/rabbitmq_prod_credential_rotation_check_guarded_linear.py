@@ -40,6 +40,10 @@ _BROKER_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/s
 _RABBITMQ_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml"
 _ENGINE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml"
 _RUNTIME_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
+# Integrity DAG: wrapper canonical startup is the fixed root; this strategy
+# consumes fixed wrapper/action links and normalizes only its own self-pin.
+# Runtime attestation binds the process to the already verified wrapper rather
+# than introducing a mutable strategy↔wrapper cycle.
 _ROLE_PATH = _REPOSITORY_ROOT / "ansible/roles/rabbitmq_prod_credential_rotation_check"
 _ROLES_PATH = _REPOSITORY_ROOT / "ansible/roles"
 _LIBRARY_PATH = _REPOSITORY_ROOT / "ansible/library"
@@ -55,9 +59,9 @@ _EXPECTED_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de2
 _EXPECTED_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
 _EXPECTED_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
 _EXPECTED_COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
-_ACTION_CANONICAL_SHA256 = "53f292f110cd28a9799b863dd2eefe7a166885ee00c2e0dd611a1b26ef8a5204"
-_STRATEGY_CANONICAL_SHA256 = "e7460cc3a84d18737628e8b169573af63265557e67fa74f244ee2a348e19df93"
-_WRAPPER_CANONICAL_SHA256 = "79807a56d4dc7e09665fdf2d141db550601a4ac9d11af1bc72a81b3592b2079b"
+_ACTION_CANONICAL_SHA256 = "c38744ce0768c8ce40955866b9df138a93a3bc32845ff0085406654fdfbd6aa4"
+_WRAPPER_CANONICAL_SHA256 = "ca2c1488e08ab46a0f096c84f1284dc812fdb4d8dce6ea235aae3edd14e47951"
+_STRATEGY_CANONICAL_SHA256 = "20c4e9b17fe43a483c99584a579166a2c7abb3fa19fbb119b8b4f31622b064e4"
 _TASK_SHA256 = "78104b5277c14ac6071c21250769d74184b12128c7c74591f50b01556fbb0250"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
@@ -138,19 +142,33 @@ def _canonical_hash(path: Path, symbol: str) -> str:
     try:
         source = path.read_text(encoding="utf-8")
         source, count = re.subn(
-            rf"(?m)^({re.escape(symbol)}\s*=\s*[\"'])([0-9a-f]{{64}})([\"']\s*)$",
-            rf"\g<1>{'0' * 64}\g<3>",
+            rf'(?m)^{re.escape(symbol)} = "[0-9a-f]{{64}}"$',
+            f'{symbol} = "' + ("0" * 64) + '"',
             source,
         )
-        if path.resolve() == _STRATEGY_SOURCE.resolve():
-            source, wrapper_count = re.subn(
-                r'(?m)^_WRAPPER_CANONICAL_SHA256\s*=\s*["\'][0-9a-f]{64}["\']\s*$',
-                '_WRAPPER_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
-                source,
-            )
-            if wrapper_count != 1:
-                return ""
+
         return hashlib.sha256(source.encode("utf-8")).hexdigest() if count == 1 else ""
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _wrapper_canonical_expected() -> str:
+    """Return the fixed wrapper root used by this strategy's integrity DAG."""
+    return _WRAPPER_CANONICAL_SHA256
+
+
+def _canonical_wrapper_hash(path: Path) -> str:
+    """Hash the wrapper with only its self-referential canonical field normalized."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, wrapper_count = re.subn(
+            r"(?m)^wrapper_canonical_sha256='[0-9a-f]{64}'$",
+            "wrapper_canonical_sha256='" + ("0" * 64) + "'",
+            source,
+        )
+
+
+        return hashlib.sha256(source.encode("utf-8")).hexdigest() if wrapper_count == 1 else ""
     except (OSError, UnicodeError):
         return ""
 
@@ -405,6 +423,7 @@ def _wrapper_attestation_valid() -> bool:
     except (OSError, UnicodeError, ValueError):
         return False
     command = _proc_cmdline(pid)
+    expected_wrapper = _wrapper_canonical_expected()
     return (
         os.environ.get(prefix + "ENTRYPOINT") == "v1"
         and os.environ.get(prefix + "MODE") == "check"
@@ -425,8 +444,9 @@ def _wrapper_attestation_valid() -> bool:
         and content == f"{token}:entrypoint:{pid}:{starttime}:{wrapper_sha}\n"
         and os.environ.get(prefix + "WRAPPER_PATH") == str(_WRAPPER_SOURCE)
         and wrapper_sha == _sha256(_WRAPPER_SOURCE)
-        and os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256") == _WRAPPER_CANONICAL_SHA256
-        and _canonical_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256") == _WRAPPER_CANONICAL_SHA256
+        and expected_wrapper != ""
+        and os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256") == expected_wrapper
+        and _canonical_wrapper_hash(_WRAPPER_SOURCE) == expected_wrapper
     )
 
 
@@ -467,6 +487,7 @@ def _source_contract() -> bool:
         if _sha256(path) != expected or os.environ.get(prefix + suffix) != expected:
             return False
     strategy_sha = _sha256(_STRATEGY_SOURCE)
+    expected_wrapper = _wrapper_canonical_expected()
     return (
         _regular_file(_ACTION_SOURCE, 0o644, os.getuid())
         and _sha256(_ACTION_SOURCE) == os.environ.get(prefix + "ACTION_SHA256")
@@ -477,8 +498,9 @@ def _source_contract() -> bool:
         and strategy_sha == os.environ.get(prefix + "STRATEGY_SHA256")
         and _canonical_hash(_STRATEGY_SOURCE, "_STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
         and os.environ.get(prefix + "STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
-        and _canonical_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256") == _WRAPPER_CANONICAL_SHA256
-        and os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256") == _WRAPPER_CANONICAL_SHA256
+        and expected_wrapper != ""
+        and _canonical_wrapper_hash(_WRAPPER_SOURCE) == expected_wrapper
+        and os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256") == expected_wrapper
     )
 
 
@@ -486,16 +508,11 @@ def _canonical_action_hash(path: Path) -> str:
     try:
         source = path.read_text(encoding="utf-8")
         source, count = re.subn(
-            r'(?m)^_ACTION_CANONICAL_SHA256\s*=\s*["\'][0-9a-f]{64}["\']\s*$',
+            r'(?m)^_ACTION_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
             '_ACTION_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
             source,
         )
-        source, wrapper_count = re.subn(
-            r'(?m)^_WRAPPER_CANONICAL_SHA256\s*=\s*["\'][0-9a-f]{64}["\']\s*$',
-            '_WRAPPER_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
-            source,
-        )
-        return hashlib.sha256(source.encode()).hexdigest() if count == 1 and wrapper_count == 1 else ""
+        return hashlib.sha256(source.encode()).hexdigest() if count == 1 else ""
     except (OSError, UnicodeError):
         return ""
 

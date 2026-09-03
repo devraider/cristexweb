@@ -67,6 +67,13 @@ rotation authorization. Predecessor permission removal/deletion remains a
 separate explicitly approved operation, and queued-message recovery is never
 claimed by definitions recovery.
 
+The process and source checks establish a boundary around the canonical wrapper,
+controller, and files for this invocation; they do not defend against a malicious
+process that already runs as the trusted controller UID (`paul`) and can alter or
+observe those files or its descendants. That same-UID case is outside the claimed
+integrity boundary and requires host-level isolation/incident response rather than
+an assertion that this check-only lane provides protection.
+
 ## Identity discrepancy is a hard preflight stop
 
 The architecture policy names `cristexhub_prod_rabbitmq` as the canonical PROD

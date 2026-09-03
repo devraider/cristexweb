@@ -32,9 +32,13 @@ _BROKER_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/s
 _RABBITMQ_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml"
 _ENGINE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml"
 _RUNTIME_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
+# Integrity DAG: the wrapper's own canonical startup value is the root.  The
+# fixed wrapper pin is intentionally included in this action's canonical hash;
+# the action self-pin is the only field normalized here.  No action↔wrapper
+# runtime pin is normalized, so a coordinated wrapper/action edit is rejected.
 _ROLES_PATH = _REPOSITORY_ROOT / "ansible/roles"
 _LIBRARY_PATH = _REPOSITORY_ROOT / "ansible/library"
-_ACTION_CANONICAL_SHA256 = "53f292f110cd28a9799b863dd2eefe7a166885ee00c2e0dd611a1b26ef8a5204"
+_ACTION_CANONICAL_SHA256 = "c38744ce0768c8ce40955866b9df138a93a3bc32845ff0085406654fdfbd6aa4"
 _TASK_SHA256 = "78104b5277c14ac6071c21250769d74184b12128c7c74591f50b01556fbb0250"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
@@ -47,7 +51,7 @@ _RUNTIME_SOURCE_SHA256 = "3204aab3fc0f5b55f9af3623fb658d5ffd8289437d5d0ea91ab048
 _CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 _INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
 _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
-_WRAPPER_CANONICAL_SHA256 = "79807a56d4dc7e09665fdf2d141db550601a4ac9d11af1bc72a81b3592b2079b"
+_WRAPPER_CANONICAL_SHA256 = "ca2c1488e08ab46a0f096c84f1284dc812fdb4d8dce6ea235aae3edd14e47951"
 _ARGUMENT_KEYS = {"namespace", "pod", "container", "command", "kubeconfig", "query"}
 _EXPECTED_QUERIES = {
     "readiness": ["rabbitmq-diagnostics", "-q", "check_running"],
@@ -94,16 +98,11 @@ def _canonical_action_hash(path: Path) -> str:
     try:
         source = path.read_text(encoding="utf-8")
         source, count = re.subn(
-            r'(?m)^_ACTION_CANONICAL_SHA256\s*=\s*["\'][0-9a-f]{64}["\']\s*$',
+            r'(?m)^_ACTION_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
             '_ACTION_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
             source,
         )
-        source, wrapper_count = re.subn(
-            r'(?m)^_WRAPPER_CANONICAL_SHA256\s*=\s*["\'][0-9a-f]{64}["\']\s*$',
-            '_WRAPPER_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
-            source,
-        )
-        return hashlib.sha256(source.encode()).hexdigest() if count == 1 and wrapper_count == 1 else ""
+        return hashlib.sha256(source.encode()).hexdigest() if count == 1 else ""
     except (OSError, UnicodeError):
         return ""
 
@@ -116,12 +115,9 @@ def _canonical_wrapper_hash(path: Path) -> str:
             "wrapper_canonical_sha256='" + ("0" * 64) + "'",
             source,
         )
-        source, strategy_count = re.subn(
-            r"(?m)^strategy_sha256_expected='[0-9a-f]{64}'$",
-            "strategy_sha256_expected='" + ("0" * 64) + "'",
-            source,
-        )
-        return hashlib.sha256(source.encode()).hexdigest() if count == 1 and strategy_count == 1 else ""
+
+
+        return hashlib.sha256(source.encode()).hexdigest() if count == 1 else ""
     except (OSError, UnicodeError):
         return ""
 

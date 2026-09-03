@@ -4,8 +4,10 @@ import hashlib
 import importlib.util
 import json
 import re
+import shlex
 import stat
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -170,7 +172,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             "_collection_toolchain_valid",
             "_PYTHON_REAL_SOURCE",
             "_OPERATOR",
-            "_WRAPPER_CANONICAL_SHA256",
+            "_wrapper_canonical_expected",
             "_EXPECTED_COLLECTION_EXECUTED_FILES",
             "_STRATEGY_CANONICAL_SHA256",
             "_ACTION_CANONICAL_SHA256",
@@ -434,50 +436,259 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertEqual("{{ .RABBITMQ_URL.Value }}", runtime_target["template"]["data"]["RABBITMQ_URL"])
 
     def test_wrapper_and_action_pins_match_current_canonical_sources(self) -> None:
+        zero = "0" * 64
         action_source, action_count = re.subn(
             r'(?m)^_ACTION_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
-            '_ACTION_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
+            '_ACTION_CANONICAL_SHA256 = "' + zero + '"',
             ACTION.read_text(),
         )
+        action_canonical_source = action_source
         action_source, action_wrapper_count = re.subn(
             r'(?m)^_WRAPPER_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
-            '_WRAPPER_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
+            '_WRAPPER_CANONICAL_SHA256 = "' + zero + '"',
             action_source,
         )
-
         strategy_source, strategy_count = re.subn(
             r'(?m)^_STRATEGY_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
-            '_STRATEGY_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
+            '_STRATEGY_CANONICAL_SHA256 = "' + zero + '"',
             STRATEGY.read_text(),
         )
+        strategy_canonical_source = strategy_source
         strategy_source, strategy_wrapper_count = re.subn(
             r'(?m)^_WRAPPER_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
-            '_WRAPPER_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
+            '_WRAPPER_CANONICAL_SHA256 = "' + zero + '"',
             strategy_source,
         )
-
         wrapper_source, wrapper_count = re.subn(
             r"(?m)^wrapper_canonical_sha256='[0-9a-f]{64}'$",
-            "wrapper_canonical_sha256='" + ("0" * 64) + "'",
+            "wrapper_canonical_sha256='" + zero + "'",
             WRAPPER.read_text(),
         )
-        wrapper_source, wrapper_strategy_count = re.subn(
-            r"(?m)^strategy_sha256_expected='[0-9a-f]{64}'$",
-            "strategy_sha256_expected='" + ("0" * 64) + "'",
-            wrapper_source,
+        self.assertEqual((1, 1, 1, 1, 1), (action_count, action_wrapper_count, strategy_count, strategy_wrapper_count, wrapper_count))
+        self.assertNotIn("strategy_sha256_expected", self.wrapper)
+        self.assertNotRegex(
+            self.wrapper,
+            r"canonical_(?:action|strategy)_sha256.*0000000000000000000000000000000000000000000000000000000000000000",
         )
-        self.assertEqual(1, action_count)
-        self.assertEqual(1, action_wrapper_count)
-        self.assertEqual(1, strategy_count)
-        self.assertEqual(1, strategy_wrapper_count)
-        self.assertEqual(1, wrapper_count)
-        self.assertEqual(1, wrapper_strategy_count)
-        self.assertIn(hashlib.sha256(action_source.encode()).hexdigest(), self.wrapper)
-        self.assertIn(hashlib.sha256(strategy_source.encode()).hexdigest(), self.wrapper)
-        self.assertIn(hashlib.sha256(wrapper_source.encode()).hexdigest(), self.wrapper)
-        self.assertIn(hashlib.sha256(TASKS.read_bytes()).hexdigest(), self.wrapper)
-        self.assertIn(hashlib.sha256(TASKS.read_bytes()).hexdigest(), self.action)
+        self.assertIn("_WRAPPER_CANONICAL_SHA256", self.action)
+        self.assertIn("_WRAPPER_CANONICAL_SHA256", self.strategy)
+        self.assertEqual(
+            hashlib.sha256(action_canonical_source.encode()).hexdigest(),
+            re.search(r'(?m)^_ACTION_CANONICAL_SHA256 = "([0-9a-f]{64})"$', ACTION.read_text()).group(1),
+        )
+        self.assertEqual(
+            hashlib.sha256(strategy_canonical_source.encode()).hexdigest(),
+            re.search(r'(?m)^_STRATEGY_CANONICAL_SHA256 = "([0-9a-f]{64})"$', STRATEGY.read_text()).group(1),
+        )
+        self.assertEqual(
+            hashlib.sha256(wrapper_source.encode()).hexdigest(),
+            re.search(r"(?m)^wrapper_canonical_sha256='([0-9a-f]{64})'$", WRAPPER.read_text()).group(1),
+        )
+    def test_canonical_wrapper_hash_matches_strategy_before_api_queries(self) -> None:
+        strategy_spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_strategy_canonical", STRATEGY
+        )
+        self.assertIsNotNone(strategy_spec)
+        self.assertIsNotNone(strategy_spec.loader)
+        strategy_module = importlib.util.module_from_spec(strategy_spec)
+        strategy_spec.loader.exec_module(strategy_module)
 
+        action_spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_action_canonical", ACTION
+        )
+        self.assertIsNotNone(action_spec)
+        self.assertIsNotNone(action_spec.loader)
+        action_module = importlib.util.module_from_spec(action_spec)
+        action_spec.loader.exec_module(action_module)
+
+        expected = action_module._WRAPPER_CANONICAL_SHA256
+        self.assertEqual(expected, strategy_module._wrapper_canonical_expected())
+        self.assertEqual(expected, strategy_module._canonical_wrapper_hash(WRAPPER))
+        self.assertEqual(expected, action_module._canonical_wrapper_hash(WRAPPER))
+        self.assertEqual(
+            strategy_module._STRATEGY_CANONICAL_SHA256,
+            strategy_module._canonical_hash(STRATEGY, "_STRATEGY_CANONICAL_SHA256"),
+        )
+        self.assertIn("_canonical_wrapper_hash(_WRAPPER_SOURCE)", self.strategy)
+        self.assertNotIn(
+            '_canonical_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256")',
+            self.strategy,
+        )
+
+    def test_shell_and_python_canonicalizers_have_identical_pre_api_outputs(self) -> None:
+        strategy_spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_strategy_shell_parity", STRATEGY
+        )
+        self.assertIsNotNone(strategy_spec)
+        self.assertIsNotNone(strategy_spec.loader)
+        strategy_module = importlib.util.module_from_spec(strategy_spec)
+        strategy_spec.loader.exec_module(strategy_module)
+
+        action_spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_action_shell_parity", ACTION
+        )
+        self.assertIsNotNone(action_spec)
+        self.assertIsNotNone(action_spec.loader)
+        action_module = importlib.util.module_from_spec(action_spec)
+        action_spec.loader.exec_module(action_module)
+
+        wrapper_source = WRAPPER.read_text()
+        functions_start = wrapper_source.index("sha256() {")
+        functions_end = wrapper_source.index('[ "$(sha256 "$config")"', functions_start)
+        shell_functions = wrapper_source[functions_start:functions_end]
+        shell_script = "\n".join(
+            (
+                "set -eu",
+                f"script_path={shlex.quote(str(WRAPPER))}",
+                f"action={shlex.quote(str(ACTION))}",
+                f"strategy={shlex.quote(str(STRATEGY))}",
+                shell_functions,
+                'printf \'A=%s\\nS=%s\\nW=%s\\n\' "$(canonical_action_sha256 "$action")" "$(canonical_strategy_sha256)" "$(canonical_wrapper_sha256)"',
+            )
+        )
+        result = subprocess.run(
+            ["/bin/sh", "-c", shell_script],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        shell_values = dict(line.split("=", 1) for line in result.stdout.splitlines())
+        self.assertEqual(
+            action_module._canonical_action_hash(ACTION),
+            shell_values["A"],
+        )
+        self.assertEqual(
+            strategy_module._canonical_hash(STRATEGY, "_STRATEGY_CANONICAL_SHA256"),
+            shell_values["S"],
+        )
+        self.assertEqual(
+            strategy_module._canonical_wrapper_hash(WRAPPER),
+            shell_values["W"],
+        )
+        self.assertEqual(
+            action_module._WRAPPER_CANONICAL_SHA256,
+            shell_values["W"],
+        )
+
+    def test_unrelated_security_pins_are_not_normalized(self) -> None:
+        strategy_spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_strategy_mutation", STRATEGY
+        )
+        self.assertIsNotNone(strategy_spec)
+        self.assertIsNotNone(strategy_spec.loader)
+        strategy_module = importlib.util.module_from_spec(strategy_spec)
+        strategy_spec.loader.exec_module(strategy_module)
+
+        action_spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_action_mutation", ACTION
+        )
+        self.assertIsNotNone(action_spec)
+        self.assertIsNotNone(action_spec.loader)
+        action_module = importlib.util.module_from_spec(action_spec)
+        action_spec.loader.exec_module(action_module)
+
+        wrapper_hash = strategy_module._canonical_wrapper_hash(WRAPPER)
+        strategy_hash = strategy_module._canonical_hash(STRATEGY, "_STRATEGY_CANONICAL_SHA256")
+        action_hash = action_module._canonical_action_hash(ACTION)
+        zero = "0" * 64
+        mutations = (
+            (
+                ACTION,
+                '_WRAPPER_CANONICAL_SHA256 = "',
+                '_WRAPPER_CANONICAL_SHA256 = "' + zero,
+                action_module._canonical_action_hash,
+                action_hash,
+            ),
+            (
+                STRATEGY,
+                '_ACTION_CANONICAL_SHA256 = "',
+                '_ACTION_CANONICAL_SHA256 = "' + zero,
+                lambda path: strategy_module._canonical_hash(path, "_STRATEGY_CANONICAL_SHA256"),
+                strategy_hash,
+            ),
+            (
+                STRATEGY,
+                '_WRAPPER_CANONICAL_SHA256 = "',
+                '_WRAPPER_CANONICAL_SHA256 = "' + zero,
+                lambda path: strategy_module._canonical_hash(path, "_STRATEGY_CANONICAL_SHA256"),
+                strategy_hash,
+            ),
+            (
+                STRATEGY,
+                '_EXPECTED_PYTHON_SHA256 = "',
+                '_EXPECTED_PYTHON_SHA256 = "' + zero,
+                lambda path: strategy_module._canonical_hash(path, "_STRATEGY_CANONICAL_SHA256"),
+                strategy_hash,
+            ),
+        )
+        for source_path, old_prefix, new_prefix, hasher, expected in mutations:
+            source = source_path.read_text()
+            start = source.index(old_prefix)
+            old_line_end = source.index("\n", start)
+            old_line = source[start:old_line_end]
+            new_line = new_prefix + old_line[len(old_prefix):]
+            self.assertNotEqual(old_line, new_line)
+            with tempfile.TemporaryDirectory() as directory:
+                mutated = Path(directory) / source_path.name
+                mutated.write_text(source[:start] + new_line + source[old_line_end:])
+                self.assertNotEqual(expected, hasher(mutated), source_path)
+
+        # Only a file's own self-reference may be normalized.
+        wrapper = WRAPPER.read_text()
+        old = "wrapper_canonical_sha256='" + action_module._WRAPPER_CANONICAL_SHA256 + "'"
+        mutated = wrapper.replace(old, "wrapper_canonical_sha256='" + zero + "'", 1)
+        with tempfile.TemporaryDirectory() as directory:
+            mutated_path = Path(directory) / WRAPPER.name
+            mutated_path.write_text(mutated)
+            self.assertEqual(wrapper_hash, strategy_module._canonical_wrapper_hash(mutated_path))
+
+    def test_coordinated_wrapper_action_pin_mutation_is_rejected(self) -> None:
+        strategy_spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_strategy_coordinated_mutation", STRATEGY
+        )
+        self.assertIsNotNone(strategy_spec)
+        self.assertIsNotNone(strategy_spec.loader)
+        strategy_module = importlib.util.module_from_spec(strategy_spec)
+        strategy_spec.loader.exec_module(strategy_module)
+        action_spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_action_coordinated_mutation", ACTION
+        )
+        self.assertIsNotNone(action_spec)
+        self.assertIsNotNone(action_spec.loader)
+        action_module = importlib.util.module_from_spec(action_spec)
+        action_spec.loader.exec_module(action_module)
+
+        original_wrapper_pin = action_module._WRAPPER_CANONICAL_SHA256
+        original_action_pin = strategy_module._ACTION_CANONICAL_SHA256
+        wrapper = WRAPPER.read_text()
+        mutated_wrapper = wrapper.replace(
+            "umask 077\n", "umask 077\n# coordinated wrapper mutation\n", 1
+        )
+        zero = "0" * 64
+        mutated_wrapper = re.sub(
+            r"(?m)^wrapper_canonical_sha256='[0-9a-f]{64}'$",
+            "wrapper_canonical_sha256='" + zero + "'",
+            mutated_wrapper,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            wrapper_path = Path(directory) / WRAPPER.name
+            wrapper_path.write_text(mutated_wrapper)
+            tampered_wrapper_pin = strategy_module._canonical_wrapper_hash(wrapper_path)
+            self.assertNotEqual(original_wrapper_pin, tampered_wrapper_pin)
+            action_source = ACTION.read_text().replace(
+                '_WRAPPER_CANONICAL_SHA256 = "' + original_wrapper_pin + '"',
+                '_WRAPPER_CANONICAL_SHA256 = "' + tampered_wrapper_pin + '"',
+                1,
+            )
+            action_path = Path(directory) / ACTION.name
+            action_path.write_text(action_source)
+            tampered_action_pin = action_module._canonical_action_hash(action_path)
+            self.assertNotEqual(
+                original_action_pin,
+                tampered_action_pin,
+                "the strategy's fixed action pin must reject coordinated wrapper/action mutation",
+            )
     def test_source_modes_and_hashes_are_explicit(self) -> None:
         expected_modes = {
             WRAPPER: 0o755,
