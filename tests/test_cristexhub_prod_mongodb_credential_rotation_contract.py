@@ -8,6 +8,8 @@ import stat
 import subprocess
 import unittest
 from pathlib import Path
+import shutil
+import tempfile
 
 import yaml
 
@@ -73,6 +75,10 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
         self.assertIn('playbooks/check_cristexhub_prod_mongodb_credential_rotation.yml', self.wrapper)
         self.assertIn('--check --diff --limit crtxweb', self.wrapper)
         self.assertIn("wrapper_canonical_sha256_expected=", self.wrapper)
+        self.assertEqual(
+            1,
+            len(re.findall(r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$", self.wrapper)),
+        )
         for required in (
             "task_sha256_expected=",
             "defaults_sha256_expected=",
@@ -90,6 +96,12 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_LIBRARY_PATH",
             "ANSIBLE_ROLES_PATH",
             "ANSIBLE_LIBRARY",
+            "requirements_sha256_expected=",
+            "collection_manifest_sha256_expected=",
+            "collection_files_sha256_expected=",
+            "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_REQUIREMENTS_SHA256",
+            "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_COLLECTION_MANIFEST_SHA256",
+            "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_COLLECTION_FILES_SHA256",
         ):
             self.assertIn(required, self.wrapper)
         self.assertNotIn("--extra-vars.*apply", self.wrapper)
@@ -321,6 +333,82 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
         self.assertIn(str(SELECTOR_MODULE.relative_to(ROOT)), self.tasks)
         self.assertIn("NETWORKPOLICY_SELECTOR_MODULE_SHA256", self.wrapper)
         self.assertIn("cristexhub_prod_mongodb_networkpolicy_selector", self.tasks)
+
+    def test_metadata_only_live_pod_identity_binds_selector_evaluation(self) -> None:
+        for phrase in (
+            "Query exact metadata-only shared MongoDB pod identity",
+            "api_path: /api/v1/namespaces/shared-services/pods/shared-mongodb-0",
+            "resource_kind: Pod",
+            "expected_name: shared-mongodb-0",
+            "expected_namespace: shared-services",
+            "internal_mongodb_pod_uid",
+            "internal_mongodb_pod_resource_version",
+            "pod_labels: \"{{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_labels }}\"",
+            "pod_uid: \"{{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_uid }}\"",
+            "pod_resource_version: \"{{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_resource_version }}\"",
+            "selector_evaluation.pod_uid ==",
+            "selector_evaluation.pod_resource_version ==",
+        ):
+            self.assertIn(phrase, self.tasks)
+        self.assertNotIn("pod_labels:\n      app: shared-mongodb-svc", self.tasks)
+
+    def test_collection_requirements_and_exact_execution_tree_are_pinned(self) -> None:
+        strategy = STRATEGY.read_text()
+        for phrase in (
+            "_REQUIREMENTS_SOURCE",
+            "_COLLECTION_MANIFEST_SOURCE",
+            "_COLLECTION_FILES_SOURCE",
+            "_EXPECTED_REQUIREMENTS_SHA256",
+            "_EXPECTED_COLLECTION_MANIFEST_SHA256",
+            "_EXPECTED_COLLECTION_FILES_SHA256",
+            "def _collection_toolchain_valid",
+            "plugins/action/k8s.py",
+            "plugins/modules/k8s_info.py",
+            "__pycache__",
+            "PurePosixPath",
+        ):
+            self.assertIn(phrase, strategy)
+        self.assertIn("collection_toolchain_valid()", strategy)
+        self.assertIn('"pod_uid": {"type": "str", "required": True}', SELECTOR_MODULE.read_text())
+        self.assertIn('"pod_resource_version": {"type": "str", "required": True}', SELECTOR_MODULE.read_text())
+        self.assertIn("_EXPECTED_REQUIREMENTS_SHA256 = \"f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f\"", strategy)
+        self.assertIn("_EXPECTED_COLLECTION_MANIFEST_SHA256 = \"dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df\"", strategy)
+        self.assertIn("_EXPECTED_COLLECTION_FILES_SHA256 = \"9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69\"", strategy)
+        self.assertIn("requirements_source", self.wrapper)
+        self.assertIn("collection_root", self.wrapper)
+        self.assertIn("ansible/requirements.yml", self.wrapper)
+
+    def test_collection_tree_rejects_mutated_executable_leaves_and_extra_artifacts(self) -> None:
+        source = Path('/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core')
+        if not (source / 'FILES.json').is_file():
+            self.skipTest('pinned kubernetes.core installation is not available in this checkout')
+        spec = importlib.util.spec_from_file_location('mongodb_rotation_strategy_collection', STRATEGY)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        original = (module._COLLECTION_ROOT, module._COLLECTION_MANIFEST_SOURCE, module._COLLECTION_FILES_SOURCE)
+        with tempfile.TemporaryDirectory() as temporary:
+            copy = Path(temporary) / 'core'
+            shutil.copytree(source, copy, symlinks=True)
+            for cache in copy.rglob('__pycache__'):
+                shutil.rmtree(cache)
+            module._COLLECTION_ROOT = copy
+            module._COLLECTION_MANIFEST_SOURCE = copy / 'MANIFEST.json'
+            module._COLLECTION_FILES_SOURCE = copy / 'FILES.json'
+            self.assertTrue(module._collection_toolchain_valid())
+            with (copy / 'plugins/modules/k8s_info.py').open('a', encoding='utf-8') as drift:
+                drift.write('# drift\\n')
+            self.assertFalse(module._collection_toolchain_valid())
+            (copy / 'plugins/modules/k8s_info.py').write_bytes(
+                Path('/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core/plugins/modules/k8s_info.py').read_bytes()
+            )
+            (copy / 'plugins/action/__init__.py').write_text('', encoding='utf-8')
+            self.assertFalse(module._collection_toolchain_valid())
+            (copy / 'plugins/action/__init__.py').unlink()
+            (copy / 'plugins/action/k8s.py').with_suffix('.so').write_bytes(b'forbidden')
+            self.assertFalse(module._collection_toolchain_valid())
+        module._COLLECTION_ROOT, module._COLLECTION_MANIFEST_SOURCE, module._COLLECTION_FILES_SOURCE = original
 
     def test_adversarial_template_and_networkpolicy_drift_is_rejected(self) -> None:
         mutated_engine = copy.deepcopy(self.engine)

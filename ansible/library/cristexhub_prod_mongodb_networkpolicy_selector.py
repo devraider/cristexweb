@@ -9,6 +9,7 @@ The module is deliberately pure and value-free: Kubernetes discovery is done by
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ansible.module_utils.basic import AnsibleModule
@@ -182,16 +183,35 @@ def main() -> None:
         argument_spec={
             "policies": {"type": "list", "required": True},
             "pod_labels": {"type": "dict", "required": True},
+            "pod_name": {"type": "str", "required": True},
+            "pod_namespace": {"type": "str", "required": True},
+            "pod_uid": {"type": "str", "required": True},
+            "pod_resource_version": {"type": "str", "required": True},
             "expected_namespace": {"type": "str", "required": True},
         },
         supports_check_mode=True,
     )
-    result = _evaluate(
-        module.params["policies"],
-        module.params["pod_labels"],
-        module.params["expected_namespace"],
+    pod_name = module.params["pod_name"]
+    pod_namespace = module.params["pod_namespace"]
+    pod_uid = module.params["pod_uid"]
+    pod_resource_version = module.params["pod_resource_version"]
+    expected_namespace = module.params["expected_namespace"]
+    if (
+        pod_name != "shared-mongodb-0"
+        or pod_namespace != expected_namespace
+        or not re.fullmatch(r"[0-9a-fA-F-]+", pod_uid)
+        or not re.fullmatch(r"[0-9]+", pod_resource_version)
+    ):
+        module.fail_json(msg="MONGODB_NETWORKPOLICY_GUARD: exact live pod identity required")
+    result = _evaluate(module.params["policies"], module.params["pod_labels"], expected_namespace)
+    module.exit_json(
+        changed=False,
+        pod_name=pod_name,
+        pod_namespace=pod_namespace,
+        pod_uid=pod_uid,
+        pod_resource_version=pod_resource_version,
+        **result,
     )
-    module.exit_json(changed=False, **result)
 
 
 if __name__ == "__main__":

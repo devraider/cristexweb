@@ -6,7 +6,8 @@ import os
 import re
 import stat
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from typing import Any
 
 from ansible import context
 from ansible.errors import AnsibleError
@@ -43,19 +44,57 @@ _RUNTIME_AUTH_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-cr
 _RUNTIME_MANIFEST_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
 _NETWORKPOLICY_DEFAULT_DENY_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml"
 _NETWORKPOLICY_ALLOW_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml"
+_REQUIREMENTS_SOURCE = _REPOSITORY_ROOT / "ansible/requirements.yml"
+_COLLECTION_ROOT = _REPOSITORY_ROOT / "ansible/.ansible/collections/ansible_collections/kubernetes/core"
+_COLLECTION_MANIFEST_SOURCE = _COLLECTION_ROOT / "MANIFEST.json"
+_COLLECTION_FILES_SOURCE = _COLLECTION_ROOT / "FILES.json"
 
 _ENV_PREFIX = "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_"
 _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
 _ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 # This marker is the only normalized value; it prevents a circular strategy pin.
-_STRATEGY_CANONICAL_SHA256 = "e7f97be05003ef87b10a3bfee9f33c83e19d9ade262b9ee6663fc452f839c0b2"
+_STRATEGY_CANONICAL_SHA256 = "23b70ae8fb3f76cc373b2c7202e9071d273e314f2ea9b0c3330094fa2a951eb3"
+_EXPECTED_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
+_EXPECTED_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
+_EXPECTED_COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
+_EXPECTED_COLLECTION_ACTION_SYMLINKS = {
+    "helm.py", "helm_info.py", "helm_plugin.py", "helm_plugin_info.py",
+    "helm_repository.py", "k8s.py", "k8s_cluster_info.py", "k8s_cp.py",
+    "k8s_drain.py", "k8s_exec.py", "k8s_json_patch.py", "k8s_log.py",
+    "k8s_rollback.py", "k8s_scale.py", "k8s_service.py",
+}
+_EXPECTED_COLLECTION_EXECUTED_FILES = {
+    "plugins/action/k8s.py",
+    "plugins/action/k8s_info.py",
+    "plugins/action/k8s_json_patch.py",
+    "plugins/modules/k8s_info.py",
+    "plugins/modules/k8s.py",
+    "plugins/modules/k8s_json_patch.py",
+    "plugins/module_utils/k8s/client.py",
+    "plugins/module_utils/k8s/core.py",
+    "plugins/module_utils/k8s/exceptions.py",
+    "plugins/module_utils/k8s/resource.py",
+    "plugins/module_utils/k8s/runner.py",
+    "plugins/module_utils/k8s/service.py",
+    "plugins/module_utils/k8s/waiter.py",
+    "plugins/module_utils/ansiblemodule.py",
+    "plugins/module_utils/apply.py",
+    "plugins/module_utils/args_common.py",
+    "plugins/module_utils/common.py",
+    "plugins/module_utils/copy.py",
+    "plugins/module_utils/exceptions.py",
+    "plugins/module_utils/hashes.py",
+    "plugins/module_utils/k8sdynamicclient.py",
+    "plugins/module_utils/selector.py",
+    "plugins/module_utils/version.py",
+}
 _EXPECTED_HASHES = {
-    "TASK_SHA256": "79c57d0ee58393f263d83fe5be9abc92940058b7b23d1bfa08da09dac81fbc3f",
+    "TASK_SHA256": "cf81db862c6f79b9f56bbd0595793073ebb581850c3678eb240713f13d22ffbb",
     "DEFAULTS_SHA256": "ead3ec7189b16a6d66e54e263a904619b5b9e46dacf8b40a6174792c4f381703",
     "PLAYBOOK_SHA256": "c3986c36bea429483e3ca73be76a860db9f31fabe784253d9b3c0d4c3940bde9",
     "POLICY_SHA256": "16db815caf6989944632345aac46c6b45ee6d18d4bda7800d3d485d1d68217a2",
     "METADATA_MODULE_SHA256": "571837ae852d0098347747307dd5101c724413d9ee27e01bca50fa25157960d2",
-    "NETWORKPOLICY_SELECTOR_MODULE_SHA256": "a17b30eed3f84d0992f37ffc33402f29edb271c8181e8b9aedffa348dcd287b7",
+    "NETWORKPOLICY_SELECTOR_MODULE_SHA256": "b3405007cd0c5c382d57bb184ab52715ea371ed9c3bd7421106860b95130c68a",
     "ENGINE_CONNECTION_SOURCE_SHA256": "701558f35f7473e2476f48ddf1298d0d3fe1e9c69fdd5e4e621ef196972b5a0f",
     "ENGINE_AUTH_SOURCE_SHA256": "7449e49d5a73da51f3915eb9e84d63800330e4d2c1142ff9539676f069660dcf",
     "ENGINE_SOURCE_MANIFEST_SHA256": "dba0e83942063c389aadb8b11a7ac24acdbadb214bb825e3dfcc7330b619dad0",
@@ -133,6 +172,117 @@ def _directory(path: Path, owner: int | None = None) -> bool:
         and not path.is_symlink()
         and (owner is None or (state.st_uid == owner and state.st_gid == os.getgid()))
     )
+
+
+def _collection_toolchain_valid() -> bool:
+    """Validate the exact installed kubernetes.core 6.1.0 execution tree."""
+    try:
+        if not _directory(_COLLECTION_ROOT, os.getuid()):
+            return False
+        if not _regular_file(_REQUIREMENTS_SOURCE, 0o644, os.getuid()):
+            return False
+        if _sha256(_REQUIREMENTS_SOURCE) != _EXPECTED_REQUIREMENTS_SHA256:
+            return False
+        if not _regular_file(_COLLECTION_MANIFEST_SOURCE, 0o644, os.getuid()):
+            return False
+        if _sha256(_COLLECTION_MANIFEST_SOURCE) != _EXPECTED_COLLECTION_MANIFEST_SHA256:
+            return False
+        if not _regular_file(_COLLECTION_FILES_SOURCE, 0o644, os.getuid()):
+            return False
+        if _sha256(_COLLECTION_FILES_SOURCE) != _EXPECTED_COLLECTION_FILES_SHA256:
+            return False
+        manifest = json.loads(_COLLECTION_MANIFEST_SOURCE.read_text(encoding="utf-8"))
+        if manifest.get("collection_info", {}).get("namespace") != "kubernetes":
+            return False
+        if manifest.get("collection_info", {}).get("name") != "core":
+            return False
+        if manifest.get("collection_info", {}).get("version") != "6.1.0":
+            return False
+        files_payload = json.loads(_COLLECTION_FILES_SOURCE.read_text(encoding="utf-8"))
+        entries = files_payload.get("files")
+        if not isinstance(entries, list):
+            return False
+        expected: dict[str, str] = {"FILES.json": "file", "MANIFEST.json": "file"}
+        digests: dict[str, str] = {}
+        for item in entries:
+            if not isinstance(item, dict):
+                return False
+            name = item.get("name")
+            kind = item.get("ftype")
+            if name == ".":
+                if kind != "dir":
+                    return False
+                continue
+            if not isinstance(name, str) or not name:
+                return False
+            relative = PurePosixPath(name)
+            if relative.is_absolute() or relative.as_posix() != name or any(
+                part in {"", ".", ".."} for part in relative.parts
+            ):
+                return False
+            if kind not in {"file", "dir"} or name in expected:
+                return False
+            expected[name] = kind
+            if kind == "file":
+                digest = item.get("chksum_sha256")
+                if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                    return False
+                digests[name] = digest
+            elif item.get("chksum_sha256") not in (None, ""):
+                return False
+        if not _EXPECTED_COLLECTION_EXECUTED_FILES.issubset(expected):
+            return False
+        actual: dict[str, str] = {}
+        symlinks: set[str] = set()
+        for entry in _COLLECTION_ROOT.rglob("*"):
+            name = entry.relative_to(_COLLECTION_ROOT).as_posix()
+            if entry.is_symlink():
+                actual[name] = "file"
+                symlinks.add(name)
+            elif entry.is_dir():
+                actual[name] = "dir"
+            elif entry.is_file():
+                actual[name] = "file"
+            else:
+                return False
+        if actual != expected:
+            return False
+        expected_symlinks = {
+            f"plugins/action/{name}" for name in _EXPECTED_COLLECTION_ACTION_SYMLINKS
+        }
+        if symlinks != expected_symlinks:
+            return False
+        if any(
+            entry.name == "__pycache__" or entry.suffix.lower() in
+            {".pyc", ".pyo", ".so", ".dylib", ".dll", ".pyd"}
+            for entry in _COLLECTION_ROOT.rglob("*")
+        ):
+            return False
+        for name, kind in expected.items():
+            entry = _COLLECTION_ROOT / name
+            state = entry.stat(follow_symlinks=False)
+            if kind == "dir":
+                if entry.is_symlink() or not stat.S_ISDIR(state.st_mode):
+                    return False
+                if stat.S_IMODE(state.st_mode) != 0o755 or state.st_uid != os.getuid():
+                    return False
+                continue
+            if entry.is_symlink():
+                if name not in expected_symlinks or state.st_uid != os.getuid():
+                    return False
+                if os.readlink(entry) != "k8s_info.py":
+                    return False
+            elif (
+                not stat.S_ISREG(state.st_mode)
+                or state.st_uid != os.getuid()
+                or stat.S_IMODE(state.st_mode) not in {0o644, 0o755}
+            ):
+                return False
+            if name in digests and _sha256(entry) != digests[name]:
+                return False
+        return True
+    except (OSError, RuntimeError, UnicodeError, ValueError, TypeError):
+        return False
 
 
 def _inventory_contract() -> bool:
@@ -277,6 +427,10 @@ def _runtime_contract() -> bool:
         "CONTROLLER_PATH": str(_CONTROLLER),
         "ROLES_PATH": str(_ROLES_PATH),
         "LIBRARY_PATH": str(_LIBRARY_PATH),
+        "REQUIREMENTS_PATH": str(_REQUIREMENTS_SOURCE),
+        "COLLECTION_ROOT": str(_COLLECTION_ROOT),
+        "COLLECTION_MANIFEST_PATH": str(_COLLECTION_MANIFEST_SOURCE),
+        "COLLECTION_FILES_PATH": str(_COLLECTION_FILES_SOURCE),
     }
     if any(os.environ.get(prefix + key) != value for key, value in expected_paths.items()):
         return False
@@ -294,10 +448,13 @@ def _runtime_contract() -> bool:
         ("CONTROLLER_SHA256", _CONTROLLER_SHA256),
         ("ANSIBLE_CONFIG_SHA256", _ANSIBLE_CONFIG_SHA256),
         ("INVENTORY_SHA256", _INVENTORY_SHA256),
+        ("REQUIREMENTS_SHA256", _EXPECTED_REQUIREMENTS_SHA256),
+        ("COLLECTION_MANIFEST_SHA256", _EXPECTED_COLLECTION_MANIFEST_SHA256),
+        ("COLLECTION_FILES_SHA256", _EXPECTED_COLLECTION_FILES_SHA256),
     ):
         if os.environ.get(prefix + suffix) != value:
             return False
-    return not any(name in os.environ for name in _FORBIDDEN_ENV)
+    return _collection_toolchain_valid() and not any(name in os.environ for name in _FORBIDDEN_ENV)
 
 
 def _source_contract() -> bool:
@@ -334,7 +491,7 @@ def _source_contract() -> bool:
         _WRAPPER_SOURCE, "wrapper_canonical_sha256_expected"
     ):
         return False
-    return True
+    return _collection_toolchain_valid()
 
 
 def _no_vars_plugins() -> bool:
@@ -355,6 +512,8 @@ class StrategyModule(LinearStrategyModule):
         inventory = context.CLIARGS.get("inventory") or []
         if isinstance(inventory, str):
             inventory = [inventory]
+        elif isinstance(inventory, tuple):
+            inventory = list(inventory)
         selection_argv = any(
             argument in {"--start-at-task", "--step", "--tags", "--skip-tags", "-t"}
             or argument.startswith(("--start-at-task=", "--tags=", "--skip-tags=", "-t="))

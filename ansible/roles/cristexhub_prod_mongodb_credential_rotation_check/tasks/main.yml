@@ -219,6 +219,18 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_INVENTORY_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ANSIBLE_CONFIG_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_CONTROLLER_SHA256') is match('^[0-9a-f]{64}$')
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_REQUIREMENTS_SHA256') ==
+        'f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_COLLECTION_MANIFEST_SHA256') ==
+        'dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_COLLECTION_FILES_SHA256') ==
+        '9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69'
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_REPOSITORY_ROOT') == '/home/paul/projects/cristexweb'
     fail_msg: >-
       ENTRYPOINT_GUARD: use only the canonical check-only MongoDB PROD
@@ -683,6 +695,49 @@
   changed_when: false
   no_log: true
 
+- name: Query exact metadata-only shared MongoDB pod identity
+  cristexhub_prod_mongodb_credential_rotation_metadata:
+    kubeconfig: "{{ cristexhub_prod_mongodb_credential_rotation_check_kubeconfig }}"
+    api_path: /api/v1/namespaces/shared-services/pods/shared-mongodb-0
+    resource_kind: Pod
+    resource_api_version: v1
+    expected_name: shared-mongodb-0
+    expected_namespace: shared-services
+    include_spec: false
+  register: cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result
+  changed_when: false
+  no_log: true
+
+- name: Require exact metadata-only shared MongoDB pod identity
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.name == 'shared-mongodb-0'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.namespace == 'shared-services'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.uid is match('^[0-9a-fA-F-]+$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.resourceVersion is match('^[0-9]+$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.deletionTimestamp is none
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.labels is mapping
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.labels | length > 0
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.ownerReferences | length == 1
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.ownerReferences[0].apiVersion == 'apps/v1'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.ownerReferences[0].kind == 'StatefulSet'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.ownerReferences[0].name == 'shared-mongodb'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.ownerReferences[0].controller | bool
+    fail_msg: Refusing NetworkPolicy overlap evaluation without the exact live shared-mongodb-0 metadata identity.
+  changed_when: false
+  no_log: true
+
+- name: Bind exact live shared MongoDB pod labels and identity
+  ansible.builtin.set_fact:
+    cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_labels: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.labels }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_uid: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.uid }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_resource_version: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_result.metadata.resourceVersion }}
+  changed_when: false
+  no_log: true
+
 - name: Query exact MongoDB NetworkPolicy preflight objects
   kubernetes.core.k8s_info:
     api_version: networking.k8s.io/v1
@@ -710,10 +765,11 @@
 - name: Evaluate every MongoDB NetworkPolicy selector semantically
   cristexhub_prod_mongodb_networkpolicy_selector:
     policies: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_all_networkpolicies.resources }}"
-    pod_labels:
-      app: shared-mongodb-svc
-      app.kubernetes.io/part-of: shared-databases
-      cristex.io/component: mongodb
+    pod_labels: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_labels }}"
+    pod_name: shared-mongodb-0
+    pod_namespace: shared-services
+    pod_uid: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_uid }}"
+    pod_resource_version: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_resource_version }}"
     expected_namespace: "{{ cristexhub_prod_mongodb_credential_rotation_check_engine_namespace }}"
   register: cristexhub_prod_mongodb_credential_rotation_check_internal_selector_evaluation
   changed_when: false
@@ -774,6 +830,16 @@
         map(attribute='spec') | list)
       - >-
         cristexhub_prod_mongodb_credential_rotation_check_internal_selector_evaluation.selector_status == 'valid'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_selector_evaluation.pod_name == 'shared-mongodb-0'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_selector_evaluation.pod_namespace == 'shared-services'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_selector_evaluation.pod_uid ==
+        cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_uid
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_selector_evaluation.pod_resource_version ==
+        cristexhub_prod_mongodb_credential_rotation_check_internal_mongodb_pod_resource_version
       - >-
         cristexhub_prod_mongodb_credential_rotation_check_internal_selector_evaluation.inventory_policy_identities |
         length == cristexhub_prod_mongodb_credential_rotation_check_internal_all_networkpolicies.resources | length
