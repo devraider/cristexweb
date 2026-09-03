@@ -76,8 +76,11 @@ metadata/status. No direct Kubernetes Secret writer is permitted.
    target types/key closure, source and target ownership, non-terminating UIDs,
    source observations, target materialization versions, healthy Operator,
    healthy backend/Celery Deployments, private direct-server Argo `Synced` /
-   `Healthy`, and exact MongoDB NetworkPolicy ownership. Never read a Secret
-   body to identify the predecessor.
+   `Healthy`, and the exact MongoDB NetworkPolicy preflight: both
+   source-pinned policies must exist in `shared-services`, have the exact
+   MongoDB pod selector/spec/labels, be non-terminating, and no foreign policy
+   may overlap that selector. Never read a Secret body to identify the
+   predecessor.
 2. **Recovery gate.** Before any source write, obtain a fresh encrypted,
    immutable MongoDB backup/readback and isolated restore rehearsal covering the
    relevant PROD data. Preserve protected predecessor recovery custody and

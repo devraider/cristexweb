@@ -33,6 +33,19 @@
       - cristexhub_prod_mongodb_credential_rotation_check_engine_source_filename == 'shared-mongodb-infisical-secrets.yaml'
       - cristexhub_prod_mongodb_credential_rotation_check_runtime_source_directory == 'ansible/files/components/infisical-cristexhub-prod-runtime/source'
       - cristexhub_prod_mongodb_credential_rotation_check_runtime_source_filename == 'cristexhub-prod-runtime-static-secret.yaml'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_engine_source_manifest ==
+        'ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_runtime_source_manifest ==
+        'ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_networkpolicy_source_manifests ==
+        ['ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml',
+        'ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_networkpolicy_names ==
+        ['shared-mongodb-networkpolicy-default-deny', 'shared-mongodb-networkpolicy-allow']
       - cristexhub_prod_mongodb_credential_rotation_check_engine_source_keys == ['MONGODB_CRISTEXHUB_PROD_USERNAME', 'MONGODB_CRISTEXHUB_PROD_PASSWORD']
       - cristexhub_prod_mongodb_credential_rotation_check_runtime_source_key == 'MONGODB_URL'
       - cristexhub_prod_mongodb_credential_rotation_check_engine_target_name == 'shared-mongodb-cristexhub-prod'
@@ -204,6 +217,10 @@
     - {path: 'ansible/playbooks/check_cristexhub_prod_mongodb_credential_rotation.yml', mode: '0644'}
     - {path: 'ansible/files/policies/cristexhub-prod-mongodb-credential-rotation.yml', mode: '0644'}
     - {path: 'ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py', mode: '0755'}
+    - {path: 'ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml', mode: '0644'}
+    - {path: 'ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml', mode: '0644'}
+    - {path: 'ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml', mode: '0644'}
+    - {path: 'ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml', mode: '0644'}
   register: cristexhub_prod_mongodb_credential_rotation_check_internal_source_states
   delegate_to: localhost
   become: false
@@ -230,7 +247,15 @@
         (item.item.path == 'ansible/files/policies/cristexhub-prod-mongodb-credential-rotation.yml' and
         item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_POLICY_SHA256')) or
         (item.item.path == 'ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py' and
-        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_METADATA_MODULE_SHA256'))
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_METADATA_MODULE_SHA256')) or
+        (item.item.path == 'ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ENGINE_SOURCE_MANIFEST_SHA256')) or
+        (item.item.path == 'ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_RUNTIME_SOURCE_MANIFEST_SHA256')) or
+        (item.item.path == 'ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_NETWORKPOLICY_DEFAULT_DENY_SHA256')) or
+        (item.item.path == 'ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_NETWORKPOLICY_ALLOW_SHA256'))
     fail_msg: Refusing source closure drift, symlinks, or mode/owner drift.
   loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_source_states.results }}"
   loop_control:
@@ -255,14 +280,35 @@
   changed_when: false
   no_log: true
 
+- name: Load exact source-only MongoDB NetworkPolicy manifests
+  ansible.builtin.set_fact:
+    cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests: >-
+      {{ (cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests | default([])) +
+      [lookup('ansible.builtin.file', cristexhub_prod_mongodb_credential_rotation_check_repository_root ~ '/' ~ item) | from_yaml] }}
+  loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_networkpolicy_source_manifests }}"
+  changed_when: false
+  no_log: true
+
 - name: Bind exact value-free source targets
   ansible.builtin.set_fact:
     cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target: >-
       {{ cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.targets |
-      selectattr('name', 'equalto', cristexhub_prod_mongodb_credential_rotation_check_engine_target_name) | list | first }}
+      selectattr('name', 'equalto', cristexhub_prod_mongodb_credential_rotation_check_engine_target_name) | list | first | default({}) }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_engine_admin_target: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.targets |
+      selectattr('name', 'equalto', 'shared-mongodb-auth') | list | first | default({}) }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_engine_tls_target: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.targets |
+      selectattr('name', 'equalto', 'shared-mongodb-tls') | list | first | default({}) }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_engine_dev_target: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.targets |
+      selectattr('name', 'equalto', 'shared-mongodb-cristexhub-dev') | list | first | default({}) }}
     cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target: >-
       {{ cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.targets |
-      selectattr('name', 'equalto', cristexhub_prod_mongodb_credential_rotation_check_runtime_target_name) | list | first }}
+      selectattr('name', 'equalto', cristexhub_prod_mongodb_credential_rotation_check_runtime_target_name) | list | first | default({}) }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_pull_target: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.targets |
+      selectattr('name', 'equalto', 'cristexhub-prod-ghcr-pull') | list | first | default({}) }}
   changed_when: false
   no_log: true
 
@@ -297,6 +343,7 @@
       - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.sources[0].environmentSlug == 'prod'
       - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.sources[0].secretPath == '/cristexhub/prod/runtime'
       - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.sources[0].recursive == false
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.sources[0].tagSlugs == []
       - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.kind == 'Secret'
       - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.namespace == 'cristexhub-prod'
       - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.secretType == 'Opaque'
@@ -307,6 +354,278 @@
         'OAUTH2_PROXY_COOKIE_SECRET', 'OIDC_CLIENT_SECRET', 'PRIVATE_CA_BUNDLE', 'RABBITMQ_URL',
         'REDIS_PASSWORD', 'REDIS_URL']
     fail_msg: Refusing a source-path, target, or key-closure mismatch.
+  changed_when: false
+  no_log: true
+
+- name: Require exact source manifest mappings and template references
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.keys() | list | sort == ['apiVersion', 'kind', 'metadata', 'spec']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.keys() | list | sort == ['apiVersion', 'kind', 'metadata', 'spec']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.metadata.keys() | list | sort == ['labels', 'name', 'namespace']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.metadata.keys() | list | sort == ['labels', 'name', 'namespace']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.metadata.labels == {
+        'app.kubernetes.io/part-of': 'cristex-platform',
+        'app.kubernetes.io/managed-by': 'ansible',
+        'cristex.io/component': 'infisical-database-secrets'}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.metadata.labels == {
+        'app.kubernetes.io/part-of': 'cristex-platform',
+        'app.kubernetes.io/managed-by': 'ansible',
+        'cristex.io/component': 'infisical-cristexhub-prod-runtime'}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.keys() |
+        list | sort == ['infisicalAuthRef', 'sources', 'syncOptions', 'targets']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.keys() |
+        list | sort == ['infisicalAuthRef', 'sources', 'syncOptions', 'targets']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.infisicalAuthRef ==
+        {'name': 'shared-mongodb-infisical-auth', 'namespace': 'shared-services'}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.infisicalAuthRef ==
+        {'name': 'cristexhub-prod-infisical-auth', 'namespace': 'cristexhub-prod'}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.syncOptions ==
+        {'refreshInterval': '1h', 'instantUpdates': false}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.syncOptions ==
+        {'refreshInterval': '1h', 'instantUpdates': false}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.targets |
+        map(attribute='name') | list | sort == ['shared-mongodb-auth',
+        'shared-mongodb-cristexhub-dev', 'shared-mongodb-cristexhub-prod', 'shared-mongodb-tls']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.targets |
+        map(attribute='name') | list | sort == ['cristexhub-prod-ghcr-pull', 'cristexhub-prod-runtime']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.keys() |
+        list | sort == ['creationPolicy', 'kind', 'metadata', 'name', 'namespace',
+        'secretType', 'template']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_admin_target.keys() |
+        list | sort == ['creationPolicy', 'kind', 'metadata', 'name', 'namespace',
+        'secretType', 'template']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_tls_target.keys() |
+        list | sort == ['creationPolicy', 'kind', 'metadata', 'name', 'namespace',
+        'secretType', 'template']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_dev_target.keys() |
+        list | sort == ['creationPolicy', 'kind', 'metadata', 'name', 'namespace',
+        'secretType', 'template']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.keys() |
+        list | sort == ['creationPolicy', 'kind', 'metadata', 'name', 'namespace',
+        'secretType', 'template']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_pull_target.keys() |
+        list | sort == ['creationPolicy', 'kind', 'metadata', 'name', 'namespace',
+        'secretType', 'template']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.name == 'shared-mongodb-cristexhub-prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.namespace == 'shared-services'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.kind == 'Secret'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.secretType == 'Opaque'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.creationPolicy == 'Orphan'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.metadata == {
+        'annotations': {},
+        'labels': {
+          'app.kubernetes.io/managed-by': 'infisical',
+          'app.kubernetes.io/part-of': 'shared-databases',
+          'cristex.io/value-owner': 'infisical-cloud'}}
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.template.keys() | list | sort == ['data', 'engineVersion']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.template.engineVersion == 'v1'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.template.data.keys() | list | sort == ['password', 'username']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.template.data.username |
+        string is match('^\\{\\{ \\.MONGODB_CRISTEXHUB_PROD_USERNAME\\.Value \\}\\}$')
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.template.data.password |
+        string is match('^\\{\\{ \\.MONGODB_CRISTEXHUB_PROD_PASSWORD\\.Value \\}\\}$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_admin_target.template.data.keys() | list | sort == ['password', 'username']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_admin_target.template.data.username |
+        string is match('^\\{\\{ \\.MONGODB_ADMIN_USERNAME\\.Value \\}\\}$')
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_admin_target.template.data.password |
+        string is match('^\\{\\{ \\.MONGODB_ADMIN_PASSWORD\\.Value \\}\\}$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_tls_target.template.data.keys() | list | sort == ['ca.crt', 'tls.pem']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_tls_target.template.data['ca.crt'] |
+        string is match('^\\{\\{ \\.MONGODB_TLS_CA_CRT\\.Value \\}\\}$')
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_tls_target.template.data['tls.pem'] |
+        string is match('^\\{\\{ \\.MONGODB_TLS_PEM\\.Value \\}\\}$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_dev_target.template.data.keys() | list | sort == ['password', 'username']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_dev_target.template.data.username |
+        string is match('^\\{\\{ \\.MONGODB_CRISTEXHUB_DEV_USERNAME\\.Value \\}\\}$')
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_dev_target.template.data.password |
+        string is match('^\\{\\{ \\.MONGODB_CRISTEXHUB_DEV_PASSWORD\\.Value \\}\\}$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.name == 'cristexhub-prod-runtime'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.namespace == 'cristexhub-prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.kind == 'Secret'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.secretType == 'Opaque'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.creationPolicy == 'Orphan'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.metadata == {
+        'annotations': {},
+        'labels': {
+          'app.kubernetes.io/managed-by': 'infisical',
+          'app.kubernetes.io/part-of': 'cristexhub',
+          'cristex.io/value-owner': 'infisical-cloud'}}
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.keys() | list | sort == ['data', 'engineVersion']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.engineVersion == 'v1'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.keys() |
+        list | sort == ['BROWSERLESS_TOKEN', 'CODE_RUNNER_AUTH_TOKEN', 'FERNET_KEY',
+        'MONGODB_URL', 'OAUTH2_PROXY_COOKIE_SECRET', 'OIDC_CLIENT_SECRET',
+        'PRIVATE_CA_BUNDLE', 'RABBITMQ_URL', 'REDIS_PASSWORD', 'REDIS_URL']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.MONGODB_URL is match('^\\{\\{ \\.MONGODB_URL\\.Value \\}\\}$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.RABBITMQ_URL is match('^\\{\\{ \\.RABBITMQ_URL\\.Value \\}\\}$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.REDIS_URL is match('^\\{\\{ \\.REDIS_URL\\.Value \\}\\}$')
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.REDIS_PASSWORD |
+        string is match('^\\{\\{ \\.REDIS_PASSWORD\\.Value \\}\\}$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.FERNET_KEY is match('^\\{\\{ \\.FERNET_KEY\\.Value \\}\\}$')
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.OIDC_CLIENT_SECRET |
+        string is match('^\\{\\{ \\.OIDC_CLIENT_SECRET\\.Value \\}\\}$')
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.OAUTH2_PROXY_COOKIE_SECRET |
+        string is match('^\\{\\{ \\.OAUTH2_PROXY_COOKIE_SECRET\\.Value \\}\\}$')
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.PRIVATE_CA_BUNDLE |
+        string is match('^\\{\\{ \\.PRIVATE_CA_BUNDLE\\.Value \\}\\}$')
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.CODE_RUNNER_AUTH_TOKEN |
+        string is match('^\\{\\{ \\.CODE_RUNNER_AUTH_TOKEN\\.Value \\}\\}$')
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.BROWSERLESS_TOKEN |
+        string is match('^\\{\\{ \\.BROWSERLESS_TOKEN\\.Value \\}\\}$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_pull_target.name == 'cristexhub-prod-ghcr-pull'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_pull_target.namespace == 'cristexhub-prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_pull_target.secretType == 'kubernetes.io/dockerconfigjson'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_pull_target.template.keys() | list | sort == ['data', 'engineVersion']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_pull_target.template.engineVersion == 'v1'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_pull_target.template.data.keys() | list | sort == ['.dockerconfigjson']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_pull_target.template.data['.dockerconfigjson'] |
+        string is match('^\\{\\{ \\.DOCKER_CONFIG_JSON\\.Value \\}\\}$')
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_pull_target.creationPolicy == 'Orphan'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_pull_target.metadata == {
+        'annotations': {},
+        'labels': {
+          'app.kubernetes.io/managed-by': 'infisical',
+          'app.kubernetes.io/part-of': 'cristexhub',
+          'cristex.io/value-owner': 'infisical-cloud'}}
+    fail_msg: Refusing source manifests with extra objects, fields, or incorrect Infisical template references.
+  changed_when: false
+  no_log: true
+
+- name: Query exact MongoDB NetworkPolicy preflight objects
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    namespace: "{{ cristexhub_prod_mongodb_credential_rotation_check_engine_namespace }}"
+    name: "{{ item }}"
+    kubeconfig: "{{ cristexhub_prod_mongodb_credential_rotation_check_kubeconfig }}"
+  loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_networkpolicy_names }}"
+  loop_control:
+    label: "NetworkPolicy/{{ cristexhub_prod_mongodb_credential_rotation_check_engine_namespace }}/{{ item }}"
+  register: cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_results
+  changed_when: false
+  no_log: true
+
+- name: Query every shared MongoDB NetworkPolicy selector for foreign overlap
+  kubernetes.core.k8s_info:
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    namespace: "{{ cristexhub_prod_mongodb_credential_rotation_check_engine_namespace }}"
+    kubeconfig: "{{ cristexhub_prod_mongodb_credential_rotation_check_kubeconfig }}"
+  register: cristexhub_prod_mongodb_credential_rotation_check_internal_all_networkpolicies
+  changed_when: false
+  no_log: true
+
+- name: Bind policies selecting the exact MongoDB pod set
+  ansible.builtin.set_fact:
+    cristexhub_prod_mongodb_credential_rotation_check_internal_selected_networkpolicies: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_all_networkpolicies.resources |
+      selectattr('spec.podSelector.matchLabels', 'equalto', {
+        'app': 'shared-mongodb-svc',
+        'app.kubernetes.io/part-of': 'shared-databases',
+        'cristex.io/component': 'mongodb'}) | list }}
+  changed_when: false
+  no_log: true
+
+- name: Require the exact MongoDB NetworkPolicy ownership and selector gate
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests | length == 2
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests |
+        map(attribute='apiVersion') | list == ['networking.k8s.io/v1', 'networking.k8s.io/v1']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests | map(attribute='kind') | list == ['NetworkPolicy', 'NetworkPolicy']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests |
+        map(attribute='metadata.namespace') | list == ['shared-services', 'shared-services']
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests |
+        map(attribute='metadata.name') | list ==
+        cristexhub_prod_mongodb_credential_rotation_check_networkpolicy_names
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests | map(attribute='metadata.labels') | list | unique | length == 1
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests[0].metadata.labels == {
+        'app.kubernetes.io/managed-by': 'ansible',
+        'app.kubernetes.io/part-of': 'shared-databases',
+        'cristex.io/bootstrap-writer': 'ansible',
+        'cristex.io/desired-owner': 'argocd',
+        'cristex.io/component': 'shared-mongodb-networkpolicy'}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests[0].spec.podSelector.matchLabels == {
+        'app': 'shared-mongodb-svc',
+        'app.kubernetes.io/part-of': 'shared-databases',
+        'cristex.io/component': 'mongodb'}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests[1].spec.podSelector.matchLabels ==
+        cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests[0].spec.podSelector.matchLabels
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_results.results | length == 2
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_results.results | map(attribute='resources') | map('length') | list == [1, 1]
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_results.results |
+        map(attribute='resources.0.metadata.name') | list) ==
+        cristexhub_prod_mongodb_credential_rotation_check_networkpolicy_names
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_results.results |
+        map(attribute='resources.0.metadata.namespace') | list) == ['shared-services', 'shared-services']
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_results.results |
+        selectattr('resources.0.metadata.deletionTimestamp', 'defined') | list | length) == 0
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_results.results |
+        map(attribute='resources.0.metadata.labels') | list) ==
+        (cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests |
+        map(attribute='metadata.labels') | list)
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_results.results |
+        map(attribute='resources.0.spec') | list) ==
+        (cristexhub_prod_mongodb_credential_rotation_check_internal_networkpolicy_manifests |
+        map(attribute='spec') | list)
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_selected_networkpolicies |
+        map(attribute='metadata.name') | list | sort ==
+        cristexhub_prod_mongodb_credential_rotation_check_networkpolicy_names | sort
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_selected_networkpolicies |
+        map(attribute='metadata.namespace') | list | unique == ['shared-services']
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_internal_selected_networkpolicies |
+        selectattr('metadata.deletionTimestamp', 'defined') | list | length) == 0
+    fail_msg: Refusing missing, overlapping, unowned, terminating, or spec-drifted shared MongoDB NetworkPolicies.
   changed_when: false
   no_log: true
 
@@ -349,6 +668,7 @@
       - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].namespace == item.namespace
       - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].uid | default('') | length > 0
       - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].resourceVersion | default('') | length > 0
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].deletionTimestamp is none
       - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].labels == item.labels
       - >-
         (not item.require_version_annotation) or

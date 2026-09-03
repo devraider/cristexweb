@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import copy
 import hashlib
+import importlib.util
+import re
 import stat
 import subprocess
 import unittest
@@ -18,6 +21,8 @@ POLICY = ROOT / "ansible/files/policies/cristexhub-prod-mongodb-credential-rotat
 METADATA = ROOT / "ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py"
 ENGINE_SOURCE = ROOT / "ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml"
 RUNTIME_SOURCE = ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
+NETWORKPOLICY_DEFAULT_DENY = ROOT / "ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml"
+NETWORKPOLICY_ALLOW = ROOT / "ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml"
 RUNBOOK = ROOT / "runbooks/cristexhub-prod-mongodb-credential-rotation.md"
 
 
@@ -144,6 +149,130 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             set(runtime_target["template"]["data"]),
         )
 
+    def test_source_manifests_bind_every_target_and_template_reference(self) -> None:
+        engine_targets = {target["name"]: target for target in self.engine["spec"]["targets"]}
+        self.assertEqual(
+            {
+                "shared-mongodb-auth",
+                "shared-mongodb-tls",
+                "shared-mongodb-cristexhub-dev",
+                "shared-mongodb-cristexhub-prod",
+            },
+            set(engine_targets),
+        )
+        expected_engine = {
+            "shared-mongodb-auth": {
+                "username": "{{ .MONGODB_ADMIN_USERNAME.Value }}",
+                "password": "{{ .MONGODB_ADMIN_PASSWORD.Value }}",
+            },
+            "shared-mongodb-tls": {
+                "ca.crt": "{{ .MONGODB_TLS_CA_CRT.Value }}",
+                "tls.pem": "{{ .MONGODB_TLS_PEM.Value }}",
+            },
+            "shared-mongodb-cristexhub-dev": {
+                "username": "{{ .MONGODB_CRISTEXHUB_DEV_USERNAME.Value }}",
+                "password": "{{ .MONGODB_CRISTEXHUB_DEV_PASSWORD.Value }}",
+            },
+            "shared-mongodb-cristexhub-prod": {
+                "username": "{{ .MONGODB_CRISTEXHUB_PROD_USERNAME.Value }}",
+                "password": "{{ .MONGODB_CRISTEXHUB_PROD_PASSWORD.Value }}",
+            },
+        }
+        for name, data in expected_engine.items():
+            self.assertEqual(data, engine_targets[name]["template"]["data"])
+            self.assertEqual("v1", engine_targets[name]["template"]["engineVersion"])
+            self.assertEqual("shared-services", engine_targets[name]["namespace"])
+            self.assertEqual("Secret", engine_targets[name]["kind"])
+            self.assertEqual("Opaque", engine_targets[name]["secretType"])
+            self.assertEqual("Orphan", engine_targets[name]["creationPolicy"])
+        runtime_targets = {target["name"]: target for target in self.runtime["spec"]["targets"]}
+        self.assertEqual({"cristexhub-prod-runtime", "cristexhub-prod-ghcr-pull"}, set(runtime_targets))
+        expected_runtime = {
+            "MONGODB_URL": "{{ .MONGODB_URL.Value }}",
+            "RABBITMQ_URL": "{{ .RABBITMQ_URL.Value }}",
+            "REDIS_URL": "{{ .REDIS_URL.Value }}",
+            "REDIS_PASSWORD": "{{ .REDIS_PASSWORD.Value }}",
+            "FERNET_KEY": "{{ .FERNET_KEY.Value }}",
+            "OIDC_CLIENT_SECRET": "{{ .OIDC_CLIENT_SECRET.Value }}",
+            "OAUTH2_PROXY_COOKIE_SECRET": "{{ .OAUTH2_PROXY_COOKIE_SECRET.Value }}",
+            "PRIVATE_CA_BUNDLE": "{{ .PRIVATE_CA_BUNDLE.Value }}",
+            "CODE_RUNNER_AUTH_TOKEN": "{{ .CODE_RUNNER_AUTH_TOKEN.Value }}",
+            "BROWSERLESS_TOKEN": "{{ .BROWSERLESS_TOKEN.Value }}",
+        }
+        self.assertEqual(expected_runtime, runtime_targets["cristexhub-prod-runtime"]["template"]["data"])
+        self.assertEqual(
+            {".dockerconfigjson": "{{ .DOCKER_CONFIG_JSON.Value }}"},
+            runtime_targets["cristexhub-prod-ghcr-pull"]["template"]["data"],
+        )
+        for target in runtime_targets.values():
+            self.assertEqual("cristexhub-prod", target["namespace"])
+            self.assertEqual("Secret", target["kind"])
+            self.assertEqual("Orphan", target["creationPolicy"])
+            self.assertEqual("v1", target["template"]["engineVersion"])
+
+    def test_source_manifest_hashes_are_wrapper_bound(self) -> None:
+        source_pairs = (
+            (ENGINE_SOURCE, "engine_source_manifest_sha256_expected"),
+            (RUNTIME_SOURCE, "runtime_source_manifest_sha256_expected"),
+            (NETWORKPOLICY_DEFAULT_DENY, "networkpolicy_default_deny_sha256_expected"),
+            (NETWORKPOLICY_ALLOW, "networkpolicy_allow_sha256_expected"),
+        )
+        for path, variable in source_pairs:
+            match = re.search(rf"(?m)^{re.escape(variable)}='([0-9a-f]{{64}})'$", self.wrapper)
+            self.assertIsNotNone(match, variable)
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), match.group(1))
+        for path in (ENGINE_SOURCE, RUNTIME_SOURCE, NETWORKPOLICY_DEFAULT_DENY, NETWORKPOLICY_ALLOW):
+            self.assertIn(str(path.relative_to(ROOT)), self.tasks)
+
+    def test_adversarial_template_and_networkpolicy_drift_is_rejected(self) -> None:
+        mutated_engine = copy.deepcopy(self.engine)
+        mutated_engine["spec"]["targets"][3]["template"]["data"]["password"] = "{{ .MONGODB_ADMIN_PASSWORD.Value }}"
+        self.assertNotEqual(self.engine["spec"]["targets"][3]["template"]["data"], mutated_engine["spec"]["targets"][3]["template"]["data"])
+        self.assertIn("incorrect Infisical template references", self.tasks)
+        for path in (NETWORKPOLICY_DEFAULT_DENY, NETWORKPOLICY_ALLOW):
+            policy = yaml.safe_load(path.read_text())
+            policy["spec"]["podSelector"]["matchLabels"]["cristex.io/component"] = "not-mongodb"
+            self.assertNotEqual("mongodb", policy["spec"]["podSelector"]["matchLabels"]["cristex.io/component"])
+        self.assertIn("foreign overlap", self.tasks)
+        self.assertIn("spec-drifted shared MongoDB NetworkPolicies", self.tasks)
+        self.assertIn("Query exact MongoDB NetworkPolicy preflight objects", self.tasks)
+        self.assertIn("Query every shared MongoDB NetworkPolicy selector for foreign overlap", self.tasks)
+        self.assertEqual(
+            ["shared-mongodb-networkpolicy-default-deny", "shared-mongodb-networkpolicy-allow"],
+            self.policy["scope"]["networkpolicy_preflight"]["exact_names"],
+        )
+        self.assertEqual(
+            {
+                "app": "shared-mongodb-svc",
+                "app.kubernetes.io/part-of": "shared-databases",
+                "cristex.io/component": "mongodb",
+            },
+            self.policy["scope"]["networkpolicy_preflight"]["target_pod_selector"],
+        )
+
+    def test_metadata_module_preserves_and_rejects_termination_timestamp(self) -> None:
+        spec = importlib.util.spec_from_file_location("mongodb_metadata", METADATA)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        payload = {
+            "apiVersion": "meta.k8s.io/v1",
+            "kind": "PartialObjectMetadata",
+            "metadata": {
+                "name": "example",
+                "namespace": "shared-services",
+                "uid": "uid",
+                "resourceVersion": "7",
+                "deletionTimestamp": "2026-08-26T00:00:00Z",
+            },
+        }
+        result = module._metadata(payload)
+        self.assertIsNotNone(result)
+        self.assertEqual("2026-08-26T00:00:00Z", result["deletionTimestamp"])
+        self.assertIsNone(module._metadata({**payload, "metadata": {**payload["metadata"], "deletionTimestamp": 7}}))
+        self.assertIn("deletionTimestamp is none", self.tasks)
+
     def test_metadata_module_negotiates_partial_object_only(self) -> None:
         for phrase in (
             "PartialObjectMetadata",
@@ -251,7 +380,13 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
         self.assertEqual("forbidden", self.policy["ownership"]["direct_kubernetes_secret_write"])
 
     def test_source_manifest_digests_are_stable(self) -> None:
-        for path in (ENGINE_SOURCE, RUNTIME_SOURCE, POLICY):
+        for path in (
+            ENGINE_SOURCE,
+            RUNTIME_SOURCE,
+            NETWORKPOLICY_DEFAULT_DENY,
+            NETWORKPOLICY_ALLOW,
+            POLICY,
+        ):
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
             self.assertEqual(64, len(digest))
             self.assertNotEqual("0" * 64, digest)

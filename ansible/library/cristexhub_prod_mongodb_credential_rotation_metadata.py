@@ -47,7 +47,10 @@ def _metadata(payload: object) -> dict[str, object] | None:
         return None
     labels = metadata.get("labels", {})
     annotations = metadata.get("annotations", {})
+    deletion_timestamp = metadata.get("deletionTimestamp")
     if not isinstance(labels, dict) or not isinstance(annotations, dict):
+        return None
+    if deletion_timestamp is not None and not isinstance(deletion_timestamp, str):
         return None
     if any(not isinstance(key, str) or not key for key in labels):
         return None
@@ -64,6 +67,7 @@ def _metadata(payload: object) -> dict[str, object] | None:
         "namespace": metadata["namespace"],
         "uid": metadata["uid"],
         "resourceVersion": metadata["resourceVersion"],
+        "deletionTimestamp": deletion_timestamp,
         "labels": dict(labels),
         "annotations": dict(annotations),
     }
