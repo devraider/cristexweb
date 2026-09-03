@@ -90,6 +90,18 @@ configuration. The age private identity exists only in Infisical and is fetched 
 for an explicitly approved restore into trapped private temporary storage. Neither
 value is committed, passed in argv/environment, written to evidence, or logged.
 
+The PostgreSQL Keycloak manifest is schema `1` with an exact
+`source_closure_sha256` field. The current closure is
+`224c26ed0e1f4099212cf81401cee441c26ff0e78a8face8a9d406aa04774ed0`; it is computed
+from the restore executable (with its self-pin canonicalized), the service unit, and
+the timer unit. The backup writes the digest as a JSON value, not a shell literal.
+The restore requires the exact pinned digest, archive checksum, archive size, and
+field set. Archives made by the previous source, including manifests without the
+closure field or with the literal `$source_closure_sha256`, are rejected with the
+sanitized `restore_status=failed stage=manifest_contract` receipt and must not be
+used as acceptance evidence. A fresh backup and restore are required after this
+source-closure correction before any timer-enable gate can be accepted.
+
 ## Isolated restore acceptance
 
 A successful upload is not recovery evidence. Before timer activation, the rehearsal

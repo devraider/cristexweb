@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import os
 import re
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -89,6 +95,98 @@ class PostgreSQLKeycloakBackupContractTests(unittest.TestCase):
             text,
             r"Verify the sole configured rclone remote[\s\S]*?check_mode: false[\s\S]*?no_log: true",
         )
+
+    def test_source_closure_is_expanded_and_restore_requires_exact_digest(self) -> None:
+        closure_paths = (
+            ROOT / "ansible/files/backup/restore-postgresql-keycloak-rehearsal",
+            ROOT / "ansible/files/backup/cristexweb-postgresql-keycloak-backup.service",
+            ROOT / "ansible/files/backup/cristexweb-postgresql-keycloak-backup.timer",
+        )
+        digest = hashlib.sha256()
+        for path in closure_paths:
+            content = path.read_bytes()
+            if path.name == "restore-postgresql-keycloak-rehearsal":
+                content, count = re.subn(
+                    rb"(?m)^source_closure_sha256=[0-9a-f]{64}$",
+                    b"source_closure_sha256=" + b"0" * 64,
+                    content,
+                )
+                self.assertEqual(1, count)
+            digest.update(str(path.relative_to(ROOT)).encode())
+            digest.update(b"\0")
+            digest.update(hashlib.sha256(content).hexdigest().encode())
+            digest.update(b"\n")
+        closure = digest.hexdigest()
+        self.assertIn(f"source_closure_sha256={closure}", self.script)
+        self.assertIn(f"source_closure_sha256={closure}", self.restore)
+        self.assertIn(f"source_closure_sha256: {closure}", PLAYBOOK.read_text())
+        self.assertIn('"source_closure_sha256":"%s"', self.script)
+        self.assertNotIn('"source_closure_sha256":"$source_closure_sha256"', self.script)
+        self.assertIn("backup_status=failed stage=source_closure_contract", self.script)
+        self.assertIn("'source_closure_sha256'", self.restore)
+        self.assertIn('EXPECTED_SOURCE_CLOSURE_SHA256="$source_closure_sha256"', self.restore)
+        self.assertIn("re.fullmatch(r'[0-9a-f]{64}', x['source_closure_sha256'])", self.restore)
+        self.assertIn("x['source_closure_sha256']==os.environ['EXPECTED_SOURCE_CLOSURE_SHA256']", self.restore)
+        self.assertIn("restore_status=failed stage=manifest_contract", self.restore)
+        self.assertIn(
+            "restore_status=success source_timestamp=%s source_closure_sha256=%s",
+            self.restore,
+        )
+
+    def test_historical_manifests_fail_closed_before_decryption(self) -> None:
+        validator = re.search(
+            r"if ! FILE=.*? /usr/bin/python3 - <<'PY'\n(?P<body>.*?)\nPY\nthen",
+            self.restore,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(validator)
+        source_closure = re.search(
+            r"(?m)^source_closure_sha256=([0-9a-f]{64})$", self.restore
+        )
+        self.assertIsNotNone(source_closure)
+        expected = source_closure.group(1)
+        base = {
+            "schema": 1,
+            "service": "postgresql",
+            "database": "keycloak",
+            "created_at_utc": "20260826T031500Z",
+            "archive": "keycloak.dump.gz.age",
+            "archive_bytes": 1,
+            "archive_sha256": "a" * 64,
+            "encryption": "age-x25519",
+            "source_cluster": "shared-postgresql",
+            "source_closure_sha256": expected,
+        }
+        cases = []
+        missing = dict(base)
+        del missing["source_closure_sha256"]
+        cases.append(missing)
+        literal = dict(base)
+        literal["source_closure_sha256"] = "$source_closure_sha256"
+        cases.append(literal)
+        stale = dict(base)
+        stale["source_closure_sha256"] = "0" * 64
+        cases.append(stale)
+        for manifest in cases:
+            with tempfile.TemporaryDirectory() as directory:
+                path = os.path.join(directory, "manifest.json")
+                with open(path, "w", encoding="utf-8") as handle:
+                    json.dump(manifest, handle)
+                result = subprocess.run(
+                    [sys.executable, "-c", validator.group("body")],
+                    env={
+                        "FILE": path,
+                        "TIMESTAMP": "20260826T031500Z",
+                        "EXPECTED_SHA": "a" * 64,
+                        "ARCHIVE_BYTES": "1",
+                        "EXPECTED_SOURCE_CLOSURE_SHA256": expected,
+                    },
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertNotEqual(result.returncode, 0)
+        self.assertIn("restore_status=failed stage=manifest_contract", self.restore)
 
     def test_restore_is_exact_isolated_and_uid_cleaned(self) -> None:
         for value in (

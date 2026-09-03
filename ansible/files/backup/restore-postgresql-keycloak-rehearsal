@@ -12,6 +12,11 @@ export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null
 project_id=619656da-14f3-4872-857b-be103cdc5326
 infisical_path=/shared-services/backup-recovery
 remote_root=drive:cristexweb-recovery/postgresql/keycloak
+source_closure_sha256=224c26ed0e1f4099212cf81401cee441c26ff0e78a8face8a9d406aa04774ed0
+printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
+  printf '%s\n' 'restore_status=failed stage=source_closure_contract'
+  exit 1
+}
 rclone_config=/home/paul/.config/rclone/rclone.conf
 namespace=shared-services
 image='docker.io/library/postgres:17.10@sha256:dbbeb22a65db2503050cdbbe5e78f017478f10a1002a226463f049dbb017e99b'
@@ -46,14 +51,24 @@ for leaf in keycloak.dump.gz.age keycloak.dump.gz.age.sha256 manifest.json; do
   /usr/local/bin/rclone --config "$rclone_config" copyto "$remote/$leaf" "$work/$leaf"
 done
 (cd "$work" && /usr/bin/sha256sum -c keycloak.dump.gz.age.sha256 >/dev/null)
-FILE="$work/manifest.json" TIMESTAMP="$latest" /usr/bin/python3 - <<'PY'
-import json,os
+expected_sha=$(/usr/bin/cut -d ' ' -f 1 "$work/keycloak.dump.gz.age.sha256")
+archive_bytes=$(/usr/bin/stat -c %s "$work/keycloak.dump.gz.age")
+if ! FILE="$work/manifest.json" TIMESTAMP="$latest" EXPECTED_SHA="$expected_sha" ARCHIVE_BYTES="$archive_bytes" EXPECTED_SOURCE_CLOSURE_SHA256="$source_closure_sha256" /usr/bin/python3 - <<'PY'
+import json,os,re
 x=json.load(open(os.environ['FILE']))
-assert set(x)=={'schema','service','database','created_at_utc','archive','archive_bytes','archive_sha256','encryption','source_cluster'}
+assert set(x)=={'schema','service','database','created_at_utc','archive','archive_bytes','archive_sha256','encryption','source_cluster','source_closure_sha256'}
 assert x['schema']==1 and x['service']=='postgresql' and x['database']=='keycloak'
 assert x['created_at_utc']==os.environ['TIMESTAMP'] and x['archive']=='keycloak.dump.gz.age'
 assert x['encryption']=='age-x25519' and x['source_cluster']=='shared-postgresql'
+assert x['archive_sha256']==os.environ['EXPECTED_SHA']
+assert x['archive_bytes']==int(os.environ['ARCHIVE_BYTES'])
+assert re.fullmatch(r'[0-9a-f]{64}', x['source_closure_sha256'])
+assert x['source_closure_sha256']==os.environ['EXPECTED_SOURCE_CLOSURE_SHA256']
 PY
+then
+  printf '%s\n' 'restore_status=failed stage=manifest_contract'
+  exit 1
+fi
 /home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY \
   --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity"
 chmod 0600 "$work/identity"
@@ -142,4 +157,4 @@ catalog_count=$(/usr/local/bin/kubectl -n "$namespace" exec "$pod" -c postgres -
 printf '%s\n' "$catalog_count" | /usr/bin/grep -Eq '^[0-9]+$'
 /usr/bin/rm -f -- "$work/keycloak.dump"
 delete_restore_pod
-printf 'restore_status=success source_timestamp=%s target=isolated-emptydir catalog_table_count=%s checksum=verified private_residue=none\n' "$latest" "$catalog_count"
+printf 'restore_status=success source_timestamp=%s source_closure_sha256=%s target=isolated-emptydir catalog_table_count=%s checksum=verified private_residue=none\n' "$latest" "$source_closure_sha256" "$catalog_count"

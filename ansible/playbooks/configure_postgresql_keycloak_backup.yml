@@ -12,7 +12,7 @@
     postgresql_keycloak_backup_age_version: 1.2.1-1+b5
     postgresql_keycloak_backup_recipient_sha256: ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
     postgresql_keycloak_backup_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
-    postgresql_keycloak_backup_source_closure_sha256: cf58b66c536fcf079e87ed7b3c2cf986eb893edb7588d7ddb31a737c184d9526
+    postgresql_keycloak_backup_source_closure_sha256: 224c26ed0e1f4099212cf81401cee441c26ff0e78a8face8a9d406aa04774ed0
 
   pre_tasks:
     - name: Require the canonical backup scheduler contract
@@ -198,6 +198,7 @@
           - >-
             postgresql_keycloak_backup_restore_result.stdout is match(
             '^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z '
+            ~ 'source_closure_sha256=' ~ postgresql_keycloak_backup_source_closure_sha256 ~ ' '
             ~ 'target=isolated-emptydir catalog_table_count=[0-9]+ '
             ~ 'checksum=verified private_residue=none$')
         fail_msg: The isolated restore rehearsal did not produce the exact sanitized success receipt.
