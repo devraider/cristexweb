@@ -6,6 +6,7 @@ if [ "$#" -ne 1 ]; then
   printf '%s\n%s\n' "$usage" 'refusing passthrough arguments or task selection' >&2
   exit 64
 fi
+invocation=$1
 case "$1" in
   check) mode=install; check_mode=true ;;
   apply) mode=install; check_mode=false ;;
@@ -29,6 +30,9 @@ repository_root="$(CDPATH= cd -- "$script_directory/../.." && /bin/pwd -P)"
   exit 78
 }
 script_path="$repository_root/ansible/bin/configure-reactive-resume-dev-tls-renewal"
+if [ "$0" != "$script_path" ]; then
+  exec /bin/dash "$script_path" "$@"
+fi
 controller="$repository_root/.venv/bin/ansible-playbook"
 python_tool=/usr/bin/python3
 clean_python() {
@@ -107,7 +111,7 @@ if count != 1:
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
-wrapper_canonical_sha256_expected='6b5a92180f84da759ef90c49d6f669a48438659127325361bc8797407dba6e70'
+wrapper_canonical_sha256_expected='86491536bc6f1fc926b61daf0c85c5ea0e9e71b192351a81d0acf9d44898c0a1'
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
 for source in "$inventory" "$ansible_config" "$manifest" "$validator" "$renewal" "$service" "$timer" "$playbook" "$tasks" "$defaults" "$strategy"; do
   [ -f "$source" ] && [ ! -L "$source" ] || exit 69
@@ -137,17 +141,23 @@ playbook_sha256=$(sha_file "$playbook")
 task_sha256=$(normalized_task_sha256 "$tasks")
 defaults_sha256=$(normalized_defaults_sha256 "$defaults")
 strategy_sha256=$(sha_file "$strategy")
+wrapper_pid=$$
+wrapper_starttime=$(/usr/bin/awk '{print $22}' "/proc/$wrapper_pid/stat")
+case "$wrapper_starttime" in
+  ''|*[!0-9]*) printf '%s\n' 'refusing an unidentifiable wrapper process' >&2; exit 69 ;;
+esac
+wrapper_canonical_sha256=$(canonical_sha256 "$script_path")
 attestation_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/cristexweb-reactive-resume-dev-tls-renewal.XXXXXX")"
 attestation_token="$(/usr/bin/openssl rand -hex 32)"
 /bin/chmod 0600 "$attestation_file"
-printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+printf '%s:%s:%s:%s:%s:%s\n' "$attestation_token" "$wrapper_pid" "$wrapper_starttime" "$script_path" "$wrapper_sha256" "$invocation" >"$attestation_file"
 cleanup() { /bin/rm -f -- "$attestation_file"; }
 trap cleanup EXIT HUP INT TERM
 
 set -- \
   "$controller" \
   -i "$inventory" \
-  playbooks/configure_reactive_resume_dev_tls_renewal.yml \
+  "$playbook" \
   --diff \
   --limit crtxweb \
   --ask-become-pass \
@@ -162,9 +172,16 @@ set -- \
   LC_ALL=C.UTF-8 \
   ANSIBLE_CONFIG="$ansible_config" \
   ANSIBLE_HOST_PATTERN_MISMATCH=error \
-  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ENTRYPOINT=v1 \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ENTRYPOINT=v2 \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER="$controller" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PYTHON="$python_tool" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ANSIBLE_CONFIG="$ansible_config" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TOKEN="$attestation_token" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ATTESTATION_FILE="$attestation_file" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_PID="$wrapper_pid" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_STARTTIME="$wrapper_starttime" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_PATH="$script_path" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256="$wrapper_canonical_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_SHA256="$wrapper_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MANIFEST_SHA256="$manifest_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_VALIDATOR_SHA256="$validator_sha256" \
@@ -175,6 +192,7 @@ set -- \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256="$task_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_DEFAULTS_SHA256="$defaults_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256="$strategy_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_PATH="$playbook" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER_SHA256="$controller_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_INVENTORY_SHA256="$inventory_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ANSIBLE_CONFIG_SHA256="$ansible_config_sha256" \

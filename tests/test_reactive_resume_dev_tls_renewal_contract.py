@@ -172,7 +172,10 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "check|apply|enable-check|enable-apply",
             "refusing passthrough",
             "--check",
-            "ENTRYPOINT=v1",
+            "ENTRYPOINT=v2",
+            "wrapper_pid",
+            "wrapper_starttime",
+            "WRAPPER_PATH",
             "refusing traced shell execution",
             "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TOKEN",
             "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ATTESTATION_FILE",
@@ -250,12 +253,97 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         strategy = module.StrategyModule.__new__(module.StrategyModule)
         with (
             mock.patch.object(module.context, "CLIARGS", cliargs),
-            mock.patch.object(module, "_inventory_contract", return_value=True),
             mock.patch.object(module, "_runtime_contract", return_value=True),
+            mock.patch.object(module, "_wrapper_binding_valid", return_value=True),
             mock.patch.object(module.LinearStrategyModule, "run", return_value="ok"),
             mock.patch.object(module.sys, "argv", argv),
         ):
             self.assertEqual("ok", strategy.run(None, None))
+
+    def test_wrapper_binding_requires_ancestor_exact_argv_and_attestation(self) -> None:
+        spec = importlib.util.spec_from_file_location("rr_tls_strategy_binding", STRATEGY)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        payload = {
+            "reactive_resume_dev_tls_renewal_approved": True,
+            "reactive_resume_dev_tls_renewal_mode": "install",
+            "reactive_resume_dev_tls_renewal_repository_root": str(module._REPOSITORY_ROOT),
+        }
+        argv = [
+            str(module._CONTROLLER),
+            "-i",
+            str(module._INVENTORY_SOURCE),
+            str(module._PLAYBOOK),
+            "--diff",
+            "--limit",
+            "crtxweb",
+            "--ask-become-pass",
+            "--extra-vars",
+            json.dumps(payload, separators=(",", ":")),
+            "--check",
+        ]
+        wrapper_sha = hashlib.sha256(WRAPPER.read_bytes()).hexdigest()
+        wrapper_canonical_sha = module._canonical_file_hash(WRAPPER, "wrapper_canonical_sha256_expected")
+        starttime = "123456"
+        pid = "4242"
+        token = "a" * 64
+        with self.subTest("valid ancestor"):
+            attestation = self._write_tls_attestation(
+                f"{token}:{pid}:{starttime}:{WRAPPER}:{wrapper_sha}:check\n"
+            )
+            env = {
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ENTRYPOINT": "v2",
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TOKEN": token,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ATTESTATION_FILE": str(attestation),
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_PID": pid,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_STARTTIME": starttime,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_PATH": str(WRAPPER),
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_SHA256": wrapper_sha,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256": wrapper_canonical_sha,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER": str(module._CONTROLLER),
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PYTHON": "/usr/bin/python3",
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ANSIBLE_CONFIG": str(module._ANSIBLE_CONFIG),
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256": module._TASK_SHA256,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_SHA256": module._PLAYBOOK_SHA256,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256": hashlib.sha256(STRATEGY.read_bytes()).hexdigest(),
+            }
+            with (
+                mock.patch.dict(module.os.environ, env, clear=False),
+                mock.patch.object(module.sys, "argv", argv),
+                mock.patch.object(module, "_is_ancestor", return_value=True),
+                mock.patch.object(module, "_proc_starttime", return_value=starttime),
+                mock.patch.object(module, "_proc_cmdline", return_value=["/bin/dash", str(WRAPPER), "check"]),
+                mock.patch.object(module.context, "CLIARGS", {"check": True}),
+            ):
+                self.assertTrue(module._wrapper_binding_valid())
+            attestation.unlink()
+        with self.subTest("forged direct process"):
+            attestation = self._write_tls_attestation(
+                f"{token}:{pid}:{starttime}:{WRAPPER}:{wrapper_sha}:check\n"
+            )
+            with (
+                mock.patch.dict(module.os.environ, env, clear=False),
+                mock.patch.object(module.sys, "argv", argv),
+                mock.patch.object(module, "_is_ancestor", return_value=False),
+                mock.patch.object(module, "_proc_starttime", return_value=starttime),
+                mock.patch.object(module, "_proc_cmdline", return_value=["/bin/dash", str(WRAPPER), "check"]),
+                mock.patch.object(module.context, "CLIARGS", {"check": True}),
+            ):
+                self.assertFalse(module._wrapper_binding_valid())
+            attestation.unlink()
+
+    @staticmethod
+    def _write_tls_attestation(content: str) -> Path:
+        import tempfile
+
+        handle = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False)
+        handle.write(content)
+        handle.close()
+        path = Path(handle.name)
+        path.chmod(0o600)
+        return path
 
     def test_hash_helpers_are_environment_isolated(self) -> None:
         wrapper = WRAPPER.read_text()
@@ -309,6 +397,14 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             execution[5]["sha256"],
         )
         wrapper = WRAPPER.read_text()
+        self.assertIn('"$playbook"', wrapper)
+        self.assertIn('exec /bin/dash "$script_path" "$@"', wrapper)
+        self.assertIn('CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_PID', wrapper)
+        self.assertIn('CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_STARTTIME', wrapper)
+        self.assertIn('CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256', wrapper)
+        self.assertIn('"/bin/dash", str(_WRAPPER_SOURCE), invocation', STRATEGY.read_text())
+        self.assertIn('_STRATEGY_CANONICAL_SHA256', STRATEGY.read_text())
+        self.assertNotIn('strategy_sha256 = hashlib.sha256(_STRATEGY.read_bytes())', STRATEGY.read_text())
         for digest_name in (
             "CONTROLLER_SHA256",
             "INVENTORY_SHA256",

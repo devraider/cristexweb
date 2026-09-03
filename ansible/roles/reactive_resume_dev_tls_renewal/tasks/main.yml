@@ -61,7 +61,7 @@
 - name: Bind the canonical role task source marker
   ansible.builtin.set_fact:
     reactive_resume_dev_tls_renewal_task_self_hash: '0000000000000000000000000000000000000000000000000000000000000000'
-    reactive_resume_dev_tls_renewal_defaults_raw_hash: 'c4affd1be4c69b678cfd7f9023cf194761c54ea82d7a5b1146e8a0e6e03d96fa'
+    reactive_resume_dev_tls_renewal_defaults_raw_hash: '2ad30ee7214a6bbc72b53a1b632fc4986886cd49dce59a814cd333580f552e28'
   changed_when: false
   no_log: true
 
@@ -81,7 +81,7 @@
   ansible.builtin.assert:
     that:
       - reactive_resume_dev_tls_renewal_approved | bool
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ENTRYPOINT') == 'v2'
       - (ansible_limit | default('') | string) == 'crtxweb'
       - ansible_play_hosts_all | length == 1
       - inventory_hostname == 'crtxweb'
@@ -99,6 +99,20 @@
     that:
       - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TOKEN') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ATTESTATION_FILE') | length > 0
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_PID') is match('^[1-9][0-9]*$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_STARTTIME') is match('^[1-9][0-9]*$')
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_PATH') ==
+        '/home/paul/projects/cristexweb/ansible/bin/configure-reactive-resume-dev-tls-renewal'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_SHA256') is
+        match('^[0-9a-f]{64}$')
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256') is
+        match('^[0-9a-f]{64}$')
       - reactive_resume_dev_tls_renewal_controller_user is match('^[a-z_][a-z0-9_-]{0,31}$')
       - reactive_resume_dev_tls_renewal_controller_user == lookup('ansible.builtin.env', 'USER')
     fail_msg: Refusing TLS renewal invocation without the canonical wrapper attestation.
@@ -127,7 +141,14 @@
       - >-
         lookup('ansible.builtin.file', lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ATTESTATION_FILE')) ==
-        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TOKEN') ~ ':entrypoint'
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TOKEN') ~ ':' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_PID') ~ ':' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_STARTTIME') ~ ':' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_PATH') ~ ':' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_SHA256') ~ ':' ~
+        ('enable-check' if reactive_resume_dev_tls_renewal_mode == 'enable' and ansible_check_mode else
+         'enable-apply' if reactive_resume_dev_tls_renewal_mode == 'enable' else
+         'check' if ansible_check_mode else 'apply')
     fail_msg: Refusing a missing, reusable, foreign-owned, or invalid TLS renewal attestation.
   delegate_to: localhost
   become: false
