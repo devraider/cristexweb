@@ -16,7 +16,7 @@ if [ "$mode" = apply ] && [ "${CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APP
 fi
 original_script_path=$0
 script_path=$0
-wrapper_canonical_sha256_expected='d188908a2d4a3bffeeb0e1d0e9ecb9be09f46cd4075ca3990de1b153abe30a04'
+wrapper_canonical_sha256_expected='e0c065fb6f2b8b12d6ee7c3f20f940fb662383fa66843b1b2ac736d2dff0434e'
 sha256_stdin() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum | awk '{print $1}'
@@ -85,6 +85,7 @@ check_collection_manifest_tree() {
   tree_root=$1
   manifest_path=$2
   "$python_tool" -I -B - "$tree_root" "$manifest_path" <<'PY'
+import hashlib
 import json
 import os
 import stat
@@ -98,6 +99,7 @@ try:
     if not isinstance(entries, list):
         raise ValueError
     expected = {}
+    expected_digests = {}
     for item in entries:
         if not isinstance(item, dict):
             raise ValueError
@@ -128,6 +130,8 @@ try:
         if kind == 'dir' and digest not in (None, ''):
             raise ValueError
         expected[name] = kind
+        if kind == 'file':
+            expected_digests[name] = digest
     expected['FILES.json'] = 'file'
     expected['MANIFEST.json'] = 'file'
     actual = {}
@@ -145,6 +149,10 @@ try:
             raise ValueError
     if actual != expected:
         raise ValueError
+    for name, digest in expected_digests.items():
+        entry = root / name
+        if hashlib.sha256(entry.read_bytes()).hexdigest() != digest:
+            raise ValueError
     allowed_symlinks = {
         'plugins/action/' + name
         for name in (
@@ -215,8 +223,8 @@ check_module_utils_root_tree() {
     [ -e "$tree_entry" ] || [ -L "$tree_entry" ] || continue
     tree_name=${tree_entry##*/}
     case " $collection_module_utils_root_names " in
-      *" $tree_name ") [ -f "$tree_entry" ] || [ -L "$tree_entry" ] || return 1 ;;
-      *) case " client k8s " in *" $tree_name ") [ -d "$tree_entry" ] && [ ! -L "$tree_entry" ] || return 1 ;; *) return 1 ;; esac ;;
+      *" $tree_name "*) [ -f "$tree_entry" ] || [ -L "$tree_entry" ] || return 1 ;;
+      *) case " client k8s " in *" $tree_name "*) [ -d "$tree_entry" ] && [ ! -L "$tree_entry" ] || return 1 ;; *) return 1 ;; esac ;;
     esac
   done
   for tree_name in $collection_module_utils_root_names; do

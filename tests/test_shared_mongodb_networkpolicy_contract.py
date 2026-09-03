@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -334,6 +335,17 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
                 source,
             )
             self.assertEqual(match.group(2), hashlib.sha256(canonical.encode()).hexdigest())
+        wrapper_action = re.search(
+            r"(?m)^action_canonical_sha256_expected='([0-9a-f]{64})'$",
+            WRAPPER.read_text(),
+        )
+        plugin_action = re.search(
+            r"(?m)^_EXPECTED_ACTION_CANONICAL_SHA256 = '([0-9a-f]{64})'$",
+            PLUGIN.read_text(),
+        )
+        self.assertIsNotNone(wrapper_action)
+        self.assertIsNotNone(plugin_action)
+        self.assertEqual(wrapper_action.group(1), plugin_action.group(1))
 
     def test_action_specific_canonical_hash_rejects_wrapper_sentinel_confusion(self) -> None:
         source = PLUGIN.read_text()
@@ -365,6 +377,8 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
 
     def test_collection_action_symlink_and_module_hash_are_pinned(self) -> None:
         wrapper = WRAPPER.read_text()
+        self.assertIn('case " $collection_module_utils_root_names " in\n      *" $tree_name "*)', wrapper)
+        self.assertIn('case " client k8s " in *" $tree_name "*)', wrapper)
         plugin = PLUGIN.read_text()
         self.assertIn("readlink \"$json_patch_source\"", wrapper)
         self.assertIn("readlink \"$k8s_action_source\"", wrapper)
@@ -429,6 +443,79 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
 
             info_module.write_text('malicious k8s_info module\\n')
             self.assertFalse(self.plugin._pinned_regular_file(info_module, module_digest, owner))
+
+    def test_wrapper_manifest_shell_harness_detects_clean_and_mutated_file(self) -> None:
+        wrapper = WRAPPER.read_text()
+        start = wrapper.index('check_collection_manifest_tree() {')
+        end = wrapper.index('\ncheck_collection_namespace_tree()', start)
+        harness = (
+            '#!/bin/sh\n'
+            'set -eu\n'
+            f'python_tool={shlex.quote(sys.executable)}\n'
+            + wrapper[start:end]
+            + '\ncheck_collection_manifest_tree "$1" "$2"\n'
+        )
+        allowed_links = (
+            'helm.py', 'helm_info.py', 'helm_plugin.py', 'helm_plugin_info.py',
+            'helm_repository.py', 'k8s.py', 'k8s_cluster_info.py', 'k8s_cp.py',
+            'k8s_drain.py', 'k8s_exec.py', 'k8s_json_patch.py', 'k8s_log.py',
+            'k8s_rollback.py', 'k8s_scale.py', 'k8s_service.py',
+        )
+        with TemporaryDirectory() as directory:
+            root = Path(directory) / 'collection'
+            action = root / 'plugins/action'
+            action.mkdir(parents=True)
+            (root / 'plugins').chmod(0o755)
+            action.chmod(0o755)
+            readme = root / 'README.md'
+            readme.write_bytes(b'clean README\n')
+            readme.chmod(0o644)
+            action_target = action / 'k8s_info.py'
+            action_target.write_bytes(b'clean action\n')
+            action_target.chmod(0o644)
+            action_digest = hashlib.sha256(action_target.read_bytes()).hexdigest()
+            readme_digest = hashlib.sha256(readme.read_bytes()).hexdigest()
+            manifest_entries = [
+                {'name': 'plugins', 'ftype': 'dir'},
+                {'name': 'plugins/action', 'ftype': 'dir'},
+                {'name': 'README.md', 'ftype': 'file', 'chksum_sha256': readme_digest},
+                {
+                    'name': 'plugins/action/k8s_info.py',
+                    'ftype': 'file',
+                    'chksum_sha256': action_digest,
+                },
+            ]
+            for name in allowed_links:
+                link = action / name
+                link.symlink_to('k8s_info.py')
+                manifest_entries.append({
+                    'name': f'plugins/action/{name}',
+                    'ftype': 'file',
+                    'chksum_sha256': action_digest,
+                })
+            files = root / 'FILES.json'
+            files.write_text(json.dumps({'files': manifest_entries}) + '\n')
+            files.chmod(0o644)
+            (root / 'MANIFEST.json').write_text('{}\n')
+            (root / 'MANIFEST.json').chmod(0o644)
+            harness_path = Path(directory) / 'check-manifest.sh'
+            harness_path.write_text(harness)
+            harness_path.chmod(0o755)
+            clean = subprocess.run(
+                [str(harness_path), str(root), str(files)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, clean.returncode, clean.stderr)
+            readme.write_bytes(readme.read_bytes() + b'mutated\n')
+            mutated = subprocess.run(
+                [str(harness_path), str(root), str(files)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(0, mutated.returncode)
 
     def test_collection_toolchain_rejects_mutated_new_paths_in_temp_copies(self) -> None:
         source_root = Path('/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core')
