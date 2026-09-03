@@ -43,6 +43,7 @@ _ANSIBLE_CONFIG_SOURCE = _REPOSITORY_ROOT / 'ansible/ansible.cfg'
 _REQUIREMENTS_SOURCE = _REPOSITORY_ROOT / 'ansible/requirements.yml'
 _COLLECTION_ROOT = _REPOSITORY_ROOT / 'ansible/.ansible/collections/ansible_collections/kubernetes/core'
 _COLLECTION_MANIFEST_SOURCE = _COLLECTION_ROOT / 'MANIFEST.json'
+_COLLECTION_FILES_SOURCE = _COLLECTION_ROOT / 'FILES.json'
 _JSON_PATCH_ACTION_SOURCE = _COLLECTION_ROOT / 'plugins/action/k8s_json_patch.py'
 _JSON_PATCH_ACTION_TARGET = _COLLECTION_ROOT / 'plugins/action/k8s_info.py'
 _JSON_PATCH_MODULE_SOURCE = _COLLECTION_ROOT / 'plugins/modules/k8s_json_patch.py'
@@ -56,12 +57,38 @@ _EXPECTED_LOCK_FILE = '/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
 _EXPECTED_TASK_SHA256 = 'a4945c6dc7538c2d6fb99622e418483ee31d36e4db5de3751edb683220b52b29'
 _EXPECTED_DEFAULTS_SHA256 = '2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 _EXPECTED_PLAYBOOK_SHA256 = '7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-_EXPECTED_ACTION_CANONICAL_SHA256 = '1137766418c3e97aec5b6b6178a94054ddfcdaae220e3b27ba5a15a903046bf7'
+_EXPECTED_ACTION_CANONICAL_SHA256 = 'a6056ad7ce8dd68bd33593b1ac19307957da00eebfbf93330cb23ca07e55e19f'
 _EXPECTED_CREATE_MODULE_SHA256 = '21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 _EXPECTED_INVENTORY_SHA256 = '652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 _EXPECTED_ANSIBLE_CONFIG_SHA256 = '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
 _EXPECTED_REQUIREMENTS_SHA256 = 'f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f'
 _EXPECTED_COLLECTION_MANIFEST_SHA256 = 'dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df'
+_EXPECTED_COLLECTION_FILES_SHA256 = '9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69'
+_EXPECTED_COLLECTION_MODULE_UTILS = {
+    'plugins/module_utils/client/discovery.py': 'd30f9c5a9c90972264289b0e5cee95effe9319595e23aeaa4e079afeb716338a',
+    'plugins/module_utils/client/resource.py': '5ecbd5410095b770939270966962c5e939b7e662eb6f51c1271d294e6e683ee2',
+    'plugins/module_utils/k8s/client.py': '0056d2093cab9094eaa5cbeccd9256317f61f5c50d5044b2baf30dc5ba94fd97',
+    'plugins/module_utils/k8s/core.py': 'a54455932f24cd7580024e2058e290414fcad3b597332d4b0627b8898b3b95c3',
+    'plugins/module_utils/k8s/exceptions.py': '68fc2551bb7c65b1d0352c6761d2f75a6ca59fa773f08faa3356ab4787c040eb',
+    'plugins/module_utils/k8s/resource.py': '78f2e91fa52267f93d7f72191bdddcffaf92c9a9978c5c923f8f5912f3691fb6',
+    'plugins/module_utils/k8s/runner.py': '8e0c6b86b38a86d491cf3898c91903f3ccce9fa213d8d06c84a6b43762f3d441',
+    'plugins/module_utils/k8s/service.py': 'fc53953488c8e4a53afa7aaf3c8fa70bcb197dc20555e7e0042ae66b7c84e4fe',
+    'plugins/module_utils/k8s/waiter.py': 'aee5d2ea1701a4dbd2ce21c8228ad1385b636613cc164c091b15b44b2c5c2341',
+    'plugins/module_utils/__init__.py': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    'plugins/module_utils/_version.py': 'da42772669215aa2e1592bfcba0b4cef17d06cdbcdcfeb0ae05e431252fc5a16',
+    'plugins/module_utils/ansiblemodule.py': 'cde56b067dc7815d559ff8eb2335ad50ef43fc92fcc50812b44c61fb4b854ba6',
+    'plugins/module_utils/apply.py': '8f568ec79b19a7e6c601b92dc62e6bb540fd295dc0730460f3b6e0e35a1d4441',
+    'plugins/module_utils/args_common.py': 'dbd6a5c7b2d504de36fa0b75571b8df4c8c07f11d4b6b0dbe296e313e4937355',
+    'plugins/module_utils/common.py': '2b9252ccc909f3013e7a05a5845d9fbb1e5f24e6d44c956a14ed3ae90d3b0a1d',
+    'plugins/module_utils/copy.py': 'aec7f7effed09d03fe2b8b4218e51d6b3c921a01c05e0c2d26a58e90e35f708a',
+    'plugins/module_utils/exceptions.py': '4256700ac9b1b0b29a0daa8d24da068a8435413cdd927b9613f4fa568e5ee450',
+    'plugins/module_utils/hashes.py': 'a8ccce48ad134285d61384ea7598c1efdbd9ae4222e0566d154d86ecbfa3a02e',
+    'plugins/module_utils/helm.py': '2fe2e843b583f80c259c4c13c6ca278b3d6faa7036d314c2001f3d94161f842a',
+    'plugins/module_utils/helm_args_common.py': '6561042a0092f0b1187d469b972acbc320b0d6a1355f1c0bf6bc6c894f78b074',
+    'plugins/module_utils/k8sdynamicclient.py': '6b44b539981affc25ede49cc8a7f994fe19b5c60aaa1e400a480e735f7ed1be6',
+    'plugins/module_utils/selector.py': 'd5e15a8ac4f916ee4b578450449a525dbda727b77178941a81c21e9e228e7987',
+    'plugins/module_utils/version.py': 'c009a2e470b5c1e2cfc73efb061b3289f3da5064c85ad31dd664433ddb7b97b7',
+}
 _EXPECTED_JSON_PATCH_ACTION_TARGET_SHA256 = '3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b'
 _EXPECTED_JSON_PATCH_MODULE_SHA256 = '75b605254a576da3a146019e448d319a4cefdee2d2f3d4ada80e2c2b1c51d0ef'
 _EXPECTED_PYTHON_SHA256 = '17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
@@ -270,6 +297,41 @@ def _collection_toolchain_valid() -> bool:
             return False
         if _sha256(_COLLECTION_MANIFEST_SOURCE) != _EXPECTED_COLLECTION_MANIFEST_SHA256:
             return False
+        if not _regular_file(_COLLECTION_FILES_SOURCE, 0o644, os.getuid()):
+            return False
+        if _sha256(_COLLECTION_FILES_SOURCE) != _EXPECTED_COLLECTION_FILES_SHA256:
+            return False
+        files_manifest = json.loads(_COLLECTION_FILES_SOURCE.read_text(encoding='utf-8'))
+        module_utils = {
+            item.get('name'): item.get('chksum_sha256')
+            for item in files_manifest.get('files', [])
+            if isinstance(item, dict)
+            and item.get('ftype') == 'file'
+            and isinstance(item.get('name'), str)
+            and item.get('name', '').startswith('plugins/module_utils/')
+        }
+        if module_utils != _EXPECTED_COLLECTION_MODULE_UTILS:
+            return False
+        actual_module_utils = {
+            path.relative_to(_COLLECTION_ROOT).as_posix()
+            for path in (_COLLECTION_ROOT / 'plugins/module_utils').rglob('*')
+            if path.is_file() and '__pycache__' not in path.parts
+        }
+        if actual_module_utils != set(_EXPECTED_COLLECTION_MODULE_UTILS):
+            return False
+        module_utils_directories = {
+            (_COLLECTION_ROOT / name).parent
+            for name in _EXPECTED_COLLECTION_MODULE_UTILS
+        }
+        module_utils_directories.add(_COLLECTION_ROOT / 'plugins/module_utils')
+        if not all(_directory(path, 0o755, os.getuid()) for path in module_utils_directories):
+            return False
+        if not all(
+            _regular_file(_COLLECTION_ROOT / name, 0o644, os.getuid())
+            and _sha256(_COLLECTION_ROOT / name) == digest
+            for name, digest in _EXPECTED_COLLECTION_MODULE_UTILS.items()
+        ):
+            return False
         manifest = json.loads(_COLLECTION_MANIFEST_SOURCE.read_text(encoding='utf-8'))
         info = manifest.get('collection_info', {})
         if info.get('namespace') != 'kubernetes' or info.get('name') != 'core' or info.get('version') != '6.1.0':
@@ -347,6 +409,7 @@ def _runtime_binding_valid() -> bool:
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PYTHON_SHA256': _EXPECTED_PYTHON_SHA256,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_REQUIREMENTS_SHA256': _EXPECTED_REQUIREMENTS_SHA256,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_MANIFEST_SHA256': _EXPECTED_COLLECTION_MANIFEST_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_FILES_SHA256': _EXPECTED_COLLECTION_FILES_SHA256,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION': str(_JSON_PATCH_ACTION_SOURCE),
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION_TARGET': str(_JSON_PATCH_ACTION_TARGET),
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION_TARGET_SHA256': _EXPECTED_JSON_PATCH_ACTION_TARGET_SHA256,
@@ -574,9 +637,9 @@ class ActionModule(KubernetesActionModule):
             and _safe_int(binding.get('object_count')) == 2
             and binding.get('identity_set_sha256') == _EXPECTED_IDENTITY_SET_SHA256
             and transition_phase in {'initial', 'after-default-deny', 'post'}
-            and initial_prestate_count in (0, 2)
+            and initial_prestate_count in (0, 1, 2)
             and prestate_count == (len(policy_prestate) if isinstance(policy_prestate, list) else -1)
-            and prestate_count in ((0, 2) if transition_phase == 'initial' else (0, 1, 2))
+            and prestate_count in ((0, 1, 2) if transition_phase == 'initial' else (0, 1, 2))
             and _safe_int(binding.get('mongodb_count')) == 1
             and _safe_int(binding.get('statefulset_count')) == 1
             and isinstance(binding.get('statefulset_uid'), str)

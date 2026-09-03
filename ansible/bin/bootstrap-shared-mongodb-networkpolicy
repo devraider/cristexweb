@@ -16,7 +16,7 @@ if [ "$mode" = apply ] && [ "${CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APP
 fi
 original_script_path=$0
 script_path=$0
-wrapper_canonical_sha256_expected='3ae1acd6bd00fdad9bfbf89e34abe68514ef40b46710403a9f8aadc5e49df75b'
+wrapper_canonical_sha256_expected='2d469915a2459306bcf1541074676f64db13ceba32885120fc9e0766b761d777'
 sha256_stdin() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum | awk '{print $1}'
@@ -70,6 +70,7 @@ ansible_config="$repository_root/ansible/ansible.cfg"
 requirements_source="$repository_root/ansible/requirements.yml"
 collection_root="$repository_root/ansible/.ansible/collections/ansible_collections/kubernetes/core"
 collection_manifest="$collection_root/MANIFEST.json"
+collection_files="$collection_root/FILES.json"
 collection_plugins="$collection_root/plugins"
 collection_actions="$collection_plugins/action"
 collection_modules="$collection_plugins/modules"
@@ -92,6 +93,7 @@ is_owned_symlink "$python_tool" && [ "$(readlink "$python_tool")" = "$python_lin
 [ -f "$ansible_config" ] && [ ! -L "$ansible_config" ] || { printf '%s\n' 'refusing an unsafe Ansible configuration' >&2; exit 69; }
 [ -f "$requirements_source" ] && [ ! -L "$requirements_source" ] || exit 69
 [ -f "$collection_manifest" ] && [ ! -L "$collection_manifest" ] || exit 69
+[ -f "$collection_files" ] && [ ! -L "$collection_files" ] || exit 69
 is_owned_directory_mode "$collection_root" 755 || exit 69
 is_owned_directory_mode "$collection_plugins" 755 || exit 69
 is_owned_directory_mode "$collection_actions" 755 || exit 69
@@ -105,6 +107,7 @@ is_owned_symlink "$json_patch_source" && [ "$(readlink "$json_patch_source")" = 
 is_owned_regular_mode "$json_patch_real_source" 644 || exit 69
 is_owned_regular_mode "$json_patch_module_source" 644 || exit 69
 is_owned_regular_mode "$collection_manifest" 644 || exit 69
+is_owned_regular_mode "$collection_files" 644 || exit 69
 /usr/bin/grep -Eq '"namespace"[[:space:]]*:[[:space:]]*"kubernetes"' "$collection_manifest" || exit 69
 /usr/bin/grep -Eq '"name"[[:space:]]*:[[:space:]]*"core"' "$collection_manifest" || exit 69
 /usr/bin/grep -Eq '"version"[[:space:]]*:[[:space:]]*"6\.1\.0"' "$collection_manifest" || {
@@ -121,12 +124,13 @@ is_owned_regular_mode "$collection_manifest" 644 || exit 69
 task_sha256_expected='a4945c6dc7538c2d6fb99622e418483ee31d36e4db5de3751edb683220b52b29'
 defaults_sha256_expected='2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 playbook_sha256_expected='7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-action_canonical_sha256_expected='1137766418c3e97aec5b6b6178a94054ddfcdaae220e3b27ba5a15a903046bf7'
+action_canonical_sha256_expected='a6056ad7ce8dd68bd33593b1ac19307957da00eebfbf93330cb23ca07e55e19f'
 create_module_sha256_expected='21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
 requirements_sha256_expected='f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f'
 collection_manifest_sha256_expected='dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df'
+collection_files_sha256_expected='9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69'
 json_patch_action_target_sha256_expected='3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b'
 json_patch_module_sha256_expected='75b605254a576da3a146019e448d319a4cefdee2d2f3d4ada80e2c2b1c51d0ef'
 python_sha256_expected='17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
@@ -141,25 +145,119 @@ controller_sha256_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5
 [ "$(sha256_file "$ansible_config")" = "$ansible_config_sha256_expected" ] || { printf '%s\n' 'refusing Ansible configuration drift' >&2; exit 69; }
 [ "$(sha256_file "$requirements_source")" = "$requirements_sha256_expected" ] || { printf '%s\n' 'refusing collection requirement drift' >&2; exit 69; }
 [ "$(sha256_file "$collection_manifest")" = "$collection_manifest_sha256_expected" ] || { printf '%s\n' 'refusing collection manifest drift' >&2; exit 69; }
+[ "$(sha256_file "$collection_files")" = "$collection_files_sha256_expected" ] || { printf '%s\n' 'refusing collection file closure drift' >&2; exit 69; }
 [ "$(sha256_file "$json_patch_real_source")" = "$json_patch_action_target_sha256_expected" ] || { printf '%s\n' 'refusing JSON patch action target drift' >&2; exit 69; }
 [ "$(sha256_file "$json_patch_module_source")" = "$json_patch_module_sha256_expected" ] || { printf '%s\n' 'refusing JSON patch module drift' >&2; exit 69; }
 [ "$(sha256_file "$python_real_source")" = "$python_sha256_expected" ] || { printf '%s\n' 'refusing Python interpreter drift' >&2; exit 69; }
 [ "$(sha256_file "$controller")" = "$controller_sha256_expected" ] || { printf '%s\n' 'refusing controller drift' >&2; exit 69; }
 lock_file='/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
 lock_owned=0
+legacy_lock_fd_open=0
 owner_written=0
 owner_tmp=
 attestation_file=
+attestation_token=
 child_pid=
+child_process_group=0
 pending_signal=
 forced_cleanup_status=
+cleanup_in_progress=0
 wrapper_pid=$$
+
+# Keep the old advisory lock held while removing its path.  A nonblocking lock
+# acquisition on the already-open inode proves that no old wrapper still holds
+# it; anything else is a fail-closed migration stop.
+migrate_legacy_lock() {
+  [ -f "$lock_file" ] && [ ! -L "$lock_file" ] && [ ! -s "$lock_file" ] &&
+    is_owned_regular_mode "$lock_file" 600 || return 1
+  [ -x /usr/bin/flock ] || return 1
+  exec 9<> "$lock_file" || return 1
+  legacy_lock_fd_open=1
+  /usr/bin/flock -n 9 || return 1
+  legacy_lock_inode=$(/usr/bin/stat -c '%d:%i' -- "$lock_file") || return 1
+  [ "$legacy_lock_inode" = "$(/usr/bin/stat -c '%d:%i' -- "$lock_file")" ] || return 1
+  [ -f "$lock_file" ] && [ ! -L "$lock_file" ] && [ ! -s "$lock_file" ] &&
+    is_owned_regular_mode "$lock_file" 600 || return 1
+  /bin/rm -f -- "$lock_file" || return 1
+  [ ! -e "$lock_file" ] || return 1
+  /usr/bin/flock -u 9 || return 1
+  exec 9>&-
+  legacy_lock_fd_open=0
+  return 0
+}
+
+signal_handler() {
+  pending_signal=$1
+}
+
+child_descendants() {
+  ps -eo pid=,ppid= 2>/dev/null |
+    awk -v root="$1" '$2 == root {print $1}'
+}
+process_tree_alive() {
+  [ -n "${1:-}" ] || return 1
+  if /bin/kill -0 "$1" 2>/dev/null; then
+    return 0
+  fi
+  [ -n "$(child_descendants "$1")" ]
+}
+terminate_process_tree() {
+  process_root=$1
+  process_signal=$2
+  for process_child in $(child_descendants "$process_root"); do
+    terminate_process_tree "$process_child" "$process_signal"
+  done
+  /bin/kill -"$process_signal" "$process_root" 2>/dev/null || true
+}
+stop_child() {
+  if [ -n "${child_pid:-}" ]; then
+    if [ "$child_process_group" = 1 ]; then
+      /bin/kill -TERM -- "-$child_pid" 2>/dev/null ||
+        /bin/kill -TERM "$child_pid" 2>/dev/null || true
+    else
+      terminate_process_tree "$child_pid" TERM
+    fi
+    remaining=5
+    while [ "$remaining" -gt 0 ]; do
+      if [ "$child_process_group" = 1 ]; then
+        /bin/kill -0 -- "-$child_pid" 2>/dev/null || break
+      else
+        process_tree_alive "$child_pid" || break
+      fi
+      /bin/sleep 1
+      remaining=$((remaining - 1))
+    done
+    if [ "$child_process_group" = 1 ]; then
+      /bin/kill -0 -- "-$child_pid" 2>/dev/null &&
+        /bin/kill -KILL -- "-$child_pid" 2>/dev/null || true
+      remaining=5
+      while [ "$remaining" -gt 0 ] && /bin/kill -0 -- "-$child_pid" 2>/dev/null; do
+        /bin/sleep 1
+        remaining=$((remaining - 1))
+      done
+    elif process_tree_alive "$child_pid"; then
+      terminate_process_tree "$child_pid" KILL
+      remaining=5
+      while [ "$remaining" -gt 0 ] && process_tree_alive "$child_pid"; do
+        /bin/sleep 1
+        remaining=$((remaining - 1))
+      done
+    fi
+    wait "$child_pid" 2>/dev/null || true
+    child_pid=
+  fi
+}
 cleanup() {
   cleanup_status=$?
   if [ -n "${forced_cleanup_status:-}" ]; then
     cleanup_status=$forced_cleanup_status
   fi
-  trap - EXIT HUP INT TERM
+  if [ "$cleanup_in_progress" = 1 ]; then
+    exit "$cleanup_status"
+  fi
+  cleanup_in_progress=1
+  trap '' EXIT HUP INT TERM
+  stop_child
   if [ -n "${attestation_file:-}" ]; then
     /bin/rm -f -- "$attestation_file"
   fi
@@ -174,48 +272,31 @@ cleanup() {
     fi
     /bin/rmdir -- "$lock_file" 2>/dev/null || true
   fi
+  if [ "$legacy_lock_fd_open" = 1 ]; then
+    /usr/bin/flock -u 9 2>/dev/null || true
+    exec 9>&-
+  fi
   exit "$cleanup_status"
 }
-terminate_child() {
-  signal_status=$1
-  trap '' EXIT HUP INT TERM
-  if [ -n "${child_pid:-}" ]; then
-    /bin/kill -TERM -- "-$child_pid" 2>/dev/null || /bin/kill -TERM "$child_pid" 2>/dev/null || true
-    remaining=5
-    while [ "$remaining" -gt 0 ] && /bin/kill -0 "$child_pid" 2>/dev/null; do
-      /bin/sleep 1
-      remaining=$((remaining - 1))
-    done
-    if /bin/kill -0 "$child_pid" 2>/dev/null; then
-      /bin/kill -KILL -- "-$child_pid" 2>/dev/null || /bin/kill -KILL "$child_pid" 2>/dev/null || true
-    fi
-    wait "$child_pid" 2>/dev/null || true
-    child_pid=
-  fi
-  forced_cleanup_status=$signal_status
-  cleanup
-}
+trap cleanup EXIT
+trap 'signal_handler 129' HUP
+trap 'signal_handler 130' INT
+trap 'signal_handler 143' TERM
 if [ -L "$lock_file" ]; then
   printf '%s\n' 'shared MongoDB NetworkPolicy cooperative lock is held or unsafe' >&2
   exit 75
 fi
 if [ -e "$lock_file" ]; then
-  if is_owned_regular_mode "$lock_file" 600 && [ ! -s "$lock_file" ]; then
-    /bin/rm -f -- "$lock_file" || {
-      printf '%s\n' 'refusing to migrate the legacy shared MongoDB NetworkPolicy lock' >&2
-      exit 75
-    }
-  else
-    printf '%s\n' 'shared MongoDB NetworkPolicy cooperative lock is held or unsafe' >&2
+  migrate_legacy_lock || {
+    printf '%s\n' 'refusing to migrate a held or unsafe legacy shared MongoDB NetworkPolicy lock' >&2
     exit 75
-  fi
+  }
 fi
 /bin/mkdir "$lock_file" 2>/dev/null || {
   printf '%s\n' 'shared MongoDB NetworkPolicy cooperative lock is held' >&2
   exit 75
 }
 lock_owned=1
-trap cleanup EXIT
 # umask 077 makes the mkdir-created ownership boundary private from creation.
 is_owned_directory_mode "$lock_file" 700 || exit 75
 attestation_file=$(mktemp "${TMPDIR:-/tmp}/cristexweb-shared-mongodb-networkpolicy.XXXXXX")
@@ -228,9 +309,7 @@ printf '%s:%s\n' "$attestation_token" "$wrapper_pid" >"$owner_tmp"
 owner_tmp=
 owner_written=1
 printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
-trap 'pending_signal=129' HUP
-trap 'pending_signal=130' INT
-trap 'pending_signal=143' TERM
+[ -z "$pending_signal" ] || exit "$pending_signal"
 apply_approval=
 case "$mode" in
   check) ansible_flags='--diff --check' ;;
@@ -244,7 +323,9 @@ esac
 cd "$repository_root/ansible"
 set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_shared_mongodb_networkpolicy.yml $ansible_flags --limit crtxweb --extra-vars "{\"shared_mongodb_networkpolicy_bootstrap_approved\":true,\"shared_mongodb_networkpolicy_bootstrap_mode\":\"$mode\"}"
 if [ -x /usr/bin/setsid ]; then
+  child_process_group=1
   /usr/bin/setsid /usr/bin/env -i \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_FILES_SHA256=$collection_files_sha256_expected" \
     "HOME=${HOME:-$repository_root}" \
     "USER=$controller_user" \
     "LOGNAME=$controller_user" \
@@ -279,7 +360,9 @@ if [ -x /usr/bin/setsid ]; then
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_MODULE_SHA256=$json_patch_module_sha256_expected" \
     "$@" &
 else
+  child_process_group=0
   /usr/bin/env -i \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_FILES_SHA256=$collection_files_sha256_expected" \
     "HOME=${HOME:-$repository_root}" \
     "USER=$controller_user" \
     "LOGNAME=$controller_user" \
@@ -316,15 +399,22 @@ else
 fi
 child_pid=$!
 if [ -n "$pending_signal" ]; then
-  terminate_child "$pending_signal"
+  forced_cleanup_status=$pending_signal
+  stop_child
+  exit "$pending_signal"
 fi
 set +e
 wait "$child_pid"
 child_status=$?
 set -e
 if [ -n "$pending_signal" ]; then
-  terminate_child "$pending_signal"
+  forced_cleanup_status=$pending_signal
 fi
-child_pid=
+# Reap the direct child and terminate any remaining process-group/tree
+# descendants before EXIT cleanup can release the cooperative lock.
+stop_child
+if [ -n "$pending_signal" ]; then
+  exit "$pending_signal"
+fi
 trap - HUP INT TERM
 exit "$child_status"

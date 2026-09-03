@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import unittest
@@ -263,6 +264,24 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
                 (lock / 'owner').write_text(f'{token}:99999999\n')
                 self.assertFalse(self.plugin._cooperative_lock_valid())
 
+    def test_wrapper_and_action_canonical_pins_match_their_source(self) -> None:
+        for path, symbol in (
+            (WRAPPER, 'wrapper_canonical_sha256_expected'),
+            (PLUGIN, '_EXPECTED_ACTION_CANONICAL_SHA256'),
+        ):
+            source = path.read_text()
+            match = re.search(
+                rf'(?m)^({re.escape(symbol)}\s*=\s*[\'\"])([0-9a-f]{{64}})([\'\"]\s*)$',
+                source,
+            )
+            self.assertIsNotNone(match)
+            canonical = re.sub(
+                rf'(?m)^({re.escape(symbol)}\s*=\s*[\'\"])[0-9a-f]{{64}}([\'\"]\s*)$',
+                rf'\g<1>{"0" * 64}\g<2>',
+                source,
+            )
+            self.assertEqual(match.group(2), hashlib.sha256(canonical.encode()).hexdigest())
+
     def test_action_specific_canonical_hash_rejects_wrapper_sentinel_confusion(self) -> None:
         source = PLUGIN.read_text()
         canonical = self.plugin._canonical_file_hash(PLUGIN, '_EXPECTED_ACTION_CANONICAL_SHA256')
@@ -305,6 +324,23 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         self.assertIn("is_owned_directory_mode", wrapper)
         self.assertIn("kubernetes.core collection", wrapper)
 
+    def test_complete_module_utils_closure_is_explicitly_hash_bound(self) -> None:
+        wrapper = WRAPPER.read_text()
+        tree = ast.parse(PLUGIN.read_text())
+        assignment = next(
+            node for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == '_EXPECTED_COLLECTION_MODULE_UTILS'
+                    for target in node.targets)
+        )
+        closure = ast.literal_eval(assignment.value)
+        self.assertGreaterEqual(len(closure), 20)
+        self.assertTrue(all(path.startswith('plugins/module_utils/') for path in closure))
+        self.assertTrue(all(re.fullmatch(r'[0-9a-f]{64}', digest) for digest in closure.values()))
+        self.assertIn('plugins/module_utils/k8s/client.py', closure)
+        self.assertIn('plugins/module_utils/client/discovery.py', closure)
+        self.assertIn('FILES.json', wrapper)
+
     def test_create_response_binds_numeric_uid_and_resource_version(self) -> None:
         module = (ROOT / 'ansible/library/shared_mongodb_networkpolicy_create.py').read_text()
         self.assertIn('created_uid', module)
@@ -319,6 +355,7 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         self.assertIn('child_pid=', wrapper)
         self.assertIn("/bin/kill -TERM -- \"-$child_pid\"", wrapper)
         self.assertIn('wait "$child_pid"', wrapper)
+        self.assertIn('trap cleanup EXIT', wrapper)
         self.assertIn("trap '' EXIT HUP INT TERM", wrapper)
         self.assertIn('owner_written=1', wrapper)
         self.assertIn('umask 077', wrapper)
@@ -427,6 +464,31 @@ exit "$status"
                 check=False,
             )
             self.assertNotEqual(0, rejected.returncode)
+
+    def test_legacy_lock_migration_rejects_an_active_flock_holder(self) -> None:
+        with TemporaryDirectory() as directory:
+            lock = Path(directory) / 'lock'
+            lock.touch(mode=0o600)
+            lock.chmod(0o600)
+            holder = subprocess.Popen(['/usr/bin/flock', '-n', str(lock), 'sleep', '5'])
+            try:
+                import time
+                for _ in range(50):
+                    probe = subprocess.run(
+                        [
+                            'sh', '-c',
+                            'exec 9<> "$1"; /usr/bin/flock -n 9',
+                            'active-lock-probe', str(lock),
+                        ],
+                        check=False,
+                    )
+                    if probe.returncode != 0:
+                        break
+                    time.sleep(0.02)
+                self.assertNotEqual(0, probe.returncode)
+            finally:
+                holder.terminate()
+                holder.wait(timeout=5)
 
     def test_absent_target_uses_create_only_module_not_merge_update(self) -> None:
         plugin = PLUGIN.read_text()
@@ -586,7 +648,8 @@ exit "$status"
         self.assertIn('CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CONTROLLER_SHA256', TASKS.read_text())
         self.assertIn('shared_mongodb_networkpolicy_create.py', WRAPPER.read_text())
         self.assertIn('resource.create(', (ROOT / 'ansible/library/shared_mongodb_networkpolicy_create.py').read_text())
-        self.assertNotIn('/usr/bin/flock', WRAPPER.read_text())
+        self.assertIn('/usr/bin/flock -n 9', WRAPPER.read_text())
+        self.assertIn('legacy_lock_inode', WRAPPER.read_text())
         self.assertIn("binding.get('pod_owner_uid') == binding.get('statefulset_uid')", PLUGIN.read_text())
         self.assertIn('k8s-app=kube-dns', TASKS.read_text())
         self.assertIn('root:k3s-admin', TASKS.read_text())
@@ -595,6 +658,14 @@ exit "$status"
         self.assertIn("'deletionTimestamp' not in item.resources[0].metadata", TASKS.read_text())
         self.assertIn("'ownerReferences' not in item.resources[0].metadata", TASKS.read_text())
         self.assertIn('networkpolicy_prestate', PLUGIN.read_text())
+        self.assertIn("initial_prestate_count in (0, 1, 2)", PLUGIN.read_text())
+        self.assertIn("collection_files_sha256_expected", WRAPPER.read_text())
+        self.assertIn("_EXPECTED_COLLECTION_MODULE_UTILS", PLUGIN.read_text())
+        self.assertIn("_EXPECTED_COLLECTION_FILES_SHA256", PLUGIN.read_text())
+        self.assertIn("/usr/bin/flock -n 9", WRAPPER.read_text())
+        self.assertIn("legacy_lock_inode", WRAPPER.read_text())
+        self.assertIn("trap cleanup EXIT", WRAPPER.read_text())
+        self.assertIn("terminate_process_tree", WRAPPER.read_text())
         runbook = (ROOT / 'runbooks/shared-mongodb-networkpolicy-bootstrap.md').read_text()
         self.assertIn('cooperative lock', runbook.lower())
         self.assertIn('historical and predates the', runbook)
