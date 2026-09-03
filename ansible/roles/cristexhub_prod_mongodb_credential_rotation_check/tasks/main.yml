@@ -1,0 +1,536 @@
+---
+- name: Reject externally supplied MongoDB rotation-check internals
+  ansible.builtin.assert:
+    that:
+      - >-
+        (vars.keys() |
+        select('match', '^cristexhub_prod_mongodb_credential_rotation_check_internal_') |
+        list | length) == 0
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied MongoDB PROD
+      rotation-check state.
+  changed_when: false
+
+- name: Require the exact metadata-only MongoDB rotation preflight
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_approved | bool
+      - ansible_check_mode
+      - ansible_diff_mode
+      - (ansible_limit | default('') | string) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - inventory_hostname == 'crtxweb'
+      - cristexhub_prod_mongodb_credential_rotation_check_mode == 'check'
+      - cristexhub_prod_mongodb_credential_rotation_check_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - cristexhub_prod_mongodb_credential_rotation_check_repository_root == '/home/paul/projects/cristexweb'
+      - cristexhub_prod_mongodb_credential_rotation_check_namespace == 'cristexhub-prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_engine_namespace == 'shared-services'
+      - cristexhub_prod_mongodb_credential_rotation_check_engine_source_path == '/shared-services/mongodb'
+      - cristexhub_prod_mongodb_credential_rotation_check_runtime_source_path == '/cristexhub/prod/runtime'
+      - cristexhub_prod_mongodb_credential_rotation_check_environment_slug == 'prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_project_id == '619656da-14f3-4872-857b-be103cdc5326'
+      - cristexhub_prod_mongodb_credential_rotation_check_engine_source_directory == 'ansible/files/components/infisical-database-secrets/source'
+      - cristexhub_prod_mongodb_credential_rotation_check_engine_source_filename == 'shared-mongodb-infisical-secrets.yaml'
+      - cristexhub_prod_mongodb_credential_rotation_check_runtime_source_directory == 'ansible/files/components/infisical-cristexhub-prod-runtime/source'
+      - cristexhub_prod_mongodb_credential_rotation_check_runtime_source_filename == 'cristexhub-prod-runtime-static-secret.yaml'
+      - cristexhub_prod_mongodb_credential_rotation_check_engine_source_keys == ['MONGODB_CRISTEXHUB_PROD_USERNAME', 'MONGODB_CRISTEXHUB_PROD_PASSWORD']
+      - cristexhub_prod_mongodb_credential_rotation_check_runtime_source_key == 'MONGODB_URL'
+      - cristexhub_prod_mongodb_credential_rotation_check_engine_target_name == 'shared-mongodb-cristexhub-prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_runtime_target_name == 'cristexhub-prod-runtime'
+      - cristexhub_prod_mongodb_credential_rotation_check_engine_target_keys == ['username', 'password']
+      - cristexhub_prod_mongodb_credential_rotation_check_runtime_target_keys == ['MONGODB_URL']
+      - cristexhub_prod_mongodb_credential_rotation_check_source_write_status == 'forbidden'
+      - cristexhub_prod_mongodb_credential_rotation_check_engine_cas_status == 'unavailable'
+      - cristexhub_prod_mongodb_credential_rotation_check_runtime_cas_status == 'unavailable'
+      - cristexhub_prod_mongodb_credential_rotation_check_ambiguous_status == 'UNKNOWN-STOP'
+      - cristexhub_prod_mongodb_credential_rotation_check_missing_revision_status == 'UNKNOWN-STOP'
+      - cristexhub_prod_mongodb_credential_rotation_check_apply_status == 'NOT-RUN-BLOCKED'
+      - cristexhub_prod_mongodb_credential_rotation_check_auth_negative_status == 'NOT-RUN-BLOCKED'
+      - cristexhub_prod_mongodb_credential_rotation_check_predecessor_revocation_status == 'SEPARATE-APPROVAL-REQUIRED'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        map(attribute='id') | list | sort == ['engine_source', 'engine_target',
+        'runtime_source', 'runtime_target']
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_source') | map(attribute='api_path') | first) ==
+        '/apis/secrets.infisical.com/v1beta1/namespaces/shared-services/infisicalstaticsecrets/shared-mongodb-infisical-secrets'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_source') | map(attribute='api_path') | first) ==
+        '/apis/secrets.infisical.com/v1beta1/namespaces/cristexhub-prod/infisicalstaticsecrets/cristexhub-prod-runtime'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_target') | map(attribute='api_path') | first) ==
+        '/api/v1/namespaces/shared-services/secrets/shared-mongodb-cristexhub-prod'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_target') | map(attribute='api_path') | first) ==
+        '/api/v1/namespaces/cristexhub-prod/secrets/cristexhub-prod-runtime'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_source') | map(attribute='kind') | first) ==
+        'InfisicalStaticSecret'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_source') | map(attribute='kind') | first) ==
+        'InfisicalStaticSecret'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_target') | map(attribute='kind') | first) == 'Secret'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_target') | map(attribute='kind') | first) == 'Secret'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_source') | map(attribute='api_version') | first) ==
+        'secrets.infisical.com/v1beta1'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_source') | map(attribute='api_version') | first) ==
+        'secrets.infisical.com/v1beta1'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_target') | map(attribute='api_version') | first) == 'v1'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_target') | map(attribute='api_version') | first) == 'v1'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_source') | map(attribute='labels') | first) == {
+        'app.kubernetes.io/part-of': 'cristex-platform',
+        'app.kubernetes.io/managed-by': 'ansible',
+        'cristex.io/component': 'infisical-database-secrets'}
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_source') | map(attribute='labels') | first) == {
+        'app.kubernetes.io/part-of': 'cristex-platform',
+        'app.kubernetes.io/managed-by': 'ansible',
+        'cristex.io/component': 'infisical-cristexhub-prod-runtime'}
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_target') | map(attribute='labels') | first) == {
+        'app.kubernetes.io/managed-by': 'infisical',
+        'app.kubernetes.io/part-of': 'shared-databases',
+        'cristex.io/value-owner': 'infisical-cloud'}
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_target') | map(attribute='labels') | first) == {
+        'app.kubernetes.io/managed-by': 'infisical',
+        'app.kubernetes.io/part-of': 'cristexhub',
+        'cristex.io/value-owner': 'infisical-cloud'}
+      - cristexhub_prod_mongodb_credential_rotation_check_consumers | map(attribute='name') | list == ['backend', 'celery-worker']
+      - cristexhub_prod_mongodb_credential_rotation_check_consumers | map(attribute='runtime_key') | list == ['MONGODB_URL', 'MONGODB_URL']
+      - cristexhub_prod_mongodb_credential_rotation_check_operator_deployment.name == 'infisical-operator-controller'
+      - cristexhub_prod_mongodb_credential_rotation_check_operator_deployment.namespace == 'shared-services'
+      - cristexhub_prod_mongodb_credential_rotation_check_argo.name == 'cristexhub-prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_argo.namespace == 'argocd'
+      - cristexhub_prod_mongodb_credential_rotation_check_argo.server == 'https://kubernetes.default.svc'
+      - cristexhub_prod_mongodb_credential_rotation_check_argo.revision == '751885a42798d282e168131db147f13694a0a621'
+    fail_msg: >-
+      Refusing a MongoDB PROD rotation check outside the exact one-host,
+      value-free, source-only contract.
+  changed_when: false
+  no_log: true
+
+- name: Require the canonical check wrapper attestation
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_MODE') == 'check'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ATTESTATION_FILE') | length > 0
+      - >-
+        lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_WRAPPER_PATH') ==
+        '/home/paul/projects/cristexweb/ansible/bin/check-cristexhub-prod-mongodb-credential-rotation'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_WRAPPER_CANONICAL_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_WRAPPER_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_TASK_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_DEFAULTS_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_PLAYBOOK_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_POLICY_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_METADATA_MODULE_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_INVENTORY_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ANSIBLE_CONFIG_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_CONTROLLER_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_REPOSITORY_ROOT') == '/home/paul/projects/cristexweb'
+    fail_msg: >-
+      ENTRYPOINT_GUARD: use only the canonical check-only MongoDB PROD
+      credential rotation wrapper.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the one-run metadata-check attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: cristexhub_prod_mongodb_credential_rotation_check_internal_attestation
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require a private single-use metadata-check attestation
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_attestation.stat.exists | default(false)
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_attestation.stat.isreg | default(false)
+      - not (cristexhub_prod_mongodb_credential_rotation_check_internal_attestation.stat.islnk | default(false))
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_attestation.stat.pw_name == cristexhub_prod_mongodb_credential_rotation_check_controller_user
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_attestation.stat.mode == '0600'
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_TOKEN') ~ ':entrypoint'
+    fail_msg: Refusing a missing, reusable, foreign-owned, or invalid rotation-check attestation.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect the exact MongoDB rotation source closure
+  ansible.builtin.stat:
+    path: "{{ cristexhub_prod_mongodb_credential_rotation_check_repository_root }}/{{ item.path }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop:
+    - {path: 'ansible/bin/check-cristexhub-prod-mongodb-credential-rotation', mode: '0755'}
+    - {path: 'ansible/roles/cristexhub_prod_mongodb_credential_rotation_check/tasks/main.yml', mode: '0644'}
+    - {path: 'ansible/roles/cristexhub_prod_mongodb_credential_rotation_check/defaults/main.yml', mode: '0644'}
+    - {path: 'ansible/playbooks/check_cristexhub_prod_mongodb_credential_rotation.yml', mode: '0644'}
+    - {path: 'ansible/files/policies/cristexhub-prod-mongodb-credential-rotation.yml', mode: '0644'}
+    - {path: 'ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py', mode: '0755'}
+  register: cristexhub_prod_mongodb_credential_rotation_check_internal_source_states
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require exact source modes and wrapper-bound source hashes
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.pw_name == cristexhub_prod_mongodb_credential_rotation_check_controller_user
+      - item.stat.mode == item.item.mode
+      - >-
+        (item.item.path == 'ansible/bin/check-cristexhub-prod-mongodb-credential-rotation' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_WRAPPER_SHA256')) or
+        (item.item.path == 'ansible/roles/cristexhub_prod_mongodb_credential_rotation_check/tasks/main.yml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_TASK_SHA256')) or
+        (item.item.path == 'ansible/roles/cristexhub_prod_mongodb_credential_rotation_check/defaults/main.yml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_DEFAULTS_SHA256')) or
+        (item.item.path == 'ansible/playbooks/check_cristexhub_prod_mongodb_credential_rotation.yml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_PLAYBOOK_SHA256')) or
+        (item.item.path == 'ansible/files/policies/cristexhub-prod-mongodb-credential-rotation.yml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_POLICY_SHA256')) or
+        (item.item.path == 'ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_METADATA_MODULE_SHA256'))
+    fail_msg: Refusing source closure drift, symlinks, or mode/owner drift.
+  loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_source_states.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Load the value-free engine and runtime source manifests
+  ansible.builtin.set_fact:
+    cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest: >-
+      {{ lookup('ansible.builtin.file',
+      cristexhub_prod_mongodb_credential_rotation_check_repository_root ~ '/' ~
+      cristexhub_prod_mongodb_credential_rotation_check_engine_source_directory ~ '/' ~
+      cristexhub_prod_mongodb_credential_rotation_check_engine_source_filename) | from_yaml }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest: >-
+      {{ lookup('ansible.builtin.file',
+      cristexhub_prod_mongodb_credential_rotation_check_repository_root ~ '/' ~
+      cristexhub_prod_mongodb_credential_rotation_check_runtime_source_directory ~ '/' ~
+      cristexhub_prod_mongodb_credential_rotation_check_runtime_source_filename) | from_yaml }}
+  changed_when: false
+  no_log: true
+
+- name: Bind exact value-free source targets
+  ansible.builtin.set_fact:
+    cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.targets |
+      selectattr('name', 'equalto', cristexhub_prod_mongodb_credential_rotation_check_engine_target_name) | list | first }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.targets |
+      selectattr('name', 'equalto', cristexhub_prod_mongodb_credential_rotation_check_runtime_target_name) | list | first }}
+  changed_when: false
+  no_log: true
+
+- name: Require exact two-path Infisical source contracts
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.apiVersion == 'secrets.infisical.com/v1beta1'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.kind == 'InfisicalStaticSecret'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.metadata.name == 'shared-mongodb-infisical-secrets'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.metadata.namespace == 'shared-services'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.sources | length == 1
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.sources[0].projectId ==
+        cristexhub_prod_mongodb_credential_rotation_check_project_id
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.sources[0].environmentSlug == 'prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.sources[0].secretPath == '/shared-services/mongodb'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.sources[0].recursive == false
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest.spec.sources[0].tagSlugs == []
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.kind == 'Secret'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.namespace == 'shared-services'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.secretType == 'Opaque'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.creationPolicy == 'Orphan'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_target.template.data.keys() | list | sort == ['password', 'username']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.apiVersion == 'secrets.infisical.com/v1beta1'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.kind == 'InfisicalStaticSecret'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.metadata.name == 'cristexhub-prod-runtime'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.metadata.namespace == 'cristexhub-prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.sources | length == 1
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.sources[0].projectId ==
+        cristexhub_prod_mongodb_credential_rotation_check_project_id
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.sources[0].environmentSlug == 'prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.sources[0].secretPath == '/cristexhub/prod/runtime'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest.spec.sources[0].recursive == false
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.kind == 'Secret'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.namespace == 'cristexhub-prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.secretType == 'Opaque'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.creationPolicy == 'Orphan'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_target.template.data.keys() |
+        list | sort == ['BROWSERLESS_TOKEN', 'CODE_RUNNER_AUTH_TOKEN', 'FERNET_KEY', 'MONGODB_URL',
+        'OAUTH2_PROXY_COOKIE_SECRET', 'OIDC_CLIENT_SECRET', 'PRIVATE_CA_BUNDLE', 'RABBITMQ_URL',
+        'REDIS_PASSWORD', 'REDIS_URL']
+    fail_msg: Refusing a source-path, target, or key-closure mismatch.
+  changed_when: false
+  no_log: true
+
+- name: Query exact Infisical source and target metadata without Secret data
+  cristexhub_prod_mongodb_credential_rotation_metadata:
+    kubeconfig: "{{ cristexhub_prod_mongodb_credential_rotation_check_kubeconfig }}"
+    api_path: "{{ item.api_path }}"
+    resource_kind: "{{ item.kind }}"
+    resource_api_version: "{{ item.api_version }}"
+  loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_metadata_resources }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.namespace }}/{{ item.name }}"
+  register: cristexhub_prod_mongodb_credential_rotation_check_internal_metadata_results
+  changed_when: false
+  no_log: true
+
+- name: Initialize metadata-only source and target observations
+  ansible.builtin.set_fact:
+    cristexhub_prod_mongodb_credential_rotation_check_internal_metadata: {}
+  changed_when: false
+  no_log: true
+
+- name: Bind metadata-only source and target observations
+  ansible.builtin.set_fact:
+    cristexhub_prod_mongodb_credential_rotation_check_internal_metadata: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_metadata |
+      combine({item.item.id: item.metadata}) }}
+  loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_metadata_results.results }}"
+  loop_control:
+    label: "{{ item.item.kind }}/{{ item.item.namespace }}/{{ item.item.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Require exact metadata identities and Infisical ownership
+  ansible.builtin.assert:
+    that:
+      - item.resource_kind == item.item.kind
+      - item.resource_api_version == item.item.api_version
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].name == item.name
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].namespace == item.namespace
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].uid | default('') | length > 0
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].resourceVersion | default('') | length > 0
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].labels == item.labels
+      - >-
+        (not item.require_version_annotation) or
+        (cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].annotations.keys() |
+        list | sort == [cristexhub_prod_mongodb_credential_rotation_check_version_annotation])
+      - >-
+        (not item.require_version_annotation) or
+        (cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].annotations[
+        cristexhub_prod_mongodb_credential_rotation_check_version_annotation] | default('') | length > 0)
+    fail_msg: Refusing missing, replaced, unowned, or unversioned Infisical source/target metadata.
+  loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_metadata_resources }}"
+  loop_control:
+    label: "{{ item.kind }}/{{ item.namespace }}/{{ item.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Bind the fixed materialization version annotation name
+  ansible.builtin.set_fact:
+    cristexhub_prod_mongodb_credential_rotation_check_e: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_metadata.engine_target }}
+    cristexhub_prod_mongodb_credential_rotation_check_r: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_metadata.runtime_target }}
+    cristexhub_prod_mongodb_credential_rotation_check_v: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_version_annotation }}
+  changed_when: false
+  no_log: true
+
+- name: Bind the two observed revision channels without claiming Infisical CAS
+  ansible.builtin.set_fact:
+    cristexhub_prod_mongodb_credential_rotation_check_internal_revision_observations:
+      engine_source_resource_version: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_metadata.engine_source.resourceVersion }}"
+      runtime_source_resource_version: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_metadata.runtime_source.resourceVersion }}"
+      engine_materialization_version: >-
+        {{ cristexhub_prod_mongodb_credential_rotation_check_e.annotations |
+        dict2items | selectattr('key', 'equalto', cristexhub_prod_mongodb_credential_rotation_check_v) |
+        map(attribute='value') | first }}
+      runtime_materialization_version: >-
+        {{ cristexhub_prod_mongodb_credential_rotation_check_r.annotations |
+        dict2items | selectattr('key', 'equalto', cristexhub_prod_mongodb_credential_rotation_check_v) |
+        map(attribute='value') | first }}
+      engine_cas_status: unavailable
+      runtime_url_cas_status: unavailable
+      ambiguous_result: UNKNOWN-STOP
+      missing_revision_result: UNKNOWN-STOP
+  changed_when: false
+  no_log: true
+
+- name: Require both revision observations and the fail-closed CAS stop state
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_revision_observations.engine_source_resource_version | length > 0
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_revision_observations.runtime_source_resource_version | length > 0
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_revision_observations.engine_materialization_version | length > 0
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_revision_observations.runtime_materialization_version | length > 0
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_revision_observations.engine_cas_status == 'unavailable'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_revision_observations.runtime_url_cas_status == 'unavailable'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_revision_observations.ambiguous_result == 'UNKNOWN-STOP'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_revision_observations.missing_revision_result == 'UNKNOWN-STOP'
+    fail_msg: >-
+      Refusing to proceed when either Infisical path lacks a proven expected
+      revision/conditional-write contract.
+  changed_when: false
+  no_log: true
+
+- name: Query the exact Infisical Operator controller health
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: "{{ cristexhub_prod_mongodb_credential_rotation_check_operator_deployment.namespace }}"
+    name: "{{ cristexhub_prod_mongodb_credential_rotation_check_operator_deployment.name }}"
+    kubeconfig: "{{ cristexhub_prod_mongodb_credential_rotation_check_kubeconfig }}"
+  register: cristexhub_prod_mongodb_credential_rotation_check_internal_operator
+  changed_when: false
+  no_log: true
+
+- name: Require an available Infisical Operator without mutating it
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_operator.resources | length == 1
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_operator.resources[0].metadata.labels ==
+        cristexhub_prod_mongodb_credential_rotation_check_operator_deployment.labels
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_operator.resources[0].status.readyReplicas | default(0) | int == 1
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_operator.resources[0].status.availableReplicas | default(0) | int == 1
+    fail_msg: Refusing source rotation while the Infisical Operator is absent or unavailable.
+  changed_when: false
+  no_log: true
+
+- name: Query exact PROD consumer Deployment readiness
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: "{{ cristexhub_prod_mongodb_credential_rotation_check_namespace }}"
+    name: "{{ item.name }}"
+    kubeconfig: "{{ cristexhub_prod_mongodb_credential_rotation_check_kubeconfig }}"
+  loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_consumers }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: cristexhub_prod_mongodb_credential_rotation_check_internal_consumers
+  changed_when: false
+  no_log: true
+
+- name: Require current consumer readiness without claiming successor acceptance
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.name == item.item.name
+      - item.resources[0].metadata.labels['app.kubernetes.io/name'] == item.item.name
+      - item.resources[0].metadata.labels['app.kubernetes.io/part-of'] == 'cristexhub'
+      - item.resources[0].metadata.uid | default('') | length > 0
+      - item.resources[0].metadata.resourceVersion | default('') | length > 0
+      - item.resources[0].status.readyReplicas | default(0) | int == 1
+      - item.resources[0].status.availableReplicas | default(0) | int == 1
+      - item.resources[0].status.updatedReplicas | default(0) | int == 1
+    fail_msg: Refusing rotation while a required PROD consumer is not Ready.
+  loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_consumers.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  changed_when: false
+  no_log: true
+
+- name: Query the private PROD Argo Application status
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    namespace: "{{ cristexhub_prod_mongodb_credential_rotation_check_argo.namespace }}"
+    name: "{{ cristexhub_prod_mongodb_credential_rotation_check_argo.name }}"
+    kubeconfig: "{{ cristexhub_prod_mongodb_credential_rotation_check_kubeconfig }}"
+  register: cristexhub_prod_mongodb_credential_rotation_check_internal_argo
+  changed_when: false
+  no_log: true
+
+- name: Require private PROD Argo health before any future cutover
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_argo.resources | length == 1
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_argo.resources[0].spec.destination.server ==
+        cristexhub_prod_mongodb_credential_rotation_check_argo.server
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_argo.resources[0].spec.destination.name | default('') == ''
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_argo.resources[0].spec.source.targetRevision ==
+        cristexhub_prod_mongodb_credential_rotation_check_argo.revision
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_argo.resources[0].status.sync.status == 'Synced'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_argo.resources[0].status.health.status == 'Healthy'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_argo.resources[0].status.sync.revision ==
+        cristexhub_prod_mongodb_credential_rotation_check_argo.revision
+    fail_msg: Refusing future MongoDB cutover while private PROD Argo state is stale, aliased, or unhealthy.
+  changed_when: false
+  no_log: true
+
+- name: Record explicit non-executable rotation stop state
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_source_write_status == 'forbidden'
+      - cristexhub_prod_mongodb_credential_rotation_check_engine_cas_status == 'unavailable'
+      - cristexhub_prod_mongodb_credential_rotation_check_runtime_cas_status == 'unavailable'
+      - cristexhub_prod_mongodb_credential_rotation_check_apply_status == 'NOT-RUN-BLOCKED'
+      - cristexhub_prod_mongodb_credential_rotation_check_auth_negative_status == 'NOT-RUN-BLOCKED'
+      - cristexhub_prod_mongodb_credential_rotation_check_predecessor_revocation_status == 'SEPARATE-APPROVAL-REQUIRED'
+    fail_msg: >-
+      Refusing to claim MongoDB rotation readiness: no source writer, CAS
+      protocol, value-bearing authentication probe, or revocation operation is
+      present in this check-only lane.
+  changed_when: false
+  no_log: true
+
+- name: Emit sanitized MongoDB rotation preflight result
+  ansible.builtin.debug:
+    msg:
+      status: source-only-check-complete
+      apply_status: NOT-RUN-BLOCKED
+      source_write: forbidden
+      engine_path_cas: unavailable
+      runtime_url_path_cas: unavailable
+      auth_negative_validation: NOT-RUN-BLOCKED
+      predecessor_revocation: SEPARATE-APPROVAL-REQUIRED
+      values_read: false
+      secret_data_requested: false
+      infisical_mutation: false
+      kubernetes_mutation: false
+      consumer_restart: false
+      argo: Synced/Healthy
+  changed_when: false

@@ -1,0 +1,129 @@
+---
+# Metadata-only preflight. There is deliberately no apply mode or value writer.
+cristexhub_prod_mongodb_credential_rotation_check_approved: false
+cristexhub_prod_mongodb_credential_rotation_check_mode: check
+cristexhub_prod_mongodb_credential_rotation_check_kubeconfig: /etc/rancher/k3s/k3s.yaml
+cristexhub_prod_mongodb_credential_rotation_check_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
+cristexhub_prod_mongodb_credential_rotation_check_namespace: cristexhub-prod
+cristexhub_prod_mongodb_credential_rotation_check_engine_namespace: shared-services
+cristexhub_prod_mongodb_credential_rotation_check_argocd_namespace: argocd
+cristexhub_prod_mongodb_credential_rotation_check_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+
+cristexhub_prod_mongodb_credential_rotation_check_engine_source_path: /shared-services/mongodb
+cristexhub_prod_mongodb_credential_rotation_check_runtime_source_path: /cristexhub/prod/runtime
+cristexhub_prod_mongodb_credential_rotation_check_environment_slug: prod
+cristexhub_prod_mongodb_credential_rotation_check_project_id: 619656da-14f3-4872-857b-be103cdc5326
+cristexhub_prod_mongodb_credential_rotation_check_engine_source_keys:
+  - MONGODB_CRISTEXHUB_PROD_USERNAME
+  - MONGODB_CRISTEXHUB_PROD_PASSWORD
+cristexhub_prod_mongodb_credential_rotation_check_runtime_source_key: MONGODB_URL
+
+cristexhub_prod_mongodb_credential_rotation_check_engine_target_name: shared-mongodb-cristexhub-prod
+cristexhub_prod_mongodb_credential_rotation_check_runtime_target_name: cristexhub-prod-runtime
+cristexhub_prod_mongodb_credential_rotation_check_engine_target_keys:
+  - username
+  - password
+cristexhub_prod_mongodb_credential_rotation_check_runtime_target_keys:
+  - MONGODB_URL
+cristexhub_prod_mongodb_credential_rotation_check_engine_target_type: Opaque
+cristexhub_prod_mongodb_credential_rotation_check_runtime_target_type: Opaque
+cristexhub_prod_mongodb_credential_rotation_check_target_owner_label: infisical-cloud
+cristexhub_prod_mongodb_credential_rotation_check_version_annotation: secrets.infisical.com/version
+
+cristexhub_prod_mongodb_credential_rotation_check_engine_source_directory: ansible/files/components/infisical-database-secrets/source
+cristexhub_prod_mongodb_credential_rotation_check_engine_source_filename: shared-mongodb-infisical-secrets.yaml
+cristexhub_prod_mongodb_credential_rotation_check_runtime_source_directory: ansible/files/components/infisical-cristexhub-prod-runtime/source
+cristexhub_prod_mongodb_credential_rotation_check_runtime_source_filename: cristexhub-prod-runtime-static-secret.yaml
+cristexhub_prod_mongodb_credential_rotation_check_policy_manifest: ansible/files/policies/cristexhub-prod-mongodb-credential-rotation.yml
+cristexhub_prod_mongodb_credential_rotation_check_metadata_module: ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py
+
+cristexhub_prod_mongodb_credential_rotation_check_source_contract:
+  engine:
+    environment_slug: prod
+    secret_path: /shared-services/mongodb
+    recursive: false
+    keys:
+      - MONGODB_CRISTEXHUB_PROD_USERNAME
+      - MONGODB_CRISTEXHUB_PROD_PASSWORD
+  runtime_url:
+    environment_slug: prod
+    secret_path: /cristexhub/prod/runtime
+    recursive: false
+    key: MONGODB_URL
+
+cristexhub_prod_mongodb_credential_rotation_check_metadata_resources:
+  - id: engine_source
+    api_path: /apis/secrets.infisical.com/v1beta1/namespaces/shared-services/infisicalstaticsecrets/shared-mongodb-infisical-secrets
+    kind: InfisicalStaticSecret
+    api_version: secrets.infisical.com/v1beta1
+    namespace: shared-services
+    name: shared-mongodb-infisical-secrets
+    labels:
+      app.kubernetes.io/part-of: cristex-platform
+      app.kubernetes.io/managed-by: ansible
+      cristex.io/component: infisical-database-secrets
+    require_version_annotation: false
+  - id: runtime_source
+    api_path: /apis/secrets.infisical.com/v1beta1/namespaces/cristexhub-prod/infisicalstaticsecrets/cristexhub-prod-runtime
+    kind: InfisicalStaticSecret
+    api_version: secrets.infisical.com/v1beta1
+    namespace: cristexhub-prod
+    name: cristexhub-prod-runtime
+    labels:
+      app.kubernetes.io/part-of: cristex-platform
+      app.kubernetes.io/managed-by: ansible
+      cristex.io/component: infisical-cristexhub-prod-runtime
+    require_version_annotation: false
+  - id: engine_target
+    api_path: /api/v1/namespaces/shared-services/secrets/shared-mongodb-cristexhub-prod
+    kind: Secret
+    api_version: v1
+    namespace: shared-services
+    name: shared-mongodb-cristexhub-prod
+    labels:
+      app.kubernetes.io/managed-by: infisical
+      app.kubernetes.io/part-of: shared-databases
+      cristex.io/value-owner: infisical-cloud
+    require_version_annotation: true
+  - id: runtime_target
+    api_path: /api/v1/namespaces/cristexhub-prod/secrets/cristexhub-prod-runtime
+    kind: Secret
+    api_version: v1
+    namespace: cristexhub-prod
+    name: cristexhub-prod-runtime
+    labels:
+      app.kubernetes.io/managed-by: infisical
+      app.kubernetes.io/part-of: cristexhub
+      cristex.io/value-owner: infisical-cloud
+    require_version_annotation: true
+
+cristexhub_prod_mongodb_credential_rotation_check_operator_deployment:
+  name: infisical-operator-controller
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/component: infisical-operator
+
+cristexhub_prod_mongodb_credential_rotation_check_consumers:
+  - name: backend
+    runtime_key: MONGODB_URL
+  - name: celery-worker
+    runtime_key: MONGODB_URL
+
+cristexhub_prod_mongodb_credential_rotation_check_argo:
+  name: cristexhub-prod
+  namespace: argocd
+  server: https://kubernetes.default.svc
+  revision: 751885a42798d282e168131db147f13694a0a621
+
+# Infisical exposes no reviewed conditional-write contract for this project.
+# These fixed values deliberately keep this lane check-only and fail closed.
+cristexhub_prod_mongodb_credential_rotation_check_source_write_status: forbidden
+cristexhub_prod_mongodb_credential_rotation_check_engine_cas_status: unavailable
+cristexhub_prod_mongodb_credential_rotation_check_runtime_cas_status: unavailable
+cristexhub_prod_mongodb_credential_rotation_check_ambiguous_status: UNKNOWN-STOP
+cristexhub_prod_mongodb_credential_rotation_check_missing_revision_status: UNKNOWN-STOP
+cristexhub_prod_mongodb_credential_rotation_check_apply_status: NOT-RUN-BLOCKED
+cristexhub_prod_mongodb_credential_rotation_check_auth_negative_status: NOT-RUN-BLOCKED
+cristexhub_prod_mongodb_credential_rotation_check_predecessor_revocation_status: SEPARATE-APPROVAL-REQUIRED
