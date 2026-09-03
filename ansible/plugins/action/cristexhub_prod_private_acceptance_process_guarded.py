@@ -23,10 +23,16 @@ _CONTROLLER_SOURCE = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
 _PYTHON_SOURCE = Path("/usr/bin/python3")
 _EXPECTED_OPERATOR = "paul"
 _EXPECTED_KUBECONFIG = Path("/etc/rancher/k3s/k3s.yaml")
+_PYTHON_OWNER_UID = 0
+_PYTHON_OWNER_GID = 0
+_PYTHON_LINK_MODE = 0o777
+_PYTHON_TARGET_MODE = 0o755
+_PYTHON_COMPONENT_MODE = 0o755
+_PYTHON_MAX_LINK_DEPTH = 8
 
 # These values are source pins, not task inputs. They are refreshed whenever one
 # of the leaves changes; the action's own pin is canonicalized by zeroing it.
-_ACTION_CANONICAL_SHA256 = "9766b965447d45bc9bdadc3f081ae63689ead0534371f3f7ee1b9af3d1ba75d4"
+_ACTION_CANONICAL_SHA256 = "54b2ed9138a46dfd3f34505144cc94ede03870153a09e198546d8e1ca504d6fa"
 
 
 def _sha256(path: Path) -> str:
@@ -47,6 +53,86 @@ def _canonical_file_hash(path: Path, symbol: str) -> str:
         return hashlib.sha256(source.encode("utf-8")).hexdigest() if count == 1 else ""
     except (OSError, UnicodeError):
         return ""
+
+
+def _secure_python_directory(path: Path) -> bool:
+    """Require every interpreter path directory to be root-owned and private."""
+    if not path.is_absolute():
+        return False
+    current = Path(path.anchor)
+    for component in path.parts[1:]:
+        current /= component
+        try:
+            state = current.lstat()
+        except OSError:
+            return False
+        if (
+            not stat.S_ISDIR(state.st_mode)
+            or stat.S_ISLNK(state.st_mode)
+            or state.st_uid != _PYTHON_OWNER_UID
+            or state.st_gid != _PYTHON_OWNER_GID
+            or stat.S_IMODE(state.st_mode) != _PYTHON_COMPONENT_MODE
+        ):
+            return False
+    return True
+
+
+def _python_target() -> Path | None:
+    """Resolve the fixed system Python link without trusting writable components."""
+    current = _PYTHON_SOURCE
+    seen: set[tuple[int, int]] = set()
+    for depth in range(_PYTHON_MAX_LINK_DEPTH):
+        if not current.is_absolute() or not _secure_python_directory(current.parent):
+            return None
+        try:
+            state = current.lstat()
+        except OSError:
+            return None
+        identity = (state.st_dev, state.st_ino)
+        if identity in seen:
+            return None
+        seen.add(identity)
+        if stat.S_ISLNK(state.st_mode):
+            if (
+                depth == 0
+                and current != _PYTHON_SOURCE
+                or state.st_uid != _PYTHON_OWNER_UID
+                or state.st_gid != _PYTHON_OWNER_GID
+                or stat.S_IMODE(state.st_mode) != _PYTHON_LINK_MODE
+                or state.st_nlink != 1
+            ):
+                return None
+            try:
+                link_target = os.readlink(current)
+            except OSError:
+                return None
+            if not link_target:
+                return None
+            current = Path(link_target) if os.path.isabs(link_target) else current.parent / link_target
+            current = Path(os.path.normpath(str(current)))
+            continue
+        if (
+            depth == 0
+            or not stat.S_ISREG(state.st_mode)
+            or state.st_uid != _PYTHON_OWNER_UID
+            or state.st_gid != _PYTHON_OWNER_GID
+            or stat.S_IMODE(state.st_mode) != _PYTHON_TARGET_MODE
+            or state.st_nlink != 1
+        ):
+            return None
+        return current
+    return None
+
+
+def _python_runtime_contract() -> bool:
+    target = _python_target()
+    if target is None:
+        return False
+    supplied = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256", "")
+    return (
+        re.fullmatch(r"[0-9a-f]{64}", supplied) is not None
+        and _sha256(target) == supplied
+    )
 
 
 def _proc_starttime(pid: int) -> str:
@@ -159,17 +245,13 @@ def _source_closure_valid() -> bool:
             return False
     try:
         controller = _CONTROLLER_SOURCE.stat(follow_symlinks=False)
-        python = _PYTHON_SOURCE.stat(follow_symlinks=False)
         return (
             stat.S_ISREG(controller.st_mode)
             and not _CONTROLLER_SOURCE.is_symlink()
             and stat.S_IMODE(controller.st_mode) == 0o775
             and controller.st_uid == os.getuid()
             and _sha256(_CONTROLLER_SOURCE) == os.environ.get(prefix + "CONTROLLER_SHA256")
-            and stat.S_ISREG(python.st_mode)
-            and stat.S_IMODE(python.st_mode) == 0o755
-            and python.st_uid == 0
-            and _sha256(_PYTHON_SOURCE) == os.environ.get(prefix + "PYTHON_SHA256")
+            and _python_runtime_contract()
             and _canonical_file_hash(_ACTION_SOURCE, "_ACTION_CANONICAL_SHA256") == _ACTION_CANONICAL_SHA256
             and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected")
             == os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256")
@@ -237,7 +319,7 @@ def _wrapper_binding_valid(task_vars: dict[str, Any]) -> bool:
         and os.environ.get(prefix + "INVENTORY_SHA256") == _sha256(_INVENTORY_SOURCE)
         and os.environ.get(prefix + "ANSIBLE_CONFIG_SHA256") == _sha256(_ANSIBLE_CONFIG_SOURCE)
         and os.environ.get(prefix + "CONTROLLER_SHA256") == _sha256(_CONTROLLER_SOURCE)
-        and os.environ.get(prefix + "PYTHON_SHA256") == _sha256(_PYTHON_SOURCE)
+        and os.environ.get(prefix + "PYTHON_SHA256") == (_sha256(_python_target()) if _python_target() else "")
         and os.environ.get(prefix + "SOURCE_CLOSURE_SHA256") == expected_closure
         and task_vars.get("cristexhub_prod_private_acceptance_approved") is True
         and bool(context.CLIARGS.get("check"))

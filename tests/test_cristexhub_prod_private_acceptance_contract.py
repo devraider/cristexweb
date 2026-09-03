@@ -344,6 +344,50 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         self.assertTrue(module._proc_starttime(os.getpid()))
         self.assertEqual([], module._proc_cmdline(0))
 
+    def test_python_source_contract_follows_canonical_system_symlink(self) -> None:
+        spec = importlib.util.spec_from_file_location("private_acceptance_python_contract", PROCESS_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertTrue(module._PYTHON_SOURCE.is_symlink())
+        target = module._PYTHON_SOURCE.resolve(strict=True)
+        self.assertTrue(target.is_file())
+        self.assertEqual(0, target.stat().st_uid)
+        original = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256")
+        name = "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256"
+        os.environ[name] = hashlib.sha256(target.read_bytes()).hexdigest()
+        try:
+            self.assertEqual(target, module._python_target())
+            self.assertTrue(module._python_runtime_contract())
+        finally:
+            if original is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = original
+
+    def test_python_source_contract_rejects_writable_or_non_linked_chains(self) -> None:
+        spec = importlib.util.spec_from_file_location("private_acceptance_python_unsafe_contract", PROCESS_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with self.subTest("writable-parent-chain"):
+            unsafe = Path("/tmp") / f"cristexweb-python-{os.getpid()}"
+            target = unsafe.with_name(unsafe.name + ".target")
+            try:
+                target.write_bytes(b"#!/usr/bin/python3\\n")
+                target.chmod(0o755)
+                unsafe.symlink_to(target)
+                module._PYTHON_SOURCE = unsafe
+                self.assertIsNone(module._python_target())
+            finally:
+                unsafe.unlink(missing_ok=True)
+                target.unlink(missing_ok=True)
+        with self.subTest("regular-source-is-not-followed"):
+            module._PYTHON_SOURCE = Path("/usr/bin/python3.13")
+            self.assertIsNone(module._python_target())
+
     def test_process_guard_source_pins_match_current_bytes(self) -> None:
         def canonical(path: Path, symbol: str) -> str:
             source = path.read_text()
