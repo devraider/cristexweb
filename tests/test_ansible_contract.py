@@ -68,8 +68,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/reactive_resume_object_storage_full_spec_guarded.py"),
             Path("ansible/plugins/action/argocd_cluster_cache_scope_transition_guarded_k8s.py"),
             Path("ansible/plugins/action/argocd_target_cache_repair_guarded_k8s.py"),
+            Path("ansible/plugins/action/cristexhub_prod_private_acceptance_process_guarded.py"),
         }
-        self.assertEqual(42, len(allowed_action_plugins))
+        self.assertEqual(43, len(allowed_action_plugins))
         allowed_strategy_plugins = {
             Path("ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py"),
             Path("ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py"),
@@ -504,6 +505,7 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "roles/argocd_target_cache_repair/tasks/main.yml",
                 "bin/check-cristexhub-prod-private-acceptance",
                 "playbooks/check_cristexhub_prod_private_acceptance.yml",
+                "plugins/action/cristexhub_prod_private_acceptance_process_guarded.py",
                 "roles/cristexhub_prod_private_acceptance/defaults/main.yml",
                 "roles/cristexhub_prod_private_acceptance/tasks/main.yml",
                 "files/policies/cristexhub-prod-credential-rotation-gates.yml",

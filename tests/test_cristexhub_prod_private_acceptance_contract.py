@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import importlib.util
+import os
 import re
 import stat
 import subprocess
@@ -13,6 +16,7 @@ ANSIBLE = ROOT / "ansible"
 DEFAULTS = ANSIBLE / "roles/cristexhub_prod_private_acceptance/defaults/main.yml"
 TASKS = ANSIBLE / "roles/cristexhub_prod_private_acceptance/tasks/main.yml"
 PLAYBOOK = ANSIBLE / "playbooks/check_cristexhub_prod_private_acceptance.yml"
+PROCESS_GUARD = ANSIBLE / "plugins/action/cristexhub_prod_private_acceptance_process_guarded.py"
 WRAPPER = ANSIBLE / "bin/check-cristexhub-prod-private-acceptance"
 RUNBOOK = ROOT / "runbooks/cristexhub-prod-private-acceptance.md"
 POLICY = ANSIBLE / "files/policies/cristexhub-prod-credential-rotation-gates.yml"
@@ -25,6 +29,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         cls.tasks_text = TASKS.read_text()
         cls.playbook_text = PLAYBOOK.read_text()
         cls.wrapper_text = WRAPPER.read_text()
+        cls.process_guard_text = PROCESS_GUARD.read_text()
         cls.runbook_text = RUNBOOK.read_text()
         cls.policy_text = POLICY.read_text()
         cls.defaults = yaml.safe_load(cls.defaults_text)
@@ -35,6 +40,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         self.assertEqual(0o644, stat.S_IMODE(DEFAULTS.stat().st_mode))
         self.assertEqual(0o644, stat.S_IMODE(TASKS.stat().st_mode))
         self.assertEqual(0o644, stat.S_IMODE(PLAYBOOK.stat().st_mode))
+        self.assertEqual(0o644, stat.S_IMODE(PROCESS_GUARD.stat().st_mode))
         self.assertEqual("cristexhub-prod", self.defaults["cristexhub_prod_private_acceptance_namespace"])
         self.assertEqual(
             ["backend", "celery-worker", "frontend", "oauth2-proxy", "redis"],
@@ -83,7 +89,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         self.assertIn("role: cristexhub_prod_private_acceptance", self.playbook_text)
 
     def test_no_secret_reads_or_mutation_modules(self) -> None:
-        combined = f"{self.tasks_text}\n{self.playbook_text}\n{self.wrapper_text}"
+        combined = f"{self.tasks_text}\n{self.playbook_text}\n{self.wrapper_text}\n{self.process_guard_text}"
         self.assertNotIn("kind: Secret", combined)
         self.assertNotIn("kind: secret", combined.lower())
         self.assertNotIn("secret.data", combined)
@@ -119,6 +125,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PID",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_STARTTIME",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_SOURCE_CLOSURE_SHA256",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256",
             "INTERNAL_VARIABLE_GUARD",
             "check_mode: false",
             "delegate_to: localhost",
@@ -135,7 +142,8 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "--diff",
             "--limit crtxweb",
             "env -i",
-            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ENTRYPOINT=v1",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ENTRYPOINT=v2",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256=",
             "wrapper_canonical_sha256_expected",
             "refusing traced shell execution",
             "ANSIBLE_CONFIG=",
@@ -150,6 +158,17 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         self.assertIn('set -- \\\n  "$controller"', self.wrapper_text)
         self.assertIn(":entrypoint:%s:%s:%s", self.wrapper_text)
         self.assertIn("Require source leaves and hashes bound to the canonical wrapper", self.tasks_text)
+        for required in (
+            "_ancestor",
+            "_proc_parent",
+            "_proc_starttime",
+            "_proc_cmdline",
+            "sys.argv == _expected_argv()",
+            "_proc_cmdline(pid) == [\"/bin/dash\", str(_WRAPPER_SOURCE), \"check\"]",
+            "and _ancestor(pid)",
+            "and _proc_starttime(pid) == starttime",
+        ):
+            self.assertIn(required, self.process_guard_text)
         self.assertNotIn("--start-at-task", self.wrapper_text)
         self.assertNotIn("--tags", self.wrapper_text)
         self.assertNotIn("--skip-tags", self.wrapper_text)
@@ -292,7 +311,96 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         self.assertIn("private_origin_url", self.tasks_text)
         self.assertIn("Host:", self.tasks_text)
         self.assertIn("WRAPPER_STARTTIME", self.tasks_text)
-        self.assertIn("proc_stat", self.tasks_text)
+        self.assertIn("cristexhub_prod_private_acceptance_process_guarded", self.tasks_text)
+        self.assertIn("exact private PROD acceptance process ancestry", self.tasks_text)
+        self.assertIn("original_script_path", self.wrapper_text)
+        self.assertIn('exec /bin/dash "$script_path" check', self.wrapper_text)
+        self.assertIn("_proc_starttime", self.process_guard_text)
+
+    def test_adversarial_extra_wrapper_arguments_are_rejected(self) -> None:
+        result = subprocess.run(
+            [str(WRAPPER), "check", "extra"],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={"PATH": "/usr/bin:/bin"},
+        )
+        self.assertEqual(64, result.returncode)
+        self.assertNotIn("ansible-playbook", result.stdout + result.stderr)
+
+    def test_process_ancestry_helper_rejects_unrelated_process(self) -> None:
+        spec = importlib.util.spec_from_file_location("private_acceptance_process_guard", PROCESS_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertTrue(module._ancestor(os.getpid()))
+        unrelated = subprocess.Popen(["/bin/sleep", "2"])
+        try:
+            self.assertFalse(module._ancestor(unrelated.pid))
+        finally:
+            unrelated.terminate()
+            unrelated.wait(timeout=5)
+        self.assertTrue(module._proc_starttime(os.getpid()))
+        self.assertEqual([], module._proc_cmdline(0))
+
+    def test_process_guard_source_pins_match_current_bytes(self) -> None:
+        def canonical(path: Path, symbol: str) -> str:
+            source = path.read_text()
+            source, count = re.subn(
+                rf"(?m)^({re.escape(symbol)}\s*=\s*['\"])[0-9a-f]{{64}}(['\"]\s*)$",
+                rf"\g<1>{'0' * 64}\g<2>",
+                source,
+            )
+            self.assertEqual(1, count)
+            return hashlib.sha256(source.encode()).hexdigest()
+
+        self.assertEqual(
+            canonical(WRAPPER, "wrapper_canonical_sha256_expected"),
+            re.search(r"(?m)^wrapper_canonical_sha256_expected='([0-9a-f]{64})'$", self.wrapper_text).group(1),
+        )
+        self.assertEqual(
+            canonical(PROCESS_GUARD, "_ACTION_CANONICAL_SHA256"),
+            re.search(r'(?m)^_ACTION_CANONICAL_SHA256 = "([0-9a-f]{64})"$', self.process_guard_text).group(1),
+        )
+        wrapper_hashes = {
+            name: value
+            for name, value in re.findall(r"(?m)^([a-z_]+_sha256_expected)='([0-9a-f]{64})'$", self.wrapper_text)
+        }
+        for name, path in (
+            ("task_sha256_expected", TASKS),
+            ("defaults_sha256_expected", DEFAULTS),
+            ("playbook_sha256_expected", PLAYBOOK),
+            ("action_sha256_expected", PROCESS_GUARD),
+        ):
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), wrapper_hashes[name])
+
+    def test_process_guard_rejects_extra_ansible_argv(self) -> None:
+        spec = importlib.util.spec_from_file_location("private_acceptance_process_guard_argv", PROCESS_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        original_argv = module.sys.argv
+        original_cliargs = module.context.CLIARGS
+        module.context.CLIARGS = {
+            "start_at_task": None,
+            "step": False,
+            "tags": [],
+            "skip_tags": [],
+            "subset": "crtxweb",
+            "check": True,
+            "diff": True,
+            "inventory": [str(module._INVENTORY_SOURCE)],
+        }
+        try:
+            module.sys.argv = module._expected_argv()
+            self.assertTrue(module._selection_is_canonical())
+            module.sys.argv = module._expected_argv() + ["--forks", "1"]
+            self.assertFalse(module._selection_is_canonical())
+        finally:
+            module.sys.argv = original_argv
+            module.context.CLIARGS = original_cliargs
 
     def test_wrapper_shell_syntax(self) -> None:
         result = subprocess.run(

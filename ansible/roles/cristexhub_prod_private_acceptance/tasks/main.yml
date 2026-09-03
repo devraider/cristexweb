@@ -1,4 +1,10 @@
 ---
+- name: Require the exact private PROD acceptance process ancestry
+  cristexhub_prod_private_acceptance_process_guarded:
+    state: check
+  changed_when: false
+  no_log: true
+
 - name: Reject externally supplied private PROD acceptance internals
   ansible.builtin.assert:
     that:
@@ -57,7 +63,7 @@
 - name: Require the canonical private PROD acceptance wrapper
   ansible.builtin.assert:
     that:
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ENTRYPOINT') == 'v2'
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TOKEN') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ATTESTATION_FILE') | length > 0
       - >-
@@ -81,6 +87,7 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ANSIBLE_CONFIG_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256') is match('^[0-9a-f]{64}$')
     fail_msg: >-
       ENTRYPOINT_GUARD: use only the canonical non-passthrough private PROD
       acceptance wrapper.
@@ -123,41 +130,6 @@
   changed_when: false
   no_log: true
 
-- name: Inspect the canonical wrapper process identity
-  ansible.builtin.slurp:
-    path: "/proc/{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PID') }}/cmdline"
-  register: cristexhub_prod_private_acceptance_internal_wrapper_cmdline
-  delegate_to: localhost
-  become: false
-  changed_when: false
-  no_log: true
-
-- name: Inspect the canonical wrapper process start time
-  ansible.builtin.slurp:
-    path: "/proc/{{ lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PID') }}/stat"
-  register: cristexhub_prod_private_acceptance_internal_wrapper_proc_stat
-  delegate_to: localhost
-  become: false
-  changed_when: false
-  no_log: true
-
-- name: Require the live canonical wrapper process
-  ansible.builtin.assert:
-    that:
-      - >-
-        '/ansible/bin/check-cristexhub-prod-private-acceptance' in
-        (cristexhub_prod_private_acceptance_internal_wrapper_cmdline.content | b64decode)
-      - >-
-        (cristexhub_prod_private_acceptance_internal_wrapper_proc_stat.content | b64decode).split()[21] ==
-        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_STARTTIME')
-    fail_msg: >-
-      ENTRYPOINT_GUARD: refusing direct Ansible invocation or a forged private
-      PROD acceptance environment.
-  delegate_to: localhost
-  become: false
-  changed_when: false
-  no_log: true
-
 - name: Inspect the exact private PROD acceptance source closure
   ansible.builtin.stat:
     path: "{{ item }}"
@@ -170,6 +142,7 @@
     - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/roles/cristexhub_prod_private_acceptance/tasks/main.yml"
     - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/roles/cristexhub_prod_private_acceptance/defaults/main.yml"
     - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/playbooks/check_cristexhub_prod_private_acceptance.yml"
+    - "{{ cristexhub_prod_private_acceptance_repository_root }}/ansible/plugins/action/cristexhub_prod_private_acceptance_process_guarded.py"
   register: cristexhub_prod_private_acceptance_internal_source_states
   delegate_to: localhost
   become: false
@@ -199,6 +172,7 @@
       {{ ([lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_TASK_SHA256'),
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_DEFAULTS_SHA256'),
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PLAYBOOK_SHA256'),
+      lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256'),
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_INVENTORY_SHA256'),
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ANSIBLE_CONFIG_SHA256'),
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER_SHA256'),
@@ -222,6 +196,9 @@
       - >-
         cristexhub_prod_private_acceptance_internal_source_states.results[3].stat.checksum ==
         lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PLAYBOOK_SHA256')
+      - >-
+        cristexhub_prod_private_acceptance_internal_source_states.results[4].stat.checksum ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256')
       - >-
         cristexhub_prod_private_acceptance_internal_source_closure_sha256 ==
         lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_SOURCE_CLOSURE_SHA256')
