@@ -16,7 +16,7 @@ if [ "$mode" = apply ] && [ "${CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APP
 fi
 original_script_path=$0
 script_path=$0
-wrapper_canonical_sha256_expected='2d469915a2459306bcf1541074676f64db13ceba32885120fc9e0766b761d777'
+wrapper_canonical_sha256_expected='8aa43037e56ca6a2c1348270929cafcce777261b5a4673f7ba64430460ec0e32'
 sha256_stdin() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum | awk '{print $1}'
@@ -74,9 +74,12 @@ collection_files="$collection_root/FILES.json"
 collection_plugins="$collection_root/plugins"
 collection_actions="$collection_plugins/action"
 collection_modules="$collection_plugins/modules"
+k8s_action_source="$collection_actions/k8s.py"
+k8s_action_target="$collection_root/plugins/action/k8s_info.py"
+k8s_info_module_source="$collection_modules/k8s_info.py"
 json_patch_source="$collection_actions/k8s_json_patch.py"
-json_patch_real_source="$collection_root/plugins/action/k8s_info.py"
-json_patch_module_source="$collection_root/plugins/modules/k8s_json_patch.py"
+json_patch_real_source="$k8s_action_target"
+json_patch_module_source="$collection_modules/k8s_json_patch.py"
 task_source="$repository_root/ansible/roles/shared_mongodb_networkpolicy_bootstrap/tasks/main.yml"
 defaults_source="$repository_root/ansible/roles/shared_mongodb_networkpolicy_bootstrap/defaults/main.yml"
 playbook_source="$repository_root/ansible/playbooks/bootstrap_shared_mongodb_networkpolicy.yml"
@@ -102,8 +105,18 @@ is_owned_symlink "$json_patch_source" && [ "$(readlink "$json_patch_source")" = 
   printf '%s\n' 'refusing an unpinned kubernetes.core JSON patch action symlink' >&2
   exit 69
 }
+[ -L "$k8s_action_source" ] && [ "$(readlink "$k8s_action_source")" = 'k8s_info.py' ] &&
+  [ "$(readlink -f "$k8s_action_source")" = "$k8s_action_target" ] || {
+  printf '%s\n' 'refusing an unpinned kubernetes.core k8s action symlink' >&2
+  exit 69
+}
+[ -f "$k8s_action_target" ] && [ ! -L "$k8s_action_target" ] || exit 69
+[ -f "$k8s_info_module_source" ] && [ ! -L "$k8s_info_module_source" ] || exit 69
 [ -f "$json_patch_real_source" ] && [ ! -L "$json_patch_real_source" ] || exit 69
 [ -f "$json_patch_module_source" ] && [ ! -L "$json_patch_module_source" ] || exit 69
+is_owned_symlink "$k8s_action_source" || exit 69
+is_owned_regular_mode "$k8s_action_target" 644 || exit 69
+is_owned_regular_mode "$k8s_info_module_source" 644 || exit 69
 is_owned_regular_mode "$json_patch_real_source" 644 || exit 69
 is_owned_regular_mode "$json_patch_module_source" 644 || exit 69
 is_owned_regular_mode "$collection_manifest" 644 || exit 69
@@ -124,15 +137,41 @@ is_owned_regular_mode "$collection_files" 644 || exit 69
 task_sha256_expected='a4945c6dc7538c2d6fb99622e418483ee31d36e4db5de3751edb683220b52b29'
 defaults_sha256_expected='2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 playbook_sha256_expected='7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-action_canonical_sha256_expected='a6056ad7ce8dd68bd33593b1ac19307957da00eebfbf93330cb23ca07e55e19f'
+action_canonical_sha256_expected='affcf8c3edde05af93df59ec554d1e00b7dd2e76f36d2e821d2bced7a5a41d0b'
 create_module_sha256_expected='21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
 requirements_sha256_expected='f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f'
 collection_manifest_sha256_expected='dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df'
 collection_files_sha256_expected='9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69'
-json_patch_action_target_sha256_expected='3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b'
+k8s_action_target_sha256_expected='3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b'
+k8s_info_module_sha256_expected='e035cfa69a8955c1f97dc4aabf4763784691f20973a8638461ffaa699dfbc21d'
+json_patch_action_target_sha256_expected="$k8s_action_target_sha256_expected"
 json_patch_module_sha256_expected='75b605254a576da3a146019e448d319a4cefdee2d2f3d4ada80e2c2b1c51d0ef'
+collection_module_utils_expected='
+plugins/module_utils/client/discovery.py d30f9c5a9c90972264289b0e5cee95effe9319595e23aeaa4e079afeb716338a
+plugins/module_utils/client/resource.py 5ecbd5410095b770939270966962c5e939b7e662eb6f51c1271d294e6e683ee2
+plugins/module_utils/k8s/client.py 0056d2093cab9094eaa5cbeccd9256317f61f5c50d5044b2baf30dc5ba94fd97
+plugins/module_utils/k8s/core.py a54455932f24cd7580024e2058e290414fcad3b597332d4b0627b8898b3b95c3
+plugins/module_utils/k8s/exceptions.py 68fc2551bb7c65b1d0352c6761d2f75a6ca59fa773f08faa3356ab4787c040eb
+plugins/module_utils/k8s/resource.py 78f2e91fa52267f93d7f72191bdddcffaf92c9a9978c5c923f8f5912f3691fb6
+plugins/module_utils/k8s/runner.py 8e0c6b86b38a86d491cf3898c91903f3ccce9fa213d8d06c84a6b43762f3d441
+plugins/module_utils/k8s/service.py fc53953488c8e4a53afa7aaf3c8fa70bcb197dc20555e7e0042ae66b7c84e4fe
+plugins/module_utils/k8s/waiter.py aee5d2ea1701a4dbd2ce21c8228ad1385b636613cc164c091b15b44b2c5c2341
+plugins/module_utils/__init__.py e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+plugins/module_utils/_version.py da42772669215aa2e1592bfcba0b4cef17d06cdbcdcfeb0ae05e431252fc5a16
+plugins/module_utils/ansiblemodule.py cde56b067dc7815d559ff8eb2335ad50ef43fc92fcc50812b44c61fb4b854ba6
+plugins/module_utils/apply.py 8f568ec79b19a7e6c601b92dc62e6bb540fd295dc0730460f3b6e0e35a1d4441
+plugins/module_utils/args_common.py dbd6a5c7b2d504de36fa0b75571b8df4c8c07f11d4b6b0dbe296e313e4937355
+plugins/module_utils/common.py 2b9252ccc909f3013e7a05a5845d9fbb1e5f24e6d44c956a14ed3ae90d3b0a1d
+plugins/module_utils/copy.py aec7f7effed09d03fe2b8b4218e51d6b3c921a01c05e0c2d26a58e90e35f708a
+plugins/module_utils/exceptions.py 4256700ac9b1b0b29a0daa8d24da068a8435413cdd927b9613f4fa568e5ee450
+plugins/module_utils/hashes.py a8ccce48ad134285d61384ea7598c1efdbd9ae4222e0566d154d86ecbfa3a02e
+plugins/module_utils/helm.py 2fe2e843b583f80c259c4c13c6ca278b3d6faa7036d314c2001f3d94161f842a
+plugins/module_utils/helm_args_common.py 6561042a0092f0b1187d469b972acbc320b0d6a1355f1c0bf6bc6c894f78b074
+plugins/module_utils/k8sdynamicclient.py 6b44b539981affc25ede49cc8a7f994fe19b5c60aaa1e400a480e735f7ed1be6
+plugins/module_utils/selector.py d5e15a8ac4f916ee4b578450449a525dbda727b77178941a81c21e9e228e7987
+plugins/module_utils/version.py c009a2e470b5c1e2cfc73efb061b3289f3da5064c85ad31dd664433ddb7b97b7'
 python_sha256_expected='17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
 controller_sha256_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
 [ "$(canonical_sha256 "$script_path")" = "$wrapper_canonical_sha256_expected" ] || { printf '%s\n' 'refusing wrapper source drift' >&2; exit 69; }
@@ -146,8 +185,18 @@ controller_sha256_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5
 [ "$(sha256_file "$requirements_source")" = "$requirements_sha256_expected" ] || { printf '%s\n' 'refusing collection requirement drift' >&2; exit 69; }
 [ "$(sha256_file "$collection_manifest")" = "$collection_manifest_sha256_expected" ] || { printf '%s\n' 'refusing collection manifest drift' >&2; exit 69; }
 [ "$(sha256_file "$collection_files")" = "$collection_files_sha256_expected" ] || { printf '%s\n' 'refusing collection file closure drift' >&2; exit 69; }
+[ "$(sha256_file "$k8s_action_target")" = "$k8s_action_target_sha256_expected" ] || { printf '%s\n' 'refusing kubernetes.core k8s action target drift' >&2; exit 69; }
+[ "$(sha256_file "$k8s_info_module_source")" = "$k8s_info_module_sha256_expected" ] || { printf '%s\n' 'refusing kubernetes.core k8s_info module drift' >&2; exit 69; }
 [ "$(sha256_file "$json_patch_real_source")" = "$json_patch_action_target_sha256_expected" ] || { printf '%s\n' 'refusing JSON patch action target drift' >&2; exit 69; }
 [ "$(sha256_file "$json_patch_module_source")" = "$json_patch_module_sha256_expected" ] || { printf '%s\n' 'refusing JSON patch module drift' >&2; exit 69; }
+while IFS=' ' read -r module_util_relative module_util_expected; do
+  [ -n "$module_util_relative" ] || continue
+  module_util_path="$collection_root/$module_util_relative"
+  is_owned_regular_mode "$module_util_path" 644 || exit 69
+  [ "$(sha256_file "$module_util_path")" = "$module_util_expected" ] || exit 69
+done <<EOF
+$collection_module_utils_expected
+EOF
 [ "$(sha256_file "$python_real_source")" = "$python_sha256_expected" ] || { printf '%s\n' 'refusing Python interpreter drift' >&2; exit 69; }
 [ "$(sha256_file "$controller")" = "$controller_sha256_expected" ] || { printf '%s\n' 'refusing controller drift' >&2; exit 69; }
 lock_file='/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
@@ -326,6 +375,11 @@ if [ -x /usr/bin/setsid ]; then
   child_process_group=1
   /usr/bin/setsid /usr/bin/env -i \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_FILES_SHA256=$collection_files_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION=$k8s_action_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION_TARGET=$k8s_action_target" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION_TARGET_SHA256=$k8s_action_target_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_INFO_MODULE=$k8s_info_module_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_INFO_MODULE_SHA256=$k8s_info_module_sha256_expected" \
     "HOME=${HOME:-$repository_root}" \
     "USER=$controller_user" \
     "LOGNAME=$controller_user" \
@@ -363,6 +417,11 @@ else
   child_process_group=0
   /usr/bin/env -i \
     "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_FILES_SHA256=$collection_files_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION=$k8s_action_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION_TARGET=$k8s_action_target" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION_TARGET_SHA256=$k8s_action_target_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_INFO_MODULE=$k8s_info_module_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_INFO_MODULE_SHA256=$k8s_info_module_sha256_expected" \
     "HOME=${HOME:-$repository_root}" \
     "USER=$controller_user" \
     "LOGNAME=$controller_user" \

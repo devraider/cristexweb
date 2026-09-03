@@ -44,8 +44,11 @@ _REQUIREMENTS_SOURCE = _REPOSITORY_ROOT / 'ansible/requirements.yml'
 _COLLECTION_ROOT = _REPOSITORY_ROOT / 'ansible/.ansible/collections/ansible_collections/kubernetes/core'
 _COLLECTION_MANIFEST_SOURCE = _COLLECTION_ROOT / 'MANIFEST.json'
 _COLLECTION_FILES_SOURCE = _COLLECTION_ROOT / 'FILES.json'
+_K8S_ACTION_SOURCE = _COLLECTION_ROOT / 'plugins/action/k8s.py'
+_K8S_ACTION_TARGET = _COLLECTION_ROOT / 'plugins/action/k8s_info.py'
+_K8S_INFO_MODULE_SOURCE = _COLLECTION_ROOT / 'plugins/modules/k8s_info.py'
 _JSON_PATCH_ACTION_SOURCE = _COLLECTION_ROOT / 'plugins/action/k8s_json_patch.py'
-_JSON_PATCH_ACTION_TARGET = _COLLECTION_ROOT / 'plugins/action/k8s_info.py'
+_JSON_PATCH_ACTION_TARGET = _K8S_ACTION_TARGET
 _JSON_PATCH_MODULE_SOURCE = _COLLECTION_ROOT / 'plugins/modules/k8s_json_patch.py'
 _CONTROLLER_SOURCE = _REPOSITORY_ROOT / '.venv/bin/ansible-playbook'
 _PYTHON_SOURCE = _REPOSITORY_ROOT / '.venv/bin/python'
@@ -57,7 +60,7 @@ _EXPECTED_LOCK_FILE = '/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
 _EXPECTED_TASK_SHA256 = 'a4945c6dc7538c2d6fb99622e418483ee31d36e4db5de3751edb683220b52b29'
 _EXPECTED_DEFAULTS_SHA256 = '2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 _EXPECTED_PLAYBOOK_SHA256 = '7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-_EXPECTED_ACTION_CANONICAL_SHA256 = 'a6056ad7ce8dd68bd33593b1ac19307957da00eebfbf93330cb23ca07e55e19f'
+_EXPECTED_ACTION_CANONICAL_SHA256 = 'affcf8c3edde05af93df59ec554d1e00b7dd2e76f36d2e821d2bced7a5a41d0b'
 _EXPECTED_CREATE_MODULE_SHA256 = '21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 _EXPECTED_INVENTORY_SHA256 = '652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 _EXPECTED_ANSIBLE_CONFIG_SHA256 = '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
@@ -89,7 +92,9 @@ _EXPECTED_COLLECTION_MODULE_UTILS = {
     'plugins/module_utils/selector.py': 'd5e15a8ac4f916ee4b578450449a525dbda727b77178941a81c21e9e228e7987',
     'plugins/module_utils/version.py': 'c009a2e470b5c1e2cfc73efb061b3289f3da5064c85ad31dd664433ddb7b97b7',
 }
-_EXPECTED_JSON_PATCH_ACTION_TARGET_SHA256 = '3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b'
+_EXPECTED_K8S_ACTION_TARGET_SHA256 = '3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b'
+_EXPECTED_K8S_INFO_MODULE_SHA256 = 'e035cfa69a8955c1f97dc4aabf4763784691f20973a8638461ffaa699dfbc21d'
+_EXPECTED_JSON_PATCH_ACTION_TARGET_SHA256 = _EXPECTED_K8S_ACTION_TARGET_SHA256
 _EXPECTED_JSON_PATCH_MODULE_SHA256 = '75b605254a576da3a146019e448d319a4cefdee2d2f3d4ada80e2c2b1c51d0ef'
 _EXPECTED_PYTHON_SHA256 = '17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
 _EXPECTED_CONTROLLER_SHA256 = 'baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
@@ -247,6 +252,28 @@ def _regular_file(path: Path, mode: int, owner: int | None = None) -> bool:
         return False
 
 
+def _pinned_regular_file(path: Path, digest: str, owner: int | None = None) -> bool:
+    return _regular_file(path, 0o644, owner) and _sha256(path) == digest
+
+
+def _pinned_relative_symlink(
+    source: Path,
+    target: Path,
+    link_target: str,
+    owner: int | None = None,
+) -> bool:
+    try:
+        state = source.stat(follow_symlinks=False)
+        return (
+            stat.S_ISLNK(state.st_mode)
+            and (owner is None or state.st_uid == owner)
+            and os.readlink(source) == link_target
+            and source.resolve() == target
+        )
+    except (OSError, RuntimeError):
+        return False
+
+
 def _directory(path: Path, mode: int, owner: int | None = None) -> bool:
     try:
         state = path.stat(follow_symlinks=False)
@@ -336,19 +363,36 @@ def _collection_toolchain_valid() -> bool:
         info = manifest.get('collection_info', {})
         if info.get('namespace') != 'kubernetes' or info.get('name') != 'core' or info.get('version') != '6.1.0':
             return False
-        action_state = _JSON_PATCH_ACTION_SOURCE.stat(follow_symlinks=False)
-        if (
-            not stat.S_ISLNK(action_state.st_mode)
-            or action_state.st_uid != os.getuid()
-            or os.readlink(_JSON_PATCH_ACTION_SOURCE) != 'k8s_info.py'
-            or _JSON_PATCH_ACTION_SOURCE.resolve() != _JSON_PATCH_ACTION_TARGET
+        if not _pinned_relative_symlink(
+            _K8S_ACTION_SOURCE,
+            _K8S_ACTION_TARGET,
+            'k8s_info.py',
+            os.getuid(),
+        ):
+            return False
+        if not _pinned_relative_symlink(
+            _JSON_PATCH_ACTION_SOURCE,
+            _JSON_PATCH_ACTION_TARGET,
+            'k8s_info.py',
+            os.getuid(),
         ):
             return False
         return (
-            _regular_file(_JSON_PATCH_ACTION_TARGET, 0o644, os.getuid())
-            and _sha256(_JSON_PATCH_ACTION_TARGET) == _EXPECTED_JSON_PATCH_ACTION_TARGET_SHA256
-            and _regular_file(_JSON_PATCH_MODULE_SOURCE, 0o644, os.getuid())
-            and _sha256(_JSON_PATCH_MODULE_SOURCE) == _EXPECTED_JSON_PATCH_MODULE_SHA256
+            _pinned_regular_file(
+                _K8S_ACTION_TARGET,
+                _EXPECTED_K8S_ACTION_TARGET_SHA256,
+                os.getuid(),
+            )
+            and _pinned_regular_file(
+                _K8S_INFO_MODULE_SOURCE,
+                _EXPECTED_K8S_INFO_MODULE_SHA256,
+                os.getuid(),
+            )
+            and _pinned_regular_file(
+                _JSON_PATCH_MODULE_SOURCE,
+                _EXPECTED_JSON_PATCH_MODULE_SHA256,
+                os.getuid(),
+            )
         )
     except (OSError, RuntimeError, UnicodeError, ValueError, TypeError):
         return False
@@ -410,6 +454,11 @@ def _runtime_binding_valid() -> bool:
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_REQUIREMENTS_SHA256': _EXPECTED_REQUIREMENTS_SHA256,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_MANIFEST_SHA256': _EXPECTED_COLLECTION_MANIFEST_SHA256,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_FILES_SHA256': _EXPECTED_COLLECTION_FILES_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION': str(_K8S_ACTION_SOURCE),
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION_TARGET': str(_K8S_ACTION_TARGET),
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_ACTION_TARGET_SHA256': _EXPECTED_K8S_ACTION_TARGET_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_INFO_MODULE': str(_K8S_INFO_MODULE_SOURCE),
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_K8S_INFO_MODULE_SHA256': _EXPECTED_K8S_INFO_MODULE_SHA256,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION': str(_JSON_PATCH_ACTION_SOURCE),
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION_TARGET': str(_JSON_PATCH_ACTION_TARGET),
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION_TARGET_SHA256': _EXPECTED_JSON_PATCH_ACTION_TARGET_SHA256,

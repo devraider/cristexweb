@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import unittest
@@ -314,15 +315,95 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         wrapper = WRAPPER.read_text()
         plugin = PLUGIN.read_text()
         self.assertIn("readlink \"$json_patch_source\"", wrapper)
-        self.assertIn("json_patch_module_source", wrapper)
+        self.assertIn("readlink \"$k8s_action_source\"", wrapper)
+        self.assertIn("k8s_info_module_source", wrapper)
+        self.assertIn("_K8S_ACTION_SOURCE", plugin)
+        self.assertIn("_K8S_ACTION_TARGET", plugin)
+        self.assertIn("_K8S_INFO_MODULE_SOURCE", plugin)
         self.assertIn("_JSON_PATCH_ACTION_SOURCE", plugin)
         self.assertIn("_JSON_PATCH_ACTION_TARGET", plugin)
         self.assertIn("_JSON_PATCH_MODULE_SOURCE", plugin)
         self.assertIn("_EXPECTED_COLLECTION_MANIFEST_SHA256", plugin)
         self.assertIn("_collection_toolchain_valid", plugin)
         self.assertIn("collection_manifest", wrapper)
+        self.assertIn("collection_module_utils_expected", wrapper)
         self.assertIn("is_owned_directory_mode", wrapper)
         self.assertIn("kubernetes.core collection", wrapper)
+
+    def test_new_collection_closure_paths_reject_each_adversarial_temp_copy(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            action_target = root / 'action' / 'k8s_info.py'
+            action_source = root / 'action' / 'k8s.py'
+            info_module = root / 'modules' / 'k8s_info.py'
+            action_target.parent.mkdir()
+            info_module.parent.mkdir()
+            action_bytes = b'canonical action implementation\\n'
+            module_bytes = b'canonical module implementation\\n'
+            action_target.write_bytes(action_bytes)
+            info_module.write_bytes(module_bytes)
+            action_target.chmod(0o644)
+            info_module.chmod(0o644)
+            action_source.symlink_to('k8s_info.py')
+            owner = os.getuid()
+            action_digest = hashlib.sha256(action_bytes).hexdigest()
+            module_digest = hashlib.sha256(module_bytes).hexdigest()
+            self.assertTrue(self.plugin._pinned_relative_symlink(
+                action_source, action_target, 'k8s_info.py', owner
+            ))
+            self.assertTrue(self.plugin._pinned_regular_file(action_target, action_digest, owner))
+            self.assertTrue(self.plugin._pinned_regular_file(info_module, module_digest, owner))
+
+            action_source.unlink()
+            action_source.write_text('malicious action replacement\\n')
+            self.assertFalse(self.plugin._pinned_relative_symlink(
+                action_source, action_target, 'k8s_info.py', owner
+            ))
+            action_source.unlink()
+            action_source.symlink_to('k8s_info.py')
+
+            action_target.write_text('malicious action target\\n')
+            self.assertFalse(self.plugin._pinned_regular_file(action_target, action_digest, owner))
+            action_target.write_bytes(action_bytes)
+            action_target.chmod(0o644)
+
+            info_module.write_text('malicious k8s_info module\\n')
+            self.assertFalse(self.plugin._pinned_regular_file(info_module, module_digest, owner))
+
+    def test_collection_toolchain_rejects_mutated_new_paths_in_temp_copies(self) -> None:
+        source_root = Path('/home/paul/projects/cristexweb/ansible/.ansible/collections/ansible_collections/kubernetes/core')
+        if not source_root.is_dir():
+            self.skipTest('pinned kubernetes.core installation is not available')
+        paths = (
+            ('plugins/action/k8s.py', 'symlink'),
+            ('plugins/action/k8s_info.py', 'regular'),
+            ('plugins/modules/k8s_info.py', 'regular'),
+        )
+        for relative, kind in paths:
+            with self.subTest(relative=relative), TemporaryDirectory() as directory:
+                collection_root = Path(directory) / 'core'
+                shutil.copytree(source_root, collection_root, symlinks=True)
+                patches = {
+                    '_COLLECTION_ROOT': collection_root,
+                    '_COLLECTION_MANIFEST_SOURCE': collection_root / 'MANIFEST.json',
+                    '_COLLECTION_FILES_SOURCE': collection_root / 'FILES.json',
+                    '_K8S_ACTION_SOURCE': collection_root / 'plugins/action/k8s.py',
+                    '_K8S_ACTION_TARGET': collection_root / 'plugins/action/k8s_info.py',
+                    '_K8S_INFO_MODULE_SOURCE': collection_root / 'plugins/modules/k8s_info.py',
+                    '_JSON_PATCH_ACTION_SOURCE': collection_root / 'plugins/action/k8s_json_patch.py',
+                    '_JSON_PATCH_ACTION_TARGET': collection_root / 'plugins/action/k8s_info.py',
+                    '_JSON_PATCH_MODULE_SOURCE': collection_root / 'plugins/modules/k8s_json_patch.py',
+                }
+                with mock.patch.multiple(self.plugin, **patches):
+                    self.assertTrue(self.plugin._collection_toolchain_valid())
+                    victim = collection_root / relative
+                    if kind == 'symlink':
+                        victim.unlink()
+                        victim.write_text('malicious action base\\n')
+                    else:
+                        victim.write_text('malicious collection file\\n')
+                        victim.chmod(0o644)
+                    self.assertFalse(self.plugin._collection_toolchain_valid())
 
     def test_complete_module_utils_closure_is_explicitly_hash_bound(self) -> None:
         wrapper = WRAPPER.read_text()
@@ -334,11 +415,13 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
                     for target in node.targets)
         )
         closure = ast.literal_eval(assignment.value)
-        self.assertGreaterEqual(len(closure), 20)
+        self.assertEqual(23, len(closure))
         self.assertTrue(all(path.startswith('plugins/module_utils/') for path in closure))
         self.assertTrue(all(re.fullmatch(r'[0-9a-f]{64}', digest) for digest in closure.values()))
         self.assertIn('plugins/module_utils/k8s/client.py', closure)
         self.assertIn('plugins/module_utils/client/discovery.py', closure)
+        for path, digest in closure.items():
+            self.assertIn(f'{path} {digest}', wrapper)
         self.assertIn('FILES.json', wrapper)
 
     def test_create_response_binds_numeric_uid_and_resource_version(self) -> None:
