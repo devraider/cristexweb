@@ -20,6 +20,12 @@ DEFAULTS = ANSIBLE / "roles/cristexhub_prod_ghcr_pull_rotation_preflight/default
 PLAYBOOK = ANSIBLE / "playbooks/check_cristexhub_prod_ghcr_pull_rotation.yml"
 MODULE = ANSIBLE / "library/cristexhub_prod_ghcr_pull_secret_metadata.py"
 POLICY = ANSIBLE / "files/policies/cristexhub-prod-ghcr-pull-rotation.yml"
+STRATEGY = ANSIBLE / "plugins/strategy/cristexhub_prod_ghcr_pull_rotation_guarded_linear.py"
+CONFIG = ANSIBLE / "ansible.cfg"
+INVENTORY = ANSIBLE / "inventory/hosts.yml"
+REQUIREMENTS = ANSIBLE / "requirements.yml"
+COLLECTION_MANIFEST = ANSIBLE / ".ansible/collections/ansible_collections/kubernetes/core/MANIFEST.json"
+COLLECTION_FILES = ANSIBLE / ".ansible/collections/ansible_collections/kubernetes/core/FILES.json"
 INFISICAL_SOURCE = ANSIBLE / "files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
 RUNBOOK = ROOT / "runbooks/cristexhub-prod-ghcr-pull-rotation.md"
 
@@ -45,9 +51,10 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
             "ansible/playbooks/check_cristexhub_prod_ghcr_pull_rotation.yml": PLAYBOOK,
             "ansible/library/cristexhub_prod_ghcr_pull_secret_metadata.py": MODULE,
             "ansible/files/policies/cristexhub-prod-ghcr-pull-rotation.yml": POLICY,
+            "ansible/plugins/strategy/cristexhub_prod_ghcr_pull_rotation_guarded_linear.py": STRATEGY,
         }
         self.assertEqual(set(expected), {line.split(maxsplit=1)[1] for line in self.manifest_lines})
-        self.assertEqual(5, len(self.manifest_lines))
+        self.assertEqual(6, len(self.manifest_lines))
         for line in self.manifest_lines:
             digest, relative = line.split(maxsplit=1)
             self.assertRegex(digest, r"^[0-9a-f]{64}$")
@@ -247,6 +254,66 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
         self.assertTrue(self.policy["preflight"]["image_pull_secret_must_not_change"])
         self.assertTrue(self.policy["preflight"]["images_must_be_digest_pinned"])
         self.assertEqual("github-container-registry", self.policy["custody"]["registry"]["owner"])
+
+    def test_strategy_hash_pin_and_canonical_binding_are_consistent(self) -> None:
+        strategy_digest = hashlib.sha256(STRATEGY.read_bytes()).hexdigest()
+        self.assertIn(f"strategy_sha256_expected='{strategy_digest}'", self.wrapper)
+        match = re.search(
+            r"^strategy_canonical_sha256_expected='([0-9a-f]{64})'$",
+            self.wrapper,
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(match)
+        canonical = re.sub(
+            r'^_STRATEGY_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
+            '_STRATEGY_CANONICAL_SHA256 = "' + "0" * 64 + '"',
+            STRATEGY.read_text(),
+            flags=re.MULTILINE,
+        )
+        self.assertEqual(match.group(1), hashlib.sha256(canonical.encode()).hexdigest())
+        self.assertIn('suffix in {"WRAPPER_SHA256", "STRATEGY_SHA256"}', STRATEGY.read_text())
+
+    def test_wrapper_hash_binds_controller_inventory_config_and_toolchain(self) -> None:
+        for required in (
+            "ansible_config_sha256_expected=",
+            "inventory_sha256_expected=",
+            "controller_sha256_expected=",
+            "requirements_sha256_expected=",
+            "collection_manifest_sha256_expected=",
+            "collection_files_sha256_expected=",
+            "strategy_sha256_expected=",
+            "strategy_canonical_sha256_expected=",
+            "verify_external \"$config_source\"",
+            "verify_external \"$inventory_source\"",
+            "verify_external \"$toolchain_path\"",
+            "verify_source ansible/plugins/strategy/cristexhub_prod_ghcr_pull_rotation_guarded_linear.py \"$strategy_source\" 644",
+            "STRATEGY_SHA256",
+            "ANSIBLE_CONFIG_SHA256",
+            "INVENTORY_SHA256",
+            "CONTROLLER_SHA256",
+            "REQUIREMENTS_SHA256",
+            "COLLECTION_MANIFEST_SHA256",
+            "COLLECTION_FILES_SHA256",
+        ):
+            self.assertIn(required, self.wrapper)
+        self.assertEqual(hashlib.sha256(CONFIG.read_bytes()).hexdigest(), "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9")
+        self.assertEqual(hashlib.sha256(INVENTORY.read_bytes()).hexdigest(), "843dd43cdce256061d8e6b58b563acd00c3a1d7a1357e5f59ea30040af244752")
+        self.assertEqual(hashlib.sha256(REQUIREMENTS.read_bytes()).hexdigest(), "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f")
+        self.assertIn("dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df", self.wrapper)
+        self.assertIn("9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69", self.wrapper)
+
+    def test_provenance_strategy_is_non_skippable(self) -> None:
+        self.assertEqual("cristexhub_prod_ghcr_pull_rotation_guarded_linear", self.playbook[0]["strategy"])
+        for required in (
+            "_canonical_argv",
+            "_selection_is_canonical",
+            "_wrapper_binding_valid",
+            "_source_contract",
+            "TASK_SELECTION_GUARD",
+            "start_at_task",
+            "skip_tags",
+        ):
+            self.assertIn(required, STRATEGY.read_text())
 
     def test_wrapper_is_check_only_and_bound(self) -> None:
         for required in (
