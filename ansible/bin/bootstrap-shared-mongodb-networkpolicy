@@ -16,7 +16,7 @@ if [ "$mode" = apply ] && [ "${CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APP
 fi
 original_script_path=$0
 script_path=$0
-wrapper_canonical_sha256_expected='295cd1d93766bf8202c174e996eca04819298bfcc0aeb136621f04313618711c'
+wrapper_canonical_sha256_expected='62db9375a335ed5e3f4b1af161efe3575e176a83406113e8edb3c2ef1d19e892'
 sha256_stdin() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum | awk '{print $1}'
@@ -81,6 +81,134 @@ check_collection_artifacts() {
   tree_root=$1
   [ -z "$(find "$tree_root" \( -name '__pycache__' -o -name '*.pyc' -o -name '*.pyo' -o -name '*.so' -o -name '*.dylib' -o -name '*.dll' -o -name '*.pyd' \) -print -quit 2>/dev/null)" ]
 }
+check_collection_manifest_tree() {
+  tree_root=$1
+  manifest_path=$2
+  "$python_tool" -I -B - "$tree_root" "$manifest_path" <<'PY'
+import json
+import os
+import stat
+import sys
+from pathlib import Path, PurePosixPath
+
+root = Path(sys.argv[1])
+manifest_path = Path(sys.argv[2])
+try:
+    entries = json.loads(manifest_path.read_text(encoding='utf-8')).get('files')
+    if not isinstance(entries, list):
+        raise ValueError
+    expected = {}
+    for item in entries:
+        if not isinstance(item, dict):
+            raise ValueError
+        name = item.get('name')
+        kind = item.get('ftype')
+        if name == '.':
+            if kind != 'dir':
+                raise ValueError
+            continue
+        if not isinstance(name, str) or not name:
+            raise ValueError
+        relative = PurePosixPath(name)
+        if (
+            relative.is_absolute()
+            or relative.as_posix() != name
+            or any(part in {'', '.', '..'} for part in relative.parts)
+            or kind not in {'file', 'dir'}
+            or name in expected
+        ):
+            raise ValueError
+        digest = item.get('chksum_sha256')
+        if kind == 'file' and (
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or any(char not in '0123456789abcdef' for char in digest)
+        ):
+            raise ValueError
+        if kind == 'dir' and digest not in (None, ''):
+            raise ValueError
+        expected[name] = kind
+    expected['FILES.json'] = 'file'
+    expected['MANIFEST.json'] = 'file'
+    actual = {}
+    symlinks = set()
+    for entry in root.rglob('*'):
+        name = entry.relative_to(root).as_posix()
+        if entry.is_symlink():
+            actual[name] = 'file'
+            symlinks.add(name)
+        elif entry.is_dir():
+            actual[name] = 'dir'
+        elif entry.is_file():
+            actual[name] = 'file'
+        else:
+            raise ValueError
+    if actual != expected:
+        raise ValueError
+    allowed_symlinks = {
+        'plugins/action/' + name
+        for name in (
+            'helm.py', 'helm_info.py', 'helm_plugin.py', 'helm_plugin_info.py',
+            'helm_repository.py', 'k8s.py', 'k8s_cluster_info.py', 'k8s_cp.py',
+            'k8s_drain.py', 'k8s_exec.py', 'k8s_json_patch.py', 'k8s_log.py',
+            'k8s_rollback.py', 'k8s_scale.py', 'k8s_service.py',
+        )
+    }
+    if symlinks != allowed_symlinks:
+        raise ValueError
+    uid = os.getuid()
+    for name, kind in expected.items():
+        entry = root / name
+        state = entry.stat(follow_symlinks=False)
+        if kind == 'dir':
+            if (
+                entry.is_symlink()
+                or not stat.S_ISDIR(state.st_mode)
+                or stat.S_IMODE(state.st_mode) != 0o755
+                or state.st_uid != uid
+            ):
+                raise ValueError
+        elif entry.is_symlink():
+            if name not in allowed_symlinks or state.st_uid != uid:
+                raise ValueError
+        elif (
+            not stat.S_ISREG(state.st_mode)
+            or state.st_uid != uid
+            or stat.S_IMODE(state.st_mode) not in (0o644, 0o755)
+        ):
+            raise ValueError
+except (OSError, RuntimeError, UnicodeError, ValueError, TypeError, json.JSONDecodeError):
+    raise SystemExit(1)
+PY
+}
+check_collection_namespace_tree() {
+  namespace_root=$1
+  namespace=$2
+  info_root=$3
+  [ -d "$namespace_root" ] && [ ! -L "$namespace_root" ] || return 1
+  [ -d "$namespace" ] && [ ! -L "$namespace" ] || return 1
+  [ -d "$info_root" ] && [ ! -L "$info_root" ] || return 1
+  for tree_entry in "$namespace_root"/* "$namespace_root"/.[!.]* "$namespace_root"/..?*; do
+    [ -e "$tree_entry" ] || [ -L "$tree_entry" ] || continue
+    tree_name=${tree_entry##*/}
+    case "$tree_name" in
+      kubernetes) [ -d "$tree_entry" ] && [ ! -L "$tree_entry" ] || return 1 ;;
+      kubernetes.core-6.1.0.info) [ -d "$tree_entry" ] && [ ! -L "$tree_entry" ] || return 1 ;;
+      *) return 1 ;;
+    esac
+  done
+  for tree_entry in "$namespace"/* "$namespace"/.[!.]* "$namespace"/..?*; do
+    [ -e "$tree_entry" ] || [ -L "$tree_entry" ] || continue
+    tree_name=${tree_entry##*/}
+    [ "$tree_name" = core ] && [ -d "$tree_entry" ] && [ ! -L "$tree_entry" ] || return 1
+  done
+  for tree_entry in "$info_root"/* "$info_root"/.[!.]* "$info_root"/..?*; do
+    [ -e "$tree_entry" ] || [ -L "$tree_entry" ] || continue
+    tree_name=${tree_entry##*/}
+    [ "$tree_name" = GALAXY.yml ] && [ -f "$tree_entry" ] && [ ! -L "$tree_entry" ] || return 1
+  done
+  [ -f "$info_root/GALAXY.yml" ] && [ ! -L "$info_root/GALAXY.yml" ]
+}
 check_module_utils_root_tree() {
   tree_root=$1
   for tree_entry in "$tree_root"/* "$tree_root"/.[!.]* "$tree_root"/..?*; do
@@ -105,7 +233,10 @@ python_link_target_expected=/usr/bin/python3
 inventory="$repository_root/ansible/.ansible/inventory.local.yml"
 ansible_config="$repository_root/ansible/ansible.cfg"
 requirements_source="$repository_root/ansible/requirements.yml"
-collection_root="$repository_root/ansible/.ansible/collections/ansible_collections/kubernetes/core"
+collection_namespace_root="$repository_root/ansible/.ansible/collections/ansible_collections"
+collection_namespace="$collection_namespace_root/kubernetes"
+collection_info_root="$collection_namespace_root/kubernetes.core-6.1.0.info"
+collection_root="$collection_namespace/core"
 collection_manifest="$collection_root/MANIFEST.json"
 collection_files="$collection_root/FILES.json"
 collection_plugins="$collection_root/plugins"
@@ -139,6 +270,7 @@ is_owned_symlink "$python_tool" && [ "$(readlink "$python_tool")" = "$python_lin
 [ -f "$requirements_source" ] && [ ! -L "$requirements_source" ] || exit 69
 [ -f "$collection_manifest" ] && [ ! -L "$collection_manifest" ] || exit 69
 [ -f "$collection_files" ] && [ ! -L "$collection_files" ] || exit 69
+check_collection_namespace_tree "$collection_namespace_root" "$collection_namespace" "$collection_info_root" || exit 69
 is_owned_directory_mode "$collection_root" 755 || exit 69
 is_owned_directory_mode "$collection_plugins" 755 || exit 69
 is_owned_directory_mode "$collection_actions" 755 || exit 69
@@ -200,7 +332,7 @@ is_owned_regular_mode "$collection_files" 644 || exit 69
 task_sha256_expected='f39c12c75931831f1183a519dc4459f24e8d9d862b5b394635e048154e69b6f0'
 defaults_sha256_expected='2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 playbook_sha256_expected='7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-action_canonical_sha256_expected='467592803f2b4dc2b02b37944ad64c90dbfd9e2ec0a8e7f8c6f432cec04d4600'
+action_canonical_sha256_expected='0b9075f2fbfdeebf2719de6df24a6ed8d5e1763624cf4d870a1acedeed5a6e9f'
 create_module_sha256_expected='21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
@@ -248,6 +380,10 @@ controller_sha256_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5
 [ "$(sha256_file "$requirements_source")" = "$requirements_sha256_expected" ] || { printf '%s\n' 'refusing collection requirement drift' >&2; exit 69; }
 [ "$(sha256_file "$collection_manifest")" = "$collection_manifest_sha256_expected" ] || { printf '%s\n' 'refusing collection manifest drift' >&2; exit 69; }
 [ "$(sha256_file "$collection_files")" = "$collection_files_sha256_expected" ] || { printf '%s\n' 'refusing collection file closure drift' >&2; exit 69; }
+[ "$(sha256_file "$python_real_source")" = "$python_sha256_expected" ] || { printf '%s\n' 'refusing Python interpreter drift' >&2; exit 69; }
+[ "$(sha256_file "$controller")" = "$controller_sha256_expected" ] || { printf '%s\n' 'refusing controller drift' >&2; exit 69; }
+check_collection_artifacts "$collection_root" || { printf '%s\n' 'refusing collection bytecode/native artifacts' >&2; exit 69; }
+check_collection_manifest_tree "$collection_root" "$collection_files" || { printf '%s\n' 'refusing collection tree drift' >&2; exit 69; }
 [ "$(sha256_file "$k8s_action_target")" = "$k8s_action_target_sha256_expected" ] || { printf '%s\n' 'refusing kubernetes.core k8s action target drift' >&2; exit 69; }
 [ "$(sha256_file "$k8s_info_module_source")" = "$k8s_info_module_sha256_expected" ] || { printf '%s\n' 'refusing kubernetes.core k8s_info module drift' >&2; exit 69; }
 [ "$(sha256_file "$json_patch_real_source")" = "$json_patch_action_target_sha256_expected" ] || { printf '%s\n' 'refusing JSON patch action target drift' >&2; exit 69; }

@@ -5,7 +5,7 @@ import json
 import os
 import re
 import stat
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from ansible import context
@@ -60,7 +60,7 @@ _EXPECTED_LOCK_FILE = '/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
 _EXPECTED_TASK_SHA256 = 'f39c12c75931831f1183a519dc4459f24e8d9d862b5b394635e048154e69b6f0'
 _EXPECTED_DEFAULTS_SHA256 = '2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 _EXPECTED_PLAYBOOK_SHA256 = '7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-_EXPECTED_ACTION_CANONICAL_SHA256 = '467592803f2b4dc2b02b37944ad64c90dbfd9e2ec0a8e7f8c6f432cec04d4600'
+_EXPECTED_ACTION_CANONICAL_SHA256 = '0b9075f2fbfdeebf2719de6df24a6ed8d5e1763624cf4d870a1acedeed5a6e9f'
 _EXPECTED_CREATE_MODULE_SHA256 = '21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 _EXPECTED_INVENTORY_SHA256 = '652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 _EXPECTED_ANSIBLE_CONFIG_SHA256 = '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
@@ -377,6 +377,95 @@ def _collection_has_forbidden_artifacts(path: Path) -> bool:
         return True
 
 
+def _collection_manifest_tree_valid(
+    path: Path, files_manifest: dict[str, Any]
+) -> bool:
+    try:
+        entries = files_manifest.get('files')
+        if not isinstance(entries, list):
+            return False
+        expected: dict[str, tuple[str, str | None]] = {}
+        for item in entries:
+            if not isinstance(item, dict):
+                return False
+            name = item.get('name')
+            kind = item.get('ftype')
+            if name == '.':
+                if kind != 'dir':
+                    return False
+                continue
+            if not isinstance(name, str) or not name:
+                return False
+            relative = PurePosixPath(name)
+            if (
+                relative.is_absolute()
+                or relative.as_posix() != name
+                or any(part in {'', '.', '..'} for part in relative.parts)
+                or kind not in {'file', 'dir'}
+                or name in expected
+            ):
+                return False
+            digest = item.get('chksum_sha256')
+            if kind == 'file' and (
+                not isinstance(digest, str)
+                or re.fullmatch(r'[0-9a-f]{64}', digest) is None
+            ):
+                return False
+            if kind == 'dir' and digest not in (None, ''):
+                return False
+            expected[name] = (kind, digest if kind == 'file' else None)
+        expected['FILES.json'] = ('file', None)
+        expected['MANIFEST.json'] = ('file', None)
+        actual: dict[str, str] = {}
+        symlinks: set[str] = set()
+        for entry in path.rglob('*'):
+            name = entry.relative_to(path).as_posix()
+            if entry.is_symlink():
+                actual[name] = 'file'
+                symlinks.add(name)
+            elif entry.is_dir():
+                actual[name] = 'dir'
+            elif entry.is_file():
+                actual[name] = 'file'
+            else:
+                return False
+        if actual != {name: kind for name, (kind, _) in expected.items()}:
+            return False
+        allowed_symlinks = {
+            f"plugins/action/{name}"
+            for name, target in _EXPECTED_COLLECTION_ACTION_PATHS.items()
+            if target is not None
+        }
+        if symlinks != allowed_symlinks:
+            return False
+        for name, (kind, digest) in expected.items():
+            entry = path / name
+            state = entry.stat(follow_symlinks=False)
+            if kind == 'dir':
+                if (
+                    entry.is_symlink()
+                    or not stat.S_ISDIR(state.st_mode)
+                    or stat.S_IMODE(state.st_mode) != 0o755
+                    or state.st_uid != os.getuid()
+                ):
+                    return False
+                continue
+            if entry.is_symlink():
+                if name not in allowed_symlinks or state.st_uid != os.getuid():
+                    return False
+            elif (
+                not stat.S_ISREG(state.st_mode)
+                or state.st_uid != os.getuid()
+                or stat.S_IMODE(state.st_mode) not in {0o644, 0o755}
+            ):
+                return False
+            if digest is not None and _sha256(entry) != digest:
+                return False
+        return True
+    except (OSError, RuntimeError, UnicodeError, ValueError, TypeError):
+        return False
+
+
 def _collection_toolchain_valid() -> bool:
     """Pin the exact installed kubernetes.core action/module closure."""
     try:
@@ -433,6 +522,8 @@ def _collection_toolchain_valid() -> bool:
         if _sha256(_COLLECTION_FILES_SOURCE) != _EXPECTED_COLLECTION_FILES_SHA256:
             return False
         files_manifest = json.loads(_COLLECTION_FILES_SOURCE.read_text(encoding='utf-8'))
+        if not _collection_manifest_tree_valid(_COLLECTION_ROOT, files_manifest):
+            return False
         manifest_files = {
             item.get('name'): item.get('chksum_sha256')
             for item in files_manifest.get('files', [])
