@@ -19,6 +19,7 @@ TASKS = ANSIBLE / "roles/rabbitmq_prod_credential_rotation_check/tasks/main.yml"
 PLAYBOOK = ANSIBLE / "playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml"
 WRAPPER = ANSIBLE / "bin/check-cristexhub-prod-rabbitmq-credential-rotation"
 ACTION = ANSIBLE / "plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py"
+STRATEGY = ANSIBLE / "plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py"
 METADATA = ANSIBLE / "library/rabbitmq_prod_credential_metadata.py"
 BROKER_SOURCE = ANSIBLE / "files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml"
 CONFIG_SOURCE = ANSIBLE / "files/components/rabbitmq/runtime/configmap-rabbitmq.yaml"
@@ -34,6 +35,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         cls.tasks = TASKS.read_text()
         cls.wrapper = WRAPPER.read_text()
         cls.action = ACTION.read_text()
+        cls.strategy = STRATEGY.read_text()
         cls.metadata = METADATA.read_text()
         cls.playbook = yaml.safe_load(PLAYBOOK.read_text())
 
@@ -92,6 +94,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             self.assertNotIn(forbidden, self.tasks)
             self.assertNotIn(forbidden, self.action)
         self.assertEqual("rabbitmq_prod_credential_rotation_check", self.playbook[0]["roles"][0]["role"])
+        self.assertEqual("rabbitmq_prod_credential_rotation_check_guarded_linear", self.playbook[0]["strategy"])
 
     def test_candidate_permissions_are_exact_and_non_wildcarded(self) -> None:
         expected = {
@@ -119,6 +122,51 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("check_cristexhub_prod_rabbitmq_credential_rotation.yml", self.wrapper)
         self.assertNotIn("--extra-vars '{\"rabbitmq_prod_credential_rotation_check_approved\":false}'", self.wrapper)
         self.assertEqual(0, subprocess.run(["/bin/sh", "-n", str(WRAPPER)], check=False).returncode)
+        rejected = subprocess.run([str(WRAPPER), "check", "--start-at-task", "mutation"], check=False, capture_output=True, text=True)
+        self.assertEqual(64, rejected.returncode)
+        self.assertNotIn("ansible-playbook", rejected.stdout + rejected.stderr)
+
+    def test_strategy_binds_ancestor_argv_and_fixed_source_closure(self) -> None:
+        for required in (
+            "class StrategyModule(LinearStrategyModule)",
+            "_wrapper_attestation_valid",
+            "_canonical_argv",
+            "_source_contract",
+            "_STRATEGY_CANONICAL_SHA256",
+            "_ACTION_CANONICAL_SHA256",
+            "context.CLIARGS.get(\"start_at_task\") is None",
+            "not any(os.environ.get(name) for name in _FORBIDDEN_ENV)",
+        ):
+            self.assertIn(required, self.strategy, required)
+        self.assertEqual(0o644, stat.S_IMODE(STRATEGY.stat().st_mode))
+        self.assertIn("strategy: rabbitmq_prod_credential_rotation_check_guarded_linear", PLAYBOOK.read_text())
+
+    def test_action_rejects_unknown_users_and_foreign_permission_rows(self) -> None:
+        spec = importlib.util.spec_from_file_location("rabbitmq_prod_credential_rotation_action", ACTION)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        self.assertIsNotNone(spec.loader)
+        spec.loader.exec_module(module)
+        users = [
+            {"user": "admin-generated", "tags": "administrator"},
+            {"user": "cristexhub_dev_rabbitmq", "tags": ""},
+            {"user": "cristexhub_prod_user", "tags": ""},
+        ]
+        self.assertTrue(module._validate_output("users", json.dumps(users)))
+        self.assertFalse(module._validate_output("users", json.dumps(users + [{"user": "foreign", "tags": ""}])))
+        self.assertFalse(module._validate_output("users", json.dumps([
+            {"user": "admin-generated", "tags": "administrator"},
+            {"user": "cristexhub_dev_rabbitmq", "tags": ""},
+            {"user": "cristexhub_prod_user", "tags": ""},
+            {"user": "guest", "tags": ""},
+        ])))
+        permissions = [
+            {"user": "cristexhub_dev_rabbitmq", "vhost": "/cristexhub-dev", "configure": "^(default|high_priority|low_priority)$", "write": "^default$", "read": "^(default|high_priority|low_priority)$"},
+            {"user": "cristexhub_prod_user", "vhost": "/cristexhub-prod", "configure": "^(default|high_priority|low_priority)$", "write": "^default$", "read": "^(default|high_priority|low_priority)$"},
+        ]
+        self.assertTrue(module._validate_output("all_permissions", json.dumps(permissions)))
+        self.assertFalse(module._validate_output("all_permissions", json.dumps(permissions + [{**permissions[0], "user": "foreign"}])))
+        self.assertFalse(module._validate_output("prod_permissions", json.dumps([{**permissions[1], "vhost": "/foreign"}])))
 
     def test_action_binds_ancestor_argv_and_strips_results(self) -> None:
         for required in (
@@ -255,7 +303,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
     def test_tasks_parse_and_bind_query_set_without_nested_jinja(self) -> None:
         parsed = yaml.safe_load(self.tasks)
         self.assertIsInstance(parsed, list)
-        self.assertEqual(24, len(parsed))
+        self.assertEqual(25, len(parsed))
         for task in parsed:
             self.assertIsInstance(task, dict)
             if "ansible.builtin.assert" in task:
@@ -268,6 +316,9 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("item.metadata.annotations.keys()", self.tasks)
         self.assertIn("item.metadata.ownerReferences", self.tasks)
         self.assertIn("item.metadata.deletionTimestamp", self.tasks)
+        self.assertIn("Require live Infisical source declarations to match canonical manifests", self.tasks)
+        self.assertIn("spec.targets ==", self.tasks)
+        self.assertIn("spec.sources ==", self.tasks)
         self.assertIn("_RABBITMQ_CONFIG_SOURCE", self.action)
         self.assertIn("_ANSIBLE_CONFIG_SOURCE", self.action)
         self.assertNotIn("== '{{ .RABBITMQ_URL.Value }}'", self.tasks)
@@ -299,6 +350,31 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         runtime_target = {item["name"]: item for item in runtime["spec"]["targets"]}["cristexhub-prod-runtime"]
         self.assertEqual("{{ .RABBITMQ_URL.Value }}", runtime_target["template"]["data"]["RABBITMQ_URL"])
 
+    def test_wrapper_and_action_pins_match_current_canonical_sources(self) -> None:
+        action_source, action_count = re.subn(
+            r'(?m)^_ACTION_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
+            '_ACTION_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
+            ACTION.read_text(),
+        )
+        strategy_source, strategy_count = re.subn(
+            r'(?m)^_STRATEGY_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
+            '_STRATEGY_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
+            STRATEGY.read_text(),
+        )
+        wrapper_source, wrapper_count = re.subn(
+            r"(?m)^wrapper_canonical_sha256='[0-9a-f]{64}'$",
+            "wrapper_canonical_sha256='" + ("0" * 64) + "'",
+            WRAPPER.read_text(),
+        )
+        self.assertEqual(1, action_count)
+        self.assertEqual(1, strategy_count)
+        self.assertEqual(1, wrapper_count)
+        self.assertIn(hashlib.sha256(action_source.encode()).hexdigest(), self.wrapper)
+        self.assertIn(hashlib.sha256(strategy_source.encode()).hexdigest(), self.wrapper)
+        self.assertIn(hashlib.sha256(wrapper_source.encode()).hexdigest(), self.wrapper)
+        self.assertIn(hashlib.sha256(TASKS.read_bytes()).hexdigest(), self.wrapper)
+        self.assertIn(hashlib.sha256(TASKS.read_bytes()).hexdigest(), self.action)
+
     def test_source_modes_and_hashes_are_explicit(self) -> None:
         expected_modes = {
             WRAPPER: 0o755,
@@ -308,6 +384,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             POLICY: 0o644,
             ACTION: 0o644,
             METADATA: 0o755,
+            STRATEGY: 0o644,
         }
         for path, mode in expected_modes.items():
             self.assertTrue(path.is_file(), path)

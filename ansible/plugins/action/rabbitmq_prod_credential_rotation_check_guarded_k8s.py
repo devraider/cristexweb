@@ -27,10 +27,10 @@ _BROKER_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/s
 _RABBITMQ_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml"
 _ENGINE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml"
 _RUNTIME_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
-_ACTION_CANONICAL_SHA256 = "320d200f88a38151092f7c916dc7f17ba1fd503282870d08cd848fee89747c20"
-_TASK_SHA256 = "bb7f9600164f56966b5b91d0ab258888eab967f0dd196901071b306aa13fd7b8"
+_ACTION_CANONICAL_SHA256 = "9291babe5fea873ddf77dc15ec147fbf1a2c1e6467d72e6598234f8c4634b6aa"
+_TASK_SHA256 = "345b29854485d139febfbd9010e2da1e3b9e4aadf2ad6c3265be83085bbe5cd1"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
-_PLAYBOOK_SHA256 = "593d0c3b0109af5db6e1453fb5f40461ce64319b832009109e0a55bdc2a08123"
+_PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
 _POLICY_SHA256 = "b4cd58058ccbbd236b44511b63637bda5fb61a6ca2df56f4f78e24f2da8a409f"
 _METADATA_SHA256 = "586841d6c3f677e5bd7d68c5968f92f3abe508ddb026227c312db14582bdd6be"
 _BROKER_SOURCE_SHA256 = "5ea7cfa66e72615e5ff50657e934740907a90d4219c221323e3b91af3efe6242"
@@ -201,14 +201,14 @@ def _contains_secret_key(value: Any) -> bool:
     return False
 
 
-def _json_rows(stdout: str) -> list[dict[str, Any]] | None:
+def _json_rows(stdout: str, field: str) -> list[dict[str, Any]] | None:
     try:
         payload = json.loads(stdout)
     except (TypeError, ValueError):
         return None
     if _contains_secret_key(payload):
         return None
-    rows = payload.get("users") if isinstance(payload, dict) else payload
+    rows = payload.get(field) if isinstance(payload, dict) else payload
     if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
         return None
     return rows
@@ -225,39 +225,40 @@ def _vhost_name(row: dict[str, Any]) -> str:
 def _validate_output(query: str, stdout: str) -> bool:
     if query == "readiness":
         return stdout.strip() in {"", "ok", "running", "RabbitMQ is running"}
-    rows = _json_rows(stdout)
+    field = {"users": "users", "prod_permissions": "permissions", "all_permissions": "permissions", "vhosts": "vhosts"}.get(query)
+    if field is None:
+        return False
+    rows = _json_rows(stdout, field)
     if rows is None:
         return False
     if query == "users":
-        names = {_username(row) for row in rows}
-        if {
-            "cristexhub_dev_rabbitmq",
-            "cristexhub_prod_user",
-        } - names or "cristexhub_prod_rabbitmq" in names or "guest" in names:
+        names = [_username(row) for row in rows]
+        expected_workloads = {"cristexhub_dev_rabbitmq", "cristexhub_prod_user"}
+        if len(rows) != 3 or len(set(names)) != 3 or not expected_workloads.issubset(names):
+            return False
+        if any(not name or name == "guest" for name in names):
             return False
         administrators = [row for row in rows if str(row.get("tags", "")) == "administrator"]
-        workload_rows = [row for row in rows if _username(row) in {"cristexhub_dev_rabbitmq", "cristexhub_prod_user"}]
-        return len(administrators) == 1 and len(workload_rows) == 2 and all(not row.get("tags") for row in workload_rows)
-    if query in {"prod_permissions", "all_permissions"}:
-        for row in rows:
-            if set(row) - {"user", "vhost", "configure", "write", "read"}:
-                return False
-            if any(not isinstance(row.get(key), str) for key in ("user", "vhost", "configure", "write", "read")):
-                return False
-        prod = [row for row in rows if row.get("user") == "cristexhub_prod_user"]
-        successor = [row for row in rows if row.get("user") == "cristexhub_prod_rabbitmq"]
-        if successor:
-            return False
-        if query == "prod_permissions":
-            return prod == [{"user": "cristexhub_prod_user", "vhost": "/cristexhub-prod", **_EXPECTED_PERMISSIONS}]
+        workload_rows = [row for row in rows if _username(row) in expected_workloads]
         return (
-            len(prod) == 1
-            and prod[0].get("vhost") == "/cristexhub-prod"
-            and all(row.get("vhost") != "/cristexhub-prod" for row in rows if row.get("user") == "cristexhub_dev_rabbitmq")
+            len(administrators) == 1
+            and len(workload_rows) == 2
+            and all(row.get("tags", "") == "" for row in workload_rows)
+            and all(set(row).issubset({"user", "username", "name", "tags"}) for row in rows)
+        )
+    if query in {"prod_permissions", "all_permissions"}:
+        expected_prod = {"user": "cristexhub_prod_user", "vhost": "/cristexhub-prod", **_EXPECTED_PERMISSIONS}
+        expected_dev = {"user": "cristexhub_dev_rabbitmq", "vhost": "/cristexhub-dev", **_EXPECTED_PERMISSIONS}
+        expected_rows = [expected_prod] if query == "prod_permissions" else [expected_dev, expected_prod]
+        if any(set(row) != {"user", "vhost", "configure", "write", "read"} for row in rows):
+            return False
+        if any(any(not isinstance(row.get(key), str) for key in ("user", "vhost", "configure", "write", "read")) for row in rows):
+            return False
+        return sorted(rows, key=lambda row: (row["user"], row["vhost"])) == sorted(
+            expected_rows, key=lambda row: (row["user"], row["vhost"])
         )
     if query == "vhosts":
-        names = {_vhost_name(row) for row in rows}
-        return {"/cristexhub-dev", "/cristexhub-prod"}.issubset(names)
+        return len(rows) == 2 and {_vhost_name(row) for row in rows} == {"/cristexhub-dev", "/cristexhub-prod"}
     return False
 
 

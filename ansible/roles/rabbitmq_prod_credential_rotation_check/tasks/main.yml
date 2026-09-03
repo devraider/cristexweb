@@ -390,6 +390,49 @@
   changed_when: false
   no_log: true
 
+- name: Require live Infisical source declarations to match canonical manifests
+  ansible.builtin.assert:
+    that:
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.name ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.metadata.name
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.namespace ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.metadata.namespace
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.labels ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.metadata.labels
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.sources ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.sources
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.targets ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.syncOptions ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.syncOptions
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.name ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.metadata.name
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.namespace ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.metadata.namespace
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.labels ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.metadata.labels
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.sources ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.sources
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.targets ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.targets
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.syncOptions ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.syncOptions
+    fail_msg: Refusing live Infisical source declaration drift from canonical value-free manifests.
+  changed_when: false
+  no_log: true
+
 - name: Query RabbitMQ target Secret metadata without requesting Secret payloads
   rabbitmq_prod_credential_metadata:
     kubeconfig: "{{ rabbitmq_prod_credential_rotation_check_kubeconfig }}"
