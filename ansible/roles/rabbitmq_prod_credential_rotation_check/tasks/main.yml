@@ -89,6 +89,7 @@
         lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_TOKEN') ~
         ':entrypoint:' ~ lookup('ansible.builtin.env',
         'CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_PID') ~ ':' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_STARTTIME') ~ ':' ~
         lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_SHA256')
     fail_msg: Refusing missing, foreign, or malformed RabbitMQ PROD rotation attestation.
   delegate_to: localhost
@@ -108,13 +109,13 @@
       sha256: 3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac
       mode: '0644'
     - path: ansible/playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml
-      sha256: 593d0c3b0109af5db6e1453fb5f40461ce64319b832009109e0a55bdc2a08123
+      sha256: afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60
       mode: '0644'
     - path: ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml
       sha256: b4cd58058ccbbd236b44511b63637bda5fb61a6ca2df56f4f78e24f2da8a409f
       mode: '0644'
     - path: ansible/library/rabbitmq_prod_credential_metadata.py
-      sha256: 365e9f7f9471a0cad356d7807b32f836636c714ed4f2335c28f5c0a16012c5c1
+      sha256: 586841d6c3f677e5bd7d68c5968f92f3abe508ddb026227c312db14582bdd6be
       mode: '0755'
     - path: ansible/files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml
       sha256: 5ea7cfa66e72615e5ff50657e934740907a90d4219c221323e3b91af3efe6242
@@ -194,9 +195,13 @@
         map(attribute='name') | list | sort ==
         ['shared-rabbitmq-admin', 'shared-rabbitmq-cristexhub-dev',
         'shared-rabbitmq-cristexhub-prod', 'shared-rabbitmq-tls'] | sort
-      - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets | map(attribute='namespace') | unique | list == ['shared-services']
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets | map(attribute='namespace') |
+        unique | list == ['shared-services']
       - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets | map(attribute='kind') | unique | list == ['Secret']
-      - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets | map(attribute='creationPolicy') | unique | list == ['Orphan']
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets | map(attribute='creationPolicy')
+        | unique | list == ['Orphan']
       - >-
         (rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets |
         selectattr('name', 'equalto', 'shared-rabbitmq-admin') | first).template.data == {
@@ -318,21 +323,263 @@
   changed_when: false
   no_log: true
 
-- name: Require one Ready pinned RabbitMQ broker
+- name: Bind the live RabbitMQ broker and canonical relevant projections
+  ansible.builtin.set_fact:
+    rabbitmq_prod_credential_rotation_check_internal_live_statefulset: >-
+      {{ rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources[0] }}
+    rabbitmq_prod_credential_rotation_check_internal_live_pod: "{{ rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0] }}"
+    rabbitmq_prod_credential_rotation_check_internal_source_statefulset: "{{ rabbitmq_prod_credential_rotation_check_internal_source_objects.broker }}"
+    rabbitmq_prod_credential_rotation_check_internal_live_container: >-
+      {{ rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources[0].spec.template.spec.containers |
+      selectattr('name', 'equalto', 'rabbitmq') | first }}
+    rabbitmq_prod_credential_rotation_check_internal_source_container: >-
+      {{ rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.spec.template.spec.containers |
+      selectattr('name', 'equalto', 'rabbitmq') | first }}
+    rabbitmq_prod_credential_rotation_check_internal_live_init_container: >-
+      {{ rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources[0].spec.template.spec.initContainers |
+      selectattr('name', 'equalto', 'definitions') | first }}
+    rabbitmq_prod_credential_rotation_check_internal_source_init_container: >-
+      {{ rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.spec.template.spec.initContainers |
+      selectattr('name', 'equalto', 'definitions') | first }}
+    rabbitmq_prod_credential_rotation_check_internal_live_pod_container: >-
+      {{ rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0].spec.containers |
+      selectattr('name', 'equalto', 'rabbitmq') | first }}
+  changed_when: false
+  no_log: true
+
+- name: Require one Ready RabbitMQ broker with exact canonical StatefulSet and Pod identity
   ansible.builtin.assert:
     that:
       - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results | length == 2
-      - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources | length == 1
-      - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources | length == 1
-      - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources[0].spec.replicas == 1
+      - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.apiVersion == 'apps/v1'
+      - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.kind == 'StatefulSet'
+      - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.namespace == 'shared-services'
+      - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.name == 'shared-rabbitmq'
+      - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.uid is string
+      - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.uid | length > 0
+      - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.resourceVersion is match('^[0-9]+$')
       - >-
-        rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources[0].spec.template.spec.containers |
-        selectattr('name', 'equalto', 'rabbitmq') | list | length == 1
-      - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0].status.phase == 'Running'
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.labels ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.metadata.labels
       - >-
-        rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0].status.containerStatuses |
-        selectattr('name', 'equalto', 'rabbitmq') | selectattr('ready', 'equalto', true) | list | length == 1
-    fail_msg: Refusing RabbitMQ rotation preflight without one Ready private broker.
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.serviceName ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.serviceName
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.replicas ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.replicas == 1
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.podManagementPolicy ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.podManagementPolicy
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.selector ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.selector
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.updateStrategy ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.updateStrategy
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.persistentVolumeClaimRetentionPolicy ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.persistentVolumeClaimRetentionPolicy
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.metadata.labels ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.labels
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.spec.serviceAccountName ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.serviceAccountName
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.spec.automountServiceAccountToken ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.automountServiceAccountToken
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.spec.securityContext ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.securityContext
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.spec.terminationGracePeriodSeconds ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.terminationGracePeriodSeconds
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.template.spec.volumes ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.volumes
+      - rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.volumeClaimTemplates | length == 1
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.volumeClaimTemplates[0].metadata.name ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.volumeClaimTemplates[0].metadata.name
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.volumeClaimTemplates[0].metadata.labels ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.volumeClaimTemplates[0].metadata.labels
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.volumeClaimTemplates[0].spec.accessModes ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.volumeClaimTemplates[0].spec.accessModes
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.volumeClaimTemplates[0].spec.storageClassName
+        ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.volumeClaimTemplates[0].spec.storageClassName
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.spec.volumeClaimTemplates[0].spec.resources ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.volumeClaimTemplates[0].spec.resources
+      - rabbitmq_prod_credential_rotation_check_internal_live_container.name == rabbitmq_prod_credential_rotation_check_internal_source_container.name
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_container.image ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.image
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_container.imagePullPolicy ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.imagePullPolicy
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_container.ports ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.ports
+      - rabbitmq_prod_credential_rotation_check_internal_live_container.env == rabbitmq_prod_credential_rotation_check_internal_source_container.env
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_container.securityContext ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.securityContext
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_container.resources ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.resources
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_container.startupProbe ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.startupProbe | combine({'successThreshold': 1})
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_container.readinessProbe ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.readinessProbe | combine({'successThreshold': 1})
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_container.livenessProbe ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.livenessProbe | combine({'successThreshold': 1})
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_container.volumeMounts ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.volumeMounts
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_init_container.name ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.name
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_init_container.image ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.image
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_init_container.imagePullPolicy ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.imagePullPolicy
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_init_container.command ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.command
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_init_container.args ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.args
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_init_container.securityContext ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.securityContext
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_init_container.volumeMounts ==
+        rabbitmq_prod_credential_rotation_check_internal_source_init_container.volumeMounts
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.apiVersion == 'v1'
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.kind == 'Pod'
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.namespace == 'shared-services'
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.name == 'shared-rabbitmq-0'
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.uid is string
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.uid | length > 0
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.resourceVersion is match('^[0-9]+$')
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.labels | dict2items | selectattr('key', 'in',
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.labels.keys() | list) |
+        map(attribute='value') | list | length ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.labels | length
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.labels['app.kubernetes.io/name'] ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.labels['app.kubernetes.io/name']
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.labels['app.kubernetes.io/part-of'] ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.labels['app.kubernetes.io/part-of']
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.labels['app.kubernetes.io/managed-by'] ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.labels['app.kubernetes.io/managed-by']
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.labels['cristex.io/component'] ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.labels['cristex.io/component']
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.labels['cristex.io/rabbitmq-client'] ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.metadata.labels['cristex.io/rabbitmq-client']
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.ownerReferences | length == 1
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.ownerReferences[0].apiVersion == 'apps/v1'
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.ownerReferences[0].kind == 'StatefulSet'
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.ownerReferences[0].name ==
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.name
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.ownerReferences[0].uid ==
+        rabbitmq_prod_credential_rotation_check_internal_live_statefulset.metadata.uid
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.ownerReferences[0].controller is true
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.metadata.ownerReferences[0].blockOwnerDeletion is true
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.serviceAccountName ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.serviceAccountName
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.automountServiceAccountToken ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.automountServiceAccountToken
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.securityContext ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.securityContext
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.terminationGracePeriodSeconds ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.terminationGracePeriodSeconds
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.containers | selectattr('name', 'equalto', 'rabbitmq') | list | length == 1
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_container.image ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.image
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_container.ports ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.ports
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_container.env ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.env
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_container.securityContext ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.securityContext
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_container.resources ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.resources
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_container.startupProbe ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.startupProbe | combine({'successThreshold': 1})
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_container.readinessProbe ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.readinessProbe | combine({'successThreshold': 1})
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_container.livenessProbe ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.livenessProbe | combine({'successThreshold': 1})
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod_container.volumeMounts ==
+        rabbitmq_prod_credential_rotation_check_internal_source_container.volumeMounts
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes | selectattr('name', 'equalto',
+        'rabbitmq-data') | map(attribute='persistentVolumeClaim.claimName') | list == ['rabbitmq-data-shared-rabbitmq-0']
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes | selectattr('name', 'equalto', 'config') |
+        map(attribute='configMap') | first ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.volumes | selectattr('name',
+        'equalto', 'config') | map(attribute='configMap') | first)
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes | selectattr('name', 'equalto', 'tls') |
+        map(attribute='secret') | first ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.volumes | selectattr('name',
+        'equalto', 'tls') | map(attribute='secret') | first)
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes | selectattr('name', 'equalto', 'definitions')
+        | map(attribute='emptyDir') | first ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.volumes | selectattr('name',
+        'equalto', 'definitions') | map(attribute='emptyDir') | first)
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes | selectattr('name', 'equalto', 'admin-secret')
+        | map(attribute='secret') | first ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.volumes | selectattr('name',
+        'equalto', 'admin-secret') | map(attribute='secret') | first)
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes | selectattr('name', 'equalto', 'dev-secret') |
+        map(attribute='secret') | first ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.volumes | selectattr('name',
+        'equalto', 'dev-secret') | map(attribute='secret') | first)
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes | selectattr('name', 'equalto', 'prod-secret')
+        | map(attribute='secret') | first ==
+        (rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.volumes | selectattr('name',
+        'equalto', 'prod-secret') | map(attribute='secret') | first)
+      - rabbitmq_prod_credential_rotation_check_internal_live_pod.status.phase == 'Running'
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.status.containerStatuses | selectattr('name', 'equalto',
+        'rabbitmq') | selectattr('ready', 'equalto', true) | list | length == 1
+    fail_msg: Refusing RabbitMQ rotation preflight without one Ready broker bound to the reviewed StatefulSet and source spec.
   changed_when: false
   no_log: true
 
@@ -372,8 +619,12 @@
 - name: Require exact engine and runtime source paths and target ownership
   ansible.builtin.assert:
     that:
-      - rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.sources[0].secretPath == '/shared-services/rabbitmq'
-      - rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.sources[0].secretPath == '/cristexhub/prod/runtime'
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.sources[0].secretPath
+        == '/shared-services/rabbitmq'
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.sources[0].secretPath
+        == '/cristexhub/prod/runtime'
       - >-
         rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.targets |
         map(attribute='name') | list | sort ==
@@ -403,6 +654,9 @@
         rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.labels ==
         rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.metadata.labels
       - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.infisicalAuthRef ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.infisicalAuthRef
+      - >-
         rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.sources ==
         rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.sources
       - >-
@@ -420,6 +674,9 @@
       - >-
         rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.labels ==
         rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.metadata.labels
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.infisicalAuthRef ==
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.infisicalAuthRef
       - >-
         rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.sources ==
         rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.sources
@@ -506,7 +763,9 @@
       - rabbitmq_prod_credential_rotation_check_internal_operators.results[1].resources[0].spec.destination.server == 'https://kubernetes.default.svc'
       - rabbitmq_prod_credential_rotation_check_internal_operators.results[1].resources[0].status.sync.status == 'Synced'
       - rabbitmq_prod_credential_rotation_check_internal_operators.results[1].resources[0].status.health.status == 'Healthy'
-      - rabbitmq_prod_credential_rotation_check_internal_operators.results[1].resources[0].status.sync.revision == '751885a42798d282e168131db147f13694a0a621'
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_operators.results[1].resources[0].status.sync.revision ==
+        '751885a42798d282e168131db147f13694a0a621'
     fail_msg: Refusing RabbitMQ rotation before Operator reconciliation and private PROD Argo health.
   changed_when: false
   no_log: true

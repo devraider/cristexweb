@@ -117,8 +117,17 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("env -i", self.wrapper)
         self.assertIn("umask 077", self.wrapper)
         self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ATTESTATION_FILE", self.wrapper)
+        self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_STARTTIME", self.wrapper)
+        self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256", self.wrapper)
         self.assertIn("canonical_action_sha256", self.wrapper)
         self.assertIn("canonical_wrapper_sha256", self.wrapper)
+        self.assertIn("controller_user=$(/usr/bin/id -un)", self.wrapper)
+        self.assertIn('[ "$controller_user" = paul ]', self.wrapper)
+        self.assertIn("HOME=/home/paul", self.wrapper)
+        self.assertIn("python_real_source=/usr/bin/python3.13", self.wrapper)
+        self.assertIn("collection_files", self.wrapper)
+        self.assertIn("ANSIBLE_ROLES_PATH", self.wrapper)
+        self.assertIn("ANSIBLE_LIBRARY", self.wrapper)
         self.assertIn("check_cristexhub_prod_rabbitmq_credential_rotation.yml", self.wrapper)
         self.assertNotIn("--extra-vars '{\"rabbitmq_prod_credential_rotation_check_approved\":false}'", self.wrapper)
         self.assertEqual(0, subprocess.run(["/bin/sh", "-n", str(WRAPPER)], check=False).returncode)
@@ -132,6 +141,11 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             "_wrapper_attestation_valid",
             "_canonical_argv",
             "_source_contract",
+            "_collection_toolchain_valid",
+            "_PYTHON_REAL_SOURCE",
+            "_OPERATOR",
+            "_WRAPPER_CANONICAL_SHA256",
+            "_EXPECTED_COLLECTION_EXECUTED_FILES",
             "_STRATEGY_CANONICAL_SHA256",
             "_ACTION_CANONICAL_SHA256",
             "context.CLIARGS.get(\"start_at_task\") is None",
@@ -172,7 +186,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         for required in (
             "_ancestor",
             "_proc_cmdline",
-            "Path(_proc_cmdline(pid)[1]).resolve() == _WRAPPER_SOURCE",
+            "_canonical_wrapper_argument(_proc_cmdline(pid)[1], pid)",
             "sys.argv == _expected_argv()",
             "kubernetes.core.k8s_exec",
             "result.pop(key, None)",
@@ -303,7 +317,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
     def test_tasks_parse_and_bind_query_set_without_nested_jinja(self) -> None:
         parsed = yaml.safe_load(self.tasks)
         self.assertIsInstance(parsed, list)
-        self.assertEqual(25, len(parsed))
+        self.assertEqual(26, len(parsed))
         for task in parsed:
             self.assertIsInstance(task, dict)
             if "ansible.builtin.assert" in task:
@@ -315,12 +329,18 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("item.metadata.labels['app.kubernetes.io/part-of']", self.tasks)
         self.assertIn("item.metadata.annotations.keys()", self.tasks)
         self.assertIn("item.metadata.ownerReferences", self.tasks)
+        self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_STARTTIME", self.tasks)
         self.assertIn("item.metadata.deletionTimestamp", self.tasks)
         self.assertIn("Require live Infisical source declarations to match canonical manifests", self.tasks)
+        self.assertIn("spec.infisicalAuthRef ==", self.tasks)
+        for field in ("metadata.uid", "metadata.resourceVersion", "metadata.ownerReferences", "spec.template.metadata.labels", "image", "volumeMounts", "startupProbe", "readinessProbe", "livenessProbe"):
+            self.assertIn(field, self.tasks, field)
         self.assertIn("spec.targets ==", self.tasks)
         self.assertIn("spec.sources ==", self.tasks)
         self.assertIn("_RABBITMQ_CONFIG_SOURCE", self.action)
         self.assertIn("_ANSIBLE_CONFIG_SOURCE", self.action)
+        self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256", self.action)
+        self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256", self.wrapper)
         self.assertNotIn("== '{{ .RABBITMQ_URL.Value }}'", self.tasks)
         self.assertIn("'{' ~ '{ .RABBITMQ_URL.Value }' ~ '}'", self.tasks)
 
@@ -356,19 +376,39 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             '_ACTION_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
             ACTION.read_text(),
         )
+        action_source, action_wrapper_count = re.subn(
+            r'(?m)^_WRAPPER_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
+            '_WRAPPER_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
+            action_source,
+        )
+
         strategy_source, strategy_count = re.subn(
             r'(?m)^_STRATEGY_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
             '_STRATEGY_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
             STRATEGY.read_text(),
         )
+        strategy_source, strategy_wrapper_count = re.subn(
+            r'(?m)^_WRAPPER_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
+            '_WRAPPER_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
+            strategy_source,
+        )
+
         wrapper_source, wrapper_count = re.subn(
             r"(?m)^wrapper_canonical_sha256='[0-9a-f]{64}'$",
             "wrapper_canonical_sha256='" + ("0" * 64) + "'",
             WRAPPER.read_text(),
         )
+        wrapper_source, wrapper_strategy_count = re.subn(
+            r"(?m)^strategy_sha256_expected='[0-9a-f]{64}'$",
+            "strategy_sha256_expected='" + ("0" * 64) + "'",
+            wrapper_source,
+        )
         self.assertEqual(1, action_count)
+        self.assertEqual(1, action_wrapper_count)
         self.assertEqual(1, strategy_count)
+        self.assertEqual(1, strategy_wrapper_count)
         self.assertEqual(1, wrapper_count)
+        self.assertEqual(1, wrapper_strategy_count)
         self.assertIn(hashlib.sha256(action_source.encode()).hexdigest(), self.wrapper)
         self.assertIn(hashlib.sha256(strategy_source.encode()).hexdigest(), self.wrapper)
         self.assertIn(hashlib.sha256(wrapper_source.encode()).hexdigest(), self.wrapper)

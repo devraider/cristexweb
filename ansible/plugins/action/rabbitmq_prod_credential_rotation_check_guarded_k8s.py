@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -22,13 +23,19 @@ _WRAPPER_SOURCE = _REPOSITORY_ROOT / "ansible/bin/check-cristexhub-prod-rabbitmq
 _INVENTORY_SOURCE = _REPOSITORY_ROOT / "ansible/.ansible/inventory.local.yml"
 _ANSIBLE_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/ansible.cfg"
 _CONTROLLER_SOURCE = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
+_PYTHON_SOURCE = _REPOSITORY_ROOT / ".venv/bin/python"
+_PYTHON_REAL_SOURCE = Path("/usr/bin/python3.13")
+_EXPECTED_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
+_OPERATOR = "paul"
 _METADATA_SOURCE = _REPOSITORY_ROOT / "ansible/library/rabbitmq_prod_credential_metadata.py"
 _BROKER_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml"
 _RABBITMQ_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml"
 _ENGINE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml"
 _RUNTIME_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
-_ACTION_CANONICAL_SHA256 = "9291babe5fea873ddf77dc15ec147fbf1a2c1e6467d72e6598234f8c4634b6aa"
-_TASK_SHA256 = "345b29854485d139febfbd9010e2da1e3b9e4aadf2ad6c3265be83085bbe5cd1"
+_ROLES_PATH = _REPOSITORY_ROOT / "ansible/roles"
+_LIBRARY_PATH = _REPOSITORY_ROOT / "ansible/library"
+_ACTION_CANONICAL_SHA256 = "928e10891da0c4ff07bd163424158f6fa112814c652eb3e19e61e3447808ae5a"
+_TASK_SHA256 = "d4d8365e9356f47437a9aea23db88b72dd886fbd2fc15fc145030f5cad1b4e26"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
 _POLICY_SHA256 = "b4cd58058ccbbd236b44511b63637bda5fb61a6ca2df56f4f78e24f2da8a409f"
@@ -40,7 +47,7 @@ _RUNTIME_SOURCE_SHA256 = "3204aab3fc0f5b55f9af3623fb658d5ffd8289437d5d0ea91ab048
 _CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 _INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
 _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
-_WRAPPER_CANONICAL_SHA256 = "0000000000000000000000000000000000000000000000000000000000000000"
+_WRAPPER_CANONICAL_SHA256 = "79c36ca1878b7ef5fc15a819f84e86918b98441bdd216dc5a8f725766f8ecbf1"
 _ARGUMENT_KEYS = {"namespace", "pod", "container", "command", "kubeconfig", "query"}
 _EXPECTED_QUERIES = {
     "readiness": ["rabbitmq-diagnostics", "-q", "check_running"],
@@ -70,15 +77,33 @@ def _sha256(path: Path) -> str:
         return ""
 
 
+def _collection_toolchain_valid() -> bool:
+    strategy_path = _REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py"
+    try:
+        spec = importlib.util.spec_from_file_location("_rabbitmq_rotation_strategy_closure", strategy_path)
+        if spec is None or spec.loader is None:
+            return False
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return bool(module._collection_toolchain_valid())
+    except (ImportError, OSError, RuntimeError, AttributeError, TypeError):
+        return False
+
+
 def _canonical_action_hash(path: Path) -> str:
     try:
         source = path.read_text(encoding="utf-8")
         source, count = re.subn(
-            r'(?m)^_ACTION_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
+            r'(?m)^_ACTION_CANONICAL_SHA256\s*=\s*["\'][0-9a-f]{64}["\']\s*$',
             '_ACTION_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
             source,
         )
-        return hashlib.sha256(source.encode()).hexdigest() if count == 1 else ""
+        source, wrapper_count = re.subn(
+            r'(?m)^_WRAPPER_CANONICAL_SHA256\s*=\s*["\'][0-9a-f]{64}["\']\s*$',
+            '_WRAPPER_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
+            source,
+        )
+        return hashlib.sha256(source.encode()).hexdigest() if count == 1 and wrapper_count == 1 else ""
     except (OSError, UnicodeError):
         return ""
 
@@ -91,7 +116,12 @@ def _canonical_wrapper_hash(path: Path) -> str:
             "wrapper_canonical_sha256='" + ("0" * 64) + "'",
             source,
         )
-        return hashlib.sha256(source.encode()).hexdigest() if count == 1 else ""
+        source, strategy_count = re.subn(
+            r"(?m)^strategy_sha256_expected='[0-9a-f]{64}'$",
+            "strategy_sha256_expected='" + ("0" * 64) + "'",
+            source,
+        )
+        return hashlib.sha256(source.encode()).hexdigest() if count == 1 and strategy_count == 1 else ""
     except (OSError, UnicodeError):
         return ""
 
@@ -111,6 +141,31 @@ def _ancestor(pid: int) -> bool:
     return False
 
 
+def _proc_starttime(pid: int) -> str:
+    try:
+        tail = Path(f"/proc/{pid}/stat").read_text(encoding="ascii").rsplit(") ", 1)[1].split()
+        return tail[19]
+    except (OSError, UnicodeError, IndexError):
+        return ""
+
+
+def _proc_executable(pid: int) -> Path | None:
+    try:
+        return Path(os.readlink(f"/proc/{pid}/exe")).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+
+
+def _canonical_shell(pid: int, command: list[str]) -> bool:
+    if not command or command[0] not in {"/bin/sh", "/bin/dash"}:
+        return False
+    try:
+        dash = Path("/usr/bin/dash").resolve(strict=True)
+        return Path(command[0]).resolve(strict=True) == dash and _proc_executable(pid) == dash
+    except (OSError, RuntimeError):
+        return False
+
+
 def _proc_cmdline(pid: int) -> list[str]:
     try:
         raw = Path(f"/proc/{pid}/cmdline").read_bytes()
@@ -119,6 +174,20 @@ def _proc_cmdline(pid: int) -> list[str]:
         return [part.decode("utf-8", "strict") for part in raw[:-1].split(b"\0")]
     except (OSError, UnicodeError):
         return []
+
+
+def _canonical_wrapper_argument(argument: str, pid: int) -> bool:
+    try:
+        requested = Path(argument)
+        if requested.is_absolute():
+            return requested.resolve(strict=True) == _WRAPPER_SOURCE
+        cwd = Path(os.readlink(f"/proc/{pid}/cwd"))
+        return any(
+            (base / requested).resolve(strict=True) == _WRAPPER_SOURCE
+            for base in (cwd, _REPOSITORY_ROOT)
+        )
+    except (OSError, RuntimeError):
+        return False
 
 
 def _expected_argv() -> list[str]:
@@ -141,6 +210,8 @@ def _toolchain_valid() -> bool:
         inventory_state = _INVENTORY_SOURCE.stat(follow_symlinks=False)
         config_state = _ANSIBLE_CONFIG_SOURCE.stat(follow_symlinks=False)
         controller_state = _CONTROLLER_SOURCE.stat(follow_symlinks=False)
+        python_link = _PYTHON_SOURCE.stat(follow_symlinks=False)
+        python_target = _PYTHON_SOURCE.resolve(strict=True).stat(follow_symlinks=False)
         return (
             stat.S_ISREG(inventory_state.st_mode)
             and not _INVENTORY_SOURCE.is_symlink()
@@ -154,9 +225,21 @@ def _toolchain_valid() -> bool:
             and _sha256(_ANSIBLE_CONFIG_SOURCE) == _CONFIG_SHA256
             and stat.S_ISREG(controller_state.st_mode)
             and not _CONTROLLER_SOURCE.is_symlink()
-            and stat.S_IMODE(controller_state.st_mode) == 0o775
+            and stat.S_IMODE(controller_state.st_mode) == 0o755
             and controller_state.st_uid == os.getuid()
             and _sha256(_CONTROLLER_SOURCE) == _CONTROLLER_SHA256
+            and stat.S_ISLNK(python_link.st_mode)
+            and os.readlink(_PYTHON_SOURCE) == "/usr/bin/python3"
+            and _PYTHON_SOURCE.resolve(strict=True) == _PYTHON_REAL_SOURCE
+            and stat.S_ISREG(python_target.st_mode)
+            and python_target.st_uid == 0
+            and stat.S_IMODE(python_target.st_mode) == 0o755
+            and _sha256(_PYTHON_REAL_SOURCE) == _EXPECTED_PYTHON_SHA256
+            and os.getuid() == controller_state.st_uid
+            and os.environ.get("HOME") == "/home/paul"
+            and os.environ.get("USER") == _OPERATOR
+            and os.environ.get("LOGNAME") == _OPERATOR
+            and _collection_toolchain_valid()
         )
     except OSError:
         return False
@@ -166,6 +249,8 @@ def _selected() -> bool:
     inventory = context.CLIARGS.get("inventory") or []
     if isinstance(inventory, str):
         inventory = [inventory]
+    elif isinstance(inventory, tuple):
+        inventory = list(inventory)
     return (
         sys.argv == _expected_argv()
         and _toolchain_valid()
@@ -177,12 +262,12 @@ def _selected() -> bool:
         and not context.CLIARGS.get("skip_tags")
         and list(context.CLIARGS.get("tags") or []) in ([], ["all"])
         and inventory == [".ansible/inventory.local.yml"]
+        and os.environ.get("ANSIBLE_LIBRARY") == str(_LIBRARY_PATH)
+        and os.environ.get("ANSIBLE_ROLES_PATH") == str(_ROLES_PATH)
         and not any(
             os.environ.get(name)
             for name in (
-                "ANSIBLE_LIBRARY",
                 "ANSIBLE_ACTION_PLUGINS",
-                "ANSIBLE_ROLES_PATH",
                 "ANSIBLE_COLLECTIONS_PATH",
                 "ANSIBLE_START_AT_TASK",
                 "ANSIBLE_SKIP_TAGS",
@@ -284,6 +369,7 @@ class ActionModule(ActionBase):
         token = os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_TOKEN", "")
         attestation_path = os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ATTESTATION_FILE", "")
         wrapper_pid = os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_PID", "")
+        wrapper_starttime = os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_STARTTIME", "")
         wrapper_path = os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_PATH", "")
         try:
             pid = int(wrapper_pid)
@@ -297,9 +383,10 @@ class ActionModule(ActionBase):
             and re.fullmatch(r"[0-9a-f]{64}", token) is not None
             and pid > 1
             and _ancestor(pid)
+            and _proc_starttime(pid) == wrapper_starttime
             and len(_proc_cmdline(pid)) == 3
-            and _proc_cmdline(pid)[0] == "/bin/sh"
-            and Path(_proc_cmdline(pid)[1]).resolve() == _WRAPPER_SOURCE
+            and _canonical_shell(pid, _proc_cmdline(pid))
+            and _canonical_wrapper_argument(_proc_cmdline(pid)[1], pid)
             and _proc_cmdline(pid)[2] == "check"
             and attestation_state is not None
             and stat.S_ISREG(attestation_state.st_mode)
@@ -308,11 +395,11 @@ class ActionModule(ActionBase):
             and attestation_state.st_uid == os.getuid()
             and Path(wrapper_path) == _WRAPPER_SOURCE
             and wrapper_sha == _sha256(_WRAPPER_SOURCE)
-            and attestation == f"{token}:entrypoint:{pid}:{wrapper_sha}"
+            and attestation == f"{token}:entrypoint:{pid}:{wrapper_starttime}:{wrapper_sha}"
         )
         expected_env = {
-            "CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_SHA256": _canonical_action_hash(Path(__file__)),
-            "CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_CANONICAL_SHA256": _canonical_wrapper_hash(_WRAPPER_SOURCE),
+            "CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256": _canonical_action_hash(Path(__file__)),
+            "CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_CANONICAL_SHA256": _WRAPPER_CANONICAL_SHA256,
         }
         valid_sources = (
             _sha256(_TASK_SOURCE) == _TASK_SHA256
@@ -324,7 +411,9 @@ class ActionModule(ActionBase):
             and _sha256(_RABBITMQ_CONFIG_SOURCE) == _RABBITMQ_CONFIG_SOURCE_SHA256
             and _sha256(_ENGINE_SOURCE) == _ENGINE_SOURCE_SHA256
             and _sha256(_RUNTIME_SOURCE) == _RUNTIME_SOURCE_SHA256
-            and _canonical_action_hash(Path(__file__)) == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_SHA256") == expected_env["CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_SHA256"]
+            and _sha256(Path(__file__)) == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_SHA256")
+            and _canonical_action_hash(Path(__file__)) == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256") == expected_env["CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256"]
+            and _canonical_wrapper_hash(_WRAPPER_SOURCE) == _WRAPPER_CANONICAL_SHA256
             and expected_env["CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_CANONICAL_SHA256"] == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_CANONICAL_SHA256")
         )
         binding = task_vars.get("rabbitmq_prod_credential_rotation_check_internal_binding", {})
