@@ -1,0 +1,436 @@
+---
+- name: Reject externally supplied RabbitMQ PROD rotation internals
+  ansible.builtin.assert:
+    that:
+      - >-
+        (vars.keys() | select('match', '^rabbitmq_prod_credential_rotation_check_internal_') |
+        list | length) == 0
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied RabbitMQ PROD
+      rotation preflight state.
+  changed_when: false
+
+- name: Require the exact check-only RabbitMQ PROD rotation invocation
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_prod_credential_rotation_check_approved | bool
+      - rabbitmq_prod_credential_rotation_check_state == 'check'
+      - ansible_check_mode
+      - ansible_diff_mode
+      - (ansible_limit | default('') | string) == 'crtxweb'
+      - ansible_play_hosts_all | length == 1
+      - inventory_hostname == 'crtxweb'
+      - rabbitmq_prod_credential_rotation_check_repository_root == '/home/paul/projects/cristexweb'
+      - rabbitmq_prod_credential_rotation_check_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
+      - rabbitmq_prod_credential_rotation_check_namespace == 'shared-services'
+      - rabbitmq_prod_credential_rotation_check_broker_statefulset == 'shared-rabbitmq'
+      - rabbitmq_prod_credential_rotation_check_broker_pod == 'shared-rabbitmq-0'
+      - rabbitmq_prod_credential_rotation_check_broker_container == 'rabbitmq'
+      - rabbitmq_prod_credential_rotation_check_vhost == '/cristexhub-prod'
+      - rabbitmq_prod_credential_rotation_check_dev_vhost == '/cristexhub-dev'
+      - rabbitmq_prod_credential_rotation_check_predecessor == 'cristexhub_prod_user'
+      - rabbitmq_prod_credential_rotation_check_successor == 'cristexhub_prod_rabbitmq'
+      - rabbitmq_prod_credential_rotation_check_dev_principal == 'cristexhub_dev_rabbitmq'
+      - rabbitmq_prod_credential_rotation_check_infisical_project_id == '619656da-14f3-4872-857b-be103cdc5326'
+      - rabbitmq_prod_credential_rotation_check_infisical_environment == 'prod'
+      - rabbitmq_prod_credential_rotation_check_engine_secret_path == '/shared-services/rabbitmq'
+      - rabbitmq_prod_credential_rotation_check_runtime_secret_path == '/cristexhub/prod/runtime'
+      - rabbitmq_prod_credential_rotation_check_engine_target == 'shared-rabbitmq-cristexhub-prod'
+      - rabbitmq_prod_credential_rotation_check_runtime_target == 'cristexhub-prod-runtime'
+      - rabbitmq_prod_credential_rotation_check_runtime_namespace == 'cristexhub-prod'
+      - rabbitmq_prod_credential_rotation_check_runtime_keys | length == 10
+      - rabbitmq_prod_credential_rotation_check_engine_target_keys | sort == ['password', 'passwordHash', 'username']
+      - rabbitmq_prod_credential_rotation_check_candidate_permissions ==
+        dict(configure='^(default|high_priority|low_priority)$', write='^default$', read='^(default|high_priority|low_priority)$')
+      - not rabbitmq_prod_credential_rotation_check_writer_available
+      - not rabbitmq_prod_credential_rotation_check_cas_available
+      - not rabbitmq_prod_credential_rotation_check_runtime_mutation_allowed
+      - not rabbitmq_prod_credential_rotation_check_recovery_proven
+      - not rabbitmq_prod_credential_rotation_check_predecessor_revocation_approved
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_ENTRYPOINT') == 'v1'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_TOKEN') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_ATTESTATION_FILE') | length > 0
+    fail_msg: >-
+      The RabbitMQ PROD lane is one-host, direct-kubeconfig, check-only,
+      value-free, and writer/CAS/recovery blocked.
+  changed_when: false
+  no_log: true
+
+- name: Inspect the one-run RabbitMQ PROD rotation attestation
+  ansible.builtin.stat:
+    path: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_ATTESTATION_FILE') }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: rabbitmq_prod_credential_rotation_check_internal_attestation
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require the private RabbitMQ PROD rotation attestation
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_prod_credential_rotation_check_internal_attestation.stat.exists | default(false)
+      - rabbitmq_prod_credential_rotation_check_internal_attestation.stat.isreg | default(false)
+      - not (rabbitmq_prod_credential_rotation_check_internal_attestation.stat.islnk | default(false))
+      - rabbitmq_prod_credential_rotation_check_internal_attestation.stat.mode == '0600'
+      - rabbitmq_prod_credential_rotation_check_internal_attestation.stat.pw_name == rabbitmq_prod_credential_rotation_check_controller_user
+      - >-
+        lookup('ansible.builtin.file', lookup('ansible.builtin.env',
+        'CRISTEXWEB_RABBITMQ_PROD_ROTATION_ATTESTATION_FILE')) ==
+        lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_TOKEN') ~
+        ':entrypoint:' ~ lookup('ansible.builtin.env',
+        'CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_PID') ~ ':' ~
+        lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_SHA256')
+    fail_msg: Refusing missing, foreign, or malformed RabbitMQ PROD rotation attestation.
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Inspect hash-bound RabbitMQ PROD rotation sources
+  ansible.builtin.stat:
+    path: "{{ rabbitmq_prod_credential_rotation_check_repository_root }}/{{ item.path }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop:
+    - {path: 'ansible/roles/rabbitmq_prod_credential_rotation_check/defaults/main.yml', sha256: '3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac', mode: '0644'}
+    - {path: 'ansible/playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml', sha256: '593d0c3b0109af5db6e1453fb5f40461ce64319b832009109e0a55bdc2a08123', mode: '0644'}
+    - {path: 'ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml', sha256: 'b4cd58058ccbbd236b44511b63637bda5fb61a6ca2df56f4f78e24f2da8a409f', mode: '0644'}
+    - {path: 'ansible/library/rabbitmq_prod_credential_metadata.py', sha256: '1d54b59e95550606749026d2acd54f7001003fec93ad76f4fbb80f0b40655246', mode: '0755'}
+  register: rabbitmq_prod_credential_rotation_check_internal_source_states
+  loop_control:
+    label: rabbitmq-prod-rotation-source
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require hash-bound RabbitMQ PROD rotation sources
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.mode == item.item.mode
+      - item.stat.pw_name == rabbitmq_prod_credential_rotation_check_controller_user
+      - item.stat.checksum == item.item.sha256
+    fail_msg: Refusing missing, mode-drifted, symlinked, or digest-drifted RabbitMQ PROD rotation source.
+  loop: "{{ rabbitmq_prod_credential_rotation_check_internal_source_states.results }}"
+  loop_control:
+    label: rabbitmq-prod-rotation-source
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Load value-free RabbitMQ and Infisical source objects
+  ansible.builtin.set_fact:
+    rabbitmq_prod_credential_rotation_check_internal_source_objects:
+      broker: >-
+        {{ lookup('ansible.builtin.file', rabbitmq_prod_credential_rotation_check_repository_root ~
+        '/ansible/files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml') | from_yaml }}
+      engine: >-
+        {{ lookup('ansible.builtin.file', rabbitmq_prod_credential_rotation_check_repository_root ~
+        '/ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml') | from_yaml }}
+      runtime: >-
+        {{ lookup('ansible.builtin.file', rabbitmq_prod_credential_rotation_check_repository_root ~
+        '/ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml') | from_yaml }}
+      policy: >-
+        {{ lookup('ansible.builtin.file', rabbitmq_prod_credential_rotation_check_repository_root ~
+        '/ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml') | from_yaml }}
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true
+
+- name: Require exact value-free source scope and dual-path key contracts
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.apiVersion == 'apps/v1'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.kind == 'StatefulSet'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.metadata.name == 'shared-rabbitmq'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.metadata.namespace == 'shared-services'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.spec.replicas == 1
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.spec.template.spec.containers[0].name == 'rabbitmq'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.sources[0].environmentSlug == 'prod'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.sources[0].secretPath == '/shared-services/rabbitmq'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets | map(attribute='name') | list | sort == ['shared-rabbitmq-admin', 'shared-rabbitmq-cristexhub-dev', 'shared-rabbitmq-cristexhub-prod', 'shared-rabbitmq-tls'] | sort
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.spec.targets |
+        selectattr('name', 'equalto', 'shared-rabbitmq-cristexhub-prod') | first).template.data.keys() | sort ==
+        ['password', 'passwordHash', 'username']
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.sources[0].environmentSlug == 'prod'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.sources[0].secretPath == '/cristexhub/prod/runtime'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.metadata.name == 'cristexhub-prod-runtime'
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.targets |
+        selectattr('name', 'equalto', 'cristexhub-prod-runtime') | first).namespace == 'cristexhub-prod'
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.targets |
+        selectattr('name', 'equalto', 'cristexhub-prod-runtime') | first).template.data.keys() | sort ==
+        ['BROWSERLESS_TOKEN', 'CODE_RUNNER_AUTH_TOKEN', 'FERNET_KEY', 'MONGODB_URL', 'OAUTH2_PROXY_COOKIE_SECRET', 'OIDC_CLIENT_SECRET', 'PRIVATE_CA_BUNDLE', 'RABBITMQ_URL', 'REDIS_PASSWORD', 'REDIS_URL']
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.spec.targets |
+        selectattr('name', 'equalto', 'cristexhub-prod-runtime') | first).template.data.RABBITMQ_URL == '{{ .RABBITMQ_URL.Value }}'
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.execution.check_only
+      - not rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.execution.runtime_mutation_allowed
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.revisions_and_cas.writer_available is false
+      - rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.revisions_and_cas.cas_proven is false
+    fail_msg: Refusing widened, value-bearing, or mismatched RabbitMQ PROD rotation source.
+  changed_when: false
+  no_log: true
+
+- name: Query established shared-services and CristexHub PROD Namespaces
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ item }}"
+    kubeconfig: "{{ rabbitmq_prod_credential_rotation_check_kubeconfig }}"
+  loop:
+    - shared-services
+    - cristexhub-prod
+  register: rabbitmq_prod_credential_rotation_check_internal_namespaces
+  changed_when: false
+  no_log: true
+
+- name: Require established private Namespaces
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].status.phase == 'Active'
+    loop: "{{ rabbitmq_prod_credential_rotation_check_internal_namespaces.results }}"
+  fail_msg: Refusing RabbitMQ rotation preflight outside established Namespaces.
+  changed_when: false
+  no_log: true
+
+- name: Query the established RabbitMQ StatefulSet and Pod
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: shared-services
+    name: "{{ item.name }}"
+    kubeconfig: "{{ rabbitmq_prod_credential_rotation_check_kubeconfig }}"
+  loop:
+    - {api_version: apps/v1, kind: StatefulSet, name: shared-rabbitmq}
+    - {api_version: v1, kind: Pod, name: shared-rabbitmq-0}
+  register: rabbitmq_prod_credential_rotation_check_internal_broker_objects
+  changed_when: false
+  no_log: true
+
+- name: Require one Ready pinned RabbitMQ broker
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results | length == 2
+      - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources | length == 1
+      - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources | length == 1
+      - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources[0].spec.replicas == 1
+      - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[0].resources[0].spec.template.spec.containers | selectattr('name', 'equalto', 'rabbitmq') | list | length == 1
+      - rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0].status.phase == 'Running'
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0].status.containerStatuses |
+        selectattr('name', 'equalto', 'rabbitmq') | selectattr('ready', 'equalto', true) | list | length == 1
+    fail_msg: Refusing RabbitMQ rotation preflight without one Ready private broker.
+  changed_when: false
+  no_log: true
+
+- name: Query the source and runtime Infisical StaticSecrets
+  kubernetes.core.k8s_info:
+    api_version: secrets.infisical.com/v1beta1
+    kind: InfisicalStaticSecret
+    namespace: "{{ item.namespace }}"
+    name: "{{ item.name }}"
+    kubeconfig: "{{ rabbitmq_prod_credential_rotation_check_kubeconfig }}"
+  loop:
+    - {namespace: shared-services, name: rabbitmq-infisical-secrets}
+    - {namespace: cristexhub-prod, name: cristexhub-prod-runtime}
+  register: rabbitmq_prod_credential_rotation_check_internal_infisical_sources
+  changed_when: false
+  no_log: true
+
+- name: Require exact source/runtime source revisions and no malformed CR lifecycle
+  ansible.builtin.assert:
+    that:
+      - item.resources | length == 1
+      - item.resources[0].metadata.uid is string
+      - item.resources[0].metadata.uid | length > 0
+      - item.resources[0].metadata.resourceVersion is string
+      - item.resources[0].metadata.resourceVersion is match('^[0-9]+$')
+      - item.resources[0].metadata.deletionTimestamp is not defined
+      - item.resources[0].spec.sources | length == 1
+      - item.resources[0].spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326'
+      - item.resources[0].spec.sources[0].environmentSlug == 'prod'
+    loop: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results }}"
+    loop_control:
+      label: infisical-source-metadata
+  fail_msg: Refusing missing, terminating, or revisionless Infisical source metadata.
+  changed_when: false
+  no_log: true
+
+- name: Require exact engine and runtime source paths and target ownership
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.sources[0].secretPath == '/shared-services/rabbitmq'
+      - rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.sources[0].secretPath == '/cristexhub/prod/runtime'
+      - rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].spec.targets | map(attribute='name') | list | sort == ['shared-rabbitmq-admin', 'shared-rabbitmq-cristexhub-dev', 'shared-rabbitmq-cristexhub-prod', 'shared-rabbitmq-tls'] | sort
+      - rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].spec.targets | map(attribute='name') | list | sort == ['cristexhub-prod-ghcr-pull', 'cristexhub-prod-runtime'] | sort
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources |
+        first).spec.targets | selectattr('name', 'equalto', 'cristexhub-prod-runtime') | list | length == 1
+    fail_msg: Refusing source/runtime path, target, or ownership drift.
+  changed_when: false
+  no_log: true
+
+- name: Query RabbitMQ target Secret metadata without requesting Secret payloads
+  rabbitmq_prod_credential_metadata:
+    kubeconfig: "{{ rabbitmq_prod_credential_rotation_check_kubeconfig }}"
+    resources:
+      - {namespace: shared-services, name: shared-rabbitmq-cristexhub-prod}
+      - {namespace: cristexhub-prod, name: cristexhub-prod-runtime}
+      - {namespace: cristexhub-prod, name: cristexhub-prod-ghcr-pull}
+  register: rabbitmq_prod_credential_rotation_check_internal_secret_metadata
+  changed_when: false
+  no_log: true
+
+- name: Require only metadata for exact Infisical-owned target Secrets
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_prod_credential_rotation_check_internal_secret_metadata.metadata_only is true
+      - rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items | length == 3
+      - item.metadata.name in ['shared-rabbitmq-cristexhub-prod', 'cristexhub-prod-runtime', 'cristexhub-prod-ghcr-pull']
+      - item.metadata.namespace in ['shared-services', 'cristexhub-prod']
+      - item.metadata.uid is string
+      - item.metadata.uid | length > 0
+      - item.metadata.resourceVersion is match('^[0-9]+$')
+      - item.metadata.labels['app.kubernetes.io/managed-by'] == 'infisical'
+      - item.metadata.labels['cristex.io/value-owner'] == 'infisical-cloud'
+    loop: "{{ rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items }}"
+    loop_control:
+      label: secret-metadata
+  fail_msg: Refusing missing, foreign, or payload-bearing target Secret metadata.
+  changed_when: false
+  no_log: true
+
+- name: Query Infisical Operator and PROD Argo Application
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.api_version }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.namespace }}"
+    name: "{{ item.name }}"
+    kubeconfig: "{{ rabbitmq_prod_credential_rotation_check_kubeconfig }}"
+  loop:
+    - {api_version: apps/v1, kind: Deployment, namespace: shared-services, name: infisical-operator-controller}
+    - {api_version: argoproj.io/v1alpha1, kind: Application, namespace: argocd, name: cristexhub-prod}
+  register: rabbitmq_prod_credential_rotation_check_internal_operators
+  changed_when: false
+  no_log: true
+
+- name: Require Operator reconciliation and direct-server Argo health
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_prod_credential_rotation_check_internal_operators.results[0].resources | length == 1
+      - rabbitmq_prod_credential_rotation_check_internal_operators.results[0].resources[0].status.availableReplicas | default(0) | int == 1
+      - rabbitmq_prod_credential_rotation_check_internal_operators.results[1].resources | length == 1
+      - rabbitmq_prod_credential_rotation_check_internal_operators.results[1].resources[0].spec.destination.server == 'https://kubernetes.default.svc'
+      - rabbitmq_prod_credential_rotation_check_internal_operators.results[1].resources[0].status.sync.status == 'Synced'
+      - rabbitmq_prod_credential_rotation_check_internal_operators.results[1].resources[0].status.health.status == 'Healthy'
+      - rabbitmq_prod_credential_rotation_check_internal_operators.results[1].resources[0].status.sync.revision == '751885a42798d282e168131db147f13694a0a621'
+    fail_msg: Refusing RabbitMQ rotation before Operator reconciliation and private PROD Argo health.
+  changed_when: false
+  no_log: true
+
+- name: Query PROD backend and Celery consumer Deployments
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: cristexhub-prod
+    name: "{{ item }}"
+    kubeconfig: "{{ rabbitmq_prod_credential_rotation_check_kubeconfig }}"
+  loop:
+    - backend
+    - celery-worker
+  register: rabbitmq_prod_credential_rotation_check_internal_consumers
+  changed_when: false
+  no_log: true
+
+- name: Require Ready backend and Celery consumers before any cutover
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_prod_credential_rotation_check_internal_consumers.results | length == 2
+      - item.resources | length == 1
+      - item.resources[0].status.readyReplicas | default(0) | int == 1
+      - item.resources[0].status.availableReplicas | default(0) | int == 1
+      - item.resources[0].status.updatedReplicas | default(0) | int == 1
+      - item.resources[0].spec.replicas == 1
+      - item.resources[0].spec.template.metadata.labels['cristex.io/rabbitmq-client'] == 'shared-rabbitmq'
+    loop: "{{ rabbitmq_prod_credential_rotation_check_internal_consumers.results }}"
+    loop_control:
+      label: consumer-readiness
+  fail_msg: Refusing RabbitMQ rotation without one Ready backend and Celery consumer.
+  changed_when: false
+  no_log: true
+
+- name: Bind exact source-only RabbitMQ PROD rotation preflight before broker queries
+  ansible.builtin.set_fact:
+    rabbitmq_prod_credential_rotation_check_internal_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_TOKEN') | hash('sha256') }}"
+      metadata_only: true
+      no_secret_payloads: true
+      no_apply_path: true
+      source_path: /shared-services/rabbitmq
+      runtime_path: /cristexhub/prod/runtime
+      source_resource_version: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.resourceVersion }}"
+      runtime_resource_version: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.resourceVersion }}"
+      query_count: 5
+  changed_when: false
+  no_log: true
+
+- name: Query broker readiness and user/vhost/permission metadata
+  rabbitmq_prod_credential_rotation_check_guarded_k8s:
+    namespace: shared-services
+    pod: shared-rabbitmq-0
+    container: rabbitmq
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    query: "{{ item.key }}"
+    command: "{{ item.value }}"
+  loop: "{{ rabbitmq_prod_credential_rotation_check_commands | dict2items }}"
+  loop_control:
+    label: rabbitmq-metadata
+  register: rabbitmq_prod_credential_rotation_check_internal_broker_metadata
+  changed_when: false
+  no_log: true
+
+- name: Bind exact source-only RabbitMQ PROD rotation preflight
+  ansible.builtin.set_fact:
+    rabbitmq_prod_credential_rotation_check_internal_binding:
+      attestation_sha256: "{{ lookup('ansible.builtin.env', 'CRISTEXWEB_RABBITMQ_PROD_ROTATION_TOKEN') | hash('sha256') }}"
+      metadata_only: true
+      no_secret_payloads: true
+      no_apply_path: true
+      source_path: /shared-services/rabbitmq
+      runtime_path: /cristexhub/prod/runtime
+      source_resource_version: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.resourceVersion }}"
+      runtime_resource_version: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.resourceVersion }}"
+      query_count: 5
+  changed_when: false
+  no_log: true
+
+- name: Stop before writer, CAS, source cutover, or predecessor revocation
+  ansible.builtin.assert:
+    that:
+      - rabbitmq_prod_credential_rotation_check_writer_available | bool
+      - rabbitmq_prod_credential_rotation_check_cas_available | bool
+      - rabbitmq_prod_credential_rotation_check_recovery_proven | bool
+    fail_msg: >-
+      SOURCE_ONLY_STOP: RabbitMQ PROD successor rotation remains blocked until
+      a dedicated value-free Infisical dual-path writer proves expected-revision
+      CAS, backup/readback and isolated definitions restore are proven, and
+      predecessor revocation receives separate approval. No runtime mutation is
+      authorized by this check-only lane.
+  changed_when: false
+  no_log: true

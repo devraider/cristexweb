@@ -69,8 +69,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/argocd_cluster_cache_scope_transition_guarded_k8s.py"),
             Path("ansible/plugins/action/argocd_target_cache_repair_guarded_k8s.py"),
             Path("ansible/plugins/action/cristexhub_prod_private_acceptance_process_guarded.py"),
+            Path("ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py"),
         }
-        self.assertEqual(43, len(allowed_action_plugins))
+        self.assertEqual(44, len(allowed_action_plugins))
         allowed_strategy_plugins = {
             Path("ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py"),
             Path("ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py"),
@@ -80,6 +81,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/library/reactive_resume_object_storage_metadata.py"),
             Path("ansible/library/argocd_cluster_cache_secret_metadata.py"),
             Path("ansible/library/shared_mongodb_networkpolicy_create.py"),
+            Path("ansible/library/rabbitmq_prod_credential_metadata.py"),
         }
         self.assertTrue(
             all(
@@ -509,6 +511,13 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "roles/cristexhub_prod_private_acceptance/defaults/main.yml",
                 "roles/cristexhub_prod_private_acceptance/tasks/main.yml",
                 "files/policies/cristexhub-prod-credential-rotation-gates.yml",
+                "files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml",
+                "bin/check-cristexhub-prod-rabbitmq-credential-rotation",
+                "playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml",
+                "plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py",
+                "library/rabbitmq_prod_credential_metadata.py",
+                "roles/rabbitmq_prod_credential_rotation_check/defaults/main.yml",
+                "roles/rabbitmq_prod_credential_rotation_check/tasks/main.yml",
             ]
         )
         self.assertEqual([], [path for path in required if not (ANSIBLE / path).is_file()])

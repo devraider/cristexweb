@@ -1,25 +1,28 @@
 # CristexHub PROD RabbitMQ successor-user rotation
 
-Status: **SOURCE-ONLY DESIGN / NOT RUN / BLOCKED**.
+Status: **SOURCE-ONLY DESIGN / NOT RUN / BLOCKED** (the check-only preflight exists; the writer and cutover remain blocked).
 
 This runbook is the canonical value-free design for a future guarded rotation of
-only the CristexHub PROD RabbitMQ consumer identity. It adds no executable
-rotation lane and performs no runtime mutation. No Infisical value, Kubernetes
-Secret data, password, hash, token, URL credential, or management response may
-be read, generated, copied, logged, or committed by this source-only change.
+only the CristexHub PROD RabbitMQ consumer identity. The separate executable
+lane is strictly a metadata-only check; it performs no runtime mutation. No
+Infisical value, Kubernetes Secret data, password, hash, token, URL credential,
+or management response may be read, generated, copied, logged, or committed by
+this source-only lane.
 
 The exact rotation contract is defined in this runbook and its offline test.
 The existing RabbitMQ bootstrap source remains present-only and immutable; this
 plan must not be implemented by adding a rotation flag to that bootstrap path.
 
 The source-value writer lane is currently **ABSENT / NOT IMPLEMENTED**. The
-repository has no guarded RabbitMQ Infisical writer, no dedicated rotation
-identity, and no proven concurrency/CAS protocol for updating either
-`/shared-services/rabbitmq` or `/cristexhub/prod/runtime`. The existing bootstrap
-and read-only materialization contracts must not be reused as an implicit writer.
-No execution is possible until a separately reviewed writer proves its endpoint,
-authentication scope, expected-revision/conditional-write behavior, preservation
-of unrelated keys, and sanitized receipts.
+repository has a separate guarded metadata-only preflight at
+`ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation`, but it has no
+writer or mutation path. There is no dedicated rotation identity and no proven
+concurrency/CAS protocol for updating either `/shared-services/rabbitmq` or
+`/cristexhub/prod/runtime`. The existing bootstrap and read-only materialization
+contracts must not be reused as an implicit writer. No execution is possible
+until a separately reviewed writer proves its endpoint, authentication scope,
+expected-revision/conditional-write behavior, preservation of unrelated keys,
+and sanitized receipts.
 
 ## Frozen scope
 
@@ -36,6 +39,33 @@ Only these identities and consumers are in scope:
 No administrator, DEV, MongoDB, PostgreSQL, Redis, OIDC, GHCR, TLS, Keycloak,
 RabbitMQ definitions outside this vhost, Namespace, PVC, database, public route,
 or unrelated workload is in scope.
+
+## Implemented check-only source closure
+
+The only executable entrypoint is:
+
+```text
+ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation check
+```
+
+It is a one-host, `--check --diff` wrapper bound to the canonical repository,
+protected inventory, direct k3s administrator kubeconfig, exact role/playbook/
+action/library/policy hashes, and a single-use attestation. Its role performs
+metadata-only Kubernetes queries, requests Secret `PartialObjectMetadata` rather
+than ordinary Secret JSON, checks Infisical source and runtime paths plus
+resourceVersions, checks Operator/Argo/backend/Celery readiness, and runs only
+fixed `rabbitmq-diagnostics`/`rabbitmqctl list_*` queries through the broker Pod.
+The action plugin strips command output and rejects credential-bearing commands;
+all tasks use `no_log`. It never creates users, changes permissions, writes
+Infisical, patches Kubernetes Secrets, restarts consumers, deletes a predecessor,
+or applies definitions.
+
+The check deliberately ends with `SOURCE_ONLY_STOP`: the source writer, dual-path
+expected-revision/CAS protocol, encrypted definitions backup/readback and
+isolated restore proof are not available. A successful metadata preflight is not
+rotation authorization. Predecessor permission removal/deletion remains a
+separate explicitly approved operation, and queued-message recovery is never
+claimed by definitions recovery.
 
 ## Identity discrepancy is a hard preflight stop
 
@@ -190,10 +220,12 @@ delete path.
   accept arbitrary target names or values.
 - The derived PROD runtime seam remains the sole owner path for
   `RABBITMQ_URL`; no direct Kubernetes Secret patch is permitted.
-- Any future executable helper, role, action plugin, wrapper, or playbook must be
-  a separate hash-bound source closure with its own approval, no-log checks,
-  concurrency binding, and explicit overlap/revocation mode. This runbook adds
-  none of those runtime artifacts.
+- The current executable helper, role, action plugin, wrapper, and playbook are
+  a separate hash-bound **check-only** source closure with its own approval,
+  no-log checks, metadata-only queries, and no overlap/revocation mode. It has
+  no writer, apply, delete, or source-cutover path. Any future executable writer
+  must be a separate hash-bound source closure with its own approval,
+  concurrency binding, and explicit overlap/revocation mode.
 
 ## Current blockers and acceptance evidence required before public routing
 

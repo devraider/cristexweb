@@ -127,31 +127,38 @@ class CristexHubProdRabbitMqCredentialRotationContractTests(unittest.TestCase):
         self.assertNotIn("BEGIN", self.runbook)
         self.assertNotIn("eyJ", self.runbook)
 
-    def test_no_executable_rotation_lane_or_runtime_mutation_was_added(self) -> None:
-        # The requested change is a design contract only. These are deliberately
-        # absent; implementation requires a later, separately approved closure.
+    def test_check_only_lane_is_separate_and_runtime_mutation_free(self) -> None:
         for relative in (
-            "ansible/bin/rotate-rabbitmq-cristexhub-prod",
-            "ansible/roles/rabbitmq_prod_credential_rotation",
-            "ansible/plugins/action/rabbitmq_prod_credential_rotation_guarded_k8s.py",
+            "ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation",
+            "ansible/playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml",
+            "ansible/roles/rabbitmq_prod_credential_rotation_check/defaults/main.yml",
+            "ansible/roles/rabbitmq_prod_credential_rotation_check/tasks/main.yml",
+            "ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py",
+            "ansible/library/rabbitmq_prod_credential_metadata.py",
+            "ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml",
         ):
-            self.assertFalse((ROOT / relative).exists(), relative)
+            self.assertTrue((ROOT / relative).exists(), relative)
         for forbidden in (
             "kubectl apply",
             "kubectl delete",
             "rabbitmqctl add_user",
             "rabbitmqctl delete_user",
             "rabbitmqctl set_permissions",
-            "ansible-playbook",
+            "rabbitmqctl delete_user",
         ):
-            self.assertNotIn(forbidden, self.runbook)
-        for phrase in (
-            "adds no executable",
-            "performs no runtime mutation",
-            "this runbook adds",
-            "source-only design / not run / blocked",
-        ):
-            self.assertIn(phrase.lower(), self.normalized.lower())
+            for path in (
+                ROOT / "ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation",
+                ROOT / "ansible/playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml",
+                ROOT / "ansible/roles/rabbitmq_prod_credential_rotation_check",
+                ROOT / "ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py",
+            ):
+                if path.is_file():
+                    self.assertNotIn(forbidden, path.read_text())
+                else:
+                    self.assertFalse(any(forbidden in child.read_text() for child in path.rglob("*" ) if child.is_file()))
+        self.assertIn("SOURCE_ONLY_STOP", self.runbook.upper().replace("-", "_"))
+        self.assertIn("metadata-only", self.normalized)
+        self.assertIn("source-only design / not run / blocked", self.normalized.lower())
 
 
 if __name__ == "__main__":

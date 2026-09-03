@@ -1,0 +1,68 @@
+---
+# Source-only RabbitMQ PROD rotation preflight.  This role never writes an
+# Infisical value, Kubernetes object, broker user, permission, or credential.
+rabbitmq_prod_credential_rotation_check_approved: false
+rabbitmq_prod_credential_rotation_check_state: check
+rabbitmq_prod_credential_rotation_check_repository_root: /home/paul/projects/cristexweb
+rabbitmq_prod_credential_rotation_check_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+rabbitmq_prod_credential_rotation_check_kubeconfig: /etc/rancher/k3s/k3s.yaml
+rabbitmq_prod_credential_rotation_check_namespace: shared-services
+rabbitmq_prod_credential_rotation_check_broker_statefulset: shared-rabbitmq
+rabbitmq_prod_credential_rotation_check_broker_pod: shared-rabbitmq-0
+rabbitmq_prod_credential_rotation_check_broker_container: rabbitmq
+rabbitmq_prod_credential_rotation_check_broker_selector: app.kubernetes.io/name=shared-rabbitmq
+rabbitmq_prod_credential_rotation_check_vhost: /cristexhub-prod
+rabbitmq_prod_credential_rotation_check_dev_vhost: /cristexhub-dev
+rabbitmq_prod_credential_rotation_check_predecessor: cristexhub_prod_user
+rabbitmq_prod_credential_rotation_check_successor: cristexhub_prod_rabbitmq
+rabbitmq_prod_credential_rotation_check_dev_principal: cristexhub_dev_rabbitmq
+rabbitmq_prod_credential_rotation_check_candidate_permissions:
+  configure: '^(default|high_priority|low_priority)$'
+  write: '^default$'
+  read: '^(default|high_priority|low_priority)$'
+rabbitmq_prod_credential_rotation_check_infisical_project_id: 619656da-14f3-4872-857b-be103cdc5326
+rabbitmq_prod_credential_rotation_check_infisical_environment: prod
+rabbitmq_prod_credential_rotation_check_engine_secret_path: /shared-services/rabbitmq
+rabbitmq_prod_credential_rotation_check_engine_static_secret: rabbitmq-infisical-secrets
+rabbitmq_prod_credential_rotation_check_engine_target: shared-rabbitmq-cristexhub-prod
+rabbitmq_prod_credential_rotation_check_runtime_secret_path: /cristexhub/prod/runtime
+rabbitmq_prod_credential_rotation_check_runtime_static_secret: cristexhub-prod-runtime
+rabbitmq_prod_credential_rotation_check_runtime_target: cristexhub-prod-runtime
+rabbitmq_prod_credential_rotation_check_runtime_namespace: cristexhub-prod
+rabbitmq_prod_credential_rotation_check_runtime_keys:
+  - MONGODB_URL
+  - RABBITMQ_URL
+  - REDIS_URL
+  - REDIS_PASSWORD
+  - FERNET_KEY
+  - OIDC_CLIENT_SECRET
+  - OAUTH2_PROXY_COOKIE_SECRET
+  - PRIVATE_CA_BUNDLE
+  - CODE_RUNNER_AUTH_TOKEN
+  - BROWSERLESS_TOKEN
+rabbitmq_prod_credential_rotation_check_engine_target_keys:
+  - username
+  - password
+  - passwordHash
+rabbitmq_prod_credential_rotation_check_source_files:
+  - path: ansible/files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml
+    sha256: 5ea7cfa66e72615e5ff50657e934740907a90d4219c221323e3b91af3efe6242
+  - path: ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml
+    sha256: 663c006190e6e5e03e7c22d198cb41245d2ab3b7dab406acb4fdefe00a10a2d5
+  - path: ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml
+    sha256: b5eeaa0abc5b9ee91d392d6ac064862026b64f0d4c74f6431fe5dca517c506d0
+  - path: ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml
+    sha256: 3204aab3fc0f5b55f9af3623fb658d5ffd8289437d5d0ea91ab0480dc4126ee0
+rabbitmq_prod_credential_rotation_check_source_policy: ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml
+rabbitmq_prod_credential_rotation_check_source_policy_sha256: b4cd58058ccbbd236b44511b63637bda5fb61a6ca2df56f4f78e24f2da8a409f
+rabbitmq_prod_credential_rotation_check_writer_available: false
+rabbitmq_prod_credential_rotation_check_cas_available: false
+rabbitmq_prod_credential_rotation_check_runtime_mutation_allowed: false
+rabbitmq_prod_credential_rotation_check_recovery_proven: false
+rabbitmq_prod_credential_rotation_check_predecessor_revocation_approved: false
+rabbitmq_prod_credential_rotation_check_commands:
+  readiness: ['rabbitmq-diagnostics', '-q', 'check_running']
+  users: ['rabbitmqctl', 'list_users', '--formatter=json']
+  prod_permissions: ['rabbitmqctl', 'list_permissions', '--formatter=json', '--vhost', '/cristexhub-prod']
+  all_permissions: ['rabbitmqctl', 'list_permissions', '--formatter=json']
+  vhosts: ['rabbitmqctl', 'list_vhosts', '--formatter=json']

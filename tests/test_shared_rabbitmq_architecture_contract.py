@@ -165,6 +165,8 @@ class SharedRabbitMqArchitectureContractTests(unittest.TestCase):
             "ansible/playbooks/bootstrap_rabbitmq.yml",
             "ansible/bin/configure-rabbitmq-definitions-backup",
             "ansible/playbooks/configure_rabbitmq_definitions_backup.yml",
+            "ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation",
+            "ansible/playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml",
         }
         actual = {
             str(path.relative_to(ROOT))
