@@ -20,7 +20,12 @@ DEFAULTS = ROLE / "defaults/main.yml"
 POLICY = ROOT / "ansible/files/policies/cristexhub-prod-mongodb-credential-rotation.yml"
 METADATA = ROOT / "ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py"
 SELECTOR_MODULE = ROOT / "ansible/library/cristexhub_prod_mongodb_networkpolicy_selector.py"
+STRATEGY = ROOT / "ansible/plugins/strategy/cristexhub_prod_mongodb_credential_rotation_check_guarded_linear.py"
+ENGINE_CONNECTION_SOURCE = ROOT / "ansible/files/components/infisical-database-secrets/source/infisical-cloud-connection.yaml"
+ENGINE_AUTH_SOURCE = ROOT / "ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-auth.yaml"
 ENGINE_SOURCE = ROOT / "ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml"
+RUNTIME_CONNECTION_SOURCE = ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/infisical-cloud-connection.yaml"
+RUNTIME_AUTH_SOURCE = ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-infisical-auth.yaml"
 RUNTIME_SOURCE = ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
 NETWORKPOLICY_DEFAULT_DENY = ROOT / "ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml"
 NETWORKPOLICY_ALLOW = ROOT / "ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml"
@@ -50,6 +55,11 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             POLICY: 0o644,
             METADATA: 0o755,
             SELECTOR_MODULE: 0o755,
+            STRATEGY: 0o644,
+            ENGINE_CONNECTION_SOURCE: 0o644,
+            ENGINE_AUTH_SOURCE: 0o644,
+            RUNTIME_CONNECTION_SOURCE: 0o644,
+            RUNTIME_AUTH_SOURCE: 0o644,
             RUNBOOK: 0o644,
         }
         for path, mode in expected.items():
@@ -273,7 +283,12 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             (PLAYBOOK, "playbook_sha256_expected"),
             (POLICY, "policy_sha256_expected"),
             (METADATA, "metadata_module_sha256_expected"),
+            (STRATEGY, "strategy_sha256_expected"),
+            (ENGINE_CONNECTION_SOURCE, "engine_connection_source_sha256_expected"),
+            (ENGINE_AUTH_SOURCE, "engine_auth_source_sha256_expected"),
             (ENGINE_SOURCE, "engine_source_manifest_sha256_expected"),
+            (RUNTIME_CONNECTION_SOURCE, "runtime_connection_source_sha256_expected"),
+            (RUNTIME_AUTH_SOURCE, "runtime_auth_source_sha256_expected"),
             (RUNTIME_SOURCE, "runtime_source_manifest_sha256_expected"),
             (NETWORKPOLICY_DEFAULT_DENY, "networkpolicy_default_deny_sha256_expected"),
             (NETWORKPOLICY_ALLOW, "networkpolicy_allow_sha256_expected"),
@@ -283,7 +298,11 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             match = re.search(rf"(?m)^{re.escape(variable)}='([0-9a-f]{{64}})'$", self.wrapper)
             self.assertIsNotNone(match, variable)
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), match.group(1))
-        for path in (ENGINE_SOURCE, RUNTIME_SOURCE, NETWORKPOLICY_DEFAULT_DENY, NETWORKPOLICY_ALLOW):
+        for path in (
+            ENGINE_CONNECTION_SOURCE, ENGINE_AUTH_SOURCE, ENGINE_SOURCE,
+            RUNTIME_CONNECTION_SOURCE, RUNTIME_AUTH_SOURCE, RUNTIME_SOURCE,
+            NETWORKPOLICY_DEFAULT_DENY, NETWORKPOLICY_ALLOW,
+        ):
             self.assertIn(str(path.relative_to(ROOT)), self.tasks)
         self.assertIn(str(SELECTOR_MODULE.relative_to(ROOT)), self.tasks)
         self.assertIn("NETWORKPOLICY_SELECTOR_MODULE_SHA256", self.wrapper)
@@ -315,6 +334,22 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             self.policy["scope"]["networkpolicy_preflight"]["target_pod_selector"],
         )
 
+    def test_infisical_auth_and_connection_sources_are_exact_and_value_free(self) -> None:
+        self.assertEqual({"address": "https://app.infisical.com"}, yaml.safe_load(ENGINE_CONNECTION_SOURCE.read_text())["spec"])
+        self.assertEqual({"address": "https://app.infisical.com"}, yaml.safe_load(RUNTIME_CONNECTION_SOURCE.read_text())["spec"])
+        engine_auth = yaml.safe_load(ENGINE_AUTH_SOURCE.read_text())
+        runtime_auth = yaml.safe_load(RUNTIME_AUTH_SOURCE.read_text())
+        self.assertEqual("universal", engine_auth["spec"]["method"])
+        self.assertEqual("universal", runtime_auth["spec"]["method"])
+        self.assertEqual("shared-services", engine_auth["spec"]["infisicalConnectionRef"]["namespace"])
+        self.assertEqual("cristexhub-prod", runtime_auth["spec"]["infisicalConnectionRef"]["namespace"])
+        for source in (ENGINE_CONNECTION_SOURCE, ENGINE_AUTH_SOURCE, RUNTIME_CONNECTION_SOURCE, RUNTIME_AUTH_SOURCE):
+            self.assertNotIn("clientSecret:", source.read_text())
+            self.assertNotIn("clientId:", source.read_text())
+        self.assertIn("compare_spec", str(self.defaults))
+        self.assertIn("owner_references", str(self.defaults))
+        self.assertIn("include_spec", self.tasks)
+
     def test_metadata_module_preserves_and_rejects_termination_timestamp(self) -> None:
         spec = importlib.util.spec_from_file_location("mongodb_metadata", METADATA)
         self.assertIsNotNone(spec)
@@ -335,30 +370,77 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
         result = module._metadata(payload)
         self.assertIsNotNone(result)
         self.assertEqual("2026-08-26T00:00:00Z", result["deletionTimestamp"])
+        self.assertEqual([], result["ownerReferences"])
+        with_owner = {**payload, "metadata": {**payload["metadata"], "ownerReferences": [{"apiVersion": "v1", "kind": "ConfigMap", "name": "x", "uid": "u"}]}}
+        self.assertEqual("u", module._metadata(with_owner)["ownerReferences"][0]["uid"])
         self.assertIsNone(module._metadata({**payload, "metadata": {**payload["metadata"], "deletionTimestamp": 7}}))
         self.assertIn("deletionTimestamp is none", self.tasks)
+
+    def test_metadata_response_identity_is_bound_to_requested_resource(self) -> None:
+        spec = importlib.util.spec_from_file_location("mongodb_metadata_identity", METADATA)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        partial = {
+            "apiVersion": "meta.k8s.io/v1",
+            "kind": "PartialObjectMetadata",
+            "metadata": {
+                "name": "example",
+                "namespace": "shared-services",
+                "uid": "uid",
+                "resourceVersion": "7",
+            },
+        }
+        self.assertTrue(module._response_shape_valid(partial, "Secret", "v1", False))
+        self.assertFalse(module._response_shape_valid({**partial, "kind": "Secret"}, "Secret", "v1", False))
+        full = {
+            "apiVersion": "secrets.infisical.com/v1beta1",
+            "kind": "InfisicalAuth",
+            "metadata": partial["metadata"],
+            "spec": {},
+        }
+        self.assertTrue(module._response_shape_valid(full, "InfisicalAuth", "secrets.infisical.com/v1beta1", True))
+        self.assertFalse(module._response_shape_valid({**full, "kind": "Secret"}, "InfisicalAuth", "secrets.infisical.com/v1beta1", True))
+        self.assertFalse(module._response_shape_valid({**full, "apiVersion": "v1"}, "InfisicalAuth", "secrets.infisical.com/v1beta1", True))
 
     def test_metadata_module_negotiates_partial_object_only(self) -> None:
         for phrase in (
             "PartialObjectMetadata",
             "application/json;as=PartialObjectMetadata;g=meta.k8s.io;v=v1",
-            "set(payload) != _ALLOWED_TOP_LEVEL_KEYS",
+            "_response_shape_valid",
+            "set(payload) == _ALLOWED_TOP_LEVEL_KEYS",
             "module.exit_json(",
             "resource_kind=resource_kind,",
+            "expected_name",
+            "expected_namespace",
+            "include_spec",
+            "ownerReferences",
             "Never return managedFields",
-            '"data" in payload',
+            '"data" not in payload',
         ):
             self.assertIn(phrase, self.metadata)
-        self.assertNotIn("stringData", self.metadata)
+        self.assertNotIn("stringData:", self.metadata)
+        self.assertIn("spec_only=include_spec", self.metadata)
         self.assertNotIn("module.exit_json(changed=False, data=", self.metadata)
 
     def test_metadata_targets_and_revision_channels_are_exact(self) -> None:
         resources = self.defaults["cristexhub_prod_mongodb_credential_rotation_check_metadata_resources"]
         by_id = {resource["id"]: resource for resource in resources}
         self.assertEqual(
-            {"engine_source", "runtime_source", "engine_target", "runtime_target"},
+            {
+                "engine_connection", "engine_auth", "engine_source", "engine_target",
+                "runtime_connection", "runtime_auth", "runtime_source", "runtime_target",
+            },
             set(by_id),
         )
+        self.assertEqual("InfisicalConnection", by_id["engine_connection"]["kind"])
+        self.assertEqual("InfisicalAuth", by_id["engine_auth"]["kind"])
+        self.assertEqual("InfisicalConnection", by_id["runtime_connection"]["kind"])
+        self.assertEqual("InfisicalAuth", by_id["runtime_auth"]["kind"])
+        for source_id in ("engine_connection", "engine_auth", "engine_source", "runtime_connection", "runtime_auth", "runtime_source"):
+            self.assertTrue(by_id[source_id]["compare_spec"])
+            self.assertEqual([], by_id[source_id]["owner_references"])
         self.assertEqual("Secret", by_id["engine_target"]["kind"])
         self.assertEqual("shared-services", by_id["engine_target"]["namespace"])
         self.assertEqual("shared-mongodb-cristexhub-prod", by_id["engine_target"]["name"])
@@ -371,6 +453,14 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
         self.assertEqual("unavailable", self.policy["revision_and_cas"]["runtime_url_path_cas"])
         self.assertEqual("UNKNOWN-STOP", self.policy["revision_and_cas"]["ambiguous_result"])
         self.assertEqual("UNKNOWN-STOP", self.policy["revision_and_cas"]["missing_revision"])
+
+    def test_provenance_guard_is_non_skippable_before_role_tasks(self) -> None:
+        self.assertEqual("cristexhub_prod_mongodb_credential_rotation_check_guarded_linear", self.playbook[0]["strategy"])
+        for phrase in ("_canonical_argv", "_source_contract", "TASK_SELECTION_GUARD", "start_at_task", "skip_tags", "_canonical_hash"):
+            self.assertIn(phrase, STRATEGY.read_text())
+        self.assertIn("plugins/strategy/cristexhub_prod_mongodb_credential_rotation_check_guarded_linear.py", self.wrapper)
+        self.assertIn("ansible/playbooks/check_cristexhub_prod_mongodb_credential_rotation.yml", self.wrapper)
+        self.assertIn('set -- "$controller" -i "$inventory" "$playbook_source"', self.wrapper)
 
     def test_role_is_explicitly_check_only_and_operator_owned(self) -> None:
         for phrase in (
@@ -441,7 +531,7 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, combined)
         self.assertIn("resource_kind: \"{{ item.kind }}\"", self.tasks)
-        self.assertIn("metadata_only=True", self.metadata)
+        self.assertIn("metadata_only=not include_spec", self.metadata)
         self.assertEqual("forbidden", self.policy["ownership"]["direct_kubernetes_secret_write"])
 
     def test_source_manifest_digests_are_stable(self) -> None:

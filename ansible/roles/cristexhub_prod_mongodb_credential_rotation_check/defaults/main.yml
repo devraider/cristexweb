@@ -36,6 +36,15 @@ cristexhub_prod_mongodb_credential_rotation_check_runtime_source_directory: ansi
 cristexhub_prod_mongodb_credential_rotation_check_runtime_source_filename: cristexhub-prod-runtime-static-secret.yaml
 cristexhub_prod_mongodb_credential_rotation_check_policy_manifest: ansible/files/policies/cristexhub-prod-mongodb-credential-rotation.yml
 cristexhub_prod_mongodb_credential_rotation_check_metadata_module: ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py
+cristexhub_prod_mongodb_credential_rotation_check_strategy_source: ansible/plugins/strategy/cristexhub_prod_mongodb_credential_rotation_check_guarded_linear.py
+cristexhub_prod_mongodb_credential_rotation_check_engine_connection_source_manifest: >-
+  ansible/files/components/infisical-database-secrets/source/infisical-cloud-connection.yaml
+cristexhub_prod_mongodb_credential_rotation_check_engine_auth_source_manifest: >-
+  ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-auth.yaml
+cristexhub_prod_mongodb_credential_rotation_check_runtime_connection_source_manifest: >-
+  ansible/files/components/infisical-cristexhub-prod-runtime/source/infisical-cloud-connection.yaml
+cristexhub_prod_mongodb_credential_rotation_check_runtime_auth_source_manifest: >-
+  ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-infisical-auth.yaml
 cristexhub_prod_mongodb_credential_rotation_check_networkpolicy_selector_module: ansible/library/cristexhub_prod_mongodb_networkpolicy_selector.py
 cristexhub_prod_mongodb_credential_rotation_check_engine_source_manifest: >-
   ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml
@@ -63,6 +72,34 @@ cristexhub_prod_mongodb_credential_rotation_check_source_contract:
     key: MONGODB_URL
 
 cristexhub_prod_mongodb_credential_rotation_check_metadata_resources:
+  - id: engine_connection
+    api_path: /apis/secrets.infisical.com/v1beta1/namespaces/shared-services/infisicalconnections/infisical-cloud
+    kind: InfisicalConnection
+    api_version: secrets.infisical.com/v1beta1
+    namespace: shared-services
+    name: infisical-cloud
+    labels:
+      app.kubernetes.io/part-of: cristex-platform
+      app.kubernetes.io/managed-by: ansible
+      cristex.io/component: infisical-database-secrets
+    owner_references: []
+    compare_spec: true
+    source_manifest: ansible/files/components/infisical-database-secrets/source/infisical-cloud-connection.yaml
+    require_version_annotation: false
+  - id: engine_auth
+    api_path: /apis/secrets.infisical.com/v1beta1/namespaces/shared-services/infisicalauths/shared-mongodb-infisical-auth
+    kind: InfisicalAuth
+    api_version: secrets.infisical.com/v1beta1
+    namespace: shared-services
+    name: shared-mongodb-infisical-auth
+    labels:
+      app.kubernetes.io/part-of: cristex-platform
+      app.kubernetes.io/managed-by: ansible
+      cristex.io/component: infisical-database-secrets
+    owner_references: []
+    compare_spec: true
+    source_manifest: ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-auth.yaml
+    require_version_annotation: false
   - id: engine_source
     api_path: /apis/secrets.infisical.com/v1beta1/namespaces/shared-services/infisicalstaticsecrets/shared-mongodb-infisical-secrets
     kind: InfisicalStaticSecret
@@ -73,6 +110,37 @@ cristexhub_prod_mongodb_credential_rotation_check_metadata_resources:
       app.kubernetes.io/part-of: cristex-platform
       app.kubernetes.io/managed-by: ansible
       cristex.io/component: infisical-database-secrets
+    owner_references: []
+    compare_spec: true
+    source_manifest: ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml
+    require_version_annotation: false
+  - id: runtime_connection
+    api_path: /apis/secrets.infisical.com/v1beta1/namespaces/cristexhub-prod/infisicalconnections/infisical-cloud
+    kind: InfisicalConnection
+    api_version: secrets.infisical.com/v1beta1
+    namespace: cristexhub-prod
+    name: infisical-cloud
+    labels:
+      app.kubernetes.io/part-of: cristex-platform
+      app.kubernetes.io/managed-by: ansible
+      cristex.io/component: infisical-cristexhub-prod-runtime
+    owner_references: []
+    compare_spec: true
+    source_manifest: ansible/files/components/infisical-cristexhub-prod-runtime/source/infisical-cloud-connection.yaml
+    require_version_annotation: false
+  - id: runtime_auth
+    api_path: /apis/secrets.infisical.com/v1beta1/namespaces/cristexhub-prod/infisicalauths/cristexhub-prod-infisical-auth
+    kind: InfisicalAuth
+    api_version: secrets.infisical.com/v1beta1
+    namespace: cristexhub-prod
+    name: cristexhub-prod-infisical-auth
+    labels:
+      app.kubernetes.io/part-of: cristex-platform
+      app.kubernetes.io/managed-by: ansible
+      cristex.io/component: infisical-cristexhub-prod-runtime
+    owner_references: []
+    compare_spec: true
+    source_manifest: ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-infisical-auth.yaml
     require_version_annotation: false
   - id: runtime_source
     api_path: /apis/secrets.infisical.com/v1beta1/namespaces/cristexhub-prod/infisicalstaticsecrets/cristexhub-prod-runtime
@@ -84,6 +152,9 @@ cristexhub_prod_mongodb_credential_rotation_check_metadata_resources:
       app.kubernetes.io/part-of: cristex-platform
       app.kubernetes.io/managed-by: ansible
       cristex.io/component: infisical-cristexhub-prod-runtime
+    owner_references: []
+    compare_spec: true
+    source_manifest: ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml
     require_version_annotation: false
   - id: engine_target
     api_path: /api/v1/namespaces/shared-services/secrets/shared-mongodb-cristexhub-prod
@@ -95,6 +166,8 @@ cristexhub_prod_mongodb_credential_rotation_check_metadata_resources:
       app.kubernetes.io/managed-by: infisical
       app.kubernetes.io/part-of: shared-databases
       cristex.io/value-owner: infisical-cloud
+    owner_references: []
+    compare_spec: false
     require_version_annotation: true
   - id: runtime_target
     api_path: /api/v1/namespaces/cristexhub-prod/secrets/cristexhub-prod-runtime
@@ -106,6 +179,8 @@ cristexhub_prod_mongodb_credential_rotation_check_metadata_resources:
       app.kubernetes.io/managed-by: infisical
       app.kubernetes.io/part-of: cristexhub
       cristex.io/value-owner: infisical-cloud
+    owner_references: []
+    compare_spec: false
     require_version_annotation: true
 
 cristexhub_prod_mongodb_credential_rotation_check_operator_deployment:

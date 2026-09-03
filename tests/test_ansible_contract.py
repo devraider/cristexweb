@@ -78,6 +78,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/strategy/cristexhub_prod_private_acceptance_guarded_linear.py"),
             Path("ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py"),
             Path("ansible/plugins/strategy/cristexhub_prod_ghcr_pull_rotation_guarded_linear.py"),
+            Path("ansible/plugins/strategy/cristexhub_prod_mongodb_credential_rotation_check_guarded_linear.py"),
         }
         allowed_library_plugins = {
             Path("ansible/library/reactive_resume_dev_secret_metadata.py"),
@@ -542,6 +543,7 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "roles/cristexhub_prod_ghcr_pull_rotation_preflight/defaults/main.yml",
                 "roles/cristexhub_prod_ghcr_pull_rotation_preflight/tasks/main.yml",
                 "plugins/strategy/cristexhub_prod_ghcr_pull_rotation_guarded_linear.py",
+                "plugins/strategy/cristexhub_prod_mongodb_credential_rotation_check_guarded_linear.py",
             ]
         )
         self.assertEqual([], [path for path in required if not (ANSIBLE / path).is_file()])

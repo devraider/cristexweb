@@ -49,6 +49,21 @@
       - cristexhub_prod_mongodb_credential_rotation_check_engine_source_keys == ['MONGODB_CRISTEXHUB_PROD_USERNAME', 'MONGODB_CRISTEXHUB_PROD_PASSWORD']
       - cristexhub_prod_mongodb_credential_rotation_check_runtime_source_key == 'MONGODB_URL'
       - cristexhub_prod_mongodb_credential_rotation_check_metadata_module == 'ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_strategy_source ==
+        'ansible/plugins/strategy/cristexhub_prod_mongodb_credential_rotation_check_guarded_linear.py'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_engine_connection_source_manifest ==
+        'ansible/files/components/infisical-database-secrets/source/infisical-cloud-connection.yaml'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_engine_auth_source_manifest ==
+        'ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-auth.yaml'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_runtime_connection_source_manifest ==
+        'ansible/files/components/infisical-cristexhub-prod-runtime/source/infisical-cloud-connection.yaml'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_runtime_auth_source_manifest ==
+        'ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-infisical-auth.yaml'
       - cristexhub_prod_mongodb_credential_rotation_check_networkpolicy_selector_module == 'ansible/library/cristexhub_prod_mongodb_networkpolicy_selector.py'
       - cristexhub_prod_mongodb_credential_rotation_check_engine_target_name == 'shared-mongodb-cristexhub-prod'
       - cristexhub_prod_mongodb_credential_rotation_check_runtime_target_name == 'cristexhub-prod-runtime'
@@ -64,7 +79,8 @@
       - cristexhub_prod_mongodb_credential_rotation_check_predecessor_revocation_status == 'SEPARATE-APPROVAL-REQUIRED'
       - >-
         cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
-        map(attribute='id') | list | sort == ['engine_source', 'engine_target',
+        map(attribute='id') | list | sort == ['engine_auth', 'engine_connection',
+        'engine_source', 'engine_target', 'runtime_auth', 'runtime_connection',
         'runtime_source', 'runtime_target']
       - >-
         (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
@@ -134,6 +150,34 @@
         'app.kubernetes.io/managed-by': 'infisical',
         'app.kubernetes.io/part-of': 'cristexhub',
         'cristex.io/value-owner': 'infisical-cloud'}
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_connection') | map(attribute='api_path') | first) ==
+        '/apis/secrets.infisical.com/v1beta1/namespaces/shared-services/infisicalconnections/infisical-cloud'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_auth') | map(attribute='api_path') | first) ==
+        '/apis/secrets.infisical.com/v1beta1/namespaces/shared-services/infisicalauths/shared-mongodb-infisical-auth'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_connection') | map(attribute='api_path') | first) ==
+        '/apis/secrets.infisical.com/v1beta1/namespaces/cristexhub-prod/infisicalconnections/infisical-cloud'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_auth') | map(attribute='api_path') | first) ==
+        '/apis/secrets.infisical.com/v1beta1/namespaces/cristexhub-prod/infisicalauths/cristexhub-prod-infisical-auth'
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_connection') | map(attribute='owner_references') | first) == []
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'engine_auth') | map(attribute='owner_references') | first) == []
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_connection') | map(attribute='owner_references') | first) == []
+      - >-
+        (cristexhub_prod_mongodb_credential_rotation_check_metadata_resources |
+        selectattr('id', 'equalto', 'runtime_auth') | map(attribute='owner_references') | first) == []
       - cristexhub_prod_mongodb_credential_rotation_check_consumers | map(attribute='name') | list == ['backend', 'celery-worker']
       - cristexhub_prod_mongodb_credential_rotation_check_consumers | map(attribute='runtime_key') | list == ['MONGODB_URL', 'MONGODB_URL']
       - cristexhub_prod_mongodb_credential_rotation_check_operator_deployment.name == 'infisical-operator-controller'
@@ -166,6 +210,12 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_POLICY_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_METADATA_MODULE_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_NETWORKPOLICY_SELECTOR_MODULE_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_STRATEGY_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_STRATEGY_CANONICAL_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ENGINE_CONNECTION_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ENGINE_AUTH_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_RUNTIME_CONNECTION_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_RUNTIME_AUTH_SOURCE_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_INVENTORY_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ANSIBLE_CONFIG_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_CONTROLLER_SHA256') is match('^[0-9a-f]{64}$')
@@ -221,7 +271,12 @@
     - {path: 'ansible/files/policies/cristexhub-prod-mongodb-credential-rotation.yml', mode: '0644'}
     - {path: 'ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py', mode: '0755'}
     - {path: 'ansible/library/cristexhub_prod_mongodb_networkpolicy_selector.py', mode: '0755'}
+    - {path: 'ansible/plugins/strategy/cristexhub_prod_mongodb_credential_rotation_check_guarded_linear.py', mode: '0644'}
+    - {path: 'ansible/files/components/infisical-database-secrets/source/infisical-cloud-connection.yaml', mode: '0644'}
+    - {path: 'ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-auth.yaml', mode: '0644'}
     - {path: 'ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml', mode: '0644'}
+    - {path: 'ansible/files/components/infisical-cristexhub-prod-runtime/source/infisical-cloud-connection.yaml', mode: '0644'}
+    - {path: 'ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-infisical-auth.yaml', mode: '0644'}
     - {path: 'ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml', mode: '0644'}
     - {path: 'ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml', mode: '0644'}
     - {path: 'ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-allow.yaml', mode: '0644'}
@@ -254,8 +309,18 @@
         item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_METADATA_MODULE_SHA256')) or
         (item.item.path == 'ansible/library/cristexhub_prod_mongodb_networkpolicy_selector.py' and
         item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_NETWORKPOLICY_SELECTOR_MODULE_SHA256')) or
+        (item.item.path == 'ansible/plugins/strategy/cristexhub_prod_mongodb_credential_rotation_check_guarded_linear.py' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_STRATEGY_SHA256')) or
+        (item.item.path == 'ansible/files/components/infisical-database-secrets/source/infisical-cloud-connection.yaml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ENGINE_CONNECTION_SOURCE_SHA256')) or
+        (item.item.path == 'ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-auth.yaml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ENGINE_AUTH_SOURCE_SHA256')) or
         (item.item.path == 'ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml' and
         item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_ENGINE_SOURCE_MANIFEST_SHA256')) or
+        (item.item.path == 'ansible/files/components/infisical-cristexhub-prod-runtime/source/infisical-cloud-connection.yaml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_RUNTIME_CONNECTION_SOURCE_SHA256')) or
+        (item.item.path == 'ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-infisical-auth.yaml' and
+        item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_RUNTIME_AUTH_SOURCE_SHA256')) or
         (item.item.path == 'ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml' and
         item.stat.checksum == lookup('ansible.builtin.env', 'CRISTEXWEB_PROD_MONGODB_ROTATION_RUNTIME_SOURCE_MANIFEST_SHA256')) or
         (item.item.path == 'ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml' and
@@ -273,11 +338,23 @@
 
 - name: Load the value-free engine and runtime source manifests
   ansible.builtin.set_fact:
+    cristexhub_prod_mongodb_credential_rotation_check_internal_engine_connection_manifest: >-
+      {{ lookup('ansible.builtin.file', cristexhub_prod_mongodb_credential_rotation_check_repository_root ~ '/' ~
+      cristexhub_prod_mongodb_credential_rotation_check_engine_connection_source_manifest) | from_yaml }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_engine_auth_manifest: >-
+      {{ lookup('ansible.builtin.file', cristexhub_prod_mongodb_credential_rotation_check_repository_root ~ '/' ~
+      cristexhub_prod_mongodb_credential_rotation_check_engine_auth_source_manifest) | from_yaml }}
     cristexhub_prod_mongodb_credential_rotation_check_internal_engine_manifest: >-
       {{ lookup('ansible.builtin.file',
       cristexhub_prod_mongodb_credential_rotation_check_repository_root ~ '/' ~
       cristexhub_prod_mongodb_credential_rotation_check_engine_source_directory ~ '/' ~
       cristexhub_prod_mongodb_credential_rotation_check_engine_source_filename) | from_yaml }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_connection_manifest: >-
+      {{ lookup('ansible.builtin.file', cristexhub_prod_mongodb_credential_rotation_check_repository_root ~ '/' ~
+      cristexhub_prod_mongodb_credential_rotation_check_runtime_connection_source_manifest) | from_yaml }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_auth_manifest: >-
+      {{ lookup('ansible.builtin.file', cristexhub_prod_mongodb_credential_rotation_check_repository_root ~ '/' ~
+      cristexhub_prod_mongodb_credential_rotation_check_runtime_auth_source_manifest) | from_yaml }}
     cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_manifest: >-
       {{ lookup('ansible.builtin.file',
       cristexhub_prod_mongodb_credential_rotation_check_repository_root ~ '/' ~
@@ -533,6 +610,71 @@
   changed_when: false
   no_log: true
 
+- name: Require exact canonical Infisical Connection and Auth specs
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_connection_manifest.keys() | list | sort == ['apiVersion', 'kind', 'metadata', 'spec']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_connection_manifest.apiVersion == 'secrets.infisical.com/v1beta1'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_connection_manifest.kind == 'InfisicalConnection'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_connection_manifest.metadata.name == 'infisical-cloud'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_connection_manifest.metadata.namespace == 'shared-services'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_auth_manifest.keys() | list | sort == ['apiVersion', 'kind', 'metadata', 'spec']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_auth_manifest.apiVersion == 'secrets.infisical.com/v1beta1'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_auth_manifest.kind == 'InfisicalAuth'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_auth_manifest.metadata.name == 'shared-mongodb-infisical-auth'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_engine_auth_manifest.metadata.namespace == 'shared-services'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_connection_manifest.keys() |
+        list | sort == ['apiVersion', 'kind', 'metadata', 'spec']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_connection_manifest.apiVersion == 'secrets.infisical.com/v1beta1'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_connection_manifest.kind == 'InfisicalConnection'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_connection_manifest.metadata.name == 'infisical-cloud'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_connection_manifest.metadata.namespace == 'cristexhub-prod'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_auth_manifest.keys() | list | sort == ['apiVersion', 'kind', 'metadata', 'spec']
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_auth_manifest.apiVersion == 'secrets.infisical.com/v1beta1'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_auth_manifest.kind == 'InfisicalAuth'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_auth_manifest.metadata.name == 'cristexhub-prod-infisical-auth'
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_auth_manifest.metadata.namespace == 'cristexhub-prod'
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_connection_manifest.spec ==
+        {'address': 'https://app.infisical.com'}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_connection_manifest.spec ==
+        {'address': 'https://app.infisical.com'}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_auth_manifest.spec == {
+        'infisicalConnectionRef': {'name': 'infisical-cloud', 'namespace': 'shared-services'},
+        'method': 'universal',
+        'universal': {
+          'clientIdRef': {'name': 'shared-mongodb-infisical-universal-auth', 'namespace': 'shared-services', 'key': 'clientId'},
+          'clientSecretRef': {'name': 'shared-mongodb-infisical-universal-auth', 'namespace': 'shared-services', 'key': 'clientSecret'}}}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_auth_manifest.spec == {
+        'infisicalConnectionRef': {'name': 'infisical-cloud', 'namespace': 'cristexhub-prod'},
+        'method': 'universal',
+        'universal': {
+          'clientIdRef': {'name': 'cristexhub-prod-infisical-universal-auth', 'namespace': 'cristexhub-prod', 'key': 'clientId'},
+          'clientSecretRef': {'name': 'cristexhub-prod-infisical-universal-auth', 'namespace': 'cristexhub-prod', 'key': 'clientSecret'}}}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_connection_manifest.metadata.labels ==
+        {'app.kubernetes.io/part-of': 'cristex-platform', 'app.kubernetes.io/managed-by': 'ansible', 'cristex.io/component': 'infisical-database-secrets'}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_engine_auth_manifest.metadata.labels ==
+        {'app.kubernetes.io/part-of': 'cristex-platform', 'app.kubernetes.io/managed-by': 'ansible', 'cristex.io/component': 'infisical-database-secrets'}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_connection_manifest.metadata.labels ==
+        {'app.kubernetes.io/part-of': 'cristex-platform',
+        'app.kubernetes.io/managed-by': 'ansible',
+        'cristex.io/component': 'infisical-cristexhub-prod-runtime'}
+      - >-
+        cristexhub_prod_mongodb_credential_rotation_check_internal_runtime_auth_manifest.metadata.labels ==
+        {'app.kubernetes.io/part-of': 'cristex-platform',
+        'app.kubernetes.io/managed-by': 'ansible',
+        'cristex.io/component': 'infisical-cristexhub-prod-runtime'}
+    fail_msg: Refusing Infisical Connection/Auth source drift or cross-namespace references.
+  changed_when: false
+  no_log: true
+
 - name: Query exact MongoDB NetworkPolicy preflight objects
   kubernetes.core.k8s_info:
     api_version: networking.k8s.io/v1
@@ -645,6 +787,9 @@
     api_path: "{{ item.api_path }}"
     resource_kind: "{{ item.kind }}"
     resource_api_version: "{{ item.api_version }}"
+    expected_name: "{{ item.name }}"
+    expected_namespace: "{{ item.namespace }}"
+    include_spec: "{{ item.compare_spec | default(false) | bool }}"
   loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_metadata_resources }}"
   loop_control:
     label: "{{ item.kind }}/{{ item.namespace }}/{{ item.name }}"
@@ -655,6 +800,7 @@
 - name: Initialize metadata-only source and target observations
   ansible.builtin.set_fact:
     cristexhub_prod_mongodb_credential_rotation_check_internal_metadata: {}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_specs: {}
   changed_when: false
   no_log: true
 
@@ -663,6 +809,9 @@
     cristexhub_prod_mongodb_credential_rotation_check_internal_metadata: >-
       {{ cristexhub_prod_mongodb_credential_rotation_check_internal_metadata |
       combine({item.item.id: item.metadata}) }}
+    cristexhub_prod_mongodb_credential_rotation_check_internal_specs: >-
+      {{ cristexhub_prod_mongodb_credential_rotation_check_internal_specs |
+      combine({item.item.id: item.spec | default({})}) }}
   loop: "{{ cristexhub_prod_mongodb_credential_rotation_check_internal_metadata_results.results }}"
   loop_control:
     label: "{{ item.item.kind }}/{{ item.item.namespace }}/{{ item.item.name }}"
@@ -679,7 +828,12 @@
       - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].uid | default('') | length > 0
       - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].resourceVersion | default('') | length > 0
       - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].deletionTimestamp is none
+      - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].ownerReferences == item.owner_references
       - cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].labels == item.labels
+      - >-
+        (not (item.compare_spec | default(false) | bool)) or
+        cristexhub_prod_mongodb_credential_rotation_check_internal_specs[item.id] ==
+        ((lookup('ansible.builtin.file', cristexhub_prod_mongodb_credential_rotation_check_repository_root ~ '/' ~ item.source_manifest) | from_yaml).spec)
       - >-
         (not item.require_version_annotation) or
         (cristexhub_prod_mongodb_credential_rotation_check_internal_metadata[item.id].annotations.keys() |
