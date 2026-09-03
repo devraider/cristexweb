@@ -39,7 +39,7 @@ _REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6
 _COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
 _COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
 _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
-_STRATEGY_CANONICAL_SHA256 = "3e25c672daa083f3a805101f05e667f4cddc31eb28744ccdd1f36b70c6124465"
+_STRATEGY_CANONICAL_SHA256 = "501ccd5fa36c59f0cc4fa4c8126968f7ebf68cdd69f1a251e41a9105b6b7ddd1"
 
 _EXPECTED_ENV_PREFIX = "CRISTEXWEB_CRISTEXHUB_PROD_GHCR_PULL_ROTATION_PREFLIGHT_"
 _FORBIDDEN_ENV = (
@@ -186,6 +186,24 @@ def _proc_cmdline(pid: int) -> list[str]:
         return []
 
 
+def _proc_executable(pid: int) -> Path | None:
+    try:
+        return Path(os.readlink(f"/proc/{pid}/exe")).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+
+
+def _canonical_shell(pid: int, command: list[str]) -> bool:
+    if not command or command[0] not in {"/bin/sh", "/bin/dash"}:
+        return False
+    try:
+        dash = Path("/usr/bin/dash").resolve(strict=True)
+        requested = Path(command[0]).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return False
+    return requested == dash and _proc_executable(pid) == dash
+
+
 def _is_ancestor(pid: int) -> bool:
     current = os.getpid()
     seen: set[int] = set()
@@ -231,7 +249,7 @@ def _wrapper_binding_valid() -> bool:
         and state.st_uid == os.getuid()
         and state.st_gid == os.getgid()
         and state.st_nlink == 1
-        and command[:1] == ["/bin/dash"]
+        and _canonical_shell(pid, command)
         and len(command) == 3
         and _canonical_wrapper_argument(command[1], pid)
         and command[2] == "check"

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import importlib.util
 import re
 import stat
 import subprocess
+import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -90,6 +93,108 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
             placeholder = re.search(r"\\x27(0+)\\x27", line)
             self.assertIsNotNone(placeholder, line)
             self.assertEqual(64, len(placeholder.group(1)), line)
+
+    def test_shell_canonicalizer_handles_both_quote_styles_and_rejects_malformed_sentinel(self) -> None:
+        sha_stdin = re.search(r"(?ms)^sha_stdin\(\) \{.*?^\}", self.wrapper)
+        canonical_file_sha = re.search(r"(?ms)^canonical_file_sha\(\) \{.*?^\}", self.wrapper)
+        self.assertIsNotNone(sha_stdin)
+        self.assertIsNotNone(canonical_file_sha)
+        probe_source = "\n".join(
+            (
+                "#!/bin/sh",
+                "set -eu",
+                "sha_tool=/usr/bin/sha256sum",
+                "sed_tool=/usr/bin/sed",
+                sha_stdin.group(0),
+                canonical_file_sha.group(0),
+                'canonical_file_sha "$1" "$2"',
+                "",
+            )
+        )
+        pattern = re.compile(
+            r"(?m)^(_STRATEGY_CANONICAL_SHA256\s*=\s*)(['\"])([0-9a-f]{64})(\2)(\s*)$"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            probe = Path(temporary) / "probe.sh"
+            probe.write_text(probe_source)
+            probe.chmod(0o755)
+            for quote, value in (("'", "a" * 64), ('"', "b" * 64)):
+                fixture = Path(temporary) / f"fixture-{ord(quote)}"
+                content = f"_STRATEGY_CANONICAL_SHA256 = {quote}{value}{quote}\n"
+                fixture.write_text(content)
+                match = pattern.match(content.rstrip("\n"))
+                self.assertIsNotNone(match)
+                canonical = (
+                    match.group(1)
+                    + match.group(2)
+                    + "0" * 64
+                    + match.group(4)
+                    + match.group(5)
+                    + "\n"
+                )
+                expected = hashlib.sha256(canonical.encode()).hexdigest()
+                result = subprocess.run(
+                    ["/bin/dash", str(probe), str(fixture), "_STRATEGY_CANONICAL_SHA256"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertEqual(expected, result.stdout.strip())
+            malformed = Path(temporary) / "malformed"
+            malformed_content = "_STRATEGY_CANONICAL_SHA256 = `" + "c" * 64 + "`\n"
+            malformed.write_text(malformed_content)
+            result = subprocess.run(
+                ["/bin/dash", str(probe), str(malformed), "_STRATEGY_CANONICAL_SHA256"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(hashlib.sha256(malformed_content.encode()).hexdigest(), result.stdout.strip())
+
+    def test_strategy_accepts_dash_via_bin_sh_but_rejects_other_executables(self) -> None:
+        spec = importlib.util.spec_from_file_location("ghcr_rotation_strategy_test", STRATEGY)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        strategy = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(strategy)
+        self.assertIn("/bin/sh", {"/bin/sh", "/bin/dash"})
+        with tempfile.TemporaryDirectory() as temporary:
+            script = Path(temporary) / "dash-child.sh"
+            script.write_text("#!/bin/sh\nwhile :; do sleep 1; done\n")
+            script.chmod(0o755)
+            process = subprocess.Popen(["/bin/sh", str(script)])
+            try:
+                for _ in range(40):
+                    if Path(f"/proc/{process.pid}/exe").exists():
+                        break
+                    time.sleep(0.025)
+                self.assertTrue(
+                    strategy._canonical_shell(
+                        process.pid,
+                        ["/bin/sh", str(script), "check"],
+                    )
+                )
+                self.assertFalse(
+                    strategy._canonical_shell(
+                        process.pid,
+                        ["/bin/bash", str(script), "check"],
+                    )
+                )
+            finally:
+                process.terminate()
+                process.wait(timeout=3)
+
+    def test_attestation_contains_wrapper_starttime(self) -> None:
+        self.assertIn(
+            "printf '%s:entrypoint:%s:%s:%s\\n' \"$token\" \"$wrapper_pid\" \"$wrapper_starttime\" \"$wrapper_sha\"",
+            self.wrapper,
+        )
+        self.assertIn(
+            'content == f"{token}:entrypoint:{pid}:{starttime}:{wrapper_sha}\\n"',
+            STRATEGY.read_text(),
+        )
 
     def test_exact_value_free_custody_contract(self) -> None:
         self.assertEqual("source-only-check-only-not-run", self.policy["policy_status"])
