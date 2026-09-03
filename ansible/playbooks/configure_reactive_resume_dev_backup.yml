@@ -19,8 +19,8 @@
     reactive_resume_dev_backup_entrypoint_attestation: >-
       {{ lookup('ansible.builtin.env',
                 'CRISTEXWEB_REACTIVE_RESUME_DEV_BACKUP_ENTRYPOINT_ATTESTATION_FILE') | trim }}
-    reactive_resume_dev_backup_wrapper_sha256: bdaa5d3a7fb8dad625816575aa31bbc6cdf9d23850bc774109abd775fb847677
-    reactive_resume_dev_backup_playbook_sha256: 53778f620b26ebb88d9cd0f36a60512965b34331bd7807d679f21365b25861de
+    reactive_resume_dev_backup_wrapper_sha256: f26908edde000e5c8e6d8a5ef5d224123711cd557499f19b9356f466f340052d
+    reactive_resume_dev_backup_playbook_sha256: 6a1de4c6957789ceb44fc00d2934f0cf05636e437c192dd4bd4d22009a0b7840
     reactive_resume_dev_backup_source_contract_sha256: 45a6c12164e0d57c834b21792af85809c5a821396dcdd7ef91121c4b5cc27306
     reactive_resume_dev_backup_controller_path: /home/paul/projects/cristexweb/.venv/bin/ansible-playbook
     reactive_resume_dev_backup_controller_sha256: baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd
@@ -106,8 +106,8 @@
     - name: Require immutable backup controller and source bindings
       ansible.builtin.assert:
         that:
-          - reactive_resume_dev_backup_wrapper_sha256 == 'bdaa5d3a7fb8dad625816575aa31bbc6cdf9d23850bc774109abd775fb847677'
-          - reactive_resume_dev_backup_playbook_sha256 == '53778f620b26ebb88d9cd0f36a60512965b34331bd7807d679f21365b25861de'
+          - reactive_resume_dev_backup_wrapper_sha256 == 'f26908edde000e5c8e6d8a5ef5d224123711cd557499f19b9356f466f340052d'
+          - reactive_resume_dev_backup_playbook_sha256 == '6a1de4c6957789ceb44fc00d2934f0cf05636e437c192dd4bd4d22009a0b7840'
           - reactive_resume_dev_backup_source_contract_sha256 == '45a6c12164e0d57c834b21792af85809c5a821396dcdd7ef91121c4b5cc27306'
           - reactive_resume_dev_backup_controller_path == '/home/paul/projects/cristexweb/.venv/bin/ansible-playbook'
           - reactive_resume_dev_backup_controller_sha256 == 'baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
@@ -155,7 +155,7 @@
       loop:
         - path: ansible/bin/configure-reactive-resume-dev-backup
           mode: '0755'
-          sha256: 669fb00a7e74aab478beb62e57a161b5dec5c1d02395b7e20b30a61d31f82738
+          sha256: 88f4a696bd5b3d456565fd4921d795c04ce7a672dbd97067b58784c4eca4d553
         - path: .venv/bin/ansible-playbook
           mode: '0755'
           sha256: baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd
@@ -173,13 +173,13 @@
           sha256: 852257239327e457e910980417e478ee28654d330df2ebeff88374ddb21c3e3c
         - path: ansible/plugins/action/reactive_resume_dev_backup_entrypoint_guarded.py
           mode: '0644'
-          sha256: b7f1502ec810cd21c710d24bea775df8c845ea8f85a7df853a11b0f6770219da
+          sha256: 07fd0fbff6961574b25bb0ce6384af9a8dbcc41b3e12c38404a4ecf076fef7dc
         - path: ansible/files/backup/reactive-resume-dev-backup
           mode: '0755'
-          sha256: 2a170cb9a26c1110398f7ed0f4ce605a6dd120de3787de0c83708f4cffa0111e
+          sha256: da128785db27a39c338ffad195b05ae745f315b55cd8ce84b4314560be7272ec
         - path: ansible/files/backup/restore-reactive-resume-dev-backup-rehearsal
           mode: '0755'
-          sha256: dc205d8fc6b56d6b98a66358a1c69f68f5fb070e11061815217015d571dfc696
+          sha256: 8f39b40119c31fcf4ef4e3536321665443049dfed20620b89bdaa9b6b3bcba15
         - path: ansible/files/backup/cristexweb-reactive-resume-dev-backup.service
           mode: '0644'
           sha256: cd1a1cf09646d6675ebdefba085735755c00e229f1a21ae1d2a5ab2c196dbae2

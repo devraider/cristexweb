@@ -10,7 +10,7 @@ cluster=shared-postgresql
 database=keycloak
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
-source_closure_sha256=224c26ed0e1f4099212cf81401cee441c26ff0e78a8face8a9d406aa04774ed0
+source_closure_sha256=68db89264245076b8dd2a12235849c06bd7f0b9ade19cec0e84bc14b8989de30
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'backup_status=failed stage=source_closure_contract'
   exit 1
@@ -64,7 +64,9 @@ remote_directory="$remote_root/$timestamp"
   exit 73
 }
 /usr/bin/install -d -m 0700 "$run_directory"
-cleanup_plaintext() { /usr/bin/rm -f -- "$run_directory/keycloak.dump"; }
+cleanup_plaintext() {
+  /usr/bin/rm -f -- "$run_directory/keycloak.dump" "$run_directory/keycloak.dump.gz"
+}
 trap cleanup_plaintext EXIT HUP INT TERM
 
 start_epoch=$(/usr/bin/date +%s)

@@ -196,8 +196,12 @@ archive excludes PostgreSQL roles, ownership, ACL/default privileges, and passwo
 those remain separate Infisical/CNPG custody and authorization gates. A run-labelled default-deny
 NetworkPolicy is created before the Pod and permits no ingress or egress. Both
 the Pod and its NetworkPolicy are deleted only after exact run-label, component,
-and UID checks; any cleanup failure fails closed. The backup first runs
-`pg_restore --list` and refuses a dump with no logical entries or table entries.
+and UID checks; any cleanup failure fails closed. The backup runs
+`pg_restore --list` inside the already-selected PostgreSQL Pod rather than
+assuming a host-installed PostgreSQL client, and refuses a dump with no logical
+entries or table entries. Restore decrypts and decompresses into separate
+trapped files with independent status checks; it never relies on a pipeline
+whose decompressor could mask an age failure.
 
 Objects are path-validated before extraction and restored into an isolated SeaweedFS
 Pod with emptyDir data, the pinned SeaweedFS image, the same TLS/auth

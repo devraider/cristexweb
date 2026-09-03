@@ -136,9 +136,14 @@ scheduler requires the exact Infisical-owned `shared-rabbitmq-admin` target cont
 only `username`, `password`, and `passwordHash` keys are accepted. Each backup
 manifest carries the actual source-closure digest (the restore self-pin is
 canonicalized before hashing to avoid a circular pin), and restore rejects any
-missing or mismatched digest. The management request uses the username/password
+missing or mismatched digest. Restore decrypts and decompresses through separate
+staged files with independent status checks, so an age failure cannot be masked
+by gzip. The management request uses the username/password
 pair; `passwordHash` is validated as required
-custody material but is never emitted or used as a substitute credential. RabbitMQ
+custody material but is never emitted or used as a substitute credential. Backup
+receipts carry `readback=verified`; isolated restore receipts carry the exact
+source-closure digest and `checksum=verified`, while enablement checks each
+receipt type against only the fields it emits. RabbitMQ
 definitions recovery is not queued-message recovery, and it does not prove consumer
 identity, permissions, or message disposition. Each future service or consumer
 requires an exact archive path, capacity/retention review, integrity check, isolated

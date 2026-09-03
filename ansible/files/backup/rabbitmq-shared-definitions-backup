@@ -10,7 +10,7 @@ admin_secret=shared-rabbitmq-admin
 tls_secret=shared-rabbitmq-tls
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
-source_closure_sha256=e155acf588d37fcb8c2dc7ebddba399ca140ecc213998de9f2dfd504a6291974
+source_closure_sha256=b74df1f0e962332b6d7fab6f2bbf71648323a644e37f5e7f4ed132224f03418a
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'backup_status=failed stage=source_closure_contract'
   exit 1
@@ -42,7 +42,10 @@ remote_directory="$remote_root/$timestamp"
 [ ! -e "$run_directory" ] || { printf '%s\n' 'backup_status=refused reason=local_timestamp_collision'; exit 73; }
 /usr/bin/install -d -m 0700 "$run_directory"
 work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-rabbitmq-backup.XXXXXX)
-cleanup() { /usr/bin/rm -rf -- "$work"; /usr/bin/rm -f -- "$run_directory/definitions.json"; }
+cleanup() {
+  /usr/bin/rm -rf -- "$work"
+  /usr/bin/rm -f -- "$run_directory/definitions.json" "$run_directory/rabbitmq-definitions.json.gz"
+}
 trap cleanup EXIT HUP INT TERM
 chmod 0700 "$work"
 /usr/local/bin/kubectl -n "$namespace" get secret "$admin_secret" -o json >"$work/admin.json"
@@ -59,8 +62,7 @@ for key,filename in [('ca.crt','ca.crt')]:
     with open(os.path.join(os.path.dirname(os.environ['TLS']),filename),'wb') as f:
         f.write(base64.b64decode(tls['data'][key]))
 with open(os.path.join(os.path.dirname(os.environ['SECRET']),'curl.conf'),'w') as f:
-    f.write('silent\nshow-error\nfail\nurl = "https://%s.%s.svc:15671/api/definitions"\nuser = "%s:%s"\ncacert = "%s"\noutput = "%s"\n' % (
-        'shared-rabbitmq-management','shared-services',
+    f.write('silent\nshow-error\nfail\nurl = "https://shared-rabbitmq.shared-services.svc:15671/api/definitions"\nconnect-to = "shared-rabbitmq.shared-services.svc:15671:shared-rabbitmq-management.shared-services.svc:15671"\nuser = "%s:%s"\ncacert = "%s"\noutput = "%s"\n' % (
         base64.b64decode(secret['data']['username']).decode(),
         base64.b64decode(secret['data']['password']).decode(),
         os.path.join(os.path.dirname(os.environ['TLS']),'ca.crt'),

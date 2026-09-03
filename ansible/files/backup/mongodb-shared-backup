@@ -9,7 +9,7 @@ resource=shared-mongodb
 pod=shared-mongodb-0
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
-source_closure_sha256=35a6cb65e255510ab9213e858f1ab449501b2d222433b5b089a7dfe93f061e96
+source_closure_sha256=3f9f8d255e0ffd52729126c7bf7647ca52ef279a4e77a2e09f377b9024785e1b
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'backup_status=failed stage=source_closure_contract'
   exit 1
@@ -50,7 +50,7 @@ remote_directory="$remote_root/$timestamp"
 work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-mongodb-backup.XXXXXX)
 cleanup() {
   /usr/bin/rm -rf -- "$work"
-  /usr/bin/rm -f -- "$run_directory/shared-mongodb.archive"
+  /usr/bin/rm -f -- "$run_directory/shared-mongodb.archive" "$run_directory/shared-mongodb.archive.gz"
 }
 trap cleanup EXIT HUP INT TERM
 chmod 0700 "$work"

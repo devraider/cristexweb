@@ -9,7 +9,7 @@
     rabbitmq_definitions_backup_approved: false
     rabbitmq_definitions_backup_mode: install
     rabbitmq_definitions_backup_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
-    rabbitmq_definitions_backup_source_closure_sha256: e155acf588d37fcb8c2dc7ebddba399ca140ecc213998de9f2dfd504a6291974
+    rabbitmq_definitions_backup_source_closure_sha256: b74df1f0e962332b6d7fab6f2bbf71648323a644e37f5e7f4ed132224f03418a
   pre_tasks:
     - name: Require bounded RabbitMQ backup approval
       ansible.builtin.assert:
@@ -91,7 +91,7 @@
         - cristexweb-rabbitmq-definitions-backup.service
         - cristexweb-rabbitmq-definitions-backup.timer
       register: rabbitmq_units
-    - name: Reload systemd
+    - name: Reload systemd  # noqa no-handler
       ansible.builtin.systemd_service:
         daemon_reload: true
       when: rabbitmq_units.changed
@@ -126,7 +126,12 @@
     - name: Require sanitized restore receipt
       ansible.builtin.assert:
         that:
-          - rabbitmq_restore_result.stdout is match('^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z target=isolated-emptydir checksum=verified private_residue=none definitions_only=true message_recovery=not_claimed$')
+          - >-
+            rabbitmq_restore_result.stdout is match(
+            '^restore_status=success source_timestamp=20[0-9]{6}T[0-9]{6}Z '
+            ~ 'source_closure_sha256=' ~ rabbitmq_definitions_backup_source_closure_sha256 ~ ' '
+            ~ 'target=isolated-emptydir checksum=verified private_residue=none '
+            ~ 'definitions_only=true message_recovery=not_claimed$')
       changed_when: false
       when:
         - rabbitmq_definitions_backup_mode == 'restore'
@@ -190,7 +195,11 @@
             (item.item is search('/restore\.receipt$') and
              item.content | b64decode is search('restore_status=success'))
           - item.content | b64decode is search('source_closure_sha256=' ~ rabbitmq_definitions_backup_source_closure_sha256)
-          - item.content | b64decode is search('readback=verified')
+          - >-
+            (item.item is search('/backup\\.receipt$') and
+             item.content | b64decode is search('readback=verified')) or
+            (item.item is search('/restore\\.receipt$') and
+             item.content | b64decode is search('checksum=verified'))
           - item.content | b64decode is search('private_residue=none')
       loop: "{{ rabbitmq_definitions_backup_acceptance_contents.results | default([]) }}"
       when:
@@ -266,5 +275,8 @@
         that:
           - ansible_facts.services['k3s.service'].state == 'running'
           - ansible_facts.services['tailscaled.service'].state == 'running'
-          - ansible_check_mode or rabbitmq_definitions_backup_mode != 'enable' or (rabbitmq_timer_state.results[0].stdout == 'active' and rabbitmq_timer_state.results[1].stdout == 'enabled')
+          - >-
+            ansible_check_mode or rabbitmq_definitions_backup_mode != 'enable' or
+            (rabbitmq_timer_state.results[0].stdout == 'active' and
+            rabbitmq_timer_state.results[1].stdout == 'enabled')
       changed_when: false

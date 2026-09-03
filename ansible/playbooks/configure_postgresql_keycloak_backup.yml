@@ -12,7 +12,7 @@
     postgresql_keycloak_backup_age_version: 1.2.1-1+b5
     postgresql_keycloak_backup_recipient_sha256: ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
     postgresql_keycloak_backup_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
-    postgresql_keycloak_backup_source_closure_sha256: 224c26ed0e1f4099212cf81401cee441c26ff0e78a8face8a9d406aa04774ed0
+    postgresql_keycloak_backup_source_closure_sha256: 68db89264245076b8dd2a12235849c06bd7f0b9ade19cec0e84bc14b8989de30
 
   pre_tasks:
     - name: Require the canonical backup scheduler contract
@@ -266,7 +266,11 @@
             (item.item is search('/restore\.receipt$') and
              item.content | b64decode is search('restore_status=success'))
           - item.content | b64decode is search('source_closure_sha256=' ~ postgresql_keycloak_backup_source_closure_sha256)
-          - item.content | b64decode is search('readback=verified')
+          - >-
+            (item.item is search('/backup\\.receipt$') and
+             item.content | b64decode is search('readback=verified')) or
+            (item.item is search('/restore\\.receipt$') and
+             item.content | b64decode is search('checksum=verified'))
           - item.content | b64decode is search('private_residue=none')
       loop: "{{ postgresql_keycloak_backup_acceptance_contents.results | default([]) }}"
       when:

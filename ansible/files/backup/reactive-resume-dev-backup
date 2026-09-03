@@ -481,7 +481,8 @@ case "$pg_logical_archive_bytes" in
   ''|*[!0-9]*) fail pg_dump_size ;;
 esac
 [ "$pg_logical_archive_bytes" -gt 0 ] || fail pg_dump_size
-/usr/bin/pg_restore --list "$work/reactive-resume-dev.dump" >"$work/postgresql.list" || fail pg_logical_list
+/usr/local/bin/kubectl -n "$namespace" exec -i "$primary" -c postgres -- \
+  /usr/bin/pg_restore --list - <"$work/reactive-resume-dev.dump" >"$work/postgresql.list" || fail pg_logical_list
 pg_logical_counts=$(/usr/bin/python3 - "$work/postgresql.list" <<'PY'
 import re, sys
 with open(sys.argv[1], encoding="utf-8") as stream:

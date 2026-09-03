@@ -11,7 +11,7 @@ export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null
 project_id=619656da-14f3-4872-857b-be103cdc5326
 infisical_path=/shared-services/backup-recovery
 remote_root=drive:cristexweb-recovery/mongodb/shared-mongodb
-source_closure_sha256=35a6cb65e255510ab9213e858f1ab449501b2d222433b5b089a7dfe93f061e96
+source_closure_sha256=3f9f8d255e0ffd52729126c7bf7647ca52ef279a4e77a2e09f377b9024785e1b
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'restore_status=failed stage=source_closure_contract'
   exit 1
@@ -25,17 +25,30 @@ work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-mongodb-restore.XXXXXX)
 uid=
 delete_restore_pod() {
   [ -n "$uid" ] || return 0
-  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)
-  current_owner=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.metadata.labels.app\.kubernetes\.io/name}' 2>/dev/null || true)
-  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.metadata.labels.cristex\.io/run-id}' 2>/dev/null || true)
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  current_owner=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.labels.app\.kubernetes\.io/name}') || return 1
+  current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.labels.cristex\.io/run-id}') || return 1
   [ "$current_uid" = "$uid" ] && [ "$current_owner" = mongodb-restore-rehearsal ] && [ "$current_run_id" = "$run_id" ] || return 1
   /usr/bin/printf '{"kind":"DeleteOptions","apiVersion":"v1","propagationPolicy":"Orphan","preconditions":{"uid":"%s"}}\n' "$uid" >"$work/delete.json"
   /usr/local/bin/kubectl delete --raw "/api/v1/namespaces/$namespace/pods/$pod" -f "$work/delete.json" >/dev/null
-  /usr/local/bin/kubectl -n "$namespace" wait --for=delete "pod/$pod" --timeout=120s >/dev/null 2>&1 || true
-  [ -z "$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o name 2>/dev/null || true)" ]
+  if ! /usr/local/bin/kubectl -n "$namespace" wait --for=delete "pod/$pod" --timeout=120s >/dev/null 2>&1; then
+    current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+    [ -z "$current_uid" ] || return 1
+  fi
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  [ -z "$current_uid" ] || return 1
   uid=
 }
-cleanup() { delete_restore_pod >/dev/null 2>&1 || true; /usr/bin/rm -rf -- "$work"; }
+cleanup() {
+  trap - EXIT HUP INT TERM
+  cleanup_status=0
+  delete_restore_pod || cleanup_status=1
+  /usr/bin/rm -rf -- "$work" || cleanup_status=1
+  if [ "$cleanup_status" -ne 0 ]; then
+    printf '%s\n' 'restore_status=failed stage=cleanup' >&2
+    exit 1
+  fi
+}
 trap cleanup EXIT HUP INT TERM
 chmod 0700 "$work"
 latest=$(/usr/local/bin/rclone --config "$rclone_config" lsf --dirs-only "$remote_root" | /usr/bin/sort | /usr/bin/tail -1 | /usr/bin/tr -d '/')
@@ -62,7 +75,15 @@ PY
 /home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY \
   --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity"
 chmod 0600 "$work/identity"
-/usr/bin/age -d -i "$work/identity" "$work/shared-mongodb.archive.gz.age" | /usr/bin/gzip -d >"$work/shared-mongodb.archive"
+/usr/bin/age -d -i "$work/identity" "$work/shared-mongodb.archive.gz.age" >"$work/shared-mongodb.archive.gz" || {
+  printf '%s\n' 'restore_status=failed stage=shared_mongodb_decrypt' >&2
+  exit 1
+}
+/usr/bin/gzip -d -c "$work/shared-mongodb.archive.gz" >"$work/shared-mongodb.archive" || {
+  printf '%s\n' 'restore_status=failed stage=shared_mongodb_decompress' >&2
+  exit 1
+}
+/usr/bin/rm -f -- "$work/shared-mongodb.archive.gz" "$work/identity"
 [ -s "$work/shared-mongodb.archive" ]
 /usr/bin/rm -f -- "$work/identity"
 cat >"$work/pod.yaml" <<EOF
@@ -150,4 +171,4 @@ PY
 )
 /usr/bin/rm -f -- "$work/shared-mongodb.archive" "$work/databases.json"
 delete_restore_pod
-printf 'restore_status=success source_timestamp=%s target=isolated-emptydir application_database_count=%s checksum=verified private_residue=none\n' "$latest" "$catalog_count"
+printf 'restore_status=success source_timestamp=%s source_closure_sha256=%s target=isolated-emptydir application_database_count=%s checksum=verified private_residue=none\n' "$latest" "$source_closure_sha256" "$catalog_count"

@@ -12,7 +12,7 @@ export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null
 project_id=619656da-14f3-4872-857b-be103cdc5326
 infisical_path=/shared-services/backup-recovery
 remote_root=drive:cristexweb-recovery/postgresql/keycloak
-source_closure_sha256=224c26ed0e1f4099212cf81401cee441c26ff0e78a8face8a9d406aa04774ed0
+source_closure_sha256=68db89264245076b8dd2a12235849c06bd7f0b9ade19cec0e84bc14b8989de30
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'restore_status=failed stage=source_closure_contract'
   exit 1
@@ -26,17 +26,27 @@ work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-keycloak-restore.XXXXXX)
 uid=
 delete_restore_pod() {
   [ -n "$uid" ] || return 0
-  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
   [ "$current_uid" = "$uid" ] || return 1
   /usr/bin/printf '{"kind":"DeleteOptions","apiVersion":"v1","propagationPolicy":"Orphan","preconditions":{"uid":"%s"}}\n' "$uid" >"$work/delete.json"
   /usr/local/bin/kubectl delete --raw "/api/v1/namespaces/$namespace/pods/$pod" -f "$work/delete.json" >/dev/null
-  /usr/local/bin/kubectl -n "$namespace" wait --for=delete "pod/$pod" --timeout=120s >/dev/null 2>&1 || true
-  [ -z "$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" -o name 2>/dev/null || true)" ]
+  if ! /usr/local/bin/kubectl -n "$namespace" wait --for=delete "pod/$pod" --timeout=120s >/dev/null 2>&1; then
+    current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+    [ -z "$current_uid" ] || return 1
+  fi
+  current_uid=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.uid}') || return 1
+  [ -z "$current_uid" ] || return 1
   uid=
 }
 cleanup() {
-  delete_restore_pod >/dev/null 2>&1 || true
-  /usr/bin/rm -rf -- "$work"
+  trap - EXIT HUP INT TERM
+  cleanup_status=0
+  delete_restore_pod || cleanup_status=1
+  /usr/bin/rm -rf -- "$work" || cleanup_status=1
+  if [ "$cleanup_status" -ne 0 ]; then
+    printf '%s\n' 'restore_status=failed stage=cleanup' >&2
+    exit 1
+  fi
 }
 trap cleanup EXIT HUP INT TERM
 chmod 0700 "$work"
@@ -72,7 +82,15 @@ fi
 /home/paul/.nvm/versions/node/v24.19.0/bin/infisical secrets get SHARED_DATABASE_BACKUP_AGE_IDENTITY \
   --projectId "$project_id" --env prod --path "$infisical_path" --plain --silent >"$work/identity"
 chmod 0600 "$work/identity"
-/usr/bin/age -d -i "$work/identity" "$work/keycloak.dump.gz.age" | /usr/bin/gzip -d >"$work/keycloak.dump"
+/usr/bin/age -d -i "$work/identity" "$work/keycloak.dump.gz.age" >"$work/keycloak.dump.gz" || {
+  printf '%s\n' 'restore_status=failed stage=keycloak_decrypt' >&2
+  exit 1
+}
+/usr/bin/gzip -d -c "$work/keycloak.dump.gz" >"$work/keycloak.dump" || {
+  printf '%s\n' 'restore_status=failed stage=keycloak_decompress' >&2
+  exit 1
+}
+/usr/bin/rm -f -- "$work/keycloak.dump.gz" "$work/identity"
 [ -s "$work/keycloak.dump" ]
 /usr/bin/rm -f -- "$work/identity"
 

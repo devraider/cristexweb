@@ -52,11 +52,13 @@ class MongoDBSharedBackupContractTests(unittest.TestCase):
             "-mtime +14",
             "readback=verified",
             "gzip -9 -c \"$run_directory/shared-mongodb.archive\" >\"$run_directory/shared-mongodb.archive.gz\"",
+            "/usr/bin/rm -f -- \"$run_directory/shared-mongodb.archive\" \"$run_directory/shared-mongodb.archive.gz\"",
             "source_closure_sha256=",
         ):
             self.assertIn(value, self.backup)
         for forbidden in ("rclone sync", "rclone move", "rclone purge", "rclone delete"):
             self.assertNotIn(forbidden, self.backup)
+        self.assertLess(self.backup.index("trap cleanup EXIT HUP INT TERM"), self.backup.index("gzip -9 -c"))
 
     def test_restore_is_digest_pinned_emptydir_and_uid_cleaned(self) -> None:
         for value in (
@@ -75,11 +77,18 @@ class MongoDBSharedBackupContractTests(unittest.TestCase):
             "current_run_id",
             "x['archive_sha256']==os.environ['EXPECTED_SHA']",
             "x['archive_bytes']==int(os.environ['ARCHIVE_BYTES'])",
+            "/usr/bin/age -d -i \"$work/identity\" \"$work/shared-mongodb.archive.gz.age\" >\"$work/shared-mongodb.archive.gz\"",
+            "/usr/bin/gzip -d -c \"$work/shared-mongodb.archive.gz\" >\"$work/shared-mongodb.archive\"",
+            "restore_status=failed stage=shared_mongodb_decrypt",
+            "restore_status=failed stage=shared_mongodb_decompress",
+            "restore_status=failed stage=cleanup",
             "private_residue=none",
         ):
             self.assertIn(value, self.restore)
         self.assertNotIn("PersistentVolumeClaim", self.restore)
         self.assertNotIn("shared-mongodb-auth", self.restore)
+        self.assertNotIn('age -d -i "$work/identity" "$work/shared-mongodb.archive.gz.age" |', self.restore)
+        self.assertNotIn('delete_restore_pod >/dev/null 2>&1 || true', self.restore)
 
     def test_systemd_is_separate_hardened_and_offset(self) -> None:
         for value in (

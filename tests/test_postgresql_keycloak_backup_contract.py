@@ -50,7 +50,16 @@ class PostgreSQLKeycloakBackupContractTests(unittest.TestCase):
 
     def test_plaintext_cleanup_and_exact_local_retention(self) -> None:
         self.assertIn("trap cleanup_plaintext EXIT HUP INT TERM", self.script)
-        self.assertIn("/usr/bin/rm -f -- \"$run_directory/keycloak.dump\"", self.script)
+        self.assertIn("/usr/bin/rm -f -- \"$run_directory/keycloak.dump\" \"$run_directory/keycloak.dump.gz\"", self.script)
+        self.assertIn("trap cleanup_plaintext EXIT HUP INT TERM", self.script)
+        self.assertIn("/usr/bin/age -d -i \"$work/identity\" \"$work/keycloak.dump.gz.age\" >\"$work/keycloak.dump.gz\"", self.restore)
+        self.assertIn("/usr/bin/gzip -d -c \"$work/keycloak.dump.gz\" >\"$work/keycloak.dump\"", self.restore)
+        self.assertNotIn('age -d -i \"$work/identity\" \"$work/keycloak.dump.gz.age\" |', self.restore)
+        self.assertIn("restore_status=failed stage=keycloak_decrypt", self.restore)
+        self.assertIn("restore_status=failed stage=keycloak_decompress", self.restore)
+        self.assertIn("restore_status=failed stage=cleanup", self.restore)
+        self.assertNotIn("delete_restore_pod >/dev/null 2>&1 || true", self.restore)
+        self.assertLess(self.script.index("trap cleanup_plaintext EXIT HUP INT TERM"), self.script.index("gzip -9 -c"))
         self.assertIn("-mtime +14", self.script)
         self.assertIn("-mindepth 1 -maxdepth 1 -type d", self.script)
         self.assertIn("-name '20[0-9]", self.script)

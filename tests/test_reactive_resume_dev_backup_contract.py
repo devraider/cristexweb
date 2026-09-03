@@ -623,6 +623,10 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
         self.assertIn("postgres_source_bytes", self.backup)
         self.assertIn("object_source_bytes", self.backup)
         self.assertIn("rclone --config \"$rclone_config\" size --json", self.restore)
+        self.assertIn("kubectl -n \"$namespace\" exec -i \"$primary\" -c postgres", self.backup)
+        self.assertNotIn('/usr/bin/pg_restore --list "$work/reactive-resume-dev.dump"', self.backup)
+        self.assertNotIn('/usr/bin/pg_restore --list "$work/postgresql.dump"', self.restore)
+        self.assertIn('exec "$pg_pod" -c postgres -- /usr/bin/pg_restore --list /restore/postgresql.dump', self.restore)
         self.assertIn("object_source_bytes", self.restore)
         self.assertIn("shm_capacity_preflight 1 \"$object_source_bytes\"", self.restore)
 
@@ -917,6 +921,8 @@ class ReactiveResumeDevBackupContractTests(unittest.TestCase):
             "SHARED_DATABASE_BACKUP_AGE_IDENTITY",
             "infisical_path=/shared-services/backup-recovery",
             "trap cleanup_plaintext EXIT HUP INT TERM",
+            "postgresql.dump.gz",
+            "object-storage.tar.gz",
             "private_residue=none",
         ):
             self.assertIn(value, combined, value)
