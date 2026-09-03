@@ -147,6 +147,11 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("annotations", self.metadata)
         self.assertIn("deletionTimestamp", self.metadata)
         self.assertIn("terminating Secret refused", self.metadata)
+        self.assertIn("ownerReferences", self.metadata)
+        self.assertIn("_CANONICAL_LABELS", self.metadata)
+        self.assertIn("_CANONICAL_ANNOTATION", self.metadata)
+        self.assertIn("noncanonical Secret labels", self.metadata)
+        self.assertIn("noncanonical Secret annotations", self.metadata)
         self.assertIn("module.exit_json(changed=False, items=items, metadata_only=True)", self.metadata)
         self.assertNotIn('"data"', self.metadata)
         self.assertNotIn('"stringData"', self.metadata)
@@ -175,23 +180,77 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
                 "resourceVersion": "123",
                 "creationTimestamp": "2026-08-26T00:00:00Z",
                 "annotations": {"secrets.infisical.com/version": "7"},
-                "labels": {"app.kubernetes.io/managed-by": "infisical"},
+                "labels": {
+                    "app.kubernetes.io/managed-by": "infisical",
+                    "app.kubernetes.io/part-of": "shared-rabbitmq",
+                    "cristex.io/value-owner": "infisical-cloud",
+                },
                 "managedFields": [],
+                "ownerReferences": [],
+                "finalizers": [],
+                "clusterName": "",
+
             },
         }
         result = module._metadata(Client(base), "shared-services", "shared-rabbitmq-cristexhub-prod")
         self.assertEqual("shared-rabbitmq-cristexhub-prod", result["metadata"]["name"])
         self.assertEqual("shared-services", result["metadata"]["namespace"])
         self.assertEqual("7", result["metadata"]["annotations"]["secrets.infisical.com/version"])
+        self.assertEqual([], result["metadata"]["ownerReferences"])
+        self.assertEqual([], result["metadata"]["managedFields"])
+        self.assertEqual([], result["metadata"]["finalizers"])
+        self.assertEqual("", result["metadata"]["clusterName"])
         for payload in (
             {**base, "data": {}},
+            {**base, "stringData": {}},
             {**base, "metadata": {**base["metadata"], "name": "other"}},
             {**base, "metadata": {**base["metadata"], "namespace": "other"}},
             {**base, "metadata": {**base["metadata"], "deletionTimestamp": "2026-08-26T00:00:01Z"}},
-            {**base, "metadata": {**base["metadata"], "annotations": {"bad": 1}}},
+            {**base, "metadata": {**base["metadata"], "annotations": {"bad": "1"}}},
+            {**base, "metadata": {**base["metadata"], "annotations": {"secrets.infisical.com/version": ""}}},
+            {**base, "metadata": {**base["metadata"], "annotations": {"secrets.infisical.com/version": "7", "extra": "x"}}},
+            {**base, "metadata": {**base["metadata"], "labels": {**base["metadata"]["labels"], "extra": "x"}}},
+            {**base, "metadata": {**base["metadata"], "labels": {**base["metadata"]["labels"], "app.kubernetes.io/part-of": "wrong"}}},
+            {**base, "metadata": {**base["metadata"], "ownerReferences": [{"uid": "owner"}]}},
+            {**base, "metadata": {**base["metadata"], "ownerReferences": {}}},
+            {**base, "metadata": {**base["metadata"], "uid": ""}},
+            {**base, "metadata": {**base["metadata"], "resourceVersion": ""}},
         ):
             with self.assertRaises(ValueError):
                 module._metadata(Client(payload), "shared-services", "shared-rabbitmq-cristexhub-prod")
+
+        for namespace, name, part_of in (
+            ("cristexhub-prod", "cristexhub-prod-runtime", "cristexhub"),
+            ("cristexhub-prod", "cristexhub-prod-ghcr-pull", "cristexhub"),
+        ):
+            payload = {
+                **base,
+                "metadata": {
+                    **base["metadata"],
+                    "namespace": namespace,
+                    "name": name,
+                    "labels": {
+                        "app.kubernetes.io/managed-by": "infisical",
+                        "app.kubernetes.io/part-of": part_of,
+                        "cristex.io/value-owner": "infisical-cloud",
+                    },
+                },
+            }
+            result = module._metadata(Client(payload), namespace, name)
+            self.assertEqual(part_of, result["metadata"]["labels"]["app.kubernetes.io/part-of"])
+
+        class RecordingClient(Client):
+            def call_api(self, *args, **kwargs):
+                self.args = args
+                self.kwargs = kwargs
+                return self.payload
+
+        recorder = RecordingClient(base)
+        module._metadata(recorder, "shared-services", "shared-rabbitmq-cristexhub-prod")
+        self.assertEqual("/api/v1/namespaces/{namespace}/secrets/{name}", recorder.args[0])
+        self.assertEqual({"namespace": "shared-services", "name": "shared-rabbitmq-cristexhub-prod"}, recorder.kwargs["path_params"])
+        self.assertEqual({"Accept": module._PARTIAL_METADATA_ACCEPT}, recorder.kwargs["header_params"])
+        self.assertEqual([], recorder.kwargs["query_params"])
 
     def test_tasks_parse_and_bind_query_set_without_nested_jinja(self) -> None:
         parsed = yaml.safe_load(self.tasks)
@@ -205,6 +264,10 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("queries:", self.tasks)
         self.assertIn('binding.get("queries") == sorted(_EXPECTED_QUERIES)', self.action)
         self.assertIn("args.get(\"query\") in binding.get(\"queries\", [])", self.action)
+        self.assertIn("item.metadata.labels['app.kubernetes.io/part-of']", self.tasks)
+        self.assertIn("item.metadata.annotations.keys()", self.tasks)
+        self.assertIn("item.metadata.ownerReferences", self.tasks)
+        self.assertIn("item.metadata.deletionTimestamp", self.tasks)
         self.assertIn("_RABBITMQ_CONFIG_SOURCE", self.action)
         self.assertIn("_ANSIBLE_CONFIG_SOURCE", self.action)
         self.assertNotIn("== '{{ .RABBITMQ_URL.Value }}'", self.tasks)
@@ -249,6 +312,9 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         for path, mode in expected_modes.items():
             self.assertTrue(path.is_file(), path)
             self.assertEqual(mode, stat.S_IMODE(path.stat().st_mode), path)
+        metadata_hash = hashlib.sha256(METADATA.read_bytes()).hexdigest()
+        self.assertIn(metadata_hash, self.action)
+        self.assertIn(metadata_hash, self.wrapper)
         for item in self.defaults["rabbitmq_prod_credential_rotation_check_source_files"]:
             path = ROOT / item["path"]
             self.assertEqual(item["sha256"], hashlib.sha256(path.read_bytes()).hexdigest(), path)

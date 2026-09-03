@@ -2,6 +2,8 @@
 """Read only RabbitMQ-related Secret metadata without requesting Secret data."""
 from __future__ import annotations
 
+import copy
+
 from ansible.module_utils.basic import AnsibleModule
 
 _PARTIAL_METADATA_API_VERSION = "meta.k8s.io/v1"
@@ -28,6 +30,24 @@ _METADATA_ALLOWED = {
     "selfLink",
     "uid",
 }
+_CANONICAL_LABELS = {
+    ("shared-services", "shared-rabbitmq-cristexhub-prod"): {
+        "app.kubernetes.io/managed-by": "infisical",
+        "app.kubernetes.io/part-of": "shared-rabbitmq",
+        "cristex.io/value-owner": "infisical-cloud",
+    },
+    ("cristexhub-prod", "cristexhub-prod-runtime"): {
+        "app.kubernetes.io/managed-by": "infisical",
+        "app.kubernetes.io/part-of": "cristexhub",
+        "cristex.io/value-owner": "infisical-cloud",
+    },
+    ("cristexhub-prod", "cristexhub-prod-ghcr-pull"): {
+        "app.kubernetes.io/managed-by": "infisical",
+        "app.kubernetes.io/part-of": "cristexhub",
+        "cristex.io/value-owner": "infisical-cloud",
+    },
+}
+_CANONICAL_ANNOTATION = "secrets.infisical.com/version"
 
 
 def _metadata(client: object, namespace: str, name: str) -> dict:
@@ -73,22 +93,32 @@ def _metadata(client: object, namespace: str, name: str) -> dict:
         raise ValueError("malformed Secret label value")
     if any(not isinstance(value, str) for value in annotations.values()):
         raise ValueError("malformed Secret annotation value")
+    expected_labels = _CANONICAL_LABELS.get((namespace, name))
+    if expected_labels is None:
+        raise ValueError("unsupported Secret identity")
+    if labels != expected_labels:
+        raise ValueError("noncanonical Secret labels")
+    if set(annotations) != {_CANONICAL_ANNOTATION} or not annotations[_CANONICAL_ANNOTATION]:
+        raise ValueError("noncanonical Secret annotations")
+    owner_references = metadata.get("ownerReferences", [])
+    if not isinstance(owner_references, list):
+        raise ValueError("malformed Secret owner references")
+    if owner_references != []:
+        raise ValueError("owned Secret refused")
     deletion_timestamp = metadata.get("deletionTimestamp")
     if deletion_timestamp is not None:
         if not isinstance(deletion_timestamp, str) or not deletion_timestamp:
             raise ValueError("malformed Secret deletion timestamp")
         raise ValueError("terminating Secret refused")
+    returned_metadata = copy.deepcopy(metadata)
+    # Kubernetes omits an empty optional ownerReferences field.  Normalize it
+    # so callers can bind the no-owner contract without dropping any other
+    # legitimate PartialObjectMetadata fields.
+    returned_metadata.setdefault("ownerReferences", [])
     return {
         "apiVersion": payload["apiVersion"],
         "kind": payload["kind"],
-        "metadata": {
-            "name": metadata["name"],
-            "namespace": metadata["namespace"],
-            "uid": metadata["uid"],
-            "resourceVersion": metadata["resourceVersion"],
-            "labels": dict(labels),
-            "annotations": dict(annotations),
-        },
+        "metadata": returned_metadata,
     }
 
 

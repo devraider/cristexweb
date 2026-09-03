@@ -422,6 +422,17 @@
       - item.metadata.resourceVersion is match('^[0-9]+$')
       - item.metadata.labels['app.kubernetes.io/managed-by'] == 'infisical'
       - item.metadata.labels['cristex.io/value-owner'] == 'infisical-cloud'
+      - >-
+        item.metadata.labels['app.kubernetes.io/part-of'] ==
+        ('shared-rabbitmq' if item.metadata.name == 'shared-rabbitmq-cristexhub-prod' else 'cristexhub')
+      - >-
+        item.metadata.labels.keys() | list | sort ==
+        ['app.kubernetes.io/managed-by', 'app.kubernetes.io/part-of', 'cristex.io/value-owner'] | sort
+      - >-
+        item.metadata.annotations.keys() | list | sort == ['secrets.infisical.com/version']
+      - item.metadata.annotations['secrets.infisical.com/version'] | string | length > 0
+      - item.metadata.ownerReferences | default([]) == []
+      - item.metadata.deletionTimestamp | default(none) is none
     loop: "{{ rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items }}"
     loop_control:
       label: secret-metadata
