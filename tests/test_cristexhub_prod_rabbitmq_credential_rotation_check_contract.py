@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -484,6 +485,161 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             hashlib.sha256(wrapper_source.encode()).hexdigest(),
             re.search(r"(?m)^wrapper_canonical_sha256='([0-9a-f]{64})'$", WRAPPER.read_text()).group(1),
         )
+    def test_canonical_wrapper_invocation_reaches_role_strategy_with_ansible_219_tuple(self) -> None:
+        """Exercise the exact wrapper argv without crossing the Kubernetes API boundary."""
+        spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_strategy_role_reach", STRATEGY
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        original_argv = module.sys.argv
+        original_cliargs = module.context.CLIARGS
+        canonical_argv = [
+            str(module._CONTROLLER),
+            "-i",
+            ".ansible/inventory.local.yml",
+            "playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml",
+            "--check",
+            "--diff",
+            "--limit",
+            "crtxweb",
+            "--extra-vars",
+            '{"rabbitmq_prod_credential_rotation_check_approved":true}',
+        ]
+        module.sys.argv = canonical_argv
+        module.context.CLIARGS = {
+            "inventory": (str(module._INVENTORY_SOURCE),),
+            "check": True,
+            "diff": True,
+            "subset": "crtxweb",
+            "start_at_task": None,
+            "step": False,
+            "tags": ("all",),
+            "skip_tags": (),
+        }
+        strategy = object.__new__(module.StrategyModule)
+        try:
+            self.assertTrue(module._canonical_argv())
+            with mock.patch.object(module, "_wrapper_attestation_valid", return_value=True), \
+                mock.patch.object(module, "_runtime_contract", return_value=True), \
+                mock.patch.object(module, "_source_contract", return_value=True), \
+                mock.patch.object(module.LinearStrategyModule, "run", return_value="role-scheduled") as base_run:
+                self.assertEqual("role-scheduled", strategy.run(None, None))
+                base_run.assert_called_once_with(None, None)
+        finally:
+            module.sys.argv = original_argv
+            module.context.CLIARGS = original_cliargs
+
+    def test_action_accepts_ansible_219_absolute_inventory_tuple(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_action_inventory_tuple", ACTION
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        original_argv = module.sys.argv
+        original_cliargs = module.context.CLIARGS
+        module.sys.argv = module._expected_argv()
+        module.context.CLIARGS = {
+            "inventory": (str(module._INVENTORY_SOURCE),),
+            "check": True,
+            "diff": True,
+            "subset": "crtxweb",
+            "start_at_task": None,
+            "step": False,
+            "tags": ("all",),
+            "skip_tags": (),
+        }
+        try:
+            with mock.patch.object(module, "_toolchain_valid", return_value=True), mock.patch.dict(
+                module.os.environ,
+                {
+                    "ANSIBLE_LIBRARY": str(module._LIBRARY_PATH),
+                    "ANSIBLE_ROLES_PATH": str(module._ROLES_PATH),
+                },
+                clear=True,
+            ):
+                self.assertTrue(module._selected())
+        finally:
+            module.sys.argv = original_argv
+            module.context.CLIARGS = original_cliargs
+
+    def test_strategy_rejects_every_task_selection_override_before_role(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_strategy_selection_guard", STRATEGY
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        original_argv = module.sys.argv
+        original_cliargs = module.context.CLIARGS
+        canonical_argv = [
+            str(module._CONTROLLER),
+            "-i",
+            ".ansible/inventory.local.yml",
+            "playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml",
+            "--check",
+            "--diff",
+            "--limit",
+            "crtxweb",
+            "--extra-vars",
+            '{"rabbitmq_prod_credential_rotation_check_approved":true}',
+        ]
+        baseline = {
+            "inventory": (str(module._INVENTORY_SOURCE),),
+            "check": True,
+            "diff": True,
+            "subset": "crtxweb",
+            "start_at_task": None,
+            "step": False,
+            "tags": ("all",),
+            "skip_tags": (),
+        }
+        module.sys.argv = canonical_argv
+        module.context.CLIARGS = baseline.copy()
+        strategy = object.__new__(module.StrategyModule)
+        try:
+            with mock.patch.object(module, "_wrapper_attestation_valid", return_value=True), \
+                mock.patch.object(module, "_runtime_contract", return_value=True), \
+                mock.patch.object(module, "_source_contract", return_value=True), \
+                mock.patch.object(module.LinearStrategyModule, "run", return_value="unexpected") as base_run:
+                for field, value in (
+                    ("start_at_task", "Require broker"),
+                    ("step", True),
+                    ("tags", ("queries",)),
+                    ("skip_tags", ("always",)),
+                ):
+                    with self.subTest(field=field):
+                        candidate = baseline.copy()
+                        candidate[field] = value
+                        module.context.CLIARGS = candidate
+                        with self.assertRaises(Exception) as raised:
+                            strategy.run(None, None)
+                        self.assertIn("TASK_SELECTION_GUARD", str(raised.exception))
+                        base_run.assert_not_called()
+                        module.context.CLIARGS = baseline.copy()
+
+                for selection in (
+                    ["--start-at-task", "Require broker"],
+                    ["--tags", "queries"],
+                    ["--skip-tags", "always"],
+                    ["-t", "queries"],
+                ):
+                    with self.subTest(selection=selection):
+                        module.sys.argv = canonical_argv + selection
+                        with self.assertRaises(Exception) as raised:
+                            strategy.run(None, None)
+                        self.assertIn("TASK_SELECTION_GUARD", str(raised.exception))
+                        base_run.assert_not_called()
+                        module.sys.argv = canonical_argv
+        finally:
+            module.sys.argv = original_argv
+            module.context.CLIARGS = original_cliargs
+
     def test_canonical_wrapper_hash_matches_strategy_before_api_queries(self) -> None:
         strategy_spec = importlib.util.spec_from_file_location(
             "rabbitmq_prod_credential_rotation_strategy_canonical", STRATEGY

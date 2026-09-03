@@ -38,7 +38,7 @@ _RUNTIME_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-cristex
 # runtime pin is normalized, so a coordinated wrapper/action edit is rejected.
 _ROLES_PATH = _REPOSITORY_ROOT / "ansible/roles"
 _LIBRARY_PATH = _REPOSITORY_ROOT / "ansible/library"
-_ACTION_CANONICAL_SHA256 = "c38744ce0768c8ce40955866b9df138a93a3bc32845ff0085406654fdfbd6aa4"
+_ACTION_CANONICAL_SHA256 = "2931d37254ee3575a6a1b9a88d84f48dcc5a7ed5e936051b8351949e1102d7bd"
 _TASK_SHA256 = "78104b5277c14ac6071c21250769d74184b12128c7c74591f50b01556fbb0250"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
@@ -257,7 +257,7 @@ def _selected() -> bool:
         and context.CLIARGS.get("step") in (None, False)
         and not context.CLIARGS.get("skip_tags")
         and list(context.CLIARGS.get("tags") or []) in ([], ["all"])
-        and inventory == [".ansible/inventory.local.yml"]
+        and inventory == [str(_INVENTORY_SOURCE)]
         and os.environ.get("ANSIBLE_LIBRARY") == str(_LIBRARY_PATH)
         and os.environ.get("ANSIBLE_ROLES_PATH") == str(_ROLES_PATH)
         and not any(

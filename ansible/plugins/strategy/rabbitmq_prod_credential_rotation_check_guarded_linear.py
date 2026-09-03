@@ -59,9 +59,9 @@ _EXPECTED_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de2
 _EXPECTED_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
 _EXPECTED_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
 _EXPECTED_COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
-_ACTION_CANONICAL_SHA256 = "c38744ce0768c8ce40955866b9df138a93a3bc32845ff0085406654fdfbd6aa4"
+_ACTION_CANONICAL_SHA256 = "2931d37254ee3575a6a1b9a88d84f48dcc5a7ed5e936051b8351949e1102d7bd"
 _WRAPPER_CANONICAL_SHA256 = "ca2c1488e08ab46a0f096c84f1284dc812fdb4d8dce6ea235aae3edd14e47951"
-_STRATEGY_CANONICAL_SHA256 = "20c4e9b17fe43a483c99584a579166a2c7abb3fa19fbb119b8b4f31622b064e4"
+_STRATEGY_CANONICAL_SHA256 = "e86a53a862824dec2bdccad5c9e4cb25fa4335090613c38504ac3056b4ed40ae"
 _TASK_SHA256 = "78104b5277c14ac6071c21250769d74184b12128c7c74591f50b01556fbb0250"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
@@ -599,7 +599,7 @@ class StrategyModule(LinearStrategyModule):
             or context.CLIARGS.get("subset") != "crtxweb"
             or context.CLIARGS.get("check") is not True
             or context.CLIARGS.get("diff") is not True
-            or inventory != [".ansible/inventory.local.yml"]
+            or inventory != [str(_INVENTORY_SOURCE)]
             or not _canonical_argv()
             or not _wrapper_attestation_valid()
             or not _runtime_contract()
