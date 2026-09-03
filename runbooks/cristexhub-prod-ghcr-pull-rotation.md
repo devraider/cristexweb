@@ -1,6 +1,10 @@
 # CristexHub PROD GHCR pull credential rotation preflight
 
-Status: **SOURCE-ONLY / CHECK-ONLY / NOT RUN / BLOCKED**.
+Status: **LIVE READ-ONLY PREFLIGHT PASSED / ROTATION NOT RUN / BLOCKED**.
+
+The initial source-only checkpoint was recorded as **SOURCE-ONLY / CHECK-ONLY /
+NOT RUN / BLOCKED**; that historical status remains retained for the unexecuted
+replacement and revocation gates.
 
 This runbook defines the separate, value-free preflight for replacing the
 private GitHub Container Registry credential used by CristexHub PROD. It does
@@ -15,6 +19,16 @@ The machine-readable contract is
 The guarded source entrypoint is
 `ansible/bin/check-cristexhub-prod-ghcr-pull-rotation` and its only accepted
 argument is `check`.
+
+## Current parent live read-only evidence — 2026-08-26
+
+The canonical wrapper check was run against the live cluster and passed at
+`ok=24 changed=0 unreachable=0 failed=0 skipped=0`. It inspected only
+value-free source, Secret metadata, and workload metadata/readiness; no Secret
+data was requested and no Kubernetes object, Deployment, credential, or
+registry state was mutated. This records a successful preflight only. The
+successor credential writer, controlled rollout, predecessor revocation, and
+post-revocation authentication proof remain **NOT RUN/BLOCKED**.
 
 ## Frozen custody and target contract
 
@@ -116,9 +130,9 @@ only identities, UIDs, resourceVersions, booleans, image-digest presence, and
 workload names. It must never contain docker config JSON, tokens, passwords,
 authorization headers, Secret `data`, registry response bodies, or source values.
 
-The expected source-only result is `NOT-RUN-BLOCKED`; a passing check does not
-approve credential replacement, workload rollout, predecessor revocation,
-private PROD acceptance, Cloudflare planning, or public cutover.
+The predecessor-revocation gate remains `NOT-RUN-BLOCKED`; the passing live
+check does not approve credential replacement, workload rollout, predecessor
+revocation, private PROD acceptance, Cloudflare planning, or public cutover.
 
 ## Required future approvals
 

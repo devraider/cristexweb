@@ -860,7 +860,11 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
     def test_runbook_freezes_non_atomic_replacement_and_revoke_order(self) -> None:
         normalized = " ".join(self.runbook.split())
         for required in (
+            "LIVE READ-ONLY PREFLIGHT PASSED / ROTATION NOT RUN / BLOCKED",
             "SOURCE-ONLY / CHECK-ONLY / NOT RUN / BLOCKED",
+            "Current parent live read-only evidence",
+            "ok=24 changed=0 unreachable=0 failed=0 skipped=0",
+            "no Secret data was requested",
             "Infisical Cloud",
             "/cristexhub/prod/runtime",
             "DOCKER_CONFIG_JSON",
@@ -885,6 +889,15 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
             self.assertIn(required, normalized)
         self.assertNotRegex(self.runbook, r"-----BEGIN [^-]+ PRIVATE KEY-----")
         self.assertNotRegex(self.runbook, r"(?:https?|ssh)://[^\s`]+:[^\s@`]+@")
+        testcases = (ROOT / "specs/k3s-iac-foundation/testcases.md").read_text()
+        normalized_testcases = " ".join(testcases.split())
+        for required in (
+            "CristexHub PROD GHCR pull credential preflight — CURRENT CHECK PASSED / ROTATION BLOCKED",
+            "actual parent live read-only GHCR preflight passed on 2026-08-26",
+            "ok=24 changed=0 unreachable=0 failed=0 skipped=0",
+            "Successor replacement, controlled rollout, predecessor revocation, and post-revocation authentication proof remain NOT RUN/BLOCKED",
+        ):
+            self.assertIn(required, normalized_testcases)
 
     def test_module_is_syntax_valid(self) -> None:
         result = subprocess.run(

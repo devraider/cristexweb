@@ -1,6 +1,6 @@
 # Shared MongoDB NetworkPolicy closure — source-only
 
-Status: **CHECK-READY / APPLY-GATED / NOT APPLIED**.
+Status: **LIVE READ-ONLY CHECK PASSED / APPLY-GATED / NOT APPLIED**.
 
 This is a new, dedicated guarded closure for exactly two NetworkPolicies covering
 only the live operator-managed `shared-mongodb` pod set in `shared-services`. It
@@ -164,8 +164,13 @@ git diff --check
 
 The earlier read-only receipt at
 `ok=34 changed=1 unreachable=0 failed=0 skipped=0` is **historical and predates the
-lifecycle/pre-state hardening**; it is not acceptance evidence for the current
-source. A **fresh check is required** after every source or hash change and must
-show the exact two-policy prediction with no Kubernetes mutation. Apply remains a
-separate approval and must follow a fresh successful check; no apply, policy
-mutation, Secret read, or runtime traffic test is claimed by this document.
+lifecycle/pre-state hardening**; it remains retained evidence only and is not
+acceptance evidence for the current source. A fresh check is required after every source or hash change. The actual parent
+live read-only check on 2026-08-26 passed at
+`ok=43 changed=2 unreachable=0 failed=0 skipped=10`. Its two check-mode changes
+were the exact predicted default-deny then allow policy steps; no Kubernetes
+NetworkPolicy was created or modified. The check performed no Kubernetes mutation.
+The run did not read Secret data and did not run the separate enforcement probe.
+Apply remains a separate approval and
+must follow a fresh successful check; no apply, policy mutation, Secret read, or
+runtime traffic test is claimed by this document.

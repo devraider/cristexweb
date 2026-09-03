@@ -1,6 +1,10 @@
 # CristexHub PROD private acceptance preflight
 
-Status: **SOURCE-ONLY / CHECK-ONLY / NOT RUN**. The credential policy status is `source-only-rotation-blocked`.
+Status: **LIVE READ-ONLY PREFLIGHT PASSED / FINAL ACCEPTANCE BLOCKED**. The credential policy status remains `source-only-rotation-blocked`.
+
+The initial source-only checkpoint was recorded as **SOURCE-ONLY / CHECK-ONLY /
+NOT RUN**; that historical wording remains retained for the unexecuted final
+acceptance gates.
 
 This closure is a read-only preflight for the already-approved private
 `cristexhub-prod` workload. It does not create, update, delete, restart, sync,
@@ -13,6 +17,16 @@ The only entrypoint is:
 ```text
 ansible/bin/check-cristexhub-prod-private-acceptance check
 ```
+
+## Current parent live read-only evidence — 2026-08-26
+
+The canonical wrapper check was run against the live PROD cluster and passed at
+`ok=37 changed=0 unreachable=0 failed=0 skipped=0`. The sanitized receipt
+reported `result=preflight-pass-not-final-acceptance`, `deployment_count=5`,
+`ready_pod_count=5`, `private_origin_status=200`, and `oidc_issuer=verified`.
+No Kubernetes object, Secret data, workload, route, credential, or provider
+state was mutated. This records a successful private preflight only; final
+acceptance remains blocked by the independent gates below.
 
 The wrapper is non-passthrough, one-host, direct-controller `dash`, check/diff
 only, and uses a single-use mode-0600 attestation. The playbook selects the

@@ -338,7 +338,11 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
     def test_exact_argocd_and_workload_contract_is_documented(self) -> None:
         normalized = " ".join(self.runbook_text.split())
         for required in (
+            "LIVE READ-ONLY PREFLIGHT PASSED / FINAL ACCEPTANCE BLOCKED",
             "SOURCE-ONLY / CHECK-ONLY / NOT RUN",
+            "Current parent live read-only evidence",
+            "ok=37 changed=0 unreachable=0 failed=0 skipped=0",
+            "preflight-pass-not-final-acceptance",
             "Namespace `cristexhub-prod`",
             "Application/cristexhub-prod",
             "AppProject/cristexhub-prod",
@@ -366,6 +370,16 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             self.assertIn(required, normalized)
         self.assertIn("cristexhub-prod-private-acceptance", self.tasks_text)
         self.assertIn("preflight-pass-not-final-acceptance", self.tasks_text)
+        testcases = (ROOT / "specs/k3s-iac-foundation/testcases.md").read_text()
+        normalized_testcases = " ".join(testcases.split())
+        for required in (
+            "CristexHub PROD private acceptance preflight — CURRENT CHECK PASSED / FINAL ACCEPTANCE BLOCKED",
+            "actual parent live read-only private acceptance preflight passed on 2026-08-26",
+            "ok=37 changed=0 unreachable=0 failed=0 skipped=0",
+            "preflight-pass-not-final-acceptance",
+            "Final acceptance remains blocked by the independent NetworkPolicy enforcement",
+        ):
+            self.assertIn(required, normalized_testcases)
 
     def test_argocd_and_workload_identity_is_complete(self) -> None:
         for required in (

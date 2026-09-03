@@ -108,12 +108,29 @@ They are historical evidence, not current absence claims.
   definitions/queued-message recovery and exposed-credential rotation remain open.
 - **MongoDB:** Operator-managed MongoDB `8.0.12` with TLS/SCRAM is live, but private
   acceptance is blocked. No NetworkPolicy selects `shared-mongodb-0`, and legacy
-  selectors do not match the live MongoDB or backend/Celery labels. Do not claim
-  private MongoDB acceptance until an exact deny-first policy and positive/negative
-  connectivity tests pass. Engine connectivity and runtime Secret presence do not
-  prove logical database authorization or cross-access negatives. MongoDB URL and
-  GHCR pull credentials require verified rotation; the exposed DeepSeek key requires
+  selectors do not match the live MongoDB or backend/Celery labels. The actual
+  parent live read-only NetworkPolicy check passed on 2026-08-26 at
+  `ok=43 changed=2 unreachable=0 failed=0 skipped=10`; the two check-mode changes
+  were the exact predicted default-deny then allow policy steps, and no Kubernetes
+  NetworkPolicy was created or modified. This is not enforcement evidence: apply
+  and the positive/negative connectivity probe remain separately approved and
+  NOT RUN/BLOCKED. Engine connectivity and runtime Secret presence do not prove
+  logical database authorization or cross-access negatives. MongoDB URL and GHCR
+  pull credentials require verified rotation; the exposed DeepSeek key requires
   separate revoke/replace.
+- **GHCR pull-credential preflight:** The actual parent live read-only check passed
+  at `ok=24 changed=0 unreachable=0 failed=0 skipped=0`; it inspected only
+  value-free source, Secret metadata, and five workload metadata/readiness records,
+  with no Secret data or Kubernetes mutation. Successor replacement, rollout,
+  predecessor revocation, and post-revocation authentication remain
+  NOT RUN/BLOCKED.
+- **Private PROD acceptance preflight:** The actual parent live read-only check
+  passed at `ok=37 changed=0 unreachable=0 failed=0 skipped=0` and emitted the
+  sanitized `preflight-pass-not-final-acceptance` receipt. Five Deployments and
+  Pods were Ready and the private-origin/OIDC checks passed; no Kubernetes,
+  Secret, workload, route, credential, or provider mutation occurred. This is
+  not final acceptance; the independent NetworkPolicy, credential, recovery,
+  OIDC, and public-cutover gates remain blocked.
 - **OpenTofu:** Existing protected state manages imported Cloudflare Tunnel,
   Keycloak/DEV DNS, and private Argo DNS resources; encrypted backup/readback and
   isolated restore pass. The committed PROD Tunnel/DNS source remains unapplied
@@ -4622,15 +4639,42 @@ above without rewriting those historical stops.
   credentials and the reused GHCR pull credential still require verified rotation
   before public cutover.
 
-## Shared MongoDB NetworkPolicy guarded check — PASSED / APPLY BLOCKED
+## Shared MongoDB NetworkPolicy guarded check — CURRENT CHECK PASSED / APPLY BLOCKED
 
 A dedicated two-policy, check-only closure now selects the live operator-managed
 `shared-mongodb-0`, fails closed on additive foreign policy overlap, binds exact
 StatefulSet/pod/client/CoreDNS health, and has no legacy workload or Secret path.
-The hardened guarded check passed at
-`ok=34 changed=1 unreachable=0 failed=0 skipped=0`; it predicted exactly the two
-absent NetworkPolicies and made no Kubernetes mutation. Apply and the required
-positive/negative enforcement probe remain separately approved and NOT RUN/BLOCKED.
+The earlier hardened-check receipt at
+`ok=34 changed=1 unreachable=0 failed=0 skipped=0` is retained as historical
+pre-lifecycle/pre-state evidence only. The actual parent live read-only check
+passed on 2026-08-26 at
+`ok=43 changed=2 unreachable=0 failed=0 skipped=10`; its two check-mode changes
+were the exact predicted default-deny then allow policy steps, and no Kubernetes
+NetworkPolicy was created or modified. Apply and the required positive/negative
+enforcement probe remain separately approved and NOT RUN/BLOCKED.
+
+## CristexHub PROD GHCR pull credential preflight — CURRENT CHECK PASSED / ROTATION BLOCKED
+
+The actual parent live read-only GHCR preflight passed on 2026-08-26 at
+`ok=24 changed=0 unreachable=0 failed=0 skipped=0`. It inspected value-free
+source, Secret metadata, and the exact five workload metadata/readiness records;
+no Secret data or Kubernetes object was mutated. This updates only the current
+preflight evidence. Successor replacement, controlled rollout, predecessor
+revocation, and post-revocation authentication proof remain NOT RUN/BLOCKED.
+The earlier source-only/check-only/not-run checkpoint remains historical, and the
+credential-rotation blocker is unchanged.
+
+## CristexHub PROD private acceptance preflight — CURRENT CHECK PASSED / FINAL ACCEPTANCE BLOCKED
+
+The actual parent live read-only private acceptance preflight passed on 2026-08-26
+at `ok=37 changed=0 unreachable=0 failed=0 skipped=0`. Its sanitized receipt
+reported `preflight-pass-not-final-acceptance`; five PROD Deployments and their
+current Pods were Ready, the private origin returned `200`, and OIDC discovery
+was verified. No Kubernetes object, Secret data, workload, route, credential,
+or provider state was mutated. Final acceptance remains blocked by the independent
+NetworkPolicy enforcement, credential rotation/revocation, backup/restore, OIDC
+session, protected-state, and public-cutover gates. The earlier source-only/check-
+only/not-run checkpoint remains historical.
 
 ## Keycloak DEV successor realm source — OFFLINE CHECK PASSED / APPLY BLOCKED
 

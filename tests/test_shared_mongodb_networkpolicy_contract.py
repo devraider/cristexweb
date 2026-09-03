@@ -1188,6 +1188,24 @@ exit "$status"
         self.assertIn('fresh check is required', runbook)
         self.assertIn('Apply remains a', runbook)
         self.assertIn('no Kubernetes mutation', runbook)
+        normalized_runbook = ' '.join(runbook.split())
+        for required in (
+            'LIVE READ-ONLY CHECK PASSED / APPLY-GATED / NOT APPLIED',
+            'ok=43 changed=2 unreachable=0 failed=0 skipped=10',
+            'exact predicted default-deny then allow policy steps',
+            'no Kubernetes NetworkPolicy was created or modified',
+        ):
+            self.assertIn(required, normalized_runbook)
+        testcases = (ROOT / 'specs/k3s-iac-foundation/testcases.md').read_text()
+        normalized_testcases = ' '.join(testcases.split())
+        for required in (
+            'Shared MongoDB NetworkPolicy guarded check — CURRENT CHECK PASSED / APPLY BLOCKED',
+            'actual parent live read-only check passed on 2026-08-26',
+            'ok=43 changed=2 unreachable=0 failed=0 skipped=10',
+            'exact predicted default-deny then allow policy steps',
+            'Apply and the required positive/negative enforcement probe remain separately approved and NOT RUN/BLOCKED',
+        ):
+            self.assertIn(required, normalized_testcases)
         self.assertIn('shared_mongodb_networkpolicy_bootstrap', PLAYBOOK.read_text())
 
     def test_post_apply_enforcement_probe_is_separate_and_source_only(self) -> None:
