@@ -33,7 +33,7 @@ _STRATEGY_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/strategy/cristexhub_prod_
 # This pin is canonicalized by zeroing it before hashing. The wrapper and action
 # hold independent raw and canonical pins, so this strategy cannot self-authorize
 # a modified source before task iteration.
-_STRATEGY_CANONICAL_SHA256 = "5fe254ac133a4c761020881d1033ffb20974201520aad0b71678e5dffff56f0e"
+_STRATEGY_CANONICAL_SHA256 = "2f551dbe46871cd8db35e4105b6745d04ac5ae7193ee142f848a4e4ecfae7325"
 _WRAPPER_CANONICAL_SHA256 = "50c41be6a5a0d78ce0ee8b040fa96c1c8add60f023b1d1af36e3d3da23f72eea"
 _EXPECTED_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
 _EXPECTED_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
@@ -302,7 +302,7 @@ def _source_contract() -> bool:
         and _venv_python_contract()
         and _collection_tree_contract()
         and os.environ.get("ANSIBLE_CONFIG") == str(_ANSIBLE_CONFIG_SOURCE)
-        and _regular_file(_CONTROLLER_SOURCE, 0o775)
+        and _regular_file(_CONTROLLER_SOURCE, 0o755)
         and _sha256(_CONTROLLER_SOURCE) == _CONTROLLER_SHA256
         and _CONTROLLER_SOURCE.read_text(encoding="utf-8").splitlines()[0] == "#!" + str(_VENV_PYTHON_SOURCE)
         and not any(name in os.environ for name in _FORBIDDEN_ENV)

@@ -51,8 +51,8 @@ _PYTHON_MAX_LINK_DEPTH = 8
 
 # These values are source pins, not task inputs. They are refreshed whenever one
 # of the leaves changes; the action's own pin is canonicalized by zeroing it.
-_ACTION_CANONICAL_SHA256 = "82728623a83fba687a9e94aa898102a7d3e398b3a8a4720fbc05c40558fbbf72"
-_STRATEGY_CANONICAL_SHA256 = "5fe254ac133a4c761020881d1033ffb20974201520aad0b71678e5dffff56f0e"
+_ACTION_CANONICAL_SHA256 = "cb2958c8a03004491fb86b805c431a9ab20f827d2fcf0cda203d1e8ecaba5461"
+_STRATEGY_CANONICAL_SHA256 = "2f551dbe46871cd8db35e4105b6745d04ac5ae7193ee142f848a4e4ecfae7325"
 _WRAPPER_CANONICAL_SHA256 = "50c41be6a5a0d78ce0ee8b040fa96c1c8add60f023b1d1af36e3d3da23f72eea"
 
 
@@ -430,7 +430,7 @@ def _source_closure_valid() -> bool:
         return (
             stat.S_ISREG(controller.st_mode)
             and not _CONTROLLER_SOURCE.is_symlink()
-            and stat.S_IMODE(controller.st_mode) == 0o775
+            and stat.S_IMODE(controller.st_mode) == 0o755
             and controller.st_uid == os.getuid()
             and _sha256(_CONTROLLER_SOURCE) == os.environ.get(prefix + "CONTROLLER_SHA256")
             and _python_runtime_contract()

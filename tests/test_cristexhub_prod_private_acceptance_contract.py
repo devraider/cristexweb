@@ -208,6 +208,64 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         self.assertNotIn("--tags", self.wrapper_text)
         self.assertNotIn("--skip-tags", self.wrapper_text)
 
+    def test_canonical_wrapper_invocation_matches_ansible_219_cli_shapes(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "private_acceptance_canonical_invocation", STRATEGY
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        original_argv = module.sys.argv
+        original_cliargs = module.context.CLIARGS
+        expected = [
+            str(module._CONTROLLER_SOURCE),
+            "-i",
+            str(module._INVENTORY_SOURCE),
+            str(module._PLAYBOOK_SOURCE),
+            "--check",
+            "--diff",
+            "--limit",
+            "crtxweb",
+            "--extra-vars",
+            '{"cristexhub_prod_private_acceptance_approved":true}',
+        ]
+        module.sys.argv = expected
+        module.context.CLIARGS = {
+            "start_at_task": None,
+            "step": False,
+            "tags": [],
+            "skip_tags": [],
+            "subset": "crtxweb",
+            "check": True,
+            "diff": True,
+            # ansible-core 2.19 exposes inventory CLIARGS as a tuple.
+            "inventory": (str(module._INVENTORY_SOURCE),),
+        }
+        try:
+            self.assertEqual(
+                [
+                    str(module._CONTROLLER_SOURCE),
+                    "-i",
+                    str(module._INVENTORY_SOURCE),
+                    str(module._PLAYBOOK_SOURCE),
+                    "--check",
+                    "--diff",
+                    "--limit",
+                    "crtxweb",
+                    "--extra-vars",
+                    '{"cristexhub_prod_private_acceptance_approved":true}',
+                ],
+                expected,
+            )
+            self.assertTrue(module._canonical_argv())
+            self.assertTrue(module._selection_contract())
+            self.assertIn("_regular_file(_CONTROLLER_SOURCE, 0o755)", self.strategy_text)
+            self.assertIn("stat.S_IMODE(controller.st_mode) == 0o755", self.process_guard_text)
+        finally:
+            module.sys.argv = original_argv
+            module.context.CLIARGS = original_cliargs
+
     def test_guarded_strategy_rejects_task_selection_and_alternate_argv(self) -> None:
         spec = importlib.util.spec_from_file_location(
             "private_acceptance_guarded_strategy", STRATEGY
