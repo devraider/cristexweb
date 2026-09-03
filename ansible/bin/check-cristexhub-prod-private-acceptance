@@ -27,6 +27,8 @@ if [ "$original_script_path" != "$script_path" ]; then
   exec /bin/dash "$script_path" check
 fi
 controller="$repository_root/.venv/bin/ansible-playbook"
+venv_python="$repository_root/.venv/bin/python"
+venv_python_target_expected=/usr/bin/python3.13
 python_tool=/usr/bin/python3
 inventory="$repository_root/ansible/.ansible/inventory.local.yml"
 ansible_config="$repository_root/ansible/ansible.cfg"
@@ -40,28 +42,45 @@ canonical_sha256() {
   /usr/bin/python3 -I - "$1" <<'PY'
 import hashlib, re, sys
 source = open(sys.argv[1], encoding='utf-8').read()
-source, count = re.subn(
-    r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$",
-    "wrapper_canonical_sha256_expected='" + ('0' * 64) + "'",
-    source,
+fields = (
+    'wrapper_canonical_sha256_expected',
+    'task_sha256_expected',
+    'defaults_sha256_expected',
+    'playbook_sha256_expected',
+    'action_sha256_expected',
+    'strategy_sha256_expected',
+    'strategy_canonical_sha256_expected',
+    'inventory_sha256_expected',
+    'ansible_config_sha256_expected',
+    'controller_sha256_expected',
+    'python_sha256_expected',
+    'venv_python_sha256_expected',
 )
-if count != 1:
+pattern = r"(?m)^(" + '|'.join(fields) + r")='[0-9a-f]{64}'$"
+source, count = re.subn(pattern, r"\g<1>='" + ('0' * 64) + "'", source)
+if count != len(fields):
     raise SystemExit(69)
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
-wrapper_canonical_sha256_expected='df44ff2448c2143851b16fa7dd57302ae82a6bb5a5880a9d649fd7e6b97e781d'
-task_sha256_expected='b97e8c136adb58a2a5632b0d335ae607778688b23b52e8b3893bb9c8deca36d4'
+wrapper_canonical_sha256_expected='07539510ed84f36a0db45d52fcac5b2836a09622371dd93ffe2935e35604656c'
+task_sha256_expected='c885079b180a5b3df9bd63594730aa2cfe2394868cd9df958178637342396d36'
 defaults_sha256_expected='b9ea7657475e7591a44e7d0e611f052ed995e898f6b3d18e48eec3955afef514'
 playbook_sha256_expected='d0ffeba954788465b0472721ee2c1dd446452ceb8c73eb050dd619c97493fed2'
-action_sha256_expected='2222cc095816dbde5b0b890b00f6f6ffd9f39db2b463d9fb3abeb482dd9813ef'
-strategy_sha256_expected='415679390c951b99e29d48a65562aedc0968834b0621b4de0782849c46880a7f'
-strategy_canonical_sha256_expected='e1a2e9732aa96ae62646f2c0264bce3d6cb8be211dddf49e700b9726f15835ab'
+action_sha256_expected='1bbccd244ed0b4c17a9f4bd89c080f2d6e7630e1784fd84bea6546df1035a35c'
+strategy_sha256_expected='c72a1fc25bb5d4488b98c94be8b0d5868e31a04fd255bf66023d972671cd3000'
+strategy_canonical_sha256_expected='e4963b39d85cfe28ade1d0d23812002f8cf64311d9ad515869b52917877ea46f'
 inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
 controller_sha256_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
 python_sha256_expected='17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
+venv_python_sha256_expected='17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
 [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
+[ -L "$venv_python" ] || exit 69
+[ "$(/usr/bin/readlink -- "$venv_python")" = /usr/bin/python3 ] || exit 69
+[ "$(/usr/bin/readlink -f -- "$venv_python")" = "$venv_python_target_expected" ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$venv_python")" = 'paul:paul:777' ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$venv_python_target_expected")" = 'root:root:755' ] || exit 69
 for source in "$inventory" "$ansible_config" "$task_source" "$defaults_source" "$playbook_source" "$action_source" "$strategy_source"; do
   [ -f "$source" ] && [ ! -L "$source" ] || exit 69
 done
@@ -102,6 +121,8 @@ cd -- "$repository_root/ansible"
 wrapper_sha256="$(sha_file "$script_path")"
 controller_sha256="$(sha_file "$controller")"
 python_sha256="$(sha_file "$python_tool")"
+venv_python_target="$(/usr/bin/readlink -f -- "$venv_python")"
+venv_python_sha256="$(sha_file "$venv_python_target")"
 inventory_sha256="$(sha_file "$inventory")"
 ansible_config_sha256="$(sha_file "$ansible_config")"
 task_sha256="$(sha_file "$task_source")"
@@ -130,10 +151,17 @@ PY
 [ "$strategy_canonical_sha256" = "$strategy_canonical_sha256_expected" ] || exit 69
 [ "$controller_sha256" = "$controller_sha256_expected" ] || exit 69
 [ "$python_sha256" = "$python_sha256_expected" ] || exit 69
+[ "$venv_python_target" = "$venv_python_target_expected" ] || exit 69
+[ "$venv_python_sha256" = "$venv_python_sha256_expected" ] || exit 69
 [ "$inventory_sha256" = "$inventory_sha256_expected" ] || exit 69
 [ "$ansible_config_sha256" = "$ansible_config_sha256_expected" ] || exit 69
-source_closure_sha256="$(printf '%s' "$task_sha256:$defaults_sha256:$playbook_sha256:$action_sha256:$inventory_sha256:$ansible_config_sha256:$controller_sha256:$python_sha256:$strategy_sha256" | sha_file -)"
-[ "$source_closure_sha256" = "$(printf '%s' "$task_sha256_expected:$defaults_sha256_expected:$playbook_sha256_expected:$action_sha256_expected:$inventory_sha256_expected:$ansible_config_sha256_expected:$controller_sha256_expected:$python_sha256_expected:$strategy_sha256_expected" | sha_file -)" ] || exit 69
+source_closure_sha256="$(printf '%s' \
+  "$task_sha256:$defaults_sha256:$playbook_sha256:$action_sha256:$inventory_sha256:$ansible_config_sha256:$controller_sha256:$python_sha256:$venv_python_sha256:$strategy_sha256" |
+  sha_file -)"
+expected_source_closure="$(printf '%s' \
+  "$task_sha256_expected:$defaults_sha256_expected:$playbook_sha256_expected:$action_sha256_expected:$inventory_sha256_expected:$ansible_config_sha256_expected:$controller_sha256_expected:$python_sha256_expected:$venv_python_sha256_expected:$strategy_sha256_expected" |
+  sha_file -)"
+[ "$source_closure_sha256" = "$expected_source_closure" ] || exit 69
 umask 077
 wrapper_pid=$$
 wrapper_starttime="$(/usr/bin/awk '{print $22}' "/proc/$wrapper_pid/stat")"
@@ -182,5 +210,7 @@ set -- \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ANSIBLE_CONFIG_SHA256="$ansible_config_sha256" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER_SHA256="$controller_sha256" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256="$python_sha256" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_TARGET="$venv_python_target" \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_SHA256="$venv_python_sha256" \
   CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
   "$@"

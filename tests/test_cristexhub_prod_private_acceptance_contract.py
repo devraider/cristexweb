@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 import os
 import re
 import stat
@@ -130,6 +131,8 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_PID",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_WRAPPER_STARTTIME",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_SOURCE_CLOSURE_SHA256",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_TARGET",
+            "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_SHA256",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_SHA256",
             "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_CANONICAL_SHA256",
@@ -158,6 +161,8 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "strategy_canonical_sha256_expected=",
             "/usr/bin/python3 -I -",
             "wrapper_canonical_sha256_expected",
+            "venv_python_sha256_expected=",
+            "readlink -f",
             "refusing traced shell execution",
             "ANSIBLE_CONFIG=",
             "WRAPPER_PATH=",
@@ -179,6 +184,8 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "start_at_task",
             "skip_tags",
             "_STRATEGY_CANONICAL_SHA256",
+            "_WRAPPER_CANONICAL_SHA256",
+            "_collection_tree_contract",
             "STRATEGY_ATTESTED",
         ):
             self.assertIn(required, self.strategy_text)
@@ -435,9 +442,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         prefix = "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_"
         token = "a" * 64
         wrapper_sha = module._sha256(module._WRAPPER_SOURCE)
-        wrapper_canonical = module._canonical_file_hash(
-            module._WRAPPER_SOURCE, "wrapper_canonical_sha256_expected"
-        )
+        wrapper_canonical = module._wrapper_canonical_hash(module._WRAPPER_SOURCE)
         python_target = module._python_target()
         self.assertIsNotNone(python_target)
         hash_values = {
@@ -450,6 +455,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             "ANSIBLE_CONFIG_SHA256": module._sha256(module._ANSIBLE_CONFIG_SOURCE),
             "CONTROLLER_SHA256": module._sha256(module._CONTROLLER_SOURCE),
             "PYTHON_SHA256": module._sha256(python_target),
+            "VENV_PYTHON_SHA256": module._sha256(module._VENV_PYTHON_TARGET),
         }
         source_closure = ":".join(
             hash_values[name]
@@ -462,6 +468,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
                 "ANSIBLE_CONFIG_SHA256",
                 "CONTROLLER_SHA256",
                 "PYTHON_SHA256",
+                "VENV_PYTHON_SHA256",
                 "STRATEGY_SHA256",
             )
         )
@@ -491,6 +498,8 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             prefix + "SOURCE_CLOSURE_SHA256": hashlib.sha256(source_closure.encode()).hexdigest(),
             prefix + "CONTROLLER": str(module._CONTROLLER_SOURCE),
             prefix + "PYTHON": str(module._PYTHON_SOURCE),
+            prefix + "VENV_PYTHON_TARGET": str(module._VENV_PYTHON_TARGET),
+            prefix + "VENV_PYTHON_SHA256": module._EXPECTED_PYTHON_SHA256,
             prefix + "KUBECONFIG": str(module._EXPECTED_KUBECONFIG),
             "ANSIBLE_CONFIG": str(module._ANSIBLE_CONFIG_SOURCE),
             prefix + "OPERATOR": module._EXPECTED_OPERATOR,
@@ -571,17 +580,24 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         target = module._PYTHON_SOURCE.resolve(strict=True)
         self.assertTrue(target.is_file())
         self.assertEqual(0, target.stat().st_uid)
-        original = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256")
         name = "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256"
+        venv_target_name = "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_TARGET"
+        venv_hash_name = "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_SHA256"
+        original = {key: os.environ.get(key) for key in (name, venv_target_name, venv_hash_name)}
         os.environ[name] = hashlib.sha256(target.read_bytes()).hexdigest()
         try:
+            module._VENV_PYTHON_SOURCE = Path("/home/paul/projects/cristexweb/.venv/bin/python")
+            module._VENV_PYTHON_TARGET = target
+            os.environ[venv_target_name] = str(target)
+            os.environ[venv_hash_name] = os.environ[name]
             self.assertEqual(target, module._python_target())
             self.assertTrue(module._python_runtime_contract())
         finally:
-            if original is None:
-                os.environ.pop(name, None)
-            else:
-                os.environ[name] = original
+            for key, value in original.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
 
     def test_python_source_contract_rejects_writable_or_non_linked_chains(self) -> None:
         spec = importlib.util.spec_from_file_location("private_acceptance_python_unsafe_contract", PROCESS_GUARD)
@@ -616,8 +632,17 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
             self.assertEqual(1, count)
             return hashlib.sha256(source.encode()).hexdigest()
 
+        process_spec = importlib.util.spec_from_file_location("private_acceptance_wrapper_canonical", PROCESS_GUARD)
+        self.assertIsNotNone(process_spec)
+        self.assertIsNotNone(process_spec.loader)
+        process_module = importlib.util.module_from_spec(process_spec)
+        process_spec.loader.exec_module(process_module)
         self.assertEqual(
-            canonical(WRAPPER, "wrapper_canonical_sha256_expected"),
+            process_module._wrapper_canonical_hash(WRAPPER),
+            process_module._WRAPPER_CANONICAL_SHA256,
+        )
+        self.assertEqual(
+            process_module._WRAPPER_CANONICAL_SHA256,
             re.search(r"(?m)^wrapper_canonical_sha256_expected='([0-9a-f]{64})'$", self.wrapper_text).group(1),
         )
         self.assertEqual(
@@ -667,6 +692,58 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         finally:
             module.sys.argv = original_argv
             module.context.CLIARGS = original_cliargs
+
+    def test_collection_tree_contract_rejects_leaf_mutation_and_extra_artifact(self) -> None:
+        spec = importlib.util.spec_from_file_location("private_acceptance_collection_contract", PROCESS_GUARD)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "core"
+            root.mkdir()
+            root.chmod(0o755)
+            for relative in ("plugins/action", "plugins/modules", "plugins/module_utils"):
+                path = root / relative
+                path.mkdir(parents=True)
+                path.chmod(0o755)
+            (root / "plugins").chmod(0o755)
+            files = {
+                "plugins/action/k8s_info.py": b"action\n",
+                "plugins/modules/k8s_info.py": b"module\n",
+                "plugins/module_utils/__init__.py": b"",
+            }
+            for relative, content in files.items():
+                path = root / relative
+                path.write_bytes(content)
+                path.chmod(0o644)
+            entries = [{"name": ".", "ftype": "dir", "chksum_type": None, "chksum_sha256": None, "format": 1}]
+            for relative in ("plugins", "plugins/action", "plugins/modules", "plugins/module_utils"):
+                entries.append({"name": relative, "ftype": "dir", "chksum_type": None, "chksum_sha256": None, "format": 1})
+            for relative, content in files.items():
+                entries.append({
+                    "name": relative,
+                    "ftype": "file",
+                    "chksum_type": "sha256",
+                    "chksum_sha256": hashlib.sha256(content).hexdigest(),
+                    "format": 1,
+                })
+            files_manifest = root / "FILES.json"
+            files_manifest.write_text(json.dumps({"files": entries}, sort_keys=True), encoding="utf-8")
+            files_manifest.chmod(0o644)
+            manifest = root / "MANIFEST.json"
+            manifest.write_text(json.dumps({"collection_info": {"namespace": "kubernetes", "name": "core", "version": "6.1.0"}}, sort_keys=True), encoding="utf-8")
+            manifest.chmod(0o644)
+            requirements = Path(directory) / "requirements.yml"
+            requirements.write_text("---\\ncollections: []\\n", encoding="utf-8")
+            requirements.chmod(0o644)
+            with mock.patch.object(module, "_COLLECTION_ROOT", root), mock.patch.object(module, "_COLLECTION_FILES_SOURCE", files_manifest), mock.patch.object(module, "_COLLECTION_MANIFEST_SOURCE", manifest), mock.patch.object(module, "_REQUIREMENTS_SOURCE", requirements), mock.patch.object(module, "_EXPECTED_COLLECTION_FILES_SHA256", hashlib.sha256(files_manifest.read_bytes()).hexdigest()), mock.patch.object(module, "_EXPECTED_COLLECTION_MANIFEST_SHA256", hashlib.sha256(manifest.read_bytes()).hexdigest()), mock.patch.object(module, "_EXPECTED_REQUIREMENTS_SHA256", hashlib.sha256(requirements.read_bytes()).hexdigest()), mock.patch.object(module, "_EXPECTED_COLLECTION_ACTION_SYMLINKS", set()):
+                self.assertTrue(module._collection_tree_contract())
+                (root / "plugins/modules/k8s_info.py").write_bytes(b"tampered\\n")
+                self.assertFalse(module._collection_tree_contract())
+                (root / "plugins/modules/k8s_info.py").write_bytes(files["plugins/modules/k8s_info.py"])
+                (root / "plugins/action/extra.py").write_bytes(b"extra\\n")
+                self.assertFalse(module._collection_tree_contract())
 
     def test_wrapper_shell_syntax(self) -> None:
         result = subprocess.run(

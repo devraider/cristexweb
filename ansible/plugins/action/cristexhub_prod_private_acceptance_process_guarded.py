@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import stat
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from ansible import context
@@ -22,6 +23,23 @@ _ACTION_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/action/cristexhub_prod_priv
 _STRATEGY_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/strategy/cristexhub_prod_private_acceptance_guarded_linear.py"
 _CONTROLLER_SOURCE = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
 _PYTHON_SOURCE = Path("/usr/bin/python3")
+_VENV_PYTHON_SOURCE = _REPOSITORY_ROOT / ".venv/bin/python"
+_VENV_PYTHON_TARGET = Path("/usr/bin/python3.13")
+_REQUIREMENTS_SOURCE = _REPOSITORY_ROOT / "ansible/requirements.yml"
+_COLLECTION_ROOT = _REPOSITORY_ROOT / "ansible/.ansible/collections/ansible_collections/kubernetes/core"
+_COLLECTION_MANIFEST_SOURCE = _COLLECTION_ROOT / "MANIFEST.json"
+_COLLECTION_FILES_SOURCE = _COLLECTION_ROOT / "FILES.json"
+_EXPECTED_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
+_EXPECTED_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
+_EXPECTED_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
+_EXPECTED_COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
+_EXPECTED_COLLECTION_ACTION_SYMLINKS = {
+    "helm.py", "helm_info.py", "helm_plugin.py", "helm_plugin_info.py",
+    "helm_repository.py", "k8s.py", "k8s_cluster_info.py", "k8s_cp.py",
+    "k8s_drain.py", "k8s_exec.py", "k8s_json_patch.py", "k8s_log.py",
+    "k8s_rollback.py", "k8s_scale.py", "k8s_service.py",
+}
+_EXPECTED_COLLECTION_ACTION_TARGET = "k8s_info.py"
 _EXPECTED_OPERATOR = "paul"
 _EXPECTED_KUBECONFIG = Path("/etc/rancher/k3s/k3s.yaml")
 _PYTHON_OWNER_UID = 0
@@ -33,8 +51,9 @@ _PYTHON_MAX_LINK_DEPTH = 8
 
 # These values are source pins, not task inputs. They are refreshed whenever one
 # of the leaves changes; the action's own pin is canonicalized by zeroing it.
-_ACTION_CANONICAL_SHA256 = "409c328166c245e671c7e82605c6a7aa6d59b92bd6e0e5ccc1ed43164156e5ce"
-_STRATEGY_CANONICAL_SHA256 = "e1a2e9732aa96ae62646f2c0264bce3d6cb8be211dddf49e700b9726f15835ab"
+_ACTION_CANONICAL_SHA256 = "9487be3c11392e8dde2c248a49cf3e09b95d4f24cc7735ab26d9480195107ae0"
+_STRATEGY_CANONICAL_SHA256 = "ad1dc5ad87d9f3a1f906cf95d1e5b2eb5c1af866f9132af6615e41da14b99972"
+_WRAPPER_CANONICAL_SHA256 = "07539510ed84f36a0db45d52fcac5b2836a09622371dd93ffe2935e35604656c"
 
 
 def _sha256(path: Path) -> str:
@@ -53,6 +72,26 @@ def _canonical_file_hash(path: Path, symbol: str) -> str:
             source,
         )
         return hashlib.sha256(source.encode("utf-8")).hexdigest() if count == 1 else ""
+    except (OSError, UnicodeError):
+        return ""
+
+
+_WRAPPER_CANONICAL_FIELDS = (
+    "wrapper_canonical_sha256_expected", "task_sha256_expected",
+    "defaults_sha256_expected", "playbook_sha256_expected",
+    "action_sha256_expected", "strategy_sha256_expected",
+    "strategy_canonical_sha256_expected", "inventory_sha256_expected",
+    "ansible_config_sha256_expected", "controller_sha256_expected",
+    "python_sha256_expected", "venv_python_sha256_expected",
+)
+
+
+def _wrapper_canonical_hash(path: Path) -> str:
+    try:
+        source = path.read_text(encoding="utf-8")
+        pattern = r"(?m)^(" + "|".join(_WRAPPER_CANONICAL_FIELDS) + r")='[0-9a-f]{64}'$"
+        source, count = re.subn(pattern, r"\g<1>='" + ("0" * 64) + "'", source)
+        return hashlib.sha256(source.encode("utf-8")).hexdigest() if count == len(_WRAPPER_CANONICAL_FIELDS) else ""
     except (OSError, UnicodeError):
         return ""
 
@@ -128,13 +167,153 @@ def _python_target() -> Path | None:
 
 def _python_runtime_contract() -> bool:
     target = _python_target()
-    if target is None:
-        return False
     supplied = os.environ.get("CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256", "")
-    return (
-        re.fullmatch(r"[0-9a-f]{64}", supplied) is not None
-        and _sha256(target) == supplied
+    venv_target = os.environ.get(
+        "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_TARGET", ""
     )
+    venv_digest = os.environ.get(
+        "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_SHA256", ""
+    )
+    try:
+        link_state = _VENV_PYTHON_SOURCE.lstat()
+        venv_link_ok = (
+            stat.S_ISLNK(link_state.st_mode)
+            and link_state.st_uid == os.getuid()
+            and link_state.st_gid == os.getgid()
+            and stat.S_IMODE(link_state.st_mode) == 0o777
+            and os.readlink(_VENV_PYTHON_SOURCE) == "/usr/bin/python3"
+            and _VENV_PYTHON_SOURCE.resolve() == _VENV_PYTHON_TARGET
+        )
+    except (OSError, RuntimeError):
+        venv_link_ok = False
+    return (
+        target is not None
+        and re.fullmatch(r"[0-9a-f]{64}", supplied) is not None
+        and _sha256(target) == _EXPECTED_PYTHON_SHA256 == supplied
+        and venv_link_ok
+        and venv_target == str(_VENV_PYTHON_TARGET)
+        and venv_digest == _EXPECTED_PYTHON_SHA256
+        and _sha256(_VENV_PYTHON_TARGET) == _EXPECTED_PYTHON_SHA256
+    )
+
+
+def _regular_tree_path(path: Path, mode: int) -> bool:
+    try:
+        state = path.lstat()
+        return (
+            stat.S_ISDIR(state.st_mode)
+            and not path.is_symlink()
+            and stat.S_IMODE(state.st_mode) == mode
+            and state.st_uid == os.getuid()
+            and state.st_gid == os.getgid()
+        )
+    except OSError:
+        return False
+
+
+def _collection_tree_contract() -> bool:
+    """Validate the complete pinned kubernetes.core tree before k8s_info runs."""
+    try:
+        if not _regular_tree_path(_COLLECTION_ROOT, 0o755):
+            return False
+        for path, digest in (
+            (_REQUIREMENTS_SOURCE, _EXPECTED_REQUIREMENTS_SHA256),
+            (_COLLECTION_MANIFEST_SOURCE, _EXPECTED_COLLECTION_MANIFEST_SHA256),
+            (_COLLECTION_FILES_SOURCE, _EXPECTED_COLLECTION_FILES_SHA256),
+        ):
+            state = path.lstat()
+            if (
+                not stat.S_ISREG(state.st_mode)
+                or stat.S_IMODE(state.st_mode) != 0o644
+                or state.st_uid != os.getuid()
+                or state.st_gid != os.getgid()
+                or _sha256(path) != digest
+            ):
+                return False
+        manifest = json.loads(_COLLECTION_FILES_SOURCE.read_text(encoding="utf-8"))
+        entries = manifest.get("files")
+        if not isinstance(entries, list):
+            return False
+        listed: dict[str, tuple[str, str | None]] = {}
+        for item in entries:
+            if not isinstance(item, dict):
+                return False
+            name = item.get("name")
+            kind = item.get("ftype")
+            if name == ".":
+                if kind != "dir":
+                    return False
+                continue
+            if not isinstance(name, str) or not name:
+                return False
+            relative = PurePosixPath(name)
+            if (
+                relative.is_absolute()
+                or relative.as_posix() != name
+                or any(part in {"", ".", ".."} for part in relative.parts)
+                or kind not in {"file", "dir"}
+                or name in listed
+                or item.get("format") != 1
+            ):
+                return False
+            digest = item.get("chksum_sha256")
+            if kind == "file":
+                if (
+                    item.get("chksum_type") != "sha256"
+                    or not isinstance(digest, str)
+                    or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                ):
+                    return False
+            elif digest not in (None, "") or item.get("chksum_type") not in (None, ""):
+                return False
+            listed[name] = (kind, digest if kind == "file" else None)
+        listed["FILES.json"] = ("file", _EXPECTED_COLLECTION_FILES_SHA256)
+        listed["MANIFEST.json"] = ("file", _EXPECTED_COLLECTION_MANIFEST_SHA256)
+        actual: dict[str, str] = {}
+        for entry in _COLLECTION_ROOT.rglob("*"):
+            name = entry.relative_to(_COLLECTION_ROOT).as_posix()
+            if entry.is_symlink() or entry.is_file():
+                actual[name] = "file"
+            elif entry.is_dir():
+                actual[name] = "dir"
+            else:
+                return False
+        if actual != {name: kind for name, (kind, _) in listed.items()}:
+            return False
+        for name, (kind, digest) in listed.items():
+            path = _COLLECTION_ROOT / name
+            state = path.lstat()
+            if state.st_uid != os.getuid() or state.st_gid != os.getgid():
+                return False
+            if kind == "dir":
+                if not stat.S_ISDIR(state.st_mode) or stat.S_IMODE(state.st_mode) != 0o755:
+                    return False
+                continue
+            if path.is_symlink():
+                if not name.startswith("plugins/action/"):
+                    return False
+                action_name = name.removeprefix("plugins/action/")
+                if action_name not in _EXPECTED_COLLECTION_ACTION_SYMLINKS:
+                    return False
+                if (
+                    os.readlink(path) != _EXPECTED_COLLECTION_ACTION_TARGET
+                    or path.resolve() != _COLLECTION_ROOT / "plugins/action/k8s_info.py"
+                    or stat.S_IMODE(state.st_mode) != 0o777
+                ):
+                    return False
+            elif not stat.S_ISREG(state.st_mode) or stat.S_IMODE(state.st_mode) not in {0o644, 0o755}:
+                return False
+            if digest is None or _sha256(path) != digest:
+                return False
+        collection_manifest = json.loads(_COLLECTION_MANIFEST_SOURCE.read_text(encoding="utf-8"))
+        info = collection_manifest.get("collection_info", {})
+        return (
+            info.get("namespace") == "kubernetes"
+            and info.get("name") == "core"
+            and info.get("version") == "6.1.0"
+        )
+    except (OSError, RuntimeError, UnicodeError, ValueError, TypeError):
+        return False
 
 
 def _proc_starttime(pid: int) -> str:
@@ -255,12 +434,13 @@ def _source_closure_valid() -> bool:
             and controller.st_uid == os.getuid()
             and _sha256(_CONTROLLER_SOURCE) == os.environ.get(prefix + "CONTROLLER_SHA256")
             and _python_runtime_contract()
+            and _collection_tree_contract()
             and _canonical_file_hash(_ACTION_SOURCE, "_ACTION_CANONICAL_SHA256") == _ACTION_CANONICAL_SHA256
             and _canonical_file_hash(_STRATEGY_SOURCE, "_STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
+            and _wrapper_canonical_hash(_WRAPPER_SOURCE) == _WRAPPER_CANONICAL_SHA256
+            and os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256") == _WRAPPER_CANONICAL_SHA256
             and os.environ.get(prefix + "STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
             and os.environ.get(prefix + "STRATEGY_ATTESTED") == "v1"
-            and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected")
-            == os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256")
         )
     except OSError:
         return False
@@ -291,6 +471,7 @@ def _wrapper_binding_valid(task_vars: dict[str, Any]) -> bool:
             "ANSIBLE_CONFIG_SHA256",
             "CONTROLLER_SHA256",
             "PYTHON_SHA256",
+            "VENV_PYTHON_SHA256",
             "STRATEGY_SHA256",
         )
     )
@@ -308,8 +489,8 @@ def _wrapper_binding_valid(task_vars: dict[str, Any]) -> bool:
         and state.st_nlink == 1
         and Path(wrapper_path) == _WRAPPER_SOURCE
         and wrapper_sha == _sha256(_WRAPPER_SOURCE)
-        and _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected")
-        == os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256")
+        and _wrapper_canonical_hash(_WRAPPER_SOURCE) == _WRAPPER_CANONICAL_SHA256
+        and os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256") == _WRAPPER_CANONICAL_SHA256
         and _proc_cmdline(pid) == ["/bin/dash", str(_WRAPPER_SOURCE), "check"]
         and content == f"{token}:entrypoint:{pid}:{starttime}:{wrapper_sha}\n"
         and os.environ.get(prefix + "OPERATOR") == _EXPECTED_OPERATOR
@@ -317,8 +498,7 @@ def _wrapper_binding_valid(task_vars: dict[str, Any]) -> bool:
         and os.environ.get(prefix + "CONTROLLER") == str(_CONTROLLER_SOURCE)
         and os.environ.get(prefix + "PYTHON") == str(_PYTHON_SOURCE)
         and os.environ.get(prefix + "KUBECONFIG") == str(_EXPECTED_KUBECONFIG)
-        and os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256")
-        == _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected")
+        and os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256") == _WRAPPER_CANONICAL_SHA256
         and os.environ.get(prefix + "TASK_SHA256") == _sha256(_TASK_SOURCE)
         and os.environ.get(prefix + "DEFAULTS_SHA256") == _sha256(_DEFAULTS_SOURCE)
         and os.environ.get(prefix + "PLAYBOOK_SHA256") == _sha256(_PLAYBOOK_SOURCE)
@@ -330,6 +510,8 @@ def _wrapper_binding_valid(task_vars: dict[str, Any]) -> bool:
         and os.environ.get(prefix + "ANSIBLE_CONFIG_SHA256") == _sha256(_ANSIBLE_CONFIG_SOURCE)
         and os.environ.get(prefix + "CONTROLLER_SHA256") == _sha256(_CONTROLLER_SOURCE)
         and os.environ.get(prefix + "PYTHON_SHA256") == (_sha256(_python_target()) if _python_target() else "")
+        and os.environ.get(prefix + "VENV_PYTHON_TARGET") == str(_VENV_PYTHON_TARGET)
+        and os.environ.get(prefix + "VENV_PYTHON_SHA256") == _EXPECTED_PYTHON_SHA256
         and os.environ.get(prefix + "SOURCE_CLOSURE_SHA256") == expected_closure
         and task_vars.get("cristexhub_prod_private_acceptance_approved") is True
         and bool(context.CLIARGS.get("check"))

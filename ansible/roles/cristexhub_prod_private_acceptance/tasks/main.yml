@@ -94,6 +94,11 @@
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ANSIBLE_CONFIG_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256') is match('^[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_TARGET') == '/usr/bin/python3.13'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_SHA256') ==
+        '17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ACTION_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_SHA256') is match('^[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_CANONICAL_SHA256') is match('^[0-9a-f]{64}$')
@@ -198,6 +203,7 @@
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_ANSIBLE_CONFIG_SHA256'),
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_CONTROLLER_SHA256'),
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_PYTHON_SHA256'),
+      lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_SHA256'),
       lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_SHA256')] |
       join(':') | hash('sha256')) }}
   changed_when: false
@@ -226,6 +232,11 @@
       - >-
         cristexhub_prod_private_acceptance_internal_source_states.results[5].stat.checksum ==
         lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_STRATEGY_SHA256')
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_TARGET') == '/usr/bin/python3.13'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_SHA256') ==
+        '17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
       - >-
         cristexhub_prod_private_acceptance_internal_source_closure_sha256 ==
         lookup('ansible.builtin.env', 'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_SOURCE_CLOSURE_SHA256')
