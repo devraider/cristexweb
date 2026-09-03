@@ -94,6 +94,9 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_WRAPPER_STARTTIME",
             "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ROLES_PATH",
             "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_LIBRARY_PATH",
+            "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_ANSIBLE_CONFIG_PATH",
+            "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_INVENTORY_PATH",
+            "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_CONTROLLER_PATH",
             "ANSIBLE_ROLES_PATH",
             "ANSIBLE_LIBRARY",
             "requirements_sha256_expected=",
@@ -106,6 +109,9 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             self.assertIn(required, self.wrapper)
         self.assertNotIn("--extra-vars.*apply", self.wrapper)
         self.assertNotIn("ansible-playbook.*--diff'", self.wrapper)
+        self.assertNotIn("/usr/bin/wait", self.wrapper)
+        self.assertIn('wait "$child_pid"', self.wrapper)
+        self.assertIn('= "$controller_uid:755"', self.wrapper)
         self.assertEqual(0, subprocess.run(["/bin/sh", "-n", str(WRAPPER)], check=False).returncode)
 
     def test_playbook_is_one_host_non_mutating_role(self) -> None:
@@ -587,6 +593,12 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
         self.assertIn("_ROLES_PATH", strategy)
         self.assertIn('os.environ.get("ANSIBLE_ROLES_PATH") != str(_ROLES_PATH)', strategy)
         self.assertIn("_source_contract()", strategy)
+
+    def test_wrapper_shell_startup_rejects_before_controller_for_invalid_invocations(self) -> None:
+        for argv in ((), ("apply",), ("check", "--start-at-task", "mutation")):
+            result = subprocess.run([str(WRAPPER), *argv], capture_output=True, text=True, check=False)
+            self.assertEqual(64, result.returncode, argv)
+            self.assertNotIn("ansible-playbook", result.stdout + result.stderr)
 
     def test_direct_task_selected_and_forged_environment_invocations_are_rejected(self) -> None:
         strategy = STRATEGY.read_text()

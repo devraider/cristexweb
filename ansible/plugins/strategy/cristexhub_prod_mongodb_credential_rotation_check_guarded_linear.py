@@ -53,7 +53,7 @@ _ENV_PREFIX = "CRISTEXWEB_CRISTEXHUB_PROD_MONGODB_ROTATION_"
 _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
 _ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 # This marker is the only normalized value; it prevents a circular strategy pin.
-_STRATEGY_CANONICAL_SHA256 = "23b70ae8fb3f76cc373b2c7202e9071d273e314f2ea9b0c3330094fa2a951eb3"
+_STRATEGY_CANONICAL_SHA256 = "b79708db70c0aaa28f03b2656eb51e4d6ca93c0a0333e1745f5b96b80ae3c815"
 _EXPECTED_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
 _EXPECTED_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
 _EXPECTED_COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
@@ -416,7 +416,7 @@ def _runtime_contract() -> bool:
     prefix = _ENV_PREFIX
     if not _inventory_contract() or not _directory(_ROLES_PATH, os.getuid()) or not _directory(_ROLE_PATH, os.getuid()):
         return False
-    if not _regular_file(_ANSIBLE_CONFIG, 0o644, os.getuid()) or not _regular_file(_CONTROLLER, 0o775, os.getuid()):
+    if not _regular_file(_ANSIBLE_CONFIG, 0o644, os.getuid()) or not _regular_file(_CONTROLLER, 0o755, os.getuid()):
         return False
     if _sha256(_ANSIBLE_CONFIG) != _ANSIBLE_CONFIG_SHA256 or _sha256(_CONTROLLER) != _CONTROLLER_SHA256:
         return False
