@@ -220,6 +220,33 @@ class PostgreSQLKeycloakBackupContractTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
         self.assertIn("restore_status=failed stage=manifest_contract", self.restore)
 
+    def test_restore_cleanup_commands_render_and_fail_closed(self) -> None:
+        for jsonpath in (
+            r"{.metadata.labels.app\.kubernetes\.io/name}",
+            r"{.metadata.labels.cristex\.io/run-id}",
+        ):
+            self.assertIn(f"jsonpath='{jsonpath}'", self.restore)
+        self.assertNotIn(r"app\\.kubernetes", self.restore)
+        self.assertNotIn(r"cristex\\.io", self.restore)
+        delete_lines = [line for line in self.restore.splitlines() if "DeleteOptions" in line]
+        self.assertEqual(1, len(delete_lines))
+        format_match = re.search(r"/usr/bin/printf '([^']+)' \"\$uid\"", delete_lines[0])
+        self.assertIsNotNone(format_match)
+        rendered = subprocess.run(
+            ["/usr/bin/printf", format_match.group(1), "uid-123"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        self.assertEqual(
+            {"kind": "DeleteOptions", "apiVersion": "v1", "propagationPolicy": "Orphan", "preconditions": {"uid": "uid-123"}},
+            json.loads(rendered),
+        )
+        self.assertTrue(rendered.endswith("\n"))
+        self.assertIn('[ "$discovered_count" -eq 1 ] && [ "$discovered_name" = "$pod" ] || return 1', self.restore)
+        self.assertIn("delete_restore_pod || cleanup_status=1", self.restore)
+        self.assertNotIn("delete_restore_pod >/dev/null 2>&1 || true", self.restore)
+
     def test_restore_is_exact_isolated_and_uid_cleaned(self) -> None:
         for value in (
             "drive:cristexweb-recovery/postgresql/keycloak",

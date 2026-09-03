@@ -92,7 +92,7 @@ value is committed, passed in argv/environment, written to evidence, or logged.
 
 The PostgreSQL Keycloak manifest is schema `1` with an exact
 `source_closure_sha256` field. The current closure is
-`c05afb66756249152de4a5a289adc643b3a484db0fbc03eb6ed90606ba67dbe7`; it is computed
+`9f19846c97ba16dcf7e394f430b4ac93c1c00a0113a95dddca74787d9518d3c9`; it is computed
 from the restore executable (with its self-pin canonicalized), the service unit, and
 the timer unit. The backup writes the digest as a JSON value, not a shell literal.
 The restore requires the exact pinned digest, archive checksum, archive size, and

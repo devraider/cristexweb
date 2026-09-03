@@ -12,7 +12,7 @@
     mongodb_shared_backup_age_version: 1.2.1-1+b5
     mongodb_shared_backup_recipient_sha256: ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
     mongodb_shared_backup_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
-    mongodb_shared_backup_source_closure_sha256: 37bb6333362f3f9553a8611dc81d0a68e2094ce8779db885c3128acaab61bcfc
+    mongodb_shared_backup_source_closure_sha256: 0854e224017e74debe7ff123f3d5fe0b134a5ec10b17a322f9ece6b6d5e9bc69
 
   pre_tasks:
     - name: Require the canonical backup scheduler contract

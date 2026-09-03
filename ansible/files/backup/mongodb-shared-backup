@@ -9,7 +9,7 @@ resource=shared-mongodb
 pod=shared-mongodb-0
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
-source_closure_sha256=37bb6333362f3f9553a8611dc81d0a68e2094ce8779db885c3128acaab61bcfc
+source_closure_sha256=0854e224017e74debe7ff123f3d5fe0b134a5ec10b17a322f9ece6b6d5e9bc69
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'backup_status=failed stage=source_closure_contract'
   exit 1

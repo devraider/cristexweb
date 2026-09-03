@@ -10,7 +10,7 @@ cluster=shared-postgresql
 database=keycloak
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
-source_closure_sha256=c05afb66756249152de4a5a289adc643b3a484db0fbc03eb6ed90606ba67dbe7
+source_closure_sha256=9f19846c97ba16dcf7e394f430b4ac93c1c00a0113a95dddca74787d9518d3c9
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'backup_status=failed stage=source_closure_contract'
   exit 1

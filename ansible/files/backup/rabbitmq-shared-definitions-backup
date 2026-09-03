@@ -10,7 +10,7 @@ admin_secret=shared-rabbitmq-admin
 tls_secret=shared-rabbitmq-tls
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
-source_closure_sha256=c062dc74683066438aaf123804f5af83ff5bc72b15dd9d192e48d2034e85dffc
+source_closure_sha256=5adb0422abe0151f4bd18630f987d50908aa2c892c480e02401cecb902fbcf5c
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'backup_status=failed stage=source_closure_contract'
   exit 1

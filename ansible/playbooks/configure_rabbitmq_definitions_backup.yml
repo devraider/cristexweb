@@ -9,7 +9,7 @@
     rabbitmq_definitions_backup_approved: false
     rabbitmq_definitions_backup_mode: install
     rabbitmq_definitions_backup_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
-    rabbitmq_definitions_backup_source_closure_sha256: c062dc74683066438aaf123804f5af83ff5bc72b15dd9d192e48d2034e85dffc
+    rabbitmq_definitions_backup_source_closure_sha256: 5adb0422abe0151f4bd18630f987d50908aa2c892c480e02401cecb902fbcf5c
   pre_tasks:
     - name: Require bounded RabbitMQ backup approval
       ansible.builtin.assert:

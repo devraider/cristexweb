@@ -12,7 +12,7 @@ export PATH KUBECONFIG=/etc/rancher/k3s/k3s.yaml K3S_CONFIG_FILE=/dev/null
 project_id=619656da-14f3-4872-857b-be103cdc5326
 infisical_path=/shared-services/backup-recovery
 remote_root=drive:cristexweb-recovery/postgresql/keycloak
-source_closure_sha256=c05afb66756249152de4a5a289adc643b3a484db0fbc03eb6ed90606ba67dbe7
+source_closure_sha256=9f19846c97ba16dcf7e394f430b4ac93c1c00a0113a95dddca74787d9518d3c9
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || {
   printf '%s\n' 'restore_status=failed stage=source_closure_contract'
   exit 1
@@ -59,10 +59,10 @@ delete_restore_pod() {
   fi
   [ -z "$current_uid" ] && { uid=; return 0; }
   [ "$current_uid" = "$uid" ] || return 1
-  if ! current_owner=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.labels.app\\.kubernetes\\.io/name}'); then
+  if ! current_owner=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.labels.app\.kubernetes\.io/name}'); then
     return 1
   fi
-  if ! current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.labels.cristex\\.io/run-id}'); then
+  if ! current_run_id=$(/usr/local/bin/kubectl -n "$namespace" get pod "$pod" --ignore-not-found -o jsonpath='{.metadata.labels.cristex\.io/run-id}'); then
     return 1
   fi
   [ "$current_owner" = "$restore_label" ] && [ "$current_run_id" = "$run_id" ] || return 1
