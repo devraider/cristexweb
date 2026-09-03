@@ -9,6 +9,12 @@ Type=oneshot
 User=paul
 Group=paul
 UMask=0077
+# These are fixed service defaults; the executable also rejects inherited
+# Python/OpenTofu overrides and rebuilds both environments through env -i
+# before state inspection.
+Environment=TF_CLI_CONFIG_FILE=/dev/null
+Environment=TF_WORKSPACE=default
+Environment=TOFU_DISABLE_CHECKPOINT=1
 ExecStart=/usr/local/libexec/cristexweb/opentofu-state-backup
 TimeoutStartSec=30min
 Nice=10

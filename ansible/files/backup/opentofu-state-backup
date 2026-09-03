@@ -2,58 +2,130 @@
 set -eu
 umask 077
 PATH=/usr/local/bin:/usr/bin:/bin
-export PATH
+LC_ALL=C
+export PATH LC_ALL
+
+# This executable is run by a fixed systemd unit, but its environment is still
+# treated as untrusted.  A caller must not be able to change OpenTofu CLI,
+# backend, provider, registry, or proxy behavior through inherited variables.
+while IFS='=' read -r inherited_name _; do
+    case "$inherited_name" in
+        TF_CLI_CONFIG_FILE|TF_WORKSPACE|TOFU_DISABLE_CHECKPOINT)
+            inherited_value=$(/usr/bin/printenv "$inherited_name" 2>/dev/null || true)
+            case "$inherited_name=$inherited_value" in
+                TF_CLI_CONFIG_FILE=/dev/null|TF_WORKSPACE=default|TOFU_DISABLE_CHECKPOINT=1)
+                    continue
+                    ;;
+            esac
+            ;;
+    esac
+    # PYTHON* includes PYTHONOPTIMIZE, PYTHONPATH, PYTHONHOME, and every
+    # interpreter/import/startup override; no inherited Python setting is trusted.
+    case "$inherited_name" in
+        BASH_ENV|ENV|SHELLOPTS|BASHOPTS|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|http_proxy|https_proxy|all_proxy|no_proxy|TF_CLI_ARGS|TF_CLI_ARGS_*|TF_CLI_CONFIG_FILE|TF_DATA_DIR|TF_WORKSPACE|TF_VAR_*|TF_LOG|TF_LOG_PATH|TF_INPUT|TF_IN_AUTOMATION|TF_PLUGIN_CACHE_DIR|TF_REGISTRY_CLIENT_TIMEOUT|TF_REGISTRY_DISCOVERY_RETRY|TF_REATTACH_PROVIDERS|TF_APPEND_USER_AGENT|TF_DISABLE_PLUGIN_TLS|TF_HTTP_*|TF_REGISTRY_*|TOFU_*|OPENTOFU_*|TERRAFORM_*|CLOUDFLARE_*|AWS_*|GOOGLE_*|GCP_*|GCLOUD_*|AZURE_*|ARM_*|DIGITALOCEAN_*|GITHUB_*|GIT_*|GH_*|SCALR_*|TFE_*|TFC_*|CONSUL_*|VAULT_*|NOMAD_*|KUBE_CONFIG|KUBECONFIG|KUBERNETES_*|KUBE_*|HELM_*|RCLONE_*|INFISICAL_*|S3_*|GCS_*|MINIO_*|MONGODB_*|MONGO*|POSTGRES*|PG*|RABBITMQ_*|REDIS_*|AGE_*|PYTHON*|CHECKPOINT_DISABLE)
+            printf 'backup_status=refused reason=inherited_environment_override name=%s\n' "$inherited_name"
+            exit 65
+            ;;
+    esac
+done <<EOF
+$(/usr/bin/env | /usr/bin/sed 's/=.*//')
+EOF
+
+tofu=/usr/local/bin/tofu
+tofu_target=/opt/opentofu/1.12.5/tofu
+[ -L "$tofu" ] && [ "$(/usr/bin/readlink -f -- "$tofu")" = "$tofu_target" ] || { printf '%s\n' 'backup_status=failed stage=tofu_binary_contract'; exit 1; }
+[ -f "$tofu_target" ] && [ ! -L "$tofu_target" ] && [ "$(/usr/bin/stat -c '%U:%G:%a' "$tofu_target")" = 'root:root:755' ] || { printf '%s\n' 'backup_status=failed stage=tofu_binary_contract'; exit 1; }
+state_parent=/var/lib/opentofu/cristexweb
 state_file=/var/lib/opentofu/cristexweb/foundation.tfstate
 recipient_file=/etc/cristexweb-backup/age.recipient
 recipient_sha256=ce615905ec27fa6e085578d96e48dc798677b3f2ade5c417770f22e78248ad28
 source_closure_sha256=c9a04e04303b30148f410dd57c8c5c8cf69d0cbf58b88cbc70023c824e214fae
 printf '%s' "$source_closure_sha256" | /usr/bin/grep -Eq '^[0-9a-f]{64}$' || { printf '%s\n' 'backup_status=failed stage=source_closure_contract'; exit 1; }
 rclone_config=/home/paul/.config/rclone/rclone.conf
+run_rclone() {
+    /usr/bin/env -i \
+        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
+        LC_ALL=C XDG_CONFIG_HOME=/home/paul/.config \
+        /usr/local/bin/rclone --config "$rclone_config" "$@"
+}
 archive_root=/var/lib/cristexweb-backup/opentofu/foundation
 remote_root=drive:cristexweb-recovery/opentofu/foundation
 lock_file=/run/lock/cristexweb-opentofu-state-backup.lock
 exec 9>"$lock_file"
 /usr/bin/flock -n 9 || { printf '%s\n' 'backup_status=refused reason=concurrent_run'; exit 75; }
-[ -f "$state_file" ] && [ ! -L "$state_file" ] && [ "$(/usr/bin/stat -c '%U:%G:%a' "$state_file")" = 'paul:paul:600' ] || { printf '%s\n' 'backup_status=failed stage=state_contract'; exit 1; }
-/usr/local/bin/tofu state list -state="$state_file" >/dev/null 2>&1 || { printf '%s\n' 'backup_status=failed stage=state_validation'; exit 1; }
+[ -d "$state_parent" ] && [ ! -L "$state_parent" ] && [ "$(/usr/bin/realpath -e -- "$state_parent")" = "$state_parent" ] && [ "$(/usr/bin/stat -c '%U:%G:%a' "$state_parent")" = 'paul:root:700' ] || { printf '%s\n' 'backup_status=failed stage=state_parent_contract'; exit 1; }
+[ -f "$state_file" ] && [ ! -L "$state_file" ] && [ "$(/usr/bin/realpath -e -- "$state_file")" = "$state_file" ] && [ "$(/usr/bin/stat -c '%U:%G:%a' "$state_file")" = 'paul:paul:600' ] || { printf '%s\n' 'backup_status=failed stage=state_contract'; exit 1; }
+
+tofu_data_dir=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-state-list.XXXXXX)
+state_scope_file="$tofu_data_dir/state.list"
+cleanup() {
+    [ -n "${readback:-}" ] && /usr/bin/rm -rf -- "$readback"
+    [ -n "${tofu_data_dir:-}" ] && /usr/bin/rm -rf -- "$tofu_data_dir"
+}
+trap cleanup EXIT HUP INT TERM
+
+# Always invoke the pinned CLI through a clean, explicit environment.  The
+# fixed state path is passed as an argument and the local backend workspace is
+# fixed to default; no caller-supplied CLI/provider setting survives env -i.
+run_tofu_state_list() {
+    /usr/bin/timeout --foreground --kill-after=10s 60 /usr/bin/env -i \
+        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
+        LC_ALL=C XDG_CONFIG_HOME=/home/paul/.config \
+        TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$tofu_data_dir" \
+        TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
+        "$tofu" state list -state="$state_file" -no-color >"$state_scope_file" 2>/dev/null
+}
+run_tofu_state_list || { printf '%s\n' 'backup_status=failed stage=state_validation'; exit 1; }
+
 [ -f "$recipient_file" ] && [ ! -L "$recipient_file" ] && [ "$(/usr/bin/sha256sum "$recipient_file" | /usr/bin/cut -d ' ' -f1)" = "$recipient_sha256" ] || { printf '%s\n' 'backup_status=failed stage=recipient_contract'; exit 1; }
 recipient=$(/usr/bin/tr -d '\n' <"$recipient_file")
 printf '%s\n' "$recipient" | /usr/bin/grep -Eq '^age1[0-9a-z]+$' || exit 1
 [ -f "$rclone_config" ] && [ ! -L "$rclone_config" ] && [ "$(/usr/bin/stat -c '%U:%G:%a' "$rclone_config")" = 'paul:paul:600' ] || { printf '%s\n' 'backup_status=failed stage=rclone_config_contract'; exit 1; }
-state_scope_file=$(/usr/bin/mktemp /dev/shm/cristexweb-opentofu-state-scope.XXXXXX)
-cleanup_state_scope() { /usr/bin/rm -f -- "$state_scope_file"; }
-trap cleanup_state_scope EXIT HUP INT TERM
-/usr/bin/timeout --foreground --kill-after=10s 60 /usr/local/bin/tofu state list -state="$state_file" >"$state_scope_file"
-address_scope=$(/usr/bin/python3 - "$state_scope_file" <<'PY'
+
+address_scope=$(/usr/bin/env -i \
+    HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin \
+    LC_ALL=C XDG_CONFIG_HOME=/home/paul/.config \
+    PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 \
+    /usr/bin/python3 - "$state_scope_file" <<'PY'
 import sys
 from pathlib import Path
-actual = {line.strip() for line in Path(sys.argv[1]).read_text().splitlines() if line.strip()}
+
+actual = Path(sys.argv[1]).read_text(encoding='utf-8').splitlines()
+if not actual or any(not line or line != line.strip() for line in actual):
+    raise SystemExit('state address closure mismatch')
+seen = {}
+for address in actual:
+    if address in seen:
+        raise SystemExit('state address closure mismatch')
+    seen[address] = None
 expected = {
-    'exact-five': {
+    'exact-five': sorted([
         'cloudflare_dns_record.argocd_tailscale',
         'cloudflare_dns_record.cristexhub_dev',
         'cloudflare_dns_record.keycloak',
         'cloudflare_zero_trust_tunnel_cloudflared.keycloak',
         'cloudflare_zero_trust_tunnel_cloudflared_config.keycloak',
-    },
-    'exact-six': {
+    ]),
+    'exact-six': sorted([
         'cloudflare_dns_record.argocd_tailscale',
         'cloudflare_dns_record.cristexhub_dev',
         'cloudflare_dns_record.keycloak',
         'cloudflare_dns_record.reactive_resume_dev_tailscale',
         'cloudflare_zero_trust_tunnel_cloudflared.keycloak',
         'cloudflare_zero_trust_tunnel_cloudflared_config.keycloak',
-    },
+    ]),
 }
-if len(actual) not in {5, 6} or any(actual == values for values in expected.values()) is False:
-    raise SystemExit('state address closure mismatch')
-for label, values in expected.items():
-    if actual == values:
+for label, addresses in expected.items():
+    if len(actual) == len(addresses) and sorted(actual) == addresses:
         print(label)
         break
+else:
+    raise SystemExit('state address closure mismatch')
 PY
 )
-/usr/bin/rm -f -- "$state_scope_file"
+address_scope=$(printf '%s' "$address_scope" | /usr/bin/tr -d '\n')
+/usr/bin/rm -rf -- "$tofu_data_dir"
+tofu_data_dir=
 trap - EXIT HUP INT TERM
 timestamp=$(/usr/bin/date -u +%Y%m%dT%H%M%SZ)
 run_directory="$archive_root/$timestamp"
@@ -65,11 +137,12 @@ remote_directory="$remote_root/$timestamp"
 archive_bytes=$(/usr/bin/stat -c %s "$run_directory/foundation.tfstate.age")
 archive_sha256=$(/usr/bin/cut -d ' ' -f1 "$run_directory/foundation.tfstate.age.sha256")
 /usr/bin/printf '{"schema":1,"service":"opentofu","state":"foundation.tfstate","run_id":"%s","created_at_utc":"%s","archive":"foundation.tfstate.age","archive_bytes":%s,"archive_sha256":"%s","encryption":"age-x25519","backend":"local","state_path":"/var/lib/opentofu/cristexweb/foundation.tfstate","address_scope":"%s","source_closure_sha256":"%s"}\n' "$timestamp" "$timestamp" "$archive_bytes" "$archive_sha256" "$address_scope" "$source_closure_sha256" >"$run_directory/manifest.json"
-for leaf in foundation.tfstate.age foundation.tfstate.age.sha256 manifest.json; do /usr/local/bin/rclone --config "$rclone_config" copyto --immutable "$run_directory/$leaf" "$remote_directory/$leaf"; done
+for leaf in foundation.tfstate.age foundation.tfstate.age.sha256 manifest.json; do run_rclone copyto --immutable "$run_directory/$leaf" "$remote_directory/$leaf"; done
 readback=$(/usr/bin/mktemp -d "$run_directory/.readback.XXXXXX")
-trap '/usr/bin/rm -rf -- "$readback"' EXIT HUP INT TERM
-for leaf in foundation.tfstate.age foundation.tfstate.age.sha256 manifest.json; do /usr/local/bin/rclone --config "$rclone_config" copyto "$remote_directory/$leaf" "$readback/$leaf"; /usr/bin/cmp -s "$run_directory/$leaf" "$readback/$leaf" || { printf 'backup_status=failed stage=readback leaf=%s\n' "$leaf"; exit 1; }; done
+trap cleanup EXIT HUP INT TERM
+for leaf in foundation.tfstate.age foundation.tfstate.age.sha256 manifest.json; do run_rclone copyto "$remote_directory/$leaf" "$readback/$leaf"; /usr/bin/cmp -s "$run_directory/$leaf" "$readback/$leaf" || { printf 'backup_status=failed stage=readback leaf=%s\n' "$leaf"; exit 1; }; done
 /usr/bin/rm -rf -- "$readback"
+readback=
 trap - EXIT HUP INT TERM
 /usr/bin/find "$archive_root" -mindepth 1 -maxdepth 1 -type d -mtime +14 -name '20[0-9][0-9][01][0-9][0-3][0-9]T[0-2][0-9][0-5][0-9][0-5][0-9]Z' -exec /usr/bin/rm -rf -- {} +
 printf 'backup_status=success schema=1 service=opentofu state=foundation.tfstate run_id=%s archive_bytes=%s archive_sha256=%s readback=verified private_residue=none address_scope=%s source_closure_sha256=%s\n' "$timestamp" "$archive_bytes" "$archive_sha256" "$address_scope" "$source_closure_sha256"

@@ -126,7 +126,7 @@
         - cristexweb-opentofu-state-backup.service
         - cristexweb-opentofu-state-backup.timer
       register: opentofu_state_backup_units
-    - name: Reload systemd
+    - name: Reload systemd  # noqa no-handler
       ansible.builtin.systemd_service:
         daemon_reload: true
       when: opentofu_state_backup_units.changed

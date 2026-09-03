@@ -56,15 +56,30 @@ The state parent and state file are fixed, regular, non-symlinked, and mode
 `0700`/`0600` with the reviewed owner/group contract. A protected `flock` on
 the state-parent directory inode is held from the first pre-state inspection
 through the import and final checks. The state-list helper validates exact
-membership, uniqueness, shape, owner, and mode without requesting provider
-state or secret values. The guarded source closure also rejects any extra root
-`.tf`, `.tf.json`, auto-variable, override, symlink, directory, or other
-non-regular entry (apart from the explicitly allowed `bin`, `github`, and
-OpenTofu-generated `.terraform` directories) before a state consumer runs.
-OpenTofu's generated data is instead directed to a private mode-`0700`
-`TF_DATA_DIR` under the ephemeral work directory, so a clean source root remains
-clean after initialization; any pre-existing `.terraform` directory is still
-allowlisted only as a non-symlinked directory.
+membership, list cardinality, uniqueness, shape, owner, and mode without
+requesting provider state or secret values. Both backup and isolated-restore
+state-list calls use the pinned `/usr/local/bin/tofu` target through
+`/usr/bin/env -i` with exactly `TF_CLI_CONFIG_FILE=/dev/null`, a mode-0700
+ephemeral `TF_DATA_DIR`, `TF_WORKSPACE=default`, and
+`TOFU_DISABLE_CHECKPOINT=1`; the fixed state path is passed explicitly
+(`/var/lib/opentofu/cristexweb/foundation.tfstate` for the backup and the
+isolated temporary state for restore). They reject inherited OpenTofu CLI,
+backend, provider, registry, and proxy override variables before any recovery
+operation, and never collapse duplicate state addresses into a set. Every
+embedded Python validator is invoked through a clean `env -i` environment with
+`PYTHONNOUSERSITE=1` and `PYTHONDONTWRITEBYTECODE=1`; inherited `PYTHON*`
+overrides (including `PYTHONOPTIMIZE`, `PYTHONPATH`, and `PYTHONHOME`) are
+rejected before any validator runs. The validators use explicit exceptions and
+exit statuses rather than security-sensitive Python `assert` statements, so
+optimized Python cannot bypass manifest or state-closure checks. The
+guarded source closure also rejects any extra root `.tf`, `.tf.json`,
+auto-variable, override, symlink, directory, or other non-regular entry (apart
+from the explicitly allowed `bin`, `github`, and OpenTofu-generated
+`.terraform` directories) before a state consumer runs. OpenTofu's generated
+data is instead directed to a private mode-`0700` `TF_DATA_DIR` under the
+ephemeral work directory, so a clean source root remains clean after
+initialization; any pre-existing `.terraform` directory is still allowlisted
+only as a non-symlinked directory.
 
 ## Required sequence and approvals
 
@@ -83,7 +98,7 @@ allowlisted only as a non-symlinked directory.
    `readback=verified`; restore receipts use `checksum=verified`, `non_mutating=true`,
    an independent `run_id`, matching `source_run_id`/`source_timestamp`, the exact
    address scope, and the current source-closure digest. Duplicate manifest or state
-   JSON keys fail closed. Their become prompt remains attached to the controlling
+   JSON keys and non-standard JSON constants fail closed. Their become prompt remains attached to the controlling
    terminal; passwords are never piped, logged, or entered in chat. The restore
    catalog captures every rclone listing directly and fails closed on any listing
    error. It considers only strict UTC timestamp directories with no nested
@@ -136,8 +151,10 @@ run that plan and does not make `hub.cristex-soft.com` public.
 
 ```bash
 sh -n opentofu/bin/reconcile-foundation-state
+sh -n ansible/files/backup/opentofu-state-backup
+sh -n ansible/files/backup/restore-opentofu-state-rehearsal
 python3 -m py_compile opentofu/bin/validate-foundation-state-scope
-.venv/bin/python -m unittest tests.test_opentofu_foundation_state_reconciliation_contract
+.venv/bin/python -m unittest tests.test_opentofu_state_backup_contract tests.test_opentofu_foundation_state_reconciliation_contract
 ```
 
 All commands above are offline/source checks. No provider, protected state,
