@@ -24,6 +24,9 @@ custody:
       app.kubernetes.io/managed-by: infisical
       app.kubernetes.io/part-of: cristexhub
       cristex.io/value-owner: infisical-cloud
+    metadata_annotations:
+      required_keys: [secrets.infisical.com/version]
+      values: operator-generated-nonempty
   source_declaration:
     kind: InfisicalStaticSecret
     api_version: secrets.infisical.com/v1beta1

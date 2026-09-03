@@ -92,6 +92,10 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
                     "app.kubernetes.io/part-of": "cristexhub",
                     "cristex.io/value-owner": "infisical-cloud",
                 },
+                "metadata_annotations": {
+                    "required_keys": ["secrets.infisical.com/version"],
+                    "values": "operator-generated-nonempty",
+                },
             },
             custody["target"],
         )
@@ -148,6 +152,51 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
             self.assertIn(required, self.tasks)
         expected_template = base64.b64encode(b"{{ .DOCKER_CONFIG_JSON.Value }}").decode()
         self.assertEqual("e3sgLkRPQ0tFUl9DT05GSUdfSlNPTi5WYWx1ZSB9fQ==", expected_template)
+
+    def test_generated_target_annotation_and_identity_closure_are_strict(self) -> None:
+        materialized = self.tasks.split(
+            "- name: Require exact materialized imagePullSecret metadata without data reads",
+            1,
+        )[1]
+        self.assertNotIn("internal_target_metadata.metadata.annotations == {}", materialized)
+        self.assertIn(
+            "keys() | list | sort ==\n        ['secrets.infisical.com/version']",
+            materialized,
+        )
+        self.assertIn(
+            "metadata.annotations['secrets.infisical.com/version'] |\n        default('', true) | length > 0",
+            materialized,
+        )
+        self.assertIn(
+            "metadata.uid is match('^[0-9a-f-]{16,}$')",
+            self.tasks,
+        )
+        self.assertIn(
+            "metadata.resourceVersion is match('^[0-9]+$')",
+            self.tasks,
+        )
+        self.assertIn("Bind the exact source CR UID and resourceVersion closure", self.tasks)
+        self.assertIn("source_cr_uid:", self.tasks)
+        self.assertIn("source_cr_resource_version:", self.tasks)
+        self.assertIn("'resource_version': item.resources[0].metadata.resourceVersion", self.tasks)
+        self.assertIn("Require the bound Deployment UID and resourceVersion closure", self.tasks)
+        self.assertIn("metadata.deletionTimestamp | default('', true) == ''", self.tasks)
+        self.assertIn(
+            "metadata.labels == {\n        'app.kubernetes.io/name': item.item,\n        'app.kubernetes.io/part-of': 'cristexhub'}",
+            self.tasks,
+        )
+
+    def test_adversarial_target_and_identity_drift_is_rejected(self) -> None:
+        materialized = self.tasks.split(
+            "- name: Require exact materialized imagePullSecret metadata without data reads",
+            1,
+        )[1]
+        self.assertNotIn("metadata.annotations == {}", materialized)
+        self.assertIn("metadata.ownerReferences == []", materialized)
+        self.assertIn("source_cr_binding.uid ==", self.tasks)
+        self.assertIn("source_cr_binding.resource_version ==", self.tasks)
+        self.assertIn("cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings | length == 5", self.tasks)
+        self.assertNotIn("metadata.deletionTimestamp | default('') == ''", self.tasks)
 
     def test_exact_five_immutable_ready_consumers_and_gates(self) -> None:
         names = ["backend", "celery-worker", "frontend", "oauth2-proxy", "redis"]

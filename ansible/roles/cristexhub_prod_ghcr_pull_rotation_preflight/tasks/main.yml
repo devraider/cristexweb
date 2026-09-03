@@ -29,6 +29,7 @@
       - cristexhub_prod_ghcr_pull_rotation_preflight_secret_path == '/cristexhub/prod/runtime'
       - cristexhub_prod_ghcr_pull_rotation_preflight_source_key == 'DOCKER_CONFIG_JSON'
       - cristexhub_prod_ghcr_pull_rotation_preflight_source_cr_name == 'cristexhub-prod-runtime'
+      - cristexhub_prod_ghcr_pull_rotation_preflight_source_cr_version_annotation == 'secrets.infisical.com/version'
       - cristexhub_prod_ghcr_pull_rotation_preflight_target_name == 'cristexhub-prod-ghcr-pull'
       - cristexhub_prod_ghcr_pull_rotation_preflight_target_type == 'kubernetes.io/dockerconfigjson'
       - cristexhub_prod_ghcr_pull_rotation_preflight_target_key == '.dockerconfigjson'
@@ -189,8 +190,15 @@
       - cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].kind == 'InfisicalStaticSecret'
       - cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.name == 'cristexhub-prod-runtime'
       - cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.namespace == 'cristexhub-prod'
-      - cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.labels['app.kubernetes.io/managed-by'] == 'ansible'
-      - cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.labels['app.kubernetes.io/part-of'] == 'cristex-platform'
+      - cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.uid is match('^[0-9a-f-]{16,}$')
+      - cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.resourceVersion is match('^[0-9]+$')
+      - cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.deletionTimestamp | default('', true) == ''
+      - >-
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.labels == {
+        'app.kubernetes.io/managed-by': 'ansible',
+        'app.kubernetes.io/part-of': 'cristex-platform',
+        'cristex.io/component': 'infisical-cristexhub-prod-runtime'}
+      - cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.ownerReferences | default([]) == []
       - >-
         cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].spec.infisicalAuthRef ==
         {'name': 'cristexhub-prod-infisical-auth', 'namespace': 'cristexhub-prod'}
@@ -206,6 +214,37 @@
         cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].spec.targets |
         selectattr('name', 'equalto', 'cristexhub-prod-ghcr-pull') | list | length == 1
     fail_msg: Refusing a source path, Infisical owner, or custody declaration outside the GHCR rotation contract.
+  changed_when: false
+  no_log: true
+
+- name: Bind the exact source CR UID and resourceVersion closure
+  ansible.builtin.set_fact:
+    cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr_binding:
+      api_version: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].apiVersion }}"
+      kind: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].kind }}"
+      namespace: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.namespace }}"
+      name: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.name }}"
+      uid: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.uid }}"
+      resource_version: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.resourceVersion }}"
+      labels: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.labels }}"
+  changed_when: false
+  no_log: true
+
+- name: Require the bound source CR identity remains exact
+  ansible.builtin.assert:
+    that:
+      - >-
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr_binding.uid ==
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.uid
+      - >-
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr_binding.resource_version ==
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr.resources[0].metadata.resourceVersion
+      - >-
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr_binding.labels == {
+        'app.kubernetes.io/managed-by': 'ansible',
+        'app.kubernetes.io/part-of': 'cristex-platform',
+        'cristex.io/component': 'infisical-cristexhub-prod-runtime'}
+    fail_msg: Refusing a source CR identity or ownership binding that changed during preflight.
   changed_when: false
   no_log: true
 
@@ -259,9 +298,14 @@
       - >-
         cristexhub_prod_ghcr_pull_rotation_preflight_internal_target_metadata.metadata.labels ==
         {'app.kubernetes.io/managed-by': 'infisical', 'app.kubernetes.io/part-of': 'cristexhub', 'cristex.io/value-owner': 'infisical-cloud'}
-      - cristexhub_prod_ghcr_pull_rotation_preflight_internal_target_metadata.metadata.annotations == {}
+      - >-
+        (cristexhub_prod_ghcr_pull_rotation_preflight_internal_target_metadata.metadata.annotations | default({})).keys() | list | sort ==
+        ['secrets.infisical.com/version']
+      - >-
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_target_metadata.metadata.annotations['secrets.infisical.com/version'] |
+        default('', true) | length > 0
       - cristexhub_prod_ghcr_pull_rotation_preflight_internal_target_metadata.metadata.ownerReferences == []
-      - cristexhub_prod_ghcr_pull_rotation_preflight_internal_target_metadata.metadata.deletionTimestamp | default('') == ''
+      - cristexhub_prod_ghcr_pull_rotation_preflight_internal_target_metadata.metadata.deletionTimestamp | default('', true) == ''
     fail_msg: Refusing missing, foreign, terminating, or drifted GHCR imagePullSecret metadata.
   changed_when: false
   no_log: true
@@ -286,7 +330,14 @@
         (cristexhub_prod_ghcr_pull_rotation_preflight_deployments | sort)
       - >-
         (cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory.resources |
-        selectattr('metadata.deletionTimestamp', 'defined') | list | length) == 0
+        selectattr('metadata.deletionTimestamp', 'defined') |
+        selectattr('metadata.deletionTimestamp', 'ne', none) | list | length) == 0
+      - >-
+        (cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory.resources |
+        map(attribute='metadata.uid') | select('match', '^[0-9a-f-]{16,}$') | list | length) == 5
+      - >-
+        (cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory.resources |
+        map(attribute='metadata.resourceVersion') | select('match', '^[0-9]+$') | list | length) == 5
     fail_msg: Refusing extra, missing, or terminating PROD GHCR consumers.
   changed_when: false
   no_log: true
@@ -310,7 +361,15 @@
       - item.resources | length == 1
       - item.resources[0].metadata.name == item.item
       - item.resources[0].metadata.namespace == 'cristexhub-prod'
-      - item.resources[0].metadata.deletionTimestamp | default('') == ''
+      - item.resources[0].metadata.uid is match('^[0-9a-f-]{16,}$')
+      - item.resources[0].metadata.resourceVersion is match('^[0-9]+$')
+      - item.resources[0].metadata.deletionTimestamp | default('', true) == ''
+      - >-
+        item.resources[0].metadata.labels == {
+        'app.kubernetes.io/name': item.item,
+        'app.kubernetes.io/part-of': 'cristexhub'}
+      - item.resources[0].metadata.ownerReferences | default([]) == []
+      - item.resources[0].spec.selector.matchLabels == {'app.kubernetes.io/name': item.item}
       - item.resources[0].spec.replicas | int == 1
       - >-
         item.resources[0].spec.template.spec.imagePullSecrets ==
@@ -345,11 +404,29 @@
       {{ (cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings | default([])) +
       [{'name': item.item,
       'uid': item.resources[0].metadata.uid,
+      'resource_version': item.resources[0].metadata.resourceVersion,
       'generation': item.resources[0].metadata.generation,
       'revision': item.resources[0].metadata.annotations['deployment.kubernetes.io/revision'] | default(''),
       'images': item.resources[0].spec.template.spec.containers | map(attribute='image') | list,
       'image_pull_secret': item.resources[0].spec.template.spec.imagePullSecrets}] }}
   loop: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployments.results }}"
+  changed_when: false
+  no_log: true
+
+- name: Require the bound Deployment UID and resourceVersion closure
+  ansible.builtin.assert:
+    that:
+      - cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings | length == 5
+      - >-
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings |
+        map(attribute='name') | list == cristexhub_prod_ghcr_pull_rotation_preflight_deployments
+      - >-
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings |
+        map(attribute='uid') | select('match', '^[0-9a-f-]{16,}$') | list | length == 5
+      - >-
+        cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings |
+        map(attribute='resource_version') | select('match', '^[0-9]+$') | list | length == 5
+    fail_msg: Refusing an incomplete or unbound PROD Deployment identity closure.
   changed_when: false
   no_log: true
 
@@ -375,6 +452,8 @@
       registry_scope: private-ghcr-only
       source_path: /cristexhub/prod/runtime
       source_key: DOCKER_CONFIG_JSON
+      source_cr_uid: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr_binding.uid }}"
+      source_cr_resource_version: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_cr_binding.resource_version }}"
       target_name: cristexhub-prod-ghcr-pull
       target_namespace: cristexhub-prod
       target_type: kubernetes.io/dockerconfigjson
@@ -382,6 +461,8 @@
       target_uid: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_target_metadata.metadata.uid }}"
       target_resource_version: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_target_metadata.metadata.resourceVersion }}"
       consumers: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings | map(attribute='name') | list }}"
+      consumer_identities: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings | map(attribute='uid') | list }}"
+      consumer_resource_versions: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_workload_bindings | map(attribute='resource_version') | list }}"
       rollout_gate: FUTURE-CONTROLLED-ONE-WORKLOAD-AT-A-TIME
       predecessor_revoke_gate: NOT-RUN-BLOCKED
       no_secret_data_read: true

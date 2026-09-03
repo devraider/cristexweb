@@ -34,6 +34,9 @@ Its exact target declaration is:
 - labels `app.kubernetes.io/managed-by=infisical`,
   `app.kubernetes.io/part-of=cristexhub`, and
   `cristex.io/value-owner=infisical-cloud`.
+  The generated Secret must additionally carry exactly one non-empty
+  `secrets.infisical.com/version` annotation; this annotation is added by the
+  Infisical Operator and is not supplied in the source target declaration.
 
 The target Secret is inspected only through a Kubernetes
 `PartialObjectMetadata` request. The response is required to contain only the
@@ -53,7 +56,10 @@ The exact current consumer set is five PROD Deployments:
 - `oauth2-proxy`;
 - `redis`.
 
-The preflight reads Deployment objects only to verify that each consumer:
+The preflight reads Deployment objects only to verify that each consumer has
+an exact top-level ownership label set, a non-terminating metadata identity, and
+an immutable source revision. It binds each Deployment UID and
+resourceVersion for any future controlled rollout. Each consumer:
 
 1. has exactly one replica and is current/Ready;
 2. references exactly `cristexhub-prod-ghcr-pull` as its image pull Secret;

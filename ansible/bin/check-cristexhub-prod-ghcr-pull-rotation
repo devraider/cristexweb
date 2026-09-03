@@ -40,7 +40,7 @@ sha_file() {
   "$sha_tool" "$1" | /usr/bin/cut -d' ' -f1
 }
 source_manifest="$repository_root/ansible/files/components/cristexhub-prod-ghcr-pull-rotation/SOURCE-CLOSURE.sha256"
-source_manifest_expected='b7fd00ceb6093291d487301e0d908e3c2c68c6478dee7a876bec14a5617bdc11'
+source_manifest_expected='0048735229d31732d6f85f698d67d3157851041128460ce3533f77e6d7bf3efc'
 wrapper_canonical_sha256_expected='efd7df0fa4765dd90f859161a375ea94ebff0b7a4d19c27737e13e113c4cdb66'
 action_source="$repository_root/ansible/library/cristexhub_prod_ghcr_pull_secret_metadata.py"
 task_source="$repository_root/ansible/roles/cristexhub_prod_ghcr_pull_rotation_preflight/tasks/main.yml"
