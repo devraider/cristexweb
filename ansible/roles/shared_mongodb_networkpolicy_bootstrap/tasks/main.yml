@@ -611,7 +611,7 @@
   changed_when: false
   no_log: true
 
-- name: Require create-only UID binding after deny-first step
+- name: Require create-only UID/resourceVersion binding after deny-first step
   ansible.builtin.assert:
     that:
       - >-
@@ -619,14 +619,20 @@
         selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-default-deny') | list | length) == 1 or
         (
         shared_mongodb_networkpolicy_bootstrap_internal_default_deny_mutation.created_uid | default('') | length > 0 and
+        shared_mongodb_networkpolicy_bootstrap_internal_default_deny_mutation.created_resource_version | default('') is match('^[0-9]+$') and
         shared_mongodb_networkpolicy_bootstrap_internal_default_deny_mutation.created_uid ==
         (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate |
         selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-default-deny') |
-        map(attribute='uid') | first)
+        map(attribute='uid') | first) and
+        shared_mongodb_networkpolicy_bootstrap_internal_default_deny_mutation.created_resource_version ==
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate |
+        selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-default-deny') |
+        map(attribute='resource_version') | first)
         )
-    fail_msg: Refusing a deny-first create that did not bind the server-assigned UID.
+    fail_msg: Refusing a deny-first create that did not bind the immediate server UID/resourceVersion.
   changed_when: false
   no_log: true
+  when: not ansible_check_mode
 
 - name: Reconcile the exact allow policy only after deny-first state is bound
   shared_mongodb_networkpolicy_guarded_k8s:
@@ -645,6 +651,42 @@
     validation_only: false
   register: shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation
   no_log: true
+
+- name: Query exact target NetworkPolicy immediate poststate after allow step
+  kubernetes.core.k8s_info:
+    api_version: "{{ item.apiVersion }}"
+    kind: "{{ item.kind }}"
+    namespace: "{{ item.metadata.namespace }}"
+    name: "{{ item.metadata.name }}"
+    kubeconfig: "{{ shared_mongodb_networkpolicy_bootstrap_kubeconfig }}"
+  loop: "{{ shared_mongodb_networkpolicy_bootstrap_internal_manifests }}"
+  register: shared_mongodb_networkpolicy_bootstrap_internal_immediate_poststate
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require create-only UID/resourceVersion binding after allow step
+  ansible.builtin.assert:
+    that:
+      - >-
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate |
+        selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-allow') | list | length) == 1 or
+        (
+        shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation.created_uid | default('') | length > 0 and
+        shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation.created_resource_version | default('') is match('^[0-9]+$') and
+        shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation.created_uid ==
+        (shared_mongodb_networkpolicy_bootstrap_internal_immediate_poststate.results |
+        selectattr('item.metadata.name', 'equalto', 'shared-mongodb-networkpolicy-allow') |
+        map(attribute='resources.0.metadata.uid') | first) and
+        shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation.created_resource_version ==
+        (shared_mongodb_networkpolicy_bootstrap_internal_immediate_poststate.results |
+        selectattr('item.metadata.name', 'equalto', 'shared-mongodb-networkpolicy-allow') |
+        map(attribute='resources.0.metadata.resourceVersion') | first)
+        )
+    fail_msg: Refusing an allow-policy create that did not bind the immediate server UID/resourceVersion.
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
 
 - name: Bind the exact sequential NetworkPolicy mutation result list
   ansible.builtin.set_fact:
@@ -724,9 +766,14 @@
         shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation.created_uid ==
         (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_poststate |
         selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-allow') |
-        map(attribute='uid') | first)
+        map(attribute='uid') | first) and
+        shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation.created_resource_version | default('') is match('^[0-9]+$') and
+        shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation.created_resource_version ==
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_poststate |
+        selectattr('name', 'equalto', 'shared-mongodb-networkpolicy-allow') |
+        map(attribute='resource_version') | first)
         )
-    fail_msg: Refusing an allow-policy create that did not bind the server-assigned UID.
+    fail_msg: Refusing an allow-policy create that did not bind the final server UID/resourceVersion.
   changed_when: false
   no_log: true
   when: not ansible_check_mode
@@ -774,6 +821,23 @@
         item.resources[0].metadata.uid ==
         (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate |
         selectattr('name', 'equalto', item.item.metadata.name) | map(attribute='uid') | first)
+      - >-
+        (item.item.metadata.name == 'shared-mongodb-networkpolicy-default-deny' and
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate |
+        selectattr('name', 'equalto', item.item.metadata.name) | list | length == 0) and
+        item.resources[0].metadata.uid ==
+        shared_mongodb_networkpolicy_bootstrap_internal_default_deny_mutation.created_uid and
+        item.resources[0].metadata.resourceVersion ==
+        shared_mongodb_networkpolicy_bootstrap_internal_default_deny_mutation.created_resource_version) or
+        (item.item.metadata.name == 'shared-mongodb-networkpolicy-allow' and
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_between_prestate |
+        selectattr('name', 'equalto', item.item.metadata.name) | list | length == 0) and
+        item.resources[0].metadata.uid ==
+        shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation.created_uid and
+        item.resources[0].metadata.resourceVersion ==
+        shared_mongodb_networkpolicy_bootstrap_internal_allow_mutation.created_resource_version) or
+        (shared_mongodb_networkpolicy_bootstrap_internal_networkpolicy_prestate |
+        selectattr('name', 'equalto', item.item.metadata.name) | list | length == 1)
       - >-
         'deletionTimestamp' not in item.resources[0].metadata
       - >-

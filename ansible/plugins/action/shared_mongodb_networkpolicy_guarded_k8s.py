@@ -40,17 +40,31 @@ _ACTION_SOURCE = _REPOSITORY_ROOT / 'ansible/plugins/action/shared_mongodb_netwo
 _CREATE_MODULE_SOURCE = _REPOSITORY_ROOT / 'ansible/library/shared_mongodb_networkpolicy_create.py'
 _INVENTORY_SOURCE = _REPOSITORY_ROOT / 'ansible/.ansible/inventory.local.yml'
 _ANSIBLE_CONFIG_SOURCE = _REPOSITORY_ROOT / 'ansible/ansible.cfg'
+_REQUIREMENTS_SOURCE = _REPOSITORY_ROOT / 'ansible/requirements.yml'
+_COLLECTION_ROOT = _REPOSITORY_ROOT / 'ansible/.ansible/collections/ansible_collections/kubernetes/core'
+_COLLECTION_MANIFEST_SOURCE = _COLLECTION_ROOT / 'MANIFEST.json'
+_JSON_PATCH_ACTION_SOURCE = _COLLECTION_ROOT / 'plugins/action/k8s_json_patch.py'
+_JSON_PATCH_ACTION_TARGET = _COLLECTION_ROOT / 'plugins/action/k8s_info.py'
+_JSON_PATCH_MODULE_SOURCE = _COLLECTION_ROOT / 'plugins/modules/k8s_json_patch.py'
 _CONTROLLER_SOURCE = _REPOSITORY_ROOT / '.venv/bin/ansible-playbook'
+_PYTHON_SOURCE = _REPOSITORY_ROOT / '.venv/bin/python'
+_PYTHON_REAL_SOURCE = Path('/usr/bin/python3.13')
+_PYTHON_LINK_TARGET = '/usr/bin/python3'
 _EXPECTED_TASK_SOURCES = {str(_TASK_SOURCE)}
 _EXPECTED_IDENTITY_SET_SHA256 = '11352b9439d10f2ffdfad385ee31f524885fead8d74d38937101614f742ab575'
 _EXPECTED_LOCK_FILE = '/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
-_EXPECTED_TASK_SHA256 = '96e67586550ee4850f1275988265d5f4ea507566a7da417fb83f26ff5d5ed0cb'
+_EXPECTED_TASK_SHA256 = 'a4945c6dc7538c2d6fb99622e418483ee31d36e4db5de3751edb683220b52b29'
 _EXPECTED_DEFAULTS_SHA256 = '2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 _EXPECTED_PLAYBOOK_SHA256 = '7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-_EXPECTED_ACTION_CANONICAL_SHA256 = '61321b0be7c73db6400e405daf6ffe3859f3957593398c0453fbc355af3a515a'
-_EXPECTED_CREATE_MODULE_SHA256 = '7fed1d8a3655dad7dad7fdab1e204d9c4907abd144b2c1f2ce0e5caee88e177f'
+_EXPECTED_ACTION_CANONICAL_SHA256 = 'ae940bcf3f79dcfe962dc1da5d042b17468ae43e78575a485e6905e0c52e6bd7'
+_EXPECTED_CREATE_MODULE_SHA256 = '21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 _EXPECTED_INVENTORY_SHA256 = '652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 _EXPECTED_ANSIBLE_CONFIG_SHA256 = '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+_EXPECTED_REQUIREMENTS_SHA256 = 'f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f'
+_EXPECTED_COLLECTION_MANIFEST_SHA256 = 'dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df'
+_EXPECTED_JSON_PATCH_ACTION_TARGET_SHA256 = '3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b'
+_EXPECTED_JSON_PATCH_MODULE_SHA256 = '75b605254a576da3a146019e448d319a4cefdee2d2f3d4ada80e2c2b1c51d0ef'
+_EXPECTED_PYTHON_SHA256 = '17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
 _EXPECTED_CONTROLLER_SHA256 = 'baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
 _EXPECTED_CONTROLLER_MODE = 0o775
 _ALLOWED_MANAGED_FIELD_MANAGERS = {'ansible'}
@@ -206,6 +220,78 @@ def _regular_file(path: Path, mode: int, owner: int | None = None) -> bool:
         return False
 
 
+def _directory(path: Path, mode: int, owner: int | None = None) -> bool:
+    try:
+        state = path.stat(follow_symlinks=False)
+        return (
+            stat.S_ISDIR(state.st_mode)
+            and not path.is_symlink()
+            and stat.S_IMODE(state.st_mode) == mode
+            and (owner is None or state.st_uid == owner)
+        )
+    except OSError:
+        return False
+
+
+def _python_interpreter_valid() -> bool:
+    """Accept uv's canonical .venv Python symlink, never an arbitrary binary."""
+    try:
+        link_state = _PYTHON_SOURCE.stat(follow_symlinks=False)
+        return (
+            stat.S_ISLNK(link_state.st_mode)
+            and link_state.st_uid == os.getuid()
+            and os.readlink(_PYTHON_SOURCE) == _PYTHON_LINK_TARGET
+            and _PYTHON_SOURCE.resolve() == _PYTHON_REAL_SOURCE
+            and _regular_file(_PYTHON_REAL_SOURCE, 0o755, 0)
+            and _sha256(_PYTHON_REAL_SOURCE) == _EXPECTED_PYTHON_SHA256
+        )
+    except (OSError, RuntimeError):
+        return False
+
+
+def _collection_toolchain_valid() -> bool:
+    """Pin the exact installed kubernetes.core action/module closure."""
+    try:
+        if not all(
+            _directory(path, 0o755, os.getuid())
+            for path in (
+                _COLLECTION_ROOT,
+                _COLLECTION_ROOT / 'plugins',
+                _COLLECTION_ROOT / 'plugins/action',
+                _COLLECTION_ROOT / 'plugins/modules',
+            )
+        ):
+            return False
+        if not _regular_file(_REQUIREMENTS_SOURCE, 0o644, os.getuid()):
+            return False
+        if _sha256(_REQUIREMENTS_SOURCE) != _EXPECTED_REQUIREMENTS_SHA256:
+            return False
+        if not _regular_file(_COLLECTION_MANIFEST_SOURCE, 0o644, os.getuid()):
+            return False
+        if _sha256(_COLLECTION_MANIFEST_SOURCE) != _EXPECTED_COLLECTION_MANIFEST_SHA256:
+            return False
+        manifest = json.loads(_COLLECTION_MANIFEST_SOURCE.read_text(encoding='utf-8'))
+        info = manifest.get('collection_info', {})
+        if info.get('namespace') != 'kubernetes' or info.get('name') != 'core' or info.get('version') != '6.1.0':
+            return False
+        action_state = _JSON_PATCH_ACTION_SOURCE.stat(follow_symlinks=False)
+        if (
+            not stat.S_ISLNK(action_state.st_mode)
+            or action_state.st_uid != os.getuid()
+            or os.readlink(_JSON_PATCH_ACTION_SOURCE) != 'k8s_info.py'
+            or _JSON_PATCH_ACTION_SOURCE.resolve() != _JSON_PATCH_ACTION_TARGET
+        ):
+            return False
+        return (
+            _regular_file(_JSON_PATCH_ACTION_TARGET, 0o644, os.getuid())
+            and _sha256(_JSON_PATCH_ACTION_TARGET) == _EXPECTED_JSON_PATCH_ACTION_TARGET_SHA256
+            and _regular_file(_JSON_PATCH_MODULE_SOURCE, 0o644, os.getuid())
+            and _sha256(_JSON_PATCH_MODULE_SOURCE) == _EXPECTED_JSON_PATCH_MODULE_SHA256
+        )
+    except (OSError, RuntimeError, UnicodeError, ValueError, TypeError):
+        return False
+
+
 def _source_closure_valid() -> bool:
     expected = (
         (_TASK_SOURCE, _EXPECTED_TASK_SHA256, 0o644),
@@ -229,6 +315,8 @@ def _source_closure_valid() -> bool:
     if not _regular_file(_CREATE_MODULE_SOURCE, 0o755, os.getuid()):
         return False
     if _sha256(_CREATE_MODULE_SOURCE) != _EXPECTED_CREATE_MODULE_SHA256:
+        return False
+    if not _collection_toolchain_valid() or not _python_interpreter_valid():
         return False
     try:
         state = _CONTROLLER_SOURCE.stat(follow_symlinks=False)
@@ -254,6 +342,16 @@ def _runtime_binding_valid() -> bool:
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_INVENTORY_SHA256': _EXPECTED_INVENTORY_SHA256,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ANSIBLE_CONFIG_SHA256': _EXPECTED_ANSIBLE_CONFIG_SHA256,
         'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CONTROLLER_SHA256': _EXPECTED_CONTROLLER_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PYTHON': str(_PYTHON_SOURCE),
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PYTHON_REAL': str(_PYTHON_REAL_SOURCE),
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PYTHON_SHA256': _EXPECTED_PYTHON_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_REQUIREMENTS_SHA256': _EXPECTED_REQUIREMENTS_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_MANIFEST_SHA256': _EXPECTED_COLLECTION_MANIFEST_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION': str(_JSON_PATCH_ACTION_SOURCE),
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION_TARGET': str(_JSON_PATCH_ACTION_TARGET),
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION_TARGET_SHA256': _EXPECTED_JSON_PATCH_ACTION_TARGET_SHA256,
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_MODULE': str(_JSON_PATCH_MODULE_SOURCE),
+        'CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_MODULE_SHA256': _EXPECTED_JSON_PATCH_MODULE_SHA256,
     }
     expected_mode = 'check' if bool(context.CLIARGS.get('check')) else 'apply'
     return (
@@ -683,7 +781,8 @@ class ActionModule(KubernetesActionModule):
             created_metadata.get('name') != metadata.get('name')
             or created_metadata.get('namespace') != metadata.get('namespace')
             or not created_metadata.get('uid')
-            or not created_metadata.get('resourceVersion')
+            or not isinstance(created_metadata.get('resourceVersion'), str)
+            or not re.fullmatch(r'[0-9]+', created_metadata.get('resourceVersion', ''))
         ):
             return {
                 'changed': False,

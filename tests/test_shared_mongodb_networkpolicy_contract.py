@@ -263,6 +263,171 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
                 (lock / 'owner').write_text(f'{token}:99999999\n')
                 self.assertFalse(self.plugin._cooperative_lock_valid())
 
+    def test_action_specific_canonical_hash_rejects_wrapper_sentinel_confusion(self) -> None:
+        source = PLUGIN.read_text()
+        canonical = self.plugin._canonical_file_hash(PLUGIN, '_EXPECTED_ACTION_CANONICAL_SHA256')
+        self.assertEqual(self.plugin._EXPECTED_ACTION_CANONICAL_SHA256, canonical)
+        self.assertIn('canonical_action_sha256()', WRAPPER.read_text())
+        self.assertIn("canonical_action_sha256 \"$action_source\"", WRAPPER.read_text())
+        self.assertNotIn('canonical_sha256 "$action_source"', WRAPPER.read_text())
+        self.assertIn("_EXPECTED_ACTION_CANONICAL_SHA256 = '" + ('0' * 64) + "'", source.replace(
+            self.plugin._EXPECTED_ACTION_CANONICAL_SHA256, '0' * 64
+        ))
+
+    def test_uv_python_symlink_contract_accepts_canonical_and_rejects_replacement(self) -> None:
+        with TemporaryDirectory() as directory:
+            link = Path(directory) / 'python'
+            link.symlink_to('/usr/bin/python3')
+            target = Path('/usr/bin/python3.13')
+            with mock.patch.object(self.plugin, '_PYTHON_SOURCE', link), mock.patch.object(
+                self.plugin, '_PYTHON_REAL_SOURCE', target
+            ), mock.patch.object(self.plugin, '_EXPECTED_PYTHON_SHA256', hashlib.sha256(
+                target.read_bytes()
+            ).hexdigest()), mock.patch.object(self.plugin, '_regular_file', return_value=True):
+                self.assertTrue(self.plugin._python_interpreter_valid())
+                replacement = Path(directory) / 'replacement'
+                replacement.write_bytes(b'replacement-python')
+                link.unlink()
+                link.symlink_to(replacement)
+                self.assertFalse(self.plugin._python_interpreter_valid())
+
+    def test_collection_action_symlink_and_module_hash_are_pinned(self) -> None:
+        wrapper = WRAPPER.read_text()
+        plugin = PLUGIN.read_text()
+        self.assertIn("readlink \"$json_patch_source\"", wrapper)
+        self.assertIn("json_patch_module_source", wrapper)
+        self.assertIn("_JSON_PATCH_ACTION_SOURCE", plugin)
+        self.assertIn("_JSON_PATCH_ACTION_TARGET", plugin)
+        self.assertIn("_JSON_PATCH_MODULE_SOURCE", plugin)
+        self.assertIn("_EXPECTED_COLLECTION_MANIFEST_SHA256", plugin)
+        self.assertIn("_collection_toolchain_valid", plugin)
+        self.assertIn("collection_manifest", wrapper)
+        self.assertIn("is_owned_directory_mode", wrapper)
+        self.assertIn("kubernetes.core collection", wrapper)
+
+    def test_create_response_binds_numeric_uid_and_resource_version(self) -> None:
+        module = (ROOT / 'ansible/library/shared_mongodb_networkpolicy_create.py').read_text()
+        self.assertIn('created_uid', module)
+        self.assertIn('created_resource_version', module)
+        self.assertIn('re.fullmatch(r"[0-9]+", metadata.get("resourceVersion", ""))', module)
+        self.assertIn('created_resource_version', TASKS.read_text())
+        self.assertIn('immediate poststate', TASKS.read_text())
+        self.assertIn('final server UID/resourceVersion', TASKS.read_text())
+
+    def test_signal_cleanup_waits_for_child_before_releasing_lock(self) -> None:
+        wrapper = WRAPPER.read_text()
+        self.assertIn('child_pid=', wrapper)
+        self.assertIn("/bin/kill -TERM -- \"-$child_pid\"", wrapper)
+        self.assertIn('wait "$child_pid"', wrapper)
+        self.assertIn("trap '' EXIT HUP INT TERM", wrapper)
+        self.assertIn('owner_written=1', wrapper)
+        self.assertIn('umask 077', wrapper)
+        self.assertIn('is_owned_regular_mode', wrapper)
+        self.assertIn("[ ! -s \"$lock_file\" ]", wrapper)
+
+        # Exercise the signal/lock ordering with a process-group child; this
+        # catches the former bug where EXIT cleanup released the lock while the
+        # Ansible child was still alive.
+        with TemporaryDirectory() as directory:
+            lock = Path(directory) / 'lock'
+            marker = Path(directory) / 'child.pid'
+            fixture = r'''#!/bin/sh
+set -eu
+lock=$1
+marker=$2
+umask 077
+mkdir "$lock"
+owner_written=1
+printf '%s\n' "$$" >"$lock/owner"
+child_pid=
+forced_cleanup_status=
+cleanup() {
+  status=$?
+  if [ -n "${forced_cleanup_status:-}" ]; then status=$forced_cleanup_status; fi
+  trap - EXIT HUP INT TERM
+  if [ "$owner_written" = 1 ]; then rm -f "$lock/owner"; fi
+  rmdir "$lock"
+  exit "$status"
+}
+terminate_child() {
+  signal_status=$1
+  trap '' EXIT HUP INT TERM
+  if [ -n "${child_pid:-}" ]; then
+    kill -TERM -- "-$child_pid" 2>/dev/null || kill -TERM "$child_pid" 2>/dev/null || true
+    remaining=5
+    while [ "$remaining" -gt 0 ] && kill -0 "$child_pid" 2>/dev/null; do
+      sleep 1
+      remaining=$((remaining - 1))
+    done
+    if kill -0 "$child_pid" 2>/dev/null; then
+      kill -KILL -- "-$child_pid" 2>/dev/null || kill -KILL "$child_pid" 2>/dev/null || true
+    fi
+    wait "$child_pid" 2>/dev/null || true
+    child_pid=
+  fi
+  forced_cleanup_status=$signal_status
+  cleanup
+}
+trap cleanup EXIT
+pending_signal=
+trap 'pending_signal=143' TERM
+setsid sleep 30 &
+child_pid=$!
+printf '%s\n' "$child_pid" >"$marker"
+set +e
+wait "$child_pid"
+status=$?
+set -e
+if [ -n "$pending_signal" ]; then terminate_child "$pending_signal"; fi
+exit "$status"
+'''
+            fixture_path = Path(directory) / 'fixture.sh'
+            fixture_path.write_text(fixture)
+            fixture_path.chmod(0o755)
+            process = subprocess.Popen([str(fixture_path), str(lock), str(marker)])
+            try:
+                for _ in range(50):
+                    if marker.exists():
+                        break
+                    __import__('time').sleep(0.02)
+                self.assertTrue(marker.exists())
+                child_pid = int(marker.read_text().strip())
+                process.send_signal(__import__('signal').SIGTERM)
+                self.assertEqual(143, process.wait(timeout=10))
+                self.assertFalse(lock.exists())
+                with self.assertRaises(ProcessLookupError):
+                    os.kill(child_pid, 0)
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+
+    def test_stale_legacy_lock_is_migrated_only_when_exact_empty_owned_file(self) -> None:
+        with TemporaryDirectory() as directory:
+            lock = Path(directory) / 'lock'
+            lock.touch(mode=0o600)
+            lock.chmod(0o600)
+            migrate = subprocess.run(
+                [
+                    'sh', '-c',
+                    'set -eu; lock=$1; user=$(id -un); '
+                    '[ -f "$lock" ] && [ ! -L "$lock" ] && [ ! -s "$lock" ] && '
+                    '[ "$(find "$lock" -prune -type f -user "$user" -perm 600 -print)" = "$lock" ]; '
+                    'rm -f -- "$lock"; umask 077; mkdir "$lock"; '
+                    '[ "$(find "$lock" -prune -type d -user "$user" -perm 700 -print)" = "$lock" ]; rmdir "$lock"',
+                    'stale-lock-test', str(lock),
+                ],
+                check=False,
+            )
+            self.assertEqual(0, migrate.returncode)
+            symlink = Path(directory) / 'symlink'
+            symlink.symlink_to(lock)
+            rejected = subprocess.run(
+                ['sh', '-c', '[ ! -L "$1" ]', 'symlink-lock-test', str(symlink)],
+                check=False,
+            )
+            self.assertNotEqual(0, rejected.returncode)
+
     def test_absent_target_uses_create_only_module_not_merge_update(self) -> None:
         plugin = PLUGIN.read_text()
         module = ROOT / 'ansible/library/shared_mongodb_networkpolicy_create.py'

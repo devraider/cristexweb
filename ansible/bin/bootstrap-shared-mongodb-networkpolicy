@@ -9,13 +9,14 @@ usage='usage: ansible/bin/bootstrap-shared-mongodb-networkpolicy check|apply'
 mode=$1
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 export PATH
+umask 077
 if [ "$mode" = apply ] && [ "${CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED:-}" != v1 ]; then
   printf '%s\n' 'apply requires CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED=v1' >&2
   exit 77
 fi
 original_script_path=$0
 script_path=$0
-wrapper_canonical_sha256_expected='cc9d9192cd257bc6ef59b50537b10b9dd97830ebf10c061957ef511171bfc6f6'
+wrapper_canonical_sha256_expected='3ae1acd6bd00fdad9bfbf89e34abe68514ef40b46710403a9f8aadc5e49df75b'
 sha256_stdin() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum | awk '{print $1}'
@@ -29,6 +30,9 @@ sha256_stdin() {
 sha256_file() { sha256_stdin <"$1"; }
 canonical_sha256() {
   sed -E "s/^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$/wrapper_canonical_sha256_expected='0000000000000000000000000000000000000000000000000000000000000000'/" "$1" | sha256_stdin
+}
+canonical_action_sha256() {
+  sed -E "s/^_EXPECTED_ACTION_CANONICAL_SHA256 = '[0-9a-f]{64}'$/_EXPECTED_ACTION_CANONICAL_SHA256 = '0000000000000000000000000000000000000000000000000000000000000000'/" "$1" | sha256_stdin
 }
 [ ! -L "$script_path" ] || {
   printf '%s\n' 'refusing a symlinked shared MongoDB NetworkPolicy entrypoint' >&2
@@ -45,19 +49,68 @@ if [ "$original_script_path" != "$script_path" ]; then
   exec /bin/sh "$script_path" "$mode"
 fi
 controller_user=$(id -un)
+is_owned_regular_mode() {
+  [ -f "$1" ] && [ ! -L "$1" ] &&
+    [ "$(find "$1" -prune -type f -user "$controller_user" -perm "$2" -print 2>/dev/null)" = "$1" ]
+}
+is_owned_symlink() {
+  [ -L "$1" ] &&
+    [ "$(find "$1" -prune -type l -user "$controller_user" -print 2>/dev/null)" = "$1" ]
+}
+is_owned_directory_mode() {
+  [ -d "$1" ] && [ ! -L "$1" ] &&
+    [ "$(find "$1" -prune -type d -user "$controller_user" -perm "$2" -print 2>/dev/null)" = "$1" ]
+}
 controller="$repository_root/.venv/bin/ansible-playbook"
 python_tool="$repository_root/.venv/bin/python"
+python_real_source=/usr/bin/python3.13
+python_link_target_expected=/usr/bin/python3
 inventory="$repository_root/ansible/.ansible/inventory.local.yml"
 ansible_config="$repository_root/ansible/ansible.cfg"
+requirements_source="$repository_root/ansible/requirements.yml"
+collection_root="$repository_root/ansible/.ansible/collections/ansible_collections/kubernetes/core"
+collection_manifest="$collection_root/MANIFEST.json"
+collection_plugins="$collection_root/plugins"
+collection_actions="$collection_plugins/action"
+collection_modules="$collection_plugins/modules"
+json_patch_source="$collection_actions/k8s_json_patch.py"
+json_patch_real_source="$collection_root/plugins/action/k8s_info.py"
+json_patch_module_source="$collection_root/plugins/modules/k8s_json_patch.py"
 task_source="$repository_root/ansible/roles/shared_mongodb_networkpolicy_bootstrap/tasks/main.yml"
 defaults_source="$repository_root/ansible/roles/shared_mongodb_networkpolicy_bootstrap/defaults/main.yml"
 playbook_source="$repository_root/ansible/playbooks/bootstrap_shared_mongodb_networkpolicy.yml"
 action_source="$repository_root/ansible/plugins/action/shared_mongodb_networkpolicy_guarded_k8s.py"
 create_module_source="$repository_root/ansible/library/shared_mongodb_networkpolicy_create.py"
 [ -x "$controller" ] && [ ! -L "$controller" ] || { printf '%s\n' 'refusing an unsafe pinned Ansible controller' >&2; exit 69; }
-[ -x "$python_tool" ] && [ ! -L "$python_tool" ] || { printf '%s\n' 'refusing an unsafe pinned Python controller' >&2; exit 69; }
+is_owned_symlink "$python_tool" && [ "$(readlink "$python_tool")" = "$python_link_target_expected" ] &&
+  [ -L "$python_link_target_expected" ] && [ "$(readlink "$python_link_target_expected")" = 'python3.13' ] &&
+  [ "$(find "$python_real_source" -prune -type f -user root -perm 755 -print 2>/dev/null)" = "$python_real_source" ] || {
+  printf '%s\n' 'refusing a non-canonical uv Python symlink' >&2
+  exit 69
+}
 [ -f "$inventory" ] && [ ! -L "$inventory" ] || { printf '%s\n' 'refusing an unsafe inventory' >&2; exit 69; }
 [ -f "$ansible_config" ] && [ ! -L "$ansible_config" ] || { printf '%s\n' 'refusing an unsafe Ansible configuration' >&2; exit 69; }
+[ -f "$requirements_source" ] && [ ! -L "$requirements_source" ] || exit 69
+[ -f "$collection_manifest" ] && [ ! -L "$collection_manifest" ] || exit 69
+is_owned_directory_mode "$collection_root" 755 || exit 69
+is_owned_directory_mode "$collection_plugins" 755 || exit 69
+is_owned_directory_mode "$collection_actions" 755 || exit 69
+is_owned_directory_mode "$collection_modules" 755 || exit 69
+is_owned_symlink "$json_patch_source" && [ "$(readlink "$json_patch_source")" = 'k8s_info.py' ] && [ "$(readlink -f "$json_patch_source")" = "$json_patch_real_source" ] || {
+  printf '%s\n' 'refusing an unpinned kubernetes.core JSON patch action symlink' >&2
+  exit 69
+}
+[ -f "$json_patch_real_source" ] && [ ! -L "$json_patch_real_source" ] || exit 69
+[ -f "$json_patch_module_source" ] && [ ! -L "$json_patch_module_source" ] || exit 69
+is_owned_regular_mode "$json_patch_real_source" 644 || exit 69
+is_owned_regular_mode "$json_patch_module_source" 644 || exit 69
+is_owned_regular_mode "$collection_manifest" 644 || exit 69
+/usr/bin/grep -Eq '"namespace"[[:space:]]*:[[:space:]]*"kubernetes"' "$collection_manifest" || exit 69
+/usr/bin/grep -Eq '"name"[[:space:]]*:[[:space:]]*"core"' "$collection_manifest" || exit 69
+/usr/bin/grep -Eq '"version"[[:space:]]*:[[:space:]]*"6\.1\.0"' "$collection_manifest" || {
+  printf '%s\n' 'refusing an unpinned kubernetes.core collection' >&2
+  exit 69
+}
 [ -f "$task_source" ] && [ ! -L "$task_source" ] || exit 69
 [ -f "$defaults_source" ] && [ ! -L "$defaults_source" ] || exit 69
 [ -f "$playbook_source" ] && [ ! -L "$playbook_source" ] || exit 69
@@ -65,79 +118,213 @@ create_module_source="$repository_root/ansible/library/shared_mongodb_networkpol
 [ -f "$create_module_source" ] && [ ! -L "$create_module_source" ] || exit 69
 # These pins are intentionally fixed in the wrapper; changing any source leaf
 # requires a reviewed source/hash update rather than an environment override.
-task_sha256_expected='96e67586550ee4850f1275988265d5f4ea507566a7da417fb83f26ff5d5ed0cb'
+task_sha256_expected='a4945c6dc7538c2d6fb99622e418483ee31d36e4db5de3751edb683220b52b29'
 defaults_sha256_expected='2daa92a2dccecf493c88741777c40198b0ad8721677d6d12b2d29806ea1b8202'
 playbook_sha256_expected='7521e6d1e0fc705b70d1d9ba08ee9330a8de00abf846f3598ee51047748be3c9'
-action_canonical_sha256_expected='61321b0be7c73db6400e405daf6ffe3859f3957593398c0453fbc355af3a515a'
-create_module_sha256_expected='7fed1d8a3655dad7dad7fdab1e204d9c4907abd144b2c1f2ce0e5caee88e177f'
+action_canonical_sha256_expected='ae940bcf3f79dcfe962dc1da5d042b17468ae43e78575a485e6905e0c52e6bd7'
+create_module_sha256_expected='21c1338d09b4b422482152d24d5f52500b8877359ea9e225aa2e8893a11304e9'
 inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+requirements_sha256_expected='f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f'
+collection_manifest_sha256_expected='dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df'
+json_patch_action_target_sha256_expected='3f4a8318615ea5401fdea6d1177c181ad11e31e48eaf7f8f0fa6554a053fb16b'
+json_patch_module_sha256_expected='75b605254a576da3a146019e448d319a4cefdee2d2f3d4ada80e2c2b1c51d0ef'
+python_sha256_expected='17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
 controller_sha256_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
 [ "$(canonical_sha256 "$script_path")" = "$wrapper_canonical_sha256_expected" ] || { printf '%s\n' 'refusing wrapper source drift' >&2; exit 69; }
 [ "$(sha256_file "$task_source")" = "$task_sha256_expected" ] || { printf '%s\n' 'refusing task source drift' >&2; exit 69; }
 [ "$(sha256_file "$defaults_source")" = "$defaults_sha256_expected" ] || { printf '%s\n' 'refusing defaults source drift' >&2; exit 69; }
 [ "$(sha256_file "$playbook_source")" = "$playbook_sha256_expected" ] || { printf '%s\n' 'refusing playbook source drift' >&2; exit 69; }
-[ "$(canonical_sha256 "$action_source")" = "$action_canonical_sha256_expected" ] || { printf '%s\n' 'refusing action source drift' >&2; exit 69; }
+[ "$(canonical_action_sha256 "$action_source")" = "$action_canonical_sha256_expected" ] || { printf '%s\n' 'refusing action source drift' >&2; exit 69; }
 [ "$(sha256_file "$create_module_source")" = "$create_module_sha256_expected" ] || { printf '%s\n' 'refusing create module source drift' >&2; exit 69; }
 [ "$(sha256_file "$inventory")" = "$inventory_sha256_expected" ] || { printf '%s\n' 'refusing inventory drift' >&2; exit 69; }
 [ "$(sha256_file "$ansible_config")" = "$ansible_config_sha256_expected" ] || { printf '%s\n' 'refusing Ansible configuration drift' >&2; exit 69; }
+[ "$(sha256_file "$requirements_source")" = "$requirements_sha256_expected" ] || { printf '%s\n' 'refusing collection requirement drift' >&2; exit 69; }
+[ "$(sha256_file "$collection_manifest")" = "$collection_manifest_sha256_expected" ] || { printf '%s\n' 'refusing collection manifest drift' >&2; exit 69; }
+[ "$(sha256_file "$json_patch_real_source")" = "$json_patch_action_target_sha256_expected" ] || { printf '%s\n' 'refusing JSON patch action target drift' >&2; exit 69; }
+[ "$(sha256_file "$json_patch_module_source")" = "$json_patch_module_sha256_expected" ] || { printf '%s\n' 'refusing JSON patch module drift' >&2; exit 69; }
+[ "$(sha256_file "$python_real_source")" = "$python_sha256_expected" ] || { printf '%s\n' 'refusing Python interpreter drift' >&2; exit 69; }
 [ "$(sha256_file "$controller")" = "$controller_sha256_expected" ] || { printf '%s\n' 'refusing controller drift' >&2; exit 69; }
 lock_file='/tmp/cristexweb-shared-mongodb-networkpolicy.lock'
-[ ! -L "$lock_file" ] && [ ! -e "$lock_file" ] || {
+lock_owned=0
+owner_written=0
+owner_tmp=
+attestation_file=
+child_pid=
+pending_signal=
+forced_cleanup_status=
+wrapper_pid=$$
+cleanup() {
+  cleanup_status=$?
+  if [ -n "${forced_cleanup_status:-}" ]; then
+    cleanup_status=$forced_cleanup_status
+  fi
+  trap - EXIT HUP INT TERM
+  if [ -n "${attestation_file:-}" ]; then
+    /bin/rm -f -- "$attestation_file"
+  fi
+  if [ "$lock_owned" = 1 ]; then
+    owner_path="$lock_file/owner"
+    if [ -n "${owner_tmp:-}" ] && is_owned_regular_mode "$owner_tmp" 600; then
+      /bin/rm -f -- "$owner_tmp"
+    fi
+    if [ "$owner_written" = 1 ] && is_owned_regular_mode "$owner_path" 600 &&
+      [ "$(cat "$owner_path" 2>/dev/null || true)" = "$attestation_token:$wrapper_pid" ]; then
+      /bin/rm -f -- "$owner_path"
+    fi
+    /bin/rmdir -- "$lock_file" 2>/dev/null || true
+  fi
+  exit "$cleanup_status"
+}
+terminate_child() {
+  signal_status=$1
+  trap '' EXIT HUP INT TERM
+  if [ -n "${child_pid:-}" ]; then
+    /bin/kill -TERM -- "-$child_pid" 2>/dev/null || /bin/kill -TERM "$child_pid" 2>/dev/null || true
+    remaining=5
+    while [ "$remaining" -gt 0 ] && /bin/kill -0 "$child_pid" 2>/dev/null; do
+      /bin/sleep 1
+      remaining=$((remaining - 1))
+    done
+    if /bin/kill -0 "$child_pid" 2>/dev/null; then
+      /bin/kill -KILL -- "-$child_pid" 2>/dev/null || /bin/kill -KILL "$child_pid" 2>/dev/null || true
+    fi
+    wait "$child_pid" 2>/dev/null || true
+    child_pid=
+  fi
+  forced_cleanup_status=$signal_status
+  cleanup
+}
+if [ -L "$lock_file" ]; then
   printf '%s\n' 'shared MongoDB NetworkPolicy cooperative lock is held or unsafe' >&2
   exit 75
-}
+fi
+if [ -e "$lock_file" ]; then
+  if is_owned_regular_mode "$lock_file" 600 && [ ! -s "$lock_file" ]; then
+    /bin/rm -f -- "$lock_file" || {
+      printf '%s\n' 'refusing to migrate the legacy shared MongoDB NetworkPolicy lock' >&2
+      exit 75
+    }
+  else
+    printf '%s\n' 'shared MongoDB NetworkPolicy cooperative lock is held or unsafe' >&2
+    exit 75
+  fi
+fi
 /bin/mkdir "$lock_file" 2>/dev/null || {
   printf '%s\n' 'shared MongoDB NetworkPolicy cooperative lock is held' >&2
   exit 75
 }
-/bin/chmod 700 "$lock_file"
+lock_owned=1
+trap cleanup EXIT
+# umask 077 makes the mkdir-created ownership boundary private from creation.
+is_owned_directory_mode "$lock_file" 700 || exit 75
 attestation_file=$(mktemp "${TMPDIR:-/tmp}/cristexweb-shared-mongodb-networkpolicy.XXXXXX")
 attestation_token=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
-wrapper_pid=$$
-printf '%s:%s\n' "$attestation_token" "$wrapper_pid" >"$lock_file/owner"
-/bin/chmod 600 "$lock_file/owner"
-printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
 /bin/chmod 600 "$attestation_file"
-cleanup() {
-  /bin/rm -f -- "$attestation_file" "$lock_file/owner"
-  /bin/rmdir -- "$lock_file" 2>/dev/null || true
-}
-trap cleanup EXIT HUP INT TERM
+owner_tmp="$lock_file/.owner.$$"
+printf '%s:%s\n' "$attestation_token" "$wrapper_pid" >"$owner_tmp"
+/bin/chmod 600 "$owner_tmp"
+/bin/mv -f -- "$owner_tmp" "$lock_file/owner"
+owner_tmp=
+owner_written=1
+printf '%s:entrypoint\n' "$attestation_token" >"$attestation_file"
+trap 'pending_signal=129' HUP
+trap 'pending_signal=130' INT
+trap 'pending_signal=143' TERM
 apply_approval=
 case "$mode" in
-  check) ansible_flags='--diff --check';;
+  check) ansible_flags='--diff --check' ;;
   apply)
     [ "${CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED:-}" = v1 ] || {
       printf '%s\n' 'apply requires CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED=v1' >&2
       exit 77
     }
-    ansible_flags='--diff'; apply_approval=v1;;
+    ansible_flags='--diff'; apply_approval=v1 ;;
 esac
 cd "$repository_root/ansible"
 set -- "$controller" -i .ansible/inventory.local.yml playbooks/bootstrap_shared_mongodb_networkpolicy.yml $ansible_flags --limit crtxweb --extra-vars "{\"shared_mongodb_networkpolicy_bootstrap_approved\":true,\"shared_mongodb_networkpolicy_bootstrap_mode\":\"$mode\"}"
-# The clean environment prevents inherited module/plugin/provider overrides.
-env -i \
-  "HOME=${HOME:-$repository_root}" \
-  "USER=$controller_user" \
-  "LOGNAME=$controller_user" \
-  'PATH=/usr/bin:/bin:/usr/sbin:/sbin' \
-  'LC_ALL=C.UTF-8' \
-  "ANSIBLE_CONFIG=$ansible_config" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ENTRYPOINT=v1" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_MODE=$mode" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED=$apply_approval" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN=$attestation_token" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE=$attestation_file" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE=$lock_file" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID=$wrapper_pid" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TASK_SHA256=$task_sha256_expected" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_DEFAULTS_SHA256=$defaults_sha256_expected" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PLAYBOOK_SHA256=$playbook_sha256_expected" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_CANONICAL_SHA256=$(canonical_sha256 "$script_path")" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ACTION_CANONICAL_SHA256=$action_canonical_sha256_expected" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CREATE_MODULE_SHA256=$create_module_sha256_expected" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_INVENTORY_SHA256=$inventory_sha256_expected" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ANSIBLE_CONFIG_SHA256=$ansible_config_sha256_expected" \
-  "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CONTROLLER_SHA256=$controller_sha256_expected" \
-  "$@"
+if [ -x /usr/bin/setsid ]; then
+  /usr/bin/setsid /usr/bin/env -i \
+    "HOME=${HOME:-$repository_root}" \
+    "USER=$controller_user" \
+    "LOGNAME=$controller_user" \
+    'PATH=/usr/bin:/bin:/usr/sbin:/sbin' \
+    'LC_ALL=C.UTF-8' \
+    "ANSIBLE_CONFIG=$ansible_config" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ENTRYPOINT=v1" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_MODE=$mode" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED=$apply_approval" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN=$attestation_token" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE=$attestation_file" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE=$lock_file" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID=$wrapper_pid" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TASK_SHA256=$task_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_DEFAULTS_SHA256=$defaults_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PLAYBOOK_SHA256=$playbook_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_CANONICAL_SHA256=$wrapper_canonical_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ACTION_CANONICAL_SHA256=$action_canonical_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CREATE_MODULE_SHA256=$create_module_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_INVENTORY_SHA256=$inventory_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ANSIBLE_CONFIG_SHA256=$ansible_config_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CONTROLLER_SHA256=$controller_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PYTHON=$python_tool" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PYTHON_REAL=$python_real_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PYTHON_SHA256=$python_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_REQUIREMENTS_SHA256=$requirements_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_MANIFEST_SHA256=$collection_manifest_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION=$json_patch_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION_TARGET=$json_patch_real_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION_TARGET_SHA256=$json_patch_action_target_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_MODULE=$json_patch_module_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_MODULE_SHA256=$json_patch_module_sha256_expected" \
+    "$@" &
+else
+  /usr/bin/env -i \
+    "HOME=${HOME:-$repository_root}" \
+    "USER=$controller_user" \
+    "LOGNAME=$controller_user" \
+    'PATH=/usr/bin:/bin:/usr/sbin:/sbin' \
+    'LC_ALL=C.UTF-8' \
+    "ANSIBLE_CONFIG=$ansible_config" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ENTRYPOINT=v1" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_MODE=$mode" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_APPLY_APPROVED=$apply_approval" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TOKEN=$attestation_token" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ATTESTATION_FILE=$attestation_file" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_LOCK_FILE=$lock_file" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_PID=$wrapper_pid" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_TASK_SHA256=$task_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_DEFAULTS_SHA256=$defaults_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PLAYBOOK_SHA256=$playbook_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_WRAPPER_CANONICAL_SHA256=$wrapper_canonical_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ACTION_CANONICAL_SHA256=$action_canonical_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CREATE_MODULE_SHA256=$create_module_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_INVENTORY_SHA256=$inventory_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_ANSIBLE_CONFIG_SHA256=$ansible_config_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_CONTROLLER_SHA256=$controller_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PYTHON=$python_tool" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PYTHON_REAL=$python_real_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_PYTHON_SHA256=$python_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_REQUIREMENTS_SHA256=$requirements_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_COLLECTION_MANIFEST_SHA256=$collection_manifest_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION=$json_patch_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION_TARGET=$json_patch_real_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_ACTION_TARGET_SHA256=$json_patch_action_target_sha256_expected" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_MODULE=$json_patch_module_source" \
+    "CRISTEXWEB_SHARED_MONGODB_NETWORKPOLICY_JSON_PATCH_MODULE_SHA256=$json_patch_module_sha256_expected" \
+    "$@" &
+fi
+child_pid=$!
+if [ -n "$pending_signal" ]; then
+  terminate_child "$pending_signal"
+fi
+set +e
+wait "$child_pid"
+child_status=$?
+set -e
+if [ -n "$pending_signal" ]; then
+  terminate_child "$pending_signal"
+fi
+child_pid=
+trap - HUP INT TERM
+exit "$child_status"

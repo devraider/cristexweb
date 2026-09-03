@@ -8,6 +8,8 @@ conflict/fail-closed result instead of being silently reconciled.
 
 from __future__ import annotations
 
+import re
+
 from ansible.module_utils.basic import AnsibleModule
 
 
@@ -88,7 +90,7 @@ def main():
             or not isinstance(metadata.get("uid"), str)
             or not metadata.get("uid")
             or not isinstance(metadata.get("resourceVersion"), str)
-            or not metadata.get("resourceVersion")
+            or not re.fullmatch(r"[0-9]+", metadata.get("resourceVersion", ""))
         ):
             module.fail_json(msg="CREATE_ONLY_GUARD: create response identity incomplete")
         module.exit_json(
