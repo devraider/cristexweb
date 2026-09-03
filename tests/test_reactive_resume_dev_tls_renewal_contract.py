@@ -1,5 +1,6 @@
 import hashlib
 import importlib.util
+import json
 import re
 import stat
 import unittest
@@ -181,6 +182,7 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             self.assertIn(required, wrapper)
 
     def test_strategy_rejects_selection_controls_before_task_iteration(self) -> None:
+        self.assertEqual(0o644, stat.S_IMODE(STRATEGY.stat().st_mode))
         spec = importlib.util.spec_from_file_location("rr_tls_strategy", STRATEGY)
         self.assertIsNotNone(spec)
         self.assertIsNotNone(spec.loader)
@@ -205,6 +207,86 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
                     with mock.patch.object(module.sys, "argv", argv):
                         with self.assertRaisesRegex(Exception, "TASK_SELECTION_GUARD"):
                             strategy.run(None, None)
+
+    def test_strategy_binds_exact_wrapper_argv_and_runtime_inputs(self) -> None:
+        spec = importlib.util.spec_from_file_location("rr_tls_strategy_argv", STRATEGY)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        payload = {
+            "reactive_resume_dev_tls_renewal_approved": True,
+            "reactive_resume_dev_tls_renewal_mode": "install",
+            "reactive_resume_dev_tls_renewal_repository_root": str(module._REPOSITORY_ROOT),
+        }
+        argv = [
+            str(module._CONTROLLER),
+            "-i",
+            str(module._INVENTORY_SOURCE),
+            str(module._PLAYBOOK),
+            "--diff",
+            "--limit",
+            "crtxweb",
+            "--ask-become-pass",
+            "--extra-vars",
+            json.dumps(payload, separators=(",", ":")),
+            "--check",
+        ]
+        with mock.patch.object(module.sys, "argv", argv):
+            self.assertTrue(module._canonical_argv())
+            tampered = list(argv)
+            tampered[9] = json.dumps({**payload, "unexpected": True}, separators=(",", ":"))
+            with mock.patch.object(module.sys, "argv", tampered):
+                self.assertFalse(module._canonical_argv())
+        cliargs = {
+            "start_at_task": None,
+            "step": False,
+            "tags": [],
+            "skip_tags": [],
+            "subset": "crtxweb",
+            "diff": True,
+            "inventory": [str(module._INVENTORY_SOURCE)],
+        }
+        strategy = module.StrategyModule.__new__(module.StrategyModule)
+        with (
+            mock.patch.object(module.context, "CLIARGS", cliargs),
+            mock.patch.object(module, "_inventory_contract", return_value=True),
+            mock.patch.object(module, "_runtime_contract", return_value=True),
+            mock.patch.object(module.LinearStrategyModule, "run", return_value="ok"),
+            mock.patch.object(module.sys, "argv", argv),
+        ):
+            self.assertEqual("ok", strategy.run(None, None))
+
+    def test_hash_helpers_are_environment_isolated(self) -> None:
+        wrapper = WRAPPER.read_text()
+        self.assertIn("clean_python()", wrapper)
+        self.assertIn("/usr/bin/env -i", wrapper)
+        self.assertIn("PYTHONNOUSERSITE=1", wrapper)
+        self.assertIn("PYTHONHASHSEED=0", wrapper)
+        self.assertNotIn('  "$python_tool" - "$1" <<\'PY\'', wrapper)
+        self.assertEqual(3, wrapper.count("clean_python - \"$1\" <<'PY'"))
+
+    def test_operational_defaults_are_immutable_and_nonempty(self) -> None:
+        defaults = yaml.safe_load(DEFAULTS.read_text())
+        self.assertEqual("/var/lib/cristexweb/reactive-resume-dev-tls", defaults["reactive_resume_dev_tls_renewal_state_root"])
+        self.assertEqual("/usr/local/libexec/cristexweb", defaults["reactive_resume_dev_tls_renewal_libexec_root"])
+        self.assertEqual("/usr/bin/certbot", defaults["reactive_resume_dev_tls_renewal_certbot_path"])
+        self.assertEqual("4.0.0-2+deb13u1", defaults["reactive_resume_dev_tls_renewal_certbot_package_version"])
+        self.assertEqual("4.0.0-1", defaults["reactive_resume_dev_tls_renewal_dns_cloudflare_package_version"])
+        self.assertEqual(
+            "21e24f040a09196fb1214873ef964ac74655b172575a78fd95e6c9f2ab1c8940",
+            defaults["reactive_resume_dev_tls_renewal_infisical_cli_sha256"],
+        )
+        self.assertEqual(4, len(defaults["reactive_resume_dev_tls_renewal_installed_file_contract"]))
+        role = ROLE.read_text()
+        self.assertIn("Require immutable TLS renewal operational defaults", role)
+        for required in (
+            "reactive_resume_dev_tls_renewal_state_root == '/var/lib/cristexweb/reactive-resume-dev-tls'",
+            "reactive_resume_dev_tls_renewal_libexec_root == '/usr/local/libexec/cristexweb'",
+            "reactive_resume_dev_tls_renewal_certbot_path == '/usr/bin/certbot'",
+            "reactive_resume_dev_tls_renewal_installed_file_contract == [",
+        ):
+            self.assertIn(required, role)
 
     def test_playbook_and_role_pin_first_task_and_execution_inputs(self) -> None:
         playbook = PLAYBOOK.read_text()

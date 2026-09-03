@@ -1,4 +1,54 @@
 ---
+- name: Require immutable TLS renewal operational defaults
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_repository_root == '/home/paul/projects/cristexweb'
+      - >-
+        reactive_resume_dev_tls_renewal_component_root ==
+        '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/renewal'
+      - >-
+        reactive_resume_dev_tls_renewal_manifest_path ==
+        '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/MANIFESTS.sha256'
+      - reactive_resume_dev_tls_renewal_manifest_sha256 == '90cef6e9a07df37a319fd7c44a1d8a82841b10ef1b7bf7d7635519fcb73e19d5'
+      - reactive_resume_dev_tls_renewal_state_root == '/var/lib/cristexweb/reactive-resume-dev-tls'
+      - reactive_resume_dev_tls_renewal_libexec_root == '/usr/local/libexec/cristexweb'
+      - reactive_resume_dev_tls_renewal_infisical_cli == '/home/paul/.nvm/versions/node/v24.19.0/lib/node_modules/@infisical/cli/bin/infisical'
+      - reactive_resume_dev_tls_renewal_token_file == '/home/paul/.config/cristexweb/cloudflare-argo-dns-token'
+      - reactive_resume_dev_tls_renewal_certbot_path == '/usr/bin/certbot'
+      - reactive_resume_dev_tls_renewal_service == 'cristexweb-reactive-resume-dev-tls-renew.service'
+      - reactive_resume_dev_tls_renewal_timer == 'cristexweb-reactive-resume-dev-tls-renew.timer'
+      - reactive_resume_dev_tls_renewal_certbot_package_version == '4.0.0-2+deb13u1'
+      - reactive_resume_dev_tls_renewal_dns_cloudflare_package_version == '4.0.0-1'
+      - reactive_resume_dev_tls_renewal_certbot_version == '4.0.0'
+      - reactive_resume_dev_tls_renewal_infisical_cli_version == '0.43.121'
+      - reactive_resume_dev_tls_renewal_infisical_cli_sha256 == '21e24f040a09196fb1214873ef964ac74655b172575a78fd95e6c9f2ab1c8940'
+      - >-
+        reactive_resume_dev_tls_renewal_installed_file_contract == [
+          {
+            'path': '/usr/local/libexec/cristexweb/validate-reactive-resume-dev-tls-material',
+            'mode': '0755',
+            'sha256': '68c0fcde82cc3d3f394d5c14e9cffc3c2cf0dd42bb93ad496143b15cc86f1985'
+          },
+          {
+            'path': '/usr/local/libexec/cristexweb/reactive-resume-dev-tls-renew',
+            'mode': '0755',
+            'sha256': 'c46ad711f8693fcbe783841a99542a7c0a74fefdfc4a03ab6f4cde198e36629b'
+          },
+          {
+            'path': '/etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.service',
+            'mode': '0644',
+            'sha256': 'ddadb603a2f580bd14af0461c60cc30163174ecade9328c73b39d7afb1bd6cb3'
+          },
+          {
+            'path': '/etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.timer',
+            'mode': '0644',
+            'sha256': 'cd0a8c3b01e623627854ed63da37e0d35d4cc9f7db0b675d93f52325f2fb3a0f'
+          }
+        ]
+    fail_msg: Refusing TLS renewal roots, package versions, Certbot path, or installed-file contract outside the fixed reviewed values.
+  changed_when: false
+  no_log: true
+
 - name: Reject externally supplied source marker variables
   ansible.builtin.assert:
     that:
@@ -11,7 +61,7 @@
 - name: Bind the canonical role task source marker
   ansible.builtin.set_fact:
     reactive_resume_dev_tls_renewal_task_self_hash: '0000000000000000000000000000000000000000000000000000000000000000'
-    reactive_resume_dev_tls_renewal_defaults_raw_hash: '658e8055f6b60e5968dce2ac77456e12502d9861f82ccc86139d227bb843cfd2'
+    reactive_resume_dev_tls_renewal_defaults_raw_hash: 'c4affd1be4c69b678cfd7f9023cf194761c54ea82d7a5b1146e8a0e6e03d96fa'
   changed_when: false
   no_log: true
 

@@ -31,6 +31,14 @@ repository_root="$(CDPATH= cd -- "$script_directory/../.." && /bin/pwd -P)"
 script_path="$repository_root/ansible/bin/configure-reactive-resume-dev-tls-renewal"
 controller="$repository_root/.venv/bin/ansible-playbook"
 python_tool=/usr/bin/python3
+clean_python() {
+  /usr/bin/env -i \
+    PATH=/usr/bin:/bin \
+    LC_ALL=C.UTF-8 \
+    PYTHONNOUSERSITE=1 \
+    PYTHONHASHSEED=0 \
+    "$python_tool" "$@"
+}
 inventory="$repository_root/ansible/.ansible/inventory.local.yml"
 ansible_config="$repository_root/ansible/ansible.cfg"
 manifest="$repository_root/ansible/files/components/reactive-resume-dev-tls/MANIFESTS.sha256"
@@ -44,7 +52,7 @@ defaults="$repository_root/ansible/roles/reactive_resume_dev_tls_renewal/default
 strategy="$repository_root/ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py"
 sha_file() { /usr/bin/sha256sum -- "$1" | /usr/bin/awk '{print $1}'; }
 canonical_sha256() {
-  "$python_tool" - "$1" <<'PY'
+  clean_python - "$1" <<'PY'
 import hashlib, re, sys
 source = open(sys.argv[1], encoding='utf-8').read()
 source, count = re.subn(
@@ -58,7 +66,7 @@ print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
 normalized_defaults_sha256() {
-  "$python_tool" - "$1" <<'PY'
+  clean_python - "$1" <<'PY'
 import hashlib, re, sys
 source = open(sys.argv[1], encoding='utf-8').read()
 source, count = re.subn(
@@ -79,7 +87,7 @@ print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
 normalized_task_sha256() {
-  "$python_tool" - "$1" <<'PY'
+  clean_python - "$1" <<'PY'
 import hashlib, re, sys
 source = open(sys.argv[1], encoding='utf-8').read()
 source, count = re.subn(
@@ -99,7 +107,7 @@ if count != 1:
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
-wrapper_canonical_sha256_expected='25b61be3e80ffbc08fc9acd8b2c2cf24ad9de3bceee8545b1784c1952a43cf9e'
+wrapper_canonical_sha256_expected='6b5a92180f84da759ef90c49d6f669a48438659127325361bc8797407dba6e70'
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
 for source in "$inventory" "$ansible_config" "$manifest" "$validator" "$renewal" "$service" "$timer" "$playbook" "$tasks" "$defaults" "$strategy"; do
   [ -f "$source" ] && [ ! -L "$source" ] || exit 69
