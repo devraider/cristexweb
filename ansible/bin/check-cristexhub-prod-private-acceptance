@@ -49,7 +49,7 @@ if count != 1:
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
-wrapper_canonical_sha256_expected='6cf6d6af058c05580905dba307cab642a78532ae8bd65beff3738ad2353a4873'
+wrapper_canonical_sha256_expected='b09b4373abed09761ed069227762754b2c231ccc3cc72d04a2ba3b9497640e8b'
 task_sha256_expected='7bc95cec69adcdbd81c24049c7c6bae845dfb671c005adfba755678e6e697d09'
 defaults_sha256_expected='b9ea7657475e7591a44e7d0e611f052ed995e898f6b3d18e48eec3955afef514'
 playbook_sha256_expected='92505aada40b1073fad99cdb9bd12b7776f1551476a5bf439c384ea39341abab'
@@ -72,8 +72,27 @@ done
   printf '%s\n' 'refusing private PROD acceptance wrapper source drift' >&2
   exit 69
 }
+inventory_operator="$(/usr/bin/awk '
+  /^        crtxweb:[[:space:]]*$/ { in_crtxweb=1; next }
+  in_crtxweb && /^        [^[:space:]]/ { in_crtxweb=0 }
+  in_crtxweb && /^          ansible_user:[[:space:]]*[a-z_][a-z0-9_-]*[[:space:]]*$/ {
+    value=$0
+    sub(/^          ansible_user:[[:space:]]*/, "", value)
+    sub(/[[:space:]]*$/, "", value)
+    print value
+    count++
+  }
+  END { if (count != 1) exit 1 }
+' "$inventory")" || {
+  printf '%s\\n' 'refusing an inventory without exactly one crtxweb ansible_user' >&2
+  exit 78
+}
+[ "$inventory_operator" = paul ] || {
+  printf '%s\\n' 'refusing an unexpected inventory-resolved operator' >&2
+  exit 78
+}
 controller_user=$(/usr/bin/id -un)
-[ "$controller_user" = paul ] || exit 78
+[ "$controller_user" = "$inventory_operator" ] || exit 78
 controller_home="$(CDPATH= cd -- "$repository_root/../.." && /bin/pwd -P)"
 cd -- "$repository_root/ansible"
 wrapper_sha256="$(sha_file "$script_path")"
@@ -118,6 +137,7 @@ set -- \
   USER="$controller_user" \
   LOGNAME="$controller_user" \
   PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+  CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_OPERATOR="$inventory_operator" \
   LC_ALL=C.UTF-8 \
   ANSIBLE_CONFIG="$ansible_config" \
   ANSIBLE_HOST_PATTERN_MISMATCH=error \

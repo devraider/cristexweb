@@ -6,8 +6,10 @@ import os
 import re
 import stat
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -327,6 +329,109 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         )
         self.assertEqual(64, result.returncode)
         self.assertNotIn("ansible-playbook", result.stdout + result.stderr)
+
+    def _wrapper_binding_fixture(self):
+        spec = importlib.util.spec_from_file_location(
+            "private_acceptance_operator_binding_guard", PROCESS_GUARD
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        prefix = "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_"
+        token = "a" * 64
+        wrapper_sha = module._sha256(module._WRAPPER_SOURCE)
+        wrapper_canonical = module._canonical_file_hash(
+            module._WRAPPER_SOURCE, "wrapper_canonical_sha256_expected"
+        )
+        python_target = module._python_target()
+        self.assertIsNotNone(python_target)
+        hash_values = {
+            "TASK_SHA256": module._sha256(module._TASK_SOURCE),
+            "DEFAULTS_SHA256": module._sha256(module._DEFAULTS_SOURCE),
+            "PLAYBOOK_SHA256": module._sha256(module._PLAYBOOK_SOURCE),
+            "ACTION_SHA256": module._sha256(module._ACTION_SOURCE),
+            "INVENTORY_SHA256": module._sha256(module._INVENTORY_SOURCE),
+            "ANSIBLE_CONFIG_SHA256": module._sha256(module._ANSIBLE_CONFIG_SOURCE),
+            "CONTROLLER_SHA256": module._sha256(module._CONTROLLER_SOURCE),
+            "PYTHON_SHA256": module._sha256(python_target),
+        }
+        source_closure = ":".join(hash_values.values())
+        attestation_fd, attestation_name = tempfile.mkstemp(prefix="cristexweb-operator-")
+        os.close(attestation_fd)
+        attestation_path = Path(attestation_name)
+        attestation_path.chmod(0o600)
+        pid = str(os.getpid())
+        starttime = "123456"
+        attestation_path.write_text(
+            f"{token}:entrypoint:{pid}:{starttime}:{wrapper_sha}\n",
+            encoding="utf-8",
+        )
+        environment = {
+            prefix + "ENTRYPOINT": "v2",
+            prefix + "TOKEN": token,
+            prefix + "ATTESTATION_FILE": str(attestation_path),
+            prefix + "WRAPPER_PID": pid,
+            prefix + "WRAPPER_STARTTIME": starttime,
+            prefix + "WRAPPER_PATH": str(module._WRAPPER_SOURCE),
+            prefix + "WRAPPER_SHA256": wrapper_sha,
+            prefix + "WRAPPER_CANONICAL_SHA256": wrapper_canonical,
+            prefix + "SOURCE_CLOSURE_SHA256": hashlib.sha256(source_closure.encode()).hexdigest(),
+            prefix + "CONTROLLER": str(module._CONTROLLER_SOURCE),
+            prefix + "PYTHON": str(module._PYTHON_SOURCE),
+            prefix + "KUBECONFIG": str(module._EXPECTED_KUBECONFIG),
+            "ANSIBLE_CONFIG": str(module._ANSIBLE_CONFIG_SOURCE),
+            prefix + "OPERATOR": module._EXPECTED_OPERATOR,
+        }
+        environment.update({prefix + key: value for key, value in hash_values.items()})
+        return module, environment, attestation_path
+
+    def test_wrapper_binding_rejects_missing_or_forged_operator(self) -> None:
+        module, environment, attestation_path = self._wrapper_binding_fixture()
+        prefix = "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_"
+        try:
+            with mock.patch.object(module, "_ancestor", return_value=True), mock.patch.object(
+                module, "_proc_starttime", return_value="123456"
+            ), mock.patch.object(
+                module,
+                "_proc_cmdline",
+                return_value=["/bin/dash", str(module._WRAPPER_SOURCE), "check"],
+            ), mock.patch.object(
+                module.context, "CLIARGS", {"check": True, "diff": True}
+            ), mock.patch.dict(os.environ, environment, clear=False):
+                self.assertTrue(
+                    module._wrapper_binding_valid(
+                        {"cristexhub_prod_private_acceptance_approved": True}
+                    )
+                )
+                for operator in (None, "mallory", "paul:mallory"):
+                    with self.subTest(operator=operator):
+                        if operator is None:
+                            os.environ.pop(prefix + "OPERATOR", None)
+                        else:
+                            os.environ[prefix + "OPERATOR"] = operator
+                        self.assertFalse(
+                            module._wrapper_binding_valid(
+                                {"cristexhub_prod_private_acceptance_approved": True}
+                            )
+                        )
+                        os.environ[prefix + "OPERATOR"] = module._EXPECTED_OPERATOR
+        finally:
+            attestation_path.unlink(missing_ok=True)
+
+    def test_wrapper_binds_inventory_resolved_operator_without_override(self) -> None:
+        self.assertIn("ansible_user:", self.wrapper_text)
+        self.assertIn("inventory_operator", self.wrapper_text)
+        self.assertIn(
+            'CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_OPERATOR="$inventory_operator"',
+            self.wrapper_text,
+        )
+        self.assertIn('[ "$inventory_operator" = paul ]', self.wrapper_text)
+        self.assertIn('[ "$controller_user" = "$inventory_operator" ]', self.wrapper_text)
+        self.assertIn(
+            'os.environ.get(prefix + "OPERATOR") == _EXPECTED_OPERATOR',
+            self.process_guard_text,
+        )
 
     def test_process_ancestry_helper_rejects_unrelated_process(self) -> None:
         spec = importlib.util.spec_from_file_location("private_acceptance_process_guard", PROCESS_GUARD)
