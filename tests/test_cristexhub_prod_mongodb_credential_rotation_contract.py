@@ -19,6 +19,7 @@ TASKS = ROLE / "tasks/main.yml"
 DEFAULTS = ROLE / "defaults/main.yml"
 POLICY = ROOT / "ansible/files/policies/cristexhub-prod-mongodb-credential-rotation.yml"
 METADATA = ROOT / "ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py"
+SELECTOR_MODULE = ROOT / "ansible/library/cristexhub_prod_mongodb_networkpolicy_selector.py"
 ENGINE_SOURCE = ROOT / "ansible/files/components/infisical-database-secrets/source/shared-mongodb-infisical-secrets.yaml"
 RUNTIME_SOURCE = ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
 NETWORKPOLICY_DEFAULT_DENY = ROOT / "ansible/files/components/shared-mongodb-networkpolicy/network/shared-mongodb-networkpolicy-default-deny.yaml"
@@ -48,6 +49,7 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             PLAYBOOK: 0o644,
             POLICY: 0o644,
             METADATA: 0o755,
+            SELECTOR_MODULE: 0o755,
             RUNBOOK: 0o644,
         }
         for path, mode in expected.items():
@@ -210,12 +212,72 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             self.assertEqual("Orphan", target["creationPolicy"])
             self.assertEqual("v1", target["template"]["engineVersion"])
 
+    def test_selector_module_implements_kubernetes_label_selector_semantics(self) -> None:
+        spec = importlib.util.spec_from_file_location("mongodb_networkpolicy_selector", SELECTOR_MODULE)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        labels = {
+            "app": "shared-mongodb-svc",
+            "app.kubernetes.io/part-of": "shared-databases",
+            "cristex.io/component": "mongodb",
+        }
+        self.assertTrue(module._selector_matches({}, labels))
+        self.assertTrue(module._selector_matches({"matchLabels": {"app": "shared-mongodb-svc"}}, labels))
+        self.assertTrue(module._selector_matches({"matchExpressions": [{"key": "app", "operator": "In", "values": ["shared-mongodb-svc"]}]}, labels))
+        self.assertTrue(module._selector_matches({"matchExpressions": [{"key": "missing", "operator": "NotIn", "values": ["value"]}]}, labels))
+        self.assertTrue(module._selector_matches({"matchExpressions": [{"key": "app", "operator": "Exists"}]}, labels))
+        self.assertTrue(module._selector_matches({"matchExpressions": [{"key": "missing", "operator": "DoesNotExist"}]}, labels))
+        self.assertFalse(module._selector_matches({"matchExpressions": [{"key": "app", "operator": "NotIn", "values": ["shared-mongodb-svc"]}]}, labels))
+        self.assertFalse(module._selector_matches({"matchExpressions": [{"key": "app", "operator": "DoesNotExist"}]}, labels))
+        self.assertFalse(module._selector_matches({"matchExpressions": [{"key": "missing", "operator": "In", "values": ["value"]}]}, labels))
+        self.assertFalse(module._selector_matches({"matchExpressions": [{"key": "app", "operator": "Unsupported", "values": ["x"]}]}, labels))
+        self.assertFalse(module._selector_matches({"unknown": {}}, labels))
+        self.assertFalse(module._selector_matches({"matchExpressions": [{"key": "app", "operator": "Exists", "values": ["x"]}]}, labels))
+
+    def test_selector_module_fails_closed_on_malformed_terminating_and_duplicate_inventory(self) -> None:
+        spec = importlib.util.spec_from_file_location("mongodb_networkpolicy_selector", SELECTOR_MODULE)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        policy = {
+            "apiVersion": "networking.k8s.io/v1",
+            "kind": "NetworkPolicy",
+            "metadata": {
+                "name": "shared-mongodb-networkpolicy-allow",
+                "namespace": "shared-services",
+            },
+            "spec": {"podSelector": {"matchLabels": {"app": "shared-mongodb-svc"}}},
+        }
+        result = module._evaluate([policy, dict(policy)], {"app": "shared-mongodb-svc"}, "shared-services")
+        self.assertEqual("invalid-selector", result["selector_status"])
+        self.assertTrue(result["invalid_policy_identities"])
+        terminating = {
+            **policy,
+            "metadata": {**policy["metadata"], "deletionTimestamp": "2026-08-26T00:00:00Z"},
+        }
+        result = module._evaluate([terminating], {"app": "shared-mongodb-svc"}, "shared-services")
+        self.assertEqual(["networking.k8s.io/v1|NetworkPolicy|shared-services|shared-mongodb-networkpolicy-allow"], result["terminating_policy_identities"])
+        self.assertEqual("invalid-selector", result["selector_status"])
+        malformed = {**policy, "spec": {"podSelector": {"matchExpressions": [{"key": "app", "operator": "Unsupported", "values": ["x"]}]}}}
+        result = module._evaluate([malformed], {"app": "shared-mongodb-svc"}, "shared-services")
+        self.assertEqual("invalid-selector", result["selector_status"])
+        self.assertEqual([], result["matched_policy_identities"])
+
     def test_source_manifest_hashes_are_wrapper_bound(self) -> None:
         source_pairs = (
+            (TASKS, "task_sha256_expected"),
+            (DEFAULTS, "defaults_sha256_expected"),
+            (PLAYBOOK, "playbook_sha256_expected"),
+            (POLICY, "policy_sha256_expected"),
+            (METADATA, "metadata_module_sha256_expected"),
             (ENGINE_SOURCE, "engine_source_manifest_sha256_expected"),
             (RUNTIME_SOURCE, "runtime_source_manifest_sha256_expected"),
             (NETWORKPOLICY_DEFAULT_DENY, "networkpolicy_default_deny_sha256_expected"),
             (NETWORKPOLICY_ALLOW, "networkpolicy_allow_sha256_expected"),
+            (SELECTOR_MODULE, "networkpolicy_selector_module_sha256_expected"),
         )
         for path, variable in source_pairs:
             match = re.search(rf"(?m)^{re.escape(variable)}='([0-9a-f]{{64}})'$", self.wrapper)
@@ -223,6 +285,9 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), match.group(1))
         for path in (ENGINE_SOURCE, RUNTIME_SOURCE, NETWORKPOLICY_DEFAULT_DENY, NETWORKPOLICY_ALLOW):
             self.assertIn(str(path.relative_to(ROOT)), self.tasks)
+        self.assertIn(str(SELECTOR_MODULE.relative_to(ROOT)), self.tasks)
+        self.assertIn("NETWORKPOLICY_SELECTOR_MODULE_SHA256", self.wrapper)
+        self.assertIn("cristexhub_prod_mongodb_networkpolicy_selector", self.tasks)
 
     def test_adversarial_template_and_networkpolicy_drift_is_rejected(self) -> None:
         mutated_engine = copy.deepcopy(self.engine)
@@ -368,7 +433,7 @@ class CristexHubProdMongoDBCredentialRotationContractTests(unittest.TestCase):
     def test_dedicated_files_do_not_mutate_or_request_secret_bodies(self) -> None:
         combined = "\n".join(
             path.read_text()
-            for path in (WRAPPER, PLAYBOOK, TASKS, DEFAULTS, POLICY, METADATA, RUNBOOK)
+            for path in (WRAPPER, PLAYBOOK, TASKS, DEFAULTS, POLICY, METADATA, SELECTOR_MODULE, RUNBOOK)
         )
         for forbidden in (
             "kubectl apply", "kubectl delete", "kubectl patch", "rabbitmqctl",
