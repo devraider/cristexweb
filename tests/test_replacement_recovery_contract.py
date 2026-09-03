@@ -36,6 +36,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "cristexhub-dev-namespace-bootstrap.md",
                 "cristexhub-prod-namespace-bootstrap.md",
                 "cristexhub-prod-argocd-registration.md",
+                "cristexhub-prod-mongodb-credential-rotation.md",
                 "cristexhub-prod-rabbitmq-credential-rotation.md",
                 "foundation-namespace-bootstrap.md",
                 "infisical-operator-bootstrap.md",

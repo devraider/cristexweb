@@ -266,6 +266,8 @@ metadata:
                 ANSIBLE / "bin/check-reactive-resume-dev-successor",
                 ANSIBLE / "bin/check-reactive-resume-object-storage-source",
                 ANSIBLE / "bin/check-cristexhub-prod-private-acceptance",
+                ANSIBLE / "bin/check-cristexhub-prod-mongodb-credential-rotation",
+                ANSIBLE / "bin/check-cristexhub-prod-rabbitmq-credential-rotation",
                 ANSIBLE / "bin/check-cristexhub-prod-ghcr-pull-rotation"
             },
             {path for path in (ANSIBLE / "bin").rglob("*") if path.is_file()}, # includes separately guarded component entrypoints

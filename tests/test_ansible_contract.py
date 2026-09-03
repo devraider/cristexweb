@@ -83,6 +83,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/library/shared_mongodb_networkpolicy_create.py"),
             Path("ansible/library/rabbitmq_prod_credential_metadata.py"),
             Path("ansible/library/cristexhub_prod_ghcr_pull_secret_metadata.py"),
+            Path("ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py"),
         }
         self.assertTrue(
             all(
@@ -512,6 +513,12 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "roles/cristexhub_prod_private_acceptance/defaults/main.yml",
                 "roles/cristexhub_prod_private_acceptance/tasks/main.yml",
                 "files/policies/cristexhub-prod-credential-rotation-gates.yml",
+                "files/policies/cristexhub-prod-mongodb-credential-rotation.yml",
+                "bin/check-cristexhub-prod-mongodb-credential-rotation",
+                "playbooks/check_cristexhub_prod_mongodb_credential_rotation.yml",
+                "library/cristexhub_prod_mongodb_credential_rotation_metadata.py",
+                "roles/cristexhub_prod_mongodb_credential_rotation_check/defaults/main.yml",
+                "roles/cristexhub_prod_mongodb_credential_rotation_check/tasks/main.yml",
                 "files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml",
                 "bin/check-cristexhub-prod-rabbitmq-credential-rotation",
                 "playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml",
