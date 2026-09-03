@@ -96,6 +96,13 @@ source, count = re.subn(
 )
 if count != 1:
     raise SystemExit(69)
+source, count = re.subn(
+    r"(?m)^(  - path: >-\n      .*ansible/bin/configure-reactive-resume-dev-tls-renewal\n    mode: '0755'\n    sha256: )[0-9a-f]{64}$",
+    r"\1__WRAPPER_SHA256__",
+    source,
+)
+if count != 1:
+    raise SystemExit(69)
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
@@ -103,6 +110,11 @@ normalized_task_sha256() {
   clean_python - "$1" <<'PY'
 import hashlib, re, sys
 source = open(sys.argv[1], encoding='utf-8').read()
+first_task, boundary, remainder = source.partition(
+    "\n- name: Require immutable TLS renewal operational defaults"
+)
+first_task = re.sub(r"[0-9a-f]{64}", "__PIN__", first_task)
+source = first_task + boundary + remainder
 source, count = re.subn(
     r"(?m)^    reactive_resume_dev_tls_renewal_task_self_hash: '?[0-9a-f]{64}'?$",
     "    reactive_resume_dev_tls_renewal_task_self_hash: __TASK_SELF_HASH__",
@@ -120,12 +132,80 @@ if count != 1:
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
-wrapper_canonical_sha256_expected='567eac9573579c55c6e06fcbac0eadeaa7a2ffd084120caabaefbb07355ca85f'
+normalized_strategy_sha256() {
+  clean_python - "$1" <<'PY'
+import hashlib, re, sys
+source = open(sys.argv[1], encoding="utf-8").read()
+for symbol, marker in (
+    ("_STRATEGY_CANONICAL_SHA256", "__STRATEGY_CANONICAL_HASH__"),
+    ("_STRATEGY_NORMALIZED_SHA256", "__STRATEGY_NORMALIZED_HASH__"),
+    ("_WRAPPER_CANONICAL_SHA256", "__WRAPPER_CANONICAL_HASH__"),
+    ("_STRATEGY_ATTESTATION_SHA256", "__STRATEGY_ATTESTATION_HASH__"),
+):
+    source, count = re.subn(
+        rf"(?m)^({re.escape(symbol)}\s*=\s*[\"'])([0-9a-f]{{64}})([\"']\s*)$",
+        rf"\g<1>{marker}\g<3>",
+        source,
+    )
+    if count != 1:
+        raise SystemExit(69)
+print(hashlib.sha256(source.encode()).hexdigest())
+PY
+}
+canonical_strategy_sha256() {
+  clean_python - "$1" <<'PY'
+import hashlib, re, sys
+source = open(sys.argv[1], encoding="utf-8").read()
+for symbol in (
+    "_STRATEGY_CANONICAL_SHA256",
+    "_STRATEGY_NORMALIZED_SHA256",
+    "_WRAPPER_CANONICAL_SHA256",
+    "_STRATEGY_ATTESTATION_SHA256",
+):
+    source, count = re.subn(
+        rf"(?m)^({re.escape(symbol)}\s*=\s*[\"'])([0-9a-f]{{64}})([\"']\s*)$",
+        rf"\g<1>__PIN__\g<3>",
+        source,
+    )
+    if count != 1:
+        raise SystemExit(69)
+print(hashlib.sha256(source.encode()).hexdigest())
+PY
+}
+# Immutable pre-launch pins. The normalized strategy pin excludes only its
+# expected provenance markers; every other strategy byte remains covered.
+controller_sha256_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
+python_sha256_expected='17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
+inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
+ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+playbook_sha256_expected='630e9df627998edf9292e8961afd0d514e2982f7444cf7646333df8f55a3cbb9'
+task_sha256_expected='1b92858b989b8d953c67760f5d28c9507758361bcaebeafdf2c22d4e24177f22'
+defaults_sha256_expected='ae8ff4cf2eacd8839632066391b4881df15eea6833c3ea1b55d7b2a3d31920b3'
+strategy_canonical_sha256_expected='50cdb97e0983233b0226deae0b1d47432fd1204f9594551be7060672e0cc9407'
+strategy_normalized_sha256_expected='4b395dd26c0099b350971a933bf9163711d936cf56f1b313abb09de2c6f39d8b'
+strategy_attestation_sha256_expected='aa8ef9124552f3d1a1f65d7fdbeb2ec37bc28f84f1a77e8fffdf3f636a9c6dbb'
+wrapper_canonical_sha256_expected='c545ee8704e9df413bb1496766007b0c4a407922909c5fff700bfff6e4d21057'
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
 [ -L "$python_tool" ] || exit 69
 [ "$(/usr/bin/readlink -f -- "$python_tool")" = "$python_target" ] || exit 69
 [ -f "$python_target" ] && [ ! -L "$python_target" ] || exit 69
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$python_target")" = 'root:root:755' ] || exit 69
+inventory_directory=$(/usr/bin/dirname -- "$inventory")
+for forbidden in \
+  "$inventory_directory/group_vars" \
+  "$inventory_directory/host_vars" \
+  "$inventory_directory/vars_plugins" \
+  "$repository_root/ansible/group_vars" \
+  "$repository_root/ansible/host_vars" \
+  "$repository_root/ansible/vars_plugins" \
+  "$repository_root/group_vars" \
+  "$repository_root/host_vars" \
+  "$repository_root/vars_plugins"; do
+  if [ -e "$forbidden" ] || [ -L "$forbidden" ]; then
+    printf '%s\n' 'refusing inventory-adjacent variable or vars-plugin path' >&2
+    exit 69
+  fi
+done
 for source in "$inventory" "$ansible_config" "$manifest" "$validator" "$renewal" "$service" "$timer" "$playbook" "$tasks" "$defaults" "$strategy"; do
   [ -f "$source" ] && [ ! -L "$source" ] || exit 69
 done
@@ -143,7 +223,6 @@ cd -- "$repository_root/ansible"
 wrapper_sha256=$(sha_file "$script_path")
 controller_sha256=$(sha_file "$controller")
 python_sha256=$(sha_file "$python_tool")
-[ "$python_sha256" = '17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1' ] || exit 69
 inventory_sha256=$(sha_file "$inventory")
 ansible_config_sha256=$(sha_file "$ansible_config")
 manifest_sha256=$(sha_file "$manifest")
@@ -155,7 +234,17 @@ playbook_sha256=$(sha_file "$playbook")
 task_sha256=$(normalized_task_sha256 "$tasks")
 defaults_sha256=$(normalized_defaults_sha256 "$defaults")
 strategy_sha256=$(sha_file "$strategy")
-strategy_canonical_sha256=$(canonical_sha256 "$strategy" _STRATEGY_CANONICAL_SHA256)
+strategy_normalized_sha256=$(normalized_strategy_sha256 "$strategy")
+strategy_canonical_sha256=$(canonical_strategy_sha256 "$strategy")
+[ "$controller_sha256" = "$controller_sha256_expected" ] || exit 69
+[ "$python_sha256" = "$python_sha256_expected" ] || exit 69
+[ "$inventory_sha256" = "$inventory_sha256_expected" ] || exit 69
+[ "$ansible_config_sha256" = "$ansible_config_sha256_expected" ] || exit 69
+[ "$playbook_sha256" = "$playbook_sha256_expected" ] || exit 69
+[ "$task_sha256" = "$task_sha256_expected" ] || exit 69
+[ "$defaults_sha256" = "$defaults_sha256_expected" ] || exit 69
+[ "$strategy_canonical_sha256" = "$strategy_canonical_sha256_expected" ] || exit 69
+[ "$strategy_normalized_sha256" = "$strategy_normalized_sha256_expected" ] || exit 69
 wrapper_pid=$$
 wrapper_starttime=$(/usr/bin/awk '{print $22}' "/proc/$wrapper_pid/stat")
 case "$wrapper_starttime" in
@@ -209,7 +298,10 @@ set -- \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_DEFAULTS_SHA256="$defaults_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_PATH="$strategy" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256="$strategy_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_NORMALIZED_SHA256="$strategy_normalized_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_CANONICAL_SHA256="$strategy_canonical_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256="$wrapper_canonical_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTATION_SHA256="$strategy_attestation_sha256_expected" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_PATH="$playbook" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER_SHA256="$controller_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_INVENTORY_SHA256="$inventory_sha256" \

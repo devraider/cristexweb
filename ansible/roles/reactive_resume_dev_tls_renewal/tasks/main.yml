@@ -7,8 +7,38 @@
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_PATH') ==
         '/home/paul/projects/cristexweb/ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py'
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_CANONICAL_SHA256') is match('^[0-9a-f]{64}$')
-      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256') is match('^[0-9a-f]{64}$')
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_CANONICAL_SHA256') ==
+        '50cdb97e0983233b0226deae0b1d47432fd1204f9594551be7060672e0cc9407'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256') ==
+        '561e6cc9cad58b66772c888e2642cf0f6a6e948ef6d526147b74b708d0723cdd'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_NORMALIZED_SHA256') ==
+        '4b395dd26c0099b350971a933bf9163711d936cf56f1b313abb09de2c6f39d8b'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256') ==
+        'c545ee8704e9df413bb1496766007b0c4a407922909c5fff700bfff6e4d21057'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTATION_SHA256') ==
+        'aa8ef9124552f3d1a1f65d7fdbeb2ec37bc28f84f1a77e8fffdf3f636a9c6dbb'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256') ==
+        '1b92858b989b8d953c67760f5d28c9507758361bcaebeafdf2c22d4e24177f22'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_DEFAULTS_SHA256') ==
+        'ae8ff4cf2eacd8839632066391b4881df15eea6833c3ea1b55d7b2a3d31920b3'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_SHA256') ==
+        '630e9df627998edf9292e8961afd0d514e2982f7444cf7646333df8f55a3cbb9'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_PATH') ==
@@ -22,7 +52,34 @@
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PYTHON_SHA256') ==
         '17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
-    fail_msg: Refusing TLS renewal without the fixed guarded strategy provenance.
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ANSIBLE_CONFIG_SHA256') ==
+        '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER_SHA256') ==
+        'baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_INVENTORY_SHA256') ==
+        '652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
+      - ansible_connection == 'local'
+      - (ansible_host | default(inventory_hostname)) == 'crtxweb'
+      - inventory_hostname == 'crtxweb'
+      - ansible_user == 'paul'
+      - ansible_python_interpreter == '/usr/bin/python3'
+      - ansible_become | bool
+      - (ansible_become_user | default('root')) == 'root'
+      - (ansible_become_method | default('sudo')) == 'sudo'
+      - ansible_playbook_python == '/home/paul/projects/cristexweb/.venv/bin/python'
+      - >-
+        (ansible_inventory_sources | default([])) ==
+        ['/home/paul/projects/cristexweb/ansible/.ansible/inventory.local.yml']
+      - lookup('ansible.builtin.env', 'ANSIBLE_CONFIG') == '/home/paul/projects/cristexweb/ansible/ansible.cfg'
+      - lookup('ansible.builtin.env', 'ANSIBLE_VARS_PLUGINS') | length == 0
+      - lookup('ansible.builtin.env', 'ANSIBLE_VARS_PLUGIN_PATH') | length == 0
+    fail_msg: Refusing TLS renewal without the fixed guarded strategy provenance or effective host identity.
   changed_when: false
   no_log: true
 
@@ -88,7 +145,7 @@
 - name: Bind the canonical role task source marker
   ansible.builtin.set_fact:
     reactive_resume_dev_tls_renewal_task_self_hash: '0000000000000000000000000000000000000000000000000000000000000000'
-    reactive_resume_dev_tls_renewal_defaults_raw_hash: '3e884e9a656d3da5aaa5d0534f2dcfd1d3697a3af85b4227c077d057ffcc6315'
+    reactive_resume_dev_tls_renewal_defaults_raw_hash: '2b441331d2e696dd42c363bfdc07b61bde9fd58fcfcb07325baded16bf567b88'
   changed_when: false
   no_log: true
 
@@ -496,6 +553,11 @@
         regex_replace(
           '(?m)^(  - path: >-\n      .*reactive_resume_dev_tls_renewal_guarded_linear\.py\n    mode: ''0644''\n    sha256: )[0-9a-f]{64}$',
           '\1__STRATEGY_SHA256__',
+          multiline=True
+        ) |
+        regex_replace(
+          '(?m)^(  - path: >-\n      .*ansible/bin/configure-reactive-resume-dev-tls-renewal\n    mode: ''0755''\n    sha256: )[0-9a-f]{64}$',
+          '\1__WRAPPER_SHA256__',
           multiline=True
         ) |
         hash('sha256') == item.item.sha256

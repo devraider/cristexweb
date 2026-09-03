@@ -15,6 +15,7 @@ from ansible.plugins.strategy.linear import StrategyModule as LinearStrategyModu
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 _INVENTORY_SOURCE = _REPOSITORY_ROOT / "ansible/.ansible/inventory.local.yml"
+_INVENTORY_DIRECTORY = _INVENTORY_SOURCE.parent
 _INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
 _INVENTORY_BYTES = (
     b"---\nall:\n  children:\n    k3s_servers:\n      hosts:\n"
@@ -38,11 +39,18 @@ _PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989d
 _ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 # These are immutable source pins. Self-referential source pins are normalized
 # before hashing; all other pins are ordinary SHA-256 digests.
-_STRATEGY_CANONICAL_SHA256 = "caede73387de3101f5d4b9e14efc1ce3345f037c784d08f99c7a47cbf19b8492"
-_WRAPPER_CANONICAL_SHA256 = "567eac9573579c55c6e06fcbac0eadeaa7a2ffd084120caabaefbb07355ca85f"
+_STRATEGY_CANONICAL_SHA256 = "2e19b00fcefbac155ac380e5760301161495153471760493f82a698b2257fca7"
+# This canonical pin normalizes both self-referential provenance markers.
+# The wrapper can therefore pin it without creating a cross-file hash cycle.
+# This normalized pin removes only the provenance marker values below.
+# It is independent of the wrapper's canonical marker and therefore cannot
+# participate in a wrapper/strategy self-hash cycle.
+_STRATEGY_NORMALIZED_SHA256 = "76e621c959c153ccbdd1a36f1cdc8251426d2e4f09aba54c07cbf79f8a370913"
+_WRAPPER_CANONICAL_SHA256 = "c545ee8704e9df413bb1496766007b0c4a407922909c5fff700bfff6e4d21057"
 _PLAYBOOK_SHA256 = "630e9df627998edf9292e8961afd0d514e2982f7444cf7646333df8f55a3cbb9"
-_TASK_SHA256 = "383a7042ddef0b4bbc54b542f13b2606cc6e3415cbfc32fdfde6c294bca3a9fc"
-_DEFAULTS_SHA256 = "03985ffef4229ed63a147ad0f29ea7fb67caa12d7adfb50a8d80a144660b7bf6"
+_TASK_SHA256 = "1b92858b989b8d953c67760f5d28c9507758361bcaebeafdf2c22d4e24177f22"
+_DEFAULTS_SHA256 = "ae8ff4cf2eacd8839632066391b4881df15eea6833c3ea1b55d7b2a3d31920b3"
+_STRATEGY_ATTESTATION_SHA256 = "aa8ef9124552f3d1a1f65d7fdbeb2ec37bc28f84f1a77e8fffdf3f636a9c6dbb"
 _MANIFEST_SHA256 = "90cef6e9a07df37a319fd7c44a1d8a82841b10ef1b7bf7d7635519fcb73e19d5"
 _SOURCE_HASHES = (
     ("renewal/validate-reactive-resume-dev-tls-material", "68c0fcde82cc3d3f394d5c14e9cffc3c2cf0dd42bb93ad496143b15cc86f1985", 0o755),
@@ -59,6 +67,8 @@ _FORBIDDEN_ENV = (
     "ANSIBLE_STRATEGY_PLUGINS",
     "ANSIBLE_LIBRARY",
     "ANSIBLE_COLLECTIONS_PATH",
+    "ANSIBLE_VARS_PLUGINS",
+    "ANSIBLE_VARS_PLUGIN_PATH",
     "ANSIBLE_STDOUT_CALLBACK",
     "ANSIBLE_CALLBACK_PLUGINS",
     "ANSIBLE_LOAD_CALLBACK_PLUGINS",
@@ -100,6 +110,50 @@ def _canonical_file_hash(path: Path, symbol: str) -> str:
         return ""
 
 
+def _canonical_strategy_hash(path: Path) -> str:
+    """Hash strategy source while normalizing every fixed provenance pin."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        for symbol in (
+            "_STRATEGY_CANONICAL_SHA256",
+            "_STRATEGY_NORMALIZED_SHA256",
+            "_WRAPPER_CANONICAL_SHA256",
+            "_STRATEGY_ATTESTATION_SHA256",
+        ):
+            source, count = re.subn(
+                rf"(?m)^({re.escape(symbol)}\s*=\s*[\"'])([0-9a-f]{{64}})([\"']\s*)$",
+                rf"\g<1>__PIN__\g<3>",
+                source,
+            )
+            if count != 1:
+                return ""
+        return hashlib.sha256(source.encode("utf-8")).hexdigest()
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _normalized_strategy_hash(path: Path) -> str:
+    """Hash strategy code while normalizing only fixed provenance markers."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        for symbol, marker in (
+            ("_STRATEGY_CANONICAL_SHA256", "__STRATEGY_CANONICAL_HASH__"),
+            ("_STRATEGY_NORMALIZED_SHA256", "__STRATEGY_NORMALIZED_HASH__"),
+            ("_WRAPPER_CANONICAL_SHA256", "__WRAPPER_CANONICAL_HASH__"),
+            ("_STRATEGY_ATTESTATION_SHA256", "__STRATEGY_ATTESTATION_HASH__"),
+        ):
+            source, count = re.subn(
+                rf"(?m)^({re.escape(symbol)}\s*=\s*[\"'])([0-9a-f]{{64}})([\"']\s*)$",
+                rf"\g<1>{marker}\g<3>",
+                source,
+            )
+            if count != 1:
+                return ""
+        return hashlib.sha256(source.encode("utf-8")).hexdigest()
+    except (OSError, UnicodeError):
+        return ""
+
+
 def _file_contract(path: Path, mode: int, digest: str) -> bool:
     try:
         state = path.stat(follow_symlinks=False)
@@ -116,10 +170,19 @@ def _file_contract(path: Path, mode: int, digest: str) -> bool:
 
 
 def _normalized_yaml_hash(path: Path, task: bool = False) -> str:
-    """Hash the exact role YAML while removing only its fixed self markers."""
+    """Hash role YAML while removing only its fixed provenance markers."""
     try:
         source = path.read_text(encoding="utf-8")
         if task:
+            # The first task repeats the immutable cross-file pins so a
+            # direct play cannot forge a role/strategy agreement. Normalize
+            # those literal values here because the task digest is itself one
+            # of the pins; all executable task text remains covered.
+            first_task, boundary, remainder = source.partition(
+                "\n- name: Require immutable TLS renewal operational defaults"
+            )
+            first_task = re.sub(r"[0-9a-f]{64}", "__PIN__", first_task)
+            source = first_task + boundary + remainder
             source, task_count = re.subn(
                 r"(?m)^    reactive_resume_dev_tls_renewal_task_self_hash: '?[0-9a-f]{64}'?$",
                 "    reactive_resume_dev_tls_renewal_task_self_hash: __TASK_SELF_HASH__",
@@ -151,6 +214,13 @@ def _normalized_yaml_hash(path: Path, task: bool = False) -> str:
                 source,
             )
             if strategy_count != 1:
+                return ""
+            source, wrapper_count = re.subn(
+                r"(?m)^(  - path: >-\n      .*ansible/bin/configure-reactive-resume-dev-tls-renewal\n    mode: '0755'\n    sha256: )[0-9a-f]{64}$",
+                r"\1__WRAPPER_SHA256__",
+                source,
+            )
+            if wrapper_count != 1:
                 return ""
         return hashlib.sha256(source.encode("utf-8")).hexdigest()
     except (OSError, UnicodeError):
@@ -194,6 +264,22 @@ def _inventory_contract() -> bool:
     )
 
 
+def _inventory_adjacency_contract() -> bool:
+    """Reject auto-loaded inventory vars and unpinned vars-plugin trees."""
+    candidates = (
+        _INVENTORY_DIRECTORY / "group_vars",
+        _INVENTORY_DIRECTORY / "host_vars",
+        _INVENTORY_DIRECTORY / "vars_plugins",
+        _REPOSITORY_ROOT / "ansible/group_vars",
+        _REPOSITORY_ROOT / "ansible/host_vars",
+        _REPOSITORY_ROOT / "ansible/vars_plugins",
+        _REPOSITORY_ROOT / "group_vars",
+        _REPOSITORY_ROOT / "host_vars",
+        _REPOSITORY_ROOT / "vars_plugins",
+    )
+    return all(not path.exists() and not path.is_symlink() for path in candidates)
+
+
 def _source_closure_contract() -> bool:
     if not _file_contract(_PLAYBOOK, 0o644, _PLAYBOOK_SHA256):
         return False
@@ -203,9 +289,13 @@ def _source_closure_contract() -> bool:
         return False
     if not _file_contract(_MANIFEST_SOURCE, 0o644, _MANIFEST_SHA256):
         return False
-    if _canonical_file_hash(_STRATEGY, "_STRATEGY_CANONICAL_SHA256") != _STRATEGY_CANONICAL_SHA256:
+    if _canonical_strategy_hash(_STRATEGY) != _STRATEGY_CANONICAL_SHA256:
+        return False
+    if _normalized_strategy_hash(_STRATEGY) != _STRATEGY_NORMALIZED_SHA256:
         return False
     if _canonical_file_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256_expected") != _WRAPPER_CANONICAL_SHA256:
+        return False
+    if not _inventory_adjacency_contract():
         return False
     for relative, digest, mode in _SOURCE_HASHES:
         if not _file_contract(_SOURCE_ROOT / relative, mode, digest):
@@ -239,7 +329,24 @@ def _runtime_contract() -> bool:
         and os.environ.get(_WRAPPER_ENV_PREFIX + "STRATEGY_PATH") == str(_STRATEGY)
         and os.environ.get(_WRAPPER_ENV_PREFIX + "STRATEGY_SHA256") == _sha256(_STRATEGY)
         and os.environ.get(_WRAPPER_ENV_PREFIX + "STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
+        and os.environ.get(_WRAPPER_ENV_PREFIX + "STRATEGY_NORMALIZED_SHA256") == _STRATEGY_NORMALIZED_SHA256
+        and os.environ.get(_WRAPPER_ENV_PREFIX + "WRAPPER_CANONICAL_SHA256") == _WRAPPER_CANONICAL_SHA256
+        and os.environ.get(_WRAPPER_ENV_PREFIX + "STRATEGY_ATTESTATION_SHA256") == _STRATEGY_ATTESTATION_SHA256
         and not any(name in os.environ for name in _FORBIDDEN_ENV)
+    )
+
+
+def _effective_play_context_contract(play_context: object) -> bool:
+    """Bind strategy execution to the one approved local k3s host context."""
+    if play_context is None:
+        return False
+    return (
+        getattr(play_context, "connection", None) == "local"
+        and getattr(play_context, "remote_addr", None) == "crtxweb"
+        and getattr(play_context, "remote_user", None) == "paul"
+        and getattr(play_context, "become", None) is True
+        and getattr(play_context, "become_method", None) == "sudo"
+        and getattr(play_context, "become_user", None) == "root"
     )
 
 
@@ -366,6 +473,11 @@ def _wrapper_binding_valid() -> bool:
         and os.environ.get(prefix + "ANSIBLE_CONFIG") == str(_ANSIBLE_CONFIG)
         and os.environ.get(prefix + "TASK_SHA256") == _TASK_SHA256
         and os.environ.get(prefix + "PLAYBOOK_SHA256") == _PLAYBOOK_SHA256
+        and os.environ.get(prefix + "STRATEGY_SHA256") == _sha256(_STRATEGY)
+        and os.environ.get(prefix + "STRATEGY_NORMALIZED_SHA256") == _STRATEGY_NORMALIZED_SHA256
+        and os.environ.get(prefix + "STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
+        and os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256") == _WRAPPER_CANONICAL_SHA256
+        and os.environ.get(prefix + "STRATEGY_ATTESTATION_SHA256") == _STRATEGY_ATTESTATION_SHA256
         and bool(context.CLIARGS.get("check")) == (invocation.endswith("-check") or invocation == "check")
     )
 
@@ -405,7 +517,12 @@ class StrategyModule(LinearStrategyModule):
     def run(self, iterator, play_context):  # type: ignore[no-untyped-def]
         if not _selection_guard():
             raise AnsibleError("TASK_SELECTION_GUARD: TLS renewal requires the complete guarded play")
-        if not (_canonical_argv() and _wrapper_binding_valid() and _runtime_contract()):
+        if not (
+            _canonical_argv()
+            and _wrapper_binding_valid()
+            and _runtime_contract()
+            and _effective_play_context_contract(play_context)
+        ):
             raise AnsibleError("ENTRYPOINT_GUARD: TLS renewal requires the complete guarded wrapper invocation")
         os.environ[_WRAPPER_ENV_PREFIX + "STRATEGY_ATTESTED"] = "v1"
         os.environ[_WRAPPER_ENV_PREFIX + "STRATEGY_PATH"] = str(_STRATEGY)

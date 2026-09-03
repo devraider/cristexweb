@@ -251,6 +251,18 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             "inventory": [str(module._INVENTORY_SOURCE)],
         }
         strategy = module.StrategyModule.__new__(module.StrategyModule)
+        play_context = type(
+            "PlayContext",
+            (),
+            {
+                "connection": "local",
+                "remote_addr": "crtxweb",
+                "remote_user": "paul",
+                "become": True,
+                "become_method": "sudo",
+                "become_user": "root",
+            },
+        )()
         with (
             mock.patch.object(module.context, "CLIARGS", cliargs),
             mock.patch.object(module, "_runtime_contract", return_value=True),
@@ -258,7 +270,7 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             mock.patch.object(module.LinearStrategyModule, "run", return_value="ok"),
             mock.patch.object(module.sys, "argv", argv),
         ):
-            self.assertEqual("ok", strategy.run(None, None))
+            self.assertEqual("ok", strategy.run(None, play_context))
 
     def test_wrapper_binding_requires_ancestor_exact_argv_and_attestation(self) -> None:
         spec = importlib.util.spec_from_file_location("rr_tls_strategy_binding", STRATEGY)
@@ -301,7 +313,10 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_STARTTIME": starttime,
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_PATH": str(WRAPPER),
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_SHA256": wrapper_sha,
-                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256": wrapper_canonical_sha,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_NORMALIZED_SHA256": module._STRATEGY_NORMALIZED_SHA256,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_CANONICAL_SHA256": module._STRATEGY_CANONICAL_SHA256,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256": module._WRAPPER_CANONICAL_SHA256,
+                "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTATION_SHA256": module._STRATEGY_ATTESTATION_SHA256,
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER": str(module._CONTROLLER),
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PYTHON": "/usr/bin/python3",
                 "CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_ANSIBLE_CONFIG": str(module._ANSIBLE_CONFIG),
@@ -354,7 +369,7 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         self.assertIn('"$python_tool" -I "$@"', wrapper)
         self.assertIn('clean_python - "$1" wrapper_canonical_sha256_expected', wrapper)
         self.assertIn('python_target=/usr/bin/python3.13', wrapper)
-        self.assertEqual(2, wrapper.count("clean_python - \"$1\" <<'PY'"))
+        self.assertEqual(4, wrapper.count("clean_python - \"$1\" <<'PY'"))
 
     def test_operational_defaults_are_immutable_and_nonempty(self) -> None:
         defaults = yaml.safe_load(DEFAULTS.read_text())
@@ -580,6 +595,12 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
             defaults_normalized,
         )
         self.assertEqual(1, strategy_count)
+        defaults_normalized, wrapper_count = re.subn(
+            r"(?m)^(  - path: >-\n      .*ansible/bin/configure-reactive-resume-dev-tls-renewal\n    mode: '0755'\n    sha256: )[0-9a-f]{64}$",
+            r"\1__WRAPPER_SHA256__",
+            defaults_normalized,
+        )
+        self.assertEqual(1, wrapper_count)
         self.assertEqual(hashlib.sha256(defaults_normalized.encode()).hexdigest(), defaults_expected.group(1))
         runbook = RUNBOOK.read_text()
         for required in (

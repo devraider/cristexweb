@@ -19,7 +19,7 @@ reactive_resume_dev_tls_renewal_manifest_sha256: 90cef6e9a07df37a319fd7c44a1d8a8
 # This self-reference digest and its matching closure entry are normalized when
 # hashing this self-referential defaults file. Every other source pin remains in
 # the normalized digest.
-reactive_resume_dev_tls_renewal_defaults_self_hash: 03985ffef4229ed63a147ad0f29ea7fb67caa12d7adfb50a8d80a144660b7bf6
+reactive_resume_dev_tls_renewal_defaults_self_hash: ae8ff4cf2eacd8839632066391b4881df15eea6833c3ea1b55d7b2a3d31920b3
 reactive_resume_dev_tls_renewal_source_hashes:
   - path: >-
       {{ reactive_resume_dev_tls_renewal_component_root }}/validate-reactive-resume-dev-tls-material
@@ -45,7 +45,7 @@ reactive_resume_dev_tls_renewal_execution_source_hashes:
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/bin/configure-reactive-resume-dev-tls-renewal
     mode: '0755'
-    sha256: fe7896511caa0781982a3230ec82a9b1f82e548ecd8083b19889fc525376bcef
+    sha256: 1ecd033dcb0f6e75a937028668f0c485166f20d0c831d91ff42f0b0b083f590c
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/playbooks/configure_reactive_resume_dev_tls_renewal.yml
     mode: '0644'
@@ -54,16 +54,16 @@ reactive_resume_dev_tls_renewal_execution_source_hashes:
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/roles/reactive_resume_dev_tls_renewal/tasks/main.yml
     mode: '0644'
     normalized_digest_name: reactive_resume_dev_tls_renewal_task_self_hash
-    sha256: ffb76f0c91e1466e3e71226d70a6d9a2bd38c40fe1d7c329f7b995674db9c497
+    sha256: 1b92858b989b8d953c67760f5d28c9507758361bcaebeafdf2c22d4e24177f22
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml
     mode: '0644'
     normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash
-    sha256: 03985ffef4229ed63a147ad0f29ea7fb67caa12d7adfb50a8d80a144660b7bf6
+    sha256: f0fcff62fab9237e62d6f0f2b8d07fb1a7d77996053bafafc99851154c687a69
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py
     mode: '0644'
-    sha256: 56a196f4f302d6ca8491377b1bfee6cd53ef9cf18f06a6a48c18331f61cde8c9
+    sha256: 561e6cc9cad58b66772c888e2642cf0f6a6e948ef6d526147b74b708d0723cdd
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/ansible.cfg
     mode: '0644'
