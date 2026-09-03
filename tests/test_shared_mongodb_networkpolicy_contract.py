@@ -1190,6 +1190,42 @@ exit "$status"
         self.assertIn('no Kubernetes mutation', runbook)
         self.assertIn('shared_mongodb_networkpolicy_bootstrap', PLAYBOOK.read_text())
 
+    def test_post_apply_enforcement_probe_is_separate_and_source_only(self) -> None:
+        runbook = (ROOT / 'runbooks/shared-mongodb-networkpolicy-bootstrap.md').read_text()
+        required = (
+            'no MongoDB-specific enforcement probe implementation',
+            'generic `ansible/playbooks/probe_k3s_network_policy.yml`',
+            'NOT RUN/BLOCKED',
+            'shared-services',
+            'cristexhub-dev',
+            'cristexhub-prod',
+            'default` Namespaces',
+            'metadata-only reads',
+            'never request\n  Secret JSON or Secret data',
+            'lowercase DNS-1123 `generateName` prefix',
+            'DEV\n  backend labels',
+            'DEV Celery labels',
+            'PROD backend labels',
+            'PROD Celery labels',
+            'shared-mongodb.shared-services.svc',
+            'CoreDNS on both UDP and TCP `53`',
+            'foreign labels and a foreign namespace',
+            'Create and delete approvals must be separate gates',
+            'same UID as an API precondition',
+            'non-cascading `Orphan`\n  propagation',
+            'fixed cleanup allowlist must contain `Pod` only',
+            'no MongoDB NetworkPolicy enforcement result',
+            'No live enforcement probe has\nbeen run',
+        )
+        for text in required:
+            self.assertIn(text, runbook)
+        for forbidden in (
+            'NetworkPolicy enforcement passed',
+            'enforcement probe passed',
+            'private acceptance passed',
+        ):
+            self.assertNotIn(forbidden, runbook)
+
     def test_no_secret_workload_or_operator_exception_source(self) -> None:
         source = '\n'.join(path.read_text() for path in COMPONENT.rglob('*') if path.is_file())
         for forbidden in ('kind: Secret', 'kind: Deployment', 'kind: StatefulSet', 'kind: Service', 'mongodb-system'):

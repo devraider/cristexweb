@@ -90,6 +90,68 @@ The wrapper never touches the legacy five-object standalone MongoDB closure:
 `ansible/bin/bootstrap-mongodb`, `mongodb_bootstrap`, and
 `ansible/files/components/mongodb/` remain separate and unchanged.
 
+## Post-apply enforcement probe — separate source-only gate
+
+There is currently **no MongoDB-specific enforcement probe implementation** in this
+repository. The generic `ansible/playbooks/probe_k3s_network_policy.yml` exercise
+uses synthetic policies and a synthetic server in `default`; its historical CNI
+receipt is not evidence that the shared MongoDB policies select the live MongoDB
+pod or enforce the DEV/PROD client boundary. Do not use that generic receipt, a
+NetworkPolicy listing, or a successful MongoDB login as shared-policy enforcement
+evidence. The dedicated post-apply probe remains **NOT RUN/BLOCKED** and must be
+approved independently of both the NetworkPolicy apply and credential-rotation
+lanes.
+
+Before an implementation exists, the only accepted source contract for that probe
+is the following. It must run only after a fresh successful NetworkPolicy apply
+post-state and must never mutate the two applied policies, the MongoDB resource,
+or any workload:
+
+- Use only the already-existing `shared-services`, `cristexhub-dev`,
+  `cristexhub-prod`, and `default` Namespaces. Namespace create/adoption/deletion
+  is forbidden. Query the live MongoDB StatefulSet and Pod, both policy UIDs and
+  resourceVersions, and the Service using metadata-only reads; never request
+  Secret JSON or Secret data.
+- Create only short-lived, non-root, tokenless, `hostNetwork: false` Pods with an
+  independently verified immutable image. Every Pod name must come from a fixed
+  lowercase DNS-1123 `generateName` prefix; caller-supplied names are forbidden.
+  The run ID and both immutable ownership labels must be written before creation
+  and the API-returned UID and resourceVersion must be recorded immediately in a
+  private mode-`0600` ledger.
+- Positive ingress checks must create four distinct temporary clients: DEV
+  backend labels, DEV Celery labels, PROD backend labels, and PROD Celery labels.
+  Each must prove TCP `27017` reachability to the private
+  `shared-mongodb.shared-services.svc` endpoint. A separate shared-services
+  helper carrying the exact live Mongo selector must prove Mongo peer TCP
+  reachability and DNS resolution through CoreDNS on both UDP and TCP `53`.
+  These are connectivity checks only and must not read credentials or claim
+  MongoDB authorization, replica-set, or data acceptance.
+- Negative checks must use foreign labels and a foreign namespace (at minimum a
+  `default` client and an untrusted shared-services client) and prove that both
+  cannot reach the MongoDB endpoint. A timeout, eviction, scheduling failure, or
+  authentication error is not negative NetworkPolicy evidence; each Pod must
+  reach an exact, bounded terminal result that distinguishes policy rejection
+  from tool, image, DNS, or node failure.
+- Create and delete approvals must be separate gates and separate reviewed
+  check/apply transitions. Cleanup may delete only the exact generated Pod
+  identities in the private ledger, after re-reading each object and verifying
+  both ownership labels, UID, namespace, kind, and non-termination. Every delete
+  must send the same UID as an API precondition and use non-cascading `Orphan`
+  propagation. If the process stops before ledger persistence, recovery may
+  discover only the fixed generated prefixes plus both immutable labels in those
+  existing Namespaces, rebuild the ledger in check mode, and stop for review;
+  selector-wide deletion and adoption are forbidden.
+- The fixed cleanup allowlist must contain `Pod` only. It must contain no
+  Namespace, Secret, PersistentVolumeClaim, Service, NetworkPolicy, or workload
+  deletion path, and the probe must create no public route, NodePort, LoadBalancer,
+  or tunnel. A failed positive/negative check must still enter exact cleanup and
+  retain a sanitized receipt; no residual Pod or private ledger is silently
+  ignored.
+
+Until that dedicated source closure and its separate approvals exist, this runbook
+claims no MongoDB NetworkPolicy enforcement result. No live enforcement probe has
+been run from this source-only checkpoint.
+
 ## Offline validation
 
 ```bash
