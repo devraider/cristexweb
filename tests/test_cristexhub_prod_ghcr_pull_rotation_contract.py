@@ -12,6 +12,7 @@ import tempfile
 import sys
 import time
 import unittest
+from copy import deepcopy
 from pathlib import Path
 from unittest import mock
 
@@ -300,6 +301,161 @@ class CristexHubProdGhcrPullRotationContractTests(unittest.TestCase):
                 _COLLECTION_FILES_SOURCE=collection_root / "FILES.json",
             ):
                 self.assertFalse(strategy._collection_toolchain_valid())
+
+    def test_assert_loops_execute_before_malformed_kubeconfig_api_boundary(self) -> None:
+        """Exercise both looped assertions with Ansible 2.19 before an API parse failure."""
+        tasks = yaml.safe_load(self.tasks)
+        source_task = deepcopy(
+            next(task for task in tasks if task.get("name") == "Require regular and mode-correct GHCR rotation source leaves")
+        )
+        workload_task = deepcopy(
+            next(task for task in tasks if task.get("name") == "Require immutable images, exact pull Secret, and current readiness")
+        )
+        for task in (source_task, workload_task):
+            self.assertIn("loop", task)
+            self.assertIn("loop_control", task)
+            self.assertNotIn("loop", task["ansible.builtin.assert"])
+            self.assertNotIn("loop_control", task["ansible.builtin.assert"])
+            self.assertTrue(task.get("no_log"))
+
+        source_items = [
+            {
+                "item": f"/tmp/ghcr-source-{index}",
+                "stat": {
+                    "isreg": True,
+                    "islnk": False,
+                    "mode": "0644",
+                    "checksum": "a" * 64,
+                },
+            }
+            for index in range(7)
+        ]
+        names = ["backend", "celery-worker", "frontend", "oauth2-proxy", "redis"]
+
+        def deployment_result(name: str) -> dict[str, object]:
+            deployment = {
+                "apiVersion": "apps/v1",
+                "kind": "Deployment",
+                "metadata": {
+                    "name": name,
+                    "namespace": "cristexhub-prod",
+                    "uid": "b" * 32,
+                    "resourceVersion": "1",
+                    "generation": 1,
+                    "annotations": {"deployment.kubernetes.io/revision": "1"},
+                    "labels": {"app.kubernetes.io/name": name, "app.kubernetes.io/part-of": "cristexhub"},
+                    "ownerReferences": [],
+                },
+                "spec": {
+                    "selector": {"matchLabels": {"app.kubernetes.io/name": name}},
+                    "replicas": 1,
+                    "template": {
+                        "spec": {
+                            "imagePullSecrets": [{"name": "cristexhub-prod-ghcr-pull"}],
+                            "containers": [{"image": f"registry.example/{name}@sha256:{'c' * 64}"}],
+                        }
+                    },
+                },
+                "status": {
+                    "observedGeneration": 1,
+                    "replicas": 1,
+                    "updatedReplicas": 1,
+                    "availableReplicas": 1,
+                    "readyReplicas": 1,
+                    "unavailableReplicas": 0,
+                    "conditions": [
+                        {"type": "Available", "status": "True"},
+                        {"type": "Progressing", "status": "True"},
+                    ],
+                },
+            }
+            return {"item": name, "resources": [deployment]}
+
+        deployment_results = [deployment_result(name) for name in names]
+        inventory = {"resources": [result["resources"][0] for result in deployment_results]}
+
+        controller = ROOT / ".venv/bin/ansible-playbook"
+        if not controller.is_file():
+            controller = Path("/home/paul/projects/cristexweb/.venv/bin/ansible-playbook")
+        if not controller.is_file():
+            self.skipTest("offline controller environment is not installed")
+        collection_path = ANSIBLE / ".ansible/collections"
+        if not (collection_path / "ansible_collections/kubernetes/core").is_dir():
+            collection_path = Path("/home/paul/projects/cristexweb/ansible/.ansible/collections")
+        if not (collection_path / "ansible_collections/kubernetes/core").is_dir():
+            self.skipTest("pinned kubernetes.core collection is not available")
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_root = Path(temporary)
+            malformed_kubeconfig = temporary_root / "malformed-kubeconfig"
+            malformed_kubeconfig.write_text("not: [valid kubeconfig\n", encoding="utf-8")
+            fixture = temporary_root / "ghcr-loop-execution.yml"
+            fixture.write_text(
+                yaml.safe_dump(
+                    [
+                        {
+                            "name": "Exercise GHCR assert loops before the API boundary",
+                            "hosts": "localhost",
+                            "gather_facts": False,
+                            "connection": "local",
+                            "vars": {
+                                "cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_states": {
+                                    "results": source_items
+                                },
+                                "cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployments": {
+                                    "results": deployment_results
+                                },
+                                "cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployment_inventory": inventory,
+                            },
+                            "tasks": [
+                                source_task,
+                                workload_task,
+                                {
+                                    "name": "Probe malformed kubeconfig pre-API boundary",
+                                    "kubernetes.core.k8s_info": {
+                                        "api_version": "v1",
+                                        "kind": "Namespace",
+                                        "name": "pre-api-probe",
+                                        "kubeconfig": str(malformed_kubeconfig),
+                                    },
+                                    "register": "malformed_kubeconfig_probe",
+                                    "ignore_errors": True,
+                                    "changed_when": False,
+                                },
+                                {
+                                    "name": "Confirm GHCR assert loop tasks reached pre-API boundary",
+                                    "ansible.builtin.assert": {
+                                        "that": ["true"]
+                                    },
+                                },
+                            ],
+                        }
+                    ],
+                    sort_keys=False,
+                ),
+                encoding="utf-8",
+            )
+            environment = {
+                **os.environ,
+                "ANSIBLE_CONFIG": str(CONFIG),
+                "ANSIBLE_COLLECTIONS_PATH": str(collection_path),
+                "ANSIBLE_NOCOLOR": "1",
+                "ANSIBLE_LOCALHOST_WARNING": "false",
+                "PYTHONDONTWRITEBYTECODE": "1",
+            }
+            result = subprocess.run(
+                [str(controller), "-i", "localhost,", str(fixture), "--check", "--diff"],
+                cwd=ANSIBLE,
+                env=environment,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            output = result.stdout + result.stderr
+            self.assertEqual(0, result.returncode, output)
+            self.assertIn("Probe malformed kubeconfig pre-API boundary", output)
+            self.assertIn("Confirm GHCR assert loop tasks reached pre-API boundary", output)
+            self.assertNotIn("Unsupported parameters for (assert) module: loop", output)
+            self.assertNotIn("loop is not a valid parameter", output)
 
     def test_attestation_contains_wrapper_starttime(self) -> None:
         self.assertIn(

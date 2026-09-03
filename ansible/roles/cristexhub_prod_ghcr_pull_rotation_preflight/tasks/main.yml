@@ -174,8 +174,10 @@
       - not (item.stat.islnk | default(false))
       - item.stat.mode == ('0755' if item.item.endswith('/ansible/bin/check-cristexhub-prod-ghcr-pull-rotation') else '0644')
       - item.stat.checksum | length == 64
-    loop: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_states.results }}"
     fail_msg: Refusing missing, symlinked, or drifted GHCR rotation source.
+  loop: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_source_states.results }}"
+  loop_control:
+    label: "{{ item.item }}"
   changed_when: false
   no_log: true
 
@@ -436,7 +438,9 @@
         'app.kubernetes.io/name': item.item,
         'app.kubernetes.io/part-of': 'cristexhub'}
       - item.resources[0].metadata.ownerReferences | default([]) == []
-      - item.resources[0].spec.selector.matchLabels == {'app.kubernetes.io/name': item.item}
+      - >-
+        item.resources[0].spec.selector.matchLabels ==
+        {'app.kubernetes.io/name': item.item}
       - item.resources[0].spec.replicas | int == 1
       - >-
         item.resources[0].spec.template.spec.imagePullSecrets ==
@@ -462,6 +466,8 @@
         selectattr('status', 'equalto', 'True') | list | length) == 1
     fail_msg: Refusing a consumer that is not immutable, current, pullable, and Ready.
   loop: "{{ cristexhub_prod_ghcr_pull_rotation_preflight_internal_deployments.results }}"
+  loop_control:
+    label: "{{ item.item }}"
   changed_when: false
   no_log: true
 
