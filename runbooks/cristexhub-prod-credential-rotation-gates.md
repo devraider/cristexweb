@@ -104,12 +104,20 @@ header, or registry response body.
 
 ### DeepSeek
 
-No rotation implementation is authorized here. The current proxy source proves
-only transport to `api.deepseek.com:443`; an unauthenticated `401` is transport
-smoke, not API authorization. Do not add a provider key to infrastructure source,
-Kubernetes manifests, OpenTofu, CI, or evidence. Provider revocation, successor
-issuance, application-owner reconciliation, and a value-free private API health
-check require their own reviewed lane.
+The separate [DeepSeek credential boundary](cristexhub-prod-deepseek-credential-boundary.md)
+is canonical for this unresolved external-owner residual. No rotation
+implementation is authorized here. The current proxy source proves only
+transport to `api.deepseek.com:443`; an unauthenticated `401` is transport smoke,
+not API authorization. Do not add a provider key to infrastructure source,
+Kubernetes manifests, OpenTofu, CI, or evidence. The CristexHub application owner
+must identify the exact application secret manager, source path/key, consumer,
+and deployed revision by protected metadata only. If Infisical is confirmed, the
+project, environment, non-recursive path, key, source revision, and materialized
+target must be identified without reading values; the known infrastructure
+project context is not target proof. The DeepSeek account owner must perform
+provider revocation and successor issuance. This repository has no provider
+authority and must not perform provider revocation unless ownership is proven
+under the separate boundary's explicit exception contract.
 
 ## Public route and MongoDB policy gates
 

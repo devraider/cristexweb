@@ -78,6 +78,7 @@ class ReplacementRecoveryContractTests(unittest.TestCase):
                 "opentofu-github-repository-import.md",
                 "opentofu-foundation-state-reconciliation.md",
                 "cristexhub-prod-credential-rotation-gates.md",
+                "cristexhub-prod-deepseek-credential-boundary.md",
                 "cristexhub-prod-private-acceptance.md",
                 "cristexhub-prod-ghcr-pull-rotation.md",
                 "reactive-resume-object-storage-source-recovery.md",

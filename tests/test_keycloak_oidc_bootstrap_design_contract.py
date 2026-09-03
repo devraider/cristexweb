@@ -299,6 +299,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             if path.is_file()
         )
         expected_public_inputs.add("policies/cristexhub-prod-credential-rotation-gates.yml")
+        expected_public_inputs.add("policies/cristexhub-prod-deepseek-credential-boundary.yml")
         expected_public_inputs.add("policies/cristexhub-prod-ghcr-pull-rotation.yml")
         expected_public_inputs.add("components/cristexhub-prod-ghcr-pull-rotation/SOURCE-CLOSURE.sha256")
         for source_directory in ("database-provisioning", "backup"):
