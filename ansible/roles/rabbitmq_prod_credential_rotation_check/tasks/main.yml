@@ -305,8 +305,8 @@
     that:
       - item.resources | length == 1
       - item.resources[0].status.phase == 'Active'
-    loop: "{{ rabbitmq_prod_credential_rotation_check_internal_namespaces.results }}"
     fail_msg: Refusing RabbitMQ rotation preflight outside established Namespaces.
+  loop: "{{ rabbitmq_prod_credential_rotation_check_internal_namespaces.results }}"
   changed_when: false
   no_log: true
 
@@ -702,10 +702,10 @@
       - item.resources[0].spec.sources | length == 1
       - item.resources[0].spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326'
       - item.resources[0].spec.sources[0].environmentSlug == 'prod'
-    loop: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results }}"
-    loop_control:
-      label: infisical-source-metadata
     fail_msg: Refusing missing, terminating, or revisionless Infisical source metadata.
+  loop: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results }}"
+  loop_control:
+    label: infisical-source-metadata
   changed_when: false
   no_log: true
 
@@ -810,14 +810,14 @@
   ansible.builtin.assert:
     that:
       - rabbitmq_prod_credential_rotation_check_internal_secret_metadata.metadata_only is true
-      - rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items | length == 3
+      - rabbitmq_prod_credential_rotation_check_internal_secret_metadata['items'] | length == 3
       - >-
-        rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items |
+        rabbitmq_prod_credential_rotation_check_internal_secret_metadata['items'] |
         map(attribute='metadata.name') | list ==
         ['shared-rabbitmq-cristexhub-prod', 'cristexhub-prod-runtime',
         'cristexhub-prod-ghcr-pull']
       - >-
-        rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items |
+        rabbitmq_prod_credential_rotation_check_internal_secret_metadata['items'] |
         map(attribute='metadata.namespace') | list ==
         ['shared-services', 'cristexhub-prod', 'cristexhub-prod']
       - item.metadata.name in ['shared-rabbitmq-cristexhub-prod', 'cristexhub-prod-runtime', 'cristexhub-prod-ghcr-pull']
@@ -838,10 +838,10 @@
       - item.metadata.annotations['secrets.infisical.com/version'] | string | length > 0
       - item.metadata.ownerReferences | default([]) == []
       - item.metadata.deletionTimestamp | default(none) is none
-    loop: "{{ rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items }}"
-    loop_control:
-      label: secret-metadata
     fail_msg: Refusing missing, foreign, or payload-bearing target Secret metadata.
+  loop: "{{ rabbitmq_prod_credential_rotation_check_internal_secret_metadata['items'] }}"
+  loop_control:
+    label: secret-metadata
   changed_when: false
   no_log: true
 
@@ -899,10 +899,10 @@
       - item.resources[0].status.updatedReplicas | default(0) | int == 1
       - item.resources[0].spec.replicas == 1
       - item.resources[0].spec.template.metadata.labels['cristex.io/rabbitmq-client'] == 'shared-rabbitmq'
-    loop: "{{ rabbitmq_prod_credential_rotation_check_internal_consumers.results }}"
-    loop_control:
-      label: consumer-readiness
     fail_msg: Refusing RabbitMQ rotation without one Ready backend and Celery consumer.
+  loop: "{{ rabbitmq_prod_credential_rotation_check_internal_consumers.results }}"
+  loop_control:
+    label: consumer-readiness
   changed_when: false
   no_log: true
 

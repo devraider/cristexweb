@@ -377,6 +377,17 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("metadata.annotations | default({})) ==", self.tasks)
         self.assertIn("metadata.ownerReferences | default([])) ==", self.tasks)
         self.assertIn("spec.infisicalAuthRef ==", self.tasks)
+        registered_names = [
+            task["register"]
+            for task in yaml.safe_load(self.tasks)
+            if isinstance(task, dict) and "register" in task
+        ]
+        for name in registered_names:
+            self.assertNotRegex(
+                self.tasks,
+                rf"{re.escape(name)}\.(?:items|keys|values|get|update)\b",
+                name,
+            )
         for field in ("metadata.uid", "metadata.resourceVersion", "metadata.ownerReferences", "spec.template.metadata.labels", "image", "volumeMounts", "startupProbe", "readinessProbe", "livenessProbe"):
             self.assertIn(field, self.tasks, field)
         self.assertIn("spec.targets ==", self.tasks)
@@ -535,6 +546,100 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             )
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             self.assertNotIn("No filter named 'search'", result.stdout + result.stderr)
+
+    def test_secret_metadata_registered_result_uses_bracket_items_on_ansible_219(self) -> None:
+        """Evaluate the metadata assertion with a real Ansible 2.19 result-shaped mapping."""
+        controller = ROOT / ".venv/bin/ansible-playbook"
+        if not controller.is_file():
+            controller = Path("/home/paul/projects/cristexweb/.venv/bin/ansible-playbook")
+        if not controller.is_file():
+            self.skipTest("canonical Ansible controller is unavailable on this host")
+
+        self.assertIn("rabbitmq_prod_credential_rotation_check_internal_secret_metadata['items']", self.tasks)
+        self.assertNotIn("rabbitmq_prod_credential_rotation_check_internal_secret_metadata.items", self.tasks)
+        task = next(
+            item
+            for item in yaml.safe_load(self.tasks)
+            if item.get("name") == "Require only metadata for exact Infisical-owned target Secrets"
+        )
+
+        def secret_metadata(name: str, namespace: str, part_of: str, uid: str, resource_version: str) -> dict:
+            return {
+                "metadata": {
+                    "name": name,
+                    "namespace": namespace,
+                    "uid": uid,
+                    "resourceVersion": resource_version,
+                    "labels": {
+                        "app.kubernetes.io/managed-by": "infisical",
+                        "app.kubernetes.io/part-of": part_of,
+                        "cristex.io/value-owner": "infisical-cloud",
+                    },
+                    "annotations": {"secrets.infisical.com/version": "7"},
+                    "ownerReferences": [],
+                }
+            }
+
+        metadata_result = {
+            "metadata_only": True,
+            "items": [
+                secret_metadata("shared-rabbitmq-cristexhub-prod", "shared-services", "shared-rabbitmq", "uid-1", "101"),
+                secret_metadata("cristexhub-prod-runtime", "cristexhub-prod", "cristexhub", "uid-2", "102"),
+                secret_metadata("cristexhub-prod-ghcr-pull", "cristexhub-prod", "cristexhub", "uid-3", "103"),
+            ],
+        }
+        with tempfile.TemporaryDirectory(prefix="rabbitmq-secret-metadata-", dir="/dev/shm") as directory:
+            root = Path(directory)
+            role_tasks = root / "roles/rabbitmq_prod_credential_rotation_check/tasks/main.yml"
+            role_tasks.parent.mkdir(parents=True)
+            role_tasks.write_text("---\n" + yaml.safe_dump([task], sort_keys=False), encoding="utf-8")
+            (root / "result.json").write_text(
+                json.dumps({"rabbitmq_prod_credential_rotation_check_internal_secret_metadata": metadata_result}),
+                encoding="utf-8",
+            )
+            (root / "inventory").write_text("localhost ansible_connection=local\n", encoding="utf-8")
+            (root / "ansible.cfg").write_text(
+                "[defaults]\n"
+                f"roles_path = {root / 'roles'}\n"
+                "retry_files_enabled = False\n",
+                encoding="utf-8",
+            )
+            playbook = root / "playbook.yml"
+            playbook.write_text(
+                "---\n"
+                "- name: Evaluate metadata-only Secret result\n"
+                "  hosts: localhost\n"
+                "  gather_facts: false\n"
+                "  roles:\n"
+                "    - rabbitmq_prod_credential_rotation_check\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    str(controller),
+                    "-i",
+                    str(root / "inventory"),
+                    str(playbook),
+                    "--check",
+                    "--diff",
+                    "--extra-vars",
+                    "@" + str(root / "result.json"),
+                ],
+                cwd=root,
+                env={
+                    "HOME": "/tmp",
+                    "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                    "ANSIBLE_CONFIG": str(root / "ansible.cfg"),
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            output = result.stdout + result.stderr
+            self.assertEqual(0, result.returncode, output)
+            self.assertNotIn("Type 'method' is unsupported", output)
+            self.assertNotIn("must resolve to a 'list'", output)
 
     def test_wrapper_and_action_pins_match_current_canonical_sources(self) -> None:
         zero = "0" * 64
