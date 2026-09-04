@@ -84,8 +84,8 @@
   "configuration": {
     "provider_config": {
       "cloudflare": {
-        "name": "cloudflare",
         "full_name": "registry.opentofu.org/cloudflare/cloudflare",
+        "name": "cloudflare",
         "version_constraint": "5.23.0"
       }
     },
@@ -486,6 +486,7 @@
           "provider_name": "registry.opentofu.org/cloudflare/cloudflare",
           "schema_version": 500,
           "sensitive_values": {
+            "settings": {},
             "tags": []
           },
           "type": "cloudflare_dns_record",
@@ -503,7 +504,11 @@
             "private_routing": null,
             "proxiable": true,
             "proxied": false,
-            "settings": null,
+            "settings": {
+              "flatten_cname": null,
+              "ipv4_only": null,
+              "ipv6_only": null
+            },
             "tags": [],
             "tags_modified_on": null,
             "ttl": 300,
@@ -616,6 +621,7 @@
           "provider_name": "registry.opentofu.org/cloudflare/cloudflare",
           "schema_version": 500,
           "sensitive_values": {
+            "settings": {},
             "tags": []
           },
           "type": "cloudflare_dns_record",
@@ -633,7 +639,11 @@
             "private_routing": null,
             "proxiable": true,
             "proxied": false,
-            "settings": null,
+            "settings": {
+              "flatten_cname": null,
+              "ipv4_only": null,
+              "ipv6_only": null
+            },
             "tags": [],
             "tags_modified_on": null,
             "ttl": 300,
@@ -766,6 +776,7 @@
             "provider_name": "registry.opentofu.org/cloudflare/cloudflare",
             "schema_version": 500,
             "sensitive_values": {
+              "settings": {},
               "tags": []
             },
             "type": "cloudflare_dns_record",
@@ -783,7 +794,11 @@
               "private_routing": null,
               "proxiable": true,
               "proxied": false,
-              "settings": null,
+              "settings": {
+                "flatten_cname": null,
+                "ipv4_only": null,
+                "ipv6_only": null
+              },
               "tags": [],
               "tags_modified_on": null,
               "ttl": 300,
@@ -878,6 +893,7 @@
             "provider_name": "registry.opentofu.org/cloudflare/cloudflare",
             "schema_version": 500,
             "sensitive_values": {
+              "settings": {},
               "tags": []
             },
             "type": "cloudflare_dns_record",
@@ -895,7 +911,11 @@
               "private_routing": null,
               "proxiable": true,
               "proxied": false,
-              "settings": null,
+              "settings": {
+                "flatten_cname": null,
+                "ipv4_only": null,
+                "ipv6_only": null
+              },
               "tags": [],
               "tags_modified_on": null,
               "ttl": 300,
@@ -985,8 +1005,7 @@
           }
         ]
       }
-    },
-    "checks": []
+    }
   },
   "relevant_attributes": [
     {
@@ -1017,7 +1036,11 @@
           "private_routing": null,
           "proxiable": true,
           "proxied": false,
-          "settings": null,
+          "settings": {
+            "flatten_cname": null,
+            "ipv4_only": null,
+            "ipv6_only": null
+          },
           "tags": [],
           "tags_modified_on": null,
           "ttl": 300,
@@ -1025,6 +1048,7 @@
           "zone_id": "3cbee16e56d7656440f93e685807e779"
         },
         "after_sensitive": {
+          "settings": {},
           "tags": []
         },
         "after_unknown": {},
@@ -1042,7 +1066,11 @@
           "private_routing": null,
           "proxiable": true,
           "proxied": false,
-          "settings": null,
+          "settings": {
+            "flatten_cname": null,
+            "ipv4_only": null,
+            "ipv6_only": null
+          },
           "tags": [],
           "tags_modified_on": null,
           "ttl": 300,
@@ -1050,6 +1078,7 @@
           "zone_id": "3cbee16e56d7656440f93e685807e779"
         },
         "before_sensitive": {
+          "settings": {},
           "tags": []
         }
       },
@@ -1220,7 +1249,11 @@
           "private_routing": null,
           "proxiable": true,
           "proxied": false,
-          "settings": null,
+          "settings": {
+            "flatten_cname": null,
+            "ipv4_only": null,
+            "ipv6_only": null
+          },
           "tags": [],
           "tags_modified_on": null,
           "ttl": 300,
@@ -1228,6 +1261,7 @@
           "zone_id": "3cbee16e56d7656440f93e685807e779"
         },
         "after_sensitive": {
+          "settings": {},
           "tags": []
         },
         "after_unknown": {},
@@ -1245,7 +1279,11 @@
           "private_routing": null,
           "proxiable": true,
           "proxied": false,
-          "settings": null,
+          "settings": {
+            "flatten_cname": null,
+            "ipv4_only": null,
+            "ipv6_only": null
+          },
           "tags": [],
           "tags_modified_on": null,
           "ttl": 300,
@@ -1253,6 +1291,7 @@
           "zone_id": "3cbee16e56d7656440f93e685807e779"
         },
         "before_sensitive": {
+          "settings": {},
           "tags": []
         }
       },

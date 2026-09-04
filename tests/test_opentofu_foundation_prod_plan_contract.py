@@ -243,15 +243,12 @@ def resource(address: str, actions: list[str], before, after) -> dict:
 def state_resource(address: str, values: dict, depends_on: list[str] | None = None) -> dict:
     resource_type = address.split(".", 1)[0]
     if resource_type == "cloudflare_dns_record":
-        sensitive_values = {"tags": []}
-        if address in {
-            "cloudflare_dns_record.cristexhub_dev",
-            "cloudflare_dns_record.keycloak",
-            CREATE,
-        }:
-            sensitive_values = {"settings": {}, "tags": []}
+        sensitive_values = {"settings": {}, "tags": []}
     elif resource_type == "cloudflare_zero_trust_tunnel_cloudflared":
-        sensitive_values = {"connections": [], "tunnel_secret": True}
+        sensitive_values = {
+            "connections": [{} for _ in values.get("connections", [])],
+            "tunnel_secret": True,
+        }
     else:
         ingress = values.get("config", {}).get("ingress", []) if isinstance(values, dict) else []
         sensitive_values = {"config": {"ingress": [{} for _ in ingress]}}
@@ -314,7 +311,11 @@ def valid_plan() -> dict:
                 "cloudflare_dns_record.argocd_tailscale",
                 "cloudflare_dns_record.reactive_resume_dev_tailscale",
             }:
-                state["settings"] = None
+                state["settings"] = {
+                    "flatten_cname": None,
+                    "ipv4_only": None,
+                    "ipv6_only": None,
+                }
         else:
             state = {
                 "account_id": ACCOUNT,
@@ -350,12 +351,7 @@ def valid_plan() -> dict:
         address = item["address"]
         change = item["change"]
         if address in DNS_STATES:
-            marker = {"tags": []}
-            if address in {
-                "cloudflare_dns_record.cristexhub_dev",
-                "cloudflare_dns_record.keycloak",
-            }:
-                marker = {"settings": {}, "tags": []}
+            marker = {"settings": {}, "tags": []}
             change["before_sensitive"] = copy.deepcopy(marker)
             change["after_sensitive"] = copy.deepcopy(marker)
         elif address == "cloudflare_zero_trust_tunnel_cloudflared.keycloak":
@@ -447,7 +443,6 @@ def valid_plan() -> dict:
                     ],
                 },
             },
-            "checks": [],
         },
         "configuration": {
             "provider_config": {
@@ -883,7 +878,7 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         result = self.run_validator(candidate)
         self.assertNotEqual(0, result.returncode, "prior state version")
 
-    def test_clean_provider_projection_and_prior_state_checks_are_required(self) -> None:
+    def test_clean_provider_projection_and_prior_state_checks_are_absent(self) -> None:
         provider = valid_plan()["configuration"]["provider_config"]["cloudflare"]
         self.assertEqual({"name", "full_name", "version_constraint"}, set(provider))
         for expressions in (
@@ -896,7 +891,7 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
             result = self.run_validator(candidate)
             self.assertNotEqual(0, result.returncode, expressions)
         candidate = valid_plan()
-        del candidate["prior_state"]["checks"]
+        candidate["prior_state"]["checks"] = []
         result = self.run_validator(candidate)
         self.assertNotEqual(0, result.returncode, "prior_state checks")
 
@@ -1221,7 +1216,7 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
 
     def test_sensitive_values_markers_are_exact_per_dns_record_kind(self) -> None:
         cases = (
-            ("cloudflare_dns_record.argocd_tailscale", {"settings": {}, "tags": []}),
+            ("cloudflare_dns_record.argocd_tailscale", {"tags": []}),
             ("cloudflare_dns_record.cristexhub_dev", {"tags": []}),
             (CREATE, {"tags": []}),
         )

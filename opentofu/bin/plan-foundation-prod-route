@@ -43,14 +43,14 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
     exit 78
 }
 source_manifest="$root/bin/SOURCE.sha256"
-source_manifest_expected_sha256='f0879439329dba5982176f20a85d43f881dc20e1097796e888a8e92377516997'
-source_prod_expected_canonical_sha256='18bc4cfd1efff7b756b7e7d0db0373c151270d85db673a0911db020cc7808336'
+source_manifest_expected_sha256='fc6486be36c862ec2e2a2e829c89def8711880e1ed5a5212b809d939f4be7ac2'
+source_prod_expected_canonical_sha256='cb55fc2bac920d2bf15eefca9c840d9448021d6acbd88341e8c7129ecc518fef'
 validator="$root/bin/validate-foundation-prod-plan"
 state_scope_validator="$root/bin/validate-foundation-state-scope"
 # These digests are independently pinned from the verified source manifest.
 # Validators are copied into sealed memfds before execution, so a pathname
 # replacement or in-place edit cannot change the bytes consumed by Python.
-validator_sha256='ffa1c278a03bbb1ff21282e2e343953f43327f4708488873a1c3f06733bde297'
+validator_sha256='edbb7353d70d2f681ac9968f9ae2159fd81e39a4bdc91e2ce31f4272bda01718'
 state_scope_validator_sha256='4079ab77f44ce257fd68416e2cbe48f2b046d76df54cfbb63507684d46f88b88'
 [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
 [ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$source_manifest")" = 'paul:paul:644:regular file:1' ] || exit 78

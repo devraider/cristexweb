@@ -298,7 +298,7 @@ CHANGE_OPTIONAL_KEYS = frozenset(
     }
 )
 CHANGE_KEYS = CHANGE_REQUIRED_KEYS | CHANGE_OPTIONAL_KEYS
-STATE_KEYS = frozenset({"format_version", "terraform_version", "values", "checks"})
+STATE_KEYS = frozenset({"format_version", "terraform_version", "values"})
 STATE_VALUES_KEYS = frozenset({"outputs", "root_module"})
 CONFIGURATION_KEYS = frozenset({"provider_config", "root_module"})
 TIMESTAMP = re.compile(
@@ -562,6 +562,7 @@ def require_sensitive_values_marker(
     resource_type: str | None,
     reason: str,
     address: str | None = None,
+    resource_values: Any = None,
 ) -> None:
     """Validate the pinned provider's exact ``sensitive_values`` projection.
 
@@ -580,18 +581,22 @@ def require_sensitive_values_marker(
             "cloudflare_dns_record.argocd_tailscale",
             "cloudflare_dns_record.reactive_resume_dev_tailscale",
         }
-        if address in cname_addresses:
+        if address in cname_addresses or address in a_addresses:
             expected = {"settings": {}, "tags": []}
-        elif address in a_addresses:
-            expected = {"tags": []}
         else:
             fail(reason)
         if exact_equal(value, expected):
             return
-    elif resource_type == "cloudflare_zero_trust_tunnel_cloudflared" and exact_equal(
-        value, {"connections": [], "tunnel_secret": True}
-    ):
-        return
+    elif resource_type == "cloudflare_zero_trust_tunnel_cloudflared":
+        connections = resource_values.get("connections") if isinstance(resource_values, dict) else None
+        if (
+            isinstance(connections, list)
+            and isinstance(value, dict)
+            and set(value) == {"connections", "tunnel_secret"}
+            and value["tunnel_secret"] is True
+            and value["connections"] == [{} for _ in connections]
+        ):
+            return
     elif resource_type == "cloudflare_zero_trust_tunnel_cloudflared_config" and address == UPDATE_ADDRESS:
         if isinstance(value, dict) and set(value) == {"config"} and isinstance(value["config"], dict):
             ingress = value["config"].get("ingress")
@@ -619,7 +624,8 @@ def validate_sensitive_values_tree(
             marker_address = value["address"]
         if "sensitive_values" in value:
             require_sensitive_values_marker(
-                value["sensitive_values"], marker_type, reason, marker_address
+                value["sensitive_values"], marker_type, reason, marker_address,
+                value.get("values"),
             )
         for nested in value.values():
             validate_sensitive_values_tree(nested, reason, marker_type, marker_address)
@@ -731,12 +737,12 @@ def require_resource_value_projection(
             fail(reason)
     if type(resource["schema_version"]) is not int or resource["schema_version"] != 500:
         fail(reason)
-    require_sensitive_values_marker(
-        resource["sensitive_values"], resource_kind, reason, address
-    )
     values = resource.get("values")
     if not isinstance(values, dict):
         fail(reason)
+    require_sensitive_values_marker(
+        resource["sensitive_values"], resource_kind, reason, address, values
+    )
     if expected_state is not None and not exact_equal(values, expected_state):
         fail(reason)
     if resource_kind == "cloudflare_dns_record":
@@ -915,8 +921,6 @@ def require_state_envelope(
     require_state_values(
         value["values"], reason, identity, expected_addresses, EXPECTED_OUTPUTS, expected_states
     )
-    if value["checks"] != []:
-        fail(reason)
     validate_sensitive_values_tree(value, reason)
     require_safe_tree(scrub_sensitive_values(value), reason)
 
@@ -1140,7 +1144,7 @@ def require_optional_timestamp(value: Any, reason: str) -> None:
 
 def require_dns_settings(value: Any, address: str, reason: str) -> None:
     # Cloudflare 5.23.0 normalizes the optional+computed settings object to
-    # false-valued members for CNAME records.  A records serialize it as null.
+    # false-valued members for CNAME records and null-valued members for A records.
     if address in {
         "cloudflare_dns_record.cristexhub_dev",
         "cloudflare_dns_record.keycloak",
@@ -1151,7 +1155,9 @@ def require_dns_settings(value: Any, address: str, reason: str) -> None:
         if any(type(nested) is not bool or nested for nested in value.values()):
             fail(reason)
         return
-    if value is not None:
+    if not isinstance(value, dict) or set(value) != DNS_SETTINGS_KEYS:
+        fail(reason)
+    if any(nested is not None for nested in value.values()):
         fail(reason)
 
 
@@ -1187,7 +1193,10 @@ def require_dns_computed_field(key: str, value: Any, reason: str) -> None:
         if value is not None and (
             not isinstance(value, dict)
             or set(value) != DNS_SETTINGS_KEYS
-            or any(type(nested) is not bool or nested for nested in value.values())
+            or any(
+                nested is not None and (type(nested) is not bool or nested)
+                for nested in value.values()
+            )
         ):
             fail(reason)
     elif key == "tags":
@@ -1672,11 +1681,7 @@ def require_sensitive_projection(
             fail("resource_sensitive")
         return
     if address in EXPECTED_DNS_STATES or address == CREATE_ADDRESS:
-        expected = {"settings": {}, "tags": []} if address in {
-            "cloudflare_dns_record.cristexhub_dev",
-            "cloudflare_dns_record.keycloak",
-            CREATE_ADDRESS,
-        } else {"tags": []}
+        expected = {"settings": {}, "tags": []}
         if type(value) is not dict or not exact_equal(value, expected):
             fail("resource_sensitive")
         return
