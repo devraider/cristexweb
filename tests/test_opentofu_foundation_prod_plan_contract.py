@@ -531,7 +531,7 @@ def valid_plan() -> dict:
 
 
 def tunnel_resource_drift_plan(
-    *, reorder_connections: bool = False
+    *, reorder_connections: bool = False, duplicate_invariants: bool = False
 ) -> dict:
     """Build a sanitized provider-shaped volatile tunnel refresh drift."""
     candidate = valid_plan()
@@ -583,6 +583,16 @@ def tunnel_resource_drift_plan(
             "uuid": "uuid-after-b",
         }
     )
+    if duplicate_invariants:
+        for state in (before, after):
+            for connection in state["connections"]:
+                connection.update(
+                    {
+                        "client_version": "same",
+                        "is_pending_reconnect": False,
+                        "origin_ip": "192.0.2.10",
+                    }
+                )
     if reorder_connections:
         after["connections"].reverse()
     drift = resource(
@@ -707,6 +717,16 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("outputs=no-op", result.stdout)
 
+    def test_duplicate_invariant_connections_can_be_reordered(self) -> None:
+        result = self.run_validator(
+            tunnel_resource_drift_plan(
+                duplicate_invariants=True,
+                reorder_connections=True,
+            )
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("outputs=no-op", result.stdout)
+
     def test_tunnel_drift_rejects_unrelated_state_changes(self) -> None:
         mutations = (
             ("identity", lambda state: state.__setitem__("id", "0" * 36)),
@@ -737,7 +757,7 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
             result = self.run_validator(candidate)
             self.assertNotEqual(0, result.returncode, name)
 
-    def test_tunnel_drift_rejects_connection_add_remove_and_ambiguous_reorder(self) -> None:
+    def test_tunnel_drift_rejects_connection_add_remove(self) -> None:
         candidate = tunnel_resource_drift_plan()
         after = candidate["resource_drift"][0]["change"]["after"]
         after["connections"].append(copy.deepcopy(after["connections"][0]))
@@ -749,18 +769,19 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         result = self.run_validator(candidate)
         self.assertNotEqual(0, result.returncode, "removed connection")
 
-        candidate = tunnel_resource_drift_plan()
-        before = candidate["resource_drift"][0]["change"]["before"]
+    def test_tunnel_drift_rejects_invariant_multiplicity_change(self) -> None:
+        candidate = tunnel_resource_drift_plan(duplicate_invariants=True)
         after = candidate["resource_drift"][0]["change"]["after"]
-        # Duplicate stable fields make a provider reorder unidentifiable.
-        for state in (before, after):
-            for connection in state["connections"]:
-                connection["client_version"] = "same"
-                connection["is_pending_reconnect"] = False
-                connection["origin_ip"] = "192.0.2.10"
-        after["connections"].reverse()
+        after["connections"][1]["origin_ip"] = "192.0.2.11"
         result = self.run_validator(candidate)
-        self.assertNotEqual(0, result.returncode, "ambiguous reorder")
+        self.assertNotEqual(0, result.returncode, "invariant multiplicity change")
+
+    def test_tunnel_drift_rejects_invariant_change(self) -> None:
+        candidate = tunnel_resource_drift_plan()
+        after = candidate["resource_drift"][0]["change"]["after"]
+        after["connections"][0]["client_version"] = "9.9.9"
+        result = self.run_validator(candidate)
+        self.assertNotEqual(0, result.returncode, "invariant change")
 
     def test_tunnel_sensitive_projection_requires_aligned_empty_connection_markers(self) -> None:
         cases = (

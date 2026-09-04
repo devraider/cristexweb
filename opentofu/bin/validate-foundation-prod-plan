@@ -16,6 +16,7 @@ import re
 import signal
 import stat
 import sys
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Any, NoReturn
@@ -1306,19 +1307,22 @@ def require_tunnel_state(value: Any, reason: str, identity: dict[str, Any]) -> N
         require_tunnel_computed_field(key, value[key], reason, identity)
 
 
-def _connection_stable_key(value: dict[str, Any]) -> str:
-    """Return a typed key for fields that must not drift.
+def _connection_invariant_projection(value: dict[str, Any]) -> str:
+    """Return a canonical projection with only provider-volatile leaves removed.
 
-    Missing and explicit-null values are distinct.  Duplicate keys are
-    rejected because volatile fields cannot identify which connection was
-    refreshed; the validator fails closed rather than pairing records by an
-    unstable field.
+    ``require_tunnel_state`` validates each connection's complete schema and
+    value types before this projection is used.  Consequently, removing only
+    the explicitly volatile fields and canonicalizing the remaining mapping
+    gives an exact invariant identity without pairing records by a volatile
+    identifier.  The JSON string is suitable as a Counter key and preserves
+    exact scalar types (including booleans versus integers).
     """
     return json.dumps(
-        [
-            [key, key in value, value.get(key)]
-            for key in ("client_version", "is_pending_reconnect", "origin_ip")
-        ],
+        {
+            key: value[key]
+            for key in sorted(value)
+            if key not in TUNNEL_VOLATILE_CONNECTION_KEYS
+        },
         ensure_ascii=False,
         separators=(",", ":"),
     )
@@ -1353,22 +1357,14 @@ def require_tunnel_drift_equal(
             return
         if len(before) != len(after):
             fail("tunnel_drift_connections")
-        before_keys = [_connection_stable_key(item) for item in before]
-        after_keys = [_connection_stable_key(item) for item in after]
-        if len(set(before_keys)) != len(before_keys) or len(set(after_keys)) != len(after_keys):
-            # Volatile fields cannot disambiguate equal stable projections;
-            # refuse even an apparently unchanged order rather than risk
-            # attributing one connection's refresh to another.
+        # Connection identity fields are volatile and cannot safely pair live
+        # records. Compare the complete invariant projections as a multiset so
+        # duplicate projections and provider reordering remain valid while any
+        # invariant multiplicity/add/remove/change fails closed.
+        before_invariants = Counter(_connection_invariant_projection(item) for item in before)
+        after_invariants = Counter(_connection_invariant_projection(item) for item in after)
+        if before_invariants != after_invariants:
             fail("tunnel_drift_connections")
-        if set(before_keys) != set(after_keys):
-            fail("tunnel_drift_connections")
-        after_by_key = dict(zip(after_keys, after))
-        pairs = (
-            (index, left, after_by_key[key])
-            for index, (key, left) in enumerate(zip(before_keys, before))
-        )
-        for index, left, right in pairs:
-            require_tunnel_drift_equal(left, right, path + (index,))
         return
     if not exact_equal(before, after):
         fail("tunnel_drift_unexpected")
