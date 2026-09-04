@@ -47,7 +47,7 @@ _CLOSURE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq-prod-cre
 # _canonical_action_hash().
 _ROLES_PATH = _REPOSITORY_ROOT / "ansible/roles"
 _LIBRARY_PATH = _REPOSITORY_ROOT / "ansible/library"
-_ACTION_CANONICAL_SHA256 = "91bd7329d8927e0612ed27eead0cfade727c5e5de6e5adf0f69907573693cfe5"
+_ACTION_CANONICAL_SHA256 = "81a32963feea0e9b3c381e79751b3da8177cef143e4f7a1a80593d1f8027d7d5"
 _TASK_SHA256 = "78104b5277c14ac6071c21250769d74184b12128c7c74591f50b01556fbb0250"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
@@ -63,7 +63,7 @@ _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e37
 _REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
 _COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
 _COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
-_CLOSURE_MANIFEST_SHA256 = "bdac64162c1def60c928894f57039968b59f401d017b9165a769ce981871241c"
+_CLOSURE_MANIFEST_SHA256 = "96b9cca801d2ea230dd132ba0da9d953c1341f56f3b0122b76ad3da06ae90a32"
 _RUNTIME_PROVENANCE = (
     ("CONTROLLER_SHA256", _CONTROLLER_SOURCE, _CONTROLLER_SHA256),
     ("PYTHON_SHA256", _PYTHON_REAL_SOURCE, _EXPECTED_PYTHON_SHA256),
@@ -496,40 +496,83 @@ def _toolchain_valid() -> bool:
         return False
 
 
-def _selected() -> bool:
-    inventory = context.CLIARGS.get("inventory") or []
-    if isinstance(inventory, str):
-        inventory = [inventory]
-    elif isinstance(inventory, tuple):
-        inventory = list(inventory)
-    return (
-        sys.argv == _expected_argv()
-        and os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ENTRYPOINT") == "v1"
-        and os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE") == "check"
-        and os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_SOURCE_CLOSURE_PATH") == str(_CLOSURE_SOURCE)
-        and os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_SOURCE_CLOSURE_SHA256") == _CLOSURE_MANIFEST_SHA256
-        and _toolchain_valid()
-        and _runtime_provenance_valid()
-        and _source_closure_valid()
-        and _canonical_action_hash(Path(__file__)) == _ACTION_CANONICAL_SHA256 == _action_canonical_expected()
-        and _canonical_strategy_hash(_REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py")
-        == _strategy_canonical_expected()
-        and _canonical_wrapper_hash(_WRAPPER_SOURCE) == _wrapper_canonical_expected()
-        and _full_action_hash(_ACTION_SOURCE) == _action_full_expected()
-        and _full_strategy_hash(_REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py")
-        == _strategy_full_expected()
-        and bool(context.CLIARGS.get("check"))
-        and bool(context.CLIARGS.get("diff"))
-        and context.CLIARGS.get("subset") == "crtxweb"
-        and context.CLIARGS.get("start_at_task") is None
-        and context.CLIARGS.get("step") in (None, False)
-        and not context.CLIARGS.get("skip_tags")
-        and list(context.CLIARGS.get("tags") or []) in ([], ["all"])
-        and inventory == [str(_INVENTORY_SOURCE)]
-        and os.environ.get("ANSIBLE_CONFIG") == str(_ANSIBLE_CONFIG_SOURCE)
-        and os.environ.get("ANSIBLE_LIBRARY") == str(_LIBRARY_PATH)
-        and os.environ.get("ANSIBLE_ROLES_PATH") == str(_ROLES_PATH)
-        and not any(
+def _selection_guard_reasons() -> tuple[str, ...]:
+    """Return stable selection reason codes without exposing runtime values."""
+    reasons: list[str] = []
+
+    def check(code: str, predicate: Any) -> None:
+        try:
+            if not bool(predicate()):
+                reasons.append(code)
+        except Exception:
+            reasons.append(code)
+
+    try:
+        inventory = context.CLIARGS.get("inventory") or []
+        if isinstance(inventory, str):
+            inventory = [inventory]
+        elif isinstance(inventory, tuple):
+            inventory = list(inventory)
+    except Exception:
+        return ("cliargs-shape",)
+    check("argv", lambda: sys.argv == _expected_argv())
+    check(
+        "entrypoint",
+        lambda: os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ENTRYPOINT") == "v1",
+    )
+    check(
+        "mode",
+        lambda: os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE") == "check",
+    )
+    check(
+        "closure-path",
+        lambda: os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_SOURCE_CLOSURE_PATH")
+        == str(_CLOSURE_SOURCE),
+    )
+    check(
+        "closure-digest",
+        lambda: os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_SOURCE_CLOSURE_SHA256")
+        == _CLOSURE_MANIFEST_SHA256,
+    )
+    check("toolchain", _toolchain_valid)
+    check("runtime-provenance", _runtime_provenance_valid)
+    check("source-closure", _source_closure_valid)
+    check(
+        "action-canonical",
+        lambda: _canonical_action_hash(Path(__file__))
+        == _ACTION_CANONICAL_SHA256
+        == _action_canonical_expected(),
+    )
+    check(
+        "strategy-canonical",
+        lambda: _canonical_strategy_hash(
+            _REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py"
+        )
+        == _strategy_canonical_expected(),
+    )
+    check("wrapper-canonical", lambda: _canonical_wrapper_hash(_WRAPPER_SOURCE) == _wrapper_canonical_expected())
+    check("action-full", lambda: _full_action_hash(_ACTION_SOURCE) == _action_full_expected())
+    check(
+        "strategy-full",
+        lambda: _full_strategy_hash(
+            _REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py"
+        )
+        == _strategy_full_expected(),
+    )
+    check("check-mode", lambda: context.CLIARGS.get("check") is True)
+    check("diff-mode", lambda: context.CLIARGS.get("diff") is True)
+    check("subset", lambda: context.CLIARGS.get("subset") == "crtxweb")
+    check("start-at-task", lambda: context.CLIARGS.get("start_at_task") is None)
+    check("step", lambda: context.CLIARGS.get("step") in (None, False))
+    check("skip-tags", lambda: not context.CLIARGS.get("skip_tags"))
+    check("tags", lambda: list(context.CLIARGS.get("tags") or []) in ([], ["all"]))
+    check("inventory", lambda: inventory == [str(_INVENTORY_SOURCE)])
+    check("ansible-config", lambda: os.environ.get("ANSIBLE_CONFIG") == str(_ANSIBLE_CONFIG_SOURCE))
+    check("ansible-library", lambda: os.environ.get("ANSIBLE_LIBRARY") == str(_LIBRARY_PATH))
+    check("ansible-roles", lambda: os.environ.get("ANSIBLE_ROLES_PATH") == str(_ROLES_PATH))
+    check(
+        "inherited-selection",
+        lambda: not any(
             os.environ.get(name)
             for name in (
                 "ANSIBLE_ACTION_PLUGINS",
@@ -539,8 +582,14 @@ def _selected() -> bool:
                 "ANSIBLE_TAGS",
                 "ANSIBLE_STEP",
             )
-        )
+        ),
     )
+    return tuple(dict.fromkeys(reasons))
+
+
+def _selected() -> bool:
+    """Return whether the wrapper argv and CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE are canonical."""
+    return not _selection_guard_reasons()
 
 
 def _contains_secret_key(value: Any) -> bool:
@@ -627,8 +676,13 @@ class ActionModule(ActionBase):
         args = self._task.args
         if str(self._task.get_path()).rsplit(":", 1)[0] != str(_TASK_SOURCE):
             return _reject("ENTRYPOINT_GUARD: refusing RabbitMQ rotation query outside canonical role")
-        if not _selected():
-            return _reject("TASK_SELECTION_GUARD: use the exact check-only RabbitMQ rotation wrapper")
+        selection_reasons = _selection_guard_reasons()
+        if selection_reasons:
+            return _reject(
+                "TASK_SELECTION_GUARD: canonical invocation rejected ["
+                + ",".join(selection_reasons)
+                + "]"
+            )
         if set(args) != _ARGUMENT_KEYS or args.get("query") not in _EXPECTED_QUERIES:
             return _reject("MUTATION_ARGUMENT_GUARD: refusing unmodeled RabbitMQ metadata query")
         token = os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_TOKEN", "")

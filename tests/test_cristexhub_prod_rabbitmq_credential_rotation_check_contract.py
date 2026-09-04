@@ -727,6 +727,150 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
                 module.sys.argv = original_argv
                 module.context.CLIARGS = original_cliargs
 
+    def test_real_ansible_219_startup_reaches_strategy_with_tuple_inventory(self) -> None:
+        """Run ansible-playbook startup without scheduling a task or querying an API."""
+        controller = Path("/home/paul/projects/cristexweb/.venv/bin/ansible-playbook")
+        if not controller.is_file():
+            self.skipTest("canonical controller is unavailable on this host")
+        with tempfile.TemporaryDirectory(prefix="rabbitmq-strategy-startup-", dir="/dev/shm") as temporary:
+            root = Path(temporary)
+            project = root / "ansible"
+            (project / ".ansible").mkdir(parents=True)
+            (project / "plugins").mkdir()
+            (project / "playbooks").mkdir()
+            (project / "roles").mkdir()
+            (project / "library").mkdir()
+            (project / ".ansible/inventory.local.yml").write_text(
+                "---\nall:\n  hosts:\n    crtxweb:\n      ansible_connection: local\n",
+                encoding="utf-8",
+            )
+            (project / "ansible.cfg").write_text(
+                "[defaults]\n"
+                f"strategy_plugins = {project / 'plugins'}\n"
+                f"roles_path = {project / 'roles'}\n"
+                f"library = {project / 'library'}\n",
+                encoding="utf-8",
+            )
+            (project / "playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml").write_text(
+                "---\n"
+                "- name: startup probe\n"
+                "  hosts: crtxweb\n"
+                "  gather_facts: false\n"
+                "  strategy: rabbitmq_prod_credential_rotation_check_guarded_linear\n"
+                "  tasks:\n"
+                "    - name: must not run\n"
+                "      ansible.builtin.debug:\n"
+                "        msg: startup-probe-task\n",
+                encoding="utf-8",
+            )
+            strategy_source = str(STRATEGY).replace("\\", "\\\\").replace('"', '\\"')
+            plugin_source = f'''from pathlib import Path\nimport importlib.util\nfrom ansible import context\n\nsource = Path("{strategy_source}")\nspec = importlib.util.spec_from_file_location("rabbitmq_startup_probe_source", source)\nmodule = importlib.util.module_from_spec(spec)\nassert spec.loader is not None\nspec.loader.exec_module(module)\nmodule._CONTROLLER = Path("{controller}")\nmodule._INVENTORY_SOURCE = Path(__file__).resolve().parents[1] / ".ansible/inventory.local.yml"\nmodule._wrapper_attestation_valid = lambda: True\nmodule._runtime_contract = lambda: True\nmodule._source_contract = lambda: True\n\nclass StrategyModule(module.StrategyModule):\n    def run(self, iterator, play_context):\n        original = module.LinearStrategyModule.run\n        module.LinearStrategyModule.run = lambda self, *args: "startup-ok"\n        try:\n            result = super().run(iterator, play_context)\n        finally:\n            module.LinearStrategyModule.run = original\n        inventory = context.CLIARGS.get("inventory")\n        tags = context.CLIARGS.get("tags")\n        skip_tags = context.CLIARGS.get("skip_tags")\n        print(\n            "STARTUP_PROBE:strategy=started "\n            f"inventory_type={{type(inventory).__name__}} "\n            f"tags_type={{type(tags).__name__}} "\n            f"skip_tags_type={{type(skip_tags).__name__}} "\n            f"check_type={{type(context.CLIARGS.get('check')).__name__}} "\n            f"diff_type={{type(context.CLIARGS.get('diff')).__name__}}",\n            flush=True,\n        )\n        raise RuntimeError("startup-probe-stop")\n'''
+            (project / "plugins/rabbitmq_prod_credential_rotation_check_guarded_linear.py").write_text(
+                plugin_source,
+                encoding="utf-8",
+            )
+            command = [
+                str(controller),
+                "-i",
+                ".ansible/inventory.local.yml",
+                "playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml",
+                "--check",
+                "--diff",
+                "--limit",
+                "crtxweb",
+                "--extra-vars",
+                '{"rabbitmq_prod_credential_rotation_check_approved":true}',
+            ]
+            environment = {
+                "HOME": "/home/paul",
+                "USER": "paul",
+                "LOGNAME": "paul",
+                "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                "ANSIBLE_CONFIG": str(project / "ansible.cfg"),
+                "PYTHONDONTWRITEBYTECODE": "1",
+                "CRISTEXWEB_RABBITMQ_PROD_ROTATION_ENTRYPOINT": "v1",
+                "CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE": "check",
+            }
+            result = subprocess.run(
+                command,
+                cwd=project,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(0, result.returncode)
+            output = result.stdout + result.stderr
+            self.assertIn("STARTUP_PROBE:strategy=started", output)
+            self.assertIn("inventory_type=tuple", output)
+            self.assertIn("tags_type=tuple", output)
+            self.assertIn("skip_tags_type=tuple", output)
+            self.assertIn("check_type=bool", output)
+            self.assertIn("diff_type=bool", output)
+            self.assertNotIn("TASK_SELECTION_GUARD", output)
+            self.assertNotIn("startup-probe-task", output)
+
+    def test_strategy_reports_sanitized_reason_codes(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_strategy_reason_codes", STRATEGY
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        original_argv = module.sys.argv
+        original_cliargs = module.context.CLIARGS
+        module.sys.argv = [str(module._CONTROLLER), "--start-at-task", "forbidden"]
+        module.context.CLIARGS = {
+            "inventory": (str(module._INVENTORY_SOURCE),),
+            "check": True,
+            "diff": True,
+            "subset": "crtxweb",
+            "start_at_task": "forbidden",
+            "step": False,
+            "tags": ("all",),
+            "skip_tags": (),
+        }
+        try:
+            reasons = module._selection_guard_reasons()
+            self.assertIn("selection-argv", reasons)
+            self.assertIn("start-at-task", reasons)
+            self.assertIn("canonical-argv", reasons)
+            self.assertTrue(all(re.fullmatch(r"[a-z0-9-]+", reason) for reason in reasons))
+            self.assertNotIn("forbidden", ",".join(reasons))
+            strategy = object.__new__(module.StrategyModule)
+            with self.assertRaises(Exception) as raised:
+                strategy.run(None, None)
+            message = str(raised.exception)
+            self.assertIn("TASK_SELECTION_GUARD", message)
+            self.assertNotIn("forbidden", message)
+            self.assertRegex(message, r"\[[a-z0-9,-]+\]")
+        finally:
+            module.sys.argv = original_argv
+            module.context.CLIARGS = original_cliargs
+
+    def test_action_reports_sanitized_reason_codes(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_action_reason_codes", ACTION
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        original_argv = module.sys.argv
+        original_cliargs = module.context.CLIARGS
+        module.sys.argv = ["/tmp/not-ansible-playbook"]
+        module.context.CLIARGS = {"inventory": (str(module._INVENTORY_SOURCE),)}
+        try:
+            reasons = module._selection_guard_reasons()
+            self.assertIn("argv", reasons)
+            self.assertIn("check-mode", reasons)
+            self.assertTrue(all(re.fullmatch(r"[a-z0-9-]+", reason) for reason in reasons))
+            self.assertNotIn("not-ansible-playbook", ",".join(reasons))
+        finally:
+            module.sys.argv = original_argv
+            module.context.CLIARGS = original_cliargs
+
     def test_strategy_rejects_every_task_selection_override_before_role(self) -> None:
         spec = importlib.util.spec_from_file_location(
             "rabbitmq_prod_credential_rotation_strategy_selection_guard", STRATEGY
@@ -972,7 +1116,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             self.assertFalse(strategy_module._canonical_argv())
         finally:
             strategy_module.sys.argv = original_argv
-        self.assertIn('CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE', action_module._selected.__code__.co_consts or ())
+        self.assertIn('CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE', self.action)
 
     def test_source_modes_and_hashes_are_explicit(self) -> None:
         expected_modes = {

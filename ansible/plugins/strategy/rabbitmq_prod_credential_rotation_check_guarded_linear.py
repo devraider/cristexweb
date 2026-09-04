@@ -61,8 +61,8 @@ _EXPECTED_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de2
 _EXPECTED_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
 _EXPECTED_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
 _EXPECTED_COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
-_STRATEGY_CANONICAL_SHA256 = "3db3d215c5bb2a495795c96846921e427e9806e5d22a279fc7be8d5264859147"
-_CLOSURE_MANIFEST_SHA256 = "bdac64162c1def60c928894f57039968b59f401d017b9165a769ce981871241c"
+_STRATEGY_CANONICAL_SHA256 = "843c21a88c326d9b8ae2876cd18a6358c9b8557145825a204694c3ba3d10acce"
+_CLOSURE_MANIFEST_SHA256 = "96b9cca801d2ea230dd132ba0da9d953c1341f56f3b0122b76ad3da06ae90a32"
 _TASK_SHA256 = "78104b5277c14ac6071c21250769d74184b12128c7c74591f50b01556fbb0250"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
@@ -761,10 +761,23 @@ def _start_at_task_allowed() -> bool:
     return context.CLIARGS.get("start_at_task") is None
 
 
-class StrategyModule(LinearStrategyModule):
-    """Reject direct playbooks and task-selection controls before role tasks load."""
+def _selection_guard_reasons() -> tuple[str, ...]:
+    """Return stable reason codes without exposing argv, environment, or values.
 
-    def run(self, iterator, play_context):  # type: ignore[no-untyped-def]
+    This intentionally reports categories only.  The strategy may inspect
+    credential-adjacent runtime state, but a rejected invocation must never
+    echo that state into an Ansible error or callback log.
+    """
+    reasons: list[str] = []
+
+    def check(code: str, predicate: Any) -> None:
+        try:
+            if not bool(predicate()):
+                reasons.append(code)
+        except Exception:
+            reasons.append(code)
+
+    try:
         tags = list(context.CLIARGS.get("tags") or [])
         skip_tags = list(context.CLIARGS.get("skip_tags") or [])
         inventory = context.CLIARGS.get("inventory") or []
@@ -777,20 +790,50 @@ class StrategyModule(LinearStrategyModule):
             or argument.startswith(("--start-at-task=", "--tags=", "--skip-tags=", "-t="))
             for argument in sys.argv[1:]
         )
-        if (
-            selection_argv
-            or not _start_at_task_allowed()
-            or context.CLIARGS.get("step")
-            or tags not in ([], ["all"])
-            or skip_tags
-            or context.CLIARGS.get("subset") != "crtxweb"
-            or context.CLIARGS.get("check") is not True
-            or context.CLIARGS.get("diff") is not True
-            or inventory != [str(_INVENTORY_SOURCE)]
-            or not _canonical_argv()
-            or not _wrapper_attestation_valid()
-            or not _runtime_contract()
-            or not _source_contract()
-        ):
-            raise AnsibleError("TASK_SELECTION_GUARD: RabbitMQ rotation requires the complete canonical wrapper invocation")
+    except Exception:
+        return ("cliargs-shape",)
+    if selection_argv:
+        reasons.append("selection-argv")
+    check("start-at-task", _start_at_task_allowed)
+    check("step", lambda: not context.CLIARGS.get("step"))
+    check("tags", lambda: tags in ([], ["all"]))
+    check("skip-tags", lambda: not skip_tags)
+    check("subset", lambda: context.CLIARGS.get("subset") == "crtxweb")
+    check("check-mode", lambda: context.CLIARGS.get("check") is True)
+    check("diff-mode", lambda: context.CLIARGS.get("diff") is True)
+    check("inventory", lambda: inventory == [str(_INVENTORY_SOURCE)])
+    check("canonical-argv", _canonical_argv)
+    check("wrapper-attestation", _wrapper_attestation_valid)
+    runtime_ok = False
+    try:
+        runtime_ok = bool(_runtime_contract())
+    except Exception:
+        runtime_ok = False
+    if not runtime_ok:
+        reasons.append("runtime-contract")
+        # Keep the useful environmental category separate while retaining the
+        # generic runtime code for all other clean-environment failures.
+        check("collection-toolchain", _collection_toolchain_valid)
+    source_ok = False
+    try:
+        source_ok = bool(_source_contract())
+    except Exception:
+        source_ok = False
+    if not source_ok:
+        reasons.append("source-contract")
+        check("source-closure", _source_closure_valid)
+    return tuple(dict.fromkeys(reasons))
+
+
+class StrategyModule(LinearStrategyModule):
+    """Reject direct playbooks and task-selection controls before role tasks load."""
+
+    def run(self, iterator, play_context):  # type: ignore[no-untyped-def]
+        reasons = _selection_guard_reasons()
+        if reasons:
+            raise AnsibleError(
+                "TASK_SELECTION_GUARD: canonical invocation rejected ["
+                + ",".join(reasons)
+                + "]"
+            )
         return super().run(iterator, play_context)

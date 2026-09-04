@@ -280,3 +280,18 @@ read-only CLI projections to the canonical forms without accepting task
 selection, alternate inventories, or inherited execution overrides. The
 wrapper-to-strategy handoff remains check-only and stops before any broker or
 Kubernetes query when a digest, source, or CLI projection is missing or drifted.
+
+A rejected startup emits only stable category codes, never argv, environment,
+attestation, source contents, or credential-adjacent values. The strategy codes
+are `selection-argv`, `start-at-task`, `step`, `tags`, `skip-tags`, `subset`,
+`check-mode`, `diff-mode`, `inventory`, `canonical-argv`,
+`wrapper-attestation`, `runtime-contract`, `collection-toolchain`,
+`source-contract`, and `source-closure`; the action uses the same style of
+selection, toolchain, provenance, and source codes. `collection-toolchain`
+means that the exact pinned collection tree is not clean (for example, a stale
+`__pycache__`/bytecode leaf); it is a fail-closed readiness stop, not an
+invitation to weaken the tree contract. Remove only the exact generated cache
+through the separately approved host-cleanup procedure, then rerun the
+check-only wrapper. The diagnostics intentionally distinguish Ansible 2.19
+projection handling from source/toolchain drift while preserving the
+same-UID/coordinated-edit boundary described above.
