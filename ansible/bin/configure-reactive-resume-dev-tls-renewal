@@ -55,7 +55,29 @@ playbook="$repository_root/ansible/playbooks/configure_reactive_resume_dev_tls_r
 tasks="$repository_root/ansible/roles/reactive_resume_dev_tls_renewal/tasks/main.yml"
 defaults="$repository_root/ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml"
 strategy="$repository_root/ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py"
+mutation_action="$repository_root/ansible/plugins/action/reactive_resume_dev_tls_renewal_mutation_guarded.py"
+mutation_module="$repository_root/ansible/library/reactive_resume_dev_tls_renewal_mutation_guarded.py"
+mutation_action_expected_path="$repository_root/ansible/plugins/action/reactive_resume_dev_tls_renewal_mutation_guarded.py"
+mutation_module_expected_path="$repository_root/ansible/library/reactive_resume_dev_tls_renewal_mutation_guarded.py"
+[ -n "${mutation_action:-}" ] && [ "$mutation_action" = "$mutation_action_expected_path" ] || {
+  printf '%s\n' 'refusing an undefined or non-canonical TLS mutation action path' >&2
+  exit 69
+}
+[ -n "${mutation_module:-}" ] && [ "$mutation_module" = "$mutation_module_expected_path" ] || {
+  printf '%s\n' 'refusing an undefined or non-canonical TLS mutation module path' >&2
+  exit 69
+}
 sha_file() { /usr/bin/sha256sum -- "$1" | /usr/bin/awk '{print $1}'; }
+source_file_contract() {
+  source_path=$1
+  source_mode=${2#0}
+  source_owner=$3
+  source_group=$4
+  source_digest=$5
+  [ -n "${source_path:-}" ] && [ -f "$source_path" ] && [ ! -L "$source_path" ] || return 1
+  [ "$(/usr/bin/stat -c '%F:%U:%G:%a' -- "$source_path")" = "regular file:${source_owner}:${source_group}:${source_mode}" ] || return 1
+  [ "$(sha_file "$source_path")" = "$source_digest" ] || return 1
+}
 canonical_sha256() {
   clean_python - "$1" wrapper_canonical_sha256_expected <<'PY'
 import hashlib, re, sys
@@ -75,34 +97,28 @@ normalized_defaults_sha256() {
   clean_python - "$1" <<'PY'
 import hashlib, re, sys
 source = open(sys.argv[1], encoding='utf-8').read()
-source, count = re.subn(
-    r"(?m)^reactive_resume_dev_tls_renewal_defaults_self_hash: [0-9a-f]{64}$",
-    "reactive_resume_dev_tls_renewal_defaults_self_hash: __SELF_HASH__",
-    source,
+replacements = (
+    (
+        r"(?m)^reactive_resume_dev_tls_renewal_defaults_self_hash:\s+[0-9a-f]{64}$",
+        "reactive_resume_dev_tls_renewal_defaults_self_hash: __SELF_HASH__",
+    ),
+    (
+        r"(?m)^(    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: )[0-9a-f]{64}$",
+        r"\1__SELF_HASH__",
+    ),
+    (
+        r"(?m)^(  - path: >-\n      .*reactive_resume_dev_tls_renewal_guarded_linear\.py\n    mode: '0644'\n    sha256: )[0-9a-f]{64}$",
+        r"\1__STRATEGY_HASH__",
+    ),
+    (
+        r"(?m)^(  - path: >-\n      .*ansible/bin/configure-reactive-resume-dev-tls-renewal\n    mode: '0755'\n    sha256: )[0-9a-f]{64}$",
+        r"\1__WRAPPER_HASH__"
+    ),
 )
-if count != 1:
-    raise SystemExit(69)
-source, count = re.subn(
-    r"(?m)^(    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: )[0-9a-f]{64}$",
-    r"\1__SELF_HASH__",
-    source,
-)
-if count != 1:
-    raise SystemExit(69)
-source, count = re.subn(
-    r"(?m)^(  - path: >-\n      .*reactive_resume_dev_tls_renewal_guarded_linear\.py\n    mode: '0644'\n    sha256: )[0-9a-f]{64}$",
-    r"\1__STRATEGY_SHA256__",
-    source,
-)
-if count != 1:
-    raise SystemExit(69)
-source, count = re.subn(
-    r"(?m)^(  - path: >-\n      .*ansible/bin/configure-reactive-resume-dev-tls-renewal\n    mode: '0755'\n    sha256: )[0-9a-f]{64}$",
-    r"\1__WRAPPER_SHA256__",
-    source,
-)
-if count != 1:
-    raise SystemExit(69)
+for pattern, replacement in replacements:
+    source, count = re.subn(pattern, replacement, source)
+    if count != 1:
+        raise SystemExit(69)
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
@@ -110,25 +126,44 @@ normalized_task_sha256() {
   clean_python - "$1" <<'PY'
 import hashlib, re, sys
 source = open(sys.argv[1], encoding='utf-8').read()
-first_task, boundary, remainder = source.partition(
-    "\n- name: Require immutable TLS renewal operational defaults"
+replacements = (
+    (
+        r"(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_CANONICAL_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+        r"\1__STRATEGY_CANONICAL_HASH__\2",
+    ),
+    (
+        r"(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+        r"\1__STRATEGY_HASH__\2",
+    ),
+    (
+        r"(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_NORMALIZED_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+        r"\1__STRATEGY_NORMALIZED_HASH__\2",
+    ),
+    (
+        r"(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+        r"\1__WRAPPER_CANONICAL_HASH__\2",
+    ),
+    (
+        r"(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+        r"\1__TASK_HASH__\2",
+    ),
+    (
+        r"(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_DEFAULTS_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+        r"\1__DEFAULTS_HASH__\2",
+    ),
+    (
+        r"(?m)^    reactive_resume_dev_tls_renewal_task_self_hash:\s*'?[0-9a-f]{64}'?$",
+        "    reactive_resume_dev_tls_renewal_task_self_hash: __TASK_SELF_HASH__",
+    ),
+    (
+        r"(?m)^    reactive_resume_dev_tls_renewal_defaults_raw_hash:\s*'?[0-9a-f]{64}'?$",
+        "    reactive_resume_dev_tls_renewal_defaults_raw_hash: __DEFAULTS_RAW_HASH__",
+    ),
 )
-first_task = re.sub(r"[0-9a-f]{64}", "__PIN__", first_task)
-source = first_task + boundary + remainder
-source, count = re.subn(
-    r"(?m)^    reactive_resume_dev_tls_renewal_task_self_hash: '?[0-9a-f]{64}'?$",
-    "    reactive_resume_dev_tls_renewal_task_self_hash: __TASK_SELF_HASH__",
-    source,
-)
-if count != 1:
-    raise SystemExit(69)
-source, count = re.subn(
-    r"(?m)^    reactive_resume_dev_tls_renewal_defaults_raw_hash: '?[0-9a-f]{64}'?$",
-    "    reactive_resume_dev_tls_renewal_defaults_raw_hash: __DEFAULTS_RAW_HASH__",
-    source,
-)
-if count != 1:
-    raise SystemExit(69)
+for pattern, replacement in replacements:
+    source, count = re.subn(pattern, replacement, source)
+    if count != 1:
+        raise SystemExit(69)
 print(hashlib.sha256(source.encode()).hexdigest())
 PY
 }
@@ -140,7 +175,6 @@ for symbol, marker in (
     ("_STRATEGY_CANONICAL_SHA256", "__STRATEGY_CANONICAL_HASH__"),
     ("_STRATEGY_NORMALIZED_SHA256", "__STRATEGY_NORMALIZED_HASH__"),
     ("_WRAPPER_CANONICAL_SHA256", "__WRAPPER_CANONICAL_HASH__"),
-    ("_STRATEGY_ATTESTATION_SHA256", "__STRATEGY_ATTESTATION_HASH__"),
 ):
     source, count = re.subn(
         rf"(?m)^({re.escape(symbol)}\s*=\s*[\"'])([0-9a-f]{{64}})([\"']\s*)$",
@@ -160,7 +194,6 @@ for symbol in (
     "_STRATEGY_CANONICAL_SHA256",
     "_STRATEGY_NORMALIZED_SHA256",
     "_WRAPPER_CANONICAL_SHA256",
-    "_STRATEGY_ATTESTATION_SHA256",
 ):
     source, count = re.subn(
         rf"(?m)^({re.escape(symbol)}\s*=\s*[\"'])([0-9a-f]{{64}})([\"']\s*)$",
@@ -178,13 +211,23 @@ controller_sha256_expected='baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5
 python_sha256_expected='17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1'
 inventory_sha256_expected='652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0'
 ansible_config_sha256_expected='4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
-playbook_sha256_expected='630e9df627998edf9292e8961afd0d514e2982f7444cf7646333df8f55a3cbb9'
-task_sha256_expected='1b92858b989b8d953c67760f5d28c9507758361bcaebeafdf2c22d4e24177f22'
-defaults_sha256_expected='ae8ff4cf2eacd8839632066391b4881df15eea6833c3ea1b55d7b2a3d31920b3'
-strategy_canonical_sha256_expected='729b83b6a5a3c67191d408c6d9cdcbb43a554491434c3fd24eda5154f63c5902'
-strategy_normalized_sha256_expected='7e01e59bec0f0f1a2c61b899165805025cd5d26f182859d8bdaaa60b01678570'
+playbook_sha256_expected='3e73c601399c1189829802c5c3d438107bd1f884ff50b9e76702658bfd07db05'
+task_sha256_expected='8a5c2765a85ce1f6ffffc124414743c4f801792a31879179e7f6928b9536c3e1'
+defaults_sha256_expected='378f8b86e527799847a1416f97a6c423ba45d85a392c0836b3a2c27c8ad57c79'
+strategy_canonical_sha256_expected='95fef8ef4be10c654e5355c49a00b292ca327bac7fd5e8138d918c26cf4e807d'
+strategy_normalized_sha256_expected='89eba957edf1d19145c3267ad589bedd4c3fd0af71018e2d70cd792078527260'
 strategy_attestation_sha256_expected='aa8ef9124552f3d1a1f65d7fdbeb2ec37bc28f84f1a77e8fffdf3f636a9c6dbb'
-wrapper_canonical_sha256_expected='f05f96f742042f33b4bf9d7d818fdebc915658da61704925447eb292ca7f7f5d'
+mutation_action_sha256_expected='e0060109acc9fff92bae03c697f08697b81527f4e631cda86e7f33c581090d7d'
+mutation_module_sha256_expected='38da36be88a0b530884b804b817ea5eb636f7008ec4272da4f2f0b2c0e58565a'
+wrapper_canonical_sha256_expected='d9785dfc58c0757335ed329d7115f16b2f69cc5129b71d34200d410d344b3629'
+source_file_contract "$mutation_action" '0644' 'paul' 'paul' "$mutation_action_sha256_expected" || {
+  printf '%s\n' 'refusing TLS mutation action type, ownership, mode, or hash drift' >&2
+  exit 69
+}
+source_file_contract "$mutation_module" '0644' 'paul' 'paul' "$mutation_module_sha256_expected" || {
+  printf '%s\n' 'refusing TLS mutation module type, ownership, mode, or hash drift' >&2
+  exit 69
+}
 [ -f "$controller" ] && [ -x "$controller" ] && [ ! -L "$controller" ] || exit 69
 [ -L "$python_tool" ] || exit 69
 [ "$(/usr/bin/readlink -f -- "$python_tool")" = "$python_target" ] || exit 69
@@ -212,7 +255,7 @@ for forbidden in \
     exit 69
   fi
 done
-for source in "$inventory" "$ansible_config" "$manifest" "$validator" "$renewal" "$service" "$timer" "$playbook" "$tasks" "$defaults" "$strategy"; do
+for source in "$inventory" "$ansible_config" "$manifest" "$validator" "$renewal" "$service" "$timer" "$playbook" "$tasks" "$defaults" "$strategy" "$mutation_action" "$mutation_module"; do
   [ -f "$source" ] && [ ! -L "$source" ] || exit 69
 done
 [ -f "$controller" ] && [ ! -L "$controller" ] || exit 69
@@ -242,6 +285,8 @@ defaults_sha256=$(normalized_defaults_sha256 "$defaults")
 strategy_sha256=$(sha_file "$strategy")
 strategy_normalized_sha256=$(normalized_strategy_sha256 "$strategy")
 strategy_canonical_sha256=$(canonical_strategy_sha256 "$strategy")
+mutation_action_sha256=$(sha_file "$mutation_action")
+mutation_module_sha256=$(sha_file "$mutation_module")
 [ "$controller_sha256" = "$controller_sha256_expected" ] || exit 69
 [ "$python_sha256" = "$python_sha256_expected" ] || exit 69
 [ "$inventory_sha256" = "$inventory_sha256_expected" ] || exit 69
@@ -251,6 +296,8 @@ strategy_canonical_sha256=$(canonical_strategy_sha256 "$strategy")
 [ "$defaults_sha256" = "$defaults_sha256_expected" ] || exit 69
 [ "$strategy_canonical_sha256" = "$strategy_canonical_sha256_expected" ] || exit 69
 [ "$strategy_normalized_sha256" = "$strategy_normalized_sha256_expected" ] || exit 69
+[ "$mutation_action_sha256" = "$mutation_action_sha256_expected" ] || exit 69
+[ "$mutation_module_sha256" = "$mutation_module_sha256_expected" ] || exit 69
 wrapper_pid=$$
 wrapper_starttime=$(/usr/bin/awk '{print $22}' "/proc/$wrapper_pid/stat")
 case "$wrapper_starttime" in
@@ -308,6 +355,10 @@ set -- \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_CANONICAL_SHA256="$strategy_canonical_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256="$wrapper_canonical_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTATION_SHA256="$strategy_attestation_sha256_expected" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MUTATION_ACTION_PATH="$mutation_action" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MUTATION_ACTION_SHA256="$mutation_action_sha256" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MUTATION_MODULE_PATH="$mutation_module" \
+  CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MUTATION_MODULE_SHA256="$mutation_module_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_PATH="$playbook" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CONTROLLER_SHA256="$controller_sha256" \
   CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_INVENTORY_SHA256="$inventory_sha256" \

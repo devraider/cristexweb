@@ -1,4 +1,55 @@
 ---
+# This action is deliberately the first role task. A direct role/playbook
+# invocation must fail in the action loader before even read-only role guards;
+# the action binds the real wrapper ancestor and resolved task PlayContext.
+- name: Bind exact TLS renewal mutation privilege context
+  reactive_resume_dev_tls_renewal_mutation_guarded:
+  register: reactive_resume_dev_tls_renewal_internal_mutation_privilege_action
+  changed_when: false
+  no_log: true
+
+- name: Require exact TLS renewal mutation privilege attestation
+  ansible.builtin.assert:
+    that:
+      - reactive_resume_dev_tls_renewal_internal_mutation_privilege_action.failed | default(false) | bool == false
+      - >-
+        reactive_resume_dev_tls_renewal_internal_mutation_privilege_attestation == {
+          'schema': 1,
+          'become': true,
+          'become_method': 'sudo',
+          'become_user': 'root',
+          'become_exe': 'sudo',
+          'become_flags': '-H -S -n',
+          'action': 'reactive_resume_dev_tls_renewal_mutation_guarded'
+        }
+    fail_msg: Refusing TLS renewal mutation without the exact action-plugin privilege attestation.
+  changed_when: false
+  no_log: true
+
+- name: Reject externally supplied TLS renewal internals before marker binding
+  ansible.builtin.assert:
+    that:
+      - >-
+        (vars.keys() |
+        select('match', '^reactive_resume_dev_tls_renewal_internal_') |
+        reject('in', [
+          'reactive_resume_dev_tls_renewal_internal_mutation_privilege_action',
+          'reactive_resume_dev_tls_renewal_internal_mutation_privilege_attestation',
+          'reactive_resume_dev_tls_renewal_internal_mutation_privilege_attested'
+        ]) |
+        list | length) == 0
+    fail_msg: >-
+      INTERNAL_VARIABLE_GUARD: refusing externally supplied Reactive Resume DEV
+      TLS renewal state.
+  changed_when: false
+  no_log: true
+
+- name: Bind the exact TLS renewal mutation privilege marker
+  ansible.builtin.set_fact:
+    reactive_resume_dev_tls_renewal_internal_mutation_privilege_attested: true
+  changed_when: false
+  no_log: true
+
 - name: Require strategy provenance attestation before any TLS task
   ansible.builtin.assert:
     that:
@@ -10,19 +61,19 @@
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_CANONICAL_SHA256') ==
-        '729b83b6a5a3c67191d408c6d9cdcbb43a554491434c3fd24eda5154f63c5902'
+        '95fef8ef4be10c654e5355c49a00b292ca327bac7fd5e8138d918c26cf4e807d'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256') ==
-        'd5c31c8c58f1ffb48e085618ee1d296bb34673ea71a28c80e8edd4f91f1fbe16'
+        '0d5a95df7e008d64985dd8ed7aea0bbd6d1fc51f2ccd7ef0a60f09ed346a1be5'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_NORMALIZED_SHA256') ==
-        '7e01e59bec0f0f1a2c61b899165805025cd5d26f182859d8bdaaa60b01678570'
+        '89eba957edf1d19145c3267ad589bedd4c3fd0af71018e2d70cd792078527260'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256') ==
-        'f05f96f742042f33b4bf9d7d818fdebc915658da61704925447eb292ca7f7f5d'
+        'd9785dfc58c0757335ed329d7115f16b2f69cc5129b71d34200d410d344b3629'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTATION_SHA256') ==
@@ -30,15 +81,15 @@
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256') ==
-        '1b92858b989b8d953c67760f5d28c9507758361bcaebeafdf2c22d4e24177f22'
+        '8a5c2765a85ce1f6ffffc124414743c4f801792a31879179e7f6928b9536c3e1'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_DEFAULTS_SHA256') ==
-        'ae8ff4cf2eacd8839632066391b4881df15eea6833c3ea1b55d7b2a3d31920b3'
+        '378f8b86e527799847a1416f97a6c423ba45d85a392c0836b3a2c27c8ad57c79'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_SHA256') ==
-        '630e9df627998edf9292e8961afd0d514e2982f7444cf7646333df8f55a3cbb9'
+        '3e73c601399c1189829802c5c3d438107bd1f884ff50b9e76702658bfd07db05'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_PATH') ==
@@ -46,7 +97,7 @@
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_SHA256') ==
-        '630e9df627998edf9292e8961afd0d514e2982f7444cf7646333df8f55a3cbb9'
+        '3e73c601399c1189829802c5c3d438107bd1f884ff50b9e76702658bfd07db05'
       - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PYTHON') == '/usr/bin/python3'
       - >-
         lookup('ansible.builtin.env',
@@ -69,12 +120,35 @@
       - inventory_hostname == 'crtxweb'
       - ansible_user == 'paul'
       - ansible_python_interpreter == '/usr/bin/python3'
-      - ansible_become | bool
-      - (ansible_become_user | default('root')) == 'root'
-      - (ansible_become_method | default('sudo')) == 'sudo'
-      - ansible_playbook_python == '/home/paul/projects/cristexweb/.venv/bin/python'
+      # The guarded strategy binds the effective play context before role
+      # iteration and publishes these exact, non-secret markers.
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_EFFECTIVE_BECOME') == 'true'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_EFFECTIVE_BECOME_METHOD') == 'sudo'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_EFFECTIVE_BECOME_USER') == 'root'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_EFFECTIVE_BECOME_EXE') == 'sudo'
+      - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_EFFECTIVE_BECOME_FLAGS') == '-H -S -n'
       - >-
-        (ansible_inventory_sources | default([])) ==
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MUTATION_ACTION_PATH') ==
+        '/home/paul/projects/cristexweb/ansible/plugins/action/reactive_resume_dev_tls_renewal_mutation_guarded.py'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MUTATION_ACTION_SHA256') ==
+        'e0060109acc9fff92bae03c697f08697b81527f4e631cda86e7f33c581090d7d'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MUTATION_MODULE_PATH') ==
+        '/home/paul/projects/cristexweb/ansible/library/reactive_resume_dev_tls_renewal_mutation_guarded.py'
+      - >-
+        lookup('ansible.builtin.env',
+        'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_MUTATION_MODULE_SHA256') ==
+        '38da36be88a0b530884b804b817ea5eb636f7008ec4272da4f2f0b2c0e58565a'
+      - ansible_playbook_python == '/home/paul/projects/cristexweb/.venv/bin/python'
+      - ansible_inventory_sources is defined
+      - >-
+        (ansible_inventory_sources | type_debug) in ['list', 'tuple']
+      - >-
+        (ansible_inventory_sources | list) ==
         ['/home/paul/projects/cristexweb/ansible/.ansible/inventory.local.yml']
       - lookup('ansible.builtin.env', 'ANSIBLE_CONFIG') == '/home/paul/projects/cristexweb/ansible/ansible.cfg'
       - lookup('ansible.builtin.env', 'ANSIBLE_VARS_PLUGINS') | length == 0
@@ -145,21 +219,9 @@
 - name: Bind the canonical role task source marker
   ansible.builtin.set_fact:
     reactive_resume_dev_tls_renewal_task_self_hash: '0000000000000000000000000000000000000000000000000000000000000000'
-    reactive_resume_dev_tls_renewal_defaults_raw_hash: 'e2d6e4e548a416bd803a98353019e84676ebc35c5db1b612e316ea9d0cc03f59'
+    reactive_resume_dev_tls_renewal_defaults_raw_hash: 'e4ae9ea9ec04fc6ee719c5efb7cda1eb4154f392564b5ae0b4a0f7c47cbe411e'
   changed_when: false
   no_log: true
-
-- name: Reject externally supplied renewal internals
-  ansible.builtin.assert:
-    that:
-      - >-
-        (vars.keys() |
-        select('match', '^reactive_resume_dev_tls_renewal_internal_') |
-        list | length) == 0
-    fail_msg: >-
-      INTERNAL_VARIABLE_GUARD: refusing externally supplied Reactive Resume DEV
-      TLS renewal state.
-  changed_when: false
 
 - name: Require the exact guarded TLS renewal wrapper
   ansible.builtin.assert:
@@ -276,7 +338,7 @@
         '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/renewal/cristexweb-reactive-resume-dev-tls-renew.timer'
       - reactive_resume_dev_tls_renewal_source_hashes[4].mode == '0644'
       - reactive_resume_dev_tls_renewal_source_hashes[4].sha256 == 'cd0a8c3b01e623627854ed63da37e0d35d4cc9f7db0b675d93f52325f2fb3a0f'
-      - reactive_resume_dev_tls_renewal_execution_source_hashes | length == 6
+      - reactive_resume_dev_tls_renewal_execution_source_hashes | length == 8
       - >-
         reactive_resume_dev_tls_renewal_execution_source_hashes[0].path ==
         '/home/paul/projects/cristexweb/ansible/bin/configure-reactive-resume-dev-tls-renewal'
@@ -303,9 +365,36 @@
         reactive_resume_dev_tls_renewal_execution_source_hashes[4].sha256 ==
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256')
-      - reactive_resume_dev_tls_renewal_execution_source_hashes[5].path == '/home/paul/projects/cristexweb/ansible/ansible.cfg'
+      - >-
+        reactive_resume_dev_tls_renewal_execution_source_hashes[5].path ==
+        '/home/paul/projects/cristexweb/ansible/plugins/action/reactive_resume_dev_tls_renewal_mutation_guarded.py'
       - reactive_resume_dev_tls_renewal_execution_source_hashes[5].mode == '0644'
-      - reactive_resume_dev_tls_renewal_execution_source_hashes[5].sha256 == '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[5].sha256 == 'e0060109acc9fff92bae03c697f08697b81527f4e631cda86e7f33c581090d7d'
+      - >-
+        reactive_resume_dev_tls_renewal_execution_source_hashes[6].path ==
+        '/home/paul/projects/cristexweb/ansible/library/reactive_resume_dev_tls_renewal_mutation_guarded.py'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[6].mode == '0644'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[6].sha256 == '38da36be88a0b530884b804b817ea5eb636f7008ec4272da4f2f0b2c0e58565a'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[7].path == '/home/paul/projects/cristexweb/ansible/ansible.cfg'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[7].mode == '0644'
+      - reactive_resume_dev_tls_renewal_execution_source_hashes[7].sha256 == '4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9'
+      - >-
+        (reactive_resume_dev_tls_renewal_source_hashes |
+        selectattr('normalized_digest_name', 'defined') | list | length) == 0
+      - >-
+        (reactive_resume_dev_tls_renewal_execution_source_hashes |
+        selectattr('normalized_digest_name', 'defined') |
+        map(attribute='normalized_digest_name') | list) == [
+          'reactive_resume_dev_tls_renewal_task_self_hash',
+          'reactive_resume_dev_tls_renewal_defaults_self_hash'
+        ]
+      - >-
+        (reactive_resume_dev_tls_renewal_execution_source_hashes |
+        selectattr('normalized_digest_name', 'defined') |
+        map(attribute='path') | list) == [
+          '/home/paul/projects/cristexweb/ansible/roles/reactive_resume_dev_tls_renewal/tasks/main.yml',
+          '/home/paul/projects/cristexweb/ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml'
+        ]
     fail_msg: Refusing TLS renewal source paths, modes, or hashes outside the fixed reviewed closure.
   changed_when: false
   no_log: true
@@ -432,6 +521,7 @@
       - item.stat.isreg | default(false)
       - not (item.stat.islnk | default(false))
       - item.stat.pw_name == 'paul'
+      - item.stat.gr_name == 'paul'
       - item.stat.mode == item.item.mode
       - >-
         (item.item.normalized_digest_name | default('') == '') or
@@ -461,7 +551,7 @@
       - >-
         lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_CERTBOT_SHA256') ==
         (reactive_resume_dev_tls_renewal_source_hashes |
-        selectattr('path', 'search', 'reactive-resume-dev-tls-renew') |
+        selectattr('path', 'search', '/reactive-resume-dev-tls-renew$') |
         map(attribute='sha256') | first)
       - >-
         lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_SERVICE_SHA256') ==
@@ -526,39 +616,52 @@
       - >-
         item.content | b64decode |
         regex_replace(
-          "^    reactive_resume_dev_tls_renewal_task_self_hash:[ ]+'?[0-9a-f]{64}'?$",
-          '    reactive_resume_dev_tls_renewal_task_self_hash: __TASK_SELF_HASH__',
-          multiline=True
+          "(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_CANONICAL_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+          '\g<1>__STRATEGY_CANONICAL_HASH__\g<2>'
         ) |
         regex_replace(
-          "^    reactive_resume_dev_tls_renewal_defaults_raw_hash:[ ]+'?[0-9a-f]{64}'?$",
-          '    reactive_resume_dev_tls_renewal_defaults_raw_hash: __DEFAULTS_RAW_HASH__',
-          multiline=True
+          "(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+          '\g<1>__STRATEGY_HASH__\g<2>'
         ) |
         regex_replace(
-          '^reactive_resume_dev_tls_renewal_defaults_self_hash:[ ]+[0-9a-f]{64}$',
-          'reactive_resume_dev_tls_renewal_defaults_self_hash: __SELF_HASH__',
-          multiline=True
+          "(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_NORMALIZED_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+          '\g<1>__STRATEGY_NORMALIZED_HASH__\g<2>'
         ) |
         regex_replace(
-          '(?m)^    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: [0-9a-f]{64}$',
-          '    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: __SELF_HASH__',
-          multiline=True
+          "(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+          '\g<1>__WRAPPER_CANONICAL_HASH__\g<2>'
         ) |
         regex_replace(
-          '(?m)^    normalized_digest_name: reactive_resume_dev_tls_renewal_task_self_hash\n    sha256: [0-9a-f]{64}$',
-          '    normalized_digest_name: reactive_resume_dev_tls_renewal_task_self_hash\n    sha256: __TASK_SELF_HASH__',
-          multiline=True
+          "(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+          '\g<1>__TASK_HASH__\g<2>'
         ) |
         regex_replace(
-          '(?m)^(  - path: >-\n      .*reactive_resume_dev_tls_renewal_guarded_linear\.py\n    mode: ''0644''\n    sha256: )[0-9a-f]{64}$',
-          '\1__STRATEGY_SHA256__',
-          multiline=True
+          "(?ms)(lookup\('ansible\.builtin\.env',\s*'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_DEFAULTS_SHA256'\)\s*==\s*')[0-9a-f]{64}(')",
+          '\g<1>__DEFAULTS_HASH__\g<2>'
         ) |
         regex_replace(
-          '(?m)^(  - path: >-\n      .*ansible/bin/configure-reactive-resume-dev-tls-renewal\n    mode: ''0755''\n    sha256: )[0-9a-f]{64}$',
-          '\1__WRAPPER_SHA256__',
-          multiline=True
+          "(?m)^    reactive_resume_dev_tls_renewal_task_self_hash:\s*'?[0-9a-f]{64}'?$",
+          '    reactive_resume_dev_tls_renewal_task_self_hash: __TASK_SELF_HASH__'
+        ) |
+        regex_replace(
+          "(?m)^    reactive_resume_dev_tls_renewal_defaults_raw_hash:\s*'?[0-9a-f]{64}'?$",
+          '    reactive_resume_dev_tls_renewal_defaults_raw_hash: __DEFAULTS_RAW_HASH__'
+        ) |
+        regex_replace(
+          "(?m)^reactive_resume_dev_tls_renewal_defaults_self_hash:\s+[0-9a-f]{64}$",
+          'reactive_resume_dev_tls_renewal_defaults_self_hash: __SELF_HASH__'
+        ) |
+        regex_replace(
+          "(?m)^(    normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash\n    sha256: )[0-9a-f]{64}$",
+          '\g<1>__SELF_HASH__'
+        ) |
+        regex_replace(
+          "(?m)^(  - path: >-\n      .*reactive_resume_dev_tls_renewal_guarded_linear\.py\n    mode: '0644'\n    sha256: )[0-9a-f]{64}$",
+          '\g<1>__STRATEGY_HASH__'
+        ) |
+        regex_replace(
+          "(?m)^(  - path: >-\n      .*ansible/bin/configure-reactive-resume-dev-tls-renewal\n    mode: '0755'\n    sha256: )[0-9a-f]{64}$",
+          '\g<1>__WRAPPER_HASH__'
         ) |
         hash('sha256') == item.item.sha256
     fail_msg: Refusing TLS renewal execution closure with modified role tasks or defaults.
@@ -573,15 +676,18 @@
 # mode; check mode predicts the package changes without requiring them to be
 # present already.
 - name: Install exact renewal dependencies
-  ansible.builtin.apt:
-    name:
-      - "certbot={{ reactive_resume_dev_tls_renewal_certbot_package_version }}"
-      - "python3-certbot-dns-cloudflare={{ reactive_resume_dev_tls_renewal_dns_cloudflare_package_version }}"
-    state: present
-    update_cache: false
+  reactive_resume_dev_tls_renewal_mutation_guarded:
+    module: ansible.builtin.apt
+    module_args:
+      name:
+        - "certbot={{ reactive_resume_dev_tls_renewal_certbot_package_version }}"
+        - "python3-certbot-dns-cloudflare={{ reactive_resume_dev_tls_renewal_dns_cloudflare_package_version }}"
+      state: present
+      update_cache: false
   when:
     - reactive_resume_dev_tls_renewal_mode == 'install'
     - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTED') == 'v1'
+    - reactive_resume_dev_tls_renewal_internal_mutation_privilege_attested | default(false) | bool
 
 - name: Collect package facts for renewal dependencies
   ansible.builtin.package_facts:
@@ -752,88 +858,112 @@
   no_log: true
 
 - name: Create protected renewal directories during install mode
-  ansible.builtin.file:
-    path: "{{ item.path }}"
-    state: directory
-    owner: "{{ item.owner }}"
-    group: "{{ item.group }}"
-    mode: "{{ item.mode }}"
+  reactive_resume_dev_tls_renewal_mutation_guarded:
+    module: ansible.builtin.file
+    module_args:
+      path: "{{ item.path }}"
+      state: directory
+      owner: "{{ item.owner }}"
+      group: "{{ item.group }}"
+      mode: "{{ item.mode }}"
   loop:
     - {path: "{{ reactive_resume_dev_tls_renewal_state_root }}", owner: paul, group: paul, mode: '0700'}
     - {path: "{{ reactive_resume_dev_tls_renewal_libexec_root }}", owner: root, group: root, mode: '0755'}
   when:
     - reactive_resume_dev_tls_renewal_mode == 'install'
     - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTED') == 'v1'
+    - reactive_resume_dev_tls_renewal_internal_mutation_privilege_attested | default(false) | bool
 
 - name: Install the value-free TLS validator during install mode
-  ansible.builtin.copy:
-    src: "{{ reactive_resume_dev_tls_renewal_component_root }}/validate-reactive-resume-dev-tls-material"
-    dest: "{{ reactive_resume_dev_tls_renewal_libexec_root }}/validate-reactive-resume-dev-tls-material"
-    owner: root
-    group: root
-    mode: '0755'
+  reactive_resume_dev_tls_renewal_mutation_guarded:
+    module: ansible.builtin.copy
+    module_args:
+      src: "{{ reactive_resume_dev_tls_renewal_component_root }}/validate-reactive-resume-dev-tls-material"
+      dest: "{{ reactive_resume_dev_tls_renewal_libexec_root }}/validate-reactive-resume-dev-tls-material"
+      owner: root
+      group: root
+      mode: '0755'
   when:
     - reactive_resume_dev_tls_renewal_mode == 'install'
     - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTED') == 'v1'
+    - reactive_resume_dev_tls_renewal_internal_mutation_privilege_attested | default(false) | bool
 
 - name: Install the guarded renewal executable during install mode
-  ansible.builtin.copy:
-    src: "{{ reactive_resume_dev_tls_renewal_component_root }}/reactive-resume-dev-tls-renew"
-    dest: "{{ reactive_resume_dev_tls_renewal_libexec_root }}/reactive-resume-dev-tls-renew"
-    owner: root
-    group: root
-    mode: '0755'
+  reactive_resume_dev_tls_renewal_mutation_guarded:
+    module: ansible.builtin.copy
+    module_args:
+      src: "{{ reactive_resume_dev_tls_renewal_component_root }}/reactive-resume-dev-tls-renew"
+      dest: "{{ reactive_resume_dev_tls_renewal_libexec_root }}/reactive-resume-dev-tls-renew"
+      owner: root
+      group: root
+      mode: '0755'
   when:
     - reactive_resume_dev_tls_renewal_mode == 'install'
     - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTED') == 'v1'
+    - reactive_resume_dev_tls_renewal_internal_mutation_privilege_attested | default(false) | bool
 
 - name: Install the renewal service unit during install mode
-  ansible.builtin.copy:
-    src: "{{ reactive_resume_dev_tls_renewal_component_root }}/cristexweb-reactive-resume-dev-tls-renew.service"
-    dest: /etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.service
-    owner: root
-    group: root
-    mode: '0644'
+  reactive_resume_dev_tls_renewal_mutation_guarded:
+    module: ansible.builtin.copy
+    module_args:
+      src: "{{ reactive_resume_dev_tls_renewal_component_root }}/cristexweb-reactive-resume-dev-tls-renew.service"
+      dest: /etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.service
+      owner: root
+      group: root
+      mode: '0644'
   register: reactive_resume_dev_tls_renewal_internal_service_unit
   when:
     - reactive_resume_dev_tls_renewal_mode == 'install'
     - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTED') == 'v1'
+    - reactive_resume_dev_tls_renewal_internal_mutation_privilege_attested | default(false) | bool
 
 - name: Install the renewal timer unit during install mode
-  ansible.builtin.copy:
-    src: "{{ reactive_resume_dev_tls_renewal_component_root }}/cristexweb-reactive-resume-dev-tls-renew.timer"
-    dest: /etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.timer
-    owner: root
-    group: root
-    mode: '0644'
+  reactive_resume_dev_tls_renewal_mutation_guarded:
+    module: ansible.builtin.copy
+    module_args:
+      src: "{{ reactive_resume_dev_tls_renewal_component_root }}/cristexweb-reactive-resume-dev-tls-renew.timer"
+      dest: /etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.timer
+      owner: root
+      group: root
+      mode: '0644'
   register: reactive_resume_dev_tls_renewal_internal_timer_unit
   when:
     - reactive_resume_dev_tls_renewal_mode == 'install'
     - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTED') == 'v1'
+    - reactive_resume_dev_tls_renewal_internal_mutation_privilege_attested | default(false) | bool
 
 - name: Reload systemd after install-mode renewal unit changes
-  ansible.builtin.systemd_service:
-    daemon_reload: true
+  reactive_resume_dev_tls_renewal_mutation_guarded:
+    module: ansible.builtin.systemd_service
+    module_args:
+      daemon_reload: true
   when:
     - reactive_resume_dev_tls_renewal_mode == 'install'
     - reactive_resume_dev_tls_renewal_internal_service_unit.changed or reactive_resume_dev_tls_renewal_internal_timer_unit.changed
     - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTED') == 'v1'
+    - reactive_resume_dev_tls_renewal_internal_mutation_privilege_attested | default(false) | bool
 
 - name: Keep renewal timer disabled during install mode
-  ansible.builtin.systemd_service:
-    name: "{{ reactive_resume_dev_tls_renewal_timer }}"
-    enabled: false
-    state: stopped
+  reactive_resume_dev_tls_renewal_mutation_guarded:
+    module: ansible.builtin.systemd_service
+    module_args:
+      name: "{{ reactive_resume_dev_tls_renewal_timer }}"
+      enabled: false
+      state: stopped
   when:
     - reactive_resume_dev_tls_renewal_mode == 'install'
     - not ansible_check_mode
     - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTED') == 'v1'
+    - reactive_resume_dev_tls_renewal_internal_mutation_privilege_attested | default(false) | bool
 
 - name: Enable and start the guarded renewal timer
-  ansible.builtin.systemd_service:
-    name: "{{ reactive_resume_dev_tls_renewal_timer }}"
-    enabled: true
-    state: started
+  reactive_resume_dev_tls_renewal_mutation_guarded:
+    module: ansible.builtin.systemd_service
+    module_args:
+      name: "{{ reactive_resume_dev_tls_renewal_timer }}"
+      enabled: true
+      state: started
   when:
     - reactive_resume_dev_tls_renewal_mode == 'enable'
     - lookup('ansible.builtin.env', 'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTED') == 'v1'
+    - reactive_resume_dev_tls_renewal_internal_mutation_privilege_attested | default(false) | bool

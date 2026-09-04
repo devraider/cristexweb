@@ -81,7 +81,10 @@ closure; the explicitly named task/defaults marker literals are normalized only
 to avoid their self-reference cycles, while all other source-pin digest literals
 remain covered by the closure. The wrapper-bound controller, ignored inventory,
 Ansible configuration, and guarded strategy are also validated by fixed paths,
-ownership, modes, and wrapper-computed SHA-256 digests. A single-use,
+ownership, modes, and wrapper-computed SHA-256 digests. The custom mutation
+action and lint-only module are additionally bound to their exact controller
+paths, regular-file type, `paul:paul` ownership, `0644` mode, and fixed SHA-256
+leaves before their paths are exported to Ansible. A single-use,
 controller-owned attestation is required in addition to the entrypoint marker;
 direct playbook invocation and externally supplied hash variables therefore
 fail before package or host tasks. The complete controller-local source/hash preflight runs before any package or
@@ -133,3 +136,14 @@ certificate/private-key values from source. A separately approved live run must
 verify a near-expiry certificate renewal, exact SAN/key match, Infisical
 materialization, Traefik HTTPS continuity, and zero temporary residue. The
 source closure itself performs no provider or live operation.
+
+## Loader-side provenance boundary
+
+The first task of the renewal role is the custom mutation-context action, not a
+built-in assertion. It validates the resolved `sudo` task context and the
+single-use wrapper attestation, including wrapper PID start time, ancestry, and
+exact `/bin/dash` command line. Direct role/playbook invocation, task selection,
+or forged environment/attestation data therefore fails in the action loader
+before any role task can mutate the host. The source closure binds the exact
+renewal executable by its path suffix (`/reactive-resume-dev-tls-renew`), not a
+substring that can also match the service unit or timer.

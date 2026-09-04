@@ -70,8 +70,9 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/plugins/action/argocd_target_cache_repair_guarded_k8s.py"),
             Path("ansible/plugins/action/cristexhub_prod_private_acceptance_process_guarded.py"),
             Path("ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py"),
+            Path("ansible/plugins/action/reactive_resume_dev_tls_renewal_mutation_guarded.py"),
         }
-        self.assertEqual(44, len(allowed_action_plugins))
+        self.assertEqual(45, len(allowed_action_plugins))
         allowed_strategy_plugins = {
             Path("ansible/plugins/strategy/reactive_resume_dev_backup_guarded_linear.py"),
             Path("ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py"),
@@ -89,6 +90,7 @@ class AnsibleLayoutTests(unittest.TestCase):
             Path("ansible/library/cristexhub_prod_ghcr_pull_secret_metadata.py"),
             Path("ansible/library/cristexhub_prod_mongodb_credential_rotation_metadata.py"),
             Path("ansible/library/cristexhub_prod_mongodb_networkpolicy_selector.py"),
+            Path("ansible/library/reactive_resume_dev_tls_renewal_mutation_guarded.py"),
         }
         self.assertTrue(
             all(
@@ -478,6 +480,8 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "bin/configure-reactive-resume-dev-tls-renewal",
                 "playbooks/configure_reactive_resume_dev_tls_renewal.yml",
                 "plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py",
+                "plugins/action/reactive_resume_dev_tls_renewal_mutation_guarded.py",
+                "library/reactive_resume_dev_tls_renewal_mutation_guarded.py",
                 "roles/reactive_resume_dev_tls_renewal/defaults/main.yml",
                 "roles/reactive_resume_dev_tls_renewal/tasks/main.yml",
                 "files/policies/reactive-resume-dev-tls-renewal.yml",
