@@ -358,7 +358,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
     def test_tasks_parse_and_bind_query_set_without_nested_jinja(self) -> None:
         parsed = yaml.safe_load(self.tasks)
         self.assertIsInstance(parsed, list)
-        self.assertEqual(27, len(parsed))
+        self.assertEqual(29, len(parsed))
         for task in parsed:
             self.assertIsInstance(task, dict)
             if "ansible.builtin.assert" in task:
@@ -649,6 +649,103 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             )
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             self.assertNotIn("No filter named 'search'", result.stdout + result.stderr)
+
+    def test_infisical_static_secret_metadata_reason_codes_are_sanitized(self) -> None:
+        """Check source/runtime CR metadata without requiring an operator annotation."""
+        controller = ROOT / ".venv/bin/ansible-playbook"
+        if not controller.is_file():
+            controller = Path("/home/paul/projects/cristexweb/.venv/bin/ansible-playbook")
+        if not controller.is_file():
+            self.skipTest("canonical Ansible controller is unavailable on this host")
+
+        parsed = yaml.safe_load(self.tasks)
+        selected = [
+            item
+            for item in parsed
+            if item.get("name") in {
+                "Classify source/runtime Infisical StaticSecret metadata without values",
+                "Emit sanitized source/runtime Infisical metadata reason codes",
+                "Require exact source/runtime source revisions and no malformed CR lifecycle",
+            }
+        ]
+        self.assertEqual(3, len(selected))
+        self.assertIn("INFISICAL_STATIC_SECRET_METADATA_GUARD", self.tasks)
+        self.assertIn("observedGeneration", self.tasks)
+        self.assertIn("generation", self.tasks)
+        self.assertIn("deletionTimestamp", self.tasks)
+        self.assertIn("secrets.infisical.com/version belongs to the generated Secret target", self.tasks)
+
+        good = {
+            "item": {"namespace": "cristexhub-prod", "name": "cristexhub-prod-runtime"},
+            "resources": [{
+                "apiVersion": "secrets.infisical.com/v1beta1",
+                "kind": "InfisicalStaticSecret",
+                "metadata": {
+                    "name": "cristexhub-prod-runtime",
+                    "namespace": "cristexhub-prod",
+                    "uid": "b9344d38-2930-460e-b443-81f8a109b1fb",
+                    "resourceVersion": "2782385",
+                    "generation": 1,
+                },
+                "status": {"conditions": [{"status": "True", "observedGeneration": 1}]},
+                "spec": {"sources": [{
+                    "projectId": "619656da-14f3-4872-857b-be103cdc5326",
+                    "environmentSlug": "prod",
+                }]},
+            }],
+        }
+
+        def run_case(root: Path, result: dict) -> subprocess.CompletedProcess[str]:
+            (root / "result.json").write_text(
+                json.dumps({"rabbitmq_prod_credential_rotation_check_internal_infisical_sources": {"results": [result]}}),
+                encoding="utf-8",
+            )
+            return subprocess.run(
+                [
+                    str(controller), "-i", str(root / "inventory"), str(root / "playbook.yml"),
+                    "--check", "--diff", "--extra-vars", "@" + str(root / "result.json"),
+                ],
+                cwd=root,
+                env={
+                    "HOME": "/tmp", "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                    "ANSIBLE_CONFIG": str(root / "ansible.cfg"),
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        with tempfile.TemporaryDirectory(prefix="rabbitmq-infisical-metadata-", dir="/dev/shm") as directory:
+            root = Path(directory)
+            role_tasks = root / "roles/rabbitmq_prod_credential_rotation_check/tasks/main.yml"
+            role_tasks.parent.mkdir(parents=True)
+            role_tasks.write_text("---\n" + yaml.safe_dump(selected, sort_keys=False), encoding="utf-8")
+            (root / "inventory").write_text("localhost ansible_connection=local\n", encoding="utf-8")
+            (root / "ansible.cfg").write_text(
+                "[defaults]\n" + f"roles_path = {root / 'roles'}\nretry_files_enabled = False\n",
+                encoding="utf-8",
+            )
+            (root / "playbook.yml").write_text(
+                "---\n- name: Evaluate CR metadata\n  hosts: localhost\n  gather_facts: false\n"
+                "  roles:\n    - rabbitmq_prod_credential_rotation_check\n",
+                encoding="utf-8",
+            )
+            accepted = run_case(root, good)
+            self.assertEqual(0, accepted.returncode, accepted.stdout + accepted.stderr)
+            self.assertIn("cristexhub-prod-runtime: READY", accepted.stdout + accepted.stderr)
+            self.assertNotIn("secrets.infisical.com/version", accepted.stdout + accepted.stderr)
+
+            absent = dict(good, resources=[])
+            rejected_absent = run_case(root, absent)
+            self.assertNotEqual(0, rejected_absent.returncode, rejected_absent.stdout + rejected_absent.stderr)
+            self.assertIn("cristexhub-prod-runtime: ABSENT", rejected_absent.stdout + rejected_absent.stderr)
+
+            stale = json.loads(json.dumps(good))
+            stale["resources"][0]["status"]["conditions"][0]["observedGeneration"] = 0
+            rejected_stale = run_case(root, stale)
+            self.assertNotEqual(0, rejected_stale.returncode, rejected_stale.stdout + rejected_stale.stderr)
+            self.assertIn("cristexhub-prod-runtime: OBSERVED_GENERATION_STALE", rejected_stale.stdout + rejected_stale.stderr)
 
     def test_secret_metadata_registered_result_uses_bracket_items_on_ansible_219(self) -> None:
         """Evaluate the metadata assertion with a real Ansible 2.19 result-shaped mapping."""

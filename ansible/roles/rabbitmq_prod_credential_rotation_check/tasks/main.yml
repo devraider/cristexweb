@@ -723,19 +723,89 @@
   changed_when: false
   no_log: true
 
+- name: Classify source/runtime Infisical StaticSecret metadata without values
+  ansible.builtin.set_fact:
+    rabbitmq_prod_credential_rotation_check_internal_infisical_metadata_reasons: >-
+      {{ (rabbitmq_prod_credential_rotation_check_internal_infisical_metadata_reasons | default([])) + [{
+      'identity': item.item.namespace ~ '/' ~ item.item.name,
+      'reason': (
+      'ABSENT' if (item.resources | default([]) | length) == 0 else
+      'AMBIGUOUS' if (item.resources | length) != 1 else
+      'IDENTITY_MISMATCH' if
+      (item.resources[0].apiVersion | default('')) != 'secrets.infisical.com/v1beta1' or
+      (item.resources[0].kind | default('')) != 'InfisicalStaticSecret' or
+      (item.resources[0].metadata.name | default('')) != item.item.name or
+      (item.resources[0].metadata.namespace | default('')) != item.item.namespace else
+      'UID_MISSING' if (item.resources[0].metadata.uid | default('') | length) == 0 else
+      'RESOURCE_VERSION_MISSING' if not (item.resources[0].metadata.resourceVersion | default('') | string is match('^[0-9]+$')) else
+      'GENERATION_MISSING' if not (item.resources[0].metadata.generation | default('') | string is match('^[1-9][0-9]*$')) else
+      'TERMINATING' if (item.resources[0].metadata.deletionTimestamp | default(none)) is not none else
+      'OBSERVED_GENERATION_STALE' if
+      (item.resources[0].status.conditions | default([]) | length) == 0 or
+      (item.resources[0].status.conditions | selectattr('observedGeneration', 'defined') | list | length) !=
+      (item.resources[0].status.conditions | length) or
+      (item.resources[0].status.conditions | selectattr('observedGeneration', 'equalto', item.resources[0].metadata.generation) | list | length) !=
+      (item.resources[0].status.conditions | length) or
+      (item.resources[0].status.conditions | selectattr('status', 'equalto', 'True') | list | length) !=
+      (item.resources[0].status.conditions | length) else
+      'SPEC_MISMATCH' if
+      (item.resources[0].spec.sources | default([]) | length) != 1 or
+      (item.resources[0].spec.sources[0].projectId | default('')) != '619656da-14f3-4872-857b-be103cdc5326' or
+      (item.resources[0].spec.sources[0].environmentSlug | default('')) != 'prod' else
+      'READY'
+      )
+      }] }}
+  loop: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results }}"
+  loop_control:
+    label: infisical-source-metadata
+  changed_when: false
+  no_log: true
+
+- name: Emit sanitized source/runtime Infisical metadata reason codes
+  ansible.builtin.debug:
+    msg: >-
+      INFISICAL_STATIC_SECRET_METADATA_GUARD: {{ item.identity }}: {{ item.reason }}
+  loop: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_metadata_reasons }}"
+  loop_control:
+    label: "{{ item.identity }}"
+  changed_when: false
+
 - name: Require exact source/runtime source revisions and no malformed CR lifecycle
   ansible.builtin.assert:
     that:
-      - item.resources | length == 1
+      - item.resources | default([]) | length == 1
+      - item.resources[0].apiVersion == 'secrets.infisical.com/v1beta1'
+      - item.resources[0].kind == 'InfisicalStaticSecret'
+      - item.resources[0].metadata.name == item.item.name
+      - item.resources[0].metadata.namespace == item.item.namespace
       - item.resources[0].metadata.uid is string
       - item.resources[0].metadata.uid | length > 0
       - item.resources[0].metadata.resourceVersion is string
       - item.resources[0].metadata.resourceVersion is match('^[0-9]+$')
-      - item.resources[0].metadata.deletionTimestamp is not defined
+      - item.resources[0].metadata.generation is defined
+      - item.resources[0].metadata.generation | string is match('^[1-9][0-9]*$')
+      - item.resources[0].metadata.deletionTimestamp | default(none) is none
+      - item.resources[0].status.conditions is defined
+      - item.resources[0].status.conditions | length > 0
+      - >-
+        (item.resources[0].status.conditions |
+        selectattr('observedGeneration', 'defined') | list | length) ==
+        (item.resources[0].status.conditions | length)
+      - >-
+        (item.resources[0].status.conditions |
+        selectattr('observedGeneration', 'equalto', item.resources[0].metadata.generation) |
+        list | length) == (item.resources[0].status.conditions | length)
+      - >-
+        (item.resources[0].status.conditions |
+        selectattr('status', 'equalto', 'True') | list | length) ==
+        (item.resources[0].status.conditions | length)
       - item.resources[0].spec.sources | length == 1
       - item.resources[0].spec.sources[0].projectId == '619656da-14f3-4872-857b-be103cdc5326'
       - item.resources[0].spec.sources[0].environmentSlug == 'prod'
-    fail_msg: Refusing missing, terminating, or revisionless Infisical source metadata.
+    fail_msg: >-
+      INFISICAL_STATIC_SECRET_METADATA_GUARD: {{ item.item.namespace }}/{{ item.item.name }}:
+      source/runtime metadata is absent, terminating, stale, or revisionless;
+      see the sanitized reason code above.
   loop: "{{ rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results }}"
   loop_control:
     label: infisical-source-metadata
@@ -779,9 +849,11 @@
       - >-
         rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.labels ==
         rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.metadata.labels
+      # InfisicalStaticSecret does not have a stable operator revision annotation;
+      # secrets.infisical.com/version belongs to the generated Secret target.
       - >-
-        (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.annotations | default({})) ==
-        (rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.metadata.annotations | default({}))
+        (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.annotations | default({}) |
+        dict2items | rejectattr('key', 'equalto', 'kubectl.kubernetes.io/last-applied-configuration') | list | length) == 0
       - >-
         (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[0].resources[0].metadata.ownerReferences | default([])) ==
         (rabbitmq_prod_credential_rotation_check_internal_source_objects.engine.metadata.ownerReferences | default([]))
@@ -807,8 +879,8 @@
         rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.labels ==
         rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.metadata.labels
       - >-
-        (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.annotations | default({})) ==
-        (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.metadata.annotations | default({}))
+        (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.annotations | default({}) |
+        dict2items | rejectattr('key', 'equalto', 'kubectl.kubernetes.io/last-applied-configuration') | list | length) == 0
       - >-
         (rabbitmq_prod_credential_rotation_check_internal_infisical_sources.results[1].resources[0].metadata.ownerReferences | default([])) ==
         (rabbitmq_prod_credential_rotation_check_internal_source_objects.runtime.metadata.ownerReferences | default([]))

@@ -56,9 +56,29 @@ than ordinary Secret JSON, checks Infisical source and runtime paths plus
 resourceVersions, checks Operator/Argo/backend/Celery readiness, and runs only
 fixed `rabbitmq-diagnostics`/`rabbitmqctl list_*` queries through the broker Pod.
 The action plugin strips command output and rejects credential-bearing commands;
-all tasks use `no_log`. It never creates users, changes permissions, writes
+value-bearing tasks use `no_log`, while the StaticSecret metadata gate emits only
+fixed identity/reason codes. It never creates users, changes permissions, writes
 Infisical, patches Kubernetes Secrets, restarts consumers, deletes a predecessor,
 or applies definitions.
+
+### InfisicalStaticSecret metadata contract
+
+The source and runtime `InfisicalStaticSecret` objects are inspected without any
+Secret object or Secret payload request. Each named object must exist exactly once,
+match its requested name/namespace and `secrets.infisical.com/v1beta1` identity,
+have a non-empty UID, numeric `resourceVersion`, positive `metadata.generation`,
+no `deletionTimestamp`, and at least one successful condition whose
+`observedGeneration` equals the current generation. Missing, ambiguous, terminating,
+stale, or revisionless objects fail closed with a sanitized
+`INFISICAL_STATIC_SECRET_METADATA_GUARD: namespace/name: REASON` code.
+
+The Infisical Operator does not provide a stable revision annotation on the
+`InfisicalStaticSecret` itself; `secrets.infisical.com/version` is a generated
+Secret-target annotation and is checked only by the metadata-only target-Secret
+module. The CR check therefore does not require or trust that annotation, nor does
+it treat `kubectl.kubernetes.io/last-applied-configuration` as operator state.
+Target Secret revision annotations remain mandatory; a missing target revision is
+still unsafe and cannot satisfy this preflight.
 
 The check deliberately ends with `SOURCE_ONLY_STOP`: the source writer, dual-path
 expected-revision/CAS protocol, encrypted definitions backup/readback and
