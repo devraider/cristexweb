@@ -245,6 +245,9 @@
   ansible.builtin.assert:
     that:
       - (reactive_resume_dev_soak_internal_samples | default([])) | length == reactive_resume_dev_soak_sample_count
+      - >-
+        (reactive_resume_dev_soak_internal_samples | map(attribute='sample') | list) ==
+        (range(0, reactive_resume_dev_soak_sample_count) | list)
       - reactive_resume_dev_soak_internal_elapsed_seconds >= reactive_resume_dev_soak_duration_seconds
       - >-
         (reactive_resume_dev_soak_internal_samples |

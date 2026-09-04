@@ -1,0 +1,270 @@
+{
+  "_fixture_metadata": {
+    "kind": "synthetic-offline-contract-input",
+    "runtime_evidence": false,
+    "live_receipt": false,
+    "purpose": "exercise source contracts without contacting a host, cluster, provider, or secret store"
+  },
+  "soak": {
+    "duration_seconds": 900,
+    "interval_seconds": 60,
+    "sample_count": 16,
+    "measured_elapsed_seconds": 900,
+    "exposure_pass": true,
+    "values_output": false,
+    "samples": [
+      {
+        "sample": 0,
+        "offset_seconds": 0,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 1,
+        "offset_seconds": 60,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 2,
+        "offset_seconds": 120,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 3,
+        "offset_seconds": 180,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 4,
+        "offset_seconds": 240,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 5,
+        "offset_seconds": 300,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 6,
+        "offset_seconds": 360,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 7,
+        "offset_seconds": 420,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 8,
+        "offset_seconds": 480,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 9,
+        "offset_seconds": 540,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 10,
+        "offset_seconds": 600,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 11,
+        "offset_seconds": 660,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 12,
+        "offset_seconds": 720,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 13,
+        "offset_seconds": 780,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 14,
+        "offset_seconds": 840,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      },
+      {
+        "sample": 15,
+        "offset_seconds": 900,
+        "hostname_root_http": true,
+        "hostname_tls_http": true,
+        "oidc_issuer": true,
+        "oidc_jwks": true,
+        "app_ready": true,
+        "backup_timer_active_enabled": true,
+        "prod_reactive_resume_markers_absent": true,
+        "exposure_pass": true
+      }
+    ]
+  },
+  "backup_restore": {
+    "source_closure": {
+      "source_contract_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "wrapper_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "playbook_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "backup": {
+      "kind": "reactive-resume-dev-backup-test",
+      "status": "success",
+      "run_id": "20990101T000000Z",
+      "started_epoch": 4070908758,
+      "completed_epoch": 4070908800,
+      "manifest": {
+        "schema": 2,
+        "run_id": "20990101T000000Z",
+        "object_count": 3,
+        "total_object_bytes": 1234,
+        "source_closure": {
+          "source_contract_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "wrapper_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "playbook_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      },
+      "receipt": "backup_status=success service=reactive-resume-dev run_id=20990101T000000Z database=reactive_resume_dev_successor object_bucket=reactive-resume-dev object_count=3 total_object_bytes=1234 backup_duration_seconds=42 readback=verified encrypted=true private_residue=none",
+      "private_residue": "none"
+    },
+    "restore": {
+      "kind": "reactive-resume-dev-restore",
+      "status": "success",
+      "schema": 2,
+      "source_run_id": "20990101T000000Z",
+      "restore_started_epoch": 4070909400,
+      "completed_epoch": 4070910600,
+      "rpo_seconds": 1800,
+      "rto_seconds": 1200,
+      "object_count": 3,
+      "object_bytes": 1234,
+      "source_closure": {
+        "source_contract_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "wrapper_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "playbook_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "receipt": "restore_status=success schema=2 source_run_id=20990101T000000Z backup_completed_epoch=4070908800 backup_duration_seconds=42 restore_duration_seconds=1200 rto_seconds=1200 rpo_seconds=1800 postgres_archive_sha256=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd object_archive_sha256=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee postgres_logical_entry_count=17 postgres_logical_table_count=9 postgres_logical_archive_bytes=2048 postgres_catalog_table_count=9 object_count=3 object_bytes=1234 checksum=verified target=isolated-emptydir-postgresql-and-seaweedfs private_residue=none",
+      "private_residue": "none"
+    },
+    "objects": [
+      {
+        "key": "uploads/user-pictures/fixture-a.bin",
+        "size": 512
+      },
+      {
+        "key": "pictures/fixture-b.bin",
+        "size": 384
+      },
+      {
+        "key": "uploads/user-agent/fixture-c.bin",
+        "size": 338
+      }
+    ]
+  }
+}
