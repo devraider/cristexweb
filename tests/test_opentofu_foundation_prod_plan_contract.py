@@ -530,6 +530,73 @@ def valid_plan() -> dict:
     }
 
 
+def tunnel_resource_drift_plan(
+    *, reorder_connections: bool = False
+) -> dict:
+    """Build a sanitized provider-shaped volatile tunnel refresh drift."""
+    candidate = valid_plan()
+    tunnel_item = next(
+        item
+        for item in candidate["resource_changes"]
+        if item["address"] == "cloudflare_zero_trust_tunnel_cloudflared.keycloak"
+    )
+    before = copy.deepcopy(tunnel_item["change"]["after"])
+    before["connections"] = [
+        {
+            "id": "connection-before-a",
+            "client_id": "client-before-a",
+            "client_version": "1.0.0",
+            "colo_name": "colo-before-a",
+            "is_pending_reconnect": False,
+            "opened_at": "2026-01-01T00:00:00Z",
+            "origin_ip": "192.0.2.10",
+            "uuid": "uuid-before-a",
+        },
+        {
+            "id": "connection-before-b",
+            "client_id": "client-before-b",
+            "client_version": "2.0.0",
+            "colo_name": "colo-before-b",
+            "is_pending_reconnect": True,
+            "opened_at": "2026-01-01T00:01:00Z",
+            "origin_ip": "192.0.2.11",
+            "uuid": "uuid-before-b",
+        },
+    ]
+    after = copy.deepcopy(before)
+    after["conns_active_at"] = "2026-01-01T00:02:00Z"
+    after["connections"][0].update(
+        {
+            "id": "connection-after-a",
+            "client_id": "client-after-a",
+            "colo_name": "colo-after-a",
+            "opened_at": "2026-01-01T00:03:00Z",
+            "uuid": "uuid-after-a",
+        }
+    )
+    after["connections"][1].update(
+        {
+            "id": "connection-after-b",
+            "client_id": "client-after-b",
+            "colo_name": "colo-after-b",
+            "opened_at": "2026-01-01T00:04:00Z",
+            "uuid": "uuid-after-b",
+        }
+    )
+    if reorder_connections:
+        after["connections"].reverse()
+    drift = resource(
+        "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
+        ["update"],
+        before,
+        after,
+    )
+    drift["change"]["before_sensitive"] = {"connections": [], "tunnel_secret": True}
+    drift["change"]["after_sensitive"] = {"connections": [], "tunnel_secret": True}
+    candidate["resource_drift"] = [drift]
+    return candidate
+
+
 class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
     def run_validator(
         self,
@@ -634,6 +701,96 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         self.assertIn("updated=cloudflare_zero_trust_tunnel_cloudflared_config.keycloak", result.stdout)
         self.assertIn("apply=not-run", result.stdout)
         self.assertIn("outputs=no-op", result.stdout)
+
+    def test_volatile_tunnel_refresh_drift_is_accepted(self) -> None:
+        result = self.run_validator(tunnel_resource_drift_plan(reorder_connections=True))
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("outputs=no-op", result.stdout)
+
+    def test_tunnel_drift_rejects_unrelated_state_changes(self) -> None:
+        mutations = (
+            ("identity", lambda state: state.__setitem__("id", "0" * 36)),
+            ("name", lambda state: state.__setitem__("name", "attacker-tunnel")),
+            ("account", lambda state: state.__setitem__("account_id", "f" * 32)),
+            ("deleted_at", lambda state: state.__setitem__("deleted_at", "2026-01-01T00:02:00Z")),
+            ("status", lambda state: state.__setitem__("status", "down")),
+            ("inactive_at", lambda state: state.__setitem__("conns_inactive_at", "2026-01-01T00:02:00Z")),
+            (
+                "client_version",
+                lambda state: state["connections"][0].__setitem__("client_version", "9.9.9"),
+            ),
+            (
+                "reconnect_flag",
+                lambda state: state["connections"][0].__setitem__(
+                    "is_pending_reconnect", not state["connections"][0]["is_pending_reconnect"]
+                ),
+            ),
+            (
+                "origin_ip",
+                lambda state: state["connections"][0].__setitem__("origin_ip", "192.0.2.99"),
+            ),
+        )
+        for name, mutate in mutations:
+            candidate = tunnel_resource_drift_plan()
+            drift = candidate["resource_drift"][0]
+            mutate(drift["change"]["after"])
+            result = self.run_validator(candidate)
+            self.assertNotEqual(0, result.returncode, name)
+
+    def test_tunnel_drift_rejects_connection_add_remove_and_ambiguous_reorder(self) -> None:
+        candidate = tunnel_resource_drift_plan()
+        after = candidate["resource_drift"][0]["change"]["after"]
+        after["connections"].append(copy.deepcopy(after["connections"][0]))
+        result = self.run_validator(candidate)
+        self.assertNotEqual(0, result.returncode, "added connection")
+
+        candidate = tunnel_resource_drift_plan()
+        candidate["resource_drift"][0]["change"]["after"]["connections"].pop()
+        result = self.run_validator(candidate)
+        self.assertNotEqual(0, result.returncode, "removed connection")
+
+        candidate = tunnel_resource_drift_plan()
+        before = candidate["resource_drift"][0]["change"]["before"]
+        after = candidate["resource_drift"][0]["change"]["after"]
+        # Duplicate stable fields make a provider reorder unidentifiable.
+        for state in (before, after):
+            for connection in state["connections"]:
+                connection["client_version"] = "same"
+                connection["is_pending_reconnect"] = False
+                connection["origin_ip"] = "192.0.2.10"
+        after["connections"].reverse()
+        result = self.run_validator(candidate)
+        self.assertNotEqual(0, result.returncode, "ambiguous reorder")
+
+    def test_tunnel_drift_rejects_extra_fields_and_marker_surfaces(self) -> None:
+        cases = []
+        candidate = tunnel_resource_drift_plan()
+        candidate["resource_drift"][0]["change"]["after"]["unexpected"] = "value"
+        cases.append(("extra state field", candidate))
+
+        candidate = tunnel_resource_drift_plan()
+        candidate["resource_drift"][0]["extra"] = "value"
+        cases.append(("extra resource field", candidate))
+
+        candidate = tunnel_resource_drift_plan()
+        candidate["resource_drift"][0]["change"]["after_unknown"] = {"id": True}
+        cases.append(("unknown marker", candidate))
+
+        candidate = tunnel_resource_drift_plan()
+        candidate["resource_drift"][0]["change"]["after_sensitive"] = {
+            "connections": [],
+            "tunnel_secret": True,
+            "unexpected": True,
+        }
+        cases.append(("sensitive marker", candidate))
+
+        candidate = tunnel_resource_drift_plan()
+        candidate["resource_drift"].append(copy.deepcopy(candidate["resource_drift"][0]))
+        cases.append(("second drift item", candidate))
+
+        for name, candidate in cases:
+            result = self.run_validator(candidate)
+            self.assertNotEqual(0, result.returncode, name)
 
     def test_direct_unbound_validator_invocation_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

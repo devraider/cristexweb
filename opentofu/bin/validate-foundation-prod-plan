@@ -144,6 +144,13 @@ TUNNEL_CONNECTION_KEYS = frozenset(
         "uuid",
     }
 )
+# Cloudflare's tunnel read endpoint reports connection identity/telemetry that
+# can change between refresh and plan without any configuration change.  This
+# is intentionally narrower than TUNNEL_CONNECTION_KEYS: the stable transport
+# and reconnect fields remain exact, and every other tunnel field remains exact.
+TUNNEL_VOLATILE_CONNECTION_KEYS = frozenset(
+    {"client_id", "colo_name", "id", "opened_at", "uuid"}
+)
 TUNNEL_COMPUTED_KEYS = frozenset(
     {
         "account_tag",
@@ -1299,6 +1306,156 @@ def require_tunnel_state(value: Any, reason: str, identity: dict[str, Any]) -> N
         require_tunnel_computed_field(key, value[key], reason, identity)
 
 
+def _connection_stable_key(value: dict[str, Any]) -> str:
+    """Return a typed key for fields that must not drift.
+
+    Missing and explicit-null values are distinct.  Duplicate keys are
+    rejected because volatile fields cannot identify which connection was
+    refreshed; the validator fails closed rather than pairing records by an
+    unstable field.
+    """
+    return json.dumps(
+        [
+            [key, key in value, value.get(key)]
+            for key in ("client_version", "is_pending_reconnect", "origin_ip")
+        ],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+
+def require_tunnel_drift_equal(
+    before: Any, after: Any, path: tuple[str | int, ...] = ()
+) -> None:
+    """Compare tunnel state recursively, allowing only named volatile leaves."""
+    if path == ("conns_active_at",):
+        return
+    if (
+        len(path) == 3
+        and path[0] == "connections"
+        and path[2] in TUNNEL_VOLATILE_CONNECTION_KEYS
+    ):
+        return
+    if type(before) is not type(after):
+        fail("tunnel_drift_unexpected")
+    if isinstance(before, dict):
+        if set(before) != set(after):
+            fail("tunnel_drift_unexpected")
+        for key in before:
+            require_tunnel_drift_equal(after=after[key], before=before[key], path=path + (key,))
+        return
+    if isinstance(before, list):
+        if path != ("connections",):
+            if len(before) != len(after):
+                fail("tunnel_drift_unexpected")
+            for index, (left, right) in enumerate(zip(before, after)):
+                require_tunnel_drift_equal(left, right, path + (index,))
+            return
+        if len(before) != len(after):
+            fail("tunnel_drift_connections")
+        before_keys = [_connection_stable_key(item) for item in before]
+        after_keys = [_connection_stable_key(item) for item in after]
+        if len(set(before_keys)) != len(before_keys) or len(set(after_keys)) != len(after_keys):
+            # Volatile fields cannot disambiguate equal stable projections;
+            # refuse even an apparently unchanged order rather than risk
+            # attributing one connection's refresh to another.
+            fail("tunnel_drift_connections")
+        if set(before_keys) != set(after_keys):
+            fail("tunnel_drift_connections")
+        after_by_key = dict(zip(after_keys, after))
+        pairs = (
+            (index, left, after_by_key[key])
+            for index, (key, left) in enumerate(zip(before_keys, before))
+        )
+        for index, left, right in pairs:
+            require_tunnel_drift_equal(left, right, path + (index,))
+        return
+    if not exact_equal(before, after):
+        fail("tunnel_drift_unexpected")
+
+
+def require_tunnel_drift_change(change: Any, identity: dict[str, Any]) -> None:
+    if not isinstance(change, dict):
+        fail("resource_drift_change_shape")
+    required_keys = {
+        "actions",
+        "before",
+        "after",
+        "after_unknown",
+        "before_sensitive",
+        "after_sensitive",
+    }
+    if set(change) - CHANGE_KEYS or required_keys - set(change):
+        fail("resource_drift_change_schema")
+    if change["actions"] != ["update"]:
+        fail("resource_drift_actions")
+    require_sensitive_projection(
+        change["before_sensitive"],
+        "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
+        change["before"],
+        "before",
+    )
+    require_sensitive_projection(
+        change["after_sensitive"],
+        "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
+        change["after"],
+        "after",
+    )
+    # The tunnel resource has no accepted unknown projection in this pinned
+    # plan.  In particular, a marker cannot hide a newly introduced field.
+    require_unknown_projection(
+        change["after_unknown"],
+        "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
+        change["after"],
+    )
+    if "replace_paths" in change:
+        if type(change["replace_paths"]) is not list or change["replace_paths"] != []:
+            fail("resource_drift_replace_paths")
+    for key in ("importing", "before_identity", "after_identity"):
+        if key in change:
+            require_null_or_empty_object(change[key], "resource_drift_metadata")
+    if "generated_config" in change and change["generated_config"] not in (None, ""):
+        fail("resource_drift_metadata")
+    before, after = change["before"], change["after"]
+    require_tunnel_state(before, "tunnel_drift_before", identity)
+    require_tunnel_state(after, "tunnel_drift_after", identity)
+    require_tunnel_drift_equal(before, after)
+
+
+def require_resource_drift(value: Any, identity: dict[str, Any]) -> None:
+    """Accept no drift, or one fully validated volatile tunnel refresh drift."""
+    if value == []:
+        return
+    if type(value) is not list or len(value) != 1:
+        fail("resource_drift")
+    item = value[0]
+    if not isinstance(item, dict):
+        fail("resource_drift_schema")
+    if set(item) - RESOURCE_KEYS or RESOURCE_REQUIRED_KEYS - set(item):
+        fail("resource_drift_schema")
+    if (
+        item["address"] != "cloudflare_zero_trust_tunnel_cloudflared.keycloak"
+        or item["mode"] != "managed"
+        or item["type"] != "cloudflare_zero_trust_tunnel_cloudflared"
+        or item["name"] != "keycloak"
+        or item["provider_name"] != PROVIDER
+    ):
+        fail("resource_drift_identity")
+    for key in ("previous_address", "module_address", "deposed", "action_reason"):
+        if key in item and item[key] not in (None, ""):
+            fail("resource_drift_metadata")
+    if "index" in item and item["index"] is not None:
+        fail("resource_drift_metadata")
+    if "schema_version" in item and (
+        type(item["schema_version"]) is not int or item["schema_version"] < 0
+    ):
+        fail("resource_drift_metadata")
+    require_tunnel_drift_change(item["change"], identity)
+    # Re-run the generic marker/tree guard after consuming the legitimate
+    # tunnel marker fields.  This rejects future nested marker surfaces.
+    require_safe_tree(scrub_sensitive_values(item), "resource_drift_safe_tree")
+
+
 def expected_config(rules: list[dict[str, str]]) -> dict[str, Any]:
     return {
         "ingress": [
@@ -1721,7 +1878,7 @@ def validate(
     if plan["terraform_version"] != "1.12.5":
         fail("terraform_version")
     if "resource_drift" in plan:
-        require_empty_list(plan["resource_drift"], "resource_drift")
+        require_resource_drift(plan["resource_drift"], identity)
     require_output_changes(plan["output_changes"])
     require_relevant_attributes(plan["relevant_attributes"])
     if type(plan["errored"]) is not bool or plan["errored"]:
