@@ -810,6 +810,59 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             self.assertNotIn("TASK_SELECTION_GUARD", output)
             self.assertNotIn("startup-probe-task", output)
 
+    def test_relative_wrapper_argument_survives_wrapper_cwd_change_in_real_process(self) -> None:
+        """Exercise the real /proc argv/cwd path used by the wrapper attestation."""
+        with tempfile.TemporaryDirectory(prefix="rabbitmq-wrapper-attestation-", dir="/dev/shm") as temporary:
+            root = Path(temporary)
+            (root / "bin").mkdir()
+            (root / "ansible").mkdir()
+            wrapper = root / "bin/wrapper"
+            probe = root / "probe.py"
+            strategy_source = str(STRATEGY).replace("\\", "\\\\").replace('"', '\\"')
+            wrapper_source = str(wrapper).replace("\\", "\\\\").replace('"', '\\"')
+            repository_root = str(root).replace("\\", "\\\\").replace('"', '\\"')
+            probe.write_text(
+                f'''import importlib.util
+import os
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("rabbitmq_attestation_probe", "{strategy_source}")
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+module._REPOSITORY_ROOT = Path("{repository_root}")
+module._WRAPPER_SOURCE = Path("{wrapper_source}")
+pid = int(os.environ["RABBITMQ_PROBE_WRAPPER_PID"])
+print("WRAPPER_ARGUMENT_PROBE=" + str(module._canonical_wrapper_argument("bin/wrapper", pid)).lower(), flush=True)
+''',
+                encoding="utf-8",
+            )
+            wrapper.write_text(
+                f'''#!/bin/sh
+set -eu
+pid=$$
+export RABBITMQ_PROBE_WRAPPER_PID="$pid"
+cd "{str(root / "ansible")}"
+/home/paul/projects/cristexweb/.venv/bin/python "{str(probe)}"
+''',
+                encoding="utf-8",
+            )
+            wrapper.chmod(0o755)
+            result = subprocess.run(
+                ["bin/wrapper"],
+                cwd=root,
+                env={
+                    "HOME": "/home/paul",
+                    "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("WRAPPER_ARGUMENT_PROBE=true", result.stdout)
+
     def test_strategy_reports_sanitized_reason_codes(self) -> None:
         spec = importlib.util.spec_from_file_location(
             "rabbitmq_prod_credential_rotation_strategy_reason_codes", STRATEGY

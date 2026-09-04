@@ -61,8 +61,8 @@ _EXPECTED_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de2
 _EXPECTED_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
 _EXPECTED_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
 _EXPECTED_COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
-_STRATEGY_CANONICAL_SHA256 = "843c21a88c326d9b8ae2876cd18a6358c9b8557145825a204694c3ba3d10acce"
-_CLOSURE_MANIFEST_SHA256 = "96b9cca801d2ea230dd132ba0da9d953c1341f56f3b0122b76ad3da06ae90a32"
+_STRATEGY_CANONICAL_SHA256 = "927e0389658dceb5c8f24acc0e148ecbcb131c3106702f2ce0afb2f140fdc76c"
+_CLOSURE_MANIFEST_SHA256 = "8602b72a31ed4203a66879bbd785fc8b10cc3d91d2fcd87e7bd913fc46217cf3"
 _TASK_SHA256 = "78104b5277c14ac6071c21250769d74184b12128c7c74591f50b01556fbb0250"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
@@ -586,10 +586,17 @@ def _canonical_wrapper_argument(argument: str, pid: int) -> bool:
         if requested.is_absolute():
             return requested.resolve(strict=True) == _WRAPPER_SOURCE
         cwd = Path(os.readlink(f"/proc/{pid}/cwd"))
-        return any(
-            (base / requested).resolve(strict=True) == _WRAPPER_SOURCE
-            for base in (cwd, _REPOSITORY_ROOT)
-        )
+        # A relative wrapper argument may be relative to the wrapper's original
+        # cwd or to the repository root after the wrapper has cd'd into ansible.
+        # Resolve each candidate independently: a missing first candidate must
+        # not abort evaluation of the canonical repository-root candidate.
+        for base in (cwd, _REPOSITORY_ROOT):
+            try:
+                if (base / requested).resolve(strict=True) == _WRAPPER_SOURCE:
+                    return True
+            except (OSError, RuntimeError):
+                continue
+        return False
     except (OSError, RuntimeError):
         return False
 

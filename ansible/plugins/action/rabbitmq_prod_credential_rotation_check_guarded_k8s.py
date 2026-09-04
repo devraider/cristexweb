@@ -47,7 +47,7 @@ _CLOSURE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq-prod-cre
 # _canonical_action_hash().
 _ROLES_PATH = _REPOSITORY_ROOT / "ansible/roles"
 _LIBRARY_PATH = _REPOSITORY_ROOT / "ansible/library"
-_ACTION_CANONICAL_SHA256 = "81a32963feea0e9b3c381e79751b3da8177cef143e4f7a1a80593d1f8027d7d5"
+_ACTION_CANONICAL_SHA256 = "aadf2e83ba83a40d8e14e1dd1f1e892d22ed757e4e3ee38e52dc7d8f01cf5879"
 _TASK_SHA256 = "78104b5277c14ac6071c21250769d74184b12128c7c74591f50b01556fbb0250"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
@@ -63,7 +63,7 @@ _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e37
 _REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
 _COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
 _COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
-_CLOSURE_MANIFEST_SHA256 = "96b9cca801d2ea230dd132ba0da9d953c1341f56f3b0122b76ad3da06ae90a32"
+_CLOSURE_MANIFEST_SHA256 = "8602b72a31ed4203a66879bbd785fc8b10cc3d91d2fcd87e7bd913fc46217cf3"
 _RUNTIME_PROVENANCE = (
     ("CONTROLLER_SHA256", _CONTROLLER_SOURCE, _CONTROLLER_SHA256),
     ("PYTHON_SHA256", _PYTHON_REAL_SOURCE, _EXPECTED_PYTHON_SHA256),
@@ -431,10 +431,16 @@ def _canonical_wrapper_argument(argument: str, pid: int) -> bool:
         if requested.is_absolute():
             return requested.resolve(strict=True) == _WRAPPER_SOURCE
         cwd = Path(os.readlink(f"/proc/{pid}/cwd"))
-        return any(
-            (base / requested).resolve(strict=True) == _WRAPPER_SOURCE
-            for base in (cwd, _REPOSITORY_ROOT)
-        )
+        # The wrapper changes cwd to ansible before launching Ansible.  Evaluate
+        # each relative-path base independently so a nonexistent cwd candidate
+        # cannot prevent the repository-root candidate from being checked.
+        for base in (cwd, _REPOSITORY_ROOT):
+            try:
+                if (base / requested).resolve(strict=True) == _WRAPPER_SOURCE:
+                    return True
+            except (OSError, RuntimeError):
+                continue
+        return False
     except (OSError, RuntimeError):
         return False
 
