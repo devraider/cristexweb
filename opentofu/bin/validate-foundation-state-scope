@@ -1,104 +1,935 @@
 #!/usr/bin/python3
-"""Validate exact protected foundation state and refresh-only plan metadata.
+"""Validate the protected foundation state and refresh-only plan envelopes.
 
-This helper consumes only mode-0600 temporary `tofu state list`, `state show`,
-and `show -json` results. It never opens the configured backend and never calls
-a provider.
+This helper consumes only mode-0600 captures made by a guarded wrapper. It
+never opens the backend, invokes OpenTofu, loads a provider, or contacts an
+API. The protected state proof and the refresh-only plan proof are deliberately
+separate: a refresh-only no-op may have an empty planned root and no
+``resource_changes`` surface, while the state JSON proves the exact managed
+address and imported DNS-record set. Wrapper consumers pass verified ``fd:N``
+inputs, including the plan provenance sidecar; pathname mode remains an
+offline compatibility form and is opened once with ``O_NOFOLLOW``.
 """
+
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import stat
 import sys
+from decimal import Decimal
 from pathlib import Path
+from typing import Any, NoReturn
 
-PRE = (
+PRE_ADDRESSES = (
     "cloudflare_dns_record.argocd_tailscale",
     "cloudflare_dns_record.cristexhub_dev",
     "cloudflare_dns_record.keycloak",
     "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
     "cloudflare_zero_trust_tunnel_cloudflared_config.keycloak",
 )
-POST = PRE + ("cloudflare_dns_record.reactive_resume_dev_tailscale",)
-ADDRESS = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+(?:\.[a-z0-9_]+)?$")
+POST_ADDRESSES = PRE_ADDRESSES + (
+    "cloudflare_dns_record.reactive_resume_dev_tailscale",
+)
+CONFIG_ADDRESSES = POST_ADDRESSES + ("cloudflare_dns_record.cristexhub_prod",)
+DNS_RECORD_ADDRESSES = (
+    "cloudflare_dns_record.argocd_tailscale",
+    "cloudflare_dns_record.cristexhub_dev",
+    "cloudflare_dns_record.keycloak",
+    "cloudflare_dns_record.reactive_resume_dev_tailscale",
+)
+CONFIG_EXPRESSION_NAMES = {
+    "cloudflare_zero_trust_tunnel_cloudflared.keycloak": {
+        "account_id",
+        "name",
+        "config_src",
+    },
+    "cloudflare_zero_trust_tunnel_cloudflared_config.keycloak": {
+        "account_id",
+        "tunnel_id",
+        "source",
+        "config",
+    },
+    "cloudflare_dns_record.keycloak": {
+        "zone_id",
+        "name",
+        "type",
+        "content",
+        "ttl",
+        "proxied",
+        "comment",
+    },
+    "cloudflare_dns_record.cristexhub_dev": {
+        "zone_id",
+        "name",
+        "type",
+        "content",
+        "ttl",
+        "proxied",
+        "comment",
+    },
+    "cloudflare_dns_record.cristexhub_prod": {
+        "zone_id",
+        "name",
+        "type",
+        "content",
+        "ttl",
+        "proxied",
+        "comment",
+    },
+    "cloudflare_dns_record.argocd_tailscale": {
+        "zone_id",
+        "name",
+        "type",
+        "content",
+        "ttl",
+        "proxied",
+        "comment",
+    },
+    "cloudflare_dns_record.reactive_resume_dev_tailscale": {
+        "zone_id",
+        "name",
+        "type",
+        "content",
+        "ttl",
+        "proxied",
+        "comment",
+    },
+}
+
+# ``configuration.root_module.resources[*].expressions`` is executable source
+# metadata, not an arbitrary key/value bag.  These are the expression trees
+# emitted by OpenTofu 1.12.5 for the checked-in HCL. Attribute references are
+# intentionally retained as references (rather than replaced by evaluated
+# values); the source closure below is the authority for the corresponding HCL.
+CONFIG_EXPECTED_EXPRESSIONS = {
+    "cloudflare_zero_trust_tunnel_cloudflared.keycloak": {
+        "account_id": {"references": ["var.cloudflare_account_id"]},
+        "name": {"references": ["var.cloudflare_tunnel_name"]},
+        "config_src": {"constant_value": "cloudflare"},
+    },
+    "cloudflare_zero_trust_tunnel_cloudflared_config.keycloak": {
+        "account_id": {"references": ["var.cloudflare_account_id"]},
+        "tunnel_id": {
+            "references": ["cloudflare_zero_trust_tunnel_cloudflared.keycloak.id"]
+        },
+        "source": {"constant_value": "cloudflare"},
+        "config": {
+            "references": [
+                "var.public_hostname",
+                "var.traefik_origin_service",
+                "var.traefik_origin_service",
+                "var.traefik_origin_service",
+            ]
+        },
+    },
+    "cloudflare_dns_record.argocd_tailscale": {
+        "zone_id": {"references": ["var.cloudflare_zone_id"]},
+        "name": {"constant_value": "argo.cristex-soft.com"},
+        "type": {"constant_value": "A"},
+        "content": {"constant_value": "100.122.139.32"},
+        "ttl": {"constant_value": 300},
+        "proxied": {"constant_value": False},
+        "comment": {
+            "constant_value": "Managed by OpenTofu; private Argo CD endpoint on Tailscale"
+        },
+    },
+    "cloudflare_dns_record.cristexhub_dev": {
+        "zone_id": {"references": ["var.cloudflare_zone_id"]},
+        "name": {"constant_value": "dev-hub.cristex-soft.com"},
+        "type": {"constant_value": "CNAME"},
+        "content": {
+            "references": [
+                "cloudflare_zero_trust_tunnel_cloudflared.keycloak.id",
+                "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
+            ]
+        },
+        "ttl": {"constant_value": 1},
+        "proxied": {"constant_value": True},
+        "comment": {
+            "constant_value": "Managed by OpenTofu; Cloudflare Tunnel to CristexHub DEV via private Traefik origin"
+        },
+    },
+    "cloudflare_dns_record.keycloak": {
+        "zone_id": {"references": ["var.cloudflare_zone_id"]},
+        "name": {"references": ["var.public_hostname"]},
+        "type": {"constant_value": "CNAME"},
+        "content": {
+            "references": [
+                "cloudflare_zero_trust_tunnel_cloudflared.keycloak.id",
+                "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
+            ]
+        },
+        "ttl": {"constant_value": 1},
+        "proxied": {"constant_value": True},
+        "comment": {
+            "constant_value": "Managed by OpenTofu; Cloudflare Tunnel to private Traefik origin"
+        },
+    },
+    "cloudflare_dns_record.reactive_resume_dev_tailscale": {
+        "zone_id": {"references": ["var.cloudflare_zone_id"]},
+        "name": {"constant_value": "resume-dev.cristex-soft.com"},
+        "type": {"constant_value": "A"},
+        "content": {"constant_value": "100.122.139.32"},
+        "ttl": {"constant_value": 300},
+        "proxied": {"constant_value": False},
+        "comment": {
+            "constant_value": "Managed by OpenTofu; private Reactive Resume DEV endpoint on Tailscale"
+        },
+    },
+    "cloudflare_dns_record.cristexhub_prod": {
+        "zone_id": {"references": ["var.cloudflare_zone_id"]},
+        "name": {"constant_value": "hub.cristex-soft.com"},
+        "type": {"constant_value": "CNAME"},
+        "content": {
+            "references": [
+                "cloudflare_zero_trust_tunnel_cloudflared.keycloak.id",
+                "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
+            ]
+        },
+        "ttl": {"constant_value": 1},
+        "proxied": {"constant_value": True},
+        "comment": {
+            "constant_value": "Managed by OpenTofu; Cloudflare Tunnel to CristexHub PROD via private Traefik origin"
+        },
+    },
+}
+CONFIG_OUTPUT_EXPRESSIONS = {
+    "dns_record_name": {
+        "references": [
+            "cloudflare_dns_record.keycloak.name",
+            "cloudflare_dns_record.keycloak",
+        ]
+    },
+    "public_hostname": {"references": ["var.public_hostname"]},
+    "token_handoff": {"constant_value": "MANUAL_INFISICAL_HANDOFF_REQUIRED"},
+    "tunnel_id": {
+        "references": [
+            "cloudflare_zero_trust_tunnel_cloudflared.keycloak.id",
+            "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
+        ]
+    },
+    "tunnel_name": {
+        "references": [
+            "cloudflare_zero_trust_tunnel_cloudflared.keycloak.name",
+            "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
+        ]
+    },
+}
+CONFIG_OUTPUT_DESCRIPTIONS = {
+    "dns_record_name": "DNS record name managed for the Tunnel hostname.",
+    "public_hostname": "Public hostname configured for the Tunnel.",
+    "token_handoff": "The Tunnel token is intentionally not retrieved, output, or stored by OpenTofu.",
+    "tunnel_id": "Cloudflare Tunnel UUID; required for the separately guarded token handoff.",
+    "tunnel_name": "Cloudflare Tunnel name.",
+}
+CONFIG_VARIABLES = {
+    "cloudflare_account_id": {
+        "type": "string",
+        "description": "Cloudflare account ID. Supply through an uncommitted tfvars file or environment variable.",
+        "required": True,
+    },
+    "cloudflare_tunnel_name": {
+        "type": "string",
+        "default": "cristexhub-keycloak",
+        "description": "Stable human-readable name for the remotely managed Cloudflare Tunnel.",
+    },
+    "cloudflare_zone_id": {
+        "type": "string",
+        "description": "Cloudflare zone ID for cristex-soft.com. Supply through an uncommitted tfvars file or environment variable.",
+        "required": True,
+    },
+    "public_hostname": {
+        "type": "string",
+        "default": "auth.cristex-soft.com",
+        "description": "Approved public hostname routed by the Tunnel.",
+    },
+    "traefik_origin_service": {
+        "type": "string",
+        "default": "http://traefik.kube-system.svc.cluster.local:80",
+        "description": "Private Traefik origin URL reached by cloudflared inside the cluster.",
+    },
+}
+OUTPUT_NAMES = (
+    "dns_record_name",
+    "public_hostname",
+    "token_handoff",
+    "tunnel_id",
+    "tunnel_name",
+)
+OUTPUT_VALUES = {
+    "dns_record_name": "auth.cristex-soft.com",
+    "public_hostname": "auth.cristex-soft.com",
+    "token_handoff": "MANUAL_INFISICAL_HANDOFF_REQUIRED",
+    "tunnel_name": "cristexhub-keycloak",
+}
+EXPECTED_STATE_TUNNEL_INGRESS = [
+    {
+        "hostname": "auth.cristex-soft.com",
+        "origin_request": None,
+        "path": None,
+        "service": "http://traefik.kube-system.svc.cluster.local:80",
+    },
+    {
+        "hostname": "dev-hub.cristex-soft.com",
+        "origin_request": None,
+        "path": None,
+        "service": "http://traefik.kube-system.svc.cluster.local:80",
+    },
+    {
+        "hostname": None,
+        "origin_request": None,
+        "path": None,
+        "service": "http_status:404",
+    },
+]
+# These are public resource identities, not credentials.  The wrappers bind
+# prompted account/zone values to these constants before any provider call;
+# state/plan projections must preserve the same identity.
+FOUNDATION_ACCOUNT_ID = "8b0f511214c7a4a52ddfb62ca92c5e80"
+FOUNDATION_ZONE_ID = "3cbee16e56d7656440f93e685807e779"
+FOUNDATION_TUNNEL_ID = "f9442440-96df-4cf1-855b-7257868ed9bc"
+VARIABLE_NAMES = (
+    "cloudflare_account_id",
+    "cloudflare_zone_id",
+    "cloudflare_tunnel_name",
+    "public_hostname",
+    "traefik_origin_service",
+)
+RESOURCE_PROVIDER = "registry.opentofu.org/cloudflare/cloudflare"
+UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+ADDRESS_RE = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+(?:\.[a-z0-9_]+)?$")
+HEX32_RE = re.compile(r"^[0-9a-f]{32}$")
+ISO_UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+TOFU_PATH = "/opt/opentofu/1.12.5/tofu"
+TOFU_SHA256 = "36dae7ca1e4f1552a6faef27179dc16ef403203e956f31416c17b3d87a38c3f4"
 
 
-def fail(reason: str) -> "NoReturn":
+def fail(reason: str) -> NoReturn:
     print(f"state_scope=refused reason={reason}")
     raise SystemExit(1)
 
 
-if len(sys.argv) == 3 and sys.argv[1] in {"pre", "post", "plan"}:
-    phase = sys.argv[1]
-    path = Path(sys.argv[2])
-elif len(sys.argv) == 4 and sys.argv[1] == "resource" and sys.argv[2] == "reactive_resume_dev_tailscale":
-    phase = "resource"
-    path = Path(sys.argv[3])
-else:
-    fail("usage")
-try:
-    info = path.lstat()
-except OSError:
-    fail("state_list_absent")
-if not stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode):
-    fail("state_list_type")
-if stat.S_IMODE(info.st_mode) != 0o600 or info.st_uid != os.getuid():
-    fail("state_list_permissions")
-try:
-    content = path.read_text(encoding="utf-8")
-except (OSError, UnicodeError):
-    fail("state_list_read")
-if phase == "plan":
+def _reject_constant(value: str) -> NoReturn:
+    raise ValueError(f"nonstandard JSON constant: {value}")
+
+
+def _pairs_without_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON object key")
+        result[key] = value
+    return result
+
+
+def _open_input(path: Path | str) -> bytes:
+    """Read one verified regular-file descriptor, never a pathname twice.
+
+    ``fd:N`` is supplied by the reconciler after it compares the descriptor's
+    device/inode to the producer receipt.  Direct callers use a path, which is
+    opened once with ``O_NOFOLLOW`` and is still checked for the strict mode,
+    owner, link count, and regular-file contract before consumption.
+    """
+    path_text = os.fspath(path)
     try:
-        plan = json.loads(content)
-    except (json.JSONDecodeError, TypeError):
-        fail("plan_json")
-    if not isinstance(plan, dict):
-        fail("plan_shape")
-    resource_changes = plan.get("resource_changes")
-    if not isinstance(resource_changes, list):
-        fail("plan_resource_changes")
-    expected = set(POST)
-    addresses: list[str] = []
-    for change in resource_changes:
-        if not isinstance(change, dict):
-            fail("plan_resource_change_shape")
-        address = change.get("address")
-        if not isinstance(address, str):
-            fail("plan_resource_address")
-        addresses.append(address)
-        if change.get("mode") != "managed" or change.get("type") != address.split(".", 1)[0]:
-            fail("plan_resource_identity")
-        resource_change = change.get("change")
-        if not isinstance(resource_change, dict) or resource_change.get("actions") != []:
-            fail("plan_non_noop_resource")
-        if resource_change.get("before") is None or resource_change.get("after") is None:
-            fail("plan_missing_resource_state")
-        if resource_change.get("deposed") not in (None, []):
-            fail("plan_deposed_resource")
-        if resource_change.get("after_sensitive") not in ({}, None, False):
-            fail("plan_sensitive_values")
-    if len(addresses) != len(set(addresses)) or set(addresses) != expected:
-        fail("plan_resource_closure")
-    resource_drift = plan.get("resource_drift", [])
-    if resource_drift not in ([], None):
-        fail("plan_resource_drift")
-    deferred_changes = plan.get("deferred_changes", [])
-    if deferred_changes not in ([], None):
-        fail("plan_deferred_changes")
-    output_changes = plan.get("output_changes", {})
-    if not isinstance(output_changes, dict):
-        fail("plan_output_changes")
-    for output_change in output_changes.values():
-        if not isinstance(output_change, dict) or output_change.get("actions") != []:
-            fail("plan_non_noop_output")
-    print("state_scope=accepted phase=plan addresses=6 actions=no-op")
-    raise SystemExit(0)
-lines = content.splitlines()
-if phase == "resource":
-    text = "\n".join(lines)
+        fd_match = re.fullmatch(r"fd:([0-9]+)", path_text)
+        inherited_fd = fd_match is not None
+        if fd_match:
+            fd = os.dup(int(fd_match.group(1)))
+        else:
+            # O_NONBLOCK is essential before fstat: opening a FIFO read-only
+            # otherwise waits for a writer before we can reject its type.
+            fd = os.open(
+                path_text,
+                os.O_RDONLY
+                | os.O_CLOEXEC
+                | getattr(os, "O_NOFOLLOW", 0)
+                | getattr(os, "O_NONBLOCK", 0),
+            )
+    except (OSError, ValueError):
+        fail("input_open")
+    try:
+        info = os.fstat(fd)
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or stat.S_IMODE(info.st_mode) != 0o600
+            or info.st_uid != os.getuid()
+            or info.st_nlink not in ({0, 1} if inherited_fd else {1})
+        ):
+            fail("input_permissions")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(fd, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        return b"".join(chunks)
+    except OSError:
+        fail("input_read")
+    finally:
+        os.close(fd)
+
+
+def _load_json_from_bytes(data: bytes) -> Any:
+    try:
+        return json.loads(
+            data.decode("utf-8"),
+            object_pairs_hook=_pairs_without_duplicates,
+            parse_constant=_reject_constant,
+            parse_int=int,
+            parse_float=Decimal,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError):
+        fail("json")
+
+
+def _load_json(path: Path | str) -> Any:
+    return _load_json_from_bytes(_open_input(path))
+
+
+def _strict_equal(left: Any, right: Any) -> bool:
+    """Compare decoded JSON without bool/int or decimal/float coercion."""
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return set(left) == set(right) and all(
+            _strict_equal(left[key], right[key]) for key in left
+        )
+    if isinstance(left, list):
+        return len(left) == len(right) and all(
+            _strict_equal(a, b) for a, b in zip(left, right)
+        )
+    if isinstance(left, Decimal):
+        return left.as_tuple() == right.as_tuple()
+    return left == right
+
+
+def _empty_marker(value: Any) -> bool:
+    return value is None or value is False or (isinstance(value, dict) and not value)
+
+
+_MARKER_KEYS = {
+    "sensitivevalues",
+    "beforesensitive",
+    "aftersensitive",
+    "unknown",
+    "beforeunknown",
+    "afterunknown",
+    "beforeidentity",
+    "afteridentity",
+    "importing",
+    "sensitive",
+}
+_SECRET_KEY_WORDS = {
+    "secret",
+    "token",
+    "password",
+    "credential",
+    "apikey",
+    "apitoken",
+    "accesstoken",
+    "clientsecret",
+    "privatekey",
+    "tunnelsecret",
+}
+
+
+def _normalise_key(key: str) -> str:
+    # JSON keys are attacker-controlled input. Treat snake_case, camelCase,
+    # kebab-case, and punctuation variants identically.
+    return re.sub(r"[^a-z0-9]", "", key.lower())
+
+
+def _is_secret_key(key: str) -> bool:
+    normalised = _normalise_key(key)
+    # Segment boundaries disappear after normalisation, so reject a secret
+    # marker anywhere in the key (for example secretValue, nested-token, or
+    # provider_apiKey), not only the snake_case forms.
+    return normalised in _SECRET_KEY_WORDS or any(
+        word in normalised
+        for word in ("secret", "token", "password", "credential", "apikey", "privatekey")
+    )
+
+
+def _expected_state_sensitive_values(
+    resource: dict[str, Any],
+) -> dict[str, Any]:
+    """Return the pinned OpenTofu 1.12.5 marker for one state resource."""
+    address = resource.get("address")
+    values = resource.get("values")
+    if not isinstance(values, dict):
+        return {}
+    if address == "cloudflare_zero_trust_tunnel_cloudflared.keycloak":
+        return {"connections": [], "tunnel_secret": True}
+    if address == "cloudflare_zero_trust_tunnel_cloudflared_config.keycloak":
+        config = values.get("config")
+        ingress = config.get("ingress") if isinstance(config, dict) else None
+        if not isinstance(ingress, list):
+            return {}
+        return {"config": {"ingress": [{} for _ in ingress]}}
+    if address.startswith("cloudflare_dns_record."):
+        record_type = values.get("type")
+        if record_type == "CNAME":
+            return {"settings": {}, "tags": []}
+        return {"tags": []}
+    return {}
+
+
+def _validate_markers(
+    value: Any,
+    *,
+    location: str = "root",
+    allow_tunnel_secret: bool = False,
+    allowed_resource_ids: frozenset[int] = frozenset(),
+) -> None:
+    """Reject markers and secret-shaped fields recursively.
+
+    The sole value exception is the Cloudflare provider's explicit null
+    ``values.tunnel_secret`` on a *direct* canonical tunnel resource.  Resource
+    identity is carried by object identity collected from the already-validated
+    resource list, rather than inferred from attacker-controlled nested
+    ``address`` fields.  Consequently a nested object that merely resembles
+    the tunnel resource cannot inherit the exception or a ``sensitive_values``
+    projection.
+    """
+    if isinstance(value, dict):
+        resource_projection = id(value) in allowed_resource_ids
+        exact_tunnel_resource = resource_projection and (
+            value.get("address") == "cloudflare_zero_trust_tunnel_cloudflared.keycloak"
+        )
+        for key, item in value.items():
+            if not isinstance(key, str):
+                fail(f"{location}.non_string_key")
+            normalised = _normalise_key(key)
+            if key == "sensitive_values":
+                # This field is emitted only on validated direct resource
+                # projections. Empty maps are valid for non-sensitive resources;
+                # the only non-empty map is the exact null tunnel marker.
+                if not isinstance(item, dict):
+                    fail(f"{location}.sensitive_values_shape")
+                expected_sensitive_values = (
+                    _expected_state_sensitive_values(value)
+                    if resource_projection
+                    else {}
+                )
+                allowed = (
+                    resource_projection
+                    and _strict_equal(item, expected_sensitive_values)
+                    and (
+                        exact_tunnel_resource
+                        or expected_sensitive_values != {}
+                    )
+                )
+                if item and not allowed:
+                    fail(f"{location}.sensitive_values_nonempty")
+                if not resource_projection and item == {}:
+                    fail(f"{location}.sensitive_values_location")
+                if allowed:
+                    continue
+            elif normalised in {"beforesensitive", "aftersensitive"}:
+                if not _empty_marker(item):
+                    fail(f"{location}.{key}_nonempty")
+            elif normalised in {
+                "unknown",
+                "beforeunknown",
+                "afterunknown",
+                "beforeidentity",
+                "afteridentity",
+                "importing",
+            }:
+                if not _empty_marker(item):
+                    fail(f"{location}.{key}_nonempty")
+            elif normalised == "sensitive":
+                if item is not False:
+                    fail(f"{location}.{key}")
+            elif normalised == "tunnelsecret":
+                if key == "tunnel_secret" and allow_tunnel_secret and item is None:
+                    continue
+                if key == "tunnel_secret" and allow_tunnel_secret:
+                    fail(f"{location}.{key}_plaintext")
+                fail(f"{location}.{key}_field")
+            elif (
+                normalised not in _MARKER_KEYS
+                and _is_secret_key(key)
+                and not (
+                    key == "token_handoff"
+                    and (location.endswith(".outputs") or location.endswith(".output_changes"))
+                )
+            ):
+                # ``token_handoff`` is a reviewed, value-free output name; all
+                # other token-shaped keys remain forbidden, including a nested
+                # or relocated token_handoff field.
+                fail(f"{location}.{key}_field")
+            if key == "values":
+                _validate_markers(
+                    item,
+                    location=f"{location}.{key}",
+                    allow_tunnel_secret=exact_tunnel_resource,
+                    allowed_resource_ids=allowed_resource_ids,
+                )
+            else:
+                # The tunnel-secret exception does not propagate through a
+                # nested dict/list: only the direct values member is allowed.
+                _validate_markers(
+                    item,
+                    location=f"{location}.{key}",
+                    allowed_resource_ids=allowed_resource_ids,
+                )
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_markers(
+                item,
+                location=f"{location}[{index}]",
+                allowed_resource_ids=allowed_resource_ids,
+            )
+
+
+def _require_dict(value: Any, reason: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        fail(reason)
+    return value
+
+
+def _require_exact_type(value: Any, expected: type, reason: str) -> None:
+    if type(value) is not expected:
+        fail(reason)
+
+
+def _validate_address_list(phase: str, path: Path) -> None:
+    try:
+        raw = _open_input(path).decode("utf-8")
+    except UnicodeDecodeError:
+        fail("state_address_encoding")
+    lines = raw.splitlines()
+    expected = PRE_ADDRESSES if phase == "pre" else POST_ADDRESSES
+    if not lines or len(lines) != len(set(lines)):
+        fail("state_address_duplicates_or_empty")
+    if any(not ADDRESS_RE.fullmatch(line) for line in lines):
+        fail("state_address_shape")
+    if sorted(lines) != sorted(expected):
+        fail("state_address_closure")
+    print(f"state_scope=accepted phase={phase} addresses={len(expected)}")
+
+
+def _resource_identity(resource: Any, *, config: bool = False) -> str:
+    item = _require_dict(
+        resource, "config_resource_shape" if config else "state_resource_shape"
+    )
+    allowed = (
+        {
+            "address",
+            "mode",
+            "type",
+            "name",
+            "provider_config_key",
+            "expressions",
+            "schema_version",
+        }
+        if config
+        else {
+            "address",
+            "mode",
+            "type",
+            "name",
+            "provider_name",
+            "schema_version",
+            "values",
+            "sensitive_values",
+            "index",
+        }
+    )
+    if set(item) - allowed:
+        fail("config_resource_fields" if config else "state_resource_fields")
+    if config and set(item) != {
+        "address",
+        "mode",
+        "type",
+        "name",
+        "provider_config_key",
+        "expressions",
+        "schema_version",
+    }:
+        # OpenTofu emits the provider schema version on configuration resource
+        # entries. Count/for_each/dependency/provisioner metadata is absent from
+        # this exact root configuration and is rejected by the set closure.
+        fail("config_resource_fields")
+    address = item.get("address")
+    if not isinstance(address, str) or not ADDRESS_RE.fullmatch(address):
+        fail("config_resource_address" if config else "state_resource_address")
+    parts = address.split(".")
+    if item.get("mode") != "managed":
+        fail("config_resource_mode" if config else "state_resource_mode")
+    if item.get("type") != parts[0] or item.get("name") != parts[1]:
+        fail("config_resource_identity" if config else "state_resource_identity")
+    if config:
+        if item.get("provider_config_key") != "cloudflare":
+            fail("config_resource_provider")
+        if type(item.get("schema_version")) is not int or item["schema_version"] != 500:
+            fail("config_resource_schema_version")
+        expressions = item.get("expressions")
+        if not isinstance(expressions, dict):
+            fail("config_resource_expressions")
+        expected_expressions = CONFIG_EXPECTED_EXPRESSIONS.get(address)
+        if expected_expressions is None or not _strict_equal(
+            expressions, expected_expressions
+        ):
+            fail("config_resource_expression_semantics")
+    else:
+        if item.get("provider_name") != RESOURCE_PROVIDER:
+            fail("state_resource_provider")
+        if "schema_version" not in item or type(item["schema_version"]) is not int:
+            fail("state_resource_schema_version")
+        if "index" in item and item["index"] is not None:
+            fail("state_resource_index")
+        if not isinstance(item.get("values"), dict):
+            fail("state_resource_values")
+        if not isinstance(item.get("sensitive_values"), dict):
+            fail("state_resource_sensitive_values")
+        if "tunnel_secret" in item["values"] and address != (
+            "cloudflare_zero_trust_tunnel_cloudflared.keycloak"
+        ):
+            fail("state_resource_secret_field")
+    return address
+
+
+def _validate_state_outputs(outputs: Any, *, tunnel_id: str | None = None) -> None:
+    if not isinstance(outputs, dict) or set(outputs) != set(OUTPUT_NAMES):
+        fail("state_outputs_closure")
+    for name in OUTPUT_NAMES:
+        output = outputs[name]
+        if not isinstance(output, dict):
+            fail("state_output_shape")
+        if set(output) - {"value", "type", "sensitive"}:
+            fail("state_output_fields")
+        if set(output) != {"value", "type", "sensitive"}:
+            fail("state_output_shape")
+        if output.get("type") != "string" or output.get("sensitive") is not False:
+            fail("state_output_sensitive")
+        value = output.get("value")
+        if name == "tunnel_id":
+            if not isinstance(value, str) or not UUID_RE.fullmatch(value):
+                fail("state_tunnel_uuid")
+            if tunnel_id is not None and value != tunnel_id:
+                fail("state_tunnel_uuid_binding")
+        elif not isinstance(value, str) or value != OUTPUT_VALUES[name]:
+            fail("state_output_value")
+
+
+def _validate_state_resource_projection(resource: dict[str, Any]) -> None:
+    """Validate the provider's state-only sensitive projection and key values."""
+    address = resource["address"]
+    values = resource["values"]
+    sensitive_values = resource["sensitive_values"]
+    if address == "cloudflare_zero_trust_tunnel_cloudflared.keycloak":
+        # The optional secret is represented by a null value plus an explicit
+        # sensitive marker. Require both halves so a missing marker or a nested
+        # null-looking field cannot be treated as an equivalent state.
+        if values.get("tunnel_secret", object()) is not None:
+            fail("state_tunnel_secret_null")
+        if sensitive_values != {"connections": [], "tunnel_secret": True}:
+            fail("state_tunnel_secret_marker")
+        if values.get("id") != FOUNDATION_TUNNEL_ID:
+            fail("state_tunnel_uuid")
+        if values.get("account_id") != FOUNDATION_ACCOUNT_ID:
+            fail("state_tunnel_account")
+        if values.get("account_tag") != FOUNDATION_ACCOUNT_ID:
+            fail("state_tunnel_account_tag")
+    elif address == "cloudflare_zero_trust_tunnel_cloudflared_config.keycloak":
+        if values.get("account_id") != FOUNDATION_ACCOUNT_ID:
+            fail("state_tunnel_config_account")
+        if values.get("tunnel_id") != FOUNDATION_TUNNEL_ID:
+            fail("state_tunnel_config_uuid")
+        config = values.get("config")
+        if not isinstance(config, dict) or set(config) != {"ingress", "origin_request"}:
+            fail("state_tunnel_config_shape")
+        if config.get("origin_request") is not None:
+            fail("state_tunnel_origin_request")
+        ingress = config.get("ingress")
+        if not _strict_equal(ingress, EXPECTED_STATE_TUNNEL_INGRESS):
+            fail("state_tunnel_ingress")
+    expected_sensitive_values = _expected_state_sensitive_values(resource)
+    if not _strict_equal(sensitive_values, expected_sensitive_values):
+        fail("state_resource_sensitive_values")
+    if address == "cloudflare_dns_record.reactive_resume_dev_tailscale":
+        required = {
+            "name": "resume-dev.cristex-soft.com",
+            "type": "A",
+            "content": "100.122.139.32",
+            "ttl": 300,
+            "proxied": False,
+        }
+        for key, expected_value in required.items():
+            if key not in values or type(values[key]) is not type(expected_value):
+                fail("state_reactive_resume_value")
+            if not _strict_equal(values[key], expected_value):
+                fail("state_reactive_resume_value")
+
+
+STATE_IDENTITY_KEYS = frozenset(
+    {
+        "schema",
+        "scope",
+        "account_id",
+        "zone_id",
+        "tunnel_id",
+        "tunnel_account_tag",
+        "dns_record_ids",
+    }
+)
+STATE_IDENTITY_SCOPE = "cloudflare-foundation-import-reactive-resume-dev-tailscale"
+
+
+def _load_state_identity(source: Path | str) -> dict[str, str]:
+    identity = _load_json(source)
+    if not isinstance(identity, dict) or set(identity) != STATE_IDENTITY_KEYS:
+        fail("state_identity_schema")
+    if type(identity.get("schema")) is not int or identity["schema"] != 1:
+        fail("state_identity_schema")
+    if identity.get("scope") != STATE_IDENTITY_SCOPE:
+        fail("state_identity_scope")
+    if identity.get("account_id") != FOUNDATION_ACCOUNT_ID:
+        fail("state_identity_account")
+    if identity.get("zone_id") != FOUNDATION_ZONE_ID:
+        fail("state_identity_zone")
+    if identity.get("tunnel_id") != FOUNDATION_TUNNEL_ID:
+        fail("state_identity_tunnel")
+    if identity.get("tunnel_account_tag") != FOUNDATION_ACCOUNT_ID:
+        fail("state_identity_account_tag")
+    record_ids = identity.get("dns_record_ids")
+    if not isinstance(record_ids, dict) or set(record_ids) != set(DNS_RECORD_ADDRESSES):
+        fail("state_identity_records")
+    values: list[str] = []
+    for address in DNS_RECORD_ADDRESSES:
+        record_id = record_ids.get(address)
+        if not isinstance(record_id, str) or not HEX32_RE.fullmatch(record_id):
+            fail("state_identity_records")
+        values.append(record_id)
+    if len(values) != len(set(values)):
+        fail("state_identity_records")
+    return identity
+
+
+def _validate_state_identity_bindings(
+    resources: list[dict[str, Any]], identity: dict[str, Any]
+) -> None:
+    by_address = {resource["address"]: resource for resource in resources}
+    record_ids = identity.get("dns_record_ids")
+    if not isinstance(record_ids, dict):
+        fail("state_identity_records")
+    for address in DNS_RECORD_ADDRESSES:
+        record = by_address.get(address)
+        if not isinstance(record, dict) or not isinstance(record.get("values"), dict):
+            fail("state_identity_record")
+        record_values = record["values"]
+        if record_values.get("id") != record_ids.get(address):
+            fail("state_identity_record")
+        if record_values.get("zone_id") != identity["zone_id"]:
+            fail("state_identity_zone")
+    tunnel = by_address.get("cloudflare_zero_trust_tunnel_cloudflared.keycloak")
+    tunnel_values = tunnel.get("values") if isinstance(tunnel, dict) else None
+    if not isinstance(tunnel_values, dict):
+        fail("state_identity_tunnel")
+    if tunnel_values.get("id") != identity["tunnel_id"]:
+        fail("state_identity_tunnel")
+    if tunnel_values.get("account_id") != identity["account_id"]:
+        fail("state_identity_account")
+    if tunnel_values.get("account_tag") != identity["tunnel_account_tag"]:
+        fail("state_identity_account_tag")
+    config = by_address.get("cloudflare_zero_trust_tunnel_cloudflared_config.keycloak")
+    config_values = config.get("values") if isinstance(config, dict) else None
+    if not isinstance(config_values, dict):
+        fail("state_identity_tunnel_config")
+    if config_values.get("tunnel_id") != identity["tunnel_id"]:
+        fail("state_identity_tunnel_config")
+    if config_values.get("account_id") != identity["account_id"]:
+        fail("state_identity_tunnel_config")
+    for resource in resources:
+        address = resource["address"]
+        values = resource["values"]
+        if not isinstance(values, dict):
+            fail("state_identity_values")
+        if address.startswith("cloudflare_dns_record."):
+            if address not in DNS_RECORD_ADDRESSES:
+                fail("state_identity_record")
+            if values.get("zone_id") != identity["zone_id"]:
+                fail("state_identity_zone")
+            expected_record_id = identity["dns_record_ids"].get(address)
+            if values.get("id") != expected_record_id:
+                fail("state_identity_record")
+        elif address in {
+            "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
+            "cloudflare_zero_trust_tunnel_cloudflared_config.keycloak",
+        }:
+            if "account_id" in values and values["account_id"] != identity["account_id"]:
+                fail("state_identity_account")
+            if address.endswith("_config.keycloak") and "tunnel_id" in values:
+                tunnel = by_address.get("cloudflare_zero_trust_tunnel_cloudflared.keycloak")
+                tunnel_values = tunnel.get("values") if isinstance(tunnel, dict) else None
+                if not isinstance(tunnel_values, dict) or values["tunnel_id"] != tunnel_values.get("id"):
+                    fail("state_identity_tunnel")
+
+
+def _validate_state_json(
+    phase: str, path: Path | str, identity_source: Path | str | None = None
+) -> None:
+    state = _load_json(path)
+    if not isinstance(state, dict):
+        fail("state_json_shape")
+    if set(state) - {"format_version", "terraform_version", "values", "checks"}:
+        fail("state_json_top_level")
+    if state.get("format_version") != "1.0":
+        fail("state_json_format_version")
+    if state.get("terraform_version") != "1.12.5":
+        fail("state_json_tofu_version")
+    if "checks" in state and state["checks"] != []:
+        fail("state_checks")
+    values = _require_dict(state.get("values"), "state_values_shape")
+    if set(values) != {"outputs", "root_module"}:
+        fail("state_values_shape")
+    root = _require_dict(values.get("root_module"), "state_root_module")
+    if set(root) - {"resources", "child_modules"}:
+        fail("state_root_module_fields")
+    if root.get("child_modules") not in (None, []):
+        fail("state_child_modules")
+    resources = root.get("resources")
+    if not isinstance(resources, list):
+        fail("state_resources")
+    expected = PRE_ADDRESSES if phase == "pre" else POST_ADDRESSES
+    addresses = [_resource_identity(resource) for resource in resources]
+    if len(addresses) != len(set(addresses)) or sorted(addresses) != sorted(expected):
+        fail("state_json_address_closure")
+    # Run the recursive marker/key closure before semantic projections so a
+    # malformed sensitive map is reported as such rather than being hidden by
+    # a later resource-specific check.
+    resource_ids = frozenset(id(resource) for resource in resources)
+    _validate_markers(state, allowed_resource_ids=resource_ids)
+    tunnel_id: str | None = None
+    for resource in resources:
+        resource_values = resource["values"]
+        if resource["address"] == "cloudflare_zero_trust_tunnel_cloudflared.keycloak":
+            tunnel_id = resource_values.get("id")
+        _validate_state_resource_projection(resource)
+    if tunnel_id is None:
+        fail("state_tunnel_resource")
+    if phase == "post" and identity_source is None:
+        fail("state_identity_required")
+    if identity_source is not None:
+        identity = _load_state_identity(identity_source)
+        _validate_state_identity_bindings(resources, identity)
+    _validate_state_outputs(values.get("outputs"), tunnel_id=tunnel_id)
+    print(
+        f"state_scope=accepted phase={phase}-json addresses={len(expected)} outputs=5 sensitive=false"
+    )
+
+
+def _validate_resource_text(address: str, path: Path) -> None:
+    try:
+        text = _open_input(path).decode("utf-8")
+    except UnicodeDecodeError:
+        fail("resource_encoding")
     required = (
         'name = "resume-dev.cristex-soft.com"',
         'type = "A"',
@@ -106,15 +937,484 @@ if phase == "resource":
         "proxied = false",
         "ttl = 300",
     )
-    if not all(item in text for item in required):
-        fail("reactive_resume_dev_tailscale_contract")
+    if address != "reactive_resume_dev_tailscale" or not all(
+        item in text for item in required
+    ):
+        fail("resource_contract")
     print("state_scope=accepted phase=resource address=reactive_resume_dev_tailscale")
-    raise SystemExit(0)
-expected = PRE if phase == "pre" else POST
-if not lines or len(lines) != len(set(lines)):
-    fail("state_list_duplicates_or_empty")
-if any(not ADDRESS.fullmatch(line) for line in lines):
-    fail("state_list_shape")
-if sorted(lines) != sorted(expected):
-    fail("state_address_closure")
-print(f"state_scope=accepted phase={phase} addresses={len(expected)}")
+
+
+def _validate_output_change(name: str, change: Any) -> None:
+    item = _require_dict(change, "plan_output_shape")
+    allowed = {
+        "actions",
+        "before",
+        "after",
+        "before_unknown",
+        "after_unknown",
+        "before_sensitive",
+        "after_sensitive",
+        "replace_paths",
+        "action_reason",
+    }
+    if set(item) - allowed or not {
+        "actions",
+        "before",
+        "after",
+        "after_unknown",
+        "before_sensitive",
+        "after_sensitive",
+    }.issubset(item):
+        fail("plan_output_fields")
+    if item.get("actions") != ["no-op"]:
+        fail("plan_output_actions")
+    if not _strict_equal(item.get("before"), item.get("after")):
+        fail("plan_output_drift")
+    for marker in (
+        "before_unknown",
+        "after_unknown",
+        "before_sensitive",
+        "after_sensitive",
+    ):
+        if marker in item and item[marker] is not False:
+            fail(f"plan_output_{marker}")
+    if "replace_paths" in item and item["replace_paths"] != []:
+        fail("plan_output_replace")
+    if "action_reason" in item and item["action_reason"] not in (None, "", "no-op"):
+        fail("plan_output_reason")
+    value = item["after"]
+    if name == "tunnel_id":
+        if not isinstance(value, str) or not UUID_RE.fullmatch(value):
+            fail("plan_tunnel_uuid")
+    elif not isinstance(value, str) or value != OUTPUT_VALUES[name]:
+        fail("plan_output_value")
+
+
+def _validate_output_surface(surface: Any, location: str) -> None:
+    if not isinstance(surface, dict):
+        fail(f"{location}_shape")
+    # Both planned_values and prior_state are required to carry the complete
+    # five-output projection.  A missing projection would make output_changes
+    # unverifiable even if all actions claim no-op.
+    outputs = surface.get("outputs")
+    if not isinstance(outputs, dict) or set(outputs) != set(OUTPUT_NAMES):
+        fail(f"{location}_outputs")
+    for name in OUTPUT_NAMES:
+        output = outputs[name]
+        if not isinstance(output, dict) or set(output) != {
+            "value",
+            "type",
+            "sensitive",
+        }:
+            fail(f"{location}_output_shape")
+        if output.get("type") != "string" or output.get("sensitive") is not False:
+            fail(f"{location}_output_sensitive")
+        value = output["value"]
+        if name == "tunnel_id":
+            if not isinstance(value, str) or not UUID_RE.fullmatch(value):
+                fail(f"{location}_tunnel_uuid")
+        elif value != OUTPUT_VALUES[name]:
+            fail(f"{location}_output_value")
+
+
+def _validate_plan_output_bindings(
+    output_changes: dict[str, Any],
+    planned_values: dict[str, Any],
+    prior_values: dict[str, Any],
+    prior_resources: list[dict[str, Any]],
+) -> None:
+    """Tie the no-op output surface to the two state projections.
+
+    OpenTofu emits an empty planned root for this refresh-only envelope, so the
+    prior tunnel resource is the authoritative resource identity.  The
+    planned/prior outputs and every output-change before/after value must all
+    carry that same tunnel UUID; a different but well-formed UUID is refused.
+    """
+    planned_outputs = planned_values.get("outputs")
+    prior_outputs = prior_values.get("outputs")
+    if not isinstance(planned_outputs, dict) or not isinstance(prior_outputs, dict):
+        fail("plan_output_surface_binding")
+    tunnel_resources = [
+        resource
+        for resource in prior_resources
+        if resource.get("address") == "cloudflare_zero_trust_tunnel_cloudflared.keycloak"
+    ]
+    if len(tunnel_resources) != 1:
+        fail("plan_tunnel_resource_binding")
+    tunnel_values = tunnel_resources[0].get("values")
+    if not isinstance(tunnel_values, dict):
+        fail("plan_tunnel_resource_binding")
+    tunnel_id = tunnel_values.get("id")
+    if tunnel_id != FOUNDATION_TUNNEL_ID:
+        fail("plan_tunnel_resource_binding")
+    if tunnel_values.get("account_id") != FOUNDATION_ACCOUNT_ID:
+        fail("plan_tunnel_resource_binding")
+    if tunnel_values.get("account_tag") != FOUNDATION_ACCOUNT_ID:
+        fail("plan_tunnel_resource_binding")
+    config_resources = [
+        resource
+        for resource in prior_resources
+        if resource.get("address")
+        == "cloudflare_zero_trust_tunnel_cloudflared_config.keycloak"
+    ]
+    if len(config_resources) != 1:
+        fail("plan_tunnel_config_binding")
+    config_values = config_resources[0].get("values")
+    if (
+        not isinstance(config_values, dict)
+        or config_values.get("account_id") != FOUNDATION_ACCOUNT_ID
+        or config_values.get("tunnel_id") != FOUNDATION_TUNNEL_ID
+    ):
+        fail("plan_tunnel_config_binding")
+    if planned_outputs["tunnel_id"]["value"] != tunnel_id:
+        fail("plan_tunnel_output_binding")
+    if prior_outputs["tunnel_id"]["value"] != tunnel_id:
+        fail("plan_tunnel_output_binding")
+    for name in OUTPUT_NAMES:
+        change = output_changes.get(name)
+        if not isinstance(change, dict):
+            fail("plan_output_surface_binding")
+        if not _strict_equal(change.get("before"), prior_outputs[name]["value"]):
+            fail("plan_output_surface_binding")
+        if not _strict_equal(change.get("after"), planned_outputs[name]["value"]):
+            fail("plan_output_surface_binding")
+
+
+def _validate_variables(variables: Any) -> None:
+    if not isinstance(variables, dict) or set(variables) != set(VARIABLE_NAMES):
+        fail("plan_variables_closure")
+    for name in VARIABLE_NAMES:
+        variable = variables[name]
+        if not isinstance(variable, dict) or set(variable) != {"value"}:
+            fail("plan_variable_shape")
+        value = variable["value"]
+        if name == "cloudflare_account_id":
+            if value != FOUNDATION_ACCOUNT_ID:
+                fail("plan_variable_identity")
+        elif name == "cloudflare_zone_id":
+            if value != FOUNDATION_ZONE_ID:
+                fail("plan_variable_identity")
+        elif name == "cloudflare_tunnel_name" and value != "cristexhub-keycloak":
+            fail("plan_variable_value")
+        elif name == "public_hostname" and value != "auth.cristex-soft.com":
+            fail("plan_variable_value")
+        elif (
+            name == "traefik_origin_service"
+            and value != "http://traefik.kube-system.svc.cluster.local:80"
+        ):
+            fail("plan_variable_value")
+
+
+def _validate_expression(value: Any, location: str) -> None:
+    if isinstance(value, dict):
+        if set(value) - {
+            "constant_value",
+            "references",
+            "traversal",
+            "function_name",
+            "function_args",
+            "index",
+        }:
+            fail(f"{location}_expression_fields")
+        if not value:
+            fail(f"{location}_expression_empty")
+        for key, item in value.items():
+            if key == "constant_value":
+                # A constant expression may itself be any JSON object/list;
+                # inspect it for marker/plaintext keys without interpreting
+                # application object keys as expression fields.
+                _validate_markers(item, location=f"{location}.{key}")
+            elif key == "references":
+                if not isinstance(item, list) or any(
+                    not isinstance(reference, str) for reference in item
+                ):
+                    fail(f"{location}_expression_references")
+            else:
+                _validate_expression(item, f"{location}.{key}")
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_expression(item, f"{location}[{index}]")
+    elif isinstance(value, str):
+        if any(
+            token in value.lower()
+            for token in ("api_token", "client_secret", "private_key", "password")
+        ):
+            fail(f"{location}_plaintext")
+
+
+def _validate_expression_map(value: Any, location: str) -> None:
+    if not isinstance(value, dict) or not value:
+        fail(f"{location}_expression_map")
+    for key, item in value.items():
+        if not isinstance(key, str) or not key:
+            fail(f"{location}_expression_key")
+        _validate_expression(item, f"{location}.{key}")
+
+
+def _validate_configuration(configuration: Any) -> None:
+    config = _require_dict(configuration, "plan_configuration_shape")
+    if set(config) != {"provider_config", "root_module"}:
+        fail("plan_configuration_fields")
+    provider_config = config.get("provider_config")
+    if not isinstance(provider_config, dict) or set(provider_config) != {"cloudflare"}:
+        fail("plan_provider_config_closure")
+    provider = _require_dict(
+        provider_config["cloudflare"], "plan_provider_config_shape"
+    )
+    # OpenTofu 1.12.5 emits version_constraint for a provider configured by a
+    # required_providers block; it does not emit Terraform's older alias or
+    # expressions fields for this empty provider block.
+    if set(provider) != {"name", "full_name", "version_constraint"}:
+        fail("plan_provider_config_fields")
+    if (
+        provider.get("name") != "cloudflare"
+        or provider.get("full_name") != RESOURCE_PROVIDER
+        or provider.get("version_constraint") != "5.23.0"
+    ):
+        fail("plan_provider_config_identity")
+    root = _require_dict(config.get("root_module"), "plan_configuration_root")
+    if set(root) != {"resources", "outputs", "variables"}:
+        fail("plan_configuration_root_fields")
+    resources = root.get("resources")
+    if not isinstance(resources, list):
+        fail("plan_configuration_resources")
+    addresses = [_resource_identity(resource, config=True) for resource in resources]
+    if len(addresses) != len(set(addresses)) or sorted(addresses) != sorted(
+        CONFIG_ADDRESSES
+    ):
+        fail("plan_configuration_resource_closure")
+    for resource in resources:
+        address = resource["address"]
+        expressions = resource["expressions"]
+        if set(expressions) != CONFIG_EXPRESSION_NAMES[address]:
+            fail("plan_configuration_expression_closure")
+        # _resource_identity already compares the full semantic expression
+        # tree; this second walk rejects malformed marker/reference leaves.
+        _validate_expression_map(expressions, f"plan_configuration.{address}")
+    outputs = root["outputs"]
+    if not isinstance(outputs, dict) or set(outputs) != set(OUTPUT_NAMES):
+        fail("plan_configuration_outputs")
+    for output_name, output in outputs.items():
+        if not isinstance(output, dict) or set(output) != {
+            "expression",
+            "description",
+        }:
+            fail("plan_configuration_output_shape")
+        expected = CONFIG_OUTPUT_EXPRESSIONS[output_name]
+        if not _strict_equal(output["expression"], expected):
+            fail("plan_configuration_output_semantics")
+        if output.get("description") != CONFIG_OUTPUT_DESCRIPTIONS[output_name]:
+            fail("plan_configuration_output_description")
+        _validate_expression(
+            output["expression"], f"plan_configuration.outputs.{output_name}"
+        )
+    variables = root["variables"]
+    if not isinstance(variables, dict) or set(variables) != set(VARIABLE_NAMES):
+        fail("plan_configuration_variables")
+    for variable_name, variable in variables.items():
+        if not isinstance(variable, dict) or not _strict_equal(
+            variable, CONFIG_VARIABLES[variable_name]
+        ):
+            fail("plan_configuration_variable_semantics")
+    _validate_markers(config, location="configuration")
+
+
+def _validate_plan_provenance(plan_bytes: bytes, provenance_path: Path | str) -> None:
+    receipt = _load_json(provenance_path)
+    if not isinstance(receipt, dict) or set(receipt) != {
+        "artifact",
+        "artifact_sha256",
+        "tofu_path",
+        "tofu_sha256",
+        "tofu_version",
+        "provider",
+        "provider_version",
+        "source",
+    }:
+        fail("plan_provenance_fields")
+    if receipt["artifact"] != "refresh-only-plan-json":
+        fail("plan_provenance_artifact")
+    digest = receipt["artifact_sha256"]
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        fail("plan_provenance_digest")
+    if digest != hashlib.sha256(plan_bytes).hexdigest():
+        fail("plan_provenance_digest_mismatch")
+    if (
+        receipt["tofu_path"] != TOFU_PATH
+        or receipt["tofu_sha256"] != TOFU_SHA256
+        or receipt["tofu_version"] != "1.12.5"
+        or receipt["provider"] != "cloudflare"
+        or receipt["provider_version"] != "5.23.0"
+        or receipt["source"] != "pinned-cli-show-json"
+    ):
+        fail("plan_provenance_identity")
+    _validate_markers(receipt, location="plan_provenance")
+
+
+def _validate_plan(
+    path: Path | str,
+    provenance_path: Path | str,
+    identity_source: Path | str,
+) -> None:
+    plan_bytes = _open_input(path)
+    plan = _load_json_from_bytes(plan_bytes)
+    _validate_plan_provenance(plan_bytes, provenance_path)
+    identity = _load_state_identity(identity_source)
+    if not isinstance(plan, dict):
+        fail("plan_shape")
+    allowed_top = {
+        "format_version",
+        "terraform_version",
+        "variables",
+        "planned_values",
+        "resource_changes",
+        "resource_drift",
+        "deferred_changes",
+        "output_changes",
+        "prior_state",
+        "configuration",
+        "relevant_attributes",
+        "checks",
+        "errored",
+        "complete",
+        "timestamp",
+    }
+    if set(plan) - allowed_top:
+        fail("plan_top_level_keys")
+    required = {
+        "format_version",
+        "terraform_version",
+        "variables",
+        "planned_values",
+        "output_changes",
+        "prior_state",
+        "configuration",
+        "errored",
+    }
+    if not required.issubset(plan):
+        fail("plan_required_fields")
+    if plan.get("format_version") != "1.2":
+        fail("plan_format_version")
+    if plan.get("terraform_version") != "1.12.5":
+        fail("plan_tofu_version")
+    if plan.get("errored") is not False:
+        fail("plan_errored")
+    if "complete" in plan and plan["complete"] is not True:
+        fail("plan_complete")
+    if "timestamp" in plan and (
+        not isinstance(plan["timestamp"], str)
+        or not ISO_UTC_RE.fullmatch(plan["timestamp"])
+    ):
+        fail("plan_timestamp")
+    for field in (
+        "resource_changes",
+        "resource_drift",
+        "deferred_changes",
+        "relevant_attributes",
+    ):
+        if field in plan and plan[field] not in (None, []):
+            fail(f"plan_{field}")
+    if "checks" in plan and plan["checks"] != []:
+        fail("plan_checks")
+    planned = _require_dict(plan["planned_values"], "plan_planned_values")
+    if set(planned) - {"root_module", "outputs"}:
+        fail("plan_planned_values_fields")
+    root = _require_dict(planned.get("root_module"), "plan_planned_values_root_module")
+    if root != {}:
+        fail("plan_planned_values_root_module")
+    _validate_output_surface(planned, "plan_planned_values")
+    _validate_variables(plan["variables"])
+    _validate_configuration(plan["configuration"])
+
+    # The no-op output surface is only meaningful when both the planned values
+    # and the exact prior-state projection are present.  An empty object here
+    # would otherwise allow an arbitrary output_changes claim to pass.
+    prior = plan["prior_state"]
+    if not isinstance(prior, dict) or set(prior) != {
+        "format_version",
+        "terraform_version",
+        "values",
+    }:
+        fail("plan_prior_state")
+    if (
+        prior.get("format_version") != "1.0"
+        or prior.get("terraform_version") != "1.12.5"
+    ):
+        fail("plan_prior_state_version")
+    prior_values = prior.get("values")
+    if not isinstance(prior_values, dict) or set(prior_values) != {
+        "outputs",
+        "root_module",
+    }:
+        fail("plan_prior_state_values")
+    prior_root = prior_values.get("root_module")
+    if not isinstance(prior_root, dict) or set(prior_root) != {"resources"}:
+        fail("plan_prior_state_root_module")
+    prior_resources = prior_root.get("resources")
+    if not isinstance(prior_resources, list) or len(prior_resources) != len(
+        POST_ADDRESSES
+    ):
+        fail("plan_prior_state_resource_closure")
+    prior_addresses = [_resource_identity(resource) for resource in prior_resources]
+    if sorted(prior_addresses) != sorted(POST_ADDRESSES) or len(
+        prior_addresses
+    ) != len(set(prior_addresses)):
+        fail("plan_prior_state_resource_closure")
+    for resource in prior_resources:
+        _validate_state_resource_projection(resource)
+    _validate_state_identity_bindings(prior_resources, identity)
+    _validate_output_surface(prior_values, "plan_prior_state")
+    if not _strict_equal(planned["outputs"], prior_values["outputs"]):
+        fail("plan_output_surface_mismatch")
+    prior_resource_ids = frozenset(id(resource) for resource in prior_resources)
+    _validate_markers(prior, location="prior_state", allowed_resource_ids=prior_resource_ids)
+    outputs = plan["output_changes"]
+    if not isinstance(outputs, dict) or set(outputs) != set(OUTPUT_NAMES):
+        fail("plan_output_closure")
+    for name in OUTPUT_NAMES:
+        _validate_output_change(name, outputs[name])
+    _validate_plan_output_bindings(outputs, planned, prior_values, prior_resources)
+    _validate_markers(plan, allowed_resource_ids=prior_resource_ids)
+    print(
+        "state_scope=accepted phase=plan outputs=5 actions=no-op resource_changes=absent-or-empty configuration=7 variables=5"
+    )
+
+
+def main() -> NoReturn:
+    if len(sys.argv) == 3 and sys.argv[1] in {"pre", "post"}:
+        _validate_address_list(sys.argv[1], Path(sys.argv[2]))
+        raise SystemExit(0)
+    if (
+        len(sys.argv) == 5
+        and sys.argv[1] in {"state", "state-json"}
+        and sys.argv[2] in {"pre", "post"}
+    ):
+        # The identity profile and state JSON are both verified descriptors;
+        # neither is reopened by pathname after the producer boundary.
+        _validate_state_json(sys.argv[2], sys.argv[4], sys.argv[3])
+        raise SystemExit(0)
+    if (
+        len(sys.argv) == 4
+        and sys.argv[1] in {"state", "state-json"}
+        and sys.argv[2] in {"pre", "post"}
+    ):
+        _validate_state_json(sys.argv[2], sys.argv[3])
+        raise SystemExit(0)
+    if len(sys.argv) == 3 and sys.argv[1] in {"state", "state-json"}:
+        _validate_state_json("post", Path(sys.argv[2]))
+        raise SystemExit(0)
+    if (
+        len(sys.argv) == 4
+        and sys.argv[1] == "resource"
+        and sys.argv[2] == "reactive_resume_dev_tailscale"
+    ):
+        _validate_resource_text(sys.argv[2], Path(sys.argv[3]))
+        raise SystemExit(0)
+    if len(sys.argv) == 5 and sys.argv[1] == "plan":
+        _validate_plan(sys.argv[2], sys.argv[3], sys.argv[4])
+        raise SystemExit(0)
+    fail("usage")
+
+
+if __name__ == "__main__":
+    main()

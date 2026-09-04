@@ -43,11 +43,19 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
     exit 78
 }
 source_manifest="$root/bin/SOURCE.sha256"
-source_manifest_expected_sha256='6652e713706a791435e4b3bc3710d8a1fbb3bf7eaa7c9c4ba7b57b2c7bd5dd8c'
-source_prod_expected_canonical_sha256='097eaa9099f119f0289ddfe682b4ff15288ac13aab3c63e6f06f6e352a463aa5'
+source_manifest_expected_sha256='21696223fa3d0b1427f7d5ccde5b9009922883238f242fe38a27940ac53b1da2'
+source_prod_expected_canonical_sha256='b55050cdc408b41b5d4f8cd8785ea89f1f3e7151dd476dbc449f1f61bb0922de'
 validator="$root/bin/validate-foundation-prod-plan"
 state_scope_validator="$root/bin/validate-foundation-state-scope"
+# These digests are independently pinned from the verified source manifest.
+# Validators are copied into sealed memfds before execution, so a pathname
+# replacement or in-place edit cannot change the bytes consumed by Python.
+validator_sha256='d71903de9ff59799823cb1ab76c23490ee9882fc51fe8720c5513ca5f5e35d6d'
+state_scope_validator_sha256='4815be448015ef39ac741d1db930f1d4c251ae7a156a1092052b82bb8beb8a40'
 [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
+[ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$source_manifest")" = 'paul:paul:644:regular file:1' ] || exit 78
+[ -d "$root/bin" ] && [ ! -L "$root/bin" ] || exit 78
+[ "$(/usr/bin/stat -c '%U:%G:%a:%F' "$root/bin")" = 'paul:paul:755:directory' ] || exit 78
 [ -x "$validator" ] && [ ! -L "$validator" ] || exit 78
 [ -x "$state_scope_validator" ] && [ ! -L "$state_scope_validator" ] || exit 78
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-prod-source.XXXXXX)
@@ -55,6 +63,8 @@ chmod 0700 "$source_work"
 trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM
 source_expected_paths="$source_work/expected-paths"
 source_actual_paths="$source_work/actual-paths"
+bin_expected_paths="$source_work/bin-expected-paths"
+bin_actual_paths="$source_work/bin-actual-paths"
 root_expected_files="$source_work/root-expected-files"
 root_actual_files="$source_work/root-actual-files"
 /usr/bin/cat >"$source_expected_paths" <<'EOF'
@@ -70,6 +80,13 @@ outputs.tf
 providers.tf
 variables.tf
 versions.tf
+EOF
+/usr/bin/cat >"$bin_expected_paths" <<'EOF'
+f SOURCE.sha256
+f plan-foundation-prod-route
+f reconcile-foundation-state
+f validate-foundation-prod-plan
+f validate-foundation-state-scope
 EOF
 refresh_root_expected_files() {
     /usr/bin/cat >"$root_expected_files" <<'EOF'
@@ -91,7 +108,9 @@ EOF
 }
 revalidate_source_closure() {
     refresh_root_expected_files
-    [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_manifest")" = 'paul:paul:644' ] || exit 78
+    [ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$source_manifest")" = 'paul:paul:644:regular file:1' ] || exit 78
+    [ -d "$root/bin" ] && [ ! -L "$root/bin" ] || exit 78
+    [ "$(/usr/bin/stat -c '%U:%G:%a:%F' "$root/bin")" = 'paul:paul:755:directory' ] || exit 78
     [ "$(/usr/bin/sha256sum "$source_manifest" | /usr/bin/cut -d ' ' -f 1)" = "$source_manifest_expected_sha256" ] || {
         printf '%s\n' 'Refusing OpenTofu PROD source manifest drift.' >&2
         exit 78
@@ -99,6 +118,11 @@ revalidate_source_closure() {
     /usr/bin/find "$root" -mindepth 1 -maxdepth 1 -printf '%y %f\n' | /usr/bin/sort >"$root_actual_files"
     /usr/bin/cmp -s "$root_expected_files" "$root_actual_files" || {
         printf '%s\n' 'Refusing extra or non-regular OpenTofu root entry.' >&2
+        exit 78
+    }
+    /usr/bin/find "$root/bin" -mindepth 1 -maxdepth 1 -printf '%y %f\n' | /usr/bin/sort >"$bin_actual_paths"
+    /usr/bin/cmp -s "$bin_expected_paths" "$bin_actual_paths" || {
+        printf '%s\n' 'Refusing extra or non-regular OpenTofu bin entry.' >&2
         exit 78
     }
     source_manifest_snapshot="$source_work/source-manifest.current"
@@ -120,10 +144,11 @@ revalidate_source_closure() {
         source_file="$root/$source_path"
         [ -f "$source_file" ] && [ ! -L "$source_file" ] || exit 78
         case "$source_path" in
+            bin/SOURCE.sha256) source_mode=644 ;;
             bin/*) source_mode=755 ;;
             *) source_mode=644 ;;
         esac
-        [ "$(/usr/bin/stat -c '%a' "$source_file")" = "$source_mode" ] || exit 78
+        [ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$source_file")" = "paul:paul:$source_mode:regular file:1" ] || exit 78
         if [ "$source_path" = 'bin/plan-foundation-prod-route' ]; then
             source_canonical="$source_work/plan-foundation-prod-route.canonical"
             /usr/bin/sed -E \
@@ -157,27 +182,27 @@ state_file="$state_parent/foundation.tfstate"
 /usr/bin/grep -Fxq '    path = "/var/lib/opentofu/cristexweb/foundation.tfstate"' "$backend" || exit 78
 [ -d "$state_parent" ] && [ ! -L "$state_parent" ] || exit 65
 [ "$(/usr/bin/realpath -e -- "$state_parent")" = "$state_parent" ] || exit 65
-[ "$(/usr/bin/stat -c '%U:%G:%a' "$state_parent")" = 'paul:root:700' ] || exit 65
+[ "$(/usr/bin/stat -c '%U:%G:%a:%F' "$state_parent")" = 'paul:root:700:directory' ] || exit 65
+state_parent_links=$(/usr/bin/stat -c '%h' "$state_parent") || exit 65
+[ "$state_parent_links" -ge 2 ] || exit 65
 [ -f "$state_file" ] && [ ! -L "$state_file" ] || exit 73
 [ "$(/usr/bin/realpath -e -- "$state_file")" = "$state_file" ] || exit 73
-[ "$(/usr/bin/stat -c '%U:%G:%a' "$state_file")" = 'paul:paul:600' ] || exit 73
+[ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$state_file")" = 'paul:paul:600:regular file:1' ] || exit 73
 
 tofu=/usr/local/bin/tofu
 tofu_target=/opt/opentofu/1.12.5/tofu
+tofu_sha256=36dae7ca1e4f1552a6faef27179dc16ef403203e956f31416c17b3d87a38c3f4
 [ -L "$tofu" ] && [ "$(/usr/bin/readlink -f -- "$tofu")" = "$tofu_target" ] || exit 69
 [ -f "$tofu_target" ] && [ ! -L "$tofu_target" ] || exit 69
-[ "$(/usr/bin/stat -c '%U:%G:%a' "$tofu_target")" = 'root:root:755' ] || exit 69
-# The Cloudflare provider consumes CLOUDFLARE_API_TOKEN from its process
-# environment.  The wrapper starts a clean same-UID child, supplies the token
-# only on that child's stdin, and exports it immediately before exec.  This is
-# compatible with the provider without claiming that /proc or a privileged
-# same-UID observer can be prevented from seeing the child environment.
+[ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$tofu_target")" = 'root:root:755:regular file:1' ] || exit 69
+[ "$(/usr/bin/sha256sum "$tofu_target" | /usr/bin/cut -d ' ' -f 1)" = "$tofu_sha256" ] || exit 69
 
 work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-prod-plan.XXXXXX)
 chmod 0700 "$work"
 log="$work/tofu.stderr"
 identity_file="$work/foundation-prod-route-identities.json"
-state_before_sha256=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f 1)
+state_identity=
+state_before_sha256=
 cloudflare_account_id=
 cloudflare_zone_id=
 cloudflare_token=
@@ -200,92 +225,392 @@ cleanup() {
     /usr/bin/rm -rf -- "$work" "$source_work"
 }
 trap cleanup EXIT HUP INT TERM
-clean_exec() {
-    /usr/bin/env -i \
-        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" \
-        TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
-        CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256="${identity_sha256-}" \
-        TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
-        TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
-        "$@"
+revalidate_state_metadata() {
+    # Metadata-only checks are repeated after the parent lock and immediately
+    # before every state/plan consumer.  The captured dev:ino guards against a
+    # cooperating-path swap; a coordinated trusted-UID/root writer remains an
+    # explicitly documented residual outside this entrypoint's boundary.
+    [ -f "$backend" ] && [ ! -L "$backend" ] || exit 78
+    /usr/bin/grep -Fxq '    path = "/var/lib/opentofu/cristexweb/foundation.tfstate"' "$backend" || exit 78
+    [ -d "$state_parent" ] && [ ! -L "$state_parent" ] || exit 65
+    [ "$(/usr/bin/realpath -e -- "$state_parent")" = "$state_parent" ] || exit 65
+    [ "$(/usr/bin/stat -c '%U:%G:%a:%F' "$state_parent")" = 'paul:root:700:directory' ] || exit 65
+    state_parent_links=$(/usr/bin/stat -c '%h' "$state_parent") || exit 65
+    [ "$state_parent_links" -ge 2 ] || exit 65
+    [ -f "$state_file" ] && [ ! -L "$state_file" ] || exit 73
+    [ "$(/usr/bin/realpath -e -- "$state_file")" = "$state_file" ] || exit 73
+    [ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$state_file")" = 'paul:paul:600:regular file:1' ] || exit 73
+    current_state_identity=$(/usr/bin/stat -Lc '%d:%i' "$state_file") || exit 73
+    if [ -n "${state_identity-}" ] && [ "$current_state_identity" != "$state_identity" ]; then
+        printf '%s\n' 'Refusing protected state inode replacement.' >&2
+        exit 73
+    fi
+    state_identity=$current_state_identity
+}
+
+# Every capture is created atomically by a descriptor-retaining producer.  The
+# validator receives fd:8 after its identity is compared, never a reopened
+# capture pathname.  The binary plan descriptor is retained across plan/show.
+safe_runner_code='
+import os
+import stat
+import subprocess
+import sys
+
+def new_output(path):
+    flags = (os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC
+             | getattr(os, "O_NOFOLLOW", 0))
+    fd = os.open(path, flags, 0o600)
+    info = os.fstat(fd)
+    if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600
+            or info.st_uid != os.getuid() or info.st_nlink != 1):
+        os.close(fd)
+        raise SystemExit(78)
+    return fd, info
+
+out_fd, out_info = new_output(sys.argv[1])
+err_fd, err_info = new_output(sys.argv[2])
+try:
+    result = subprocess.run(sys.argv[3:], stdin=subprocess.DEVNULL,
+                            stdout=out_fd, stderr=err_fd, check=False)
+finally:
+    os.close(out_fd)
+    os.close(err_fd)
+print(f"{out_info.st_dev}:{out_info.st_ino}")
+raise SystemExit(result.returncode)
+'
+safe_plan_runner_code='
+import os
+import stat
+import subprocess
+import sys
+
+def new_output(path):
+    flags = (os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC
+             | getattr(os, "O_NOFOLLOW", 0))
+    fd = os.open(path, flags, 0o600)
+    info = os.fstat(fd)
+    if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600
+            or info.st_uid != os.getuid() or info.st_nlink != 1):
+        os.close(fd)
+        raise SystemExit(78)
+    return fd, info
+
+def open_plan(path):
+    flags = (os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC
+             | getattr(os, "O_NOFOLLOW", 0))
+    fd = os.open(path, flags, 0o600)
+    info = os.fstat(fd)
+    if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600
+            or info.st_uid != os.getuid() or info.st_nlink != 1):
+        os.close(fd)
+        raise SystemExit(78)
+    return fd
+
+plan_path, stdout_path, json_path, stderr_path = sys.argv[1:5]
+all_args = list(sys.argv[5:])
+try:
+    marker = all_args.index("--SHOW-COMMAND--")
+except ValueError:
+    raise SystemExit(78)
+plan_args = all_args[:marker]
+show_args = all_args[marker + 1:]
+if not plan_args or not show_args:
+    raise SystemExit(78)
+plan_fd = open_plan(plan_path)
+out_fd, out_info = new_output(stdout_path)
+json_fd, json_info = new_output(json_path)
+err_fd, err_info = new_output(stderr_path)
+try:
+    plan_args = [
+        (f"-out=/proc/self/fd/{plan_fd}" if arg == f"-out={plan_path}" else arg)
+        for arg in plan_args
+    ]
+    show_args = [
+        (f"/proc/self/fd/{plan_fd}" if arg == plan_path else arg)
+        for arg in show_args
+    ]
+    plan_result = subprocess.run(
+        plan_args, stdin=subprocess.DEVNULL, stdout=out_fd, stderr=err_fd,
+        pass_fds=(plan_fd,), check=False
+    )
+    if plan_result.returncode:
+        raise SystemExit(plan_result.returncode)
+    show_result = subprocess.run(
+        show_args, stdin=subprocess.DEVNULL, stdout=json_fd, stderr=err_fd,
+        pass_fds=(plan_fd,), check=False
+    )
+finally:
+    os.close(out_fd)
+    os.close(json_fd)
+    os.close(err_fd)
+    os.close(plan_fd)
+print(f"{json_info.st_dev}:{json_info.st_ino}")
+raise SystemExit(show_result.returncode)
+'
+# Read the validator once, verify its exact manifest digest, then execute the
+# verified bytes from a sealed Linux memfd.  Unlike /proc/self/fd on a regular
+# file, a sealed memfd remains immutable even if a same-UID editor changes the
+# source pathname after attestation.
+immutable_validator_runner_code='
+import fcntl
+import hashlib
+import os
+import re
+import stat
+import subprocess
+import sys
+
+F_ADD_SEALS = getattr(fcntl, "F_ADD_SEALS", 1033)
+F_GET_SEALS = getattr(fcntl, "F_GET_SEALS", 1034)
+F_SEAL_SEAL = getattr(fcntl, "F_SEAL_SEAL", 1)
+F_SEAL_SHRINK = getattr(fcntl, "F_SEAL_SHRINK", 2)
+F_SEAL_GROW = getattr(fcntl, "F_SEAL_GROW", 4)
+F_SEAL_WRITE = getattr(fcntl, "F_SEAL_WRITE", 8)
+
+source_path, expected_digest, *child_args = sys.argv[1:]
+if not re.fullmatch(r"[0-9a-f]{64}", expected_digest):
+    raise SystemExit(78)
+source_fd = os.open(
+    source_path,
+    os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
+)
+memfd = -1
+try:
+    source_info = os.fstat(source_fd)
+    if (
+        not stat.S_ISREG(source_info.st_mode)
+        or stat.S_IMODE(source_info.st_mode) != 0o755
+        or source_info.st_uid != os.getuid()
+        or source_info.st_nlink != 1
+    ):
+        raise SystemExit(78)
+    source_bytes = bytearray()
+    while True:
+        chunk = os.read(source_fd, 1024 * 1024)
+        if not chunk:
+            break
+        source_bytes.extend(chunk)
+    if hashlib.sha256(source_bytes).hexdigest() != expected_digest:
+        raise SystemExit(78)
+    memfd = os.memfd_create("cristexweb-verified-validator", os.MFD_ALLOW_SEALING)
+    offset = 0
+    while offset < len(source_bytes):
+        written = os.write(memfd, source_bytes[offset:])
+        if written <= 0:
+            raise SystemExit(78)
+        offset += written
+    seals = F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE
+    fcntl.fcntl(memfd, F_ADD_SEALS, seals)
+    if fcntl.fcntl(memfd, F_GET_SEALS) & seals != seals:
+        raise SystemExit(78)
+    pass_fds = {memfd}
+    for argument in child_args:
+        match = re.fullmatch(r"fd:([0-9]+)", argument)
+        if match:
+            inherited_fd = int(match.group(1))
+            if inherited_fd < 3 or inherited_fd == memfd:
+                raise SystemExit(78)
+            os.fstat(inherited_fd)
+            pass_fds.add(inherited_fd)
+    result = subprocess.run(
+        ["/usr/bin/python3", f"/proc/self/fd/{memfd}", *child_args],
+        stdin=None,
+        stdout=None,
+        stderr=None,
+        pass_fds=tuple(sorted(pass_fds)),
+        check=False,
+    )
+finally:
+    if memfd >= 0:
+        os.close(memfd)
+    os.close(source_fd)
+raise SystemExit(result.returncode)
+'
+run_immutable_validator() {
+    validator_path=$1
+    validator_digest=$2
+    shift 2
+    revalidate_source_closure
+    revalidate_state_metadata
+    if /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin LC_ALL=C \
+        PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+        /usr/bin/python3 -c "$immutable_validator_runner_code" \
+        "$validator_path" "$validator_digest" "$@"; then
+        result=0
+    else
+        result=$?
+    fi
+    revalidate_source_closure
+    revalidate_state_metadata
+    return "$result"
 }
 run_capture() {
-    revalidate_source_closure
     capture_file=$1
     shift
-    : >"$capture_file"
-    chmod 0600 "$capture_file"
-    : >"$log"
-    chmod 0600 "$log"
-    clean_exec "$@" >"$capture_file" 2>"$log" || {
-        printf 'prod_plan_status=failed stage=tofu_command\n' >&2
-        exit 1
-    }
+    revalidate_source_closure
+    revalidate_state_metadata
+    log_file="$capture_file.stderr"
+    capture_identity=$(
+        /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin LC_ALL=C \
+            TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default \
+            TOFU_DISABLE_CHECKPOINT=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 \
+            /usr/bin/python3 -c "$safe_runner_code" "$capture_file" "$log_file" "$@"
+    ) || { printf 'prod_plan_status=failed stage=tofu_command\n' >&2; exit 1; }
 }
 run_capture_with_token() {
-    # The token crosses the provider process boundary through an anonymous pipe,
-    # never argv, a caller-supplied/inherited environment, a file, plan output,
-    # or a receipt.  OpenTofu's provider API requires the token environment
-    # variable, so the clean same-UID child exports it immediately before exec.
-    # No privilege escalation, PTY, or privileged I/O logging policy is assumed.
+    # The token is carried only over this anonymous pipe.  It is intentionally
+    # not exported by this shell or placed in argv, a file, a plan, or a receipt.
     revalidate_source_closure
+    revalidate_state_metadata
     capture_file=$1
     shift
-    : >"$capture_file"
-    chmod 0600 "$capture_file"
-    : >"$log"
-    chmod 0600 "$log"
-    # This unqualified `printf` is the dash builtin.  Its only pipe consumer
-    # receives token bytes on stdin; no external process receives token argv.
-    printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
-        PATH=/usr/local/bin:/usr/bin:/bin HOME=/home/paul USER=paul LOGNAME=paul LC_ALL=C \
-        TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" \
-        TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
-        CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256="${identity_sha256-}" \
-        TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
-        TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
-        /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' import-child "$@" \
-        >"$capture_file" 2>"$log" || {
-        printf 'prod_plan_status=failed stage=provider_command\n' >&2
-        exit 1
+    log_file="$capture_file.stderr"
+    capture_identity=$(
+        printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
+            PATH=/usr/local/bin:/usr/bin:/bin HOME=/home/paul USER=paul LOGNAME=paul LC_ALL=C \
+            TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" \
+            TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 \
+            TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
+            TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
+            /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' import-child \
+            /usr/bin/python3 -c "$safe_runner_code" "$capture_file" "$log_file" "$@"
+    ) || { printf 'prod_plan_status=failed stage=provider_command\n' >&2; exit 1; }
+}
+run_plan_capture_with_token() {
+    plan_file=$1
+    plan_stdout=$2
+    plan_json=$3
+    shift 3
+    revalidate_source_closure
+    revalidate_state_metadata
+    log_file="$plan_json.stderr"
+    capture_identity=$(
+        printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
+            PATH=/usr/local/bin:/usr/bin:/bin HOME=/home/paul USER=paul LOGNAME=paul LC_ALL=C \
+            TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" \
+            TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 \
+            TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
+            TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
+            /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' import-child \
+            /usr/bin/python3 -c "$safe_plan_runner_code" "$plan_file" "$plan_stdout" "$plan_json" "$log_file" "$@"
+    ) || { printf 'prod_plan_status=failed stage=provider_plan_or_show\n' >&2; exit 1; }
+}
+consume_capture() {
+    capture_file=$1
+    validator_path=$2
+    shift 2
+    exec 8<"$capture_file" || exit 78
+    actual_identity=$(/usr/bin/stat -Lc '%d:%i' /proc/self/fd/8) || { exec 8<&-; exit 78; }
+    [ "$actual_identity" = "$capture_identity" ] || {
+        exec 8<&-
+        printf '%s\n' 'Refusing capture inode replacement.' >&2
+        exit 78
     }
-}
-run_python() {
     revalidate_source_closure
-    /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
-        CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256="${identity_sha256-}" \
-        CRISTEXWEB_PROD_ROUTE_IDENTITY_ATTESTATION="${identity_attestation-}" \
-        /usr/bin/python3 "$@"
-}
-run_python_with_token() {
-    # The validator receives the token on stdin solely to reject an unexpected
-    # token-bearing JSON projection.  It never arrives in argv or environment.
+    revalidate_state_metadata
+    if /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin LC_ALL=C \
+        PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+        /usr/bin/python3 -c "$immutable_validator_runner_code" \
+        "$validator_path" "$state_scope_validator_sha256" "$@" fd:8; then
+        result=0
+    else
+        result=$?
+    fi
     revalidate_source_closure
-    printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
-        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
-        CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256="${identity_sha256-}" \
-        CRISTEXWEB_PROD_ROUTE_IDENTITY_ATTESTATION="${identity_attestation-}" \
-        /usr/bin/python3 "$@" --token-stdin
+    revalidate_state_metadata
+    exec 8<&-
+    return "$result"
 }
 validate_state_scope() {
     list_file=$work/state-$1.list
     run_capture "$list_file" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" state list -state="$state_file" -no-color
-    revalidate_source_closure
-    run_python "$state_scope_validator" post "$list_file" >/dev/null || {
+    consume_capture "$list_file" "$state_scope_validator" post || {
         printf 'prod_plan_status=failed stage=state_scope\n' >&2
         exit 1
     }
 }
 validate_state_unchanged() {
+    revalidate_state_metadata
     state_after_sha256=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f 1)
+    revalidate_state_metadata
     [ "$state_after_sha256" = "$state_before_sha256" ] || {
         printf '%s\n' 'Refusing OpenTofu state mutation during plan-only operation.' >&2
         exit 73
     }
-    [ "$(/usr/bin/stat -c '%U:%G:%a' "$state_file")" = 'paul:paul:600' ] || exit 73
+}
+provenance_writer_code='
+import json
+import os
+import stat
+import sys
+
+path, digest, tofu_sha = sys.argv[1:]
+data = json.dumps({
+    "artifact": "refresh-only-plan-json",
+    "artifact_sha256": digest,
+    "tofu_path": "/opt/opentofu/1.12.5/tofu",
+    "tofu_sha256": tofu_sha,
+    "tofu_version": "1.12.5",
+    "provider": "cloudflare",
+    "provider_version": "5.23.0",
+    "source": "pinned-cli-show-json",
+}, separators=(",", ":")).encode()
+fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | getattr(os, "O_NOFOLLOW", 0), 0o600)
+try:
+    info = os.fstat(fd)
+    if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600
+            or info.st_uid != os.getuid() or info.st_nlink != 1):
+        raise SystemExit(78)
+    os.write(fd, data)
+finally:
+    os.close(fd)
+'
+write_plan_provenance() {
+    plan_json=$1
+    provenance=$2
+    exec 8<"$plan_json" || exit 78
+    actual_identity=$(/usr/bin/stat -Lc '%d:%i' /proc/self/fd/8) || { exec 8<&-; exit 78; }
+    [ "$actual_identity" = "$capture_identity" ] || { exec 8<&-; exit 78; }
+    plan_digest=$(/usr/bin/sha256sum /proc/self/fd/8 | /usr/bin/cut -d ' ' -f 1) || { exec 8<&-; exit 78; }
+    exec 8<&-
+    /usr/bin/env -i HOME=/home/paul PATH=/usr/bin:/bin LC_ALL=C PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+        /usr/bin/python3 -c "$provenance_writer_code" "$provenance" "$plan_digest" "$tofu_sha256"
+}
+validate_prod_plan() {
+    plan_json=$1
+    provenance=$2
+    revalidate_source_closure
+    revalidate_state_metadata
+    exec 8<"$plan_json" || exit 78
+    actual_identity=$(/usr/bin/stat -Lc '%d:%i' /proc/self/fd/8) || { exec 8<&-; exit 78; }
+    [ "$actual_identity" = "$capture_identity" ] || {
+        exec 8<&-
+        printf '%s\n' 'Refusing plan JSON inode replacement.' >&2
+        exit 78
+    }
+    exec 7<"$provenance" || { exec 8<&-; exit 78; }
+    exec 6<"$identity_file" || { exec 7<&-; exec 8<&-; exit 78; }
+    # `fd:8` is the provider show capture, `fd:6` is the prompt identity, and
+    # `fd:7` is the digest-bound provenance sidecar; no validator input is a
+    # pathname reopened after the descriptor boundary.
+    if printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
+        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin LC_ALL=C \
+        PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+        CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256="${identity_sha256-}" \
+        CRISTEXWEB_PROD_ROUTE_IDENTITY_ATTESTATION="${identity_attestation-}" \
+        /usr/bin/python3 -c "$immutable_validator_runner_code" \
+        "$validator" "$validator_sha256" fd:8 fd:6 fd:7 --token-stdin; then
+        result=0
+    else
+        result=$?
+    fi
+    revalidate_source_closure
+    revalidate_state_metadata
+    exec 6<&-
+    exec 7<&-
+    exec 8<&-
+    return "$result"
 }
 
 # Lock the protected state-parent inode without creating a lock file.  The same
@@ -295,6 +620,11 @@ exec 9<"$state_parent"
     printf '%s\n' 'Refusing concurrent foundation PROD plan.' >&2
     exit 75
 }
+# Establish the locked baseline only after flock.  Every later state consumer
+# repeats the metadata/dev:ino check immediately before opening its capture.
+state_identity=
+revalidate_state_metadata
+state_before_sha256=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f 1)
 validate_state_scope pre
 if [ "$mode" = check ]; then
     validate_state_unchanged
@@ -392,14 +722,19 @@ validate_state_scope before-plan
 plan_file="$work/foundation-prod-route.tfplan"
 plan_stdout="$work/foundation-prod-route-plan.out"
 plan_json="$work/foundation-prod-route-plan.json"
+plan_provenance="$work/foundation-prod-route-plan.provenance.json"
 # Keep the binary plan artifact separate from captured human-readable stdout;
-# redirecting both to one path would corrupt the artifact before validation.
-run_capture_with_token "$plan_stdout" /usr/bin/timeout --foreground --kill-after=10s 120 "$tofu" -chdir="$root" plan -input=false -lock=true -no-color -out="$plan_file"
+# the descriptor-retaining runner prevents stdout from corrupting -out.
+# The legacy run_capture_with_token "$plan_stdout" form is intentionally not
+# used: plan/show share one verified binary-plan descriptor instead.
+run_plan_capture_with_token "$plan_file" "$plan_stdout" "$plan_json" \
+    /usr/bin/timeout --foreground --kill-after=10s 120 "$tofu" -chdir="$root" plan -input=false -lock=true -no-color -out="$plan_file" \
+    --SHOW-COMMAND-- \
+    /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" show -json -no-color "$plan_file"
 validate_state_unchanged
-run_capture "$plan_json" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" show -json "$plan_file"
-validate_state_unchanged
-revalidate_source_closure
-run_python_with_token "$validator" "$plan_json" "$identity_file" >/dev/null || {
+write_plan_provenance "$plan_json" "$plan_provenance"
+revalidate_state_metadata
+validate_prod_plan "$plan_json" "$plan_provenance" >/dev/null || {
     printf 'prod_plan_status=failed stage=plan_contract\n' >&2
     exit 1
 }

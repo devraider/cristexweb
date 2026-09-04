@@ -49,11 +49,20 @@ The validator models the pinned Cloudflare 5.23.0 DNS and
 Tunnel computed-field schema, requiring every provider-emitted computed field on
 both sides of a no-op and rejecting computed drift, deferred changes, sensitive
 values, or any expanded/mutating plan. The PROD validator consumes a mode-0600
-identity attestation from the canonical wrapper and rejects direct unbound
-invocation. This state-refresh gate does not run or authorize
+identity attestation and mandatory descriptor-bound plan provenance from the
+canonical wrapper, binding the fixed account, zone, Tunnel UUID, Tunnel
+account_tag, and existing record identities; it rejects direct unbound
+invocation and missing provenance. This state-refresh gate does not run or authorize
 the separate PROD Tunnel/DNS plan.
 
 ## State and secret boundary
+
+State-parent validation accepts the normal Debian directory link count (at least
+ two) while requiring single-link regular capture/state files. Protected state
+device/inode identity is compared again after the lock and immediately before
+each state consumer. Captures are re-attested after production, and each validator source is
+independently hashed, copied into a sealed Linux memfd, and executed from
+those immutable bytes after the final source-closure recheck.
 
 The Cloudflare provider stores resource arguments and provider-managed attributes
 in OpenTofu state. The `cloudflare_zero_trust_tunnel_cloudflared` resource accepts

@@ -1,6 +1,6 @@
 #!/bin/sh
-# Source-only guarded reconciliation of one already-live Cloudflare DNS record.
-# This is the only entrypoint for the explicit import operation.
+# Source-only guarded reconciliation of the protected Cloudflare foundation.
+# check is read-only; import imports exactly one already-live DNS record.
 set -eu
 umask 077
 PATH=/usr/local/bin:/usr/bin:/bin
@@ -21,12 +21,11 @@ case "$1" in
     *) printf '%s\n' "$usage" >&2; exit 64 ;;
 esac
 
-# Provider, state, backend, and shell configuration overrides are never accepted
-# from the caller. Import receives the one provider token through an anonymous pipe
-# only after the exact approval and all recovery gates have passed.
+# Never inherit a provider, backend, Python, proxy, recovery, or task-selection
+# override. The import token is introduced only through the anonymous pipe below.
 while IFS='=' read -r inherited_name _; do
     case "$inherited_name" in
-        BASH_ENV|ENV|SHELLOPTS|BASHOPTS|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|http_proxy|https_proxy|all_proxy|no_proxy|TF_CLI_ARGS|TF_CLI_ARGS_*|TF_LOG|TF_LOG_PATH|TF_CLI_CONFIG_FILE|TF_DATA_DIR|TF_WORKSPACE|TF_VAR_*|TOFU_CLI_CONFIG_FILE|TOFU_CLI_ARGS|TOFU_LOG|TOFU_LOG_PATH|PYTHONHOME|PYTHONPATH|PYTHONUSERBASE|PYTHONNOUSERSITE|PYTHONINSPECT|PYTHONSTARTUP|PYTHONBREAKPOINT|CLOUDFLARE_API_TOKEN|CLOUDFLARE_*TOKEN*|CLOUDFLARE_EMAIL|CLOUDFLARE_API_KEY|cloudflare_token|cloudflare_token_sha256|read_hidden_result)
+        BASH_ENV|ENV|SHELLOPTS|BASHOPTS|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|http_proxy|https_proxy|all_proxy|no_proxy|TF_CLI_ARGS|TF_CLI_ARGS_*|TF_PLUGIN_CACHE_DIR|TF_VAR_*|TF_*|TOFU_*|OPENTOFU_*|LD_*|DYLD_*|CLOUDFLARE_API_TOKEN|CLOUDFLARE_EMAIL|CLOUDFLARE_API_KEY|cloudflare_token|cloudflare_token_sha256|PYTHONNOUSERSITE|PYTHON*|ANSIBLE_*|RCLONE_*|INFISICAL_*|read_hidden_result)
             printf 'Refusing inherited environment override: %s\n' "$inherited_name" >&2
             exit 65
             ;;
@@ -44,9 +43,15 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
     exit 78
 }
 source_manifest="$root/bin/SOURCE.sha256"
-source_manifest_expected_sha256='6652e713706a791435e4b3bc3710d8a1fbb3bf7eaa7c9c4ba7b57b2c7bd5dd8c'
-source_reconcile_expected_canonical_sha256='cdeb265225a879861a85d79e56405bd1a93163dec52ab813fefa99ff0c267ccf'
+# The two pins use the canonical placeholder form to avoid a self-referential
+# digest cycle. They are refreshed together with SOURCE.sha256 below.
+source_manifest_expected_sha256='21696223fa3d0b1427f7d5ccde5b9009922883238f242fe38a27940ac53b1da2'
+source_reconcile_expected_canonical_sha256='a03d4d6de188cbe07715dd5f668ca99a15ee2e46995906c4555a2e67510b813a'
 validator="$root/bin/validate-foundation-state-scope"
+# The validator digest is independently pinned from the verified source
+# manifest. It is copied into a sealed memfd before execution, so pathname
+# replacement and in-place edits cannot alter the executed bytes.
+validator_sha256='4815be448015ef39ac741d1db930f1d4c251ae7a156a1092052b82bb8beb8a40'
 [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
 [ -x "$validator" ] && [ ! -L "$validator" ] || exit 78
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-foundation-source.XXXXXX)
@@ -54,6 +59,8 @@ chmod 0700 "$source_work"
 trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM
 source_expected_paths="$source_work/expected-paths"
 source_actual_paths="$source_work/actual-paths"
+bin_expected_paths="$source_work/bin-expected-paths"
+bin_actual_paths="$source_work/bin-actual-paths"
 /usr/bin/cat >"$source_expected_paths" <<'EOF'
 .terraform.lock.hcl
 README.md
@@ -67,6 +74,13 @@ outputs.tf
 providers.tf
 variables.tf
 versions.tf
+EOF
+/usr/bin/cat >"$bin_expected_paths" <<'EOF'
+f SOURCE.sha256
+f plan-foundation-prod-route
+f reconcile-foundation-state
+f validate-foundation-prod-plan
+f validate-foundation-state-scope
 EOF
 root_expected_files="$source_work/root-expected-files"
 root_actual_files="$source_work/root-actual-files"
@@ -89,19 +103,22 @@ EOF
     /usr/bin/sort -o "$root_expected_files" "$root_expected_files"
 }
 revalidate_source_closure() {
-    # OpenTofu may create .terraform during init. Rebuild this allowlist on every
-    # boundary so a clean root remains valid after init while unrelated entries
-    # are still rejected. The import path also pins TF_DATA_DIR below to keep
-    # generated provider data out of this source root entirely.
     refresh_root_expected_files
-    [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_manifest")" = 'paul:paul:644' ] || exit 78
+    [ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$source_manifest")" = 'paul:paul:644:regular file:1' ] || exit 78
+    [ -d "$root/bin" ] && [ ! -L "$root/bin" ] || exit 78
+    [ "$(/usr/bin/stat -c '%U:%G:%a:%F' "$root/bin")" = 'paul:paul:755:directory' ] || exit 78
     [ "$(/usr/bin/sha256sum "$source_manifest" | /usr/bin/cut -d ' ' -f 1)" = "$source_manifest_expected_sha256" ] || {
         printf '%s\n' 'Refusing OpenTofu foundation source manifest drift.' >&2
         exit 78
     }
     /usr/bin/find "$root" -mindepth 1 -maxdepth 1 -printf '%y %f\n' | /usr/bin/sort >"$root_actual_files"
     /usr/bin/cmp -s "$root_expected_files" "$root_actual_files" || {
-        printf '%s\n' 'Refusing extra or non-regular OpenTofu root .tf, .tf.json, auto-var, override, or directory entry.' >&2
+        printf '%s\n' 'Refusing extra or non-regular OpenTofu root entry.' >&2
+        exit 78
+    }
+    /usr/bin/find "$root/bin" -mindepth 1 -maxdepth 1 -printf '%y %f\n' | /usr/bin/sort >"$bin_actual_paths"
+    /usr/bin/cmp -s "$bin_expected_paths" "$bin_actual_paths" || {
+        printf '%s\n' 'Refusing extra or non-regular OpenTofu bin entry.' >&2
         exit 78
     }
     source_manifest_snapshot="$source_work/source-manifest.current"
@@ -123,10 +140,11 @@ revalidate_source_closure() {
         source_file="$root/$source_path"
         [ -f "$source_file" ] && [ ! -L "$source_file" ] || exit 78
         case "$source_path" in
+            bin/SOURCE.sha256) source_mode=644 ;;
             bin/*) source_mode=755 ;;
             *) source_mode=644 ;;
         esac
-        [ "$(/usr/bin/stat -c '%a' "$source_file")" = "$source_mode" ] || exit 78
+        [ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$source_file")" = "paul:paul:$source_mode:regular file:1" ] || exit 78
         if [ "$source_path" = 'bin/reconcile-foundation-state' ]; then
             source_canonical="$source_work/reconcile-foundation-state.canonical"
             /usr/bin/sed -E \
@@ -153,33 +171,46 @@ revalidate_source_closure() {
 }
 revalidate_source_closure
 
-# The backend is fixed by source closure and checked again before every state
-# consumer.  No alternate state path, workspace, or backend configuration is
-# accepted.
 backend="$root/backend.tf"
 state_parent=/var/lib/opentofu/cristexweb
 state_file="$state_parent/foundation.tfstate"
-[ -f "$backend" ] && [ ! -L "$backend" ] || exit 78
-/usr/bin/grep -Fxq '    path = "/var/lib/opentofu/cristexweb/foundation.tfstate"' "$backend" || exit 78
-[ -d "$state_parent" ] && [ ! -L "$state_parent" ] || exit 65
-[ "$(/usr/bin/realpath -e -- "$state_parent")" = "$state_parent" ] || exit 65
-[ "$(/usr/bin/stat -c '%U:%G:%a' "$state_parent")" = 'paul:root:700' ] || exit 65
-[ -f "$state_file" ] && [ ! -L "$state_file" ] || exit 73
-[ "$(/usr/bin/realpath -e -- "$state_file")" = "$state_file" ] || exit 73
-[ "$(/usr/bin/stat -c '%U:%G:%a' "$state_file")" = 'paul:paul:600' ] || exit 73
+state_identity=
+protected_account_id=8b0f511214c7a4a52ddfb62ca92c5e80
+protected_zone_id=3cbee16e56d7656440f93e685807e779
+protected_tunnel_id=f9442440-96df-4cf1-855b-7257868ed9bc
+protected_tunnel_account_tag=8b0f511214c7a4a52ddfb62ca92c5e80
+revalidate_state_metadata() {
+    # This is metadata-only: no state bytes are opened or parsed here. It is
+    # deliberately called after the lock and immediately before every state,
+    # backup, import, and plan consumer so a pathname replacement cannot move
+    # the operation to a different inode between the initial check and use.
+    [ -f "$backend" ] && [ ! -L "$backend" ] || exit 78
+    /usr/bin/grep -Fxq '    path = "/var/lib/opentofu/cristexweb/foundation.tfstate"' "$backend" || exit 78
+    [ -d "$state_parent" ] && [ ! -L "$state_parent" ] || exit 65
+    [ "$(/usr/bin/realpath -e -- "$state_parent")" = "$state_parent" ] || exit 65
+    [ "$(/usr/bin/stat -c '%U:%G:%a:%F' "$state_parent")" = 'paul:root:700:directory' ] || exit 65
+    state_parent_links=$(/usr/bin/stat -c '%h' "$state_parent") || exit 65
+    [ "$state_parent_links" -ge 2 ] || exit 65
+    [ -f "$state_file" ] && [ ! -L "$state_file" ] || exit 73
+    [ "$(/usr/bin/realpath -e -- "$state_file")" = "$state_file" ] || exit 73
+    [ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$state_file")" = 'paul:paul:600:regular file:1' ] || exit 73
+    current_state_identity=$(/usr/bin/stat -Lc '%d:%i' "$state_file") || exit 73
+    if [ -n "${state_identity-}" ] && [ "$current_state_identity" != "$state_identity" ]; then
+        printf '%s\n' 'Refusing protected state inode replacement.' >&2
+        exit 73
+    fi
+    state_identity=$current_state_identity
+}
+revalidate_state_metadata
 
 tofu=/usr/local/bin/tofu
 tofu_target=/opt/opentofu/1.12.5/tofu
+tofu_sha256=36dae7ca1e4f1552a6faef27179dc16ef403203e956f31416c17b3d87a38c3f4
 [ -L "$tofu" ] && [ "$(/usr/bin/readlink -f -- "$tofu")" = "$tofu_target" ] || exit 69
 [ -f "$tofu_target" ] && [ ! -L "$tofu_target" ] || exit 69
-[ "$(/usr/bin/stat -c '%U:%G:%a' "$tofu_target")" = 'root:root:755' ] || exit 69
-# The Cloudflare provider consumes CLOUDFLARE_API_TOKEN from its process
-# environment.  The wrapper starts a clean same-UID child, supplies the token
-# only on that child's stdin, and exports it immediately before exec.  This is
-# compatible with the provider without claiming that /proc or a privileged
-# same-UID observer can be prevented from seeing the child environment.
+[ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$tofu_target")" = 'root:root:755:regular file:1' ] || exit 69
+[ "$(/usr/bin/sha256sum "$tofu_target" | /usr/bin/cut -d ' ' -f 1)" = "$tofu_sha256" ] || exit 69
 
-state_scope_validator="$validator"
 expected_pre_addresses=5
 expected_post_addresses=6
 work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-foundation-reconcile.XXXXXX)
@@ -189,99 +220,436 @@ cleanup() {
     if [ "${terminal_echo_disabled:-false}" = true ]; then
         /bin/stty echo 2>/dev/null || true
     fi
-    unset CLOUDFLARE_API_TOKEN cloudflare_token cloudflare_account_id cloudflare_zone_id cloudflare_record_id
+    unset CLOUDFLARE_API_TOKEN cloudflare_token cloudflare_account_id cloudflare_zone_id cloudflare_dns_id_argocd cloudflare_dns_id_dev cloudflare_dns_id_keycloak cloudflare_dns_id_resume
     /usr/bin/rm -rf -- "$work" "$source_work"
 }
 trap cleanup EXIT HUP INT TERM
 log="$work/tofu.stderr"
+state_identity_file="$work/foundation-import-identity.json"
 
-# Lock the protected state-parent inode for the whole transition.  This is a
-# non-mutating directory lock and creates no lock file.
+# Open the state-parent directory only for a non-mutating lock. The lock spans
+# every state/plan proof and the one approved import.
 exec 9<"$state_parent"
 /usr/bin/flock -n 9 || { printf '%s\n' 'Refusing concurrent foundation state reconciliation.' >&2; exit 75; }
+revalidate_state_metadata
 
-clean_exec() {
-    /usr/bin/env -i \
-        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
-        "$@"
-}
-run_python() {
-    revalidate_source_closure
-    /usr/bin/env -i \
-        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
-        "$@"
-}
+# Every capture is created atomically by the same Python process that retains its
+# descriptor while the producer runs.  os.O_NOFOLLOW, os.O_NONBLOCK, and O_EXCL
+# ensure a
+# pre-existing symlink/FIFO cannot be selected. The producer's dev/inode identity is
+# returned on the runner's stdout; validators receive the inherited descriptor
+# and verify its identity directly, rather than reopening the pathname.
+# This closes both the FIFO-before-fstat and regular-file pathname replacement
+# races without placing output or tokens in the shell command line.
+safe_runner_code='
+import os
+import stat
+import subprocess
+import sys
+
+def new_output(path):
+    flags = (os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC
+             | getattr(os, "O_NOFOLLOW", 0))
+    fd = os.open(path, flags, 0o600)
+    info = os.fstat(fd)
+    if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600
+            or info.st_uid != os.getuid() or info.st_nlink != 1):
+        os.close(fd)
+        raise SystemExit(78)
+    return fd, info
+
+out_fd, out_info = new_output(sys.argv[1])
+err_fd, err_info = new_output(sys.argv[2])
+try:
+    result = subprocess.run(sys.argv[3:], stdin=subprocess.DEVNULL,
+                            stdout=out_fd, stderr=err_fd, check=False)
+finally:
+    os.close(out_fd)
+    os.close(err_fd)
+print(f"{out_info.st_dev}:{out_info.st_ino}")
+raise SystemExit(result.returncode)
+'
+safe_plan_runner_code='
+import os
+import stat
+import subprocess
+import sys
+
+def new_output(path):
+    flags = (os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC
+             | getattr(os, "O_NOFOLLOW", 0))
+    fd = os.open(path, flags, 0o600)
+    info = os.fstat(fd)
+    if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600
+            or info.st_uid != os.getuid() or info.st_nlink != 1):
+        os.close(fd)
+        raise SystemExit(78)
+    return fd, info
+
+def open_plan(path):
+    flags = (os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC
+             | getattr(os, "O_NOFOLLOW", 0))
+    fd = os.open(path, flags, 0o600)
+    info = os.fstat(fd)
+    if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600
+            or info.st_uid != os.getuid() or info.st_nlink != 1):
+        os.close(fd)
+        raise SystemExit(78)
+    return fd
+
+plan_path, stdout_path, json_path, stderr_path = sys.argv[1:5]
+all_args = list(sys.argv[5:])
+try:
+    marker = all_args.index("--SHOW-COMMAND--")
+except ValueError:
+    raise SystemExit(78)
+plan_args = all_args[:marker]
+show_args = all_args[marker + 1:]
+if not plan_args or not show_args:
+    raise SystemExit(78)
+plan_fd = open_plan(plan_path)
+out_fd, out_info = new_output(stdout_path)
+json_fd, json_info = new_output(json_path)
+err_fd, err_info = new_output(stderr_path)
+try:
+    plan_args = [
+        (f"-out=/proc/self/fd/{plan_fd}" if arg == f"-out={plan_path}" else arg)
+        for arg in plan_args
+    ]
+    show_args = [
+        (f"/proc/self/fd/{plan_fd}" if arg == plan_path else arg)
+        for arg in show_args
+    ]
+    plan_result = subprocess.run(
+        plan_args, stdin=subprocess.DEVNULL, stdout=out_fd, stderr=err_fd,
+        pass_fds=(plan_fd,), check=False
+    )
+    if plan_result.returncode:
+        raise SystemExit(plan_result.returncode)
+    show_result = subprocess.run(
+        show_args, stdin=subprocess.DEVNULL, stdout=json_fd, stderr=err_fd,
+        pass_fds=(plan_fd,), check=False
+    )
+finally:
+    os.close(out_fd)
+    os.close(json_fd)
+    os.close(err_fd)
+    os.close(plan_fd)
+print(f"{json_info.st_dev}:{json_info.st_ino}")
+raise SystemExit(show_result.returncode)
+'
+# Read the validator once, verify its exact manifest digest, then execute the
+# verified bytes from a sealed Linux memfd. A regular-file descriptor alone does
+# not prevent a later in-place edit; the sealed copy closes that race.
+immutable_validator_runner_code='
+import fcntl
+import hashlib
+import os
+import re
+import stat
+import subprocess
+import sys
+
+F_ADD_SEALS = getattr(fcntl, "F_ADD_SEALS", 1033)
+F_GET_SEALS = getattr(fcntl, "F_GET_SEALS", 1034)
+F_SEAL_SEAL = getattr(fcntl, "F_SEAL_SEAL", 1)
+F_SEAL_SHRINK = getattr(fcntl, "F_SEAL_SHRINK", 2)
+F_SEAL_GROW = getattr(fcntl, "F_SEAL_GROW", 4)
+F_SEAL_WRITE = getattr(fcntl, "F_SEAL_WRITE", 8)
+
+source_path, expected_digest, *child_args = sys.argv[1:]
+if not re.fullmatch(r"[0-9a-f]{64}", expected_digest):
+    raise SystemExit(78)
+source_fd = os.open(
+    source_path,
+    os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
+)
+memfd = -1
+try:
+    source_info = os.fstat(source_fd)
+    if (
+        not stat.S_ISREG(source_info.st_mode)
+        or stat.S_IMODE(source_info.st_mode) != 0o755
+        or source_info.st_uid != os.getuid()
+        or source_info.st_nlink != 1
+    ):
+        raise SystemExit(78)
+    source_bytes = bytearray()
+    while True:
+        chunk = os.read(source_fd, 1024 * 1024)
+        if not chunk:
+            break
+        source_bytes.extend(chunk)
+    if hashlib.sha256(source_bytes).hexdigest() != expected_digest:
+        raise SystemExit(78)
+    memfd = os.memfd_create("cristexweb-verified-validator", os.MFD_ALLOW_SEALING)
+    offset = 0
+    while offset < len(source_bytes):
+        written = os.write(memfd, source_bytes[offset:])
+        if written <= 0:
+            raise SystemExit(78)
+        offset += written
+    seals = F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE
+    fcntl.fcntl(memfd, F_ADD_SEALS, seals)
+    if fcntl.fcntl(memfd, F_GET_SEALS) & seals != seals:
+        raise SystemExit(78)
+    pass_fds = {memfd}
+    for argument in child_args:
+        match = re.fullmatch(r"fd:([0-9]+)", argument)
+        if match:
+            inherited_fd = int(match.group(1))
+            if inherited_fd < 3 or inherited_fd == memfd:
+                raise SystemExit(78)
+            os.fstat(inherited_fd)
+            pass_fds.add(inherited_fd)
+    result = subprocess.run(
+        ["/usr/bin/python3", f"/proc/self/fd/{memfd}", *child_args],
+        stdin=None,
+        stdout=None,
+        stderr=None,
+        pass_fds=tuple(sorted(pass_fds)),
+        check=False,
+    )
+finally:
+    if memfd >= 0:
+        os.close(memfd)
+    os.close(source_fd)
+raise SystemExit(result.returncode)
+'
 run_capture() {
-    revalidate_source_closure
-    : >"$log"
-    chmod 0600 "$log"
     capture_file=$1
     shift
-    : >"$capture_file"
-    chmod 0600 "$capture_file"
-    clean_exec "$@" >"$capture_file" 2>"$log" || {
+    revalidate_source_closure
+    revalidate_state_metadata
+    log_file="$capture_file.stderr"
+    capture_identity=$(
+        /usr/bin/env -i \
+            HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin LC_ALL=C \
+            TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default \
+            TOFU_DISABLE_CHECKPOINT=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 \
+            /usr/bin/python3 -c "$safe_runner_code" "$capture_file" "$log_file" "$@"
+    ) || {
         printf 'reconcile_status=failed stage=tofu_command\n' >&2
         exit 1
     }
+    # Re-attest the source closure after the producer closes its output. The
+    # validator below is then pinned to its already-open descriptor, so a
+    # pathname replacement cannot swap the code or capture between checks.
+    revalidate_source_closure
+    revalidate_state_metadata
 }
 run_capture_with_token() {
-    # The token crosses the provider process boundary through an anonymous pipe,
-    # never argv, a caller-supplied/inherited environment, a file, plan output,
-    # or a receipt.  OpenTofu's provider API requires the token environment
-    # variable, so the clean same-UID child exports it immediately before exec.
-    # No privilege escalation, PTY, or privileged I/O logging policy is assumed.
-    revalidate_source_closure
-    : >"$log"
-    chmod 0600 "$log"
     capture_file=$1
     shift
-    : >"$capture_file"
-    chmod 0600 "$capture_file"
-    # This unqualified `printf` is the dash builtin.  Its only pipe consumer
-    # receives token bytes on stdin; no external process receives token argv.
-    printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
-        PATH=/usr/local/bin:/usr/bin:/bin HOME=/home/paul USER=paul LOGNAME=paul LC_ALL=C \
-        TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
-        TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
-        TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
-        /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' import-child "$@" >"$capture_file" 2>"$log" || {
+    revalidate_source_closure
+    revalidate_state_metadata
+    log_file="$capture_file.stderr"
+    capture_identity=$(
+        printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
+            HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin LC_ALL=C \
+            TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default \
+            TOFU_DISABLE_CHECKPOINT=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 \
+            TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
+            TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
+            /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' \
+            import-child /usr/bin/python3 -c "$safe_runner_code" "$capture_file" "$log_file" "$@"
+    ) || {
         printf 'reconcile_status=failed stage=provider_command\n' >&2
         exit 1
     }
+    revalidate_source_closure
+    revalidate_state_metadata
+}
+# The descriptor-retaining plan runner provides the same token transport as
+# run_capture_with_token "$plan_stdout" while keeping the binary plan on one
+# verified descriptor for both plan and show.
+run_plan_capture_with_token() {
+    plan_file=$1
+    plan_stdout=$2
+    plan_json=$3
+    shift 3
+    revalidate_source_closure
+    revalidate_state_metadata
+    log_file="$plan_json.stderr"
+    capture_identity=$(
+        printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
+            HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin LC_ALL=C \
+            TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default \
+            TOFU_DISABLE_CHECKPOINT=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 \
+            TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
+            TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
+            /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' \
+            import-child /usr/bin/python3 -c "$safe_plan_runner_code" "$plan_file" "$plan_stdout" "$plan_json" "$log_file" "$@"
+    ) || {
+        printf 'reconcile_status=failed stage=provider_plan_or_show\n' >&2
+        exit 1
+    }
+    revalidate_source_closure
+    revalidate_state_metadata
+}
+clean_python_validator() {
+    capture_file=$1
+    validator_args_phase=$2
+    shift 2
+    # Recheck the producer capture before opening its descriptor. The validator
+    # runner independently hashes and seals its source bytes, so both pathname
+    # replacement and in-place mutation fail closed or execute only the verified
+    # snapshot.
+    revalidate_state_metadata
+    exec 8<"$capture_file" || exit 78
+    actual_identity=$(/usr/bin/stat -Lc '%d:%i' /proc/self/fd/8) || {
+        exec 8<&-
+        exit 78
+    }
+    [ "$actual_identity" = "$capture_identity" ] || {
+        exec 8<&-
+        printf '%s\n' 'Refusing capture inode replacement.' >&2
+        exit 78
+    }
+    if [ "$validator_args_phase" = plan ]; then
+        plan_provenance=$1
+        state_identity_file=$2
+        exec 7<"$plan_provenance" || { exec 8<&-; exit 78; }
+        exec 6<"$state_identity_file" || { exec 7<&-; exec 8<&-; exit 78; }
+        revalidate_source_closure
+        revalidate_state_metadata
+        # The child receives only explicitly inherited descriptor numbers. Its
+        # Python program is loaded from sealed bytes, never from the validator
+        # path.
+        if /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin LC_ALL=C \
+            PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+            /usr/bin/python3 -c "$immutable_validator_runner_code" \
+            "$validator" "$validator_sha256" plan fd:8 fd:7 fd:6; then
+            result=0
+        else
+            result=$?
+        fi
+    elif [ "$validator_args_phase" = state ] && [ "$#" -eq 2 ]; then
+        state_phase=$1
+        state_identity_file=$2
+        exec 7<"$state_identity_file" || { exec 8<&-; exit 78; }
+        revalidate_source_closure
+        revalidate_state_metadata
+        if /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin LC_ALL=C \
+            PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+            /usr/bin/python3 -c "$immutable_validator_runner_code" \
+            "$validator" "$validator_sha256" state "$state_phase" fd:7 fd:8; then
+            result=0
+        else
+            result=$?
+        fi
+    else
+        revalidate_source_closure
+        revalidate_state_metadata
+        if /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin LC_ALL=C \
+            PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+            /usr/bin/python3 -c "$immutable_validator_runner_code" \
+            "$validator" "$validator_sha256" "$validator_args_phase" fd:8; then
+            result=0
+        else
+            result=$?
+        fi
+    fi
+    revalidate_source_closure
+    revalidate_state_metadata
+    exec 6<&- || true
+    exec 7<&- || true
+    exec 8<&-
+    return "$result"
 }
 validate_scope() {
     phase=$1
     list_file=$work/state-$phase.list
     run_capture "$list_file" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" state list -state="$state_file" -no-color
     revalidate_source_closure
-    run_python /usr/bin/python3 "$state_scope_validator" "$phase" "$list_file" >/dev/null || {
+    clean_python_validator "$list_file" "$phase" >/dev/null || {
         printf 'reconcile_status=failed stage=state_scope_%s\n' "$phase" >&2
         exit 1
     }
 }
-validate_resource_contract() {
-    resource_file=$work/reactive-resume-dev-tailscale.state
-    run_capture "$resource_file" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" state show -state="$state_file" cloudflare_dns_record.reactive_resume_dev_tailscale
+validate_state_json() {
+    phase=$1
+    state_json=$work/state-$phase.json
+    run_capture "$state_json" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" show -json -no-color "$state_file"
     revalidate_source_closure
-    run_python /usr/bin/python3 "$state_scope_validator" resource reactive_resume_dev_tailscale "$resource_file" >/dev/null || {
-        printf '%s\n' 'reconcile_status=failed stage=reactive_resume_dev_tailscale_contract' >&2
+    clean_python_validator "$state_json" state "$phase" "$state_identity_file" >/dev/null || {
+        printf 'reconcile_status=failed stage=state_json_%s\n' "$phase" >&2
         exit 1
     }
 }
+provenance_writer_code='
+import json
+import os
+import stat
+import sys
+
+path, digest, tofu_sha = sys.argv[1:]
+data = json.dumps(
+    {
+        "artifact": "refresh-only-plan-json",
+        "artifact_sha256": digest,
+        "tofu_path": "/opt/opentofu/1.12.5/tofu",
+        "tofu_sha256": tofu_sha,
+        "tofu_version": "1.12.5",
+        "provider": "cloudflare",
+        "provider_version": "5.23.0",
+        "source": "pinned-cli-show-json",
+    }, separators=(",", ":")
+).encode()
+fd = os.open(
+    path,
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC
+    | getattr(os, "O_NOFOLLOW", 0),
+    0o600,
+)
+try:
+    info = os.fstat(fd)
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or stat.S_IMODE(info.st_mode) != 0o600
+        or info.st_uid != os.getuid()
+        or info.st_nlink != 1
+    ):
+        raise SystemExit(78)
+    os.write(fd, data)
+finally:
+    os.close(fd)
+'
+write_plan_provenance() {
+    plan_json=$1
+    provenance=$2
+    exec 8<"$plan_json" || exit 78
+    actual_identity=$(/usr/bin/stat -Lc '%d:%i' /proc/self/fd/8) || {
+        exec 8<&-
+        exit 78
+    }
+    [ "$actual_identity" = "$capture_identity" ] || {
+        exec 8<&-
+        exit 78
+    }
+    plan_digest=$(/usr/bin/sha256sum /proc/self/fd/8 | /usr/bin/cut -d ' ' -f 1) || {
+        exec 8<&-
+        exit 78
+    }
+    exec 8<&-
+    /usr/bin/env -i HOME=/home/paul PATH=/usr/bin:/bin LC_ALL=C \
+        PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+        /usr/bin/python3 -c "$provenance_writer_code" "$provenance" "$plan_digest" "$tofu_sha256"
+}
 validate_plan_contract() {
-    plan_file=$work/foundation-$1.tfplan
-    plan_stdout=$work/foundation-$1-plan.out
-    plan_json=$work/foundation-$1-plan.json
-    # Keep OpenTofu's binary -out artifact separate from captured human-readable
-    # stdout.  Passing the same path to -out and stdout redirection corrupts the
-    # zip-format plan before `show` can consume it.
-    run_capture_with_token "$plan_stdout" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" plan -refresh-only -input=false -lock=true -no-color -out="$plan_file"
-    run_capture "$plan_json" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" show -json "$plan_file"
+    label=$1
+    plan_file=$work/foundation-$label.tfplan
+    plan_json=$work/foundation-$label-plan.json
+    plan_stdout=$work/foundation-$label-plan.stdout
+    plan_provenance=$work/foundation-$label-plan.provenance.json
+    run_plan_capture_with_token "$plan_file" "$plan_stdout" "$plan_json" \
+        /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" plan -refresh-only -input=false -lock=true -no-color "-out=$plan_file" \
+        --SHOW-COMMAND-- \
+        /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" show -json -no-color "$plan_file"
+    write_plan_provenance "$plan_json" "$plan_provenance"
     revalidate_source_closure
-    run_python /usr/bin/python3 "$state_scope_validator" plan "$plan_json" >/dev/null || {
-        printf 'reconcile_status=failed stage=plan_%s\n' "$1" >&2
+    clean_python_validator "$plan_json" plan "$plan_provenance" "$state_identity_file" >/dev/null || {
+        printf 'reconcile_status=failed stage=plan_%s\n' "$label" >&2
         exit 1
     }
 }
@@ -327,7 +695,9 @@ verify_backup_installed() {
 run_backup_gate() {
     verify_backup_source
     revalidate_source_closure
+    revalidate_state_metadata
     "$backup_wrapper" "$1"
+    revalidate_state_metadata
     verify_backup_installed
 }
 
@@ -344,10 +714,6 @@ IFS= read -r confirmation || exit 74
     exit 65
 }
 unset confirmation
-
-# Existing protected backup and restore gates run before the state mutation and
-# again after it.  Their wrappers retain the controlling terminal for become
-# password entry and emit only sanitized receipts.
 run_backup_gate test
 run_backup_gate restore
 validate_scope pre
@@ -356,8 +722,14 @@ printf '%s' 'Cloudflare account ID (input hidden): ' >&2
 IFS= read -r cloudflare_account_id || exit 74
 printf '%s' 'Cloudflare zone ID (input hidden): ' >&2
 IFS= read -r cloudflare_zone_id || exit 74
-printf '%s' 'Existing DNS record ID (input hidden): ' >&2
-IFS= read -r cloudflare_record_id || exit 74
+printf '%s' 'Existing Argo DNS record ID (input hidden): ' >&2
+IFS= read -r cloudflare_dns_id_argocd || exit 74
+printf '%s' 'Existing CristexHub DEV DNS record ID (input hidden): ' >&2
+IFS= read -r cloudflare_dns_id_dev || exit 74
+printf '%s' 'Existing Keycloak DNS record ID (input hidden): ' >&2
+IFS= read -r cloudflare_dns_id_keycloak || exit 74
+printf '%s' 'Existing Reactive Resume DEV DNS record ID (input hidden): ' >&2
+IFS= read -r cloudflare_dns_id_resume || exit 74
 printf '%s' 'Cloudflare API token (input hidden): ' >&2
 /bin/stty -echo
 terminal_echo_disabled=true
@@ -367,24 +739,41 @@ terminal_echo_disabled=false
 printf '\n' >&2
 case "$cloudflare_account_id" in *[!0-9a-f]*|'') exit 65 ;; esac
 case "$cloudflare_zone_id" in *[!0-9a-f]*|'') exit 65 ;; esac
-case "$cloudflare_record_id" in *[!0-9a-f]*|'') exit 65 ;; esac
+case "$cloudflare_dns_id_argocd" in *[!0-9a-f]*|'') exit 65 ;; esac
+case "$cloudflare_dns_id_dev" in *[!0-9a-f]*|'') exit 65 ;; esac
+case "$cloudflare_dns_id_keycloak" in *[!0-9a-f]*|'') exit 65 ;; esac
+case "$cloudflare_dns_id_resume" in *[!0-9a-f]*|'') exit 65 ;; esac
 [ "${#cloudflare_account_id}" -eq 32 ] || exit 65
 [ "${#cloudflare_zone_id}" -eq 32 ] || exit 65
-[ "${#cloudflare_record_id}" -eq 32 ] || exit 65
+[ "${#cloudflare_dns_id_argocd}" -eq 32 ] || exit 65
+[ "${#cloudflare_dns_id_dev}" -eq 32 ] || exit 65
+[ "${#cloudflare_dns_id_keycloak}" -eq 32 ] || exit 65
+[ "${#cloudflare_dns_id_resume}" -eq 32 ] || exit 65
+[ "$cloudflare_account_id" = "$protected_account_id" ] || exit 65
+[ "$cloudflare_zone_id" = "$protected_zone_id" ] || exit 65
 [ "${#cloudflare_token}" -ge 20 ] || exit 65
 case "$cloudflare_token" in *[[:space:]]*) exit 65 ;; esac
+# Bind every operator-entered public identity to the post-import state and
+# refresh-only plan proofs. Each pre-existing DNS record ID is required so a
+# valid-but-wrong record cannot pass an otherwise sparse provider projection.
+/usr/bin/cat >"$state_identity_file" <<EOF
+{"schema":1,"scope":"cloudflare-foundation-import-reactive-resume-dev-tailscale","account_id":"$cloudflare_account_id","zone_id":"$cloudflare_zone_id","tunnel_id":"$protected_tunnel_id","tunnel_account_tag":"$protected_tunnel_account_tag","dns_record_ids":{"cloudflare_dns_record.argocd_tailscale":"$cloudflare_dns_id_argocd","cloudflare_dns_record.cristexhub_dev":"$cloudflare_dns_id_dev","cloudflare_dns_record.keycloak":"$cloudflare_dns_id_keycloak","cloudflare_dns_record.reactive_resume_dev_tailscale":"$cloudflare_dns_id_resume"}}
+EOF
+chmod 0600 "$state_identity_file"
 
-# Only the pinned root is initialized; no backend path or workspace is selected
-# from input.  Import is the sole state-writing OpenTofu subcommand here.
-run_capture_with_token "$work/init.out" "$tofu" -chdir="$root" init -input=false -lockfile=readonly -no-color
-run_capture_with_token "$work/import.out" "$tofu" -chdir="$root" import -input=false -lock=true -no-color \
-    cloudflare_dns_record.reactive_resume_dev_tailscale "$cloudflare_zone_id/$cloudflare_record_id"
+# init/import are the only provider/state-writing calls in this entrypoint. No
+# apply, destroy, state-transfer, or state-removal path exists. Each capture is
+# created atomically inside its descriptor-retaining runner immediately before
+# the producer starts; no pathname is truncated or reopened for consumption.
+run_capture_with_token "$work/init.stdout" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" init -input=false -lockfile=readonly -no-color
+run_capture_with_token "$work/import.stdout" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" import -input=false -lock=true -no-color \
+    cloudflare_dns_record.reactive_resume_dev_tailscale "$cloudflare_zone_id/$cloudflare_dns_id_resume"
 validate_scope post
-validate_resource_contract
+validate_state_json post
 validate_plan_contract post-import
 run_backup_gate test
 run_backup_gate restore
 validate_scope post
-validate_resource_contract
+validate_state_json post
 validate_plan_contract post-recovery
 printf 'reconcile_status=success state=foundation imported=reactive_resume_dev_tailscale pre_addresses=%s post_addresses=%s backup=immutable-readback restore=isolated post_backup=verified plan=no-op refresh-only=true prod_plan=separate token_output=false\n' "$expected_pre_addresses" "$expected_post_addresses"

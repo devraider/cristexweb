@@ -167,6 +167,17 @@ IDENTITY = {
 }
 
 
+def extract_immutable_validator_runner(wrapper: Path) -> str:
+    match = re.search(
+        r"immutable_validator_runner_code='\n(.*?)\n'\n",
+        wrapper.read_text(),
+        flags=re.DOTALL,
+    )
+    if match is None:
+        raise AssertionError(f"missing immutable validator runner in {wrapper}")
+    return match.group(1)
+
+
 def config_expressions(address: str) -> dict:
     if address.startswith("cloudflare_dns_record."):
         state = DNS_STATES.get(address, {
@@ -529,6 +540,7 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "plan.json"
             identity_path = Path(temp) / "identity.json"
+            provenance_path = Path(temp) / "plan.provenance.json"
             path.write_text(json.dumps(plan))
             identity_path.write_text(json.dumps(identity))
             path.chmod(0o600)
@@ -552,9 +564,32 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
                 identity_path.read_bytes()
             ).hexdigest()
             environment["CRISTEXWEB_PROD_ROUTE_IDENTITY_ATTESTATION"] = str(attestation_path)
+            plan_bytes = path.read_bytes()
+            provenance_path.write_text(
+                json.dumps(
+                    {
+                        "artifact": "refresh-only-plan-json",
+                        "artifact_sha256": hashlib.sha256(plan_bytes).hexdigest(),
+                        "tofu_path": "/opt/opentofu/1.12.5/tofu",
+                        "tofu_sha256": "36dae7ca1e4f1552a6faef27179dc16ef403203e956f31416c17b3d87a38c3f4",
+                        "tofu_version": "1.12.5",
+                        "provider": "cloudflare",
+                        "provider_version": "5.23.0",
+                        "source": "pinned-cli-show-json",
+                    },
+                    separators=(",", ":"),
+                )
+            )
+            provenance_path.chmod(0o600)
             if extra_env:
                 environment.update(extra_env)
-            command = ["/usr/bin/python3", str(VALIDATE), str(path), str(identity_path)]
+            command = [
+                "/usr/bin/python3",
+                str(VALIDATE),
+                str(path),
+                str(identity_path),
+                str(provenance_path),
+            ]
             input_data = None
             if token_stdin is not None:
                 command.append("--token-stdin")
@@ -567,6 +602,28 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
                 input=input_data,
                 env=environment,
             )
+
+    def test_plan_provenance_argument_is_mandatory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            plan_path = Path(temp) / "plan.json"
+            identity_path = Path(temp) / "identity.json"
+            plan_path.write_text(json.dumps(valid_plan()))
+            identity_path.write_text(json.dumps(IDENTITY))
+            plan_path.chmod(0o600)
+            identity_path.chmod(0o600)
+            result = subprocess.run(
+                ["/usr/bin/python3", str(VALIDATE), str(plan_path), str(identity_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={
+                    "PATH": "/usr/bin:/bin",
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                    "PYTHONNOUSERSITE": "1",
+                },
+            )
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("usage", result.stdout)
 
     def test_exact_plan_is_accepted(self) -> None:
         result = self.run_validator(valid_plan())
@@ -589,7 +646,13 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
             environment.pop("CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256", None)
             environment.pop("CRISTEXWEB_PROD_ROUTE_IDENTITY_ATTESTATION", None)
             result = subprocess.run(
-                ["/usr/bin/python3", str(VALIDATE), str(plan_path), str(identity_path)],
+                [
+                    "/usr/bin/python3",
+                    str(VALIDATE),
+                    str(plan_path),
+                    str(identity_path),
+                    str(Path(temp) / "provenance.json"),
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -710,6 +773,9 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
                 "identity_scope=cloudflare-foundation-prod-route-6-to-7\n"
             )
             attestation_path.chmod(0o600)
+            provenance_path = Path(temp) / "provenance.json"
+            provenance_path.write_text("{}")
+            provenance_path.chmod(0o600)
             validator_env = {
                 **os.environ,
                 "CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256": profile_hash,
@@ -721,7 +787,13 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
             )
             path.chmod(0o600)
             result = subprocess.run(
-                ["/usr/bin/python3", str(VALIDATE), str(path), str(identity_path)],
+                [
+                    "/usr/bin/python3",
+                    str(VALIDATE),
+                    str(path),
+                    str(identity_path),
+                    str(provenance_path),
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -741,6 +813,9 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
                 "identity_scope=cloudflare-foundation-prod-route-6-to-7\n"
             )
             attestation_path.chmod(0o600)
+            provenance_path = Path(temp) / "provenance.json"
+            provenance_path.write_text("{}")
+            provenance_path.chmod(0o600)
             validator_env = {
                 **os.environ,
                 "CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256": profile_hash,
@@ -754,7 +829,13 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
             path.write_text(raw)
             path.chmod(0o600)
             result = subprocess.run(
-                ["/usr/bin/python3", str(VALIDATE), str(path), str(identity_path)],
+                [
+                    "/usr/bin/python3",
+                    str(VALIDATE),
+                    str(path),
+                    str(identity_path),
+                    str(provenance_path),
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1168,8 +1249,17 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
             identity_path.write_text(json.dumps(IDENTITY))
             plan_path.chmod(0o600)
             identity_path.chmod(0o644)
+            provenance_path = Path(temp) / "provenance.json"
+            provenance_path.write_text("{}")
+            provenance_path.chmod(0o600)
             result = subprocess.run(
-                ["/usr/bin/python3", str(VALIDATE), str(plan_path), str(identity_path)],
+                [
+                    "/usr/bin/python3",
+                    str(VALIDATE),
+                    str(plan_path),
+                    str(identity_path),
+                    str(provenance_path),
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1192,8 +1282,32 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
                 "identity_scope=cloudflare-foundation-prod-route-6-to-7\n"
             )
             attestation_path.chmod(0o600)
+            plan_bytes = plan_path.read_bytes()
+            provenance_path = Path(temp) / "provenance.json"
+            provenance_path.write_text(
+                json.dumps(
+                    {
+                        "artifact": "refresh-only-plan-json",
+                        "artifact_sha256": hashlib.sha256(plan_bytes).hexdigest(),
+                        "tofu_path": "/opt/opentofu/1.12.5/tofu",
+                        "tofu_sha256": "36dae7ca1e4f1552a6faef27179dc16ef403203e956f31416c17b3d87a38c3f4",
+                        "tofu_version": "1.12.5",
+                        "provider": "cloudflare",
+                        "provider_version": "5.23.0",
+                        "source": "pinned-cli-show-json",
+                    },
+                    separators=(",", ":"),
+                )
+            )
+            provenance_path.chmod(0o600)
             accepted = subprocess.run(
-                ["/usr/bin/python3", str(VALIDATE), str(plan_path), str(identity_path)],
+                [
+                    "/usr/bin/python3",
+                    str(VALIDATE),
+                    str(plan_path),
+                    str(identity_path),
+                    str(provenance_path),
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1205,7 +1319,13 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
             )
             self.assertEqual(0, accepted.returncode, accepted.stdout + accepted.stderr)
             rejected = subprocess.run(
-                ["/usr/bin/python3", str(VALIDATE), str(plan_path), str(identity_path)],
+                [
+                    "/usr/bin/python3",
+                    str(VALIDATE),
+                    str(plan_path),
+                    str(identity_path),
+                    str(provenance_path),
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1503,8 +1623,17 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
             }
             path.write_text(json.dumps(valid_plan()).replace('"format_version": "1.2"', '"format_version": NaN'))
             path.chmod(0o600)
+            provenance_path = Path(temp) / "provenance.json"
+            provenance_path.write_text("{}")
+            provenance_path.chmod(0o600)
             result = subprocess.run(
-                ["/usr/bin/python3", str(VALIDATE), str(path), str(identity_path)],
+                [
+                    "/usr/bin/python3",
+                    str(VALIDATE),
+                    str(path),
+                    str(identity_path),
+                    str(provenance_path),
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1551,8 +1680,17 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
             }
             path.write_text(overflow)
             path.chmod(0o600)
+            provenance_path = Path(temp) / "provenance.json"
+            provenance_path.write_text("{}")
+            provenance_path.chmod(0o600)
             result = subprocess.run(
-                ["/usr/bin/python3", str(VALIDATE), str(path), str(identity_path)],
+                [
+                    "/usr/bin/python3",
+                    str(VALIDATE),
+                    str(path),
+                    str(identity_path),
+                    str(provenance_path),
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1602,7 +1740,11 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
             path = TOFU / relative
             self.assertTrue(path.is_file(), relative)
             self.assertFalse(path.is_symlink(), relative)
-            expected_mode = 0o755 if relative.startswith("bin/") else 0o644
+            expected_mode = (
+                0o755
+                if relative.startswith("bin/") and relative != "bin/SOURCE.sha256"
+                else 0o644
+            )
             self.assertEqual(expected_mode, stat.S_IMODE(path.stat().st_mode), relative)
             if relative == "bin/plan-foundation-prod-route":
                 text = path.read_text()
@@ -1661,6 +1803,11 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         reconcile_source = RECONCILE.read_text()
         self.assertIn("PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1", reconcile_source)
         self.assertIn("PYTHONNOUSERSITE|", reconcile_source)
+        self.assertIn("immutable_validator_runner_code", source)
+        self.assertIn("os.memfd_create", source)
+        self.assertIn("F_SEAL_WRITE", source)
+        self.assertNotIn('/usr/bin/python3 "$validator"', source)
+        self.assertNotIn('/usr/bin/python3 "$state_scope_validator"', source)
         for required in (
             "usage: opentofu/bin/plan-foundation-prod-route check|plan",
             'readlink -f "/proc/$$/exe")" = /usr/bin/dash',
@@ -1690,6 +1837,10 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
             "PYTHONNOUSERSITE|",
             "TF_DATA_DIR=",
             "TF_WORKSPACE=default",
+            "bin_expected_paths",
+            "bin_actual_paths",
+            "Refusing extra or non-regular OpenTofu bin entry.",
+            "find \"$root/bin\" -mindepth 1 -maxdepth 1",
             "TOFU_DISABLE_CHECKPOINT=1",
             "-lockfile=readonly",
             "plan -input=false -lock=true",
@@ -1710,6 +1861,67 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, source, forbidden)
         self.assertNotIn("TF_CLI_ARGS=", source)
+
+    def test_verified_validator_runner_rejects_replacement_and_hardlinks(self) -> None:
+        for wrapper in (PLAN, RECONCILE):
+            runner = extract_immutable_validator_runner(wrapper)
+            with tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                trusted = root / "validator"
+                replacement = root / "replacement"
+                trusted.write_text("print('trusted')\n")
+                replacement.write_text("print('evil')\n")
+                trusted.chmod(0o755)
+                replacement.chmod(0o755)
+                digest = hashlib.sha256(trusted.read_bytes()).hexdigest()
+                # A pathname replacement is detected by the independently
+                # verified digest and cannot execute the replacement bytes.
+                replacement.replace(trusted)
+                result = subprocess.run(
+                    ["/usr/bin/python3", "-c", runner, str(trusted), digest],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env={"PATH": "/usr/bin:/bin", "PYTHONNOUSERSITE": "1", "PYTHONDONTWRITEBYTECODE": "1"},
+                )
+                self.assertNotEqual(0, result.returncode)
+                self.assertNotIn("evil", result.stdout)
+
+                trusted.write_text(
+                    "from pathlib import Path\n"
+                    "import sys\n"
+                    "Path(sys.argv[1]).write_text(\"print('evil')\\n\")\n"
+                    "print('trusted')\n"
+                )
+                trusted.chmod(0o755)
+                digest = hashlib.sha256(trusted.read_bytes()).hexdigest()
+                result = subprocess.run(
+                    ["/usr/bin/python3", "-c", runner, str(trusted), digest, str(trusted)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env={"PATH": "/usr/bin:/bin", "PYTHONNOUSERSITE": "1", "PYTHONDONTWRITEBYTECODE": "1"},
+                )
+                # The trusted child mutates its source pathname in-place before
+                # printing. Execution still comes from the sealed pre-mutation
+                # bytes, proving the in-place race cannot switch code.
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertEqual("trusted\n", result.stdout)
+                self.assertEqual("print('evil')\n", trusted.read_text())
+
+                trusted.write_text("print('trusted')\n")
+                trusted.chmod(0o755)
+                hardlink = root / "hardlink"
+                os.link(trusted, hardlink)
+                digest = hashlib.sha256(trusted.read_bytes()).hexdigest()
+                result = subprocess.run(
+                    ["/usr/bin/python3", "-c", runner, str(trusted), digest],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env={"PATH": "/usr/bin:/bin", "PYTHONNOUSERSITE": "1", "PYTHONDONTWRITEBYTECODE": "1"},
+                )
+                self.assertNotEqual(0, result.returncode)
 
     def test_shell_and_python_syntax_without_provider_execution(self) -> None:
         for path in (PLAN, RECONCILE):

@@ -4,10 +4,9 @@
 
 This is a **source-only** closure for importing the already-live
 `resume-dev.cristex-soft.com` DNS record into the protected Cloudflare
-OpenTofu foundation root. No provider command, state import, state write, backup, restore, or PROD plan
-was run while authoring this source. The
-reconciliation is a prerequisite to (and not part of) the separately approved
-PROD Tunnel/DNS plan.
+OpenTofu foundation root. No provider command, state import, state write, backup,
+restore, or PROD plan was run while authoring this source. The reconciliation is
+a prerequisite to (and not part of) the separately approved PROD Tunnel/DNS plan.
 
 The only entrypoint is:
 
@@ -18,10 +17,13 @@ opentofu/bin/reconcile-foundation-state import
 
 It is a direct, non-passthrough `/usr/bin/dash` entrypoint. It accepts no
 provider, backend, workspace, address, path, or arbitrary command arguments.
-It rejects traced shell execution, inherited provider/OpenTofu overrides,
+It rejects traced shell execution, inherited provider/OpenTofu/plugin overrides
+(including `TF_*`, `TOFU_*`, `OPENTOFU_*`, and dynamic-loader `LD_*`/`DYLD_*`),
 symlinked or non-canonical source, and source mode/hash drift. A process already
 running as the trusted `paul` UID remains outside the source-attestation threat
-boundary.
+boundary. Metadata/dev:ino checks are consistency checks, not a claim to defeat
+a coordinated trusted-UID or root pathname replacement between the final check
+and a consumer.
 
 ## Exact boundary
 
@@ -53,11 +55,20 @@ cloudflare_dns_record.reactive_resume_dev_tailscale
 ```
 
 The state parent and state file are fixed, regular, non-symlinked, and mode
-`0700`/`0600` with the reviewed owner/group contract. A protected `flock` on
-the state-parent directory inode is held from the first pre-state inspection
-through the import and final checks. The state-list helper validates exact
-membership, list cardinality, uniqueness, shape, owner, and mode without
-requesting provider state or secret values. Both backup and isolated-restore
+`0700`/`0600` with the reviewed owner/group contract. The directory contract
+accepts the normal Debian link count (at least two); only state/capture regular
+files require a single link. A protected `flock` on the state-parent directory
+inode is held from the first pre-state inspection through the import and final
+checks. State metadata (path, owner, mode, type, link count, and realpath) plus
+the state file device/inode identity are revalidated after acquiring the lock and immediately
+before every state consumer, backup gate, import, and plan/show operation; this
+metadata check never reads state bytes. The exact five-address pre-import and exact
+six-address post-import state-list helper validates membership, cardinality,
+uniqueness, shape, owner, and mode without requesting secret values. The
+protected state JSON proof validates root-only managed resources, provider
+identity, imported DNS
+values, five non-sensitive outputs, the hyphenated Tunnel UUID, and the allowed
+null-only nested `sensitive_values.tunnel_secret` marker. Both backup and isolated-restore
 state-list calls use the pinned `/usr/local/bin/tofu` target through
 `/usr/bin/env -i` with exactly `TF_CLI_CONFIG_FILE=/dev/null`, a mode-0700
 ephemeral `TF_DATA_DIR`, `TF_WORKSPACE=default`, and
@@ -107,46 +118,75 @@ only as a non-symlinked directory.
    leaves are rejected, while newer incomplete directories are ignored without
    remote deletion. The newest complete candidate is selected, and the pre-state
    closure is rechecked after recovery.
-4. The operator enters the account ID, zone ID, existing DNS record ID, and
-   Cloudflare API token through protected prompts. IDs are validated as fixed
-   lowercase 32-hex identifiers. The token is transferred to the provider child
+4. The operator enters the account ID, zone ID, all four existing DNS record IDs
+   (Argo, CristexHub DEV, Keycloak, and Reactive Resume DEV), and the Cloudflare
+   API token through protected prompts. The account and zone must equal the fixed
+   foundation identities; every record ID is a distinct lowercase 32-hex value and
+   is written to a temporary identity profile. The post-import state proof and
+   every refresh-only prior-state proof require the exact four IDs and fixed zone;
+   no sparse or format-only DNS projection is accepted. The profile also binds the
+   fixed Tunnel UUID and account tag to the exact Tunnel and Tunnel-config
+   resources, and the validator checks the exact three current ingress rules,
+   including hostname, service, null path, and null origin-request semantics. The
+   PROD plan validator binds every existing record ID and the same Tunnel account
+   tag to its descriptor-bound identity profile. The
+   token is transferred to the provider child
    through an anonymous pipe, never argv, a file, plan output, state evidence,
    or a receipt. Provider output is captured in mode-`0600` temporary files and
    is never emitted.
 5. The pinned root is initialized with `-lockfile=readonly` and only the exact
    DNS address is imported with the fixed `zone-id/record-id` form. There is no
-   create, delete, destroy, state-removal, state-push, or apply path. OpenTofu
+   create, delete, destroy, state-removal, state-transfer, or apply path. OpenTofu
    data is isolated under the ephemeral `TF_DATA_DIR`.
-6. The six-address post-state is validated, then a provider-backed
-   `plan -refresh-only` is rendered and validated as an exact six-address
-   no-op. This is a fail-closed state-refresh check and does not authorize the
+6. The exact six-address post-state is validated through both `state list` and
+   `show -json`; the imported DNS values are proved by the protected state JSON
+   proof. A provider-backed `plan -refresh-only` is then rendered and validated
+   as a no-drift envelope. OpenTofu 1.12.5 may omit `resource_changes` and emits
+   `planned_values.root_module` as an empty object; the validator requires that
+   exact empty root, exact five variables, the exact seven-resource source
+   configuration closure (including source-only PROD), five no-op outputs, and
+   empty drift/deferred/check surfaces. This exact seven-resource configuration
+   closure and exact five-variable closure do not authorize the
    pending PROD configuration plan. The backup `test` and isolated `restore`
-   gates run again, the six-address closure is validated again, and the
-   refresh-only no-op check is repeated.
+   gates run again, and all post-state/plan proofs are repeated.
 7. The entrypoint emits a sanitized success receipt saying the PROD plan is a
    separate gate. It does not run or approve that plan.
 
-The refresh-only plan JSON is mode-`0600`, consumed only by the local
-source-checked validator, and removed with the ephemeral work directory. The
-validator requires exactly the six post-reconciliation managed resources with
-`["no-op"]` actions, the exact five declared root outputs as nonsensitive
-`["no-op"]` entries with concrete equal before/after values, the exact five passing
-source-variable checks, and the exact dependency paths emitted by OpenTofu. It
-requires no resource drift and no unknown/deferred surface. It models the pinned
-Cloudflare provider 5.23.0 DNS/Tunnel computed-field schema with explicit
-allowlists and types; every computed/unintended field present in a no-op must be
-present and exactly equal before and after. It rejects malformed, expanded,
-unknown, sensitive, or mutating plans. Its configuration projection is
-source-bound: provider/resource/output/variable expressions are exact, and the
-provider token expression is accepted only as the fixed sanitized fixture
-placeholder. Real provider credentials are never accepted in plan JSON, even
-when a caller supplies a matching digest. A mode-0600 identity profile is
-byte-hash-bound into the wrapper attestation before provider planning; the
-validator consumes that exact mode-0600 attestation and rejects direct unbound
-invocation. Its DNS IDs and tunnel account tag must match the exact prior-state
-projection, not merely a format or before/after comparison. The offline fixture's
-one-to-one sanitization receipt is consumed by the contract tests and never
-represents live identity values.
+The refresh-only plan-envelope proof consumes a mode-`0600` plan JSON only in
+the local source-checked validator. A provenance sidecar is mandatory; missing
+or path-only provenance is refused. Both guarded producers create each capture
+with `O_CREAT|O_EXCL|O_NOFOLLOW` and retain the verified descriptor; after every
+producer returns, the reconciler revalidates the source closure and state
+metadata. Immediately before every validator execution, it repeats the source
+closure/state check, hashes the validator against its pinned manifest digest,
+and copies it into a sealed Linux memfd. The child executes only those
+immutable verified bytes; pathname replacement or in-place mutation cannot
+change validator code after the last check. The
+reconciler and PROD route planner pass device/inode receipts and the validators
+consume `fd:N`, never reopening the capture by pathname. The binary plan is
+likewise held on one verified descriptor for both `plan -out=/proc/self/fd/N`
+and `show`, so a FIFO or regular-file pathname replacement cannot redirect
+ either consumer. A sanitized mode-`0600` provenance receipt is itself passed
+by descriptor and binds the plan JSON digest to the pinned
+OpenTofu 1.12.5 path/digest and Cloudflare 5.23.0; the validator requires that
+receipt before accepting the plan. It
+rejects inherited `TF_*`, `TOFU_*`, `OPENTOFU_*`, `TF_PLUGIN_CACHE_DIR`, and
+`LD_*`/`DYLD_*` overrides along with Python/provider overrides. It requires the
+exact seven-resource configuration closure and exact five-variable closure, the
+complete `planned_values.outputs` and `prior_state` projections, and no
+provisioner/count/for_each/dependency additions. Each resource expression,
+including the ingress expression, provider configuration, output references,
+and marker/sensitivity field is compared to OpenTofu 1.12.5's actual reference
+expression tree rather than substituting evaluated constants or checking only
+key names. The plan proof
+deliberately does not infer state membership from `planned_values`:
+OpenTofu 1.12.5's valid refresh-only no-op has an empty `root_module` and may
+omit `resource_changes`. It instead requires exact variables/configuration
+closures, exactly five output changes with `actions=["no-op"]`, equal before/after
+values, required false sensitivity/unknown markers, and empty drift/deferred/relevant/check
+surfaces. Top-level `checks: []` is accepted; non-empty or malformed checks,
+configuration, variables, outputs, prior state, arbitrary secret/token-shaped
+fields, or nested sensitive markers fail closed.
 
 The foundation backup/restore source must itself pass its own pinned source,
 recipient, rclone, immutable-readback, and isolated-restore contracts. A
@@ -155,116 +195,39 @@ review; no blind re-import or destructive rollback is attempted.
 
 ## PROD plan boundary
 
-After the six-address reconciliation has separately passed, the only entrypoint
-for the pending route plan is the source-only guarded wrapper:
+After this reconciliation has separately passed, an operator may review a
+new protected plan through the separate guarded entrypoint:
 
 ```text
 opentofu/bin/plan-foundation-prod-route check
 opentofu/bin/plan-foundation-prod-route plan
 ```
 
-`check` validates the exact six-address protected state without contacting the
-provider. `plan` is provider-backed but plan-only; this provider-backed plan
-requires the exact
-interactive approval `PLAN PROD ROUTE 6 TO 7`, prompts for the fixed account/zone
-IDs, the tunnel `account_tag`, every existing DNS record ID in the six-address
-prestate, and the token through protected input. Provider output and the plan JSON
-are mode-`0600` ephemeral artifacts; the validator refuses any token-bearing JSON
-rather than treating a digest as proof of safety. The wrapper creates a
-mode-`0600` ephemeral identity profile from those prompts; the validator requires
-that profile and compares every DNS ID/account tag exactly, never merely by
-format or by before/after equality. The account, zone, and tunnel IDs are fixed
-semantic values.
-
-The token crosses the provider process boundary through an anonymous pipe into a
-clean same-UID child. That child reads stdin, exports
-`CLOUDFLARE_API_TOKEN` immediately before execing pinned OpenTofu 1.12.5, and
-uses no sudo, PTY, or privileged I/O-logging policy. No token is placed in argv,
-a caller-supplied/inherited environment, plans, logs, or files before the
-provider child starts. Because the provider contract requires an environment
-variable, the token-bearing child environment can be observable to a same-UID
-process or privileged observer; this lane makes no `/proc` confidentiality
-claim. Both modes use a clean environment, `TF_CLI_CONFIG_FILE=/dev/null`,
-`TF_DATA_DIR` under a private temporary filesystem, `TF_WORKSPACE=default`,
-`TOFU_DISABLE_CHECKPOINT=1`, and the protected foundation state path.
-
-The wrapper validates the state list before planning as exactly these six
-addresses, with no duplicates or foreign resources:
-
-```text
-cloudflare_dns_record.argocd_tailscale
-cloudflare_dns_record.cristexhub_dev
-cloudflare_dns_record.keycloak
-cloudflare_dns_record.reactive_resume_dev_tailscale
-cloudflare_zero_trust_tunnel_cloudflared.keycloak
-cloudflare_zero_trust_tunnel_cloudflared_config.keycloak
-```
-
-The local `validate-foundation-prod-plan` validator accepts exactly seven plan
-resource entries: the six existing resources, one
-`cloudflare_zero_trust_tunnel_cloudflared_config.keycloak` update that adds only
-one `hub.cristex-soft.com` ingress immediately before the existing terminal
-`http_status:404` rule, and one `cloudflare_dns_record.cristexhub_prod` create
-with the exact proxied CNAME contract. The protected identity is fixed to
-account `8b0f511214c7a4a52ddfb62ca92c5e80`, zone
+`check` proves the exact six-address protected state without contacting the
+provider. `plan` is a separate provider-backed plan-only operation; it never apply and never performs state mutation. The expected plan has exactly two changes: the existing Tunnel configuration update and the
+`hub.cristex-soft.com` DNS resource create, with the new ingress inserted
+immediately before the existing terminal `http_status:404` rule. The reviewed
+identity binding is account `8b0f511214c7a4a52ddfb62ca92c5e80`, zone
 `3cbee16e56d7656440f93e685807e779`, and Tunnel
-`f9442440-96df-4cf1-855b-7257868ed9bc`; DNS target and all existing no-op
-configuration fields must match those exact values. Existing ingress order and
-content are compared as a complete list, not as an unordered set. DNS provider
-computed fields (`id`, timestamps, `proxiable`, `data`, `meta`, `priority`,
-`private_routing`, `settings`, `tags`, and tag timestamps) and Tunnel provider
-fields (`account_tag`, `connections`, connection timestamps, `metadata`,
-`remote_config`, `status`, `tun_type`, and null-only `tunnel_secret`) use
-explicit allowlists/types and must not drift. OpenTofu
-1.12.5 encodes a no-op action as `["no-op"]`; the route create carries explicit
-`before: null` and `before_sensitive: false`, while update/no-op entries carry
-both concrete state values. The five root output changes are validated as
-`["no-op"]` with concrete equal before/after values, matching the pinned CLI's actual output
-projection. The exact policy is: no replacement, destroy, deferred, unknown, or sensitive values.
-The same-UID integrity boundary is explicit: a process already running as the
-trusted controller UID is outside the claim; all source, identity, and wrapper
-hashes nevertheless fail closed for ordinary tampering or untrusted ancestry.
-The validator rejects non-empty replacement/deposed/action-reason,
-deferred, unknown, or sensitive metadata; it also requires exactly the five
-`outputs.tf` output names (`tunnel_id`, `tunnel_name`, `public_hostname`,
-`dns_record_name`, and `token_handoff`) as exact no-op entries whose concrete before/after values are fixed and equal. It rejects delete,
-changed/extra/missing output,
-drift, duplicate, foreign, malformed, or schema-incompatible changes and any
-unknown top-level/resource/change keys. Documented optional 1.12.5 envelope,
-resource, and change fields are accepted only when they have their exact safe
-empty/value form.
-The wrapper also hashes the state before and after all plan/show operations and
-refuses any state mutation. It never runs `tofu apply`, import, destroy, state
-removal, or state push, and it does not make `hub.cristex-soft.com` public.
+`f9442440-96df-4cf1-855b-7257868ed9bc`; those values remain plan-input
+contracts, not credentials or approval. The validator rejects no replacement, destroy, deferred, unknown, or sensitive values. It never authorizes an apply.
 
-`planned_values` and `prior_state` are recursively schema-bounded: their root
-modules, resource identities, values, sensitive markers, and output maps must
-match the corresponding validated change projection exactly. Sensitive-looking
-keys (including `tunnel_secret`) are rejected when non-null even if a forged
-sensitivity marker says false. OpenTofu 1.12.5 create changes must carry
-`before: null` and `before_sensitive: false`; omission or substitution is refused.
-
-The exact two-change plan is exactly two changes and still requires its own fresh encrypted
-foundation-state backup/readback/restore, provider credential with DNS
-permission, private validation, and separate public-cutover approval before any
-future apply. The wrapper must never apply; no apply is authorized by this source-only plan
-wrapper or by a passing validator.
+The expected subsequent plan is still separate from this reconciliation. It
+must have its own fresh encrypted foundation-state backup/readback/restore,
+provider credential with DNS permission, exact plan review, private validation,
+and public-cutover approval. This source does not run that plan and does not
+make `hub.cristex-soft.com` public.
 
 ## Validation
 
 ```bash
 sh -n opentofu/bin/reconcile-foundation-state
-sh -n opentofu/bin/plan-foundation-prod-route
 sh -n ansible/files/backup/opentofu-state-backup
 sh -n ansible/files/backup/restore-opentofu-state-rehearsal
 python3 -m py_compile opentofu/bin/validate-foundation-state-scope
-python3 -m py_compile opentofu/bin/validate-foundation-prod-plan
+python3 -m unittest tests.test_opentofu_foundation_state_reconciliation_contract
 .venv/bin/python -m unittest tests.test_opentofu_state_backup_contract tests.test_opentofu_foundation_state_reconciliation_contract
-.venv/bin/python -m unittest tests.test_opentofu_foundation_prod_plan_contract
 ```
-
-These are source-only checks. They do not invoke the PROD `plan` wrapper, the
-OpenTofu provider, Cloudflare, or any apply path.
 
 All commands above are offline/source checks. No provider, protected state,
 Google Drive, Infisical, DNS, Tunnel, Kubernetes, or PROD operation is implied

@@ -1,0 +1,149 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.12.5",
+  "checks": [],
+  "values": {
+    "outputs": {
+      "dns_record_name": {
+        "value": "auth.cristex-soft.com",
+        "type": "string",
+        "sensitive": false
+      },
+      "public_hostname": {
+        "value": "auth.cristex-soft.com",
+        "type": "string",
+        "sensitive": false
+      },
+      "token_handoff": {
+        "value": "MANUAL_INFISICAL_HANDOFF_REQUIRED",
+        "type": "string",
+        "sensitive": false
+      },
+      "tunnel_id": {
+        "value": "f9442440-96df-4cf1-855b-7257868ed9bc",
+        "type": "string",
+        "sensitive": false
+      },
+      "tunnel_name": {
+        "value": "cristexhub-keycloak",
+        "type": "string",
+        "sensitive": false
+      }
+    },
+    "root_module": {
+      "resources": [
+        {
+          "address": "cloudflare_dns_record.argocd_tailscale",
+          "mode": "managed",
+          "type": "cloudflare_dns_record",
+          "name": "argocd_tailscale",
+          "provider_name": "registry.opentofu.org/cloudflare/cloudflare",
+          "schema_version": 0,
+          "values": {
+            "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+            "zone_id": "3cbee16e56d7656440f93e685807e779"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "cloudflare_dns_record.cristexhub_dev",
+          "mode": "managed",
+          "type": "cloudflare_dns_record",
+          "name": "cristexhub_dev",
+          "provider_name": "registry.opentofu.org/cloudflare/cloudflare",
+          "schema_version": 0,
+          "values": {
+            "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2",
+            "zone_id": "3cbee16e56d7656440f93e685807e779"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "cloudflare_dns_record.keycloak",
+          "mode": "managed",
+          "type": "cloudflare_dns_record",
+          "name": "keycloak",
+          "provider_name": "registry.opentofu.org/cloudflare/cloudflare",
+          "schema_version": 0,
+          "values": {
+            "id": "ccccccccccccccccccccccccccccccc3",
+            "zone_id": "3cbee16e56d7656440f93e685807e779"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "cloudflare_zero_trust_tunnel_cloudflared.keycloak",
+          "mode": "managed",
+          "type": "cloudflare_zero_trust_tunnel_cloudflared",
+          "name": "keycloak",
+          "provider_name": "registry.opentofu.org/cloudflare/cloudflare",
+          "schema_version": 0,
+          "values": {
+            "id": "f9442440-96df-4cf1-855b-7257868ed9bc",
+            "account_id": "8b0f511214c7a4a52ddfb62ca92c5e80",
+            "account_tag": "8b0f511214c7a4a52ddfb62ca92c5e80",
+            "tunnel_secret": null
+          },
+          "sensitive_values": {
+            "tunnel_secret": true
+          }
+        },
+        {
+          "address": "cloudflare_zero_trust_tunnel_cloudflared_config.keycloak",
+          "mode": "managed",
+          "type": "cloudflare_zero_trust_tunnel_cloudflared_config",
+          "name": "keycloak",
+          "provider_name": "registry.opentofu.org/cloudflare/cloudflare",
+          "schema_version": 0,
+          "values": {
+            "account_id": "8b0f511214c7a4a52ddfb62ca92c5e80",
+            "tunnel_id": "f9442440-96df-4cf1-855b-7257868ed9bc",
+            "config": {
+              "origin_request": null,
+              "ingress": [
+                {
+                  "hostname": "auth.cristex-soft.com",
+                  "origin_request": null,
+                  "path": null,
+                  "service": "http://traefik.kube-system.svc.cluster.local:80"
+                },
+                {
+                  "hostname": "dev-hub.cristex-soft.com",
+                  "origin_request": null,
+                  "path": null,
+                  "service": "http://traefik.kube-system.svc.cluster.local:80"
+                },
+                {
+                  "hostname": null,
+                  "origin_request": null,
+                  "path": null,
+                  "service": "http_status:404"
+                }
+              ]
+            }
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "cloudflare_dns_record.reactive_resume_dev_tailscale",
+          "mode": "managed",
+          "type": "cloudflare_dns_record",
+          "name": "reactive_resume_dev_tailscale",
+          "provider_name": "registry.opentofu.org/cloudflare/cloudflare",
+          "schema_version": 0,
+          "values": {
+            "name": "resume-dev.cristex-soft.com",
+            "type": "A",
+            "content": "100.122.139.32",
+            "ttl": 300,
+            "proxied": false,
+            "comment": "Managed by OpenTofu; private Reactive Resume DEV endpoint on Tailscale",
+            "id": "ddddddddddddddddddddddddddddddd4",
+            "zone_id": "3cbee16e56d7656440f93e685807e779"
+          },
+          "sensitive_values": {}
+        }
+      ]
+    }
+  }
+}
