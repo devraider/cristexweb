@@ -26,7 +26,7 @@ esac
 # only after the exact approval and all recovery gates have passed.
 while IFS='=' read -r inherited_name _; do
     case "$inherited_name" in
-        BASH_ENV|ENV|SHELLOPTS|BASHOPTS|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|http_proxy|https_proxy|all_proxy|no_proxy|TF_CLI_ARGS|TF_CLI_ARGS_*|TF_LOG|TF_LOG_PATH|TF_CLI_CONFIG_FILE|TF_DATA_DIR|TF_WORKSPACE|TF_VAR_*|TOFU_CLI_CONFIG_FILE|TOFU_CLI_ARGS|TOFU_LOG|TOFU_LOG_PATH|CLOUDFLARE_API_TOKEN|CLOUDFLARE_EMAIL|CLOUDFLARE_API_KEY)
+        BASH_ENV|ENV|SHELLOPTS|BASHOPTS|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|http_proxy|https_proxy|all_proxy|no_proxy|TF_CLI_ARGS|TF_CLI_ARGS_*|TF_LOG|TF_LOG_PATH|TF_CLI_CONFIG_FILE|TF_DATA_DIR|TF_WORKSPACE|TF_VAR_*|TOFU_CLI_CONFIG_FILE|TOFU_CLI_ARGS|TOFU_LOG|TOFU_LOG_PATH|PYTHONHOME|PYTHONPATH|PYTHONUSERBASE|PYTHONNOUSERSITE|PYTHONINSPECT|PYTHONSTARTUP|PYTHONBREAKPOINT|CLOUDFLARE_API_TOKEN|CLOUDFLARE_*TOKEN*|CLOUDFLARE_EMAIL|CLOUDFLARE_API_KEY|cloudflare_token|cloudflare_token_sha256|read_hidden_result)
             printf 'Refusing inherited environment override: %s\n' "$inherited_name" >&2
             exit 65
             ;;
@@ -44,8 +44,8 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
     exit 78
 }
 source_manifest="$root/bin/SOURCE.sha256"
-source_manifest_expected_sha256='943136e734cf2cd73e3ef7aea244e1165941eacecfdea9784597f53d9c3c6557'
-source_reconcile_expected_canonical_sha256='d54dc88d360ba5acececbb746cd07ecc2cc55a5dae5fdffcf55bba01458babae'
+source_manifest_expected_sha256='6652e713706a791435e4b3bc3710d8a1fbb3bf7eaa7c9c4ba7b57b2c7bd5dd8c'
+source_reconcile_expected_canonical_sha256='cdeb265225a879861a85d79e56405bd1a93163dec52ab813fefa99ff0c267ccf'
 validator="$root/bin/validate-foundation-state-scope"
 [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
 [ -x "$validator" ] && [ ! -L "$validator" ] || exit 78
@@ -58,7 +58,9 @@ source_actual_paths="$source_work/actual-paths"
 .terraform.lock.hcl
 README.md
 backend.tf
+bin/plan-foundation-prod-route
 bin/reconcile-foundation-state
+bin/validate-foundation-prod-plan
 bin/validate-foundation-state-scope
 cloudflare.tf
 outputs.tf
@@ -110,7 +112,7 @@ revalidate_source_closure() {
         { print $2 }
         END { if (bad) exit 1 }
     ' "$source_manifest_snapshot" | /usr/bin/sort >"$source_actual_paths" || exit 78
-    [ "$(/usr/bin/wc -l <"$source_actual_paths")" -eq 10 ] || exit 78
+    [ "$(/usr/bin/wc -l <"$source_actual_paths")" -eq 12 ] || exit 78
     /usr/bin/cmp -s "$source_expected_paths" "$source_actual_paths" || {
         printf '%s\n' 'Refusing incomplete or widened foundation source closure.' >&2
         exit 78
@@ -133,6 +135,13 @@ revalidate_source_closure() {
                 "$source_file" >"$source_canonical"
             source_actual_digest=$(/usr/bin/sha256sum "$source_canonical" | /usr/bin/cut -d ' ' -f 1)
             [ "$source_actual_digest" = "$source_reconcile_expected_canonical_sha256" ] || exit 78
+        elif [ "$source_path" = 'bin/plan-foundation-prod-route' ]; then
+            source_canonical="$source_work/plan-foundation-prod-route.canonical"
+            /usr/bin/sed -E \
+                -e "s/^source_manifest_expected_sha256='[0-9a-f]{64}'$/source_manifest_expected_sha256='__SOURCE_MANIFEST_SHA256__'/" \
+                -e "s/^source_prod_expected_canonical_sha256='[0-9a-f]{64}'$/source_prod_expected_canonical_sha256='__SOURCE_PROD_SHA256__'/" \
+                "$source_file" >"$source_canonical"
+            source_actual_digest=$(/usr/bin/sha256sum "$source_canonical" | /usr/bin/cut -d ' ' -f 1)
         else
             source_actual_digest=$(/usr/bin/sha256sum "$source_file" | /usr/bin/cut -d ' ' -f 1)
         fi
@@ -164,6 +173,11 @@ tofu_target=/opt/opentofu/1.12.5/tofu
 [ -L "$tofu" ] && [ "$(/usr/bin/readlink -f -- "$tofu")" = "$tofu_target" ] || exit 69
 [ -f "$tofu_target" ] && [ ! -L "$tofu_target" ] || exit 69
 [ "$(/usr/bin/stat -c '%U:%G:%a' "$tofu_target")" = 'root:root:755' ] || exit 69
+# The Cloudflare provider consumes CLOUDFLARE_API_TOKEN from its process
+# environment.  The wrapper starts a clean same-UID child, supplies the token
+# only on that child's stdin, and exports it immediately before exec.  This is
+# compatible with the provider without claiming that /proc or a privileged
+# same-UID observer can be prevented from seeing the child environment.
 
 state_scope_validator="$validator"
 expected_pre_addresses=5
@@ -192,6 +206,13 @@ clean_exec() {
         LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
         "$@"
 }
+run_python() {
+    revalidate_source_closure
+    /usr/bin/env -i \
+        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
+        LC_ALL=C PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+        "$@"
+}
 run_capture() {
     revalidate_source_closure
     : >"$log"
@@ -206,6 +227,11 @@ run_capture() {
     }
 }
 run_capture_with_token() {
+    # The token crosses the provider process boundary through an anonymous pipe,
+    # never argv, a caller-supplied/inherited environment, a file, plan output,
+    # or a receipt.  OpenTofu's provider API requires the token environment
+    # variable, so the clean same-UID child exports it immediately before exec.
+    # No privilege escalation, PTY, or privileged I/O logging policy is assumed.
     revalidate_source_closure
     : >"$log"
     chmod 0600 "$log"
@@ -213,9 +239,11 @@ run_capture_with_token() {
     shift
     : >"$capture_file"
     chmod 0600 "$capture_file"
+    # This unqualified `printf` is the dash builtin.  Its only pipe consumer
+    # receives token bytes on stdin; no external process receives token argv.
     printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
-        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
-        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
+        PATH=/usr/local/bin:/usr/bin:/bin HOME=/home/paul USER=paul LOGNAME=paul LC_ALL=C \
+        TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
         TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
         TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
         /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' import-child "$@" >"$capture_file" 2>"$log" || {
@@ -228,7 +256,7 @@ validate_scope() {
     list_file=$work/state-$phase.list
     run_capture "$list_file" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" state list -state="$state_file" -no-color
     revalidate_source_closure
-    /usr/bin/python3 "$state_scope_validator" "$phase" "$list_file" >/dev/null || {
+    run_python /usr/bin/python3 "$state_scope_validator" "$phase" "$list_file" >/dev/null || {
         printf 'reconcile_status=failed stage=state_scope_%s\n' "$phase" >&2
         exit 1
     }
@@ -237,18 +265,22 @@ validate_resource_contract() {
     resource_file=$work/reactive-resume-dev-tailscale.state
     run_capture "$resource_file" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" state show -state="$state_file" cloudflare_dns_record.reactive_resume_dev_tailscale
     revalidate_source_closure
-    /usr/bin/python3 "$state_scope_validator" resource reactive_resume_dev_tailscale "$resource_file" >/dev/null || {
+    run_python /usr/bin/python3 "$state_scope_validator" resource reactive_resume_dev_tailscale "$resource_file" >/dev/null || {
         printf '%s\n' 'reconcile_status=failed stage=reactive_resume_dev_tailscale_contract' >&2
         exit 1
     }
 }
 validate_plan_contract() {
     plan_file=$work/foundation-$1.tfplan
+    plan_stdout=$work/foundation-$1-plan.out
     plan_json=$work/foundation-$1-plan.json
-    run_capture_with_token "$plan_file" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" plan -refresh-only -input=false -lock=true -no-color -out="$plan_file"
+    # Keep OpenTofu's binary -out artifact separate from captured human-readable
+    # stdout.  Passing the same path to -out and stdout redirection corrupts the
+    # zip-format plan before `show` can consume it.
+    run_capture_with_token "$plan_stdout" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" plan -refresh-only -input=false -lock=true -no-color -out="$plan_file"
     run_capture "$plan_json" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" show -json "$plan_file"
     revalidate_source_closure
-    /usr/bin/python3 "$state_scope_validator" plan "$plan_json" >/dev/null || {
+    run_python /usr/bin/python3 "$state_scope_validator" plan "$plan_json" >/dev/null || {
         printf 'reconcile_status=failed stage=plan_%s\n' "$1" >&2
         exit 1
     }

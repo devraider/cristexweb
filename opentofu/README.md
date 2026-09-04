@@ -22,8 +22,16 @@ separate source-only import prerequisite, and `cloudflare_dns_record.cristexhub_
 remains absent from state. The guarded reconciliation is documented in
 [`runbooks/opentofu-foundation-state-reconciliation.md`](../runbooks/opentofu-foundation-state-reconciliation.md)
 and must establish the exact six-address state closure before any PROD plan. The
-PROD change is therefore still pending: one Tunnel-config update adding the
-reviewed `hub.cristex-soft.com` ingress and one proxied DNS-record create. No
+source-only `opentofu/bin/plan-foundation-prod-route` wrapper then provides the
+separate check/plan-only gate. The protected route identity is fixed to account
+`8b0f511214c7a4a52ddfb62ca92c5e80`, zone
+`3cbee16e56d7656440f93e685807e779`, and Tunnel
+`f9442440-96df-4cf1-855b-7257868ed9bc`; these are public resource identifiers,
+not credentials. It accepts exactly one Tunnel-config update adding
+the reviewed `hub.cristex-soft.com` ingress and one proxied DNS-record create,
+with no replacement, destroy, deferred, unknown, sensitive, or state mutation. Its
+exact five root outputs are required as nonsensitive `["no-op"]` entries with
+concrete equal before/after values. No
 provider/state operation has run for either pending change. The Argo CD and
 Reactive Resume DEV records point to current Tailscale IPv4 `100.122.139.32`;
 access remains restricted by the host/cluster Tailscale-only ingress boundary and
@@ -34,8 +42,15 @@ uses a private ephemeral `TF_DATA_DIR`, keeping a clean source root free of
 OpenTofu-generated provider data. After the exact sixth-address import it runs a
 provider-backed `plan -refresh-only` twice (before and after backup recovery).
 A local mode-`0600` validator accepts only the exact six managed resources with
-empty actions and rejects drift, deferred changes, outputs, sensitive values,
-or any expanded/mutating plan. This state-refresh gate does not run or authorize
+`["no-op"]` actions and requires the exact five declared root outputs as
+nonsensitive no-ops with concrete equal before/after values. It also requires the exact
+five passing source-variable checks and dependency paths emitted by OpenTofu.
+The validator models the pinned Cloudflare 5.23.0 DNS and
+Tunnel computed-field schema, requiring every provider-emitted computed field on
+both sides of a no-op and rejecting computed drift, deferred changes, sensitive
+values, or any expanded/mutating plan. The PROD validator consumes a mode-0600
+identity attestation from the canonical wrapper and rejects direct unbound
+invocation. This state-refresh gate does not run or authorize
 the separate PROD Tunnel/DNS plan.
 
 ## State and secret boundary
@@ -83,7 +98,8 @@ The imported Tunnel UUID was recorded without secret output. Its token was recov
 through the approved Infisical path `prod:/platform-edge/cloudflared`, key
 `CLOUDFLARE_TUNNEL_TOKEN`, and materialized into the live `platform-edge`
 cloudflared workload through the guarded lane. Token-bearing material remains absent
-from Git, OpenTofu state/plan/output, argv, evidence, and manifests. The PROD route adds no token. It still requires a protected DNS-capable provider
+from Git, OpenTofu state/plan/output, argv, evidence, and manifests. The PROD route
+adds no token. It still requires a protected DNS-capable provider
 credential and separate approvals for Tunnel-config mutation, DNS publication, and
 public cutover. Before any apply, require a fresh encrypted state backup/readback,
 independent-key restore rehearsal, and an exact reviewed plan containing only the
@@ -99,6 +115,21 @@ After a future approved apply, post-validation must include provider/API state
 verification, a second no-op plan, positive `hub.cristex-soft.com` authentication
 and routing tests, negative admin/management/DEV/Argo/data/direct-origin tests, and
 rollback evidence. These controls do not authorize the pending PROD route.
+
+### Provider credential process boundary
+
+The provider credential is read only from protected terminal input and crosses to
+OpenTofu through an anonymous pipe. It is never placed in argv, a caller-supplied
+or inherited environment, a plan, a log, or a file. OpenTofu's Cloudflare
+provider requires `CLOUDFLARE_API_TOKEN` in its process environment, so a clean
+same-UID child reads the token from stdin, exports it immediately before exec,
+and runs the pinned OpenTofu 1.12.5 binary. No sudo, setuid-root transition,
+PTY, or sudoers I/O-logging policy is assumed. As required by this provider
+contract, the token-bearing child environment may be observable to a same-UID
+process or privileged observer; this lane makes no `/proc` confidentiality
+claim. The local validator rejects token-bearing JSON unconditionally, even if
+a caller supplies a matching digest, accepting only the fixed sanitized fixture
+placeholder.
 
 ## Encrypted state recovery boundary
 

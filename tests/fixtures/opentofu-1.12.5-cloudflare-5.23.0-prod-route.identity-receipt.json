@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "kind": "one-to-one sanitization receipt",
+  "source": "offline synthetic Cloudflare route-plan fixture",
+  "protected_identity_values_included": false,
+  "distinct_sanitized_placeholders": true,
+  "mappings": [
+    {
+      "logical": "cloudflare_dns_record.argocd_tailscale.id",
+      "label": "SANITIZED_DNS_ID_ARGO",
+      "placeholder_value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"
+    },
+    {
+      "logical": "cloudflare_dns_record.cristexhub_dev.id",
+      "label": "SANITIZED_DNS_ID_DEV",
+      "placeholder_value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2"
+    },
+    {
+      "logical": "cloudflare_dns_record.keycloak.id",
+      "label": "SANITIZED_DNS_ID_KEYCLOAK",
+      "placeholder_value": "ccccccccccccccccccccccccccccccc3"
+    },
+    {
+      "logical": "cloudflare_dns_record.reactive_resume_dev_tailscale.id",
+      "label": "SANITIZED_DNS_ID_RESUME_DEV",
+      "placeholder_value": "ddddddddddddddddddddddddddddddd4"
+    },
+    {
+      "logical": "cloudflare_zero_trust_tunnel_cloudflared.keycloak.account_tag",
+      "label": "SANITIZED_TUNNEL_ACCOUNT_ID",
+      "placeholder_value": "8b0f511214c7a4a52ddfb62ca92c5e80"
+    }
+  ],
+  "fixed_semantic_account_id_included": true
+}

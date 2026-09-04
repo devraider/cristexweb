@@ -1,0 +1,408 @@
+#!/bin/sh
+# Guarded, plan-only Cloudflare PROD route increment from protected state 6 to 7.
+# This entrypoint never applies, imports, destroys, or edits OpenTofu state.
+set -eu
+umask 077
+PATH=/usr/local/bin:/usr/bin:/bin
+LC_ALL=C
+export PATH LC_ALL
+case $- in
+    *x*|*v*) printf '%s\n' 'Refusing traced shell execution.' >&2; exit 65 ;;
+esac
+[ "$(/usr/bin/readlink -f "/proc/$$/exe")" = /usr/bin/dash ] || {
+    printf '%s\n' 'Refusing execution outside the canonical dash interpreter.' >&2
+    exit 65
+}
+usage='usage: opentofu/bin/plan-foundation-prod-route check|plan'
+[ "$#" -eq 1 ] || { printf '%s\n' "$usage" >&2; exit 64; }
+case "$1" in
+    check) mode=check ;;
+    plan) mode=plan ;;
+    *) printf '%s\n' "$usage" >&2; exit 64 ;;
+esac
+
+# Reject every caller-supplied transport, provider, backend, workspace, logging,
+# variable, shell, and checkpoint override, including variables set to empty.
+while IFS='=' read -r inherited_name _; do
+    case "$inherited_name" in
+        BASH_ENV|ENV|SHELLOPTS|BASHOPTS|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|http_proxy|https_proxy|all_proxy|no_proxy|TF_CLI_ARGS|TF_CLI_ARGS_*|TF_LOG|TF_LOG_PATH|TF_CLI_CONFIG_FILE|TF_DATA_DIR|TF_WORKSPACE|TF_VAR_*|TOFU_CLI_CONFIG_FILE|TOFU_CLI_ARGS|TOFU_LOG|TOFU_LOG_PATH|TERRAFORM_CONFIG|TERRAFORM_CONFIG_DIR|PYTHONHOME|PYTHONPATH|PYTHONUSERBASE|PYTHONNOUSERSITE|PYTHONINSPECT|PYTHONSTARTUP|PYTHONBREAKPOINT|CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256|CRISTEXWEB_PROD_PLAN_PROVIDER_TOKEN_SHA256|CLOUDFLARE_API_TOKEN|CLOUDFLARE_*TOKEN*|CLOUDFLARE_EMAIL|CLOUDFLARE_API_KEY|cloudflare_token|cloudflare_token_sha256|read_hidden_result)
+            printf 'Refusing inherited environment override: %s\n' "$inherited_name" >&2
+            exit 65
+            ;;
+    esac
+done <<EOF
+$(/usr/bin/env | /usr/bin/sed 's/=.*//')
+EOF
+
+script=$0
+[ ! -L "$script" ] || { printf '%s\n' 'Refusing symlinked entrypoint.' >&2; exit 66; }
+dir=$(CDPATH= cd -- "$(/usr/bin/dirname -- "$script")" && pwd -P)
+root=$(CDPATH= cd -- "$dir/.." && pwd -P)
+[ "$root" = /home/paul/projects/cristexweb/opentofu ] || {
+    printf '%s\n' 'Refusing non-canonical OpenTofu root.' >&2
+    exit 78
+}
+source_manifest="$root/bin/SOURCE.sha256"
+source_manifest_expected_sha256='6652e713706a791435e4b3bc3710d8a1fbb3bf7eaa7c9c4ba7b57b2c7bd5dd8c'
+source_prod_expected_canonical_sha256='097eaa9099f119f0289ddfe682b4ff15288ac13aab3c63e6f06f6e352a463aa5'
+validator="$root/bin/validate-foundation-prod-plan"
+state_scope_validator="$root/bin/validate-foundation-state-scope"
+[ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
+[ -x "$validator" ] && [ ! -L "$validator" ] || exit 78
+[ -x "$state_scope_validator" ] && [ ! -L "$state_scope_validator" ] || exit 78
+source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-prod-source.XXXXXX)
+chmod 0700 "$source_work"
+trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM
+source_expected_paths="$source_work/expected-paths"
+source_actual_paths="$source_work/actual-paths"
+root_expected_files="$source_work/root-expected-files"
+root_actual_files="$source_work/root-actual-files"
+/usr/bin/cat >"$source_expected_paths" <<'EOF'
+.terraform.lock.hcl
+README.md
+backend.tf
+bin/plan-foundation-prod-route
+bin/reconcile-foundation-state
+bin/validate-foundation-prod-plan
+bin/validate-foundation-state-scope
+cloudflare.tf
+outputs.tf
+providers.tf
+variables.tf
+versions.tf
+EOF
+refresh_root_expected_files() {
+    /usr/bin/cat >"$root_expected_files" <<'EOF'
+f .terraform.lock.hcl
+f README.md
+f backend.tf
+f cloudflare.tf
+d bin
+d github
+f outputs.tf
+f providers.tf
+f variables.tf
+f versions.tf
+EOF
+    if [ -d "$root/.terraform" ] && [ ! -L "$root/.terraform" ]; then
+        printf '%s\n' 'd .terraform' >>"$root_expected_files"
+    fi
+    /usr/bin/sort -o "$root_expected_files" "$root_expected_files"
+}
+revalidate_source_closure() {
+    refresh_root_expected_files
+    [ "$(/usr/bin/stat -c '%U:%G:%a' "$source_manifest")" = 'paul:paul:644' ] || exit 78
+    [ "$(/usr/bin/sha256sum "$source_manifest" | /usr/bin/cut -d ' ' -f 1)" = "$source_manifest_expected_sha256" ] || {
+        printf '%s\n' 'Refusing OpenTofu PROD source manifest drift.' >&2
+        exit 78
+    }
+    /usr/bin/find "$root" -mindepth 1 -maxdepth 1 -printf '%y %f\n' | /usr/bin/sort >"$root_actual_files"
+    /usr/bin/cmp -s "$root_expected_files" "$root_actual_files" || {
+        printf '%s\n' 'Refusing extra or non-regular OpenTofu root entry.' >&2
+        exit 78
+    }
+    source_manifest_snapshot="$source_work/source-manifest.current"
+    /usr/bin/cat "$source_manifest" >"$source_manifest_snapshot"
+    chmod 0600 "$source_manifest_snapshot"
+    /usr/bin/awk '
+        NF != 2 || $1 !~ /^[0-9a-f]{64}$/ || $2 ~ /^\// || $2 ~ /(^|\/)\.\.($|\/)|[[:space:]]/ { bad = 1; next }
+        { print $2 }
+        END { if (bad) exit 1 }
+    ' "$source_manifest_snapshot" | /usr/bin/sort >"$source_actual_paths" || exit 78
+    [ "$(/usr/bin/wc -l <"$source_actual_paths")" -eq 12 ] || exit 78
+    /usr/bin/cmp -s "$source_expected_paths" "$source_actual_paths" || {
+        printf '%s\n' 'Refusing incomplete or widened OpenTofu PROD source closure.' >&2
+        exit 78
+    }
+    while IFS= read -r source_line; do
+        source_digest=${source_line%%  *}
+        source_path=${source_line#*  }
+        source_file="$root/$source_path"
+        [ -f "$source_file" ] && [ ! -L "$source_file" ] || exit 78
+        case "$source_path" in
+            bin/*) source_mode=755 ;;
+            *) source_mode=644 ;;
+        esac
+        [ "$(/usr/bin/stat -c '%a' "$source_file")" = "$source_mode" ] || exit 78
+        if [ "$source_path" = 'bin/plan-foundation-prod-route' ]; then
+            source_canonical="$source_work/plan-foundation-prod-route.canonical"
+            /usr/bin/sed -E \
+                -e "s/^source_manifest_expected_sha256='[0-9a-f]{64}'$/source_manifest_expected_sha256='__SOURCE_MANIFEST_SHA256__'/" \
+                -e "s/^source_prod_expected_canonical_sha256='[0-9a-f]{64}'$/source_prod_expected_canonical_sha256='__SOURCE_PROD_SHA256__'/" \
+                "$source_file" >"$source_canonical"
+            source_actual_digest=$(/usr/bin/sha256sum "$source_canonical" | /usr/bin/cut -d ' ' -f 1)
+            [ "$source_actual_digest" = "$source_prod_expected_canonical_sha256" ] || exit 78
+        elif [ "$source_path" = 'bin/reconcile-foundation-state' ]; then
+            source_canonical="$source_work/reconcile-foundation-state.canonical"
+            /usr/bin/sed -E \
+                -e "s/^source_manifest_expected_sha256='[0-9a-f]{64}'$/source_manifest_expected_sha256='__SOURCE_MANIFEST_SHA256__'/" \
+                -e "s/^source_reconcile_expected_canonical_sha256='[0-9a-f]{64}'$/source_reconcile_expected_canonical_sha256='__SOURCE_RECONCILE_SHA256__'/" \
+                "$source_file" >"$source_canonical"
+            source_actual_digest=$(/usr/bin/sha256sum "$source_canonical" | /usr/bin/cut -d ' ' -f 1)
+        else
+            source_actual_digest=$(/usr/bin/sha256sum "$source_file" | /usr/bin/cut -d ' ' -f 1)
+        fi
+        [ "$source_actual_digest" = "$source_digest" ] || {
+            printf 'Refusing OpenTofu PROD source drift: %s\n' "$source_path" >&2
+            exit 78
+        }
+    done <"$source_manifest_snapshot"
+}
+revalidate_source_closure
+
+backend="$root/backend.tf"
+state_parent=/var/lib/opentofu/cristexweb
+state_file="$state_parent/foundation.tfstate"
+[ -f "$backend" ] && [ ! -L "$backend" ] || exit 78
+/usr/bin/grep -Fxq '    path = "/var/lib/opentofu/cristexweb/foundation.tfstate"' "$backend" || exit 78
+[ -d "$state_parent" ] && [ ! -L "$state_parent" ] || exit 65
+[ "$(/usr/bin/realpath -e -- "$state_parent")" = "$state_parent" ] || exit 65
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$state_parent")" = 'paul:root:700' ] || exit 65
+[ -f "$state_file" ] && [ ! -L "$state_file" ] || exit 73
+[ "$(/usr/bin/realpath -e -- "$state_file")" = "$state_file" ] || exit 73
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$state_file")" = 'paul:paul:600' ] || exit 73
+
+tofu=/usr/local/bin/tofu
+tofu_target=/opt/opentofu/1.12.5/tofu
+[ -L "$tofu" ] && [ "$(/usr/bin/readlink -f -- "$tofu")" = "$tofu_target" ] || exit 69
+[ -f "$tofu_target" ] && [ ! -L "$tofu_target" ] || exit 69
+[ "$(/usr/bin/stat -c '%U:%G:%a' "$tofu_target")" = 'root:root:755' ] || exit 69
+# The Cloudflare provider consumes CLOUDFLARE_API_TOKEN from its process
+# environment.  The wrapper starts a clean same-UID child, supplies the token
+# only on that child's stdin, and exports it immediately before exec.  This is
+# compatible with the provider without claiming that /proc or a privileged
+# same-UID observer can be prevented from seeing the child environment.
+
+work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-prod-plan.XXXXXX)
+chmod 0700 "$work"
+log="$work/tofu.stderr"
+identity_file="$work/foundation-prod-route-identities.json"
+state_before_sha256=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f 1)
+cloudflare_account_id=
+cloudflare_zone_id=
+cloudflare_token=
+cloudflare_tunnel_account_tag=
+cloudflare_dns_id_argocd=
+cloudflare_dns_id_dev=
+cloudflare_dns_id_keycloak=
+cloudflare_dns_id_resume=
+identity_sha256=
+read_hidden_result=
+terminal_echo_disabled=false
+protected_account_id=8b0f511214c7a4a52ddfb62ca92c5e80
+protected_zone_id=3cbee16e56d7656440f93e685807e779
+protected_tunnel_id=f9442440-96df-4cf1-855b-7257868ed9bc
+cleanup() {
+    if [ "${terminal_echo_disabled:-false}" = true ]; then
+        /bin/stty echo 2>/dev/null || true
+    fi
+    unset CLOUDFLARE_API_TOKEN cloudflare_token cloudflare_account_id cloudflare_zone_id confirmation cloudflare_tunnel_account_tag cloudflare_dns_id_argocd cloudflare_dns_id_dev cloudflare_dns_id_keycloak cloudflare_dns_id_resume read_hidden_result
+    /usr/bin/rm -rf -- "$work" "$source_work"
+}
+trap cleanup EXIT HUP INT TERM
+clean_exec() {
+    /usr/bin/env -i \
+        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
+        LC_ALL=C TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" \
+        TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
+        CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256="${identity_sha256-}" \
+        TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
+        TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
+        "$@"
+}
+run_capture() {
+    revalidate_source_closure
+    capture_file=$1
+    shift
+    : >"$capture_file"
+    chmod 0600 "$capture_file"
+    : >"$log"
+    chmod 0600 "$log"
+    clean_exec "$@" >"$capture_file" 2>"$log" || {
+        printf 'prod_plan_status=failed stage=tofu_command\n' >&2
+        exit 1
+    }
+}
+run_capture_with_token() {
+    # The token crosses the provider process boundary through an anonymous pipe,
+    # never argv, a caller-supplied/inherited environment, a file, plan output,
+    # or a receipt.  OpenTofu's provider API requires the token environment
+    # variable, so the clean same-UID child exports it immediately before exec.
+    # No privilege escalation, PTY, or privileged I/O logging policy is assumed.
+    revalidate_source_closure
+    capture_file=$1
+    shift
+    : >"$capture_file"
+    chmod 0600 "$capture_file"
+    : >"$log"
+    chmod 0600 "$log"
+    # This unqualified `printf` is the dash builtin.  Its only pipe consumer
+    # receives token bytes on stdin; no external process receives token argv.
+    printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
+        PATH=/usr/local/bin:/usr/bin:/bin HOME=/home/paul USER=paul LOGNAME=paul LC_ALL=C \
+        TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" \
+        TF_WORKSPACE=default TOFU_DISABLE_CHECKPOINT=1 \
+        CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256="${identity_sha256-}" \
+        TF_VAR_cloudflare_account_id="$cloudflare_account_id" \
+        TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
+        /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' import-child "$@" \
+        >"$capture_file" 2>"$log" || {
+        printf 'prod_plan_status=failed stage=provider_command\n' >&2
+        exit 1
+    }
+}
+run_python() {
+    revalidate_source_closure
+    /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
+        LC_ALL=C PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+        CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256="${identity_sha256-}" \
+        CRISTEXWEB_PROD_ROUTE_IDENTITY_ATTESTATION="${identity_attestation-}" \
+        /usr/bin/python3 "$@"
+}
+run_python_with_token() {
+    # The validator receives the token on stdin solely to reject an unexpected
+    # token-bearing JSON projection.  It never arrives in argv or environment.
+    revalidate_source_closure
+    printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
+        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin \
+        LC_ALL=C PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+        CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256="${identity_sha256-}" \
+        CRISTEXWEB_PROD_ROUTE_IDENTITY_ATTESTATION="${identity_attestation-}" \
+        /usr/bin/python3 "$@" --token-stdin
+}
+validate_state_scope() {
+    list_file=$work/state-$1.list
+    run_capture "$list_file" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" state list -state="$state_file" -no-color
+    revalidate_source_closure
+    run_python "$state_scope_validator" post "$list_file" >/dev/null || {
+        printf 'prod_plan_status=failed stage=state_scope\n' >&2
+        exit 1
+    }
+}
+validate_state_unchanged() {
+    state_after_sha256=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f 1)
+    [ "$state_after_sha256" = "$state_before_sha256" ] || {
+        printf '%s\n' 'Refusing OpenTofu state mutation during plan-only operation.' >&2
+        exit 73
+    }
+    [ "$(/usr/bin/stat -c '%U:%G:%a' "$state_file")" = 'paul:paul:600' ] || exit 73
+}
+
+# Lock the protected state-parent inode without creating a lock file.  The same
+# non-mutating lock covers the six-address preflight and the plan artifact.
+exec 9<"$state_parent"
+/usr/bin/flock -n 9 || {
+    printf '%s\n' 'Refusing concurrent foundation PROD plan.' >&2
+    exit 75
+}
+validate_state_scope pre
+if [ "$mode" = check ]; then
+    validate_state_unchanged
+    printf 'prod_plan_status=check_passed existing_addresses=6 expected_changes=2 provider=not-contacted apply=not-run state_mutation=false token_output=false\n'
+    exit 0
+fi
+
+printf '%s' 'Type PLAN PROD ROUTE 6 TO 7 to continue: ' >&2
+IFS= read -r confirmation || exit 74
+[ "$confirmation" = 'PLAN PROD ROUTE 6 TO 7' ] || {
+    printf '%s\n' 'Refusing missing explicit PROD plan approval.' >&2
+    exit 65
+}
+unset confirmation
+read_hidden() {
+    printf '%s' "$1" >&2
+    /bin/stty -echo
+    terminal_echo_disabled=true
+    IFS= read -r read_hidden_result || {
+        /bin/stty echo 2>/dev/null || true
+        terminal_echo_disabled=false
+        return 74
+    }
+    /bin/stty echo
+    terminal_echo_disabled=false
+    printf '\n' >&2
+}
+read_hidden 'Cloudflare account ID (input hidden): '
+cloudflare_account_id=$read_hidden_result
+read_hidden 'Cloudflare zone ID (input hidden): '
+cloudflare_zone_id=$read_hidden_result
+read_hidden 'Cloudflare Tunnel account_tag (input hidden): '
+cloudflare_tunnel_account_tag=$read_hidden_result
+read_hidden 'Existing Argo DNS record ID (input hidden): '
+cloudflare_dns_id_argocd=$read_hidden_result
+read_hidden 'Existing CristexHub DEV DNS record ID (input hidden): '
+cloudflare_dns_id_dev=$read_hidden_result
+read_hidden 'Existing Keycloak DNS record ID (input hidden): '
+cloudflare_dns_id_keycloak=$read_hidden_result
+read_hidden 'Existing Reactive Resume DEV DNS record ID (input hidden): '
+cloudflare_dns_id_resume=$read_hidden_result
+read_hidden 'Cloudflare API token (input hidden): '
+cloudflare_token=$read_hidden_result
+case "$cloudflare_account_id" in *[!0-9a-f]*|'') exit 65 ;; esac
+case "$cloudflare_zone_id" in *[!0-9a-f]*|'') exit 65 ;; esac
+[ "$cloudflare_account_id" = "$protected_account_id" ] || exit 65
+[ "$cloudflare_zone_id" = "$protected_zone_id" ] || exit 65
+[ "$cloudflare_tunnel_account_tag" = "$cloudflare_account_id" ] || exit 65
+for prompted_identity in "$cloudflare_tunnel_account_tag" "$cloudflare_dns_id_argocd" "$cloudflare_dns_id_dev" "$cloudflare_dns_id_keycloak" "$cloudflare_dns_id_resume"; do
+    case "$prompted_identity" in *[!0-9a-f]*|'') exit 65 ;; esac
+    [ "${#prompted_identity}" -eq 32 ] || exit 65
+done
+[ "$cloudflare_tunnel_account_tag" != "$cloudflare_dns_id_argocd" ] || exit 65
+[ "$cloudflare_tunnel_account_tag" != "$cloudflare_dns_id_dev" ] || exit 65
+[ "$cloudflare_tunnel_account_tag" != "$cloudflare_dns_id_keycloak" ] || exit 65
+[ "$cloudflare_tunnel_account_tag" != "$cloudflare_dns_id_resume" ] || exit 65
+[ "$cloudflare_dns_id_argocd" != "$cloudflare_dns_id_dev" ] || exit 65
+[ "$cloudflare_dns_id_argocd" != "$cloudflare_dns_id_keycloak" ] || exit 65
+[ "$cloudflare_dns_id_argocd" != "$cloudflare_dns_id_resume" ] || exit 65
+[ "$cloudflare_dns_id_dev" != "$cloudflare_dns_id_keycloak" ] || exit 65
+[ "$cloudflare_dns_id_dev" != "$cloudflare_dns_id_resume" ] || exit 65
+[ "$cloudflare_dns_id_keycloak" != "$cloudflare_dns_id_resume" ] || exit 65
+[ "${#cloudflare_token}" -ge 20 ] || exit 65
+case "$cloudflare_token" in *[[:space:]]*) exit 65 ;; esac
+# The token is intentionally not hashed into an environment variable: a hash
+# would still be ambient credential-derived input and cannot make a token-bearing
+# plan artifact safe.  The plan validator accepts only the fixed sanitized
+# provider-token placeholder and rejects any real provider token.
+/usr/bin/cat >"$identity_file" <<EOF
+{
+  "schema": 1,
+  "scope": "cloudflare-foundation-prod-route-6-to-7",
+  "account_id": "$protected_account_id",
+  "zone_id": "$protected_zone_id",
+  "tunnel_id": "$protected_tunnel_id",
+  "tunnel_account_tag": "$cloudflare_tunnel_account_tag",
+  "dns_record_ids": {
+    "cloudflare_dns_record.argocd_tailscale": "$cloudflare_dns_id_argocd",
+    "cloudflare_dns_record.cristexhub_dev": "$cloudflare_dns_id_dev",
+    "cloudflare_dns_record.keycloak": "$cloudflare_dns_id_keycloak",
+    "cloudflare_dns_record.reactive_resume_dev_tailscale": "$cloudflare_dns_id_resume"
+  }
+}
+EOF
+chmod 0600 "$identity_file"
+identity_sha256=$(/usr/bin/sha256sum "$identity_file" | /usr/bin/cut -d ' ' -f 1)
+identity_attestation="$work/foundation-prod-route-identity.attestation"
+/usr/bin/printf 'identity_sha256=%s\nidentity_scope=cloudflare-foundation-prod-route-6-to-7\n' "$identity_sha256" >"$identity_attestation"
+chmod 0600 "$identity_attestation"
+
+# init uses only the pinned lockfile and ephemeral TF_DATA_DIR.  It cannot write
+# protected state; plan is the sole provider-backed operation in this closure.
+run_capture "$work/init.out" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" init -input=false -lockfile=readonly -no-color
+validate_state_scope before-plan
+plan_file="$work/foundation-prod-route.tfplan"
+plan_stdout="$work/foundation-prod-route-plan.out"
+plan_json="$work/foundation-prod-route-plan.json"
+# Keep the binary plan artifact separate from captured human-readable stdout;
+# redirecting both to one path would corrupt the artifact before validation.
+run_capture_with_token "$plan_stdout" /usr/bin/timeout --foreground --kill-after=10s 120 "$tofu" -chdir="$root" plan -input=false -lock=true -no-color -out="$plan_file"
+validate_state_unchanged
+run_capture "$plan_json" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" show -json "$plan_file"
+validate_state_unchanged
+revalidate_source_closure
+run_python_with_token "$validator" "$plan_json" "$identity_file" >/dev/null || {
+    printf 'prod_plan_status=failed stage=plan_contract\n' >&2
+    exit 1
+}
+validate_state_scope post-plan
+validate_state_unchanged
+printf 'prod_plan_status=accepted existing_addresses=6 expected_changes=2 updated=cloudflare_zero_trust_tunnel_cloudflared_config.keycloak created=cloudflare_dns_record.cristexhub_prod apply=not-run state_mutation=false sensitive=false unknown=false deferred=false outputs=no-op token_output=false\n'

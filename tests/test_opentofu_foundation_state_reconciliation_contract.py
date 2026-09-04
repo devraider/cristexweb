@@ -31,7 +31,7 @@ EXPECTED_POST = EXPECTED_PRE | {"cloudflare_dns_record.reactive_resume_dev_tails
 class OpenTofuFoundationStateReconciliationContractTests(unittest.TestCase):
     def test_manifest_is_complete_hashed_and_mode_bound(self) -> None:
         lines = MANIFEST.read_text().splitlines()
-        self.assertEqual(10, len(lines))
+        self.assertEqual(12, len(lines))
         paths: list[str] = []
         for line in lines:
             digest, path = line.split("  ", 1)
@@ -43,18 +43,25 @@ class OpenTofuFoundationStateReconciliationContractTests(unittest.TestCase):
             self.assertFalse(file_path.is_symlink(), path)
             expected_mode = 0o755 if path.startswith("bin/") else 0o644
             self.assertEqual(expected_mode, stat.S_IMODE(file_path.stat().st_mode), path)
-            if path == "bin/reconcile-foundation-state":
+            if path in {"bin/reconcile-foundation-state", "bin/plan-foundation-prod-route"}:
                 text = file_path.read_text()
                 text = re.sub(
                     r"source_manifest_expected_sha256='[0-9a-f]{64}'",
                     "source_manifest_expected_sha256='__SOURCE_MANIFEST_SHA256__'",
                     text,
                 )
-                text = re.sub(
-                    r"source_reconcile_expected_canonical_sha256='[0-9a-f]{64}'",
-                    "source_reconcile_expected_canonical_sha256='__SOURCE_RECONCILE_SHA256__'",
-                    text,
-                )
+                if path == "bin/reconcile-foundation-state":
+                    text = re.sub(
+                        r"source_reconcile_expected_canonical_sha256='[0-9a-f]{64}'",
+                        "source_reconcile_expected_canonical_sha256='__SOURCE_RECONCILE_SHA256__'",
+                        text,
+                    )
+                else:
+                    text = re.sub(
+                        r"source_prod_expected_canonical_sha256='[0-9a-f]{64}'",
+                        "source_prod_expected_canonical_sha256='__SOURCE_PROD_SHA256__'",
+                        text,
+                    )
                 actual = hashlib.sha256(text.encode()).hexdigest()
             else:
                 actual = hashlib.sha256(file_path.read_bytes()).hexdigest()
@@ -66,7 +73,9 @@ class OpenTofuFoundationStateReconciliationContractTests(unittest.TestCase):
                     ".terraform.lock.hcl",
                     "README.md",
                     "backend.tf",
+                    "bin/plan-foundation-prod-route",
                     "bin/reconcile-foundation-state",
+                    "bin/validate-foundation-prod-plan",
                     "bin/validate-foundation-state-scope",
                     "cloudflare.tf",
                     "outputs.tf",
