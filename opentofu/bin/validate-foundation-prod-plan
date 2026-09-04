@@ -1704,8 +1704,17 @@ def require_sensitive_projection(
             fail("resource_sensitive")
         return
     if address == "cloudflare_zero_trust_tunnel_cloudflared.keycloak":
-        if type(value) is not dict or not exact_equal(
-            value, {"connections": [], "tunnel_secret": True}
+        if type(value) is not dict or set(value) != {"connections", "tunnel_secret"}:
+            fail("resource_sensitive")
+        if value["tunnel_secret"] is not True:
+            fail("resource_sensitive")
+        connections = after.get("connections") if isinstance(after, dict) else None
+        markers = value["connections"]
+        if (
+            type(connections) is not list
+            or type(markers) is not list
+            or len(markers) != len(connections)
+            or any(type(marker) is not dict or marker != {} for marker in markers)
         ):
             fail("resource_sensitive")
         return

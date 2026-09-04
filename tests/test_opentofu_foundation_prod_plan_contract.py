@@ -591,8 +591,8 @@ def tunnel_resource_drift_plan(
         before,
         after,
     )
-    drift["change"]["before_sensitive"] = {"connections": [], "tunnel_secret": True}
-    drift["change"]["after_sensitive"] = {"connections": [], "tunnel_secret": True}
+    drift["change"]["before_sensitive"] = {"connections": [{}, {}], "tunnel_secret": True}
+    drift["change"]["after_sensitive"] = {"connections": [{}, {}], "tunnel_secret": True}
     candidate["resource_drift"] = [drift]
     return candidate
 
@@ -761,6 +761,26 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         after["connections"].reverse()
         result = self.run_validator(candidate)
         self.assertNotEqual(0, result.returncode, "ambiguous reorder")
+
+    def test_tunnel_sensitive_projection_requires_aligned_empty_connection_markers(self) -> None:
+        cases = (
+            ("wrong marker length", {"connections": [{}], "tunnel_secret": True}),
+            (
+                "nonempty marker",
+                {"connections": [{}, {"unexpected": True}], "tunnel_secret": True},
+            ),
+            ("wrong secret", {"connections": [{}, {}], "tunnel_secret": False}),
+            (
+                "extra marker key",
+                {"connections": [{}, {}], "tunnel_secret": True, "extra": True},
+            ),
+            ("missing marker key", {"connections": [{}, {}]}),
+        )
+        for name, marker in cases:
+            candidate = tunnel_resource_drift_plan()
+            candidate["resource_drift"][0]["change"]["after_sensitive"] = marker
+            result = self.run_validator(candidate)
+            self.assertNotEqual(0, result.returncode, name)
 
     def test_tunnel_drift_rejects_extra_fields_and_marker_surfaces(self) -> None:
         cases = []
