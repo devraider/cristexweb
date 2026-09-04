@@ -448,6 +448,94 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         runtime_target = {item["name"]: item for item in runtime["spec"]["targets"]}["cristexhub-prod-runtime"]
         self.assertEqual("{{ .RABBITMQ_URL.Value }}", runtime_target["template"]["data"]["RABBITMQ_URL"])
 
+    def test_source_contract_task_evaluates_with_ansible_219(self) -> None:
+        """Evaluate the actual source-contract role task without Kubernetes access."""
+        controller = ROOT / ".venv/bin/ansible-playbook"
+        if not controller.is_file():
+            controller = Path("/home/paul/projects/cristexweb/.venv/bin/ansible-playbook")
+        if not controller.is_file():
+            self.skipTest("canonical Ansible controller is unavailable on this host")
+
+        source_paths = {
+            "broker": BROKER_SOURCE,
+            "engine": ENGINE_SOURCE,
+            "runtime": RUNTIME_SOURCE,
+            "config": CONFIG_SOURCE,
+            "policy": POLICY,
+        }
+
+        def protect_template_values(value):
+            if isinstance(value, dict):
+                return {key: protect_template_values(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [protect_template_values(item) for item in value]
+            if isinstance(value, str) and "{{" in value:
+                return "{% raw %}" + value + "{% endraw %}"
+            return value
+
+        source_objects = {
+            name: protect_template_values(yaml.safe_load(path.read_text()))
+            for name, path in source_paths.items()
+        }
+        task = next(
+            item
+            for item in yaml.safe_load(TASKS.read_text())
+            if item.get("name")
+            == "Require exact value-free source scope and dual-path key contracts"
+        )
+        with tempfile.TemporaryDirectory(prefix="rabbitmq-source-contract-", dir="/dev/shm") as directory:
+            root = Path(directory)
+            role_tasks = root / "roles/rabbitmq_prod_credential_rotation_check/tasks/main.yml"
+            role_tasks.parent.mkdir(parents=True)
+            role_tasks.write_text("---\n" + yaml.safe_dump([task], sort_keys=False), encoding="utf-8")
+            (root / "source-objects.json").write_text(
+                json.dumps(
+                    {"rabbitmq_prod_credential_rotation_check_internal_source_objects": source_objects}
+                ),
+                encoding="utf-8",
+            )
+            (root / "inventory").write_text("localhost ansible_connection=local\n", encoding="utf-8")
+            (root / "ansible.cfg").write_text(
+                "[defaults]\n"
+                f"roles_path = {root / 'roles'}\n"
+                "retry_files_enabled = False\n",
+                encoding="utf-8",
+            )
+            playbook = root / "playbook.yml"
+            playbook.write_text(
+                "---\n"
+                "- name: Evaluate RabbitMQ source contract\n"
+                "  hosts: localhost\n"
+                "  gather_facts: false\n"
+                "  roles:\n"
+                "    - rabbitmq_prod_credential_rotation_check\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    str(controller),
+                    "-i",
+                    str(root / "inventory"),
+                    str(playbook),
+                    "--check",
+                    "--diff",
+                    "--extra-vars",
+                    "@" + str(root / "source-objects.json"),
+                ],
+                cwd=root,
+                env={
+                    "HOME": "/tmp",
+                    "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                    "ANSIBLE_CONFIG": str(root / "ansible.cfg"),
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertNotIn("No filter named 'search'", result.stdout + result.stderr)
+
     def test_wrapper_and_action_pins_match_current_canonical_sources(self) -> None:
         zero = "0" * 64
         action_source, action_count = re.subn(

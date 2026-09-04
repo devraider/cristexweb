@@ -264,11 +264,12 @@
       - rabbitmq_prod_credential_rotation_check_internal_source_objects.config.data.keys() | sort == ['enabled_plugins', 'rabbitmq.conf']
       - rabbitmq_prod_credential_rotation_check_internal_source_objects.config.data.enabled_plugins | trim == '[rabbitmq_management].'
       - >-
-        rabbitmq_prod_credential_rotation_check_internal_source_objects.config.data['rabbitmq.conf'] is search('listeners.tcp = none')
+        'listeners.tcp = none' in
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.config.data['rabbitmq.conf']
       - >-
-        rabbitmq_prod_credential_rotation_check_internal_source_objects.config.data['rabbitmq.conf'] |
-        search('management.load_definitions = ' ~
-        '/etc/rabbitmq/definitions/definitions.json')
+        ('management.load_definitions = ' ~
+        '/etc/rabbitmq/definitions/definitions.json') in
+        rabbitmq_prod_credential_rotation_check_internal_source_objects.config.data['rabbitmq.conf']
       - >-
         rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.spec.template.spec.volumes |
         selectattr('name', 'equalto', 'config') | map(attribute='configMap.name') | list == ['shared-rabbitmq-config']
@@ -279,7 +280,7 @@
         rabbitmq_prod_credential_rotation_check_internal_source_objects.broker.spec.template.spec.containers[0].env |
         selectattr('name', 'equalto', 'RABBITMQ_CONFIG_FILE') | map(attribute='value') | list == ['/etc/rabbitmq/rabbitmq.conf']
       - rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.execution.check_only
-      - not rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.execution.runtime_mutation_allowed
+      - not rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.runtime_mutation_allowed
       - rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.revisions_and_cas.writer_available is false
       - rabbitmq_prod_credential_rotation_check_internal_source_objects.policy.revisions_and_cas.cas_proven is false
     fail_msg: Refusing widened, value-bearing, or mismatched RabbitMQ PROD rotation source.
