@@ -43,8 +43,8 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
     exit 78
 }
 source_manifest="$root/bin/SOURCE.sha256"
-source_manifest_expected_sha256='e4495b66d46d6297fe2c35396b03892bc94fe04237883f11e536031f7dd5cc11'
-source_prod_expected_canonical_sha256='ff25f06fbe4d2b374debeae6006d3c8aeb3928183f802d9225cab3b91219831e'
+source_manifest_expected_sha256='e4647713d46a630629a8e700db00a4ee4d8ae030392f2cbb4f94d4743a52fc15'
+source_prod_expected_canonical_sha256='ebb8711cf035462518fb39106d0993f83f2874bd450d0c20b2dbf44a202d3de6'
 validator="$root/bin/validate-foundation-prod-plan"
 state_scope_validator="$root/bin/validate-foundation-state-scope"
 # These digests are independently pinned from the verified source manifest.
@@ -565,6 +565,34 @@ run_immutable_validator() {
     revalidate_state_metadata
     return "$result"
 }
+run_quiet_init() {
+    # Provider installation may create a large temporary package file. Keep
+    # init outside the bounded capture runner: its stdout/stderr are discarded
+    # and it must not inherit that runner's file-size limit.
+    revalidate_source_closure
+    revalidate_state_metadata
+    revalidate_state_content
+    /usr/bin/mkdir -p -- "$work/tofu-tmp"
+    if /usr/bin/env -i \
+        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin LC_ALL=C \
+        TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default \
+        TMPDIR="$work/tofu-tmp" TOFU_DISABLE_CHECKPOINT=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 \
+        /usr/bin/timeout --foreground --kill-after=10s 60 \
+        "$tofu" -chdir="$root" init -reconfigure -input=false -lockfile=readonly -no-color \
+        >/dev/null 2>/dev/null; then
+        :
+    else
+        init_status=$?
+        revalidate_source_closure
+        revalidate_state_metadata
+        revalidate_state_content
+        printf 'prod_plan_status=failed stage=tofu_init\\n' >&2
+        exit "$init_status"
+    fi
+    revalidate_source_closure
+    revalidate_state_metadata
+    revalidate_state_content
+}
 run_capture() {
     capture_file=$1
     shift
@@ -807,7 +835,7 @@ state_before_sha256=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f 
 # Initialize the pinned OpenTofu working directory before the first state
 # consumer. This uses only the clean non-token boundary and an ephemeral
 # TF_DATA_DIR; check therefore performs no Cloudflare provider/API operation.
-run_capture "$work/init.out" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" init -reconfigure -input=false -lockfile=readonly -no-color
+run_quiet_init
 validate_state_scope pre
 if [ "$mode" = check ]; then
     validate_state_unchanged

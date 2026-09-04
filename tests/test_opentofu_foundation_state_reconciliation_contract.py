@@ -860,31 +860,25 @@ path_identity=$(/usr/bin/stat -Lc '%d:%i' "$validator")
         # textual assertion: a fresh TF_DATA_DIR must be initialized before the
         # first state consumer can succeed.  The production wrappers are then
         # checked for that same ordering and exact clean init command.
-        for wrapper, init_output, state_validation_call in (
-            (
-                RECONCILE,
-                "$work/init.stdout",
-                "validate_scope pre",
-            ),
-            (
-                TOFU / "bin/plan-foundation-prod-route",
-                "$work/init.out",
-                "validate_state_scope pre",
-            ),
+        for wrapper, state_validation_call in (
+            (RECONCILE, "validate_scope pre"),
+            (TOFU / "bin/plan-foundation-prod-route", "validate_state_scope pre"),
         ):
             source = wrapper.read_text()
-            init_fragment = (
-                f'run_capture "{init_output}" /usr/bin/timeout '
-                '--foreground --kill-after=10s 60 "$tofu" -chdir="$root" '
-                'init -reconfigure -input=false -lockfile=readonly -no-color'
-            )
-            self.assertEqual(1, source.count(init_fragment), wrapper.name)
+            self.assertEqual(1, source.count("run_quiet_init\n"), wrapper.name)
             self.assertLess(
-                source.index(init_fragment),
+                source.index("run_quiet_init\n"),
                 source.index(state_validation_call),
                 wrapper.name,
             )
-            self.assertIn("TF_DATA_DIR=\"$work/tofu-data\"", source, wrapper.name)
+            quiet_start = source.index("run_quiet_init() {")
+            quiet_end = source.index("\n}\nrun_capture", quiet_start) + 2
+            quiet_body = source[quiet_start:quiet_end]
+            self.assertIn("init -reconfigure -input=false -lockfile=readonly -no-color", quiet_body)
+            self.assertIn(">/dev/null 2>/dev/null", quiet_body)
+            self.assertNotIn("safe_runner_code", quiet_body)
+            self.assertNotIn("preexec_fn=apply_output_limit", quiet_body)
+            self.assertIn("TF_DATA_DIR=\"$work/tofu-data\"", quiet_body, wrapper.name)
 
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -931,6 +925,58 @@ path_identity=$(/usr/bin/stat -Lc '%d:%i' "$validator")
             )
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             self.assertIn("state-validation-reached", result.stdout)
+
+    def test_quiet_init_allows_large_provider_temp_with_discarded_output(self) -> None:
+        # A provider installer can briefly create a package larger than the
+        # bounded capture limit. The dedicated init path must therefore avoid
+        # the capture runner's RLIMIT_FSIZE while still discarding init output.
+        for wrapper in (RECONCILE, TOFU / "bin/plan-foundation-prod-route"):
+            source = wrapper.read_text()
+            quiet_start = source.index("run_quiet_init() {")
+            quiet_end = source.index("\n}\nrun_capture", quiet_start) + 2
+            quiet_function = source[quiet_start:quiet_end]
+            self.assertNotIn("RLIMIT_FSIZE", quiet_function, wrapper.name)
+            self.assertNotIn("safe_runner_code", quiet_function, wrapper.name)
+            with tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                fake_tofu = root / "fake-tofu"
+                fake_tofu.write_text(
+                    "#!/bin/sh\n"
+                    "set -eu\n"
+                    "mkdir -p \"$TMPDIR\"\n"
+                    "/usr/bin/dd if=/dev/zero of=\"$TMPDIR/terraform-provider-large\" "
+                    "bs=1048576 count=17 status=none\n"
+                    "/usr/bin/dd if=/dev/zero bs=1048576 count=17 status=none\n"
+                    "/usr/bin/dd if=/dev/zero bs=1048576 count=17 status=none >&2\n"
+                )
+                fake_tofu.chmod(0o755)
+                harness = root / "quiet-init-fixture"
+                harness.write_text(
+                    "#!/bin/sh\n"
+                    "set -eu\n"
+                    "work=$1\n"
+                    "tofu=$2\n"
+                    "root=$3\n"
+                    "revalidate_source_closure() { :; }\n"
+                    "revalidate_state_metadata() { :; }\n"
+                    "revalidate_state_content() { :; }\n"
+                    + quiet_function
+                    + "\nrun_quiet_init\n"
+                    + "test -s \"$work/tofu-tmp/terraform-provider-large\"\n"
+                    + "test \"$(wc -c <\"$work/tofu-tmp/terraform-provider-large\")\" -gt 16777216\n"
+                )
+                harness.chmod(0o755)
+                result = subprocess.run(
+                    [str(harness), str(root), str(fake_tofu), str(root)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    env={"PATH": "/usr/bin:/bin"},
+                )
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertEqual("", result.stdout)
+                self.assertEqual("", result.stderr)
 
     def test_prod_plan_rejects_extra_bin_entries(self) -> None:
         text = (TOFU / "bin/plan-foundation-prod-route").read_text()

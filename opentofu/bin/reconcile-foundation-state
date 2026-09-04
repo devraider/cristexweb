@@ -45,8 +45,8 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
 source_manifest="$root/bin/SOURCE.sha256"
 # The two pins use the canonical placeholder form to avoid a self-referential
 # digest cycle. They are refreshed together with SOURCE.sha256 below.
-source_manifest_expected_sha256='e4495b66d46d6297fe2c35396b03892bc94fe04237883f11e536031f7dd5cc11'
-source_reconcile_expected_canonical_sha256='abcb6132ed7d08b5b8811f6444ffe4de0c021ba1a04b123e1400bad7b9125cda'
+source_manifest_expected_sha256='e4647713d46a630629a8e700db00a4ee4d8ae030392f2cbb4f94d4743a52fc15'
+source_reconcile_expected_canonical_sha256='8e1d6f6e5047c5a89c5320d8f00019fff30c24be91af3a1eb97b692c06471c61'
 validator="$root/bin/validate-foundation-state-scope"
 # The validator digest is independently pinned from the verified source
 # manifest. It is copied into a sealed memfd before execution, so pathname
@@ -251,11 +251,6 @@ exec 9<"$state_parent"
 /usr/bin/flock -n 9 || { printf '%s\n' 'Refusing concurrent foundation state reconciliation.' >&2; exit 75; }
 revalidate_state_metadata
 state_before_sha256=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f 1) || exit 73
-# Initialize the pinned OpenTofu working directory before the first state
-# consumer. This uses only the clean non-token boundary and an ephemeral
-# TF_DATA_DIR; check therefore performs no Cloudflare provider/API operation.
-run_capture "$work/init.stdout" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" init -reconfigure -input=false -lockfile=readonly -no-color
-
 # Every capture is created atomically by the same Python process that retains its
 # descriptor while the producer runs.  os.O_NOFOLLOW, os.O_NONBLOCK, and O_EXCL
 # ensure a
@@ -543,6 +538,34 @@ finally:
     os.close(source_fd)
 raise SystemExit(result.returncode)
 '
+run_quiet_init() {
+    # Provider installation may create a large temporary package file. Keep
+    # init outside the bounded capture runner: its stdout/stderr are discarded
+    # and it must not inherit that runner's file-size limit.
+    revalidate_source_closure
+    revalidate_state_metadata
+    revalidate_state_content
+    /usr/bin/mkdir -p -- "$work/tofu-tmp"
+    if /usr/bin/env -i \
+        HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin LC_ALL=C \
+        TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default \
+        TMPDIR="$work/tofu-tmp" TOFU_DISABLE_CHECKPOINT=1 PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+        /usr/bin/timeout --foreground --kill-after=10s 60 \
+        "$tofu" -chdir="$root" init -reconfigure -input=false -lockfile=readonly -no-color \
+        >/dev/null 2>/dev/null; then
+        :
+    else
+        init_status=$?
+        revalidate_source_closure
+        revalidate_state_metadata
+        revalidate_state_content
+        printf 'reconcile_status=failed stage=tofu_init\\n' >&2
+        exit "$init_status"
+    fi
+    revalidate_source_closure
+    revalidate_state_metadata
+    revalidate_state_content
+}
 run_capture() {
     capture_file=$1
     shift
@@ -862,6 +885,10 @@ run_backup_gate() {
     verify_backup_installed
 }
 
+# Initialize before the first state consumer. This clean, non-token boundary
+# uses only an ephemeral TF_DATA_DIR and performs no Cloudflare provider/API
+# operation in check mode.
+run_quiet_init
 validate_scope pre
 if [ "$mode" = check ]; then
     printf 'reconcile_status=check_passed state=foundation pre_addresses=%s post_addresses=%s import=not-run backup=required restore=required provider=not-contacted token_output=false\n' "$expected_pre_addresses" "$expected_post_addresses"
