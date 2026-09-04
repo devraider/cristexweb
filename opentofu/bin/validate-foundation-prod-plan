@@ -206,9 +206,7 @@ EXPECTED_CHECKS = [
     },
 ]
 EXPECTED_RELEVANT_ATTRIBUTES = [
-    {"resource": "cloudflare_dns_record.keycloak", "attribute": ["name"]},
     {"resource": "cloudflare_zero_trust_tunnel_cloudflared.keycloak", "attribute": ["id"]},
-    {"resource": "cloudflare_zero_trust_tunnel_cloudflared.keycloak", "attribute": ["name"]},
 ]
 DNS_CREATE_UNKNOWN_KEYS = frozenset(
     {

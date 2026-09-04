@@ -152,9 +152,7 @@ CHECKS = [
     },
 ]
 RELEVANT_ATTRIBUTES = [
-    {"resource": "cloudflare_dns_record.keycloak", "attribute": ["name"]},
     {"resource": "cloudflare_zero_trust_tunnel_cloudflared.keycloak", "attribute": ["id"]},
-    {"resource": "cloudflare_zero_trust_tunnel_cloudflared.keycloak", "attribute": ["name"]},
 ]
 IDENTITY = {
     "schema": 1,
@@ -1555,12 +1553,17 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         candidate = valid_plan()
         candidate["checks"][0]["instances"][0]["address"]["to_display"] = "var.evil"
         self.assertNotEqual(0, self.run_validator(candidate).returncode)
-        candidate = valid_plan()
-        candidate["relevant_attributes"][0]["attribute"] = ["content"]
-        self.assertNotEqual(0, self.run_validator(candidate).returncode)
-        candidate = valid_plan()
-        candidate["relevant_attributes"].append(copy.deepcopy(candidate["relevant_attributes"][0]))
-        self.assertNotEqual(0, self.run_validator(candidate).returncode)
+        # OpenTofu 1.12.5 emits only the tunnel ID dependency here. Missing,
+        # extra, and unrelated dependency paths must all fail closed.
+        for relevant_attributes in (
+            [],
+            RELEVANT_ATTRIBUTES + [{"resource": "cloudflare_dns_record.keycloak", "attribute": ["name"]}],
+            [{"resource": "cloudflare_zero_trust_tunnel_cloudflared.keycloak", "attribute": ["name"]}],
+            [{"resource": "cloudflare_dns_record.keycloak", "attribute": ["content"]}],
+        ):
+            candidate = valid_plan()
+            candidate["relevant_attributes"] = relevant_attributes
+            self.assertNotEqual(0, self.run_validator(candidate).returncode, relevant_attributes)
         candidate = valid_plan()
         candidate["planned_values"]["outputs"]["tunnel_id"]["value"] = "TOP-SECRET"
         self.assertNotEqual(0, self.run_validator(candidate).returncode)
@@ -1576,6 +1579,20 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         candidate = valid_plan()
         candidate["configuration"]["root_module"]["resources"][0]["metadata"] = {}
         self.assertNotEqual(0, self.run_validator(candidate).returncode)
+
+    def test_configuration_binds_tunnel_dependencies_separately(self) -> None:
+        resources = {
+            item["address"]: item
+            for item in valid_plan()["configuration"]["root_module"]["resources"]
+        }
+        self.assertEqual(
+            {"references": ["cloudflare_zero_trust_tunnel_cloudflared.keycloak.id", "cloudflare_zero_trust_tunnel_cloudflared.keycloak"]},
+            resources["cloudflare_dns_record.cristexhub_prod"]["expressions"]["content"],
+        )
+        self.assertEqual(
+            {"references": ["cloudflare_zero_trust_tunnel_cloudflared.keycloak.id", "cloudflare_zero_trust_tunnel_cloudflared.keycloak"]},
+            resources[UPDATE]["expressions"]["tunnel_id"],
+        )
 
     def test_provider_schema_projection_and_fixture_provenance_are_exact(self) -> None:
         provenance = PROVENANCE.read_text()
