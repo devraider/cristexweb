@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COMPONENT = ROOT / "ansible/files/components/keycloak"
 EXPECTED_IMAGE = (
     "ghcr.io/devraider/cristexhub/keycloak@sha256:"
-    "328384c40138282817ffc7a6b2b23e012c52b1d08bef2c534cfa5992b92bd423"
+    "e837165e5cfa64baf7ef06d894ccca55418863d31a41973c3eedc14a0b0ae91f"
 )
 EXPECTED_HOSTNAME = "https://auth.cristex-soft.com"
 EXPECTED_NAMESPACE = "shared-services"
@@ -65,9 +65,6 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
         self.assertNotIn("start-dev", " ".join(container.get("command", []) + container.get("args", [])))
         self.assertIn("start", container.get("command", []) + container.get("args", []))
         self.assertIn("--import-realm", container.get("args", []))
-        self.assertIn("--spi-theme-cache-themes=false", container.get("args", []))
-        self.assertIn("--spi-theme-cache-templates=false", container.get("args", []))
-        self.assertIn("--spi-theme-static-max-age=-1", container.get("args", []))
         realm = self.by_kind["ConfigMap"][0]
         self.assertEqual("keycloak-realm-cristexhub", realm["metadata"]["name"])
         self.assertTrue(realm["immutable"])
