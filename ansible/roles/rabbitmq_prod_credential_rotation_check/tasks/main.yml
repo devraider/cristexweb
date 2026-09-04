@@ -348,8 +348,44 @@
     rabbitmq_prod_credential_rotation_check_internal_live_pod_init_container: >-
       {{ rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0].spec.initContainers |
       selectattr('name', 'equalto', 'definitions') | first }}
+    rabbitmq_prod_credential_rotation_check_internal_generated_pvc_volume: >-
+      {{ (rabbitmq_prod_credential_rotation_check_internal_broker_objects.results[1].resources[0].spec.volumes |
+      selectattr('name', 'equalto', 'rabbitmq-data') | list | first) | default({}) }}
   changed_when: false
   no_log: true
+
+- name: Require exact StatefulSet-generated RabbitMQ PVC volume
+  ansible.builtin.assert:
+    that:
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.volumes |
+        selectattr('name', 'equalto', 'rabbitmq-data') | list | length == 0
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes |
+        selectattr('name', 'equalto', 'rabbitmq-data') | list | length == 1
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_generated_pvc_volume.keys() | list | sort ==
+        ['name', 'persistentVolumeClaim']
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_generated_pvc_volume.persistentVolumeClaim is mapping
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_generated_pvc_volume.persistentVolumeClaim.keys() | list | sort in
+        [['claimName'], ['claimName', 'readOnly']]
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_generated_pvc_volume.persistentVolumeClaim.claimName ==
+        'rabbitmq-data-shared-rabbitmq-0'
+      - >-
+        rabbitmq_prod_credential_rotation_check_internal_generated_pvc_volume.persistentVolumeClaim.readOnly is not defined or
+        rabbitmq_prod_credential_rotation_check_internal_generated_pvc_volume.persistentVolumeClaim.readOnly is false
+      - >-
+        (rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes |
+        rejectattr('name', 'equalto', 'rabbitmq-data') | list) ==
+        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.volumes
+    fail_msg: >-
+      RABBITMQ_BROKER_VOLUME_GUARD: generated rabbitmq-data PVC volume or
+      non-generated Pod volume projection differs from the reviewed source.
+  changed_when: false
+  no_log: false
 
 - name: Require one Ready RabbitMQ broker with exact canonical StatefulSet and Pod identity
   ansible.builtin.assert:
@@ -564,9 +600,6 @@
       - >-
         rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.initContainers | map(attribute='name') | list | sort ==
         rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.initContainers | map(attribute='name') | list | sort
-      - >-
-        rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.volumes ==
-        rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.volumes
       - >-
         rabbitmq_prod_credential_rotation_check_internal_live_pod.spec.serviceAccountName ==
         rabbitmq_prod_credential_rotation_check_internal_source_statefulset.spec.template.spec.serviceAccountName

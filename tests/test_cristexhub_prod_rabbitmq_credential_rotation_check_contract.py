@@ -358,7 +358,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
     def test_tasks_parse_and_bind_query_set_without_nested_jinja(self) -> None:
         parsed = yaml.safe_load(self.tasks)
         self.assertIsInstance(parsed, list)
-        self.assertEqual(26, len(parsed))
+        self.assertEqual(27, len(parsed))
         for task in parsed:
             self.assertIsInstance(task, dict)
             if "ansible.builtin.assert" in task:
@@ -422,7 +422,10 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             "internal_live_pod.spec.containers | map(attribute='name') | list | sort ==",
             "internal_live_pod.spec.initContainers | length ==",
             "internal_live_pod.spec.initContainers | map(attribute='name') | list | sort ==",
-            "internal_live_pod.spec.volumes ==",
+            "generated_pvc_volume.keys() | list | sort ==",
+            "generated_pvc_volume.persistentVolumeClaim.claimName ==",
+            "generated_pvc_volume.persistentVolumeClaim.readOnly is not defined",
+            "rejectattr('name', 'equalto', 'rabbitmq-data') | list) ==",
             "internal_live_pod_init_container.image ==",
             "internal_live_pod_init_container.args ==",
             "spec.infisicalAuthRef ==",
@@ -432,6 +435,106 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("difference(", self.tasks)
         self.assertIn("controller-revision-hash", self.tasks)
         self.assertIn("statefulset.kubernetes.io/pod-name", self.tasks)
+
+    def test_generated_pvc_volume_rejects_readonly_wrong_keys_and_extra_volumes(self) -> None:
+        """Exercise generated StatefulSet volume projection with Ansible 2.19."""
+        controller = ROOT / ".venv/bin/ansible-playbook"
+        if not controller.is_file():
+            controller = Path("/home/paul/projects/cristexweb/.venv/bin/ansible-playbook")
+        if not controller.is_file():
+            self.skipTest("canonical Ansible controller is unavailable on this host")
+
+        task = next(
+            item
+            for item in yaml.safe_load(self.tasks)
+            if item.get("name") == "Require exact StatefulSet-generated RabbitMQ PVC volume"
+        )
+        source = yaml.safe_load(BROKER_SOURCE.read_text())
+        source_volumes = source["spec"]["template"]["spec"]["volumes"]
+        generated = {
+            "name": "rabbitmq-data",
+            "persistentVolumeClaim": {"claimName": "rabbitmq-data-shared-rabbitmq-0"},
+        }
+
+        def run_case(root: Path, name: str, volumes: list[dict]) -> subprocess.CompletedProcess[str]:
+            variables = {
+                "rabbitmq_prod_credential_rotation_check_internal_live_pod": {"spec": {"volumes": volumes}},
+                "rabbitmq_prod_credential_rotation_check_internal_source_statefulset": source,
+                "rabbitmq_prod_credential_rotation_check_internal_generated_pvc_volume": next(
+                    item for item in volumes if item.get("name") == "rabbitmq-data"
+                ),
+            }
+            variables_path = root / f"{name}.json"
+            variables_path.write_text(json.dumps(variables), encoding="utf-8")
+            return subprocess.run(
+                [
+                    str(controller),
+                    "-i",
+                    str(root / "inventory"),
+                    str(root / "playbook.yml"),
+                    "--check",
+                    "--diff",
+                    "--extra-vars",
+                    "@" + str(variables_path),
+                ],
+                cwd=root,
+                env={
+                    "HOME": "/tmp",
+                    "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                    "ANSIBLE_CONFIG": str(root / "ansible.cfg"),
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        with tempfile.TemporaryDirectory(prefix="rabbitmq-generated-pvc-", dir="/dev/shm") as directory:
+            root = Path(directory)
+            role_tasks = root / "roles/rabbitmq_prod_credential_rotation_check/tasks/main.yml"
+            role_tasks.parent.mkdir(parents=True)
+            role_tasks.write_text("---\n" + yaml.safe_dump([task], sort_keys=False), encoding="utf-8")
+            (root / "inventory").write_text("localhost ansible_connection=local\n", encoding="utf-8")
+            (root / "ansible.cfg").write_text(
+                "[defaults]\n"
+                f"roles_path = {root / 'roles'}\n"
+                "retry_files_enabled = False\n",
+                encoding="utf-8",
+            )
+            (root / "playbook.yml").write_text(
+                "---\n- name: Evaluate generated PVC projection\n"
+                "  hosts: localhost\n  gather_facts: false\n"
+                "  roles:\n    - rabbitmq_prod_credential_rotation_check\n",
+                encoding="utf-8",
+            )
+
+            valid = run_case(root, "valid-absent", [generated, *source_volumes])
+            self.assertEqual(0, valid.returncode, valid.stdout + valid.stderr)
+
+            generated_false = json.loads(json.dumps(generated))
+            generated_false["persistentVolumeClaim"]["readOnly"] = False
+            valid_false = run_case(root, "valid-false", [generated_false, *source_volumes])
+            self.assertEqual(0, valid_false.returncode, valid_false.stdout + valid_false.stderr)
+
+            generated_true = json.loads(json.dumps(generated))
+            generated_true["persistentVolumeClaim"]["readOnly"] = True
+            rejected_readonly = run_case(root, "rejected-readonly", [generated_true, *source_volumes])
+            self.assertNotEqual(0, rejected_readonly.returncode, rejected_readonly.stdout + rejected_readonly.stderr)
+            self.assertIn("RABBITMQ_BROKER_VOLUME_GUARD", rejected_readonly.stdout + rejected_readonly.stderr)
+
+            generated_extra = json.loads(json.dumps(generated))
+            generated_extra["persistentVolumeClaim"]["unexpected"] = "drift"
+            rejected_key = run_case(root, "rejected-key", [generated_extra, *source_volumes])
+            self.assertNotEqual(0, rejected_key.returncode, rejected_key.stdout + rejected_key.stderr)
+            self.assertIn("RABBITMQ_BROKER_VOLUME_GUARD", rejected_key.stdout + rejected_key.stderr)
+
+            rejected_volume = run_case(
+                root,
+                "rejected-volume",
+                [generated, {"name": "unreviewed-volume", "emptyDir": {}}, *source_volumes],
+            )
+            self.assertNotEqual(0, rejected_volume.returncode, rejected_volume.stdout + rejected_volume.stderr)
+            self.assertIn("RABBITMQ_BROKER_VOLUME_GUARD", rejected_volume.stdout + rejected_volume.stderr)
 
     def test_source_manifests_have_fixed_hashes_and_exact_mappings(self) -> None:
         expected = {
@@ -1215,6 +1318,7 @@ cd "{str(root / "ansible")}"
             strategy_module._strategy_canonical_expected(),
             strategy_module._canonical_hash(STRATEGY, "_STRATEGY_CANONICAL_SHA256"),
         )
+        self.assertIn(hashlib.sha256(TASKS.read_bytes()).hexdigest(), self.wrapper)
         self.assertIn("_canonical_wrapper_hash(_WRAPPER_SOURCE)", self.strategy)
         self.assertNotIn(
             '_canonical_hash(_WRAPPER_SOURCE, "wrapper_canonical_sha256")',
