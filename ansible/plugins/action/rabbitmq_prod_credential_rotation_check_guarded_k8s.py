@@ -20,25 +20,34 @@ _DEFAULTS_SOURCE = _REPOSITORY_ROOT / "ansible/roles/rabbitmq_prod_credential_ro
 _PLAYBOOK_SOURCE = _REPOSITORY_ROOT / "ansible/playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml"
 _POLICY_SOURCE = _REPOSITORY_ROOT / "ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml"
 _WRAPPER_SOURCE = _REPOSITORY_ROOT / "ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation"
+_ACTION_SOURCE = Path(__file__).resolve()
+_STRATEGY_SOURCE = _REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py"
 _INVENTORY_SOURCE = _REPOSITORY_ROOT / "ansible/.ansible/inventory.local.yml"
 _ANSIBLE_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/ansible.cfg"
 _CONTROLLER_SOURCE = _REPOSITORY_ROOT / ".venv/bin/ansible-playbook"
 _PYTHON_SOURCE = _REPOSITORY_ROOT / ".venv/bin/python"
 _PYTHON_REAL_SOURCE = Path("/usr/bin/python3.13")
 _EXPECTED_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
+_REQUIREMENTS_SOURCE = _REPOSITORY_ROOT / "ansible/requirements.yml"
+_COLLECTION_ROOT = _REPOSITORY_ROOT / "ansible/.ansible/collections/ansible_collections/kubernetes/core"
+_COLLECTION_MANIFEST_SOURCE = _COLLECTION_ROOT / "MANIFEST.json"
+_COLLECTION_FILES_SOURCE = _COLLECTION_ROOT / "FILES.json"
 _OPERATOR = "paul"
 _METADATA_SOURCE = _REPOSITORY_ROOT / "ansible/library/rabbitmq_prod_credential_metadata.py"
 _BROKER_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml"
 _RABBITMQ_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml"
 _ENGINE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml"
 _RUNTIME_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
-# Integrity DAG: the wrapper's own canonical startup value is the root.  The
-# fixed wrapper pin is intentionally included in this action's canonical hash;
-# the action self-pin is the only field normalized here.  No action↔wrapper
-# runtime pin is normalized, so a coordinated wrapper/action edit is rejected.
+_CLOSURE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq-prod-credential-rotation/SOURCE-CLOSURE.sha256"
+# Integrity DAG anchors.  The closure and its executable anchors are committed
+# consistency checks for the canonical source tree, not independent provenance.
+# They reject isolated drift; a coordinated rewrite by the already-trusted
+# controller UID remains outside the documented integrity boundary.  Only the
+# plugin's own pin and the closure digest are normalized by
+# _canonical_action_hash().
 _ROLES_PATH = _REPOSITORY_ROOT / "ansible/roles"
 _LIBRARY_PATH = _REPOSITORY_ROOT / "ansible/library"
-_ACTION_CANONICAL_SHA256 = "2931d37254ee3575a6a1b9a88d84f48dcc5a7ed5e936051b8351949e1102d7bd"
+_ACTION_CANONICAL_SHA256 = "91bd7329d8927e0612ed27eead0cfade727c5e5de6e5adf0f69907573693cfe5"
 _TASK_SHA256 = "78104b5277c14ac6071c21250769d74184b12128c7c74591f50b01556fbb0250"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
@@ -51,7 +60,19 @@ _RUNTIME_SOURCE_SHA256 = "3204aab3fc0f5b55f9af3623fb658d5ffd8289437d5d0ea91ab048
 _CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 _INVENTORY_SHA256 = "652a8455f8a050005ab783d20d4e60a0cd034d8a6439f1cffe551a91102773b0"
 _CONTROLLER_SHA256 = "baf52d00491b00126ccc19ec1a2e018e107c134e663885e748e5fe4e3777b3fd"
-_WRAPPER_CANONICAL_SHA256 = "ca2c1488e08ab46a0f096c84f1284dc812fdb4d8dce6ea235aae3edd14e47951"
+_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
+_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
+_COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
+_CLOSURE_MANIFEST_SHA256 = "bdac64162c1def60c928894f57039968b59f401d017b9165a769ce981871241c"
+_RUNTIME_PROVENANCE = (
+    ("CONTROLLER_SHA256", _CONTROLLER_SOURCE, _CONTROLLER_SHA256),
+    ("PYTHON_SHA256", _PYTHON_REAL_SOURCE, _EXPECTED_PYTHON_SHA256),
+    ("ANSIBLE_CONFIG_SHA256", _ANSIBLE_CONFIG_SOURCE, _CONFIG_SHA256),
+    ("INVENTORY_SHA256", _INVENTORY_SOURCE, _INVENTORY_SHA256),
+    ("REQUIREMENTS_SHA256", _REQUIREMENTS_SOURCE, _REQUIREMENTS_SHA256),
+    ("COLLECTION_MANIFEST_SHA256", _COLLECTION_MANIFEST_SOURCE, _COLLECTION_MANIFEST_SHA256),
+    ("COLLECTION_FILES_SHA256", _COLLECTION_FILES_SOURCE, _COLLECTION_FILES_SHA256),
+)
 _ARGUMENT_KEYS = {"namespace", "pod", "container", "command", "kubeconfig", "query"}
 _EXPECTED_QUERIES = {
     "readiness": ["rabbitmq-diagnostics", "-q", "check_running"],
@@ -81,6 +102,27 @@ def _sha256(path: Path) -> str:
         return ""
 
 
+def _runtime_provenance_valid() -> bool:
+    """Require every wrapper-exported runtime digest to match its source file.
+
+    The strategy validates the same values before scheduling the role, but the
+    action must repeat this check because an alternate action-loader path can
+    reach this plugin without executing the strategy guard first.
+    """
+    prefix = "CRISTEXWEB_RABBITMQ_PROD_ROTATION_"
+    try:
+        for suffix, path, expected in _RUNTIME_PROVENANCE:
+            state = path.stat(follow_symlinks=False)
+            if not stat.S_ISREG(state.st_mode) or path.is_symlink():
+                return False
+            actual = _sha256(path)
+            if actual != expected or os.environ.get(prefix + suffix) != actual:
+                return False
+        return True
+    except (OSError, RuntimeError, TypeError):
+        return False
+
+
 def _collection_toolchain_valid() -> bool:
     strategy_path = _REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py"
     try:
@@ -95,31 +137,242 @@ def _collection_toolchain_valid() -> bool:
 
 
 def _canonical_action_hash(path: Path) -> str:
+    """Hash an action source while normalizing only its two self-referential pins."""
     try:
         source = path.read_text(encoding="utf-8")
-        source, count = re.subn(
+        source, action_count = re.subn(
             r'(?m)^_ACTION_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
             '_ACTION_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
             source,
         )
-        return hashlib.sha256(source.encode()).hexdigest() if count == 1 else ""
+        source, closure_count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + ("0" * 64) + '"',
+            source,
+        )
+        return hashlib.sha256(source.encode()).hexdigest() if action_count == closure_count == 1 else ""
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _canonical_strategy_hash(path: Path) -> str:
+    """Hash the strategy source while normalizing only its self and closure pins."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, strategy_count = re.subn(
+            r'(?m)^_STRATEGY_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
+            '_STRATEGY_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
+            source,
+        )
+        source, closure_count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + ("0" * 64) + '"',
+            source,
+        )
+        return hashlib.sha256(source.encode()).hexdigest() if strategy_count == closure_count == 1 else ""
     except (OSError, UnicodeError):
         return ""
 
 
 def _canonical_wrapper_hash(path: Path) -> str:
+    """Hash the wrapper while normalizing only its self and closure pins."""
     try:
         source = path.read_text(encoding="utf-8")
-        source, count = re.subn(
+        source, wrapper_count = re.subn(
             r"(?m)^wrapper_canonical_sha256='[0-9a-f]{64}'$",
             "wrapper_canonical_sha256='" + ("0" * 64) + "'",
             source,
         )
+        source, closure_count = re.subn(
+            r"(?m)^source_closure_sha256_expected='[0-9a-f]{64}'$",
+            "source_closure_sha256_expected='" + ("0" * 64) + "'",
+            source,
+        )
+        return hashlib.sha256(source.encode()).hexdigest() if wrapper_count == closure_count == 1 else ""
+    except (OSError, UnicodeError):
+        return ""
 
 
+def _full_action_hash(path: Path) -> str:
+    """Hash the complete action while normalizing only the closure digest."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + ("0" * 64) + '"',
+            source,
+        )
         return hashlib.sha256(source.encode()).hexdigest() if count == 1 else ""
     except (OSError, UnicodeError):
         return ""
+
+
+def _full_strategy_hash(path: Path) -> str:
+    """Hash the complete strategy while normalizing only the closure digest."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + ("0" * 64) + '"',
+            source,
+        )
+        return hashlib.sha256(source.encode()).hexdigest() if count == 1 else ""
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _full_wrapper_hash(path: Path) -> str:
+    """Hash the complete wrapper while normalizing only the closure digest."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, count = re.subn(
+            r"(?m)^source_closure_sha256_expected='[0-9a-f]{64}'$",
+            "source_closure_sha256_expected='" + ("0" * 64) + "'",
+            source,
+        )
+        return hashlib.sha256(source.encode()).hexdigest() if count == 1 else ""
+    except (OSError, UnicodeError):
+        return ""
+
+
+_CLOSURE_ENTRIES = (
+    ("canonical", "ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation", _WRAPPER_SOURCE, 0o755),
+    ("canonical", "ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py", Path(__file__), 0o644),
+    ("canonical", "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py", _REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py", 0o644),
+    ("full", "ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation", _WRAPPER_SOURCE, 0o755),
+    ("full", "ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py", Path(__file__), 0o644),
+    ("full", "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py", _REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py", 0o644),
+    ("sha256", "ansible/ansible.cfg", _ANSIBLE_CONFIG_SOURCE, 0o644),
+    ("sha256", "ansible/roles/rabbitmq_prod_credential_rotation_check/tasks/main.yml", _TASK_SOURCE, 0o644),
+    ("sha256", "ansible/roles/rabbitmq_prod_credential_rotation_check/defaults/main.yml", _DEFAULTS_SOURCE, 0o644),
+    ("sha256", "ansible/playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml", _PLAYBOOK_SOURCE, 0o644),
+    ("sha256", "ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml", _POLICY_SOURCE, 0o644),
+    ("sha256", "ansible/library/rabbitmq_prod_credential_metadata.py", _METADATA_SOURCE, 0o755),
+    ("sha256", "ansible/files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml", _BROKER_SOURCE, 0o644),
+    ("sha256", "ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml", _RABBITMQ_CONFIG_SOURCE, 0o644),
+    ("sha256", "ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml", _ENGINE_SOURCE, 0o644),
+    ("sha256", "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml", _RUNTIME_SOURCE, 0o644),
+)
+
+
+def _closure_lines() -> list[str]:
+    lines: list[str] = []
+    for kind, relative, path, _mode in _CLOSURE_ENTRIES:
+        digest = (
+            _canonical_wrapper_hash(path)
+            if kind == "canonical" and path == _WRAPPER_SOURCE
+            else _canonical_action_hash(path)
+            if kind == "canonical" and path == Path(__file__)
+            else _canonical_strategy_hash(path)
+            if kind == "canonical"
+            else _full_wrapper_hash(path)
+            if kind == "full" and path == _WRAPPER_SOURCE
+            else _full_action_hash(path)
+            if kind == "full" and path == Path(__file__)
+            else _full_strategy_hash(path)
+            if kind == "full"
+            else _sha256(path)
+        )
+        lines.append(f"{kind} {digest}  {relative}")
+    return lines
+
+
+def _closure_anchor(kind: str, relative: str) -> str:
+    """Read one committed consistency anchor from the source closure."""
+    try:
+        lines = _CLOSURE_SOURCE.read_text(encoding="utf-8").splitlines()
+        matches = [line.split()[1] for line in lines if len(line.split()) == 3 and line.split()[0] == kind and line.split()[2] == relative]
+        return matches[0] if len(matches) == 1 and re.fullmatch(r"[0-9a-f]{64}", matches[0]) else ""
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _wrapper_canonical_expected() -> str:
+    return _closure_anchor(
+        "canonical", "ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation"
+    )
+
+
+def _action_canonical_expected() -> str:
+    return _closure_anchor(
+        "canonical", "ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py"
+    )
+
+
+def _strategy_canonical_expected() -> str:
+    return _closure_anchor(
+        "canonical", "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py"
+    )
+
+
+def _action_full_expected() -> str:
+    return _closure_anchor(
+        "full", "ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py"
+    )
+
+
+def _strategy_full_expected() -> str:
+    return _closure_anchor(
+        "full", "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py"
+    )
+
+
+def _source_closure_valid() -> bool:
+    """Require the committed source closure before any alternate action startup."""
+    try:
+        state = _CLOSURE_SOURCE.stat(follow_symlinks=False)
+        if (
+            not stat.S_ISREG(state.st_mode)
+            or _CLOSURE_SOURCE.is_symlink()
+            or stat.S_IMODE(state.st_mode) != 0o644
+            or state.st_uid != os.getuid()
+            or _sha256(_CLOSURE_SOURCE) != _CLOSURE_MANIFEST_SHA256
+        ):
+            return False
+        if _CLOSURE_SOURCE.read_text(encoding="utf-8").splitlines() != _closure_lines():
+            return False
+        for kind, relative, path, mode in _CLOSURE_ENTRIES:
+            leaf = path.stat(follow_symlinks=False)
+            if (
+                not stat.S_ISREG(leaf.st_mode)
+                or path.is_symlink()
+                or stat.S_IMODE(leaf.st_mode) != mode
+                or leaf.st_uid != os.getuid()
+                or leaf.st_gid != os.getgid()
+            ):
+                return False
+            actual = (
+                _canonical_wrapper_hash(path)
+                if kind == "canonical" and path == _WRAPPER_SOURCE
+                else _canonical_action_hash(path)
+                if kind == "canonical" and path == Path(__file__)
+                else _canonical_strategy_hash(path)
+                if kind == "canonical"
+                else _full_wrapper_hash(path)
+                if kind == "full" and path == _WRAPPER_SOURCE
+                else _full_action_hash(path)
+                if kind == "full" and path == Path(__file__)
+                else _full_strategy_hash(path)
+                if kind == "full"
+                else _sha256(path)
+            )
+            expected = next(
+                line.split()[1]
+                for line in _CLOSURE_SOURCE.read_text(encoding="utf-8").splitlines()
+                if len(line.split()) == 3 and line.split()[0] == kind and line.split()[2] == relative
+            )
+            if not actual or actual != expected:
+                return False
+        return (
+            _canonical_action_hash(Path(__file__)) == _ACTION_CANONICAL_SHA256
+            and _ACTION_CANONICAL_SHA256 == _action_canonical_expected()
+            and _canonical_strategy_hash(_REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py") == _strategy_canonical_expected()
+            and _canonical_wrapper_hash(_WRAPPER_SOURCE) == _wrapper_canonical_expected()
+            and _full_action_hash(_ACTION_SOURCE) == _action_full_expected()
+            and _full_strategy_hash(_REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py") == _strategy_full_expected()
+        )
+    except (OSError, UnicodeError, RuntimeError):
+        return False
 
 
 def _ancestor(pid: int) -> bool:
@@ -225,6 +478,8 @@ def _toolchain_valid() -> bool:
             and controller_state.st_uid == os.getuid()
             and _sha256(_CONTROLLER_SOURCE) == _CONTROLLER_SHA256
             and stat.S_ISLNK(python_link.st_mode)
+            and python_link.st_uid == os.getuid()
+            and python_link.st_gid == os.getgid()
             and os.readlink(_PYTHON_SOURCE) == "/usr/bin/python3"
             and _PYTHON_SOURCE.resolve(strict=True) == _PYTHON_REAL_SOURCE
             and stat.S_ISREG(python_target.st_mode)
@@ -249,7 +504,20 @@ def _selected() -> bool:
         inventory = list(inventory)
     return (
         sys.argv == _expected_argv()
+        and os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ENTRYPOINT") == "v1"
+        and os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE") == "check"
+        and os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_SOURCE_CLOSURE_PATH") == str(_CLOSURE_SOURCE)
+        and os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_SOURCE_CLOSURE_SHA256") == _CLOSURE_MANIFEST_SHA256
         and _toolchain_valid()
+        and _runtime_provenance_valid()
+        and _source_closure_valid()
+        and _canonical_action_hash(Path(__file__)) == _ACTION_CANONICAL_SHA256 == _action_canonical_expected()
+        and _canonical_strategy_hash(_REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py")
+        == _strategy_canonical_expected()
+        and _canonical_wrapper_hash(_WRAPPER_SOURCE) == _wrapper_canonical_expected()
+        and _full_action_hash(_ACTION_SOURCE) == _action_full_expected()
+        and _full_strategy_hash(_REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py")
+        == _strategy_full_expected()
         and bool(context.CLIARGS.get("check"))
         and bool(context.CLIARGS.get("diff"))
         and context.CLIARGS.get("subset") == "crtxweb"
@@ -258,6 +526,7 @@ def _selected() -> bool:
         and not context.CLIARGS.get("skip_tags")
         and list(context.CLIARGS.get("tags") or []) in ([], ["all"])
         and inventory == [str(_INVENTORY_SOURCE)]
+        and os.environ.get("ANSIBLE_CONFIG") == str(_ANSIBLE_CONFIG_SOURCE)
         and os.environ.get("ANSIBLE_LIBRARY") == str(_LIBRARY_PATH)
         and os.environ.get("ANSIBLE_ROLES_PATH") == str(_ROLES_PATH)
         and not any(
@@ -394,11 +663,18 @@ class ActionModule(ActionBase):
             and attestation == f"{token}:entrypoint:{pid}:{wrapper_starttime}:{wrapper_sha}"
         )
         expected_env = {
-            "CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256": _canonical_action_hash(Path(__file__)),
-            "CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_CANONICAL_SHA256": _WRAPPER_CANONICAL_SHA256,
+            "CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256": _action_canonical_expected(),
+            "CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_CANONICAL_SHA256": _wrapper_canonical_expected(),
         }
         valid_sources = (
-            _sha256(_TASK_SOURCE) == _TASK_SHA256
+            _source_closure_valid()
+            and _runtime_provenance_valid()
+            and _canonical_action_hash(Path(__file__)) == _ACTION_CANONICAL_SHA256 == _action_canonical_expected()
+            and _canonical_strategy_hash(_REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py") == _strategy_canonical_expected()
+            and _canonical_wrapper_hash(_WRAPPER_SOURCE) == _wrapper_canonical_expected()
+            and _full_action_hash(_ACTION_SOURCE) == _action_full_expected()
+            and _full_strategy_hash(_REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py") == _strategy_full_expected()
+            and _sha256(_TASK_SOURCE) == _TASK_SHA256
             and _sha256(_DEFAULTS_SOURCE) == _DEFAULTS_SHA256
             and _sha256(_PLAYBOOK_SOURCE) == _PLAYBOOK_SHA256
             and _sha256(_POLICY_SOURCE) == _POLICY_SHA256
@@ -407,10 +683,14 @@ class ActionModule(ActionBase):
             and _sha256(_RABBITMQ_CONFIG_SOURCE) == _RABBITMQ_CONFIG_SOURCE_SHA256
             and _sha256(_ENGINE_SOURCE) == _ENGINE_SOURCE_SHA256
             and _sha256(_RUNTIME_SOURCE) == _RUNTIME_SOURCE_SHA256
-            and _sha256(Path(__file__)) == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_SHA256")
+            and _full_action_hash(_ACTION_SOURCE) == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_SHA256")
             and _canonical_action_hash(Path(__file__)) == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256") == expected_env["CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_CANONICAL_SHA256"]
-            and _canonical_wrapper_hash(_WRAPPER_SOURCE) == _WRAPPER_CANONICAL_SHA256
+            and _canonical_wrapper_hash(_WRAPPER_SOURCE) == _wrapper_canonical_expected()
             and expected_env["CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_CANONICAL_SHA256"] == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_WRAPPER_CANONICAL_SHA256")
+            and _full_action_hash(_ACTION_SOURCE) == _action_full_expected()
+            and _full_action_hash(_ACTION_SOURCE) == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_ACTION_SHA256")
+            and _full_strategy_hash(_REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py") == _strategy_full_expected()
+            and _full_strategy_hash(_REPOSITORY_ROOT / "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py") == os.environ.get("CRISTEXWEB_RABBITMQ_PROD_ROTATION_STRATEGY_SHA256")
         )
         binding = task_vars.get("rabbitmq_prod_credential_rotation_check_internal_binding", {})
         valid_binding = (

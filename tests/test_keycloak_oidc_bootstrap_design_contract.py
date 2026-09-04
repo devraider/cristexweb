@@ -304,6 +304,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
         expected_public_inputs.add("policies/cristexhub-prod-deepseek-credential-boundary.yml")
         expected_public_inputs.add("policies/cristexhub-prod-ghcr-pull-rotation.yml")
         expected_public_inputs.add("components/cristexhub-prod-ghcr-pull-rotation/SOURCE-CLOSURE.sha256")
+        expected_public_inputs.add("components/rabbitmq-prod-credential-rotation/SOURCE-CLOSURE.sha256")
         for source_directory in ("database-provisioning", "backup"):
             expected_public_inputs.update(
                 str(path.relative_to(ROOT / "ansible/files"))

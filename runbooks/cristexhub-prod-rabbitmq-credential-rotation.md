@@ -67,12 +67,27 @@ rotation authorization. Predecessor permission removal/deletion remains a
 separate explicitly approved operation, and queued-message recovery is never
 claimed by definitions recovery.
 
-The process and source checks establish a boundary around the canonical wrapper,
-controller, and files for this invocation; they do not defend against a malicious
-process that already runs as the trusted controller UID (`paul`) and can alter or
-observe those files or its descendants. That same-UID case is outside the claimed
-integrity boundary and requires host-level isolation/incident response rather than
-an assertion that this check-only lane provides protection.
+The executable closure is additionally bound by
+`ansible/files/components/rabbitmq-prod-credential-rotation/SOURCE-CLOSURE.sha256`.
+That mode-0644, hash-pinned file contains committed consistency anchors for the
+wrapper, action, and strategy plus full SHA-256 anchors for every value-free
+YAML, policy, task, and metadata leaf. The wrapper checks the child hashes and
+closure before `ansible-playbook`; both Python layers independently recompute
+those consistency checks before scheduling or executing a query. Only each
+executable's own canonical pin and the closure digest are normalized; no
+unrelated source or runtime pin is normalized. The strategy requires the exact
+controller path in `argv[0]`, while the action requires `ENTRYPOINT=v1`,
+`MODE=check`, the closure path/digest, and the same committed source anchors.
+Direct or alternate action loading therefore fails closed for isolated action,
+strategy, wrapper, manifest, or runtime-toolchain drift, even if an isolated
+local self-pin is edited.
+
+These hashes are consistency and drift checks, not independent cryptographic
+provenance. A malicious process already running as the trusted controller UID
+(`paul`) can coordinate edits to the complete checkout and rewrite every related
+pin; that same-UID case is outside the claimed integrity boundary and requires
+host-level isolation or incident response. The process and source checks do not
+claim to defend against that process or its descendants.
 
 ## Identity discrepancy is a hard preflight stop
 
@@ -253,3 +268,15 @@ revocation results, protected predecessor recovery custody, no plaintext residue
 definitions backup/readback and isolated restore, and Argo `Synced/Healthy`. Until
 all evidence exists, RabbitMQ credential rotation and any public PROD route remain
 **NOT RUN / BLOCKED**.
+
+
+## Ansible 2.19 startup compatibility
+
+The canonical check wrapper exports the complete pinned controller/runtime digest
+set consumed by the strategy before role scheduling. Ansible 2.19 represents
+`context.CLIARGS["inventory"]` as an absolute-path tuple and represents `tags`
+and `skip_tags` as tuples; the strategy and guarded action normalize these
+read-only CLI projections to the canonical forms without accepting task
+selection, alternate inventories, or inherited execution overrides. The
+wrapper-to-strategy handoff remains check-only and stops before any broker or
+Kubernetes query when a digest, source, or CLI projection is missing or drifted.

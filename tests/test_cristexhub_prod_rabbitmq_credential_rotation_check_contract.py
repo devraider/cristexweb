@@ -136,6 +136,17 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("ANSIBLE_ROLES_PATH", self.wrapper)
         self.assertIn("ANSIBLE_LIBRARY", self.wrapper)
         self.assertIn("check_cristexhub_prod_rabbitmq_credential_rotation.yml", self.wrapper)
+        for digest_name, source_name in (
+            ("CONTROLLER_SHA256", "controller"),
+            ("PYTHON_SHA256", "python_real_source"),
+            ("ANSIBLE_CONFIG_SHA256", "config"),
+            ("INVENTORY_SHA256", "inventory"),
+            ("REQUIREMENTS_SHA256", "requirements_source"),
+            ("COLLECTION_MANIFEST_SHA256", "collection_manifest"),
+            ("COLLECTION_FILES_SHA256", "collection_files"),
+        ):
+            self.assertIn(f"CRISTEXWEB_RABBITMQ_PROD_ROTATION_{digest_name}=", self.wrapper)
+            self.assertIn(f'$(sha256 "${source_name}")', self.wrapper)
         self.assertNotIn("--extra-vars '{\"rabbitmq_prod_credential_rotation_check_approved\":false}'", self.wrapper)
         self.assertEqual(0, subprocess.run(["/bin/sh", "-n", str(WRAPPER)], check=False).returncode)
         rejected = subprocess.run([str(WRAPPER), "check", "--start-at-task", "mutation"], check=False, capture_output=True, text=True)
@@ -164,7 +175,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         self.assertIn("CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE=check \\\n", env_block)
         self.assertIn("PYTHONDONTWRITEBYTECODE=1 \\\n", env_block)
 
-    def test_strategy_binds_ancestor_argv_and_fixed_source_closure(self) -> None:
+    def test_strategy_binds_ancestor_argv_and_source_closure_consistency(self) -> None:
         for required in (
             "class StrategyModule(LinearStrategyModule)",
             "_wrapper_attestation_valid",
@@ -217,6 +228,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             "_proc_cmdline",
             "_canonical_wrapper_argument(_proc_cmdline(pid)[1], pid)",
             "sys.argv == _expected_argv()",
+            "_runtime_provenance_valid()",
             "kubernetes.core.k8s_exec",
             "result.pop(key, None)",
             "metadata_only",
@@ -444,9 +456,9 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             ACTION.read_text(),
         )
         action_canonical_source = action_source
-        action_source, action_wrapper_count = re.subn(
-            r'(?m)^_WRAPPER_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
-            '_WRAPPER_CANONICAL_SHA256 = "' + zero + '"',
+        action_source, action_closure_count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + zero + '"',
             action_source,
         )
         strategy_source, strategy_count = re.subn(
@@ -455,9 +467,9 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             STRATEGY.read_text(),
         )
         strategy_canonical_source = strategy_source
-        strategy_source, strategy_wrapper_count = re.subn(
-            r'(?m)^_WRAPPER_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
-            '_WRAPPER_CANONICAL_SHA256 = "' + zero + '"',
+        strategy_source, strategy_closure_count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + zero + '"',
             strategy_source,
         )
         wrapper_source, wrapper_count = re.subn(
@@ -465,14 +477,33 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             "wrapper_canonical_sha256='" + zero + "'",
             WRAPPER.read_text(),
         )
-        self.assertEqual((1, 1, 1, 1, 1), (action_count, action_wrapper_count, strategy_count, strategy_wrapper_count, wrapper_count))
-        self.assertNotIn("strategy_sha256_expected", self.wrapper)
+        wrapper_source, wrapper_closure_count = re.subn(
+            r"(?m)^source_closure_sha256_expected='[0-9a-f]{64}'$",
+            "source_closure_sha256_expected='" + zero + "'",
+            wrapper_source,
+        )
+        self.assertEqual((1, 1, 1, 1, 1, 1), (action_count, action_closure_count, strategy_count, strategy_closure_count, wrapper_count, wrapper_closure_count))
+        self.assertIn("SOURCE-CLOSURE.sha256", self.wrapper)
+        self.assertIn("full_action_sha256", self.wrapper)
+        self.assertIn("full_strategy_sha256", self.wrapper)
         self.assertNotRegex(
             self.wrapper,
             r"canonical_(?:action|strategy)_sha256.*0000000000000000000000000000000000000000000000000000000000000000",
         )
-        self.assertIn("_WRAPPER_CANONICAL_SHA256", self.action)
-        self.assertIn("_WRAPPER_CANONICAL_SHA256", self.strategy)
+        self.assertIn("_CLOSURE_MANIFEST_SHA256", self.action)
+        self.assertIn("_CLOSURE_MANIFEST_SHA256", self.strategy)
+        self.assertIn("_source_closure_valid", self.action)
+        self.assertIn("_source_closure_valid", self.strategy)
+        action_canonical_source, action_closure_count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + zero + '"',
+            action_canonical_source,
+        )
+        strategy_canonical_source, strategy_closure_count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + zero + '"',
+            strategy_canonical_source,
+        )
         self.assertEqual(
             hashlib.sha256(action_canonical_source.encode()).hexdigest(),
             re.search(r'(?m)^_ACTION_CANONICAL_SHA256 = "([0-9a-f]{64})"$', ACTION.read_text()).group(1),
@@ -481,6 +512,7 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             hashlib.sha256(strategy_canonical_source.encode()).hexdigest(),
             re.search(r'(?m)^_STRATEGY_CANONICAL_SHA256 = "([0-9a-f]{64})"$', STRATEGY.read_text()).group(1),
         )
+        self.assertEqual((1, 1), (action_closure_count, strategy_closure_count))
         self.assertEqual(
             hashlib.sha256(wrapper_source.encode()).hexdigest(),
             re.search(r"(?m)^wrapper_canonical_sha256='([0-9a-f]{64})'$", WRAPPER.read_text()).group(1),
@@ -554,11 +586,32 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             "skip_tags": (),
         }
         try:
-            with mock.patch.object(module, "_toolchain_valid", return_value=True), mock.patch.dict(
+            with mock.patch.object(module, "_toolchain_valid", return_value=True), mock.patch.object(
+                module, "_runtime_provenance_valid", return_value=True
+            ), mock.patch.object(module, "_source_closure_valid", return_value=True), mock.patch.object(
+                module, "_canonical_action_hash", return_value=module._ACTION_CANONICAL_SHA256
+            ), mock.patch.object(module, "_canonical_strategy_hash", return_value="strategy-canonical"), mock.patch.object(
+                module, "_canonical_wrapper_hash", return_value="wrapper-canonical"
+            ), mock.patch.object(module, "_action_canonical_expected", return_value=module._ACTION_CANONICAL_SHA256), mock.patch.object(
+                module, "_strategy_canonical_expected", return_value="strategy-canonical"
+            ), mock.patch.object(
+                module, "_wrapper_canonical_expected", return_value="wrapper-canonical"
+            ), mock.patch.object(module, "_action_full_expected", return_value="action-full"), mock.patch.object(
+                module, "_strategy_full_expected", return_value="strategy-full"
+            ), mock.patch.object(module, "_full_action_hash", return_value="action-full"), mock.patch.object(
+                module, "_full_strategy_hash", return_value="strategy-full"
+            ), mock.patch.object(
+                module, "_sha256", side_effect=lambda path: "action-full" if path == module._ACTION_SOURCE else "strategy-full"
+            ), mock.patch.dict(
                 module.os.environ,
                 {
+                    "ANSIBLE_CONFIG": str(module._ANSIBLE_CONFIG_SOURCE),
                     "ANSIBLE_LIBRARY": str(module._LIBRARY_PATH),
                     "ANSIBLE_ROLES_PATH": str(module._ROLES_PATH),
+                    "CRISTEXWEB_RABBITMQ_PROD_ROTATION_ENTRYPOINT": "v1",
+                    "CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE": "check",
+                    "CRISTEXWEB_RABBITMQ_PROD_ROTATION_SOURCE_CLOSURE_PATH": str(module._CLOSURE_SOURCE),
+                    "CRISTEXWEB_RABBITMQ_PROD_ROTATION_SOURCE_CLOSURE_SHA256": module._CLOSURE_MANIFEST_SHA256,
                 },
                 clear=True,
             ):
@@ -566,6 +619,113 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         finally:
             module.sys.argv = original_argv
             module.context.CLIARGS = original_cliargs
+
+    def test_action_rejects_each_tampered_runtime_digest_at_direct_startup(self) -> None:
+        """The action's own preflight rejects every mutable digest export."""
+        spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_action_runtime_digests_direct", ACTION
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        digest_sources = (
+            "CONTROLLER_SHA256",
+            "PYTHON_SHA256",
+            "ANSIBLE_CONFIG_SHA256",
+            "INVENTORY_SHA256",
+            "REQUIREMENTS_SHA256",
+            "COLLECTION_MANIFEST_SHA256",
+            "COLLECTION_FILES_SHA256",
+        )
+        self.assertEqual(digest_sources, tuple(item[0] for item in module._RUNTIME_PROVENANCE))
+        with tempfile.TemporaryDirectory() as directory:
+            entries = []
+            environment = {}
+            for index, suffix in enumerate(digest_sources):
+                path = Path(directory) / f"source-{index}"
+                path.write_bytes(f"source-{index}\n".encode())
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                entries.append((suffix, path, digest))
+                environment[f"CRISTEXWEB_RABBITMQ_PROD_ROTATION_{suffix}"] = digest
+            with mock.patch.object(module, "_RUNTIME_PROVENANCE", tuple(entries)), mock.patch.dict(
+                module.os.environ, environment, clear=True
+            ):
+                self.assertTrue(module._runtime_provenance_valid())
+                for suffix in digest_sources:
+                    with self.subTest(suffix=suffix):
+                        tampered = dict(environment)
+                        tampered[f"CRISTEXWEB_RABBITMQ_PROD_ROTATION_{suffix}"] = "0" * 64
+                        with mock.patch.dict(module.os.environ, tampered, clear=True):
+                            self.assertFalse(module._runtime_provenance_valid())
+
+    def test_action_rejects_each_tampered_runtime_digest_at_alternate_startup(self) -> None:
+        """The action selection guard repeats provenance checks on loader entry."""
+        spec = importlib.util.spec_from_file_location(
+            "rabbitmq_prod_credential_rotation_action_runtime_digests_alternate", ACTION
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        original_argv = module.sys.argv
+        original_cliargs = module.context.CLIARGS
+        digest_sources = tuple(item[0] for item in module._RUNTIME_PROVENANCE)
+        with tempfile.TemporaryDirectory() as directory:
+            entries = []
+            environment = {
+                "ANSIBLE_CONFIG": str(module._ANSIBLE_CONFIG_SOURCE),
+                "ANSIBLE_LIBRARY": str(module._LIBRARY_PATH),
+                "ANSIBLE_ROLES_PATH": str(module._ROLES_PATH),
+            }
+            for index, suffix in enumerate(digest_sources):
+                path = Path(directory) / f"source-{index}"
+                path.write_bytes(f"source-{index}\n".encode())
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                entries.append((suffix, path, digest))
+                environment[f"CRISTEXWEB_RABBITMQ_PROD_ROTATION_{suffix}"] = digest
+            module.sys.argv = module._expected_argv()
+            module.context.CLIARGS = {
+                "inventory": (str(module._INVENTORY_SOURCE),),
+                "check": True,
+                "diff": True,
+                "subset": "crtxweb",
+                "start_at_task": None,
+                "step": False,
+                "tags": ("all",),
+                "skip_tags": (),
+            }
+            try:
+                environment.update({
+                    "CRISTEXWEB_RABBITMQ_PROD_ROTATION_ENTRYPOINT": "v1",
+                    "CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE": "check",
+                    "CRISTEXWEB_RABBITMQ_PROD_ROTATION_SOURCE_CLOSURE_PATH": str(module._CLOSURE_SOURCE),
+                    "CRISTEXWEB_RABBITMQ_PROD_ROTATION_SOURCE_CLOSURE_SHA256": module._CLOSURE_MANIFEST_SHA256,
+                })
+                with mock.patch.object(module, "_RUNTIME_PROVENANCE", tuple(entries)), mock.patch.object(module, "_toolchain_valid", return_value=True
+                ), mock.patch.object(module, "_source_closure_valid", return_value=True), mock.patch.object(
+                    module, "_canonical_action_hash", return_value=module._ACTION_CANONICAL_SHA256
+                ), mock.patch.object(module, "_canonical_strategy_hash", return_value="strategy-canonical"), mock.patch.object(
+                    module, "_canonical_wrapper_hash", return_value="wrapper-canonical"
+                ), mock.patch.object(module, "_action_canonical_expected", return_value=module._ACTION_CANONICAL_SHA256), mock.patch.object(
+                    module, "_strategy_canonical_expected", return_value="strategy-canonical"
+                ), mock.patch.object(
+                    module, "_wrapper_canonical_expected", return_value="wrapper-canonical"
+                ), mock.patch.object(module, "_action_full_expected", return_value="action-full"), mock.patch.object(
+                    module, "_strategy_full_expected", return_value="strategy-full"
+                ), mock.patch.object(module, "_full_action_hash", return_value="action-full"), mock.patch.object(
+                    module, "_full_strategy_hash", return_value="strategy-full"
+                ), mock.patch.object(module, "_sha256", side_effect=lambda path: "action-full" if path == module._ACTION_SOURCE else "strategy-full" if path == module._STRATEGY_SOURCE else hashlib.sha256(path.read_bytes()).hexdigest()), mock.patch.dict(module.os.environ, environment, clear=True):
+                    self.assertTrue(module._selected())
+                    for suffix in digest_sources:
+                        with self.subTest(suffix=suffix):
+                            tampered = dict(environment)
+                            tampered[f"CRISTEXWEB_RABBITMQ_PROD_ROTATION_{suffix}"] = "f" * 64
+                            with mock.patch.dict(module.os.environ, tampered, clear=True):
+                                self.assertFalse(module._selected())
+            finally:
+                module.sys.argv = original_argv
+                module.context.CLIARGS = original_cliargs
 
     def test_strategy_rejects_every_task_selection_override_before_role(self) -> None:
         spec = importlib.util.spec_from_file_location(
@@ -657,12 +817,12 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         action_module = importlib.util.module_from_spec(action_spec)
         action_spec.loader.exec_module(action_module)
 
-        expected = action_module._WRAPPER_CANONICAL_SHA256
+        expected = strategy_module._wrapper_canonical_expected()
         self.assertEqual(expected, strategy_module._wrapper_canonical_expected())
         self.assertEqual(expected, strategy_module._canonical_wrapper_hash(WRAPPER))
         self.assertEqual(expected, action_module._canonical_wrapper_hash(WRAPPER))
         self.assertEqual(
-            strategy_module._STRATEGY_CANONICAL_SHA256,
+            strategy_module._strategy_canonical_expected(),
             strategy_module._canonical_hash(STRATEGY, "_STRATEGY_CANONICAL_SHA256"),
         )
         self.assertIn("_canonical_wrapper_hash(_WRAPPER_SOURCE)", self.strategy)
@@ -723,128 +883,97 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
             shell_values["W"],
         )
         self.assertEqual(
-            action_module._WRAPPER_CANONICAL_SHA256,
+            strategy_module._wrapper_canonical_expected(),
             shell_values["W"],
         )
 
-    def test_unrelated_security_pins_are_not_normalized(self) -> None:
-        strategy_spec = importlib.util.spec_from_file_location(
-            "rabbitmq_prod_credential_rotation_strategy_mutation", STRATEGY
-        )
+    def test_independent_action_and_strategy_mutations_fail_consistency_anchors(self) -> None:
+        action_spec = importlib.util.spec_from_file_location("rabbitmq_action_mutation", ACTION)
+        strategy_spec = importlib.util.spec_from_file_location("rabbitmq_strategy_mutation", STRATEGY)
+        self.assertIsNotNone(action_spec)
         self.assertIsNotNone(strategy_spec)
+        action_module = importlib.util.module_from_spec(action_spec)
+        strategy_module = importlib.util.module_from_spec(strategy_spec)
+        self.assertIsNotNone(action_spec.loader)
+        self.assertIsNotNone(strategy_spec.loader)
+        action_spec.loader.exec_module(action_module)
+        strategy_spec.loader.exec_module(strategy_module)
+        for path, hasher, expected, marker in (
+            (ACTION, action_module._canonical_action_hash, action_module._ACTION_CANONICAL_SHA256, "return False  # mutation"),
+            (STRATEGY, lambda candidate: strategy_module._canonical_hash(candidate, "_STRATEGY_CANONICAL_SHA256"), strategy_module._STRATEGY_CANONICAL_SHA256, "return False  # mutation"),
+        ):
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as directory:
+                source = path.read_text()
+                mutated = Path(directory) / path.name
+                mutated.write_text(source + "\n" + marker + "\n")
+                self.assertNotEqual(expected, hasher(mutated))
+
+    def test_coordinated_same_uid_rewrite_is_outside_integrity_claim(self) -> None:
+        """Document the trusted-controller boundary instead of testing impossible provenance."""
+        normalized = " ".join(Path(ROOT / "runbooks/cristexhub-prod-rabbitmq-credential-rotation.md").read_text().split())
+        for required in (
+            "consistency and drift checks, not independent cryptographic provenance",
+            "malicious process already running as the trusted controller UID",
+            "coordinate edits to the complete checkout",
+            "outside the claimed integrity boundary",
+        ):
+            self.assertIn(required, normalized)
+        self.assertIn("isolated action, strategy, wrapper, manifest, or runtime-toolchain drift", normalized)
+
+    def test_isolated_wrapper_and_manifest_drift_fail_consistency_anchors(self) -> None:
+        strategy_spec = importlib.util.spec_from_file_location(
+            "rabbitmq_strategy_isolated_wrapper_manifest", STRATEGY
+        )
         self.assertIsNotNone(strategy_spec.loader)
         strategy_module = importlib.util.module_from_spec(strategy_spec)
         strategy_spec.loader.exec_module(strategy_module)
-
-        action_spec = importlib.util.spec_from_file_location(
-            "rabbitmq_prod_credential_rotation_action_mutation", ACTION
-        )
-        self.assertIsNotNone(action_spec)
-        self.assertIsNotNone(action_spec.loader)
-        action_module = importlib.util.module_from_spec(action_spec)
-        action_spec.loader.exec_module(action_module)
-
-        wrapper_hash = strategy_module._canonical_wrapper_hash(WRAPPER)
-        strategy_hash = strategy_module._canonical_hash(STRATEGY, "_STRATEGY_CANONICAL_SHA256")
-        action_hash = action_module._canonical_action_hash(ACTION)
-        zero = "0" * 64
-        mutations = (
-            (
-                ACTION,
-                '_WRAPPER_CANONICAL_SHA256 = "',
-                '_WRAPPER_CANONICAL_SHA256 = "' + zero,
-                action_module._canonical_action_hash,
-                action_hash,
-            ),
-            (
-                STRATEGY,
-                '_ACTION_CANONICAL_SHA256 = "',
-                '_ACTION_CANONICAL_SHA256 = "' + zero,
-                lambda path: strategy_module._canonical_hash(path, "_STRATEGY_CANONICAL_SHA256"),
-                strategy_hash,
-            ),
-            (
-                STRATEGY,
-                '_WRAPPER_CANONICAL_SHA256 = "',
-                '_WRAPPER_CANONICAL_SHA256 = "' + zero,
-                lambda path: strategy_module._canonical_hash(path, "_STRATEGY_CANONICAL_SHA256"),
-                strategy_hash,
-            ),
-            (
-                STRATEGY,
-                '_EXPECTED_PYTHON_SHA256 = "',
-                '_EXPECTED_PYTHON_SHA256 = "' + zero,
-                lambda path: strategy_module._canonical_hash(path, "_STRATEGY_CANONICAL_SHA256"),
-                strategy_hash,
-            ),
-        )
-        for source_path, old_prefix, new_prefix, hasher, expected in mutations:
-            source = source_path.read_text()
-            start = source.index(old_prefix)
-            old_line_end = source.index("\n", start)
-            old_line = source[start:old_line_end]
-            new_line = new_prefix + old_line[len(old_prefix):]
-            self.assertNotEqual(old_line, new_line)
-            with tempfile.TemporaryDirectory() as directory:
-                mutated = Path(directory) / source_path.name
-                mutated.write_text(source[:start] + new_line + source[old_line_end:])
-                self.assertNotEqual(expected, hasher(mutated), source_path)
-
-        # Only a file's own self-reference may be normalized.
-        wrapper = WRAPPER.read_text()
-        old = "wrapper_canonical_sha256='" + action_module._WRAPPER_CANONICAL_SHA256 + "'"
-        mutated = wrapper.replace(old, "wrapper_canonical_sha256='" + zero + "'", 1)
         with tempfile.TemporaryDirectory() as directory:
-            mutated_path = Path(directory) / WRAPPER.name
-            mutated_path.write_text(mutated)
-            self.assertEqual(wrapper_hash, strategy_module._canonical_wrapper_hash(mutated_path))
-
-    def test_coordinated_wrapper_action_pin_mutation_is_rejected(self) -> None:
-        strategy_spec = importlib.util.spec_from_file_location(
-            "rabbitmq_prod_credential_rotation_strategy_coordinated_mutation", STRATEGY
-        )
-        self.assertIsNotNone(strategy_spec)
-        self.assertIsNotNone(strategy_spec.loader)
-        strategy_module = importlib.util.module_from_spec(strategy_spec)
-        strategy_spec.loader.exec_module(strategy_module)
-        action_spec = importlib.util.spec_from_file_location(
-            "rabbitmq_prod_credential_rotation_action_coordinated_mutation", ACTION
-        )
-        self.assertIsNotNone(action_spec)
-        self.assertIsNotNone(action_spec.loader)
-        action_module = importlib.util.module_from_spec(action_spec)
-        action_spec.loader.exec_module(action_module)
-
-        original_wrapper_pin = action_module._WRAPPER_CANONICAL_SHA256
-        original_action_pin = strategy_module._ACTION_CANONICAL_SHA256
-        wrapper = WRAPPER.read_text()
-        mutated_wrapper = wrapper.replace(
-            "umask 077\n", "umask 077\n# coordinated wrapper mutation\n", 1
-        )
-        zero = "0" * 64
-        mutated_wrapper = re.sub(
-            r"(?m)^wrapper_canonical_sha256='[0-9a-f]{64}'$",
-            "wrapper_canonical_sha256='" + zero + "'",
-            mutated_wrapper,
-        )
-        with tempfile.TemporaryDirectory() as directory:
-            wrapper_path = Path(directory) / WRAPPER.name
-            wrapper_path.write_text(mutated_wrapper)
-            tampered_wrapper_pin = strategy_module._canonical_wrapper_hash(wrapper_path)
-            self.assertNotEqual(original_wrapper_pin, tampered_wrapper_pin)
-            action_source = ACTION.read_text().replace(
-                '_WRAPPER_CANONICAL_SHA256 = "' + original_wrapper_pin + '"',
-                '_WRAPPER_CANONICAL_SHA256 = "' + tampered_wrapper_pin + '"',
-                1,
-            )
-            action_path = Path(directory) / ACTION.name
-            action_path.write_text(action_source)
-            tampered_action_pin = action_module._canonical_action_hash(action_path)
+            wrapper_candidate = Path(directory) / "wrapper"
+            wrapper_candidate.write_text(WRAPPER.read_text() + "\n# isolated wrapper drift\n")
             self.assertNotEqual(
-                original_action_pin,
-                tampered_action_pin,
-                "the strategy's fixed action pin must reject coordinated wrapper/action mutation",
+                strategy_module._wrapper_canonical_expected(),
+                strategy_module._canonical_wrapper_hash(wrapper_candidate),
             )
+            closure_candidate = Path(directory) / "SOURCE-CLOSURE.sha256"
+            closure_candidate.write_text(strategy_module._CLOSURE_SOURCE.read_text() + "\n")
+            self.assertNotEqual(
+                strategy_module._CLOSURE_MANIFEST_SHA256,
+                hashlib.sha256(closure_candidate.read_bytes()).hexdigest(),
+            )
+
+    def test_source_closure_exposes_cross_file_consistency_anchors(self) -> None:
+        action_spec = importlib.util.spec_from_file_location("rabbitmq_action_closure_anchors", ACTION)
+        strategy_spec = importlib.util.spec_from_file_location("rabbitmq_strategy_closure_anchors", STRATEGY)
+        self.assertIsNotNone(action_spec.loader)
+        self.assertIsNotNone(strategy_spec.loader)
+        action_module = importlib.util.module_from_spec(action_spec)
+        strategy_module = importlib.util.module_from_spec(strategy_spec)
+        action_spec.loader.exec_module(action_module)
+        strategy_spec.loader.exec_module(strategy_module)
+        self.assertEqual(action_module._ACTION_CANONICAL_SHA256, action_module._action_canonical_expected())
+        self.assertEqual(strategy_module._STRATEGY_CANONICAL_SHA256, strategy_module._strategy_canonical_expected())
+        self.assertEqual(action_module._action_full_expected(), strategy_module._action_full_expected())
+        self.assertEqual(action_module._strategy_full_expected(), strategy_module._strategy_full_expected())
+        self.assertTrue(action_module._source_closure_valid())
+        self.assertTrue(strategy_module._source_closure_valid())
+
+    def test_action_selection_rejects_wrong_environment_mode_and_strategy_argv0(self) -> None:
+        action_spec = importlib.util.spec_from_file_location("rabbitmq_action_mode", ACTION)
+        strategy_spec = importlib.util.spec_from_file_location("rabbitmq_strategy_argv0", STRATEGY)
+        action_module = importlib.util.module_from_spec(action_spec)
+        strategy_module = importlib.util.module_from_spec(strategy_spec)
+        self.assertIsNotNone(action_spec.loader)
+        self.assertIsNotNone(strategy_spec.loader)
+        action_spec.loader.exec_module(action_module)
+        strategy_spec.loader.exec_module(strategy_module)
+        original_argv = strategy_module.sys.argv
+        try:
+            strategy_module.sys.argv = ["/tmp/not-ansible-playbook"] + strategy_module.sys.argv[1:]
+            self.assertFalse(strategy_module._canonical_argv())
+        finally:
+            strategy_module.sys.argv = original_argv
+        self.assertIn('CRISTEXWEB_RABBITMQ_PROD_ROTATION_MODE', action_module._selected.__code__.co_consts or ())
+
     def test_source_modes_and_hashes_are_explicit(self) -> None:
         expected_modes = {
             WRAPPER: 0o755,

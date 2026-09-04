@@ -40,10 +40,12 @@ _BROKER_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/s
 _RABBITMQ_CONFIG_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml"
 _ENGINE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml"
 _RUNTIME_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml"
-# Integrity DAG: wrapper canonical startup is the fixed root; this strategy
-# consumes fixed wrapper/action links and normalizes only its own self-pin.
-# Runtime attestation binds the process to the already verified wrapper rather
-# than introducing a mutable strategy↔wrapper cycle.
+_CLOSURE_SOURCE = _REPOSITORY_ROOT / "ansible/files/components/rabbitmq-prod-credential-rotation/SOURCE-CLOSURE.sha256"
+# Integrity DAG anchors.  The closure and its executable anchors are committed
+# consistency checks for the canonical source tree, not independent provenance.
+# They reject isolated drift; a coordinated rewrite by the already-trusted
+# controller UID remains outside the documented integrity boundary.  Only the
+# strategy self-pin and closure digest are normalized by _canonical_hash().
 _ROLE_PATH = _REPOSITORY_ROOT / "ansible/roles/rabbitmq_prod_credential_rotation_check"
 _ROLES_PATH = _REPOSITORY_ROOT / "ansible/roles"
 _LIBRARY_PATH = _REPOSITORY_ROOT / "ansible/library"
@@ -59,9 +61,8 @@ _EXPECTED_PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de2
 _EXPECTED_REQUIREMENTS_SHA256 = "f82d9e5ba1b64324710eb66c956d0447c46d3958722f635a4502bcb6c3efc75f"
 _EXPECTED_COLLECTION_MANIFEST_SHA256 = "dc32e90ca987d6199e9091f749ecb40fd3380b40aabb7c18961ec75582cfc6df"
 _EXPECTED_COLLECTION_FILES_SHA256 = "9d30dde4e4d6d04ec2e9b00a2d787114f13577fd2c456d25726865e3db39fa69"
-_ACTION_CANONICAL_SHA256 = "2931d37254ee3575a6a1b9a88d84f48dcc5a7ed5e936051b8351949e1102d7bd"
-_WRAPPER_CANONICAL_SHA256 = "ca2c1488e08ab46a0f096c84f1284dc812fdb4d8dce6ea235aae3edd14e47951"
-_STRATEGY_CANONICAL_SHA256 = "e86a53a862824dec2bdccad5c9e4cb25fa4335090613c38504ac3056b4ed40ae"
+_STRATEGY_CANONICAL_SHA256 = "3db3d215c5bb2a495795c96846921e427e9806e5d22a279fc7be8d5264859147"
+_CLOSURE_MANIFEST_SHA256 = "bdac64162c1def60c928894f57039968b59f401d017b9165a769ce981871241c"
 _TASK_SHA256 = "78104b5277c14ac6071c21250769d74184b12128c7c74591f50b01556fbb0250"
 _DEFAULTS_SHA256 = "3e5d9d043eccd416d0696da9dd4441f1ec78cac092dd1f1752d4b69725c121ac"
 _PLAYBOOK_SHA256 = "afba74ac3b512de525f322dcf7e89e3faed012f277c79912f439ddb9b2cf9b60"
@@ -139,6 +140,7 @@ def _sha256(path: Path) -> str:
 
 
 def _canonical_hash(path: Path, symbol: str) -> str:
+    """Hash a strategy source while normalizing only self/closure pins."""
     try:
         source = path.read_text(encoding="utf-8")
         source, count = re.subn(
@@ -146,19 +148,123 @@ def _canonical_hash(path: Path, symbol: str) -> str:
             f'{symbol} = "' + ("0" * 64) + '"',
             source,
         )
+        source, closure_count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + ("0" * 64) + '"',
+            source,
+        )
+        return hashlib.sha256(source.encode("utf-8")).hexdigest() if count == closure_count == 1 else ""
+    except (OSError, UnicodeError):
+        return ""
 
-        return hashlib.sha256(source.encode("utf-8")).hexdigest() if count == 1 else ""
+
+def _canonical_action_hash(path: Path) -> str:
+    """Hash the action source while normalizing only its self/closure pins."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, action_count = re.subn(
+            r'(?m)^_ACTION_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
+            '_ACTION_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
+            source,
+        )
+        source, closure_count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + ("0" * 64) + '"',
+            source,
+        )
+        return hashlib.sha256(source.encode("utf-8")).hexdigest() if action_count == closure_count == 1 else ""
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _closure_anchor(kind: str, relative: str) -> str:
+    """Read one committed consistency anchor from the source closure."""
+    try:
+        lines = _CLOSURE_SOURCE.read_text(encoding="utf-8").splitlines()
+        matches = [
+            line.split()[1]
+            for line in lines
+            if len(line.split()) == 3 and line.split()[0] == kind and line.split()[2] == relative
+        ]
+        return matches[0] if len(matches) == 1 and re.fullmatch(r"[0-9a-f]{64}", matches[0]) else ""
     except (OSError, UnicodeError):
         return ""
 
 
 def _wrapper_canonical_expected() -> str:
-    """Return the fixed wrapper root used by this strategy's integrity DAG."""
-    return _WRAPPER_CANONICAL_SHA256
+    return _closure_anchor(
+        "canonical", "ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation"
+    )
+
+
+def _action_canonical_expected() -> str:
+    return _closure_anchor(
+        "canonical", "ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py"
+    )
+
+
+def _action_full_expected() -> str:
+    return _closure_anchor(
+        "full", "ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py"
+    )
+
+
+def _strategy_full_expected() -> str:
+    return _closure_anchor(
+        "full", "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py"
+    )
+
+
+def _strategy_canonical_expected() -> str:
+    return _closure_anchor(
+        "canonical", "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py"
+    )
+
+
+def _full_action_hash(path: Path) -> str:
+    """Hash the complete action while normalizing only the closure digest."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + ("0" * 64) + '"',
+            source,
+        )
+        return hashlib.sha256(source.encode("utf-8")).hexdigest() if count == 1 else ""
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _full_strategy_hash(path: Path) -> str:
+    """Hash the complete strategy while normalizing only the closure digest."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, count = re.subn(
+            r'(?m)^_CLOSURE_MANIFEST_SHA256 = "[0-9a-f]{64}"$',
+            '_CLOSURE_MANIFEST_SHA256 = "' + ("0" * 64) + '"',
+            source,
+        )
+        return hashlib.sha256(source.encode("utf-8")).hexdigest() if count == 1 else ""
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _full_wrapper_hash(path: Path) -> str:
+    """Hash the complete wrapper while normalizing only the closure digest."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        source, count = re.subn(
+            r"(?m)^source_closure_sha256_expected='[0-9a-f]{64}'$",
+            "source_closure_sha256_expected='" + ("0" * 64) + "'",
+            source,
+        )
+        return hashlib.sha256(source.encode("utf-8")).hexdigest() if count == 1 else ""
+    except (OSError, UnicodeError):
+        return ""
 
 
 def _canonical_wrapper_hash(path: Path) -> str:
-    """Hash the wrapper with only its self-referential canonical field normalized."""
+    """Hash the wrapper while normalizing only its self and closure pins."""
     try:
         source = path.read_text(encoding="utf-8")
         source, wrapper_count = re.subn(
@@ -166,11 +272,88 @@ def _canonical_wrapper_hash(path: Path) -> str:
             "wrapper_canonical_sha256='" + ("0" * 64) + "'",
             source,
         )
-
-
-        return hashlib.sha256(source.encode("utf-8")).hexdigest() if wrapper_count == 1 else ""
+        source, closure_count = re.subn(
+            r"(?m)^source_closure_sha256_expected='[0-9a-f]{64}'$",
+            "source_closure_sha256_expected='" + ("0" * 64) + "'",
+            source,
+        )
+        return hashlib.sha256(source.encode("utf-8")).hexdigest() if wrapper_count == closure_count == 1 else ""
     except (OSError, UnicodeError):
         return ""
+
+
+_CLOSURE_ENTRIES = (
+    ("canonical", "ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation", _WRAPPER_SOURCE, 0o755),
+    ("canonical", "ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py", _ACTION_SOURCE, 0o644),
+    ("canonical", "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py", _STRATEGY_SOURCE, 0o644),
+    ("full", "ansible/bin/check-cristexhub-prod-rabbitmq-credential-rotation", _WRAPPER_SOURCE, 0o755),
+    ("full", "ansible/plugins/action/rabbitmq_prod_credential_rotation_check_guarded_k8s.py", _ACTION_SOURCE, 0o644),
+    ("full", "ansible/plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py", _STRATEGY_SOURCE, 0o644),
+    ("sha256", "ansible/ansible.cfg", _ANSIBLE_CONFIG, 0o644),
+    ("sha256", "ansible/roles/rabbitmq_prod_credential_rotation_check/tasks/main.yml", _TASK_SOURCE, 0o644),
+    ("sha256", "ansible/roles/rabbitmq_prod_credential_rotation_check/defaults/main.yml", _DEFAULTS_SOURCE, 0o644),
+    ("sha256", "ansible/playbooks/check_cristexhub_prod_rabbitmq_credential_rotation.yml", _PLAYBOOK_SOURCE, 0o644),
+    ("sha256", "ansible/files/policies/cristexhub-prod-rabbitmq-credential-rotation.yml", _POLICY_SOURCE, 0o644),
+    ("sha256", "ansible/library/rabbitmq_prod_credential_metadata.py", _METADATA_SOURCE, 0o755),
+    ("sha256", "ansible/files/components/rabbitmq/runtime/statefulset-rabbitmq.yaml", _BROKER_SOURCE, 0o644),
+    ("sha256", "ansible/files/components/rabbitmq/runtime/configmap-rabbitmq.yaml", _RABBITMQ_CONFIG_SOURCE, 0o644),
+    ("sha256", "ansible/files/components/infisical-rabbitmq-secrets/source/rabbitmq-infisical-secrets.yaml", _ENGINE_SOURCE, 0o644),
+    ("sha256", "ansible/files/components/infisical-cristexhub-prod-runtime/source/cristexhub-prod-runtime-static-secret.yaml", _RUNTIME_SOURCE, 0o644),
+)
+
+
+def _closure_digest(kind: str, path: Path) -> str:
+    if kind == "sha256":
+        return _sha256(path)
+    if kind == "full":
+        if path == _WRAPPER_SOURCE:
+            return _full_wrapper_hash(path)
+        if path == _ACTION_SOURCE:
+            return _full_action_hash(path)
+        if path == _STRATEGY_SOURCE:
+            return _full_strategy_hash(path)
+        return ""
+    if path == _WRAPPER_SOURCE:
+        return _canonical_wrapper_hash(path)
+    if path == _ACTION_SOURCE:
+        return _canonical_action_hash(path)
+    if path == _STRATEGY_SOURCE:
+        return _canonical_hash(path, "_STRATEGY_CANONICAL_SHA256")
+    return ""
+
+
+def _closure_lines() -> list[str]:
+    return [f"{kind} {_closure_digest(kind, path)}  {relative}" for kind, relative, path, _mode in _CLOSURE_ENTRIES]
+
+
+def _source_closure_valid() -> bool:
+    """Require the committed source closure before role scheduling or API access."""
+    try:
+        if not _regular_file(_CLOSURE_SOURCE, 0o644, os.getuid()):
+            return False
+        if _sha256(_CLOSURE_SOURCE) != _CLOSURE_MANIFEST_SHA256:
+            return False
+        if _CLOSURE_SOURCE.read_text(encoding="utf-8").splitlines() != _closure_lines():
+            return False
+        closure_lines = _CLOSURE_SOURCE.read_text(encoding="utf-8").splitlines()
+        for kind, relative, path, mode in _CLOSURE_ENTRIES:
+            if not _regular_file(path, mode, os.getuid()):
+                return False
+            actual = _closure_digest(kind, path)
+            expected = [
+                line.split()[1]
+                for line in closure_lines
+                if len(line.split()) == 3 and line.split()[0] == kind and line.split()[2] == relative
+            ]
+            if not actual or expected != [actual]:
+                return False
+        return (
+            _canonical_hash(_STRATEGY_SOURCE, "_STRATEGY_CANONICAL_SHA256")
+            == _STRATEGY_CANONICAL_SHA256
+            == _strategy_canonical_expected()
+        )
+    except (OSError, UnicodeError, RuntimeError):
+        return False
 
 
 def _regular_file(
@@ -327,6 +510,8 @@ def _inventory_contract() -> bool:
 
 
 def _canonical_argv() -> bool:
+    if not sys.argv or sys.argv[0] != str(_CONTROLLER):
+        return False
     argv = sys.argv[1:]
     if len(argv) != 9:
         return False
@@ -470,6 +655,8 @@ def _python_interpreter_valid() -> bool:
 
 def _source_contract() -> bool:
     prefix = _ENV_PREFIX
+    if not _source_closure_valid():
+        return False
     sources = (
         ("TASK_SHA256", _TASK_SOURCE, _TASK_SHA256, 0o644),
         ("DEFAULTS_SHA256", _DEFAULTS_SOURCE, _DEFAULTS_SHA256, 0o644),
@@ -486,35 +673,28 @@ def _source_contract() -> bool:
             return False
         if _sha256(path) != expected or os.environ.get(prefix + suffix) != expected:
             return False
-    strategy_sha = _sha256(_STRATEGY_SOURCE)
+    action_sha = _full_action_hash(_ACTION_SOURCE)
+    strategy_sha = _full_strategy_hash(_STRATEGY_SOURCE)
     expected_wrapper = _wrapper_canonical_expected()
+    expected_action = _action_canonical_expected()
     return (
         _regular_file(_ACTION_SOURCE, 0o644, os.getuid())
-        and _sha256(_ACTION_SOURCE) == os.environ.get(prefix + "ACTION_SHA256")
-        and _sha256(_ACTION_SOURCE) == os.environ.get(prefix + "ACTION_SHA256")
-        and _canonical_action_hash(_ACTION_SOURCE) == _ACTION_CANONICAL_SHA256
-        and os.environ.get(prefix + "ACTION_CANONICAL_SHA256") == _ACTION_CANONICAL_SHA256
+        and action_sha == os.environ.get(prefix + "ACTION_SHA256")
+        and action_sha == _action_full_expected()
+        and _canonical_action_hash(_ACTION_SOURCE) == expected_action
+        and os.environ.get(prefix + "ACTION_CANONICAL_SHA256") == expected_action
         and _regular_file(_STRATEGY_SOURCE, 0o644, os.getuid())
         and strategy_sha == os.environ.get(prefix + "STRATEGY_SHA256")
-        and _canonical_hash(_STRATEGY_SOURCE, "_STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
+        and strategy_sha == _strategy_full_expected()
+        and _canonical_hash(_STRATEGY_SOURCE, "_STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256 == _strategy_canonical_expected()
         and os.environ.get(prefix + "STRATEGY_CANONICAL_SHA256") == _STRATEGY_CANONICAL_SHA256
         and expected_wrapper != ""
         and _canonical_wrapper_hash(_WRAPPER_SOURCE) == expected_wrapper
         and os.environ.get(prefix + "WRAPPER_CANONICAL_SHA256") == expected_wrapper
+        and os.environ.get(prefix + "SOURCE_CLOSURE_PATH") == str(_CLOSURE_SOURCE)
+        and os.environ.get(prefix + "SOURCE_CLOSURE_SHA256") == _CLOSURE_MANIFEST_SHA256
     )
 
-
-def _canonical_action_hash(path: Path) -> str:
-    try:
-        source = path.read_text(encoding="utf-8")
-        source, count = re.subn(
-            r'(?m)^_ACTION_CANONICAL_SHA256 = "[0-9a-f]{64}"$',
-            '_ACTION_CANONICAL_SHA256 = "' + ("0" * 64) + '"',
-            source,
-        )
-        return hashlib.sha256(source.encode()).hexdigest() if count == 1 else ""
-    except (OSError, UnicodeError):
-        return ""
 
 
 def _no_vars_plugins() -> bool:
@@ -528,6 +708,11 @@ def _forbidden_environment_clean() -> bool:
 
 def _runtime_contract() -> bool:
     prefix = _ENV_PREFIX
+    if (
+        os.environ.get(prefix + "ENTRYPOINT") != "v1"
+        or os.environ.get(prefix + "MODE") != "check"
+    ):
+        return False
     if not _inventory_contract() or not _python_interpreter_valid():
         return False
     if not _regular_file(_ANSIBLE_CONFIG, 0o644, os.getuid()) or not _regular_file(_CONTROLLER, 0o755, os.getuid()):
@@ -550,6 +735,7 @@ def _runtime_contract() -> bool:
         "COLLECTION_ROOT": str(_COLLECTION_ROOT),
         "COLLECTION_MANIFEST_PATH": str(_COLLECTION_MANIFEST_SOURCE),
         "COLLECTION_FILES_PATH": str(_COLLECTION_FILES_SOURCE),
+        "SOURCE_CLOSURE_PATH": str(_CLOSURE_SOURCE),
     }
     if any(os.environ.get(prefix + key) != value for key, value in expected_paths.items()):
         return False
@@ -565,6 +751,7 @@ def _runtime_contract() -> bool:
         ("REQUIREMENTS_SHA256", _EXPECTED_REQUIREMENTS_SHA256),
         ("COLLECTION_MANIFEST_SHA256", _EXPECTED_COLLECTION_MANIFEST_SHA256),
         ("COLLECTION_FILES_SHA256", _EXPECTED_COLLECTION_FILES_SHA256),
+        ("SOURCE_CLOSURE_SHA256", _CLOSURE_MANIFEST_SHA256),
     ):
         if os.environ.get(prefix + suffix) != value:
             return False

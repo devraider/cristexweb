@@ -534,6 +534,7 @@ class AnsibleLayoutTests(unittest.TestCase):
                 "roles/rabbitmq_prod_credential_rotation_check/defaults/main.yml",
                 "roles/rabbitmq_prod_credential_rotation_check/tasks/main.yml",
                 "plugins/strategy/rabbitmq_prod_credential_rotation_check_guarded_linear.py",
+                "files/components/rabbitmq-prod-credential-rotation/SOURCE-CLOSURE.sha256",
                 "files/policies/cristexhub-prod-deepseek-credential-boundary.yml",
                 "files/policies/cristexhub-prod-ghcr-pull-rotation.yml",
                 "files/components/cristexhub-prod-ghcr-pull-rotation/SOURCE-CLOSURE.sha256",
