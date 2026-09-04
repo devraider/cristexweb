@@ -45,7 +45,7 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
 source_manifest="$root/bin/SOURCE.sha256"
 # The two pins use the canonical placeholder form to avoid a self-referential
 # digest cycle. They are refreshed together with SOURCE.sha256 below.
-source_manifest_expected_sha256='d47341f5440b2e10617cadcbf216a6ea807e5b51b41cc729c650d5860267df50'
+source_manifest_expected_sha256='f0879439329dba5982176f20a85d43f881dc20e1097796e888a8e92377516997'
 source_reconcile_expected_canonical_sha256='8e1d6f6e5047c5a89c5320d8f00019fff30c24be91af3a1eb97b692c06471c61'
 validator="$root/bin/validate-foundation-state-scope"
 # The validator digest is independently pinned from the verified source

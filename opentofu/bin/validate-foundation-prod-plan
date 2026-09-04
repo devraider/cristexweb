@@ -961,6 +961,8 @@ def _expected_configuration_resource_expressions(address: str) -> dict[str, Any]
             "type": {"constant_value": state["type"]},
             "zone_id": {"references": ["var.cloudflare_zone_id"]},
         }
+        if address == "cloudflare_dns_record.keycloak":
+            expressions["name"] = {"references": ["var.public_hostname"]}
         if state["type"] == "CNAME":
             expressions["content"] = {
                 "references": [
@@ -1002,11 +1004,10 @@ def _expected_configuration_resource_expressions(address: str) -> dict[str, Any]
 def require_configuration(value: Any) -> None:
     """Require the exact root configuration emitted by this pinned module.
 
-    Only the provider credential expression is permitted at its known provider
-    path, and only as the fixed sanitized fixture placeholder.  Real credentials
-    are rejected even when a caller supplies a matching digest.  Every other
-    expression, output, variable, and resource field is compared to the
-    committed source contract.
+    The provider credential is intentionally absent from this clean plan
+    projection because it is supplied only through the provider process
+    environment.  Every provider expression, output, variable, and resource
+    field is compared to the committed source contract.
     """
     if type(value) is not dict or set(value) != {"provider_config", "root_module"}:
         fail("configuration")
@@ -1014,36 +1015,18 @@ def require_configuration(value: Any) -> None:
     if type(provider_config) is not dict or set(provider_config) != {"cloudflare"}:
         fail("configuration")
     provider = provider_config["cloudflare"]
+    # With CLOUDFLARE_API_TOKEN supplied only in the provider process
+    # environment, OpenTofu 1.12.5 omits provider expressions entirely from
+    # show -json.  Keep this exact clean shape: accepting an expression here
+    # would permit a credential-bearing or otherwise unbound plan projection.
     if type(provider) is not dict or set(provider) != {
-        "name", "full_name", "version_constraint", "expressions"
+        "name", "full_name", "version_constraint"
     }:
         fail("configuration")
     if provider["name"] != "cloudflare" or provider["full_name"] != PROVIDER:
         fail("configuration")
     if provider["version_constraint"] != "5.23.0":
         fail("configuration")
-    expressions = provider["expressions"]
-    if type(expressions) is not dict or set(expressions) != {"api_token", "base_url"}:
-        fail("configuration")
-    if "api_token" in expressions:
-        token_expression = expressions["api_token"]
-        _constant_expression(token_expression)
-        token = token_expression["constant_value"]
-        # A real token is still a token-bearing plan artifact.  The provider
-        # credential must arrive only via the wrapper's stdin transport; any
-        # value in show -json is refused, even when a caller supplies its digest
-        # in an ambient variable.
-        if token != "SANITIZED_PROVIDER_TOKEN":
-            fail("configuration_provider_token")
-    if "base_url" in expressions:
-        base_expression = expressions["base_url"]
-        _constant_expression(base_expression)
-        base_url = base_expression["constant_value"]
-        if not isinstance(base_url, str) or not re.fullmatch(
-            r"(?:https://api\.cloudflare\.com/client/v4|http://127\.0\.0\.1:[0-9]{1,5}/client/v4)",
-            base_url,
-        ):
-            fail("configuration")
 
     root_module = value["root_module"]
     if type(root_module) is not dict or set(root_module) != {"outputs", "resources", "variables"}:

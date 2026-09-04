@@ -189,7 +189,11 @@ def config_expressions(address: str) -> dict:
         })
         expressions = {
             "comment": {"constant_value": state["comment"]},
-            "name": {"constant_value": state["name"]},
+            "name": (
+                {"references": ["var.public_hostname"]}
+                if address == "cloudflare_dns_record.keycloak"
+                else {"constant_value": state["name"]}
+            ),
             "proxied": {"constant_value": state["proxied"]},
             "ttl": {"constant_value": state["ttl"]},
             "type": {"constant_value": state["type"]},
@@ -451,10 +455,6 @@ def valid_plan() -> dict:
                     "name": "cloudflare",
                     "full_name": PROVIDER,
                     "version_constraint": "5.23.0",
-                    "expressions": {
-                        "api_token": {"constant_value": "SANITIZED_PROVIDER_TOKEN"},
-                        "base_url": {"constant_value": "https://api.cloudflare.com/client/v4"},
-                    },
                 }
             },
             "root_module": {
@@ -883,12 +883,18 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         result = self.run_validator(candidate)
         self.assertNotEqual(0, result.returncode, "prior state version")
 
-    def test_provider_expressions_and_prior_state_checks_are_required(self) -> None:
-        for expression_name in ("api_token", "base_url"):
+    def test_clean_provider_projection_and_prior_state_checks_are_required(self) -> None:
+        provider = valid_plan()["configuration"]["provider_config"]["cloudflare"]
+        self.assertEqual({"name", "full_name", "version_constraint"}, set(provider))
+        for expressions in (
+            {"api_token": {"constant_value": "SANITIZED_PROVIDER_TOKEN"}},
+            {"base_url": {"constant_value": "https://api.cloudflare.com/client/v4"}},
+            {},
+        ):
             candidate = valid_plan()
-            del candidate["configuration"]["provider_config"]["cloudflare"]["expressions"][expression_name]
+            candidate["configuration"]["provider_config"]["cloudflare"]["expressions"] = expressions
             result = self.run_validator(candidate)
-            self.assertNotEqual(0, result.returncode, expression_name)
+            self.assertNotEqual(0, result.returncode, expressions)
         candidate = valid_plan()
         del candidate["prior_state"]["checks"]
         result = self.run_validator(candidate)
@@ -1088,9 +1094,9 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
     def test_token_bearing_plan_is_rejected_via_token_stdin_even_with_digest(self) -> None:
         marker = "SYNTHETIC_PROVIDER_TOKEN_9f2a"
         candidate = valid_plan()
-        candidate["configuration"]["provider_config"]["cloudflare"]["expressions"][
-            "api_token"
-        ]["constant_value"] = marker
+        candidate["configuration"]["provider_config"]["cloudflare"].setdefault(
+            "expressions", {}
+        )["api_token"] = {"constant_value": marker}
         result = self.run_validator(
             candidate,
             token_stdin=marker,
@@ -1579,6 +1585,22 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         candidate = valid_plan()
         candidate["configuration"]["root_module"]["resources"][0]["metadata"] = {}
         self.assertNotEqual(0, self.run_validator(candidate).returncode)
+
+    def test_keycloak_name_must_bind_public_hostname_variable(self) -> None:
+        candidate = valid_plan()
+        keycloak = next(
+            resource
+            for resource in candidate["configuration"]["root_module"]["resources"]
+            if resource["address"] == "cloudflare_dns_record.keycloak"
+        )
+        for expression in (
+            {"constant_value": "auth.cristex-soft.com"},
+            {"references": ["var.other_hostname"]},
+            {"references": ["cloudflare_dns_record.keycloak.name"]},
+        ):
+            keycloak["expressions"]["name"] = expression
+            result = self.run_validator(candidate)
+            self.assertNotEqual(0, result.returncode, expression)
 
     def test_configuration_binds_tunnel_dependencies_separately(self) -> None:
         resources = {

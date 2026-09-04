@@ -84,16 +84,8 @@
   "configuration": {
     "provider_config": {
       "cloudflare": {
-        "expressions": {
-          "api_token": {
-            "constant_value": "SANITIZED_PROVIDER_TOKEN"
-          },
-          "base_url": {
-            "constant_value": "https://api.cloudflare.com/client/v4"
-          }
-        },
-        "full_name": "registry.opentofu.org/cloudflare/cloudflare",
         "name": "cloudflare",
+        "full_name": "registry.opentofu.org/cloudflare/cloudflare",
         "version_constraint": "5.23.0"
       }
     },
@@ -260,7 +252,9 @@
               ]
             },
             "name": {
-              "constant_value": "auth.cristex-soft.com"
+              "references": [
+                "var.public_hostname"
+              ]
             },
             "proxied": {
               "constant_value": true
@@ -995,11 +989,13 @@
     "checks": []
   },
   "relevant_attributes": [
-     {
-       "attribute": ["id"],
-       "resource": "cloudflare_zero_trust_tunnel_cloudflared.keycloak"
-     }
-   ],
+    {
+      "attribute": [
+        "id"
+      ],
+      "resource": "cloudflare_zero_trust_tunnel_cloudflared.keycloak"
+    }
+  ],
   "resource_changes": [
     {
       "address": "cloudflare_dns_record.argocd_tailscale",

@@ -1619,10 +1619,12 @@ path_identity=$(/usr/bin/stat -Lc '%d:%i' "$validator")
             self.assertIn("trap 'cleanup; exit 129' HUP", source)
             self.assertIn("trap 'cleanup; exit 130' INT", source)
             self.assertIn("trap 'cleanup; exit 143' TERM", source)
+        validator = (BIN / "validate-foundation-prod-plan").read_text()
         self.assertIn(
-            'set(expressions) != {"api_token", "base_url"}',
-            (BIN / "validate-foundation-prod-plan").read_text(),
+            '"name", "full_name", "version_constraint"',
+            validator,
         )
+        self.assertIn("omits provider expressions entirely", validator)
         self.assertIn('set(state) != {"format_version", "terraform_version", "values", "checks"}', SCOPE.read_text())
 
     def test_signal_traps_cleanup_then_exit(self) -> None:
