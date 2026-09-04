@@ -445,6 +445,7 @@ def valid_plan() -> dict:
                     ],
                 },
             },
+            "checks": [],
         },
         "configuration": {
             "provider_config": {
@@ -685,6 +686,17 @@ class OpenTofuFoundationProdPlanContractTests(unittest.TestCase):
         candidate["prior_state"]["terraform_version"] = "1.10.0"
         result = self.run_validator(candidate)
         self.assertNotEqual(0, result.returncode, "prior state version")
+
+    def test_provider_expressions_and_prior_state_checks_are_required(self) -> None:
+        for expression_name in ("api_token", "base_url"):
+            candidate = valid_plan()
+            del candidate["configuration"]["provider_config"]["cloudflare"]["expressions"][expression_name]
+            result = self.run_validator(candidate)
+            self.assertNotEqual(0, result.returncode, expression_name)
+        candidate = valid_plan()
+        del candidate["prior_state"]["checks"]
+        result = self.run_validator(candidate)
+        self.assertNotEqual(0, result.returncode, "prior_state checks")
 
     def test_only_resource_drift_may_be_omitted(self) -> None:
         candidate = valid_plan()

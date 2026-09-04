@@ -13,6 +13,7 @@ import json
 import math
 import os
 import re
+import signal
 import stat
 import sys
 from datetime import datetime
@@ -33,6 +34,10 @@ EXPECTED_ADDRESSES = frozenset(EXISTING) | {CREATE_ADDRESS}
 PROVIDER = "registry.opentofu.org/cloudflare/cloudflare"
 TOFU_PATH = "/opt/opentofu/1.12.5/tofu"
 TOFU_SHA256 = "36dae7ca1e4f1552a6faef27179dc16ef403203e956f31416c17b3d87a38c3f4"
+# Provider-backed plan JSON is bounded by the exact source closure. Refuse
+# unexpectedly large inputs and pathological validation work before parsing.
+MAX_INPUT_BYTES = 4 * 1024 * 1024
+VALIDATOR_TIMEOUT_SECONDS = 15
 ACCOUNT_ID = "8b0f511214c7a4a52ddfb62ca92c5e80"
 ZONE_ID = "3cbee16e56d7656440f93e685807e779"
 TUNNEL_ID = "f9442440-96df-4cf1-855b-7257868ed9bc"
@@ -334,7 +339,7 @@ def fail(reason: str) -> NoReturn:
     raise SystemExit(1)
 
 
-FORBIDDEN_ENV_PREFIXES = ("CLOUDFLARE_", "cloudflare_")
+FORBIDDEN_ENV_PREFIXES = ("CLOUDFLARE_", "cloudflare_", "LD_", "DYLD_")
 FORBIDDEN_ENV_NAMES = frozenset({
     "read_hidden_result",
     "cloudflare_token",
@@ -411,10 +416,14 @@ def _open_input(source: Path | str, purpose: str = "input") -> bytes:
         ):
             fail(f"{purpose}_permissions")
         chunks: list[bytes] = []
+        total = 0
         while True:
             chunk = os.read(fd, 1024 * 1024)
             if not chunk:
                 break
+            total += len(chunk)
+            if total > MAX_INPUT_BYTES:
+                fail(f"{purpose}_too_large")
             chunks.append(chunk)
         return b"".join(chunks)
     except OSError:
@@ -473,17 +482,16 @@ def read_identity(source: Path | str) -> dict[str, Any]:
         fail("identity_profile_attestation")
     try:
         observed_profile_sha256 = hashlib.sha256(identity_bytes).hexdigest()
-        attestation_path = Path(attestation_path_text)
-        attestation_info = attestation_path.lstat()
-        attestation = attestation_path.read_text(encoding="ascii")
+        # Read the attestation through the same single verified descriptor
+        # boundary as every other validator input.  Do not lstat and then
+        # reopen a pathname: a FIFO/path replacement must fail immediately.
+        attestation = _open_input(
+            attestation_path_text, "identity_profile_attestation"
+        ).decode("ascii")
     except (OSError, UnicodeError):
         fail("identity_profile_attestation")
     if (
         observed_profile_sha256 != expected_profile_sha256
-        or not stat.S_ISREG(attestation_info.st_mode)
-        or stat.S_IMODE(attestation_info.st_mode) != 0o600
-        or attestation_info.st_uid != os.getuid()
-        or attestation_info.st_nlink != 1
         or attestation
         != f"identity_sha256={expected_profile_sha256}\nidentity_scope={IDENTITY_SCOPE}\n"
     ):
@@ -890,7 +898,7 @@ def require_state_envelope(
     expected_addresses: set[str],
     expected_states: dict[str, dict[str, Any]],
 ) -> None:
-    if type(value) is not dict or set(value) - STATE_KEYS:
+    if type(value) is not dict or set(value) != STATE_KEYS:
         fail(reason)
     if value.get("format_version") != "1.0":
         fail(reason)
@@ -901,7 +909,7 @@ def require_state_envelope(
     require_state_values(
         value["values"], reason, identity, expected_addresses, EXPECTED_OUTPUTS, expected_states
     )
-    if "checks" in value and value["checks"] != []:
+    if value["checks"] != []:
         fail(reason)
     validate_sensitive_values_tree(value, reason)
     require_safe_tree(scrub_sensitive_values(value), reason)
@@ -1009,7 +1017,7 @@ def require_configuration(value: Any) -> None:
     if provider["version_constraint"] != "5.23.0":
         fail("configuration")
     expressions = provider["expressions"]
-    if type(expressions) is not dict or set(expressions) - {"api_token", "base_url"}:
+    if type(expressions) is not dict or set(expressions) != {"api_token", "base_url"}:
         fail("configuration")
     if "api_token" in expressions:
         token_expression = expressions["api_token"]
@@ -1804,6 +1812,9 @@ def validate(
         "apply=not-run provider=cloudflare sensitive=false unknown=false deferred=false outputs=no-op"
     )
 
+def _validator_timeout(_signum: int, _frame: Any) -> NoReturn:
+    fail("validator_timeout")
+
 
 reject_forbidden_environment()
 arguments = sys.argv[1:]
@@ -1822,4 +1833,10 @@ if arguments[-1] == "--token-stdin":
         fail("provider_token_input")
     if not provider_token_argument:
         fail("provider_token_input")
-validate(plan_argument, identity_argument, provenance_argument, provider_token_argument)
+if __name__ == "__main__":
+    signal.signal(signal.SIGALRM, _validator_timeout)
+    signal.setitimer(signal.ITIMER_REAL, VALIDATOR_TIMEOUT_SECONDS)
+    try:
+        validate(plan_argument, identity_argument, provenance_argument, provider_token_argument)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)

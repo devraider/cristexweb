@@ -25,7 +25,7 @@ esac
 # variable, shell, and checkpoint override, including variables set to empty.
 while IFS='=' read -r inherited_name _; do
     case "$inherited_name" in
-        BASH_ENV|ENV|SHELLOPTS|BASHOPTS|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|http_proxy|https_proxy|all_proxy|no_proxy|TF_CLI_ARGS|TF_CLI_ARGS_*|TF_LOG|TF_LOG_PATH|TF_CLI_CONFIG_FILE|TF_DATA_DIR|TF_WORKSPACE|TF_VAR_*|TOFU_CLI_CONFIG_FILE|TOFU_CLI_ARGS|TOFU_LOG|TOFU_LOG_PATH|TERRAFORM_CONFIG|TERRAFORM_CONFIG_DIR|PYTHONHOME|PYTHONPATH|PYTHONUSERBASE|PYTHONNOUSERSITE|PYTHONINSPECT|PYTHONSTARTUP|PYTHONBREAKPOINT|CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256|CRISTEXWEB_PROD_PLAN_PROVIDER_TOKEN_SHA256|CLOUDFLARE_API_TOKEN|CLOUDFLARE_*TOKEN*|CLOUDFLARE_EMAIL|CLOUDFLARE_API_KEY|cloudflare_token|cloudflare_token_sha256|read_hidden_result)
+        BASH_ENV|ENV|SHELLOPTS|BASHOPTS|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|http_proxy|https_proxy|all_proxy|no_proxy|TF_CLI_ARGS|TF_CLI_ARGS_*|TF_LOG|TF_LOG_PATH|TF_CLI_CONFIG_FILE|TF_DATA_DIR|TF_WORKSPACE|TF_VAR_*|TOFU_CLI_CONFIG_FILE|TOFU_CLI_ARGS|TOFU_LOG|TOFU_LOG_PATH|TERRAFORM_CONFIG|TERRAFORM_CONFIG_DIR|PYTHONHOME|PYTHONPATH|PYTHONUSERBASE|PYTHONNOUSERSITE|PYTHONINSPECT|PYTHONSTARTUP|PYTHONBREAKPOINT|LD_*|DYLD_*|CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256|CRISTEXWEB_PROD_PLAN_PROVIDER_TOKEN_SHA256|CLOUDFLARE_API_TOKEN|CLOUDFLARE_*TOKEN*|CLOUDFLARE_EMAIL|CLOUDFLARE_API_KEY|cloudflare_token|cloudflare_token_sha256|read_hidden_result)
             printf 'Refusing inherited environment override: %s\n' "$inherited_name" >&2
             exit 65
             ;;
@@ -43,15 +43,15 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
     exit 78
 }
 source_manifest="$root/bin/SOURCE.sha256"
-source_manifest_expected_sha256='21696223fa3d0b1427f7d5ccde5b9009922883238f242fe38a27940ac53b1da2'
-source_prod_expected_canonical_sha256='b55050cdc408b41b5d4f8cd8785ea89f1f3e7151dd476dbc449f1f61bb0922de'
+source_manifest_expected_sha256='53e2c73e808b3f53147aa9e40f9a2878f43e6f52925d546d326a651fc7c5f165'
+source_prod_expected_canonical_sha256='6f6a6e012da9f7529982a469b665e6f627cc8aa90f536a471d3c972cee7aa3c1'
 validator="$root/bin/validate-foundation-prod-plan"
 state_scope_validator="$root/bin/validate-foundation-state-scope"
 # These digests are independently pinned from the verified source manifest.
 # Validators are copied into sealed memfds before execution, so a pathname
 # replacement or in-place edit cannot change the bytes consumed by Python.
-validator_sha256='d71903de9ff59799823cb1ab76c23490ee9882fc51fe8720c5513ca5f5e35d6d'
-state_scope_validator_sha256='4815be448015ef39ac741d1db930f1d4c251ae7a156a1092052b82bb8beb8a40'
+validator_sha256='b8b5c4fb9b71773d266e1216c6fcc0f528ac49abab29f7f8808199d72a6234ab'
+state_scope_validator_sha256='4079ab77f44ce257fd68416e2cbe48f2b046d76df54cfbb63507684d46f88b88'
 [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
 [ "$(/usr/bin/stat -c '%U:%G:%a:%F:%h' "$source_manifest")" = 'paul:paul:644:regular file:1' ] || exit 78
 [ -d "$root/bin" ] && [ ! -L "$root/bin" ] || exit 78
@@ -60,7 +60,10 @@ state_scope_validator_sha256='4815be448015ef39ac741d1db930f1d4c251ae7a156a109205
 [ -x "$state_scope_validator" ] && [ ! -L "$state_scope_validator" ] || exit 78
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-prod-source.XXXXXX)
 chmod 0700 "$source_work"
-trap '/usr/bin/rm -rf -- "$source_work"' EXIT HUP INT TERM
+trap '/usr/bin/rm -rf -- "$source_work"' EXIT
+trap '/usr/bin/rm -rf -- "$source_work"; exit 129' HUP
+trap '/usr/bin/rm -rf -- "$source_work"; exit 130' INT
+trap '/usr/bin/rm -rf -- "$source_work"; exit 143' TERM
 source_expected_paths="$source_work/expected-paths"
 source_actual_paths="$source_work/actual-paths"
 bin_expected_paths="$source_work/bin-expected-paths"
@@ -224,7 +227,10 @@ cleanup() {
     unset CLOUDFLARE_API_TOKEN cloudflare_token cloudflare_account_id cloudflare_zone_id confirmation cloudflare_tunnel_account_tag cloudflare_dns_id_argocd cloudflare_dns_id_dev cloudflare_dns_id_keycloak cloudflare_dns_id_resume read_hidden_result
     /usr/bin/rm -rf -- "$work" "$source_work"
 }
-trap cleanup EXIT HUP INT TERM
+trap cleanup EXIT
+trap 'cleanup; exit 129' HUP
+trap 'cleanup; exit 130' INT
+trap 'cleanup; exit 143' TERM
 revalidate_state_metadata() {
     # Metadata-only checks are repeated after the parent lock and immediately
     # before every state/plan consumer.  The captured dev:ino guards against a
@@ -247,15 +253,40 @@ revalidate_state_metadata() {
     fi
     state_identity=$current_state_identity
 }
+revalidate_state_content() {
+    revalidate_state_metadata
+    current_state_sha256=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f 1) || exit 73
+    [ -n "${state_before_sha256-}" ] || exit 73
+    [ "$current_state_sha256" = "$state_before_sha256" ] || {
+        printf '%s\n' 'Refusing protected state content drift.' >&2
+        exit 73
+    }
+}
 
 # Every capture is created atomically by a descriptor-retaining producer.  The
 # validator receives fd:8 after its identity is compared, never a reopened
 # capture pathname.  The binary plan descriptor is retained across plan/show.
 safe_runner_code='
 import os
+import resource
 import stat
 import subprocess
 import sys
+
+# Every producer artifact (stdout, stderr, and the binary plan) is capped at
+# this per-file limit. The bound is enforced in the producer process tree,
+# not only checked after an unbounded write has exhausted /dev/shm.
+MAX_CAPTURE_BYTES = 16 * 1024 * 1024
+
+def apply_output_limit():
+    resource.setrlimit(
+        resource.RLIMIT_FSIZE, (MAX_CAPTURE_BYTES, MAX_CAPTURE_BYTES)
+    )
+
+def enforce_output_bound(fd, label):
+    if os.fstat(fd).st_size > MAX_CAPTURE_BYTES:
+        print(f"{label}_too_large", file=sys.stderr)
+        raise SystemExit(78)
 
 def new_output(path):
     flags = (os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC
@@ -271,8 +302,16 @@ def new_output(path):
 out_fd, out_info = new_output(sys.argv[1])
 err_fd, err_info = new_output(sys.argv[2])
 try:
-    result = subprocess.run(sys.argv[3:], stdin=subprocess.DEVNULL,
-                            stdout=out_fd, stderr=err_fd, check=False)
+    result = subprocess.run(
+        sys.argv[3:],
+        stdin=subprocess.DEVNULL,
+        stdout=out_fd,
+        stderr=err_fd,
+        preexec_fn=apply_output_limit,
+        check=False,
+    )
+    enforce_output_bound(out_fd, "stdout_capture")
+    enforce_output_bound(err_fd, "stderr_capture")
 finally:
     os.close(out_fd)
     os.close(err_fd)
@@ -281,9 +320,25 @@ raise SystemExit(result.returncode)
 '
 safe_plan_runner_code='
 import os
+import resource
 import stat
 import subprocess
 import sys
+
+# Every producer artifact (stdout, stderr, and the binary plan) is capped at
+# this per-file limit. The bound is enforced in the producer process tree,
+# not only checked after an unbounded write has exhausted /dev/shm.
+MAX_CAPTURE_BYTES = 16 * 1024 * 1024
+
+def apply_output_limit():
+    resource.setrlimit(
+        resource.RLIMIT_FSIZE, (MAX_CAPTURE_BYTES, MAX_CAPTURE_BYTES)
+    )
+
+def enforce_output_bound(fd, label):
+    if os.fstat(fd).st_size > MAX_CAPTURE_BYTES:
+        print(f"{label}_too_large", file=sys.stderr)
+        raise SystemExit(78)
 
 def new_output(path):
     flags = (os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC
@@ -331,15 +386,29 @@ try:
         for arg in show_args
     ]
     plan_result = subprocess.run(
-        plan_args, stdin=subprocess.DEVNULL, stdout=out_fd, stderr=err_fd,
-        pass_fds=(plan_fd,), check=False
+        plan_args,
+        stdin=subprocess.DEVNULL,
+        stdout=out_fd,
+        stderr=err_fd,
+        pass_fds=(plan_fd,),
+        preexec_fn=apply_output_limit,
+        check=False,
     )
     if plan_result.returncode:
         raise SystemExit(plan_result.returncode)
     show_result = subprocess.run(
-        show_args, stdin=subprocess.DEVNULL, stdout=json_fd, stderr=err_fd,
-        pass_fds=(plan_fd,), check=False
+        show_args,
+        stdin=subprocess.DEVNULL,
+        stdout=json_fd,
+        stderr=err_fd,
+        pass_fds=(plan_fd,),
+        preexec_fn=apply_output_limit,
+        check=False,
     )
+    enforce_output_bound(plan_fd, "binary_plan")
+    enforce_output_bound(out_fd, "stdout_capture")
+    enforce_output_bound(json_fd, "plan_json_capture")
+    enforce_output_bound(err_fd, "stderr_capture")
 finally:
     os.close(out_fd)
     os.close(json_fd)
@@ -361,6 +430,10 @@ import stat
 import subprocess
 import sys
 
+# Validator source is repository-owned and normally below 100 KiB. Refuse an
+# unexpectedly large source before allocating a bytearray or hashing it.
+MAX_SOURCE_BYTES = 256 * 1024
+
 F_ADD_SEALS = getattr(fcntl, "F_ADD_SEALS", 1033)
 F_GET_SEALS = getattr(fcntl, "F_GET_SEALS", 1034)
 F_SEAL_SEAL = getattr(fcntl, "F_SEAL_SEAL", 1)
@@ -376,6 +449,7 @@ source_fd = os.open(
     os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
 )
 memfd = -1
+opened_input_fds = []
 try:
     source_info = os.fstat(source_fd)
     if (
@@ -383,11 +457,16 @@ try:
         or stat.S_IMODE(source_info.st_mode) != 0o755
         or source_info.st_uid != os.getuid()
         or source_info.st_nlink != 1
+        or source_info.st_size < 0
+        or source_info.st_size > MAX_SOURCE_BYTES
     ):
         raise SystemExit(78)
     source_bytes = bytearray()
     while True:
-        chunk = os.read(source_fd, 1024 * 1024)
+        remaining = MAX_SOURCE_BYTES - len(source_bytes)
+        chunk = os.read(source_fd, min(64 * 1024, remaining + 1))
+        if len(source_bytes) + len(chunk) > MAX_SOURCE_BYTES:
+            raise SystemExit(78)
         if not chunk:
             break
         source_bytes.extend(chunk)
@@ -404,17 +483,55 @@ try:
     fcntl.fcntl(memfd, F_ADD_SEALS, seals)
     if fcntl.fcntl(memfd, F_GET_SEALS) & seals != seals:
         raise SystemExit(78)
-    pass_fds = {memfd}
-    for argument in child_args:
-        match = re.fullmatch(r"fd:([0-9]+)", argument)
-        if match:
-            inherited_fd = int(match.group(1))
-            if inherited_fd < 3 or inherited_fd == memfd:
+
+    # Resolve each pathname input once, with O_NONBLOCK before fstat.  The
+    # caller may provide an expected dev:ino (for a producer capture) or '-'
+    # when the pathname itself is the sole input boundary.  The resulting
+    # descriptors are inherited by the sealed validator; no shell redirection
+    # can block on a FIFO and no child reopens a pathname after this point.
+    resolved_args = []
+    index = 0
+    while index < len(child_args):
+        argument = child_args[index]
+        if argument == "--PATH-FD--":
+            if index + 2 >= len(child_args):
                 raise SystemExit(78)
-            os.fstat(inherited_fd)
-            pass_fds.add(inherited_fd)
+            input_path = child_args[index + 1]
+            expected_identity = child_args[index + 2]
+            if expected_identity != "-" and not re.fullmatch(
+                r"[0-9]+:[0-9]+", expected_identity
+            ):
+                raise SystemExit(78)
+            input_fd = os.open(
+                input_path,
+                os.O_RDONLY
+                | os.O_CLOEXEC
+                | os.O_NOFOLLOW
+                | os.O_NONBLOCK,
+            )
+            input_info = os.fstat(input_fd)
+            actual_identity = f"{input_info.st_dev}:{input_info.st_ino}"
+            if (
+                not stat.S_ISREG(input_info.st_mode)
+                or stat.S_IMODE(input_info.st_mode) != 0o600
+                or input_info.st_uid != os.getuid()
+                or input_info.st_nlink != 1
+                or (
+                    expected_identity != "-"
+                    and actual_identity != expected_identity
+                )
+            ):
+                os.close(input_fd)
+                raise SystemExit(78)
+            opened_input_fds.append(input_fd)
+            resolved_args.append(f"fd:{input_fd}")
+            index += 3
+            continue
+        resolved_args.append(argument)
+        index += 1
+    pass_fds = {memfd, *opened_input_fds}
     result = subprocess.run(
-        ["/usr/bin/python3", f"/proc/self/fd/{memfd}", *child_args],
+        ["/usr/bin/python3", f"/proc/self/fd/{memfd}", *resolved_args],
         stdin=None,
         stdout=None,
         stderr=None,
@@ -422,6 +539,8 @@ try:
         check=False,
     )
 finally:
+    for input_fd in opened_input_fds:
+        os.close(input_fd)
     if memfd >= 0:
         os.close(memfd)
     os.close(source_fd)
@@ -435,6 +554,7 @@ run_immutable_validator() {
     revalidate_state_metadata
     if /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin LC_ALL=C \
         PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+        /usr/bin/timeout --foreground --kill-after=5s 30 \
         /usr/bin/python3 -c "$immutable_validator_runner_code" \
         "$validator_path" "$validator_digest" "$@"; then
         result=0
@@ -451,12 +571,25 @@ run_capture() {
     revalidate_source_closure
     revalidate_state_metadata
     log_file="$capture_file.stderr"
-    capture_identity=$(
+    if capture_identity=$(
         /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/local/bin:/usr/bin:/bin LC_ALL=C \
             TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" TF_WORKSPACE=default \
             TOFU_DISABLE_CHECKPOINT=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 \
             /usr/bin/python3 -c "$safe_runner_code" "$capture_file" "$log_file" "$@"
-    ) || { printf 'prod_plan_status=failed stage=tofu_command\n' >&2; exit 1; }
+    ); then
+        :
+    else
+        producer_status=$?
+        # Re-attest even when the producer fails after opening its captures.
+        revalidate_source_closure
+        revalidate_state_metadata
+        revalidate_state_content
+        printf 'prod_plan_status=failed stage=tofu_command\n' >&2
+        exit "$producer_status"
+    fi
+    revalidate_source_closure
+    revalidate_state_metadata
+    revalidate_state_content
 }
 run_capture_with_token() {
     # The token is carried only over this anonymous pipe.  It is intentionally
@@ -466,7 +599,7 @@ run_capture_with_token() {
     capture_file=$1
     shift
     log_file="$capture_file.stderr"
-    capture_identity=$(
+    if capture_identity=$(
         printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
             PATH=/usr/local/bin:/usr/bin:/bin HOME=/home/paul USER=paul LOGNAME=paul LC_ALL=C \
             TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" \
@@ -475,7 +608,19 @@ run_capture_with_token() {
             TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
             /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' import-child \
             /usr/bin/python3 -c "$safe_runner_code" "$capture_file" "$log_file" "$@"
-    ) || { printf 'prod_plan_status=failed stage=provider_command\n' >&2; exit 1; }
+    ); then
+        :
+    else
+        producer_status=$?
+        revalidate_source_closure
+        revalidate_state_metadata
+        revalidate_state_content
+        printf 'prod_plan_status=failed stage=provider_command\n' >&2
+        exit "$producer_status"
+    fi
+    revalidate_source_closure
+    revalidate_state_metadata
+    revalidate_state_content
 }
 run_plan_capture_with_token() {
     plan_file=$1
@@ -485,7 +630,7 @@ run_plan_capture_with_token() {
     revalidate_source_closure
     revalidate_state_metadata
     log_file="$plan_json.stderr"
-    capture_identity=$(
+    if capture_identity=$(
         printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
             PATH=/usr/local/bin:/usr/bin:/bin HOME=/home/paul USER=paul LOGNAME=paul LC_ALL=C \
             TF_CLI_CONFIG_FILE=/dev/null TF_DATA_DIR="$work/tofu-data" \
@@ -494,32 +639,42 @@ run_plan_capture_with_token() {
             TF_VAR_cloudflare_zone_id="$cloudflare_zone_id" \
             /bin/sh -c 'IFS= read -r CLOUDFLARE_API_TOKEN || exit 74; export CLOUDFLARE_API_TOKEN; exec "$@"' import-child \
             /usr/bin/python3 -c "$safe_plan_runner_code" "$plan_file" "$plan_stdout" "$plan_json" "$log_file" "$@"
-    ) || { printf 'prod_plan_status=failed stage=provider_plan_or_show\n' >&2; exit 1; }
+    ); then
+        :
+    else
+        producer_status=$?
+        revalidate_source_closure
+        revalidate_state_metadata
+        revalidate_state_content
+        printf 'prod_plan_status=failed stage=provider_plan_or_show\n' >&2
+        exit "$producer_status"
+    fi
+    revalidate_source_closure
+    revalidate_state_metadata
+    revalidate_state_content
 }
 consume_capture() {
     capture_file=$1
     validator_path=$2
     shift 2
-    exec 8<"$capture_file" || exit 78
-    actual_identity=$(/usr/bin/stat -Lc '%d:%i' /proc/self/fd/8) || { exec 8<&-; exit 78; }
-    [ "$actual_identity" = "$capture_identity" ] || {
-        exec 8<&-
-        printf '%s\n' 'Refusing capture inode replacement.' >&2
-        exit 78
-    }
     revalidate_source_closure
     revalidate_state_metadata
+    # Open the capture in the sealed runner with O_NONBLOCK before fstat. This
+    # avoids a shell redirection blocking forever if a cooperating pathname is
+    # replaced with a FIFO between the source check and consumption.
     if /usr/bin/env -i HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin LC_ALL=C \
         PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+        /usr/bin/timeout --foreground --kill-after=5s 30 \
         /usr/bin/python3 -c "$immutable_validator_runner_code" \
-        "$validator_path" "$state_scope_validator_sha256" "$@" fd:8; then
+        "$validator_path" "$state_scope_validator_sha256" "$@" \
+        --PATH-FD-- "$capture_file" "$capture_identity"; then
         result=0
     else
         result=$?
     fi
     revalidate_source_closure
     revalidate_state_metadata
-    exec 8<&-
+    revalidate_state_content
     return "$result"
 }
 validate_state_scope() {
@@ -531,24 +686,44 @@ validate_state_scope() {
     }
 }
 validate_state_unchanged() {
+    revalidate_state_content
     revalidate_state_metadata
-    state_after_sha256=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f 1)
-    revalidate_state_metadata
-    [ "$state_after_sha256" = "$state_before_sha256" ] || {
-        printf '%s\n' 'Refusing OpenTofu state mutation during plan-only operation.' >&2
-        exit 73
-    }
 }
 provenance_writer_code='
+import hashlib
 import json
 import os
 import stat
 import sys
 
-path, digest, tofu_sha = sys.argv[1:]
+plan_path, expected_identity, output_path, tofu_sha = sys.argv[1:]
+plan_fd = os.open(
+    plan_path,
+    os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
+)
+try:
+    plan_info = os.fstat(plan_fd)
+    if (
+        not stat.S_ISREG(plan_info.st_mode)
+        or stat.S_IMODE(plan_info.st_mode) != 0o600
+        or plan_info.st_uid != os.getuid()
+        or plan_info.st_nlink != 1
+        or f"{plan_info.st_dev}:{plan_info.st_ino}" != expected_identity
+    ):
+        raise SystemExit(78)
+    plan_bytes = bytearray()
+    while True:
+        chunk = os.read(plan_fd, 1024 * 1024)
+        if not chunk:
+            break
+        plan_bytes.extend(chunk)
+    if len(plan_bytes) > 4 * 1024 * 1024:
+        raise SystemExit(78)
+finally:
+    os.close(plan_fd)
 data = json.dumps({
     "artifact": "refresh-only-plan-json",
-    "artifact_sha256": digest,
+    "artifact_sha256": hashlib.sha256(plan_bytes).hexdigest(),
     "tofu_path": "/opt/opentofu/1.12.5/tofu",
     "tofu_sha256": tofu_sha,
     "tofu_version": "1.12.5",
@@ -556,60 +731,64 @@ data = json.dumps({
     "provider_version": "5.23.0",
     "source": "pinned-cli-show-json",
 }, separators=(",", ":")).encode()
-fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | getattr(os, "O_NOFOLLOW", 0), 0o600)
+fd = os.open(
+    output_path,
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC
+    | getattr(os, "O_NOFOLLOW", 0),
+    0o600,
+)
 try:
     info = os.fstat(fd)
-    if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600
-            or info.st_uid != os.getuid() or info.st_nlink != 1):
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or stat.S_IMODE(info.st_mode) != 0o600
+        or info.st_uid != os.getuid()
+        or info.st_nlink != 1
+    ):
         raise SystemExit(78)
-    os.write(fd, data)
+    offset = 0
+    while offset < len(data):
+        written = os.write(fd, data[offset:])
+        if written <= 0:
+            raise SystemExit(78)
+        offset += written
 finally:
     os.close(fd)
 '
 write_plan_provenance() {
     plan_json=$1
     provenance=$2
-    exec 8<"$plan_json" || exit 78
-    actual_identity=$(/usr/bin/stat -Lc '%d:%i' /proc/self/fd/8) || { exec 8<&-; exit 78; }
-    [ "$actual_identity" = "$capture_identity" ] || { exec 8<&-; exit 78; }
-    plan_digest=$(/usr/bin/sha256sum /proc/self/fd/8 | /usr/bin/cut -d ' ' -f 1) || { exec 8<&-; exit 78; }
-    exec 8<&-
+    # Open the capture once in Python with O_NONBLOCK before fstat; shell
+    # redirection could block indefinitely if the pathname became a FIFO.
     /usr/bin/env -i HOME=/home/paul PATH=/usr/bin:/bin LC_ALL=C PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
-        /usr/bin/python3 -c "$provenance_writer_code" "$provenance" "$plan_digest" "$tofu_sha256"
+        /usr/bin/python3 -c "$provenance_writer_code" "$plan_json" "$capture_identity" "$provenance" "$tofu_sha256"
 }
 validate_prod_plan() {
     plan_json=$1
     provenance=$2
     revalidate_source_closure
     revalidate_state_metadata
-    exec 8<"$plan_json" || exit 78
-    actual_identity=$(/usr/bin/stat -Lc '%d:%i' /proc/self/fd/8) || { exec 8<&-; exit 78; }
-    [ "$actual_identity" = "$capture_identity" ] || {
-        exec 8<&-
-        printf '%s\n' 'Refusing plan JSON inode replacement.' >&2
-        exit 78
-    }
-    exec 7<"$provenance" || { exec 8<&-; exit 78; }
-    exec 6<"$identity_file" || { exec 7<&-; exec 8<&-; exit 78; }
-    # `fd:8` is the provider show capture, `fd:6` is the prompt identity, and
-    # `fd:7` is the digest-bound provenance sidecar; no validator input is a
-    # pathname reopened after the descriptor boundary.
+    # The sealed runner opens all pathname inputs once with O_NONBLOCK, checks
+    # regular-file ownership/mode and binds the plan capture inode. The
+    # validator receives descriptors and never reopens these pathnames.
     if printf '%s\n' "$cloudflare_token" | /usr/bin/env -i \
         HOME=/home/paul USER=paul LOGNAME=paul PATH=/usr/bin:/bin LC_ALL=C \
         PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
         CRISTEXWEB_PROD_ROUTE_IDENTITY_SHA256="${identity_sha256-}" \
         CRISTEXWEB_PROD_ROUTE_IDENTITY_ATTESTATION="${identity_attestation-}" \
+        /usr/bin/timeout --foreground --kill-after=5s 30 \
         /usr/bin/python3 -c "$immutable_validator_runner_code" \
-        "$validator" "$validator_sha256" fd:8 fd:6 fd:7 --token-stdin; then
+        "$validator" "$validator_sha256" \
+        --PATH-FD-- "$plan_json" "$capture_identity" \
+        --PATH-FD-- "$identity_file" - \
+        --PATH-FD-- "$provenance" - \
+        --token-stdin; then
         result=0
     else
         result=$?
     fi
     revalidate_source_closure
     revalidate_state_metadata
-    exec 6<&-
-    exec 7<&-
-    exec 8<&-
     return "$result"
 }
 

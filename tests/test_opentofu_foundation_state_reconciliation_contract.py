@@ -184,6 +184,7 @@ def state_document(addresses: list[str]) -> dict[str, Any]:
                 "content": "100.122.139.32",
                 "ttl": 300,
                 "proxied": False,
+                "comment": "Managed by OpenTofu; private Reactive Resume DEV endpoint on Tailscale",
             }
         resources.append(
             {
@@ -315,6 +316,48 @@ class OpenTofuFoundationStateReconciliationContractTests(unittest.TestCase):
             canonical_pin.group(1), hashlib.sha256(canonical.encode()).hexdigest()
         )
 
+    def test_validator_manifest_and_embedded_pins_are_independently_equal(self) -> None:
+        manifest = {
+            path: digest
+            for digest, path in (
+                line.split("  ", 1) for line in MANIFEST.read_text().splitlines()
+            )
+        }
+        expected = {
+            "validate-foundation-prod-plan": "bin/validate-foundation-prod-plan",
+            "validate-foundation-state-scope": "bin/validate-foundation-state-scope",
+        }
+        actual = {
+            name: hashlib.sha256((BIN / name).read_bytes()).hexdigest()
+            for name in expected
+        }
+        for name, path in expected.items():
+            self.assertEqual(actual[name], manifest[path], path)
+
+        plan_text = (BIN / "plan-foundation-prod-route").read_text()
+        reconcile_text = RECONCILE.read_text()
+        plan_prod_pin = re.search(
+            r"^validator_sha256='([0-9a-f]{64})'$", plan_text, re.MULTILINE
+        )
+        plan_scope_pin = re.search(
+            r"^state_scope_validator_sha256='([0-9a-f]{64})'$",
+            plan_text,
+            re.MULTILINE,
+        )
+        reconcile_scope_pin = re.search(
+            r"^validator_sha256='([0-9a-f]{64})'$",
+            reconcile_text,
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(plan_prod_pin)
+        self.assertIsNotNone(plan_scope_pin)
+        self.assertIsNotNone(reconcile_scope_pin)
+        self.assertEqual(plan_prod_pin.group(1), actual["validate-foundation-prod-plan"])
+        self.assertEqual(plan_scope_pin.group(1), actual["validate-foundation-state-scope"])
+        self.assertEqual(
+            reconcile_scope_pin.group(1), actual["validate-foundation-state-scope"]
+        )
+
     def test_backup_gate_hashes_match_current_source_files(self) -> None:
         text = RECONCILE.read_text()
         source_checks = {
@@ -436,6 +479,13 @@ class OpenTofuFoundationStateReconciliationContractTests(unittest.TestCase):
                     0, accepted.returncode, accepted.stdout + accepted.stderr
                 )
                 self.assertIn(f"phase={phase}-json addresses={count}", accepted.stdout)
+            bad = state_document(POST)
+            bad.pop("checks")
+            path = root / "missing-checks.json"
+            write_json(path, bad)
+            refused = run_validator("state", "post", str(path))
+            self.assertNotEqual(0, refused.returncode)
+            self.assertIn("state_json_top_level", refused.stdout)
             bad = state_document(POST)
             bad["checks"] = [{"status": "pass"}]
             path = root / "bad.json"
@@ -671,7 +721,7 @@ class OpenTofuFoundationStateReconciliationContractTests(unittest.TestCase):
             body = source[start:next_start]
             self.assertIn(failure_stage, body)
             self.assertIn(
-                "revalidate_source_closure\n    revalidate_state_metadata\n}",
+                "revalidate_source_closure\n    revalidate_state_metadata\n    revalidate_state_content\n}",
                 body,
             )
         self.assertIn("immutable_validator_runner_code", source)
@@ -934,6 +984,39 @@ path_identity=$(/usr/bin/stat -Lc '%d:%i' "$validator")
             )
             self.assertNotEqual(0, result.returncode)
             self.assertIn("input_permissions", result.stdout)
+
+    def test_state_resource_values_are_exact_and_bounded(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "state.json"
+            state = state_document(POST)
+            argocd = next(
+                item
+                for item in state["values"]["root_module"]["resources"]
+                if item["address"] == "cloudflare_dns_record.argocd_tailscale"
+            )
+            argocd["values"]["padding"] = "unexpected"
+            write_json(path, state)
+            refused = run_validator("state", "post", str(path))
+            self.assertNotEqual(0, refused.returncode)
+            self.assertIn("state_dns_values", refused.stdout)
+
+            state = state_document(POST)
+            resume = next(
+                item
+                for item in state["values"]["root_module"]["resources"]
+                if item["address"] == "cloudflare_dns_record.reactive_resume_dev_tailscale"
+            )
+            resume["values"]["ttl"] = True
+            write_json(path, state)
+            refused = run_validator("state", "post", str(path))
+            self.assertNotEqual(0, refused.returncode)
+            self.assertIn("state_reactive_resume_value", refused.stdout)
+
+            path.write_bytes(b"{}" + b"x" * (4 * 1024 * 1024))
+            path.chmod(0o600)
+            refused = run_validator("state", "post", str(path))
+            self.assertNotEqual(0, refused.returncode)
+            self.assertIn("input_too_large", refused.stdout)
 
     def test_plan_rejects_nonfinite_duplicate_and_wrong_marker_types(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -1266,6 +1349,178 @@ path_identity=$(/usr/bin/stat -Lc '%d:%i' "$validator")
                 )
                 self.assertNotEqual(0, hardlinked.returncode)
 
+    def test_embedded_runners_bound_source_and_capture_sizes(self) -> None:
+        """Exercise the producer/source limits without any provider or state."""
+        wrappers = (
+            TOFU / "bin/plan-foundation-prod-route",
+            RECONCILE,
+        )
+        for wrapper in wrappers:
+            source = wrapper.read_text()
+            source_match = re.search(
+                r"immutable_validator_runner_code='\n(.*?)\n'\n",
+                source,
+                flags=re.DOTALL,
+            )
+            self.assertIsNotNone(source_match, wrapper.name)
+            source_runner = source_match.group(1)
+            source_limit = 256 * 1024
+            with tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                oversized = root / "oversized-validator"
+                oversized.write_bytes(b"x" * (source_limit + 1))
+                oversized.chmod(0o755)
+                source_result = subprocess.run(
+                    [
+                        "/usr/bin/python3",
+                        "-c",
+                        source_runner,
+                        str(oversized),
+                        hashlib.sha256(oversized.read_bytes()).hexdigest(),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env={"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"},
+                )
+                self.assertNotEqual(0, source_result.returncode)
+                self.assertLessEqual(oversized.stat().st_size, source_limit + 1)
+
+                safe_match = re.search(
+                    r"safe_runner_code='\n(.*?)\n'\n",
+                    source,
+                    flags=re.DOTALL,
+                )
+                self.assertIsNotNone(safe_match, wrapper.name)
+                capture_runner = safe_match.group(1)
+                output = root / "stdout"
+                error = root / "stderr"
+                child = (
+                    "import sys; "
+                    "sys.stdout.write('x' * (16 * 1024 * 1024 + 1))"
+                )
+                capture_result = subprocess.run(
+                    [
+                        "/usr/bin/python3",
+                        "-c",
+                        capture_runner,
+                        str(output),
+                        str(error),
+                        "/usr/bin/python3",
+                        "-c",
+                        child,
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env={"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"},
+                )
+                self.assertNotEqual(0, capture_result.returncode)
+                self.assertLessEqual(output.stat().st_size, 16 * 1024 * 1024)
+                self.assertLessEqual(error.stat().st_size, 16 * 1024 * 1024)
+
+                plan_match = re.search(
+                    r"safe_plan_runner_code='\n(.*?)\n'\n",
+                    source,
+                    flags=re.DOTALL,
+                )
+                self.assertIsNotNone(plan_match, wrapper.name)
+                plan_runner = plan_match.group(1)
+                plan_file = root / "binary-plan"
+                plan_stdout = root / "plan-stdout"
+                plan_json = root / "plan-json"
+                plan_error = root / "plan-stderr"
+                plan_child = (
+                    "import sys; "
+                    "sys.stdout.write('x' * (16 * 1024 * 1024 + 1))"
+                )
+                plan_result = subprocess.run(
+                    [
+                        "/usr/bin/python3",
+                        "-c",
+                        plan_runner,
+                        str(plan_file),
+                        str(plan_stdout),
+                        str(plan_json),
+                        str(plan_error),
+                        "/usr/bin/python3",
+                        "-c",
+                        plan_child,
+                        "--SHOW-COMMAND--",
+                        "/usr/bin/python3",
+                        "-c",
+                        "pass",
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env={"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"},
+                )
+                self.assertNotEqual(0, plan_result.returncode)
+                self.assertLessEqual(plan_stdout.stat().st_size, 16 * 1024 * 1024)
+                self.assertLessEqual(plan_error.stat().st_size, 16 * 1024 * 1024)
+
+            self.assertIn("MAX_SOURCE_BYTES = 256 * 1024", source)
+            self.assertIn("source_info.st_size > MAX_SOURCE_BYTES", source)
+            self.assertIn("MAX_CAPTURE_BYTES = 16 * 1024 * 1024", source)
+            self.assertIn("resource.RLIMIT_FSIZE", source)
+            self.assertIn("preexec_fn=apply_output_limit", source)
+            self.assertIn("binary_plan", source)
+
+    def test_failed_producers_revalidate_before_reporting_failure(self) -> None:
+        for wrapper in (
+            TOFU / "bin/plan-foundation-prod-route",
+            RECONCILE,
+        ):
+            source = wrapper.read_text()
+            expected_stages = (
+                "tofu_command",
+                "provider_command",
+                "provider_plan_or_show",
+            )
+            self.assertGreaterEqual(source.count("producer_status=$?"), 3)
+            for stage in expected_stages:
+                self.assertIn(f"stage={stage}", source)
+            self.assertIn(
+                "revalidate_source_closure\n        revalidate_state_metadata\n        revalidate_state_content\n        printf",
+                source,
+            )
+
+    def test_output_limit_signal_and_provider_override_guards_are_bound(self) -> None:
+        for wrapper in (TOFU / "bin/plan-foundation-prod-route", RECONCILE):
+            source = wrapper.read_text()
+            self.assertIn("preexec_fn=apply_output_limit", source)
+            self.assertIn("RLIMIT_FSIZE", source)
+            self.assertIn("LD_*", source)
+            self.assertIn("DYLD_*", source)
+            self.assertIn("trap 'cleanup; exit 129' HUP", source)
+            self.assertIn("trap 'cleanup; exit 130' INT", source)
+            self.assertIn("trap 'cleanup; exit 143' TERM", source)
+        self.assertIn(
+            'set(expressions) != {"api_token", "base_url"}',
+            (BIN / "validate-foundation-prod-plan").read_text(),
+        )
+        self.assertIn('set(state) != {"format_version", "terraform_version", "values", "checks"}', SCOPE.read_text())
+
+    def test_signal_traps_cleanup_then_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            marker = Path(temp) / "cleaned"
+            script = (
+                "set -eu; "
+                f"cleanup() {{ /usr/bin/touch {marker}; }}; "
+                "trap 'cleanup' EXIT; "
+                "trap 'cleanup; exit 143' TERM; "
+                "kill -TERM $$"
+            )
+            result = subprocess.run(
+                ["/bin/dash", "-c", script],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(143, result.returncode)
+            self.assertTrue(marker.exists())
+
     def test_shell_python_syntax_and_docs(self) -> None:
         shell = subprocess.run(
             ["/bin/sh", "-n", str(RECONCILE)],
@@ -1296,6 +1551,10 @@ path_identity=$(/usr/bin/stat -Lc '%d:%i' "$validator")
             "O_NOFOLLOW",
             "immutable encrypted readback",
             "isolated non-mutating restore",
+            "RLIMIT_FSIZE",
+            "16 MiB",
+            "256 KiB",
+            "post-producer source/state revalidation",
             "PROD plan",
         ):
             self.assertIn(required, docs)

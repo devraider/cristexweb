@@ -159,8 +159,11 @@ with `O_CREAT|O_EXCL|O_NOFOLLOW` and retain the verified descriptor; after every
 producer returns, the reconciler revalidates the source closure and state
 metadata. Immediately before every validator execution, it repeats the source
 closure/state check, hashes the validator against its pinned manifest digest,
-and copies it into a sealed Linux memfd. The child executes only those
-immutable verified bytes; pathname replacement or in-place mutation cannot
+and copies it into a sealed Linux memfd. Pathname inputs are opened once with
+`O_NONBLOCK|O_NOFOLLOW`, checked as mode-`0600` regular files, and passed by
+verified descriptor; a FIFO replacement therefore fails immediately rather than
+blocking. The child executes only those immutable verified bytes; pathname
+replacement or in-place mutation cannot
 change validator code after the last check. The
 reconciler and PROD route planner pass device/inode receipts and the validators
 consume `fd:N`, never reopening the capture by pathname. The binary plan is
@@ -169,8 +172,17 @@ and `show`, so a FIFO or regular-file pathname replacement cannot redirect
  either consumer. A sanitized mode-`0600` provenance receipt is itself passed
 by descriptor and binds the plan JSON digest to the pinned
 OpenTofu 1.12.5 path/digest and Cloudflare 5.23.0; the validator requires that
-receipt before accepting the plan. It
-rejects inherited `TF_*`, `TOFU_*`, `OPENTOFU_*`, `TF_PLUGIN_CACHE_DIR`, and
+receipt before accepting the plan. Each producer applies an inherited
+`RLIMIT_FSIZE` of exactly 16 MiB per stdout, stderr, and binary-plan capture,
+and verifies final descriptor sizes before returning; an oversized stream fails
+closed while retaining at most the bounded diagnostics. The sealed validator
+runner rejects source files larger than 256 KiB before allocating or hashing
+their bytes. The JSON validators cap each input at 4 MiB and enforce a
+15-second validation deadline. A producer failure still executes the
+post-producer source/state revalidation, including the protected state content
+hash, before reporting its failure. HUP/INT/TERM traps remove private staging
+and then exit nonzero; cleanup cannot fall through into provider work. They reject inherited `TF_*`,
+`TOFU_*`, `OPENTOFU_*`, `TF_PLUGIN_CACHE_DIR`, and
 `LD_*`/`DYLD_*` overrides along with Python/provider overrides. It requires the
 exact seven-resource configuration closure and exact five-variable closure, the
 complete `planned_values.outputs` and `prior_state` projections, and no
