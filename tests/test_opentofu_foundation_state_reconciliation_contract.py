@@ -855,6 +855,83 @@ path_identity=$(/usr/bin/stat -Lc '%d:%i' "$validator")
         self.assertNotIn('>"$work/init.stdout"', text)
         self.assertNotIn('>"$work/import.stdout"', text)
 
+    def test_check_initializes_ephemeral_tofu_data_before_state_validation(self) -> None:
+        # Keep a real command-level fixture here rather than relying only on a
+        # textual assertion: a fresh TF_DATA_DIR must be initialized before the
+        # first state consumer can succeed.  The production wrappers are then
+        # checked for that same ordering and exact clean init command.
+        for wrapper, init_output, state_validation_call in (
+            (
+                RECONCILE,
+                "$work/init.stdout",
+                "validate_scope pre",
+            ),
+            (
+                TOFU / "bin/plan-foundation-prod-route",
+                "$work/init.out",
+                "validate_state_scope pre",
+            ),
+        ):
+            source = wrapper.read_text()
+            init_fragment = (
+                f'run_capture "{init_output}" /usr/bin/timeout '
+                '--foreground --kill-after=10s 60 "$tofu" -chdir="$root" '
+                'init -reconfigure -input=false -lockfile=readonly -no-color'
+            )
+            self.assertEqual(1, source.count(init_fragment), wrapper.name)
+            self.assertLess(
+                source.index(init_fragment),
+                source.index(state_validation_call),
+                wrapper.name,
+            )
+            self.assertIn("TF_DATA_DIR=\"$work/tofu-data\"", source, wrapper.name)
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            fake_tofu = root / "fake-tofu"
+            fake_tofu.write_text(
+                "#!/bin/sh\n"
+                "set -eu\n"
+                "case \" $* \" in\n"
+                "  *' init '* )\n"
+                "    test -n \"${TF_DATA_DIR-}\"\n"
+                "    mkdir -p \"$TF_DATA_DIR\"\n"
+                "    : >\"$TF_DATA_DIR/.initialized\"\n"
+                "    exit 0\n"
+                "    ;;\n"
+                "  *' state list '* )\n"
+                "    test -f \"$TF_DATA_DIR/.initialized\"\n"
+                "    printf '%s\\n' state-validation-reached\n"
+                "    exit 0\n"
+                "    ;;\n"
+                "esac\n"
+                "exit 64\n"
+            )
+            fake_tofu.chmod(0o755)
+            harness = root / "check-fixture"
+            harness.write_text(
+                "#!/bin/sh\n"
+                "set -eu\n"
+                "work=$(mktemp -d)\n"
+                "trap 'rm -rf -- \"$work\"' EXIT\n"
+                "env -i HOME=/tmp PATH=/usr/bin:/bin TF_DATA_DIR=\"$work/tofu-data\" "
+                "  /bin/sh \"$1\" -chdir=fixture init -reconfigure -input=false "
+                "-lockfile=readonly -no-color\n"
+                "env -i HOME=/tmp PATH=/usr/bin:/bin TF_DATA_DIR=\"$work/tofu-data\" "
+                "  /bin/sh \"$1\" -chdir=fixture state list -state=fixture -no-color\n"
+            )
+            harness.chmod(0o755)
+            result = subprocess.run(
+                [str(harness), str(fake_tofu)],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                env={"PATH": "/usr/bin:/bin"},
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertIn("state-validation-reached", result.stdout)
+
     def test_prod_plan_rejects_extra_bin_entries(self) -> None:
         text = (TOFU / "bin/plan-foundation-prod-route").read_text()
         for required in (

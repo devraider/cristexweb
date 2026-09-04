@@ -95,8 +95,13 @@ only as a non-symlinked directory.
 ## Required sequence and approvals
 
 1. `check` verifies the complete root source closure, exact OpenTofu binary,
-   backend path, protected state paths, and the five-address pre-state. It
-   performs no provider command and emits only a sanitized receipt.
+   backend path, protected state paths, and the five-address pre-state. It first
+   runs the pinned clean `tofu init -reconfigure -input=false -lockfile=readonly
+   -no-color` with an ephemeral `TF_DATA_DIR`. This may initialize or download
+   the locked provider package from the OpenTofu registry, but it receives no
+   Cloudflare token and performs no Cloudflare provider/API operation. Registry
+   or provider-package initialization failure stops the check; only the
+   subsequent state validation emits the sanitized check receipt.
 2. `import` requires the exact interactive approval:
    `IMPORT EXISTING reactive_resume_dev_tailscale DNS`.
 3. Before the state mutation, the entrypoint calls the existing guarded
@@ -134,10 +139,13 @@ only as a non-symlinked directory.
    through an anonymous pipe, never argv, a file, plan output, state evidence,
    or a receipt. Provider output is captured in mode-`0600` temporary files and
    is never emitted.
-5. The pinned root is initialized with `-lockfile=readonly` and only the exact
-   DNS address is imported with the fixed `zone-id/record-id` form. There is no
-   create, delete, destroy, state-removal, state-transfer, or apply path. OpenTofu
-   data is isolated under the ephemeral `TF_DATA_DIR`.
+5. The pinned root has already been initialized by the clean `-reconfigure`
+   operation above, using only the locked provider package and ephemeral
+   `TF_DATA_DIR`; that initialization may contact the OpenTofu registry but does
+   not contact Cloudflare. Only the exact DNS address is then imported with the
+   fixed `zone-id/record-id` form. There is no create, delete, destroy,
+   state-removal, state-transfer, or apply path. OpenTofu data remains isolated
+   under the ephemeral `TF_DATA_DIR`.
 6. The exact six-address post-state is validated through both `state list` and
    `show -json`; the imported DNS values are proved by the protected state JSON
    proof. A provider-backed `plan -refresh-only` is then rendered and validated
@@ -241,6 +249,8 @@ python3 -m unittest tests.test_opentofu_foundation_state_reconciliation_contract
 .venv/bin/python -m unittest tests.test_opentofu_state_backup_contract tests.test_opentofu_foundation_state_reconciliation_contract
 ```
 
-All commands above are offline/source checks. No provider, protected state,
-Google Drive, Infisical, DNS, Tunnel, Kubernetes, or PROD operation is implied
-by passing them.
+All commands above are offline/source checks. The source checks do not run
+`tofu init`; the guarded wrapper's `check` does run its pinned initialization,
+which can contact the OpenTofu registry for the locked provider package but does
+not contact Cloudflare or use a token. No protected-state mutation, Google Drive,
+Infisical, DNS, Tunnel, Kubernetes, or PROD operation is implied by passing them.

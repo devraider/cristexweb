@@ -37,10 +37,15 @@ Reactive Resume DEV records point to current Tailscale IPv4 `100.122.139.32`;
 access remains restricted by the host/cluster Tailscale-only ingress boundary and
 is not routed through the Cloudflare proxy or Tunnel.
 
-The guarded foundation reconciliation initializes with `-lockfile=readonly` and
-uses a private ephemeral `TF_DATA_DIR`, keeping a clean source root free of
-OpenTofu-generated provider data. After the exact sixth-address import it runs a
-provider-backed `plan -refresh-only` twice (before and after backup recovery).
+The guarded foundation reconciliation first runs one clean pinned
+`tofu init -reconfigure -input=false -lockfile=readonly -no-color` with a
+private ephemeral `TF_DATA_DIR`, before its first state consumer. This can
+initialize/download the locked provider package from the OpenTofu registry but
+never receives a Cloudflare token and does not contact the Cloudflare provider
+API in `check`; registry/package failure stops before state validation. The
+initialization keeps a clean source root free of OpenTofu-generated provider
+data. After the exact sixth-address import it runs a provider-backed
+`plan -refresh-only` twice (before and after backup recovery).
 A local mode-`0600` validator accepts only the exact six managed resources with
 `["no-op"]` actions and requires the exact five declared root outputs as
 nonsensitive no-ops with concrete equal before/after values. It also requires the exact

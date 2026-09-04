@@ -45,8 +45,8 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
 source_manifest="$root/bin/SOURCE.sha256"
 # The two pins use the canonical placeholder form to avoid a self-referential
 # digest cycle. They are refreshed together with SOURCE.sha256 below.
-source_manifest_expected_sha256='53e2c73e808b3f53147aa9e40f9a2878f43e6f52925d546d326a651fc7c5f165'
-source_reconcile_expected_canonical_sha256='0ec4815b5ac7d37da399cd8a1701e750b048f49dc6f9e418dccf183c9dfccc67'
+source_manifest_expected_sha256='e4495b66d46d6297fe2c35396b03892bc94fe04237883f11e536031f7dd5cc11'
+source_reconcile_expected_canonical_sha256='abcb6132ed7d08b5b8811f6444ffe4de0c021ba1a04b123e1400bad7b9125cda'
 validator="$root/bin/validate-foundation-state-scope"
 # The validator digest is independently pinned from the verified source
 # manifest. It is copied into a sealed memfd before execution, so pathname
@@ -251,6 +251,10 @@ exec 9<"$state_parent"
 /usr/bin/flock -n 9 || { printf '%s\n' 'Refusing concurrent foundation state reconciliation.' >&2; exit 75; }
 revalidate_state_metadata
 state_before_sha256=$(/usr/bin/sha256sum "$state_file" | /usr/bin/cut -d ' ' -f 1) || exit 73
+# Initialize the pinned OpenTofu working directory before the first state
+# consumer. This uses only the clean non-token boundary and an ephemeral
+# TF_DATA_DIR; check therefore performs no Cloudflare provider/API operation.
+run_capture "$work/init.stdout" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" init -reconfigure -input=false -lockfile=readonly -no-color
 
 # Every capture is created atomically by the same Python process that retains its
 # descriptor while the producer runs.  os.O_NOFOLLOW, os.O_NONBLOCK, and O_EXCL
@@ -918,11 +922,10 @@ case "$cloudflare_token" in *[[:space:]]*) exit 65 ;; esac
 EOF
 chmod 0600 "$state_identity_file"
 
-# init/import are the only provider/state-writing calls in this entrypoint. No
-# apply, destroy, state-transfer, or state-removal path exists. Each capture is
-# created atomically inside its descriptor-retaining runner immediately before
-# the producer starts; no pathname is truncated or reopened for consumption.
-run_capture_with_token "$work/init.stdout" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" init -input=false -lockfile=readonly -no-color
+# import is the only state-writing call in this entrypoint. No apply, destroy,
+# state-transfer, or state-removal path exists. Each capture is created
+# atomically inside its descriptor-retaining runner immediately before the
+# producer starts; no pathname is truncated or reopened for consumption.
 state_content_mutation_expected=true
 run_capture_with_token "$work/import.stdout" /usr/bin/timeout --foreground --kill-after=10s 60 "$tofu" -chdir="$root" import -input=false -lock=true -no-color \
     cloudflare_dns_record.reactive_resume_dev_tailscale "$cloudflare_zone_id/$cloudflare_dns_id_resume"
