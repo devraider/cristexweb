@@ -43,7 +43,7 @@ class OidcConnectProxyContractTests(unittest.TestCase):
         self.assertIn("http_port 3128", config)
         self.assertIn("acl connect_method method CONNECT", config)
         self.assertIn(
-            "acl allowed_https_host dstdomain auth.cristex-soft.com api.deepseek.com",
+            "acl allowed_https_host dstdomain auth.cristex-soft.com accounts.zoho.eu api.deepseek.com",
             config,
         )
         self.assertNotIn("fonts.gstatic.com", config)
@@ -55,7 +55,7 @@ class OidcConnectProxyContractTests(unittest.TestCase):
         self.assertIn("access_log none", config)
         domain_lines = [line.strip() for line in config.splitlines() if " dstdomain " in line]
         self.assertEqual(
-            ["acl allowed_https_host dstdomain auth.cristex-soft.com api.deepseek.com"],
+            ["acl allowed_https_host dstdomain auth.cristex-soft.com accounts.zoho.eu api.deepseek.com"],
             domain_lines,
         )
 
@@ -77,16 +77,17 @@ class OidcConnectProxyContractTests(unittest.TestCase):
         self.assertEqual(["Ingress", "Egress"], deny["policyTypes"])
         self.assertNotIn("egress", deny)
         clients = policies["oidc-connect-proxy-allow-clients"]["spec"]["ingress"]
-        self.assertEqual(6, len(clients[0]["from"]))
+        self.assertEqual(7, len(clients[0]["from"]))
         self.assertEqual(
             {"cristexhub-dev", "cristexhub-prod"},
             {
                 peer["namespaceSelector"]["matchLabels"]["kubernetes.io/metadata.name"]
                 for peer in clients[0]["from"]
+                if "namespaceSelector" in peer
             },
         )
         self.assertEqual(
-            {"backend", "celery-worker", "oauth2-proxy"},
+            {"backend", "celery-worker", "oauth2-proxy", "keycloak"},
             {
                 peer["podSelector"]["matchLabels"]["app.kubernetes.io/name"]
                 for peer in clients[0]["from"]

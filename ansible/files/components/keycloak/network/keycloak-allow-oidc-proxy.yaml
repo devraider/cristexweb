@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keycloak-allow-oidc-proxy
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/part-of: cristex-platform
+    app.kubernetes.io/managed-by: ansible
+    cristex.io/bootstrap-writer: ansible
+    cristex.io/component: keycloak
+    cristex.io/desired-owner: argocd
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+      app.kubernetes.io/part-of: cristex-platform
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: oidc-connect-proxy
+              app.kubernetes.io/part-of: cristex-platform
+      ports:
+        - protocol: TCP
+          port: 3128

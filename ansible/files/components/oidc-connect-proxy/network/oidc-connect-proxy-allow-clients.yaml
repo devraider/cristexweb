@@ -17,6 +17,10 @@ spec:
   policyTypes: [Ingress]
   ingress:
     - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloak
+              app.kubernetes.io/part-of: cristex-platform
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: cristexhub-dev

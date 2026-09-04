@@ -16,7 +16,7 @@ EXPECTED_IMAGE = (
 )
 EXPECTED_HOSTNAME = "https://auth.cristex-soft.com"
 EXPECTED_NAMESPACE = "shared-services"
-EXPECTED_SOURCE_OBJECTS = 9
+EXPECTED_SOURCE_OBJECTS = 10
 
 
 def _yaml_objects() -> list[dict[str, Any]]:
@@ -38,12 +38,12 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
         for obj in cls.objects:
             cls.by_kind.setdefault(obj["kind"], []).append(obj)
 
-    def test_source_is_exactly_the_private_nine_object_closure(self) -> None:
+    def test_source_is_exactly_the_private_ten_object_closure(self) -> None:
         self.assertEqual(EXPECTED_SOURCE_OBJECTS, len(self.objects))
         self.assertEqual(1, len(self.by_kind.get("ServiceAccount", [])))
         self.assertEqual(1, len(self.by_kind.get("Service", [])))
         self.assertEqual(1, len(self.by_kind.get("Deployment", [])))
-        self.assertEqual(5, len(self.by_kind.get("NetworkPolicy", [])))
+        self.assertEqual(6, len(self.by_kind.get("NetworkPolicy", [])))
         self.assertEqual(1, len(self.by_kind.get("ConfigMap", [])))
         self.assertEqual(
             {"ServiceAccount", "Service", "Deployment", "NetworkPolicy", "ConfigMap"},
@@ -79,6 +79,12 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
             next(e["value"] for e in container["env"] if e["name"] == "KC_HOSTNAME"),
         )
         self.assertEqual("xforwarded", next(e["value"] for e in container["env"] if e["name"] == "KC_PROXY_HEADERS"))
+        env = {item["name"]: item.get("value") for item in container["env"]}
+        self.assertEqual(
+            "http://oidc-connect-proxy.shared-services.svc.cluster.local:3128",
+            env["HTTPS_PROXY"],
+        )
+        self.assertEqual("localhost,127.0.0.1,.svc,.svc.cluster.local", env["NO_PROXY"])
 
     def test_postgres_tls_is_verify_full_and_ca_only(self) -> None:
         deployment = self.by_kind["Deployment"][0]

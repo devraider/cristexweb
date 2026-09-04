@@ -62,6 +62,8 @@ spec:
             - {name: KC_HOSTNAME, value: "https://auth.cristex-soft.com"}
             - {name: KC_HOSTNAME_STRICT, value: "true"}
             - {name: KC_PROXY_HEADERS, value: xforwarded}
+            - {name: HTTPS_PROXY, value: "http://oidc-connect-proxy.shared-services.svc.cluster.local:3128"}
+            - {name: NO_PROXY, value: "localhost,127.0.0.1,.svc,.svc.cluster.local"}
           volumeMounts:
             - {name: postgresql-ca, mountPath: /opt/keycloak/conf/postgresql-ca.crt, subPath: ca.crt, readOnly: true}
             - {name: keycloak-data, mountPath: /opt/keycloak/data}
