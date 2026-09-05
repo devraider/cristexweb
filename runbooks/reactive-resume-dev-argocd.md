@@ -8,15 +8,11 @@ ansible/files/components/reactive-resume-dev-argocd/
 ```
 
 The live Argo application is pinned to revision
-`faf2e5f108d02e096379b4619ee78b114f6219a7`, whose source contains exactly seven
+`f5d15f011865a93c16278ed7b89cf32c02c52fa8`, whose source contains exactly ten
 value-free Kubernetes objects in `cristexhub-dev`: one immutable-digest
-Deployment, one ClusterIP Service, one tokenless ServiceAccount, three workload
-NetworkPolicies, and the private Traefik Ingress. Current HEAD contains ten
-YAML manifests in this path: it additionally checks in
-`networkpolicy-allow-backend.yaml` and the exact Infisical TLS writer Role and
-RoleBinding. Those three HEAD manifests are source-only and are
-not claimed live, Argo-managed, or applied from this revision until a separately
-reviewed runtime handoff. The
+Deployment, one ClusterIP Service, one tokenless ServiceAccount, four workload
+NetworkPolicies (including `networkpolicy-allow-backend.yaml`), the private
+Traefik Ingress, and the exact Infisical TLS writer Role and RoleBinding. This closure is claimed live and Argo-managed. The
 migration Job is excluded from the automated Argo desired-state by design.
 The Ingress references the precreated `reactive-resume-dev-tls` Secret; this
 path never creates or updates Secrets, PVCs, Namespaces, Jobs, object storage,
@@ -60,17 +56,11 @@ all migration checks must use that name and the separate one-shot gate.
 
 ## Handoff sequence
 
-Ansible remains the bootstrap writer until the guarded Argo registration has
-verified all eight existing live handoff objects (including the migration Job),
-while the pinned Argo source remains the exact seven-object revision described
-above; the additional current-HEAD manifest is not included in that live count,
-with no Argo managed fields/tracking annotation, the exact repository credential,
-and a no-dual-reconciliation preflight. Only then may the separate registration
-gate reconcile the five Argo registration objects. The migration Job remains
-outside Argo and requires a separately reviewed, one-shot migration prerequisite
-before runtime adoption; it must not be recreated, rerun, or updated by Argo
-`selfHeal`. No Argo sync, Kubernetes apply, workload restart, Secret mutation,
-or PVC operation is authorized by this source alone.
+The guarded handoff is complete: Argo owns the exact ten-object source closure
+at the pinned revision, while the migration Job remains outside Argo as a
+verified one-shot prerequisite. It must not be recreated, rerun, or updated by
+Argo `selfHeal`. Secret values, PVCs, database objects, and migration execution
+remain outside this source path.
 
 Before accepting the handoff, independently verify the runtime Secret,
 migration Secret, PostgreSQL CA ConfigMap, object-storage CA Secret, image-pull

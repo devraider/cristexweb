@@ -29,12 +29,8 @@ HANDOFF = ROOT / "ansible/files/policies/reactive-resume-dev-argocd-handoff"
 RUNTIME_DIGEST = "sha256:720ff5a60a7f6b91a75535e230dbb664207fdf1bc5cb8732d584bae7ebdac13c"
 MIGRATION_DIGEST = "sha256:a4f0157e023c10c1c6ff163d34bf25c3343647247eddb1d4f9bfa9b46e1a3093"
 MIGRATION_SOURCE_SHA256 = "b262ddb6834eb9d14d0eb279bb1a1c8686df83fedea56dc51d01fddc2281a3ac"
-PINNED_REVISION = "faf2e5f108d02e096379b4619ee78b114f6219a7"
-PINNED_FILES = EXPECTED_FILES - {
-    "networkpolicy-allow-backend.yaml",
-    "infisical-tls-writer-binding.yaml",
-    "infisical-tls-writer-rbac.yaml",
-}
+PINNED_REVISION = "f5d15f011865a93c16278ed7b89cf32c02c52fa8"
+PINNED_FILES = EXPECTED_FILES
 
 
 def load_objects() -> list[dict]:
@@ -148,22 +144,22 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         self.assertEqual("kube-system", route["spec"]["ingress"][0]["from"][0]["namespaceSelector"]["matchLabels"]["kubernetes.io/metadata.name"])
         self.assertEqual("traefik", route["spec"]["ingress"][0]["from"][0]["podSelector"]["matchLabels"]["app.kubernetes.io/name"])
 
-    def test_registration_points_at_pinned_seven_object_revision(self) -> None:
+    def test_registration_points_at_pinned_ten_object_revision(self) -> None:
         registration = yaml.safe_load(REGISTRATION.read_text())
         self.assertEqual("ansible/files/components/reactive-resume-dev-argocd", registration["spec"]["source"]["path"])
         self.assertEqual(PINNED_REVISION, registration["spec"]["source"]["targetRevision"])
-        self.assertEqual(7, len(PINNED_FILES))
-        self.assertNotIn("networkpolicy-allow-backend.yaml", PINNED_FILES)
+        self.assertEqual(10, len(PINNED_FILES))
+        self.assertIn("networkpolicy-allow-backend.yaml", PINNED_FILES)
         self.assertFalse(registration["spec"]["syncPolicy"]["automated"]["prune"])
         self.assertFalse(registration["spec"]["syncPolicy"]["automated"]["allowEmpty"])
         self.assertTrue(registration["spec"]["syncPolicy"]["automated"]["selfHeal"])
 
-    def test_head_ten_manifest_is_not_claimed_live_or_argo_managed(self) -> None:
+    def test_head_ten_manifest_is_claimed_live_and_argo_managed(self) -> None:
         runbook = RUNBOOK.read_text()
         normalized = " ".join(runbook.split())
-        self.assertIn("Current HEAD contains ten YAML manifests", normalized)
+        self.assertIn("source contains exactly ten value-free Kubernetes objects", normalized)
         self.assertIn("networkpolicy-allow-backend.yaml", normalized)
-        self.assertIn("not claimed live, Argo-managed, or applied", runbook)
+        self.assertIn("claimed live and Argo-managed", runbook)
 
     def test_hash_ledger_modes_and_runbook_drift_guard(self) -> None:
         ledger = SOURCE / "MANIFESTS.sha256"
