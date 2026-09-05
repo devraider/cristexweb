@@ -132,7 +132,7 @@
           "provider_name": "registry.opentofu.org/cloudflare/cloudflare",
           "schema_version": 0,
           "values": {
-            "name": "resume-dev.cristex-soft.com",
+            "name": "dev-resume.cristex-soft.com",
             "type": "A",
             "content": "100.122.139.32",
             "ttl": 300,

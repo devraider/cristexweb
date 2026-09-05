@@ -6,7 +6,7 @@ from ansible_collections.kubernetes.core.plugins.action.k8s import ActionModule 
 
 _EXPECTED_OBJECT_HASHES = {
     ('networking.k8s.io/v1', 'NetworkPolicy', 'cristexhub-dev', 'reactive-resume-dev-route-allow-traefik'): '26c970db8f44cfd3765af69e8b668e258b128c502f436f3d6882f83f300cdbd1',
-    ('networking.k8s.io/v1', 'Ingress', 'cristexhub-dev', 'reactive-resume-dev-private'): '848258824deda62730db057d736759b0663cdb00007b7f5dc39a5e3fd9a9ce0a',
+    ('networking.k8s.io/v1', 'Ingress', 'cristexhub-dev', 'reactive-resume-dev-private'): '694883a0e10310e893cb24f238dfa49af5613cc77624e82072f5e684eb5b6389',
     }
 _EXPECTED_ARGUMENT_KEYS = {'state', 'definition', 'kubeconfig', 'wait', 'wait_timeout'}
 _EXPECTED_TASK_SOURCES = {

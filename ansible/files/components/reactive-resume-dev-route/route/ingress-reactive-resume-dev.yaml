@@ -17,10 +17,10 @@ metadata:
 spec:
   ingressClassName: traefik
   tls:
-    - hosts: [resume-dev.cristex-soft.com]
+    - hosts: [dev-resume.cristex-soft.com]
       secretName: reactive-resume-dev-tls
   rules:
-    - host: resume-dev.cristex-soft.com
+    - host: dev-resume.cristex-soft.com
       http:
         paths:
           - path: /

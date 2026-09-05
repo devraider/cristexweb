@@ -33,9 +33,9 @@ a separate reviewed rollback operation.
 
 - client ID: `reactive-resume-dev`;
 - realm/issuer: `cristexhub` / `https://auth.cristex-soft.com/realms/cristexhub`;
-- exact callback: `https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom`;
-- web origin: `https://resume-dev.cristex-soft.com`;
-- post-logout redirect: `https://resume-dev.cristex-soft.com/` (one exact URI,
+- exact callback: `https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom`;
+- web origin: `https://dev-resume.cristex-soft.com`;
+- post-logout redirect: `https://dev-resume.cristex-soft.com/` (one exact URI,
   never a wildcard);
 - confidential OpenID Connect client with standard authorization code flow;
 - PKCE challenge method `S256`;

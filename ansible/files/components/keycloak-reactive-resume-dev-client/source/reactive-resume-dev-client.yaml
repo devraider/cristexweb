@@ -27,12 +27,12 @@ spec:
       serviceAccountsEnabled: false
       authorizationServicesEnabled: false
       redirectUris:
-        - https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom
+        - https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom
       webOrigins:
-        - https://resume-dev.cristex-soft.com
+        - https://dev-resume.cristex-soft.com
       attributes:
         pkce.code.challenge.method: S256
-        post.logout.redirect.uris: https://resume-dev.cristex-soft.com/
+        post.logout.redirect.uris: https://dev-resume.cristex-soft.com/
       authorizationScopeContract:
         required:
           - openid

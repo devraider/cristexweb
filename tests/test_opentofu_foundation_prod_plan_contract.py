@@ -71,7 +71,7 @@ DNS_STATES = {
     },
     "cloudflare_dns_record.reactive_resume_dev_tailscale": {
         "zone_id": ZONE,
-        "name": "resume-dev.cristex-soft.com",
+        "name": "dev-resume.cristex-soft.com",
         "type": "A",
         "content": "100.122.139.32",
         "ttl": 300,

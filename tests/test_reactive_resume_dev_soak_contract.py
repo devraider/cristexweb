@@ -29,7 +29,7 @@ class ReactiveResumeDevSoakContractTests(unittest.TestCase):
             "reactive_resume_dev_soak_duration_seconds: 900",
             "reactive_resume_dev_soak_interval_seconds: 60",
             "reactive_resume_dev_soak_sample_count: 16",
-            "reactive_resume_dev_soak_hostname: resume-dev.cristex-soft.com",
+            "reactive_resume_dev_soak_hostname: dev-resume.cristex-soft.com",
             "reactive_resume_dev_soak_oidc_issuer: https://auth.cristex-soft.com/realms/cristexhub",
             "reactive_resume_dev_soak_oidc_jwks_url: https://auth.cristex-soft.com/realms/cristexhub/protocol/openid-connect/certs",
             "reactive_resume_dev_soak_prod_namespace: cristexhub-prod",

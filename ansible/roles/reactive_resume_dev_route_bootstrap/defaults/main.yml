@@ -11,4 +11,4 @@ reactive_resume_dev_route_bootstrap_object_count: 2
 reactive_resume_dev_route_bootstrap_namespace: cristexhub-dev
 reactive_resume_dev_route_bootstrap_expected_hashes:
   network/allow-traefik.yaml: 3e03a9d551e2309ba5e6b4eff2c602e0cfb6c36c76054003214d8cdbd98c18b5
-  route/ingress-reactive-resume-dev.yaml: e2fe7e0a4fb711e6e3173db72d43d17d78ad313baddafc6685791ed505cd4339
+  route/ingress-reactive-resume-dev.yaml: af470655a1762abf48c9fc3f9a4d0a9015e0afd74b952c5212be7742e4444571

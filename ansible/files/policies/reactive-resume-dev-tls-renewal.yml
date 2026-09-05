@@ -1,14 +1,14 @@
 ---
 policy_schema: cristex-reactive-resume-dev-tls-renewal-v1
 status: source-only-guarded-runtime-blocked
-hostname: resume-dev.cristex-soft.com
+hostname: dev-resume.cristex-soft.com
 certificate:
   authority: browser-trusted-acme
   challenge: dns-01
   dns_provider: cloudflare
-  exact_challenge_name: _acme-challenge.resume-dev.cristex-soft.com
+  exact_challenge_name: _acme-challenge.dev-resume.cristex-soft.com
   exact_san_set:
-    - resume-dev.cristex-soft.com
+    - dev-resume.cristex-soft.com
   minimum_remaining_seconds: 2592000
   endpoint_preflight:
     exact_hostname_check: true
@@ -23,7 +23,7 @@ cloudflare:
   token_file: ~/.config/cristexweb/cloudflare-argo-dns-token
   token_file_contract: paul:paul:0600
   mutation_scope:
-    - _acme-challenge.resume-dev.cristex-soft.com
+    - _acme-challenge.dev-resume.cristex-soft.com
   token_validation:
     verify_endpoint: https://api.cloudflare.com/client/v4/user/tokens/verify
     exact_account_id: 8b0f511214c7a4a52ddfb62ca92c5e80

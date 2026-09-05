@@ -15,16 +15,16 @@ reactive_resume_dev_tls_renewal_timer: cristexweb-reactive-resume-dev-tls-renew.
 reactive_resume_dev_tls_renewal_component_root: "{{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/files/components/reactive-resume-dev-tls/renewal"
 reactive_resume_dev_tls_renewal_manifest_path: >-
   {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/files/components/reactive-resume-dev-tls/MANIFESTS.sha256
-reactive_resume_dev_tls_renewal_manifest_sha256: 90cef6e9a07df37a319fd7c44a1d8a82841b10ef1b7bf7d7635519fcb73e19d5
+reactive_resume_dev_tls_renewal_manifest_sha256: 4d68e7c466e1c396454ccd663f5d45d903f41cc0b64b68c8220fa9334378888b
 # This self-reference digest and its matching closure entry are normalized when
 # hashing this self-referential defaults file. Every other source pin remains in
 # the normalized digest.
-reactive_resume_dev_tls_renewal_defaults_self_hash: 378f8b86e527799847a1416f97a6c423ba45d85a392c0836b3a2c27c8ad57c79
+reactive_resume_dev_tls_renewal_defaults_self_hash: d429cd82ed12f0cf8e5c5a56916f82a3efdb47d81706d8f8b2679585c9527b23
 reactive_resume_dev_tls_renewal_source_hashes:
   - path: >-
       {{ reactive_resume_dev_tls_renewal_component_root }}/validate-reactive-resume-dev-tls-material
     mode: '0755'
-    sha256: 68c0fcde82cc3d3f394d5c14e9cffc3c2cf0dd42bb93ad496143b15cc86f1985
+    sha256: 3a62d2326a8dee0e091cb0f4b12b9dbe12a10432d737b98aed5b5a27fd1b43cf
   - path: >-
       {{ reactive_resume_dev_tls_renewal_component_root }}/cristexweb-reactive-resume-dev-tls-renew.service
     mode: '0644'
@@ -32,7 +32,7 @@ reactive_resume_dev_tls_renewal_source_hashes:
   - path: >-
       {{ reactive_resume_dev_tls_renewal_component_root }}/reactive-resume-dev-tls-renew
     mode: '0755'
-    sha256: c46ad711f8693fcbe783841a99542a7c0a74fefdfc4a03ab6f4cde198e36629b
+    sha256: cdd610d20a972f3a53f11122a038f20c7f8a327280ca5128a3da87845d576341
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/files/components/reactive-resume-dev-tls/source/reactive-resume-dev-tls.yaml
     mode: '0644'
@@ -45,7 +45,7 @@ reactive_resume_dev_tls_renewal_execution_source_hashes:
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/bin/configure-reactive-resume-dev-tls-renewal
     mode: '0755'
-    sha256: 53a4ce00472a57e9b185f1ed8bc52f18b7856c8379dd11c3ae7d870da5145192
+    sha256: 57481e450124b94d0397c73efe8f6634b67f233f77fdc9d7d1fd0d5dc0d28f5a
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/playbooks/configure_reactive_resume_dev_tls_renewal.yml
     mode: '0644'
@@ -54,16 +54,16 @@ reactive_resume_dev_tls_renewal_execution_source_hashes:
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/roles/reactive_resume_dev_tls_renewal/tasks/main.yml
     mode: '0644'
     normalized_digest_name: reactive_resume_dev_tls_renewal_task_self_hash
-    sha256: 8a5c2765a85ce1f6ffffc124414743c4f801792a31879179e7f6928b9536c3e1
+    sha256: 11aa379f95e3f169ad2127734c58e4a6b03f605478cd8f3314840a755535d5aa
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/roles/reactive_resume_dev_tls_renewal/defaults/main.yml
     mode: '0644'
     normalized_digest_name: reactive_resume_dev_tls_renewal_defaults_self_hash
-    sha256: 378f8b86e527799847a1416f97a6c423ba45d85a392c0836b3a2c27c8ad57c79
+    sha256: d429cd82ed12f0cf8e5c5a56916f82a3efdb47d81706d8f8b2679585c9527b23
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guarded_linear.py
     mode: '0644'
-    sha256: 0d5a95df7e008d64985dd8ed7aea0bbd6d1fc51f2ccd7ef0a60f09ed346a1be5
+    sha256: 46caa5156b332c01e770d9f3c625ed60109cd994c8657920489966171f7be422
   - path: >-
       {{ reactive_resume_dev_tls_renewal_repository_root }}/ansible/plugins/action/reactive_resume_dev_tls_renewal_mutation_guarded.py
     mode: '0644'
@@ -85,10 +85,10 @@ reactive_resume_dev_tls_renewal_certbot_path: /usr/bin/certbot
 reactive_resume_dev_tls_renewal_installed_file_contract:
   - path: /usr/local/libexec/cristexweb/validate-reactive-resume-dev-tls-material
     mode: '0755'
-    sha256: 68c0fcde82cc3d3f394d5c14e9cffc3c2cf0dd42bb93ad496143b15cc86f1985
+    sha256: 3a62d2326a8dee0e091cb0f4b12b9dbe12a10432d737b98aed5b5a27fd1b43cf
   - path: /usr/local/libexec/cristexweb/reactive-resume-dev-tls-renew
     mode: '0755'
-    sha256: c46ad711f8693fcbe783841a99542a7c0a74fefdfc4a03ab6f4cde198e36629b
+    sha256: cdd610d20a972f3a53f11122a038f20c7f8a327280ca5128a3da87845d576341
   - path: /etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.service
     mode: '0644'
     sha256: ddadb603a2f580bd14af0461c60cc30163174ecade9328c73b39d7afb1bd6cb3

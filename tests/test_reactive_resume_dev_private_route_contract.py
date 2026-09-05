@@ -52,12 +52,12 @@ class ReactiveResumeDevPrivateRouteContractTests(unittest.TestCase):
         self.assertEqual("cristexhub-dev", ingress["metadata"]["namespace"])
         self.assertEqual("traefik", ingress["spec"]["ingressClassName"])
         self.assertEqual(
-            {"resume-dev.cristex-soft.com"},
+            {"dev-resume.cristex-soft.com"},
             set(ingress["spec"]["tls"][0]["hosts"]),
         )
         self.assertEqual("reactive-resume-dev-tls", ingress["spec"]["tls"][0]["secretName"])
         rule = ingress["spec"]["rules"][0]
-        self.assertEqual("resume-dev.cristex-soft.com", rule["host"])
+        self.assertEqual("dev-resume.cristex-soft.com", rule["host"])
         path = rule["http"]["paths"][0]
         self.assertEqual("/", path["path"])
         self.assertEqual("Prefix", path["pathType"])
@@ -177,7 +177,7 @@ class ReactiveResumeDevPrivateRouteContractTests(unittest.TestCase):
         normalized = " ".join(self.runbook.split())
         for value in (
             "superseded Ansible source closure",
-            "resume-dev.cristex-soft.com",
+            "dev-resume.cristex-soft.com",
             "cristexhub-dev",
             "reactive-resume-dev-tls",
             "No Keycloak, Infisical, Secret, PROD",

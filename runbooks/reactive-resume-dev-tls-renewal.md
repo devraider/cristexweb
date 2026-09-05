@@ -1,13 +1,13 @@
 # Reactive Resume DEV browser TLS renewal
 
 This is a source-only guarded renewal closure for the private
-`https://resume-dev.cristex-soft.com` route. It does not change DNS, Cloudflare
+`https://dev-resume.cristex-soft.com` route. It does not change DNS, Cloudflare
 Tunnel ingress, Kubernetes objects, or the reserved PROD hostname.
 
 ## Exact ownership and custody
 
 - Cloudflare is used only for DNS-01 at
-  `_acme-challenge.resume-dev.cristex-soft.com` in the fixed zone.
+  `_acme-challenge.dev-resume.cristex-soft.com` in the fixed zone.
 - The API token is read only from the protected host file
   `~/.config/cristexweb/cloudflare-argo-dns-token`, owned by the timer user (`paul:paul`)
   and mode `0600`. It is never an argument, journal field, plan, state value, or

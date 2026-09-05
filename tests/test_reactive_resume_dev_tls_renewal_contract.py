@@ -33,10 +33,10 @@ STRATEGY = ROOT / "ansible/plugins/strategy/reactive_resume_dev_tls_renewal_guar
 class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
     def test_exact_policy_and_custody(self) -> None:
         p = yaml.safe_load(POLICY.read_text())
-        self.assertEqual("resume-dev.cristex-soft.com", p["hostname"])
-        self.assertEqual(["resume-dev.cristex-soft.com"], p["certificate"]["exact_san_set"])
+        self.assertEqual("dev-resume.cristex-soft.com", p["hostname"])
+        self.assertEqual(["dev-resume.cristex-soft.com"], p["certificate"]["exact_san_set"])
         self.assertEqual(
-            "_acme-challenge.resume-dev.cristex-soft.com",
+            "_acme-challenge.dev-resume.cristex-soft.com",
             p["certificate"]["exact_challenge_name"],
         )
         self.assertEqual("~/.config/cristexweb/cloudflare-argo-dns-token", p["cloudflare"]["token_file"])
@@ -66,7 +66,7 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         text = RENEW.read_text()
         for required in (
             "cloudflare_token_file=/home/paul/.config/cristexweb/cloudflare-argo-dns-token",
-            "challenge_name=_acme-challenge.resume-dev.cristex-soft.com",
+            "challenge_name=_acme-challenge.dev-resume.cristex-soft.com",
             "infisical_path=/reactive-resume/dev/tls",
             "--dns-cloudflare",
             "--dns-cloudflare-credentials",
@@ -1338,12 +1338,12 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
                 ),
                 (
                     "installed-file digest",
-                    "sha256: 68c0fcde82cc3d3f394d5c14e9cffc3c2cf0dd42bb93ad496143b15cc86f1985",
+                    "sha256: 3a62d2326a8dee0e091cb0f4b12b9dbe12a10432d737b98aed5b5a27fd1b43cf",
                 ),
                 (
                     "manifest digest",
                     "reactive_resume_dev_tls_renewal_manifest_sha256: "
-                    "90cef6e9a07df37a319fd7c44a1d8a82841b10ef1b7bf7d7635519fcb73e19d5",
+                    "4d68e7c466e1c396454ccd663f5d45d903f41cc0b64b68c8220fa9334378888b",
                 ),
             ):
                 with self.subTest(label=label):
@@ -1809,7 +1809,7 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         runbook = RUNBOOK.read_text()
         for required in (
             "DNS-01",
-            "_acme-challenge.resume-dev.cristex-soft.com",
+            "_acme-challenge.dev-resume.cristex-soft.com",
             "prod:/reactive-resume/dev/tls",
             "exact SAN",
             "enable-apply",

@@ -16,13 +16,13 @@ EXPECTED_ARGUMENT_KEYS = {"state", "definition"}
 EXPECTED_IDENTITY = "KeycloakClientContract/reactive-resume-dev-shared-client"
 EXPECTED_REALM = "cristexhub"
 EXPECTED_CLIENT = "reactive-resume-dev"
-EXPECTED_CALLBACK = "https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom"
-EXPECTED_ORIGIN = "https://resume-dev.cristex-soft.com"
-EXPECTED_LOGOUT = "https://resume-dev.cristex-soft.com/"
+EXPECTED_CALLBACK = "https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom"
+EXPECTED_ORIGIN = "https://dev-resume.cristex-soft.com"
+EXPECTED_LOGOUT = "https://dev-resume.cristex-soft.com/"
 EXPECTED_OLD_REALM = "cristexhub-dev"
 SENSITIVE_KEYS = {"secret", "password", "token", "clientSecret", "privateKey"}
 FORBIDDEN_NAMES = {"cristexhub-prod", "cristexhub-admin-svc-prod", "master-admin", "argocd-admin"}
-EXPECTED_DEFINITION_SHA256 = "55f1f54d4ab9f0ec1e547da7f6d692e5d51840ad5cf4f01ecf8b7de5c0af97fd"
+EXPECTED_DEFINITION_SHA256 = "cab190be68c7d8ed45c69bd838deee6b3f4e99e74d920052cdcf46de9dbe2c23"
 EXPECTED_IDENTITY_SET_SHA256 = "bbdf59674c3383c00ad8648c8707a17bba16f693c3377148f09898f521075cf5"
 
 

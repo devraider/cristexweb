@@ -41,25 +41,25 @@ _PYTHON_SHA256 = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989d
 _ANSIBLE_CONFIG_SHA256 = "4e39dec40f1f0a0735e7f27e35f464093de3b16e8be1e5fa05299005528a85d9"
 # These are immutable source pins. Self-referential source pins are normalized
 # before hashing; all other pins are ordinary SHA-256 digests.
-_STRATEGY_CANONICAL_SHA256 = "95fef8ef4be10c654e5355c49a00b292ca327bac7fd5e8138d918c26cf4e807d"
+_STRATEGY_CANONICAL_SHA256 = "71b1c74ed437585d82a3b797fb60e25e16a1b8081d5b57a2bb210cf8acf11383"
 # This canonical pin normalizes both self-referential provenance markers.
 # The wrapper can therefore pin it without creating a cross-file hash cycle.
 # This normalized pin removes only the provenance marker values below.
 # It is independent of the wrapper's canonical marker and therefore cannot
 # participate in a wrapper/strategy self-hash cycle.
-_STRATEGY_NORMALIZED_SHA256 = "89eba957edf1d19145c3267ad589bedd4c3fd0af71018e2d70cd792078527260"
-_WRAPPER_CANONICAL_SHA256 = "d9785dfc58c0757335ed329d7115f16b2f69cc5129b71d34200d410d344b3629"
+_STRATEGY_NORMALIZED_SHA256 = "afd92617706fd7d523eb3ac4408dd6ddd2bcdc739e55db519ebafc0bf71a1daa"
+_WRAPPER_CANONICAL_SHA256 = "96ad529555fa7a7a7d8bf8236b26dc81c6ac0d7edfb527dbf30fd8139c2cdc33"
 _MUTATION_ACTION_SHA256 = "e0060109acc9fff92bae03c697f08697b81527f4e631cda86e7f33c581090d7d"
 _MUTATION_MODULE_SHA256 = "38da36be88a0b530884b804b817ea5eb636f7008ec4272da4f2f0b2c0e58565a"
 _PLAYBOOK_SHA256 = "3e73c601399c1189829802c5c3d438107bd1f884ff50b9e76702658bfd07db05"
-_TASK_SHA256 = "8a5c2765a85ce1f6ffffc124414743c4f801792a31879179e7f6928b9536c3e1"
-_DEFAULTS_SHA256 = "378f8b86e527799847a1416f97a6c423ba45d85a392c0836b3a2c27c8ad57c79"
+_TASK_SHA256 = "11aa379f95e3f169ad2127734c58e4a6b03f605478cd8f3314840a755535d5aa"
+_DEFAULTS_SHA256 = "d429cd82ed12f0cf8e5c5a56916f82a3efdb47d81706d8f8b2679585c9527b23"
 _STRATEGY_ATTESTATION_SHA256 = "aa8ef9124552f3d1a1f65d7fdbeb2ec37bc28f84f1a77e8fffdf3f636a9c6dbb"
-_MANIFEST_SHA256 = "90cef6e9a07df37a319fd7c44a1d8a82841b10ef1b7bf7d7635519fcb73e19d5"
+_MANIFEST_SHA256 = "4d68e7c466e1c396454ccd663f5d45d903f41cc0b64b68c8220fa9334378888b"
 _SOURCE_HASHES = (
-    ("renewal/validate-reactive-resume-dev-tls-material", "68c0fcde82cc3d3f394d5c14e9cffc3c2cf0dd42bb93ad496143b15cc86f1985", 0o755),
+    ("renewal/validate-reactive-resume-dev-tls-material", "3a62d2326a8dee0e091cb0f4b12b9dbe12a10432d737b98aed5b5a27fd1b43cf", 0o755),
     ("renewal/cristexweb-reactive-resume-dev-tls-renew.service", "ddadb603a2f580bd14af0461c60cc30163174ecade9328c73b39d7afb1bd6cb3", 0o644),
-    ("renewal/reactive-resume-dev-tls-renew", "c46ad711f8693fcbe783841a99542a7c0a74fefdfc4a03ab6f4cde198e36629b", 0o755),
+    ("renewal/reactive-resume-dev-tls-renew", "cdd610d20a972f3a53f11122a038f20c7f8a327280ca5128a3da87845d576341", 0o755),
     ("source/reactive-resume-dev-tls.yaml", "bf9f6104f1e45c6f75bb86344dd151b05a2b4084cd76185a60ed3171f4d33ffe", 0o644),
     ("renewal/cristexweb-reactive-resume-dev-tls-renew.timer", "cd0a8c3b01e623627854ed63da37e0d35d4cc9f7db0b675d93f52325f2fb3a0f", 0o644),
 )

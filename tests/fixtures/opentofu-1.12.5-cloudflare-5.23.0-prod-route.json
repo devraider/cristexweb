@@ -287,7 +287,7 @@
               "constant_value": "100.122.139.32"
             },
             "name": {
-              "constant_value": "resume-dev.cristex-soft.com"
+              "constant_value": "dev-resume.cristex-soft.com"
             },
             "proxied": {
               "constant_value": false
@@ -634,7 +634,7 @@
             "id": "ddddddddddddddddddddddddddddddd4",
             "meta": "{}",
             "modified_on": "2026-01-01T00:00:00Z",
-            "name": "resume-dev.cristex-soft.com",
+            "name": "dev-resume.cristex-soft.com",
             "priority": null,
             "private_routing": null,
             "proxiable": true,
@@ -906,7 +906,7 @@
               "id": "ddddddddddddddddddddddddddddddd4",
               "meta": "{}",
               "modified_on": "2026-01-01T00:00:00Z",
-              "name": "resume-dev.cristex-soft.com",
+              "name": "dev-resume.cristex-soft.com",
               "priority": null,
               "private_routing": null,
               "proxiable": true,
@@ -1244,7 +1244,7 @@
           "id": "ddddddddddddddddddddddddddddddd4",
           "meta": "{}",
           "modified_on": "2026-01-01T00:00:00Z",
-          "name": "resume-dev.cristex-soft.com",
+          "name": "dev-resume.cristex-soft.com",
           "priority": null,
           "private_routing": null,
           "proxiable": true,
@@ -1274,7 +1274,7 @@
           "id": "ddddddddddddddddddddddddddddddd4",
           "meta": "{}",
           "modified_on": "2026-01-01T00:00:00Z",
-          "name": "resume-dev.cristex-soft.com",
+          "name": "dev-resume.cristex-soft.com",
           "priority": null,
           "private_routing": null,
           "proxiable": true,

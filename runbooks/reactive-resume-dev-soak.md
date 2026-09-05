@@ -3,7 +3,7 @@
 ## Purpose and boundary
 
 This runbook defines the source-only, guarded, read-only acceptance closure for
-`https://resume-dev.cristex-soft.com/`. It verifies that the private route and
+`https://dev-resume.cristex-soft.com/`. It verifies that the private route and
 shared `cristexhub` OIDC integration remain healthy over time without creating,
 updating, deleting, restarting, enabling, or reconciling any live object.
 

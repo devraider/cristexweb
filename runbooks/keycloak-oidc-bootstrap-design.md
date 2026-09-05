@@ -11,7 +11,7 @@ selection](keycloak-release-selection.md). Reactive Resume DEV is an explicit
 shared-realm exception: its client `reactive-resume-dev` uses the retained
 `cristexhub` realm and issuer `https://auth.cristex-soft.com/realms/cristexhub`
 so its shared login theme and SSO are the same as CristexHub. Its private
-hostname is `https://resume-dev.cristex-soft.com`, with exact callback
+hostname is `https://dev-resume.cristex-soft.com`, with exact callback
 `/api/auth/oauth2/callback/custom`, exact web origin, exact post-logout redirect,
 and PKCE `S256`. A separate source-only DEV successor
 contract now defines realm `cristexhub-dev` and issuer
@@ -103,10 +103,10 @@ PKCE `S256`, and permits exactly this callback:
 StaticSecret; no value is present here. Reactive Resume DEV is now selected as a
 confidential client in the shared `cristexhub` realm. Its exact value-free contract
 is recorded in `hosted-identity-authorization.yml`: hostname
-`https://resume-dev.cristex-soft.com`, callback
-`https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom`, web origin
-`https://resume-dev.cristex-soft.com`, exact post-logout redirect
-`https://resume-dev.cristex-soft.com/`, and Infisical key
+`https://dev-resume.cristex-soft.com`, callback
+`https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom`, web origin
+`https://dev-resume.cristex-soft.com`, exact post-logout redirect
+`https://dev-resume.cristex-soft.com/`, and Infisical key
 `prod:/reactive-resume/dev/runtime#OAUTH_CLIENT_SECRET`. The former same-named
 client in `cristexhub-dev` is disabled and retained only for rollback; it must not
 be deleted or used while the shared-realm client is active. Rollback re-enables it

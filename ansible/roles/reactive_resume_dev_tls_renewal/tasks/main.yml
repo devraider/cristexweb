@@ -61,19 +61,19 @@
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_CANONICAL_SHA256') ==
-        '95fef8ef4be10c654e5355c49a00b292ca327bac7fd5e8138d918c26cf4e807d'
+        '71b1c74ed437585d82a3b797fb60e25e16a1b8081d5b57a2bb210cf8acf11383'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_SHA256') ==
-        '0d5a95df7e008d64985dd8ed7aea0bbd6d1fc51f2ccd7ef0a60f09ed346a1be5'
+        '46caa5156b332c01e770d9f3c625ed60109cd994c8657920489966171f7be422'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_NORMALIZED_SHA256') ==
-        '89eba957edf1d19145c3267ad589bedd4c3fd0af71018e2d70cd792078527260'
+        'afd92617706fd7d523eb3ac4408dd6ddd2bcdc739e55db519ebafc0bf71a1daa'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_WRAPPER_CANONICAL_SHA256') ==
-        'd9785dfc58c0757335ed329d7115f16b2f69cc5129b71d34200d410d344b3629'
+        '96ad529555fa7a7a7d8bf8236b26dc81c6ac0d7edfb527dbf30fd8139c2cdc33'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_STRATEGY_ATTESTATION_SHA256') ==
@@ -81,11 +81,11 @@
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_TASK_SHA256') ==
-        '8a5c2765a85ce1f6ffffc124414743c4f801792a31879179e7f6928b9536c3e1'
+        '11aa379f95e3f169ad2127734c58e4a6b03f605478cd8f3314840a755535d5aa'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_DEFAULTS_SHA256') ==
-        '378f8b86e527799847a1416f97a6c423ba45d85a392c0836b3a2c27c8ad57c79'
+        'd429cd82ed12f0cf8e5c5a56916f82a3efdb47d81706d8f8b2679585c9527b23'
       - >-
         lookup('ansible.builtin.env',
         'CRISTEXWEB_REACTIVE_RESUME_DEV_TLS_RENEWAL_PLAYBOOK_SHA256') ==
@@ -167,7 +167,7 @@
       - >-
         reactive_resume_dev_tls_renewal_manifest_path ==
         '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/MANIFESTS.sha256'
-      - reactive_resume_dev_tls_renewal_manifest_sha256 == '90cef6e9a07df37a319fd7c44a1d8a82841b10ef1b7bf7d7635519fcb73e19d5'
+      - reactive_resume_dev_tls_renewal_manifest_sha256 == '4d68e7c466e1c396454ccd663f5d45d903f41cc0b64b68c8220fa9334378888b'
       - reactive_resume_dev_tls_renewal_state_root == '/var/lib/cristexweb/reactive-resume-dev-tls'
       - reactive_resume_dev_tls_renewal_libexec_root == '/usr/local/libexec/cristexweb'
       - reactive_resume_dev_tls_renewal_infisical_cli == '/home/paul/.nvm/versions/node/v24.19.0/lib/node_modules/@infisical/cli/bin/infisical'
@@ -185,12 +185,12 @@
           {
             'path': '/usr/local/libexec/cristexweb/validate-reactive-resume-dev-tls-material',
             'mode': '0755',
-            'sha256': '68c0fcde82cc3d3f394d5c14e9cffc3c2cf0dd42bb93ad496143b15cc86f1985'
+            'sha256': '3a62d2326a8dee0e091cb0f4b12b9dbe12a10432d737b98aed5b5a27fd1b43cf'
           },
           {
             'path': '/usr/local/libexec/cristexweb/reactive-resume-dev-tls-renew',
             'mode': '0755',
-            'sha256': 'c46ad711f8693fcbe783841a99542a7c0a74fefdfc4a03ab6f4cde198e36629b'
+            'sha256': 'cdd610d20a972f3a53f11122a038f20c7f8a327280ca5128a3da87845d576341'
           },
           {
             'path': '/etc/systemd/system/cristexweb-reactive-resume-dev-tls-renew.service',
@@ -219,7 +219,7 @@
 - name: Bind the canonical role task source marker
   ansible.builtin.set_fact:
     reactive_resume_dev_tls_renewal_task_self_hash: '0000000000000000000000000000000000000000000000000000000000000000'
-    reactive_resume_dev_tls_renewal_defaults_raw_hash: 'e4ae9ea9ec04fc6ee719c5efb7cda1eb4154f392564b5ae0b4a0f7c47cbe411e'
+    reactive_resume_dev_tls_renewal_defaults_raw_hash: 'fe3d9e78df064b6adcbfe3685f03ba6f4cd623e557e52edb0b1a4363ae89ecc2'
   changed_when: false
   no_log: true
 
@@ -311,13 +311,13 @@
       - >-
         reactive_resume_dev_tls_renewal_manifest_path ==
         '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/MANIFESTS.sha256'
-      - reactive_resume_dev_tls_renewal_manifest_sha256 == '90cef6e9a07df37a319fd7c44a1d8a82841b10ef1b7bf7d7635519fcb73e19d5'
+      - reactive_resume_dev_tls_renewal_manifest_sha256 == '4d68e7c466e1c396454ccd663f5d45d903f41cc0b64b68c8220fa9334378888b'
       - reactive_resume_dev_tls_renewal_source_hashes | length == 5
       - >-
         reactive_resume_dev_tls_renewal_source_hashes[0].path ==
         '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/renewal/validate-reactive-resume-dev-tls-material'
       - reactive_resume_dev_tls_renewal_source_hashes[0].mode == '0755'
-      - reactive_resume_dev_tls_renewal_source_hashes[0].sha256 == '68c0fcde82cc3d3f394d5c14e9cffc3c2cf0dd42bb93ad496143b15cc86f1985'
+      - reactive_resume_dev_tls_renewal_source_hashes[0].sha256 == '3a62d2326a8dee0e091cb0f4b12b9dbe12a10432d737b98aed5b5a27fd1b43cf'
       - >-
         reactive_resume_dev_tls_renewal_source_hashes[1].path ==
         '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/renewal/cristexweb-reactive-resume-dev-tls-renew.service'
@@ -327,7 +327,7 @@
         reactive_resume_dev_tls_renewal_source_hashes[2].path ==
         '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/renewal/reactive-resume-dev-tls-renew'
       - reactive_resume_dev_tls_renewal_source_hashes[2].mode == '0755'
-      - reactive_resume_dev_tls_renewal_source_hashes[2].sha256 == 'c46ad711f8693fcbe783841a99542a7c0a74fefdfc4a03ab6f4cde198e36629b'
+      - reactive_resume_dev_tls_renewal_source_hashes[2].sha256 == 'cdd610d20a972f3a53f11122a038f20c7f8a327280ca5128a3da87845d576341'
       - >-
         reactive_resume_dev_tls_renewal_source_hashes[3].path ==
         '/home/paul/projects/cristexweb/ansible/files/components/reactive-resume-dev-tls/source/reactive-resume-dev-tls.yaml'

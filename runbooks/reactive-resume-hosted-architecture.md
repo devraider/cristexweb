@@ -4,7 +4,7 @@
 
 **DEV PRIVATE RUNTIME AND ARGO HANDOFF CHECKPOINTED — FULL ACCEPTANCE AND SOAK REMAIN OPEN.**
 Reactive Resume DEV runs in `cristexhub-dev` at the private hostname
-`https://resume-dev.cristex-soft.com`. The shared `cristexhub` Keycloak client is
+`https://dev-resume.cristex-soft.com`. The shared `cristexhub` Keycloak client is
 represented by an exact guarded value-free source contract; its secret remains
 Infisical/Kubernetes-owned and no client or user outside that additive contract is
 reconciled by the source. A separate recorded private-runtime acceptance covered
@@ -84,10 +84,10 @@ shared login theme and SSO are the same as CristexHub. The exact value-free
 selection is:
 
 - issuer/discovery: `https://auth.cristex-soft.com/realms/cristexhub`;
-- browser hostname: `https://resume-dev.cristex-soft.com`;
-- exact callback: `https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom`;
-- exact web origin: `https://resume-dev.cristex-soft.com`;
-- exact RP-initiated post-logout redirect: `https://resume-dev.cristex-soft.com/`;
+- browser hostname: `https://dev-resume.cristex-soft.com`;
+- exact callback: `https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom`;
+- exact web origin: `https://dev-resume.cristex-soft.com`;
+- exact RP-initiated post-logout redirect: `https://dev-resume.cristex-soft.com/`;
 - client: `reactive-resume-dev` in realm `cristexhub`, with PKCE S256.
 
 The former `reactive-resume-dev` client in `cristexhub-dev` is disabled and
@@ -157,7 +157,7 @@ acceptance. The owner must be `reactive_resume_dev_runtime` with
 - **OIDC:** the accepted private DEV identity uses the shared `cristexhub` realm
   and issuer `https://auth.cristex-soft.com/realms/cristexhub`, with shared login
   theme/SSO. The `reactive-resume-dev` client is pinned to hostname
-  `https://resume-dev.cristex-soft.com`, callback
+  `https://dev-resume.cristex-soft.com`, callback
   `/api/auth/oauth2/callback/custom`, exact web origin, exact post-logout redirect,
   and PKCE S256. The old same-named client in `cristexhub-dev` remains a
   rollback-only handle; deletion is forbidden and disable requires a separate

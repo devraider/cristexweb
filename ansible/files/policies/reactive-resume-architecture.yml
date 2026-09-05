@@ -132,12 +132,12 @@ identity:
   realm: cristexhub
   issuer: https://auth.cristex-soft.com/realms/cristexhub
   shared_login_theme_and_sso: true
-  selected_hostname: https://resume-dev.cristex-soft.com
-  selected_callback: https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom
+  selected_hostname: https://dev-resume.cristex-soft.com
+  selected_callback: https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom
   selected_web_origins:
-    - https://resume-dev.cristex-soft.com
+    - https://dev-resume.cristex-soft.com
   selected_post_logout_redirects:
-    - https://resume-dev.cristex-soft.com/
+    - https://dev-resume.cristex-soft.com/
   candidate_realms:
     retained_prod_compatible: cristexhub
     retired_successor_dev_source: cristexhub-dev
@@ -153,7 +153,7 @@ identity:
       source_guard: ansible/plugins/action/keycloak_reactive_resume_dev_client_guarded.py
       realm: cristexhub
       callback: /api/auth/oauth2/callback/custom
-      hostname: https://resume-dev.cristex-soft.com
+      hostname: https://dev-resume.cristex-soft.com
       login_theme_and_sso: shared-cristexhub
     prod:
       id: reactive-resume-prod
@@ -670,11 +670,11 @@ source_closure:
       client_id: reactive-resume-dev
       namespace: cristexhub-dev
       callbacks:
-        - https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom
+        - https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom
       web_origins:
-        - https://resume-dev.cristex-soft.com
+        - https://dev-resume.cristex-soft.com
       post_logout_redirects:
-        - https://resume-dev.cristex-soft.com/
+        - https://dev-resume.cristex-soft.com/
       shared_login_theme_and_sso: true
       pkce_s256: true
       client_secret_state: infisical-owned-materialized

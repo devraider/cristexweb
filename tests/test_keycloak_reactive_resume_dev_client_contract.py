@@ -46,12 +46,12 @@ class KeycloakReactiveResumeDevClientContractTests(unittest.TestCase):
         client = self.source["spec"]["clients"][0]
         self.assertEqual("reactive-resume-dev", client["clientId"])
         self.assertEqual(
-            ["https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom"],
+            ["https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom"],
             client["redirectUris"],
         )
-        self.assertEqual(["https://resume-dev.cristex-soft.com"], client["webOrigins"])
+        self.assertEqual(["https://dev-resume.cristex-soft.com"], client["webOrigins"])
         self.assertEqual("S256", client["attributes"]["pkce.code.challenge.method"])
-        self.assertEqual("https://resume-dev.cristex-soft.com/", client["attributes"]["post.logout.redirect.uris"])
+        self.assertEqual("https://dev-resume.cristex-soft.com/", client["attributes"]["post.logout.redirect.uris"])
         self.assertNotIn("*", client["attributes"]["post.logout.redirect.uris"])
         self.assertEqual(
             {
@@ -113,12 +113,12 @@ class KeycloakReactiveResumeDevClientContractTests(unittest.TestCase):
     def test_policies_are_reconciled_to_exact_contract(self) -> None:
         rr = next(item for item in self.policy["clients"]["browser"] if item["id"] == "reactive-resume-dev")
         self.assertEqual("cristexhub", rr["realm"])
-        self.assertEqual(["https://resume-dev.cristex-soft.com/"], rr["post_logout_redirect_uris"])
+        self.assertEqual(["https://dev-resume.cristex-soft.com/"], rr["post_logout_redirect_uris"])
         self.assertEqual("disabled-rollback-only", rr["old_successor_client"]["status"])
         self.assertEqual("forbidden", rr["old_successor_client"]["deletion"])
         self.assertNotIn("*", json.dumps(rr))
         identity = self.arch["identity"]
-        self.assertEqual(["https://resume-dev.cristex-soft.com/"], identity["selected_post_logout_redirects"])
+        self.assertEqual(["https://dev-resume.cristex-soft.com/"], identity["selected_post_logout_redirects"])
         self.assertIn("keycloak-reactive-resume-dev-client", identity["clients"]["dev"]["source_contract"])
         self.assertNotIn("*", json.dumps(identity["clients"]["dev"]))
         self.assertIn("post-logout redirect", self.runbook_text)

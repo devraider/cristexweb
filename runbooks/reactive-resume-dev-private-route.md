@@ -28,7 +28,7 @@ ansible/files/components/reactive-resume-dev-route/route/ingress-reactive-resume
 
 The Ingress is exactly:
 
-- host `resume-dev.cristex-soft.com`;
+- host `dev-resume.cristex-soft.com`;
 - Traefik class and `websecure` entrypoint with TLS enabled;
 - precreated Secret `reactive-resume-dev-tls` (never written here);
 - Service `reactive-resume-dev`, port `3000`, path `/`.

@@ -122,12 +122,12 @@
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].clientId == 'reactive-resume-dev'
       - >-
         keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].redirectUris ==
-        ['https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom']
-      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].webOrigins == ['https://resume-dev.cristex-soft.com']
+        ['https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom']
+      - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].webOrigins == ['https://dev-resume.cristex-soft.com']
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].attributes['pkce.code.challenge.method'] == 'S256'
       - >-
         keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].attributes['post.logout.redirect.uris'] ==
-        'https://resume-dev.cristex-soft.com/'
+        'https://dev-resume.cristex-soft.com/'
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].credentialContract.owner == 'infisical-cloud'
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].credentialContract.path == 'prod:/reactive-resume/dev/runtime'
       - keycloak_reactive_resume_dev_client_bootstrap_internal_manifests[0].spec.clients[0].credentialContract.key == 'OAUTH_CLIENT_SECRET'

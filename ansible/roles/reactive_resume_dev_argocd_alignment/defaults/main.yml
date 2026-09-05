@@ -28,7 +28,7 @@ reactive_resume_dev_argocd_alignment_expected_hashes:
   - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/deployment.yaml"
     sha256: aa9d9d542b0a32cd9d84b3f30f0427aa8f209ad8acbe9c393dae15c557593985
   - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/ingress-private.yaml"
-    sha256: e2fe7e0a4fb711e6e3173db72d43d17d78ad313baddafc6685791ed505cd4339
+    sha256: af470655a1762abf48c9fc3f9a4d0a9015e0afd74b952c5212be7742e4444571
   - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/networkpolicy-allow-backend.yaml"
     sha256: dc7dd2e45444f489ef28c45295543595a7399ac060da36db4b427114940f6ba6
   - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/networkpolicy-default-deny.yaml"

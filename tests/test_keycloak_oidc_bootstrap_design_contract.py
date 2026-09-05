@@ -23,7 +23,7 @@ class KeycloakOidcBootstrapDesignContractTests(unittest.TestCase):
             "retained PROD-compatibility realm\n`cristexhub`, and issuer `https://auth.cristex-soft.com/realms/cristexhub` remain\ncanonical",
             "Reactive Resume DEV is an explicit\nshared-realm exception",
             "shared login theme and SSO are the same as CristexHub",
-            "https://resume-dev.cristex-soft.com",
+            "https://dev-resume.cristex-soft.com",
             "`/api/auth/oauth2/callback/custom`",
             "PKCE `S256`",
             "source-only DEV successor\ncontract now defines realm `cristexhub-dev` and issuer",

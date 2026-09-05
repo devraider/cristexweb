@@ -105,8 +105,8 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         objects = load_objects()
         ingress = next(obj for obj in objects if obj["kind"] == "Ingress")
         self.assertEqual("traefik", ingress["spec"]["ingressClassName"])
-        self.assertEqual("resume-dev.cristex-soft.com", ingress["spec"]["rules"][0]["host"])
-        self.assertEqual("resume-dev.cristex-soft.com", ingress["spec"]["tls"][0]["hosts"][0])
+        self.assertEqual("dev-resume.cristex-soft.com", ingress["spec"]["rules"][0]["host"])
+        self.assertEqual("dev-resume.cristex-soft.com", ingress["spec"]["tls"][0]["hosts"][0])
         self.assertEqual("reactive-resume-dev-tls", ingress["spec"]["tls"][0]["secretName"])
         self.assertEqual(3000, ingress["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["port"]["number"])
         policies = [obj for obj in objects if obj["kind"] == "NetworkPolicy"]

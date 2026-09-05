@@ -72,7 +72,7 @@ class OpenTofuContractTests(unittest.TestCase):
             'resource "cloudflare_dns_record" "argocd_tailscale"',
             'resource "cloudflare_dns_record" "reactive_resume_dev_tailscale"',
             'name    = "argo.cristex-soft.com"',
-            'name    = "resume-dev.cristex-soft.com"',
+            'name    = "dev-resume.cristex-soft.com"',
             'type    = "A"',
             'content = "100.122.139.32"',
             'proxied = false',

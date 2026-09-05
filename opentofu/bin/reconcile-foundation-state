@@ -45,13 +45,13 @@ root=$(CDPATH= cd -- "$dir/.." && pwd -P)
 source_manifest="$root/bin/SOURCE.sha256"
 # The two pins use the canonical placeholder form to avoid a self-referential
 # digest cycle. They are refreshed together with SOURCE.sha256 below.
-source_manifest_expected_sha256='fc6486be36c862ec2e2a2e829c89def8711880e1ed5a5212b809d939f4be7ac2'
-source_reconcile_expected_canonical_sha256='8e1d6f6e5047c5a89c5320d8f00019fff30c24be91af3a1eb97b692c06471c61'
+source_manifest_expected_sha256='816d3fca45a328885fc2d7dbcc5e915ffac29d5fe8d3990eb721e27d16a035bd'
+source_reconcile_expected_canonical_sha256='5f614d28245a566ae18e58f84b04c6ad691f024483048aa7da6eff14c4b51ec5'
 validator="$root/bin/validate-foundation-state-scope"
 # The validator digest is independently pinned from the verified source
 # manifest. It is copied into a sealed memfd before execution, so pathname
 # replacement and in-place edits cannot alter the executed bytes.
-validator_sha256='4079ab77f44ce257fd68416e2cbe48f2b046d76df54cfbb63507684d46f88b88'
+validator_sha256='5d43dcf2c9d91146eff8006c80aaaf1b0f2d29902a80f9b45fdf92f7274936fc'
 [ -f "$source_manifest" ] && [ ! -L "$source_manifest" ] || exit 78
 [ -x "$validator" ] && [ ! -L "$validator" ] || exit 78
 source_work=$(/usr/bin/mktemp -d /dev/shm/cristexweb-opentofu-foundation-source.XXXXXX)

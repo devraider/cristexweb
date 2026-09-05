@@ -3,7 +3,7 @@
 ## Status
 
 This is a **source-only** closure for importing the already-live
-`resume-dev.cristex-soft.com` DNS record into the protected Cloudflare
+`dev-resume.cristex-soft.com` DNS record into the protected Cloudflare
 OpenTofu foundation root. No provider command, state import, state write, backup,
 restore, or PROD plan was run while authoring this source. The reconciliation is
 a prerequisite to (and not part of) the separately approved PROD Tunnel/DNS plan.
@@ -35,7 +35,7 @@ and a consumer.
 | Existing state addresses | five exact Cloudflare/Tunnel addresses |
 | Reconciled address | `cloudflare_dns_record.reactive_resume_dev_tailscale` |
 | Post-reconciliation state addresses | six exact addresses |
-| Record contract | `resume-dev.cristex-soft.com`, A, `100.122.139.32`, DNS-only |
+| Record contract | `dev-resume.cristex-soft.com`, A, `100.122.139.32`, DNS-only |
 | PROD plan | separate later operation; not run by this entrypoint |
 
 The pre-state closure is:

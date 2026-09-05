@@ -185,12 +185,12 @@ a08141c750404c653d23b35ecb29ab33e788845c3f666f0984fa156b9c468415  kubernetes-ope
         self.assertEqual("S256", rr["pkce_method"])
         self.assertTrue(rr["shared_login_theme_and_sso"])
         self.assertEqual(
-            ["https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom"],
+            ["https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom"],
             rr["redirect_uris"],
         )
-        self.assertEqual(["https://resume-dev.cristex-soft.com"], rr["web_origins"])
+        self.assertEqual(["https://dev-resume.cristex-soft.com"], rr["web_origins"])
         self.assertEqual(
-            ["https://resume-dev.cristex-soft.com/"], rr["post_logout_redirect_uris"]
+            ["https://dev-resume.cristex-soft.com/"], rr["post_logout_redirect_uris"]
         )
         self.assertEqual("prod:/reactive-resume/dev/runtime", rr["client_secret_path"])
         self.assertEqual("OAUTH_CLIENT_SECRET", rr["client_secret_key"])

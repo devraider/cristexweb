@@ -11,8 +11,8 @@ usage='usage: reactive-resume-dev-tls-renew renew'
   exit 64
 }
 
-hostname=resume-dev.cristex-soft.com
-challenge_name=_acme-challenge.resume-dev.cristex-soft.com
+hostname=dev-resume.cristex-soft.com
+challenge_name=_acme-challenge.dev-resume.cristex-soft.com
 zone_id=3cbee16e56d7656440f93e685807e779
 account_id=8b0f511214c7a4a52ddfb62ca92c5e80
 project_id=619656da-14f3-4872-857b-be103cdc5326

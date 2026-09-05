@@ -42,7 +42,7 @@ PVCs, Namespaces, RBAC, Jobs, object storage, database, or Infisical resources.
   `secretKeyRef`/`configMap`; no value is present here.
 - The Service remains `ClusterIP` on port `3000`; no NodePort, LoadBalancer, or
   alternate ingress is permitted.
-- Route traffic is only `resume-dev.cristex-soft.com` through Traefik
+- Route traffic is only `dev-resume.cristex-soft.com` through Traefik
   `websecure` and the precreated `reactive-resume-dev-tls` Secret.
 - Argo registration pins a reviewed immutable repository revision and uses
   `prune=false`, `selfHeal=true`, `allowEmpty=false`, and

@@ -171,7 +171,7 @@ CONFIG_EXPECTED_EXPRESSIONS = {
     },
     "cloudflare_dns_record.reactive_resume_dev_tailscale": {
         "zone_id": {"references": ["var.cloudflare_zone_id"]},
-        "name": {"constant_value": "resume-dev.cristex-soft.com"},
+        "name": {"constant_value": "dev-resume.cristex-soft.com"},
         "type": {"constant_value": "A"},
         "content": {"constant_value": "100.122.139.32"},
         "ttl": {"constant_value": 300},
@@ -791,7 +791,7 @@ def _validate_state_resource_projection(resource: dict[str, Any]) -> None:
             fail("state_dns_identity")
     elif address == "cloudflare_dns_record.reactive_resume_dev_tailscale":
         expected_values = {
-            "name": "resume-dev.cristex-soft.com",
+            "name": "dev-resume.cristex-soft.com",
             "type": "A",
             "content": "100.122.139.32",
             "ttl": 300,
@@ -980,7 +980,7 @@ def _validate_resource_text(address: str, path: Path) -> None:
     except UnicodeDecodeError:
         fail("resource_encoding")
     required = (
-        'name = "resume-dev.cristex-soft.com"',
+        'name = "dev-resume.cristex-soft.com"',
         'type = "A"',
         'content = "100.122.139.32"',
         "proxied = false",

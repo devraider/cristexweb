@@ -10,13 +10,13 @@ for path in "$cert" "$key"; do
   [ "$(stat -c '%a' -- "$path")" = 600 ] || { printf '%s\n' 'Refusing TLS input outside mode 0600.' >&2; exit 66; }
 done
 [ -r /etc/ssl/certs/ca-certificates.crt ] || { printf '%s\n' 'Refusing missing system trust store.' >&2; exit 66; }
-openssl x509 -in "$cert" -noout -checkhost resume-dev.cristex-soft.com >/dev/null
+openssl x509 -in "$cert" -noout -checkhost dev-resume.cristex-soft.com >/dev/null
 openssl x509 -in "$cert" -noout -checkend 2592000 >/dev/null
 san=$(
   openssl x509 -in "$cert" -noout -ext subjectAltName |
     awk '/Subject Alternative Name/{capture=1; next} capture && /^[^[:space:]]/{exit} capture{gsub(/[[:space:]]/, ""); printf "%s", $0} END{print ""}'
 )
-[ "$san" = 'DNS:resume-dev.cristex-soft.com' ] || {
+[ "$san" = 'DNS:dev-resume.cristex-soft.com' ] || {
   printf '%s\n' 'Refusing certificate outside the exact single-host SAN set.' >&2
   exit 66
 }

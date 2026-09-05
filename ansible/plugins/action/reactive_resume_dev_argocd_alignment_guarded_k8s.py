@@ -30,7 +30,7 @@ EXPECTED = {
 }
 EXPECTED_HASHES = {
     ("apps/v1", "Deployment", "cristexhub-dev", "reactive-resume-dev"): "82f439133999c5f6bd888cfa0943d1ed5a22e68f5c54a6ca48cf19638d231599",
-    ("networking.k8s.io/v1", "Ingress", "cristexhub-dev", "reactive-resume-dev-private"): "848258824deda62730db057d736759b0663cdb00007b7f5dc39a5e3fd9a9ce0a",
+    ("networking.k8s.io/v1", "Ingress", "cristexhub-dev", "reactive-resume-dev-private"): "694883a0e10310e893cb24f238dfa49af5613cc77624e82072f5e684eb5b6389",
     ("networking.k8s.io/v1", "NetworkPolicy", "cristexhub-dev", "reactive-resume-dev-allow-backend"): "60025e8937b19bcc418fc92ed2e54c65770c35a0132ba7736cd3d2bb4a0dea89",
     ("networking.k8s.io/v1", "NetworkPolicy", "cristexhub-dev", "reactive-resume-dev-default-deny"): "1b858a6e58228abc563072b4d1dee78042b05f20aeb9e522a2a37398fcc3ac6b",
     ("networking.k8s.io/v1", "NetworkPolicy", "cristexhub-dev", "reactive-resume-dev-egress"): "3b26ef586e526506dccd955675ccceb2776e294b8d710facbe3c73236ae7e178",

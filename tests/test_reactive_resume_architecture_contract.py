@@ -463,9 +463,9 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
         self.assertEqual("cristexhub", identity["realm"])
         self.assertEqual("https://auth.cristex-soft.com/realms/cristexhub", identity["issuer"])
         self.assertTrue(identity["shared_login_theme_and_sso"])
-        self.assertEqual("https://resume-dev.cristex-soft.com", identity["selected_hostname"])
+        self.assertEqual("https://dev-resume.cristex-soft.com", identity["selected_hostname"])
         self.assertEqual(
-            "https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom",
+            "https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom",
             identity["selected_callback"],
         )
         self.assertEqual("cristexhub", identity["candidate_realms"]["retained_prod_compatible"])
@@ -481,7 +481,7 @@ class ReactiveResumeArchitectureContractTests(unittest.TestCase):
             self.policy["source_closure"]["dev"]["identity_scope"]["realm_runtime_state"],
         )
         self.assertEqual(
-            ["https://resume-dev.cristex-soft.com/api/auth/oauth2/callback/custom"],
+            ["https://dev-resume.cristex-soft.com/api/auth/oauth2/callback/custom"],
             self.policy["source_closure"]["dev"]["identity_scope"]["callbacks"],
         )
         self.assertTrue(self.policy["source_closure"]["dev"]["identity_scope"]["shared_login_theme_and_sso"])

@@ -179,7 +179,7 @@ def state_document(addresses: list[str]) -> dict[str, Any]:
             values = {
                 "id": DNS_IDS[address],
                 "zone_id": ZONE_ID,
-                "name": "resume-dev.cristex-soft.com",
+                "name": "dev-resume.cristex-soft.com",
                 "type": "A",
                 "content": "100.122.139.32",
                 "ttl": 300,
