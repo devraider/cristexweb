@@ -1286,7 +1286,13 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         self.assertIsNotNone(spec.loader)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        if Path("/usr/bin/python3.13").is_file():
+        portable_python_source = Path("/usr/bin/python3")
+        portable_python_target = portable_python_source.resolve(strict=True)
+        with (
+            mock.patch.object(module, "_PYTHON_SOURCE", portable_python_source),
+            mock.patch.object(module, "_PYTHON_TARGET", portable_python_target),
+            mock.patch.object(module, "_PYTHON_SHA256", module._sha256(portable_python_target)),
+        ):
             self.assertTrue(module._python_contract())
         self.assertEqual(module._TASK_SHA256, module._normalized_yaml_hash(module._TASK_SOURCE, task=True))
         self.assertEqual(module._DEFAULTS_SHA256, module._normalized_yaml_hash(module._DEFAULTS_SOURCE))

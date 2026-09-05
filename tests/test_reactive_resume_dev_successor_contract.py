@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import grp
 import hashlib
 import importlib.util
 import os
@@ -343,8 +344,8 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertLess(controller, self.wrapper.index("/usr/bin/env -i"))
 
     def test_wrapper_rejects_every_nested_source_leaf_before_fake_controller(self) -> None:
-        if pwd.getpwuid(os.getuid()).pw_name != "paul":
-            self.skipTest("production ownership fixture requires the canonical controller user")
+        fixture_user = pwd.getpwuid(os.getuid()).pw_name
+        fixture_group = grp.getgrgid(os.getgid()).gr_name
         closure_paths = [
             "ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml",
             "ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml",
@@ -376,7 +377,8 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
                 inventory = root / "ansible/.ansible/inventory.local.yml"
                 inventory.parent.mkdir(parents=True, exist_ok=True)
                 inventory.write_text(
-                    "---\nall:\n  children:\n    k3s_servers:\n      hosts:\n        crtxweb:\n          ansible_connection: local\n          ansible_python_interpreter: /usr/bin/python3\n          ansible_user: paul\n"
+                    "---\nall:\n  children:\n    k3s_servers:\n      hosts:\n        crtxweb:\n          ansible_connection: local\n          ansible_python_interpreter: /usr/bin/python3\n"
+                    f"          ansible_user: {fixture_user}\n"
                 )
                 inventory.chmod(0o600)
                 collection_manifest = root / "ansible/.ansible/collections/ansible_collections/kubernetes/core/MANIFEST.json"
@@ -389,6 +391,18 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
                     "  /home/paul/projects/cristexweb) ;;",
                     f"  {root}) ;;",
                     1,
+                )
+                wrapper_text = wrapper_text.replace("paul:paul:600", f"{fixture_user}:{fixture_group}:600")
+                wrapper_text = wrapper_text.replace("paul:paul:755", f"{fixture_user}:{fixture_group}:755")
+                wrapper_text = wrapper_text.replace("paul:paul:644", f"{fixture_user}:{fixture_group}:644")
+                wrapper_text = wrapper_text.replace(
+                    '($0 == "          ansible_user: paul")',
+                    f'($0 == "          ansible_user: {fixture_user}")',
+                )
+                wrapper_text = re.sub(
+                    r"(?m)^inventory_expected='[0-9a-f]{64}'$",
+                    f"inventory_expected='{hashlib.sha256(inventory.read_bytes()).hexdigest()}'",
+                    wrapper_text,
                 )
                 wrapper.write_text(wrapper_text)
                 wrapper.chmod(0o755)

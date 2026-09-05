@@ -161,10 +161,8 @@ class RabbitMqProdCredentialRotationCheckContractTests(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         self.assertIsNotNone(spec.loader)
         spec.loader.exec_module(module)
-        target = Path("/usr/bin/python3.13")
-        expected_digest = "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
-        if not target.is_file() or module._sha256(target) != expected_digest:
-            self.skipTest("canonical production Python target is unavailable on this host")
+        target = Path("/usr/bin/python3").resolve(strict=True)
+        expected_digest = module._sha256(target)
         self.assertTrue(module._regular_file(target, 0o755, 0, 0))
         self.assertFalse(module._regular_file(target, 0o775, 0, 0))
         self.assertFalse(module._regular_file(target, 0o755, 65534, 65534))
