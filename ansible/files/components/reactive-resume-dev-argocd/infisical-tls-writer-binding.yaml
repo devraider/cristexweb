@@ -4,8 +4,9 @@ metadata:
   name: reactive-resume-dev-tls-infisical-writer
   namespace: cristexhub-dev
   labels:
-    app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/managed-by: ansible
     app.kubernetes.io/part-of: reactive-resume
+    cristex.io/bootstrap-writer: ansible
     cristex.io/component: reactive-resume-dev-tls
     cristex.io/desired-owner: argocd
 roleRef:

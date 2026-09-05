@@ -24,10 +24,10 @@
       - (ansible_limit | default('')) == 'crtxweb'
       - ansible_play_hosts_all | length == 1
       - reactive_resume_dev_argocd_alignment_kubeconfig == '/etc/rancher/k3s/k3s.yaml'
-      - reactive_resume_dev_argocd_alignment_manifest_paths | length == 12
-      - reactive_resume_dev_argocd_alignment_expected_hashes | length == 12
-      - reactive_resume_dev_argocd_alignment_object_count == 12
-      - reactive_resume_dev_argocd_alignment_source_object_count == 8
+      - reactive_resume_dev_argocd_alignment_manifest_paths | length == 14
+      - reactive_resume_dev_argocd_alignment_expected_hashes | length == 14
+      - reactive_resume_dev_argocd_alignment_object_count == 14
+      - reactive_resume_dev_argocd_alignment_source_object_count == 10
       - reactive_resume_dev_argocd_alignment_destination_policy_count == 4
     fail_msg: Refusing an unapproved, widened, deleting, Job-bearing, or Secret-bearing Reactive Resume DEV alignment.
   changed_when: false
@@ -95,14 +95,14 @@
   changed_when: false
   no_log: true
 
-- name: Require exactly eight DEV objects and four destination NetworkPolicies
+- name: Require exactly ten DEV objects and four destination NetworkPolicies
   ansible.builtin.assert:
     that:
-      - reactive_resume_dev_argocd_alignment_internal_manifests | length == 12
+      - reactive_resume_dev_argocd_alignment_internal_manifests | length == 14
       - >-
         reactive_resume_dev_argocd_alignment_internal_manifests |
         selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') |
-        list | length == 8
+        list | length == 10
       - >-
         reactive_resume_dev_argocd_alignment_internal_manifests |
         selectattr('metadata.namespace', 'equalto', 'shared-services') |
@@ -121,7 +121,8 @@
         selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') |
         map(attribute='kind') | list | sort) ==
         ['Deployment', 'Ingress', 'NetworkPolicy', 'NetworkPolicy',
-        'NetworkPolicy', 'NetworkPolicy', 'Service', 'ServiceAccount']
+        'NetworkPolicy', 'NetworkPolicy', 'Role', 'RoleBinding', 'Service',
+        'ServiceAccount']
       - >-
         reactive_resume_dev_argocd_alignment_internal_manifests |
         selectattr('metadata.namespace', 'equalto', 'shared-services') |
@@ -131,8 +132,11 @@
         selectattr('metadata.namespace', 'equalto', 'cristexhub-dev') |
         map(attribute='metadata.name') | list | sort) ==
         ['reactive-resume-dev', 'reactive-resume-dev', 'reactive-resume-dev',
-        'reactive-resume-dev-allow-backend', 'reactive-resume-dev-default-deny', 'reactive-resume-dev-egress',
-        'reactive-resume-dev-private', 'reactive-resume-dev-route-allow-traefik']
+        'reactive-resume-dev-allow-backend', 'reactive-resume-dev-default-deny',
+        'reactive-resume-dev-egress', 'reactive-resume-dev-private',
+        'reactive-resume-dev-route-allow-traefik',
+        'reactive-resume-dev-tls-infisical-writer',
+        'reactive-resume-dev-tls-infisical-writer']
       - >-
         (reactive_resume_dev_argocd_alignment_internal_manifests |
         selectattr('metadata.namespace', 'equalto', 'shared-services') |
@@ -144,7 +148,7 @@
         reactive_resume_dev_argocd_alignment_internal_manifests |
         rejectattr('metadata.namespace', 'in', ['cristexhub-dev',
         'shared-services']) | list | length == 0
-    fail_msg: Refusing any object outside the exact eight-object DEV and four destination NetworkPolicy alignment closure.
+    fail_msg: Refusing any object outside the exact ten-object DEV and four destination NetworkPolicy alignment closure.
   changed_when: false
   no_log: true
 
@@ -207,17 +211,17 @@
   ansible.builtin.set_fact:
     reactive_resume_dev_argocd_alignment_internal_preflight_binding:
       attestation_sha256: '{{ lookup("ansible.builtin.env", "CRISTEXWEB_REACTIVE_RESUME_DEV_ARGOCD_ALIGNMENT_TOKEN") | hash("sha256") }}'
-      identity_set_sha256: 'a1b576db27f865a2988f00420022303943c50ebf2422d172d147f7ddac03e712'
+      identity_set_sha256: '06bb6be32bd6b62e6d0781ed99992b1976925738115658021b8f59d9c4885d56'
       object_count: '{{ reactive_resume_dev_argocd_alignment_internal_manifests | length }}'
       prestate_count: '{{ reactive_resume_dev_argocd_alignment_internal_prestate.results | length }}'
-      scope: reactive-resume-dev-8-plus-destination-networkpolicies-4
+      scope: reactive-resume-dev-10-plus-destination-networkpolicies-4
       no_delete_path: true
       no_job: true
       no_secret: true
   changed_when: false
   no_log: true
 
-- name: Reconcile only the exact twelve alignment objects
+- name: Reconcile only the exact fourteen alignment objects
   reactive_resume_dev_argocd_alignment_guarded_k8s:
     state: present
     definition: '{{ item }}'
