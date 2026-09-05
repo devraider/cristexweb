@@ -15,7 +15,7 @@ reactive_resume_dev_argocd_registration_manifest_paths:
 reactive_resume_dev_argocd_registration_object_count: 5
 reactive_resume_dev_argocd_registration_cluster_namespaces: 'cristexhub-dev,cristexhub-prod'
 reactive_resume_dev_argocd_registration_repository: ssh://git@ssh.github.com:443/devraider/cristexweb.git
-reactive_resume_dev_argocd_registration_revision: dd7d4cedd902e68266d9713d1dbb8e90f0b529b1
+reactive_resume_dev_argocd_registration_revision: faf2e5f108d02e096379b4619ee78b114f6219a7
 reactive_resume_dev_argocd_registration_path: ansible/files/components/reactive-resume-dev-argocd
 reactive_resume_dev_argocd_registration_repository_secret: argocd-repository-cristexweb
 reactive_resume_dev_argocd_registration_dependency_contracts:
@@ -78,7 +78,7 @@ reactive_resume_dev_argocd_registration_dependency_contracts:
              cristex.io/value-owner: infisical-cloud}
     annotation_keys: [secrets.infisical.com/version]
 reactive_resume_dev_argocd_registration_expected_hashes:
-  config/application-reactive-resume-dev.yaml: 5b228ff208af12e414c7c2692dec7bbc7a950d535cbfb9d71d6608a3fbd3363d
+  config/application-reactive-resume-dev.yaml: bb2bdc6696431d866ed54dd2fe5a68cc5f94ad5b5aec315604110c8f194e7cad
   config/appproject-reactive-resume-dev.yaml: 1872d8c63ad300801677bc4cec2e220a75cfbac437d087ac94b03f3b3846fe78
   config/secret-cluster-reactive-resume-dev.yaml: 9e59d72f0085490e77f89be74a91a4f4d882f9ba07e89b334bd8ef7feef466d2
   rbac/role-argocd-application-controller-reactive-resume-dev.yaml: ab0a14d48e3a22b158453dab9ad7ed06d0a63ff818a14e2e8ca94f48ecb8eba7

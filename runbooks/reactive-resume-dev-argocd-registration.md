@@ -10,7 +10,7 @@ live, Argo-managed, or applied. The alignment
 apply converged and its retry passed at `changed=0`; registration then applied
 and converged at `changed=0`. After the approved deny-window removal and exact
 in-cluster destination correction, Argo reconciled revision
-`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1` to `Synced/Healthy` with a successful
+`faf2e5f108d02e096379b4619ee78b114f6219a7` to `Synced/Healthy` with a successful
 operation. All seven objects have Argo tracking annotations; this k3s API omits
 `metadata.managedFields`, so manager-field evidence is unavailable rather than
 claimed. Argo reports 15 intentionally out-of-scope namespace resources as
@@ -26,7 +26,7 @@ Argo, provider, DNS, Infisical, or PROD operation by itself.
 
 The registration Application uses the infrastructure repository
 `ssh://git@ssh.github.com:443/devraider/cristexweb.git`, immutable revision
-`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`, and the desired-state path
+`faf2e5f108d02e096379b4619ee78b114f6219a7`, and the desired-state path
 `ansible/files/components/reactive-resume-dev-argocd`. The checked-in
 value-free handoff inventory under
 `ansible/files/policies/reactive-resume-dev-argocd-handoff` identifies exactly
@@ -35,7 +35,7 @@ ServiceAccount, two workload NetworkPolicies, the Traefik-only route
 NetworkPolicy, and the private Ingress. Secret, Namespace, PVC, RBAC, shared
 service, Keycloak, Infisical, and PROD objects remain outside this handoff.
 Only seven of those objects are automated Argo desired state at pinned revision
-`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`: the migration Job remains
+`faf2e5f108d02e096379b4619ee78b114f6219a7`: the migration Job remains
 inventory-only and is a separately guarded one-shot prerequisite. The current-HEAD
 `networkpolicy-allow-backend.yaml` is outside that pinned revision and carries no
 live or Argo-managed claim.

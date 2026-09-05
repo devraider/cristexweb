@@ -8,7 +8,7 @@ ansible/files/components/reactive-resume-dev-argocd/
 ```
 
 The live Argo application is pinned to revision
-`dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`, whose source contains exactly seven
+`faf2e5f108d02e096379b4619ee78b114f6219a7`, whose source contains exactly seven
 value-free Kubernetes objects in `cristexhub-dev`: one immutable-digest
 Deployment, one ClusterIP Service, one tokenless ServiceAccount, three workload
 NetworkPolicies, and the private Traefik Ingress. Current HEAD contains eight

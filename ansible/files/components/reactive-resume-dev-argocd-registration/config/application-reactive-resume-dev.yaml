@@ -12,7 +12,7 @@ spec:
   project: reactive-resume-dev
   source:
     repoURL: ssh://git@ssh.github.com:443/devraider/cristexweb.git
-    targetRevision: dd7d4cedd902e68266d9713d1dbb8e90f0b529b1
+    targetRevision: faf2e5f108d02e096379b4619ee78b114f6219a7
     path: ansible/files/components/reactive-resume-dev-argocd
   destination:
     name: ''
