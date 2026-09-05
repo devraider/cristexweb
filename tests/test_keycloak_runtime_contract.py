@@ -138,6 +138,12 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
         self.assertTrue(any("Ingress" in policy["spec"].get("policyTypes", []) for policy in policies))
         self.assertTrue(any("Egress" in policy["spec"].get("policyTypes", []) for policy in policies))
         self.assertTrue(any("kube-dns" in str(policy) or "k8s-app" in str(policy) for policy in policies))
+        private_ingress = next(
+            policy for policy in policies if policy["metadata"]["name"] == "keycloak-private-ingress"
+        )
+        private_sources = str(private_ingress["spec"]["ingress"])
+        self.assertIn("cristexhub-dev", private_sources)
+        self.assertIn("cristexhub-prod", private_sources)
         self.assertFalse(any(obj["kind"] in {"Ingress", "PersistentVolumeClaim", "Secret"} for obj in self.objects))
 
 
