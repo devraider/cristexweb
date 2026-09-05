@@ -85,7 +85,11 @@ reactive_resume_dev_soak_shared_queries:
   - {api_version: secrets.infisical.com/v1beta1, kind: InfisicalAuth}
   - {api_version: secrets.infisical.com/v1beta1, kind: InfisicalConnection}
   - {api_version: secrets.infisical.com/v1beta1, kind: InfisicalStaticSecret}
-reactive_resume_dev_soak_rr_name_pattern: reactive[-_]resume
+reactive_resume_dev_soak_rr_name_pattern: (?:reactive[-_]resume[-_]prod|prod[-_]reactive[-_]resume)
+reactive_resume_dev_soak_allowed_shared_prod_prerequisites:
+  - reactive-resume-prod
+  - reactive-resume-prod-owner
+  - shared-postgresql-reactive-resume-prod
 
 reactive_resume_dev_soak_repository_root: "{{ playbook_dir | ansible.builtin.dirname | ansible.builtin.dirname }}"
 reactive_resume_dev_soak_controller_user: "{{ lookup('ansible.builtin.env', 'USER') }}"

@@ -330,6 +330,8 @@
     api_version: networking.k8s.io/v1
     kind: Ingress
     namespace: "{{ reactive_resume_dev_soak_namespace }}"
+    label_selectors:
+      - "app.kubernetes.io/name={{ reactive_resume_dev_soak_deployment }}"
     kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
   register: reactive_resume_dev_soak_internal_namespace_ingresses
   check_mode: false
@@ -341,6 +343,8 @@
     api_version: v1
     kind: Service
     namespace: "{{ reactive_resume_dev_soak_namespace }}"
+    label_selectors:
+      - "app.kubernetes.io/name={{ reactive_resume_dev_soak_deployment }}"
     kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
   register: reactive_resume_dev_soak_internal_namespace_services
   check_mode: false
@@ -352,6 +356,8 @@
     api_version: networking.k8s.io/v1
     kind: NetworkPolicy
     namespace: "{{ reactive_resume_dev_soak_namespace }}"
+    label_selectors:
+      - "app.kubernetes.io/name={{ reactive_resume_dev_soak_deployment }}"
     kubeconfig: "{{ reactive_resume_dev_soak_kubeconfig }}"
   register: reactive_resume_dev_soak_internal_namespace_network_policies
   check_mode: false
@@ -377,8 +383,8 @@
       - >-
         reactive_resume_dev_soak_internal_namespace_network_policies.resources |
         map(attribute='metadata.name') | list | sort ==
-        ['reactive-resume-dev-default-deny', 'reactive-resume-dev-egress',
-         'reactive-resume-dev-route-allow-traefik']
+        ['reactive-resume-dev-allow-backend', 'reactive-resume-dev-default-deny',
+         'reactive-resume-dev-egress', 'reactive-resume-dev-route-allow-traefik']
     fail_msg: >-
       The API-wide DEV exposure closure must contain only the exact Service, Ingress,
       and NetworkPolicies; unlabeled selectors or routes are forbidden.
@@ -394,7 +400,7 @@
       - get
       - secret
       - "{{ reactive_resume_dev_soak_tls_secret }}"
-      - '-o=jsonpath={.type}{"\n"}{range $k,$v := .data}{$k}{"\n"}{end}'
+      - '-o=go-template={% raw %}{{.type}}{{"\n"}}{{range $k, $v := .data}}{{$k}}{{"\n"}}{{end}}{% endraw %}'
   register: reactive_resume_dev_soak_internal_tls_secret_metadata
   check_mode: false
   changed_when: false
@@ -500,23 +506,40 @@
   changed_when: false
   no_log: true
 
-- name: Require no unlabeled or common Reactive Resume PROD markers
+- name: Require no Reactive Resume PROD runtime or Argo markers
   ansible.builtin.assert:
     that:
       - >-
         (item.resources | map(attribute='metadata') | list | to_json |
         regex_findall(reactive_resume_dev_soak_rr_name_pattern) | length) == 0
     fail_msg: >-
-      No resource named with the exact Reactive Resume marker may exist in the
-      checked PROD, Argo, or shared-services inventories.
+      No Reactive Resume PROD runtime or Argo marker may exist while DEV-only
+      runtime acceptance is active.
   loop: >-
     {{ reactive_resume_dev_soak_internal_prod_inventory_results.results +
        reactive_resume_dev_soak_internal_argocd_results.results +
-       reactive_resume_dev_soak_internal_shared_results.results +
-       reactive_resume_dev_soak_internal_argocd_labeled_results.results +
+       reactive_resume_dev_soak_internal_argocd_labeled_results.results }}
+  loop_control:
+    label: fixed-rr-prod-runtime-marker-inventory
+  changed_when: false
+  no_log: true
+
+- name: Require only exact isolated shared PROD database prerequisites
+  ansible.builtin.assert:
+    that:
+      - >-
+        (item.resources | map(attribute='metadata.name') |
+        select('search', reactive_resume_dev_soak_rr_name_pattern) | list |
+        difference(reactive_resume_dev_soak_allowed_shared_prod_prerequisites) |
+        length) == 0
+    fail_msg: >-
+      Shared services may contain only the exact isolated Reactive Resume PROD
+      PostgreSQL prerequisites during DEV acceptance.
+  loop: >-
+    {{ reactive_resume_dev_soak_internal_shared_results.results +
        reactive_resume_dev_soak_internal_shared_labeled_results.results }}
   loop_control:
-    label: fixed-rr-marker-inventory
+    label: fixed-rr-shared-prod-prerequisite-inventory
   changed_when: false
   no_log: true
 

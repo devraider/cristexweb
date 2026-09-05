@@ -18,7 +18,7 @@
       - cristexhub_dev_registration_manifest_paths | length == 5
       - cristexhub_dev_registration_expected_hashes | length == 5
       - cristexhub_dev_registration_repository == 'ssh://git@ssh.github.com:443/devraider/cristexhub.git'
-      - cristexhub_dev_registration_revision == '57fffab4585fed12161144de7114c8ad05f3ba94'
+      - cristexhub_dev_registration_revision == 'ef57a7e2814321344a12233d906360fa5ff2e093'
       - cristexhub_dev_registration_path == 'infra/kubernetes/cristexhub-dev'
       - cristexhub_dev_registration_cluster_namespaces == 'cristexhub-dev,cristexhub-prod'
       - cristexhub_dev_registration_cluster_namespaces.split(',') == ['cristexhub-dev', 'cristexhub-prod']

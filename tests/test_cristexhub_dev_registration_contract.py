@@ -25,7 +25,7 @@ class RegistrationContractTests(unittest.TestCase):
         source = APP['spec']['source']
         self.assertEqual('ssh://git@ssh.github.com:443/devraider/cristexhub.git', source['repoURL'])
         self.assertRegex(source['targetRevision'], r'^[0-9a-f]{40}$')
-        self.assertEqual('57fffab4585fed12161144de7114c8ad05f3ba94', source['targetRevision'])
+        self.assertEqual('ef57a7e2814321344a12233d906360fa5ff2e093', source['targetRevision'])
         self.assertEqual('infra/kubernetes/cristexhub-dev', source['path'])
         self.assertEqual({'name':'cristexhub-dev-local','server':'','namespace':'cristexhub-dev'}, APP['spec']['destination'])
         self.assertNotIn('automated', APP['spec']['syncPolicy'])
@@ -67,4 +67,4 @@ class RegistrationContractTests(unittest.TestCase):
         self.assertIn('syncPolicy.automated is not defined', tasks)
         self.assertIn('Reconcile registration source without synchronization', tasks)
         self.assertNotIn('automated', APP['spec']['syncPolicy'])
-        self.assertIn('57fffab4585fed12161144de7114c8ad05f3ba94', defaults)
+        self.assertIn('ef57a7e2814321344a12233d906360fa5ff2e093', defaults)

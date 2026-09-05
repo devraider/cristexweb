@@ -80,6 +80,9 @@ class ReactiveResumeDevSoakContractTests(unittest.TestCase):
             'reactive_resume_dev_soak_internal_namespace_ingresses',
             'reactive_resume_dev_soak_internal_namespace_services',
             'reactive_resume_dev_soak_internal_namespace_network_policies',
+            'label_selectors:',
+            'app.kubernetes.io/name={{ reactive_resume_dev_soak_deployment }}',
+            "'reactive-resume-dev-allow-backend'",
             'unlabeled selectors or routes are forbidden',
         ):
             self.assertIn(value, self.sample, value)

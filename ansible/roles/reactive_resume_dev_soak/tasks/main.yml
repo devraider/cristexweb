@@ -112,7 +112,11 @@
           {'api_version': 'secrets.infisical.com/v1beta1', 'kind': 'InfisicalConnection'},
           {'api_version': 'secrets.infisical.com/v1beta1', 'kind': 'InfisicalStaticSecret'}
         ]
-      - reactive_resume_dev_soak_rr_name_pattern == 'reactive[-_]resume'
+      - reactive_resume_dev_soak_rr_name_pattern == '(?:reactive[-_]resume[-_]prod|prod[-_]reactive[-_]resume)'
+      - >-
+        reactive_resume_dev_soak_allowed_shared_prod_prerequisites ==
+        ['reactive-resume-prod', 'reactive-resume-prod-owner',
+         'shared-postgresql-reactive-resume-prod']
     fail_msg: >-
       The soak is a fixed 15-minute, 16-sample, check-only closure for the
       selected private DEV hostname and shared cristexhub realm.
