@@ -425,10 +425,10 @@
   ansible.builtin.assert:
     that:
       - item.resources | length == 0
+    fail_msg: No labeled Reactive Resume PROD resource may exist during the DEV soak.
   loop: "{{ reactive_resume_dev_soak_internal_prod_results.results }}"
   loop_control:
     label: fixed-prod-labeled-resource-class
-    fail_msg: No labeled Reactive Resume PROD resource may exist during the DEV soak.
   changed_when: false
   no_log: true
 
