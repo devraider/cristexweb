@@ -568,6 +568,11 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
                 "controller_sha256_expected=" + hashlib.sha256(controller.read_bytes()).hexdigest(),
                 script.read_text(),
             )
+            sandbox_wrapper = re.sub(
+                r"(?m)^python_sha256_expected=[0-9a-f]{64}$",
+                "python_sha256_expected=" + hashlib.sha256(Path("/usr/bin/python3").read_bytes()).hexdigest(),
+                sandbox_wrapper,
+            )
             canonical_wrapper = re.sub(
                 r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$",
                 "wrapper_canonical_sha256_expected='" + ("0" * 64) + "'",

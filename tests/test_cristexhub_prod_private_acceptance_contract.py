@@ -518,6 +518,8 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         wrapper_canonical = module._wrapper_canonical_hash(module._WRAPPER_SOURCE)
         python_target = module._python_target()
         self.assertIsNotNone(python_target)
+        module._VENV_PYTHON_TARGET = python_target
+        module._EXPECTED_PYTHON_SHA256 = module._sha256(python_target)
         hash_values = {
             "TASK_SHA256": module._sha256(module._TASK_SOURCE),
             "DEFAULTS_SHA256": module._sha256(module._DEFAULTS_SOURCE),
@@ -664,6 +666,7 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         venv_hash_name = "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_SHA256"
         original = {key: os.environ.get(key) for key in (name, venv_target_name, venv_hash_name)}
         os.environ[name] = hashlib.sha256(target.read_bytes()).hexdigest()
+        module._EXPECTED_PYTHON_SHA256 = os.environ[name]
         with tempfile.TemporaryDirectory() as directory:
             venv_python = Path(directory) / "python"
             venv_python.symlink_to("/usr/bin/python3")
