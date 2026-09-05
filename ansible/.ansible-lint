@@ -1,5 +1,8 @@
 ---
 profile: production
+warn_list:
+  - yaml[line-length]
+  - yaml[octal-values]
 exclude_paths:
   - .ansible/
   - files/components/infisical-operator/
