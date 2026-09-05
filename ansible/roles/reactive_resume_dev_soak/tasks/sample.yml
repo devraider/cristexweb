@@ -262,10 +262,14 @@
       - reactive_resume_dev_soak_internal_ingress.resources | length == 1
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.ingressClassName == 'traefik'
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.defaultBackend is not defined
+      - reactive_resume_dev_soak_internal_ingress.resources[0].metadata.annotations['traefik.ingress.kubernetes.io/router.entrypoints'] == 'websecure'
+      - reactive_resume_dev_soak_internal_ingress.resources[0].metadata.annotations['traefik.ingress.kubernetes.io/router.tls'] == 'true'
       - >-
-        reactive_resume_dev_soak_internal_ingress.resources[0].metadata.annotations ==
-        {'traefik.ingress.kubernetes.io/router.entrypoints': 'websecure',
-         'traefik.ingress.kubernetes.io/router.tls': 'true'}
+        (reactive_resume_dev_soak_internal_ingress.resources[0].metadata.annotations.keys() | list |
+         difference(['traefik.ingress.kubernetes.io/router.entrypoints',
+                     'traefik.ingress.kubernetes.io/router.tls',
+                     'argocd.argoproj.io/tracking-id',
+                     'kubectl.kubernetes.io/last-applied-configuration'])) | length == 0
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules | length == 1
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules[0].host == reactive_resume_dev_soak_hostname
       - reactive_resume_dev_soak_internal_ingress.resources[0].spec.rules[0].http.paths | length == 1
