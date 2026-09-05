@@ -15,7 +15,7 @@ NetworkPolicies (including `networkpolicy-allow-backend.yaml`), and the private
 Traefik Ingress. This closure is claimed live and Argo-managed. The migration
 Job is excluded from the automated Argo desired-state by design. The exact
 Infisical TLS writer Role and RoleBinding are separately source-owned under
-`ansible/files/components/reactive-resume-dev-tls-rbac/` because the narrow Argo
+`ansible/files/components/reactive-resume-dev-tls/rbac/` because the narrow Argo
 AppProject intentionally excludes RBAC mutation.
 The Ingress references the precreated `reactive-resume-dev-tls` Secret; this
 path never creates or updates Secrets, PVCs, Namespaces, Jobs, object storage,
