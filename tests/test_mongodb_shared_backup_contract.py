@@ -158,6 +158,7 @@ class MongoDBSharedBackupContractTests(unittest.TestCase):
         self.assertNotIn("postgresql-keycloak", self.service + self.timer)
         self.assertIn("/var/lib/cristexweb-backup/mongodb", self.playbook)
         self.assertIn("/var/lib/cristexweb-backup/mongodb/shared-mongodb", self.playbook)
+        self.assertIn("/var/lib/cristexweb-backup/acceptance/mongodb/shared-mongodb", self.playbook)
         self.assertNotIn("/var/lib/cristexweb-backup/postgresql/keycloak", self.playbook)
         self.assertIn("/usr/bin/timeout", self.playbook)
         self.assertIn("Roll back timer after failed post-enable validation", self.playbook)
@@ -176,6 +177,40 @@ class MongoDBSharedBackupContractTests(unittest.TestCase):
             "mongodb_shared_backup_timer_enabled.stdout == 'enabled'",
         ):
             self.assertIn(value, self.playbook)
+
+    def test_test_and_restore_persist_exact_sanitized_acceptance_receipts(self) -> None:
+        for value in (
+            "Require no in-flight backup before the one-time test",
+            "Capture the exact journal cursor before the backup test",
+            "Bind the exact pre-test journal cursor",
+            "Refuse an in-flight backup or invalid journal cursor",
+            "/usr/bin/journalctl",
+            "--after-cursor={{ mongodb_shared_backup_test_cursor }}",
+            "_SYSTEMD_INVOCATION_ID={{ mongodb_shared_backup_test_invocation.stdout }}",
+            "Require a fresh exact systemd backup invocation",
+            "Require one exact bounded sanitized backup receipt",
+            "mongodb_shared_backup_test_receipts | length == 1",
+            "Persist the exact sanitized backup acceptance receipt",
+            "Persist the exact sanitized restore acceptance receipt",
+            "/var/lib/cristexweb-backup/acceptance/mongodb/shared-mongodb/backup.receipt",
+            "/var/lib/cristexweb-backup/acceptance/mongodb/shared-mongodb/restore.receipt",
+            "source_closure_sha256='",
+        ):
+            self.assertIn(value, self.playbook)
+        self.assertGreater(
+            self.playbook.index("Require the sanitized successful restore receipt"),
+            self.playbook.index("Execute the separately approved isolated restore rehearsal"),
+        )
+        self.assertGreater(
+            self.playbook.index("Persist the exact sanitized restore acceptance receipt"),
+            self.playbook.index("Require the sanitized successful restore receipt"),
+        )
+        self.assertNotIn("journalctl -f", self.playbook)
+        self.assertNotIn("--since", self.playbook)
+        self.assertIn("mongodb_shared_backup_test_cursor is match('^[A-Za-z0-9_;=.-]+$')", self.playbook)
+        self.assertIn("Invalidate prior backup acceptance before a new test", self.playbook)
+        self.assertIn("Invalidate prior restore acceptance before a new rehearsal", self.playbook)
+        self.assertIn("item.stat.gr_name == 'root'", self.playbook)
 
     def test_wrapper_is_non_passthrough_and_exact(self) -> None:
         self.assertIn("check|apply|test|restore|enable-check|enable-apply", self.wrapper)
