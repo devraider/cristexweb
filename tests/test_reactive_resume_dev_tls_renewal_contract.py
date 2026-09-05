@@ -755,7 +755,8 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         with (
             mock.patch.dict(module.os.environ, env, clear=True),
             mock.patch.object(module.ActionBase, "run", return_value={}),
-                    mock.patch.object(module, "_wrapper_binding_valid", return_value=True),
+            mock.patch.object(module, "_source_contract", return_value=True),
+            mock.patch.object(module, "_wrapper_binding_valid", return_value=True),
             mock.patch.object(
                 module.context,
                 "CLIARGS",

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import pwd
 import re
 from pathlib import Path
 import subprocess
@@ -532,6 +533,9 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
             sandbox_wrapper = wrapper.replace(
                 "expected_repository_root=/home/paul/projects/cristexweb",
                 f"expected_repository_root={root}",
+            ).replace(
+                '[ "$controller_user" = paul ]',
+                f'[ "$controller_user" = {pwd.getpwuid(os.getuid()).pw_name} ]',
             )
             canonical_wrapper = re.sub(
                 r"(?m)^wrapper_canonical_sha256_expected='[0-9a-f]{64}'$",

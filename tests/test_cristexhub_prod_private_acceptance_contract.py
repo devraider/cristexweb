@@ -583,6 +583,8 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
     def test_wrapper_binding_rejects_missing_or_forged_operator(self) -> None:
         module, environment, attestation_path = self._wrapper_binding_fixture()
         prefix = "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_"
+        python_target = module._python_target()
+        self.assertIsNotNone(python_target)
         try:
             with mock.patch.object(module, "_ancestor", return_value=True), mock.patch.object(
                 module, "_proc_starttime", return_value="123456"
@@ -592,6 +594,8 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
                 return_value=["/bin/dash", str(module._WRAPPER_SOURCE), "check"],
             ), mock.patch.object(
                 module, "_python_runtime_contract", return_value=True
+            ), mock.patch.object(
+                module, "_python_target", return_value=python_target
             ), mock.patch.object(
                 module.context, "CLIARGS", {"check": True, "diff": True}
             ), mock.patch.dict(os.environ, environment, clear=False):
