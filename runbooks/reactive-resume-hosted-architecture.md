@@ -256,10 +256,12 @@ The private DEV Traefik Ingress is live and Argo-managed through the Tailscale-o
 hostname. NodePort, LoadBalancer, Cloudflare Tunnel/DNS routing, public
 administration, public Traefik routing, and direct origins remain forbidden. Any
 future public route requires separate provider, hostname, positive-flow,
-negative-admin/direct-origin, and rollback approval and is last. Argo now owns the exact seven-object namespaced workload set from pinned
-revision `dd7d4cedd902e68266d9713d1dbb8e90f0b529b1`; the current-HEAD
-`networkpolicy-allow-backend.yaml` is not claimed live or Argo-managed. The
-superseded Ansible alignment and route lanes refuse tracked objects. The API omits `metadata.managedFields`, so that
+negative-admin/direct-origin, and rollback approval and is last. Argo now owns
+the exact ten-object namespaced closure from pinned revision
+`f5d15f011865a93c16278ed7b89cf32c02c52fa8`, including the backend allow policy
+and least-privilege Infisical TLS writer Role/RoleBinding. The superseded Ansible
+alignment and route lanes refuse tracked objects. The API omits
+`metadata.managedFields`, so that
 evidence is unavailable rather than claimed. Dual reconciliation remains
 forbidden.
 
@@ -268,9 +270,9 @@ forbidden.
 Reactive Resume PROD is represented only as a promotion template for
 `cristexhub-prod`, `reactive-resume-prod`, `reactive_resume_prod`, and separate
 credential/backup scopes. This Reactive Resume template has no generated manifests,
-runtime objects, Secret values, selected callbacks, accepted database provisioning,
-or public route. Existing broad-lane PROD database/role/credential objects are
-unapproved drift, not fulfillment of this reservation. No PROD object may be generated
+runtime objects, Secret values, selected callbacks, or public route. The exact
+isolated shared PostgreSQL database, owner role, and generated credential Secret
+are accepted prerequisites only; they do not activate a PROD workload. No PROD object may be generated
 from a reservation, and no PROD activation may happen before private DEV validation
 and an explicit DEV soak.
 
@@ -278,7 +280,8 @@ The machine-readable promotion order is mandatory:
 
 1. complete source/image/identity/Infisical/database/storage/recovery blockers;
 2. separately approve and validate private DEV;
-3. complete the declared DEV soak and recovery evidence;
+3. complete the declared DEV soak and recovery evidence (**complete: 16 samples,
+   60-second interval, 900-second required duration, sanitized PASS receipt**);
 4. only then design/check/apply separate PROD scopes and private validation;
 5. public routing is last and independently approved.
 
@@ -288,9 +291,10 @@ unaccepted migrations/workloads.
 
 ## Current runtime boundary and custody
 
-The private DEV Deployment, Service, ServiceAccount, three workload NetworkPolicies,
-private Ingress, runtime Secret, materialized CA, and Argo Application are live
-checkpoints. The seven workload manifests are value-free; Secret values remain
+The private DEV Deployment, Service, ServiceAccount, four workload NetworkPolicies,
+private Ingress, least-privilege TLS writer RBAC, runtime Secret, materialized CA,
+and Argo Application are live checkpoints. The ten Argo manifests are value-free;
+Secret values remain
 Infisical-owned. The live image digest is a DEV selection only and is not accepted
 for promotion. PostgreSQL data restore, role/ACL restore, and credential custody are
 separate contracts. No PROD workload or public route is authorized. Read-only contact included
