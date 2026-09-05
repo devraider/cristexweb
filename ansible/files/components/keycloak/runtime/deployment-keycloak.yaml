@@ -51,6 +51,9 @@ spec:
               containerPort: 9000
               protocol: TCP
           env:
+            - {name: KC_HTTPS_CERTIFICATE_FILE, value: /opt/keycloak/conf/private-tls/tls.crt}
+            - {name: KC_HTTPS_CERTIFICATE_KEY_FILE, value: /opt/keycloak/conf/private-tls/tls.key}
+            - {name: KC_HTTPS_PORT, value: "8443"}
             - {name: KC_DB, value: postgres}
             - {name: KC_DB_URL, value: "jdbc:postgresql://shared-postgresql-rw.shared-services.svc:5432/keycloak?sslmode=verify-full&sslrootcert=/opt/keycloak/conf/postgresql-ca.crt"}
             - {name: KC_DB_USERNAME, valueFrom: {secretKeyRef: {name: shared-postgresql-keycloak, key: username}}}
@@ -65,6 +68,7 @@ spec:
             - {name: HTTPS_PROXY, value: "http://oidc-connect-proxy.shared-services.svc.cluster.local:3128"}
             - {name: NO_PROXY, value: "localhost,127.0.0.1,.svc,.svc.cluster.local"}
           volumeMounts:
+            - {name: keycloak-private-tls, mountPath: /opt/keycloak/conf/private-tls, readOnly: true}
             - {name: postgresql-ca, mountPath: /opt/keycloak/conf/postgresql-ca.crt, subPath: ca.crt, readOnly: true}
             - {name: keycloak-data, mountPath: /opt/keycloak/data}
             - {name: cristexhub-realm, mountPath: /opt/keycloak/data/import, readOnly: true}
@@ -91,6 +95,13 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
       volumes:
+        - name: keycloak-private-tls
+          secret:
+            secretName: keycloak-private-tls
+            items:
+              - {key: tls.crt, path: tls.crt}
+              - {key: tls.key, path: tls.key}
+            defaultMode: 0440
         - name: cristexhub-realm
           configMap:
             name: keycloak-realm-cristexhub

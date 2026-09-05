@@ -80,6 +80,14 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
         )
         self.assertEqual("xforwarded", next(e["value"] for e in container["env"] if e["name"] == "KC_PROXY_HEADERS"))
         env = {item["name"]: item.get("value") for item in container["env"]}
+        self.assertEqual("/opt/keycloak/conf/private-tls/tls.crt", env["KC_HTTPS_CERTIFICATE_FILE"])
+        self.assertEqual("/opt/keycloak/conf/private-tls/tls.key", env["KC_HTTPS_CERTIFICATE_KEY_FILE"])
+        tls_volume = next(v for v in pod_spec["volumes"] if v["name"] == "keycloak-private-tls")
+        self.assertEqual("keycloak-private-tls", tls_volume["secret"]["secretName"])
+        self.assertEqual({"tls.crt", "tls.key"}, {item["key"] for item in tls_volume["secret"]["items"]})
+        tls_mount = next(m for m in container["volumeMounts"] if m["name"] == "keycloak-private-tls")
+        self.assertEqual("/opt/keycloak/conf/private-tls", tls_mount["mountPath"])
+        self.assertTrue(tls_mount["readOnly"])
         self.assertEqual(
             "http://oidc-connect-proxy.shared-services.svc.cluster.local:3128",
             env["HTTPS_PROXY"],
@@ -105,8 +113,7 @@ class KeycloakRuntimeSourceContractTests(unittest.TestCase):
         mount = next(m for m in container["volumeMounts"] if m["name"] == "postgresql-ca")
         self.assertTrue(mount["readOnly"])
         self.assertEqual("/opt/keycloak/conf/postgresql-ca.crt", mount["mountPath"])
-        source = str(deployment)
-        self.assertNotRegex(source, r"(?i)(ca\.key|tls\.key|POSTGRESQL_TLS_KEY)")
+        self.assertNotRegex(str(ca_volume), r"(?i)(ca\.key|tls\.key|POSTGRESQL_TLS_KEY)")
 
     def test_secret_refs_probes_resources_and_security_context_are_explicit(self) -> None:
         deployment = self.by_kind["Deployment"][0]
