@@ -257,9 +257,10 @@ hostname. NodePort, LoadBalancer, Cloudflare Tunnel/DNS routing, public
 administration, public Traefik routing, and direct origins remain forbidden. Any
 future public route requires separate provider, hostname, positive-flow,
 negative-admin/direct-origin, and rollback approval and is last. Argo now owns
-the exact ten-object namespaced closure from pinned revision
-`5a63a9c743b54dd2cebaac190e370871b929c428`, including the backend allow policy
-and least-privilege Infisical TLS writer Role/RoleBinding. The superseded Ansible
+the exact eight-object namespaced closure from pinned revision
+`5a63a9c743b54dd2cebaac190e370871b929c428`, including the backend allow policy.
+The least-privilege Infisical TLS writer Role/RoleBinding are separately
+source-owned because the narrow Argo project intentionally excludes RBAC mutation. The superseded Ansible
 alignment and route lanes refuse tracked objects. The API omits
 `metadata.managedFields`, so that
 evidence is unavailable rather than claimed. Dual reconciliation remains
@@ -293,7 +294,7 @@ unaccepted migrations/workloads.
 
 The private DEV Deployment, Service, ServiceAccount, four workload NetworkPolicies,
 private Ingress, least-privilege TLS writer RBAC, runtime Secret, materialized CA,
-and Argo Application are live checkpoints. The ten Argo manifests are value-free;
+and Argo Application are live checkpoints. The eight Argo manifests are value-free;
 Secret values remain
 Infisical-owned. The live image digest is a DEV selection only and is not accepted
 for promotion. PostgreSQL data restore, role/ACL restore, and credential custody are

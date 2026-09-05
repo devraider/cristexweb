@@ -16,8 +16,6 @@ REGISTRATION = ROOT / "ansible/files/components/reactive-resume-dev-argocd-regis
 EXPECTED_FILES = {
     "deployment.yaml",
     "ingress-private.yaml",
-    "infisical-tls-writer-binding.yaml",
-    "infisical-tls-writer-rbac.yaml",
     "networkpolicy-allow-backend.yaml",
     "networkpolicy-default-deny.yaml",
     "networkpolicy-egress.yaml",
@@ -42,14 +40,12 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         paths = {path.name for path in SOURCE.glob("*.yaml")}
         self.assertEqual(EXPECTED_FILES, paths)
         objects = load_objects()
-        self.assertEqual(10, len(objects))
+        self.assertEqual(8, len(objects))
         self.assertEqual(
             {
                 "Deployment",
                 "Ingress",
                 "NetworkPolicy",
-                "Role",
-                "RoleBinding",
                 "Service",
                 "ServiceAccount",
             },
@@ -105,25 +101,6 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         self.assertEqual("reactive-resume-dev-postgresql-ca", migration["spec"]["template"]["spec"]["volumes"][0]["configMap"]["name"])
         self.assertNotIn("migration-job.yaml", {path.name for path in SOURCE.glob("*.yaml")})
 
-    def test_infisical_tls_writer_rbac_is_exact(self) -> None:
-        objects = load_objects()
-        role = next(obj for obj in objects if obj["kind"] == "Role")
-        binding = next(obj for obj in objects if obj["kind"] == "RoleBinding")
-        self.assertEqual(
-            [{
-                "apiGroups": [""],
-                "resources": ["secrets"],
-                "resourceNames": ["reactive-resume-dev-tls"],
-                "verbs": ["get", "update", "patch"],
-            }],
-            role["rules"],
-        )
-        self.assertEqual("reactive-resume-dev-tls-infisical-writer", binding["roleRef"]["name"])
-        self.assertEqual(
-            [{"kind": "ServiceAccount", "name": "infisical-operator-controller", "namespace": "shared-services"}],
-            binding["subjects"],
-        )
-
     def test_route_and_network_boundaries_are_private(self) -> None:
         objects = load_objects()
         ingress = next(obj for obj in objects if obj["kind"] == "Ingress")
@@ -144,20 +121,20 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         self.assertEqual("kube-system", route["spec"]["ingress"][0]["from"][0]["namespaceSelector"]["matchLabels"]["kubernetes.io/metadata.name"])
         self.assertEqual("traefik", route["spec"]["ingress"][0]["from"][0]["podSelector"]["matchLabels"]["app.kubernetes.io/name"])
 
-    def test_registration_points_at_pinned_ten_object_revision(self) -> None:
+    def test_registration_points_at_pinned_eight_object_revision(self) -> None:
         registration = yaml.safe_load(REGISTRATION.read_text())
         self.assertEqual("ansible/files/components/reactive-resume-dev-argocd", registration["spec"]["source"]["path"])
         self.assertEqual(PINNED_REVISION, registration["spec"]["source"]["targetRevision"])
-        self.assertEqual(10, len(PINNED_FILES))
+        self.assertEqual(8, len(PINNED_FILES))
         self.assertIn("networkpolicy-allow-backend.yaml", PINNED_FILES)
         self.assertFalse(registration["spec"]["syncPolicy"]["automated"]["prune"])
         self.assertFalse(registration["spec"]["syncPolicy"]["automated"]["allowEmpty"])
         self.assertTrue(registration["spec"]["syncPolicy"]["automated"]["selfHeal"])
 
-    def test_head_ten_manifest_is_claimed_live_and_argo_managed(self) -> None:
+    def test_head_eight_manifest_is_claimed_live_and_argo_managed(self) -> None:
         runbook = RUNBOOK.read_text()
         normalized = " ".join(runbook.split())
-        self.assertIn("source contains exactly ten value-free Kubernetes objects", normalized)
+        self.assertIn("source contains exactly eight value-free Kubernetes objects", normalized)
         self.assertIn("networkpolicy-allow-backend.yaml", normalized)
         self.assertIn("claimed live and Argo-managed", runbook)
 

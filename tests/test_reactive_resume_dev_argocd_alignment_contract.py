@@ -30,10 +30,10 @@ def load(path: Path) -> dict:
 
 
 class ReactiveResumeDevArgoAlignmentContractTests(unittest.TestCase):
-    def test_exact_fourteen_object_closure(self) -> None:
+    def test_exact_twelve_object_closure(self) -> None:
         objects = [load(p) for p in sorted(DEV.glob("*.yaml"))] + [load(p) for p in DESTINATION]
-        self.assertEqual(14, len(objects))
-        self.assertEqual(10, sum(o["metadata"]["namespace"] == "cristexhub-dev" for o in objects))
+        self.assertEqual(12, len(objects))
+        self.assertEqual(8, sum(o["metadata"]["namespace"] == "cristexhub-dev" for o in objects))
         self.assertEqual(4, sum(o["metadata"]["namespace"] == "shared-services" for o in objects))
         self.assertEqual(8, sum(o["kind"] == "NetworkPolicy" for o in objects))
         self.assertFalse(any(o["kind"] in {"Job", "Secret"} for o in objects))
@@ -42,12 +42,12 @@ class ReactiveResumeDevArgoAlignmentContractTests(unittest.TestCase):
 
     def test_defaults_bind_exact_paths_and_raw_hashes(self) -> None:
         defaults = load(DEFAULTS)
-        self.assertEqual(14, defaults["reactive_resume_dev_argocd_alignment_object_count"])
-        self.assertEqual(10, defaults["reactive_resume_dev_argocd_alignment_source_object_count"])
+        self.assertEqual(12, defaults["reactive_resume_dev_argocd_alignment_object_count"])
+        self.assertEqual(8, defaults["reactive_resume_dev_argocd_alignment_source_object_count"])
         self.assertEqual(4, defaults["reactive_resume_dev_argocd_alignment_destination_policy_count"])
-        self.assertEqual(14, len(defaults["reactive_resume_dev_argocd_alignment_manifest_paths"]))
+        self.assertEqual(12, len(defaults["reactive_resume_dev_argocd_alignment_manifest_paths"]))
         hashes = defaults["reactive_resume_dev_argocd_alignment_expected_hashes"]
-        self.assertEqual(14, len(hashes))
+        self.assertEqual(12, len(hashes))
         expected = [*sorted(DEV.glob("*.yaml")), *DESTINATION]
         for path, entry in zip(expected, hashes):
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), entry["sha256"])
@@ -68,7 +68,7 @@ class ReactiveResumeDevArgoAlignmentContractTests(unittest.TestCase):
             for item in defaults['reactive_resume_dev_argocd_alignment_expected_identities']
         }
         self.assertEqual(expected, configured)
-        self.assertEqual(14, len(configured))
+        self.assertEqual(12, len(configured))
         self.assertNotIn(('batch/v1', 'Job', 'cristexhub-dev', 'reactive-resume-dev-migrate'), configured)
 
     def test_action_guard_identity_and_hash_sets_match_source(self) -> None:
@@ -91,7 +91,7 @@ class ReactiveResumeDevArgoAlignmentContractTests(unittest.TestCase):
             for item in source
         }
         self.assertEqual(expected_hashes, constants['EXPECTED_HASHES'])
-        self.assertEqual(14, len(defaults['reactive_resume_dev_argocd_alignment_expected_identities']))
+        self.assertEqual(12, len(defaults['reactive_resume_dev_argocd_alignment_expected_identities']))
 
     def test_action_guard_is_exact_and_non_destructive(self) -> None:
         text = PLUGIN.read_text()
@@ -108,12 +108,12 @@ class ReactiveResumeDevArgoAlignmentContractTests(unittest.TestCase):
     def test_role_and_wrapper_are_guarded(self) -> None:
         tasks = TASKS.read_text()
         wrapper = WRAPPER.read_text()
-        self.assertIn("exactly ten DEV objects and four destination NetworkPolicies", tasks)
+        self.assertIn("exactly eight DEV objects and four destination NetworkPolicies", tasks)
         self.assertIn("map(attribute='kind') | list | sort", tasks)
         for kind in ('Deployment', 'Ingress', 'Service', 'ServiceAccount'):
             self.assertIn(kind, tasks)
         self.assertIn("selectattr('kind', 'equalto', 'NetworkPolicy')", tasks)
-        self.assertIn("Reconcile only the exact fourteen alignment objects", tasks)
+        self.assertIn("Reconcile only the exact twelve alignment objects", tasks)
         self.assertIn("kind', 'equalto', 'Job') | list | length == 0", tasks)
         self.assertIn("kind', 'equalto', 'Secret') | list | length == 0", tasks)
         self.assertIn("ownerReferences", tasks)

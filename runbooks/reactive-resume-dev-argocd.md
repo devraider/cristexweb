@@ -8,16 +8,18 @@ ansible/files/components/reactive-resume-dev-argocd/
 ```
 
 The live Argo application is pinned to revision
-`5a63a9c743b54dd2cebaac190e370871b929c428`, whose source contains exactly ten
+`5a63a9c743b54dd2cebaac190e370871b929c428`, whose source contains exactly eight
 value-free Kubernetes objects in `cristexhub-dev`: one immutable-digest
 Deployment, one ClusterIP Service, one tokenless ServiceAccount, four workload
-NetworkPolicies (including `networkpolicy-allow-backend.yaml`), the private
-Traefik Ingress, and the exact Infisical TLS writer Role and RoleBinding. This closure is claimed live and Argo-managed. The
-migration Job is excluded from the automated Argo desired-state by design.
+NetworkPolicies (including `networkpolicy-allow-backend.yaml`), and the private
+Traefik Ingress. This closure is claimed live and Argo-managed. The migration
+Job is excluded from the automated Argo desired-state by design. The exact
+Infisical TLS writer Role and RoleBinding are separately source-owned under
+`ansible/files/components/reactive-resume-dev-tls-rbac/` because the narrow Argo
+AppProject intentionally excludes RBAC mutation.
 The Ingress references the precreated `reactive-resume-dev-tls` Secret; this
 path never creates or updates Secrets, PVCs, Namespaces, Jobs, object storage,
-database, or Infisical custom resources. Its only RBAC grants the Infisical
-controller get/update/patch access to that one named TLS Secret.
+database, or Infisical custom resources.
 
 ## Fixed object contract
 
@@ -56,7 +58,7 @@ all migration checks must use that name and the separate one-shot gate.
 
 ## Handoff sequence
 
-The guarded handoff is complete: Argo owns the exact ten-object source closure
+The guarded handoff is complete: Argo owns the exact eight-object source closure
 at the pinned revision, while the migration Job remains outside Argo as a
 verified one-shot prerequisite. It must not be recreated, rerun, or updated by
 Argo `selfHeal`. Secret values, PVCs, database objects, and migration execution

@@ -10,8 +10,6 @@ reactive_resume_dev_argocd_alignment_destination_root: >-
   {{ reactive_resume_dev_argocd_alignment_repository_root }}/ansible/files/components
 reactive_resume_dev_argocd_alignment_manifest_paths:
   - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/deployment.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/infisical-tls-writer-binding.yaml"
-  - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/infisical-tls-writer-rbac.yaml"
   - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/ingress-private.yaml"
   - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/networkpolicy-allow-backend.yaml"
   - "{{ reactive_resume_dev_argocd_alignment_workload_root }}/networkpolicy-default-deny.yaml"
@@ -23,16 +21,12 @@ reactive_resume_dev_argocd_alignment_manifest_paths:
   - "{{ reactive_resume_dev_argocd_alignment_destination_root }}/keycloak/network/keycloak-allow-reactive-resume-dev.yaml"
   - "{{ reactive_resume_dev_argocd_alignment_destination_root }}/oidc-connect-proxy/network/oidc-connect-proxy-allow-reactive-resume-dev.yaml"
   - "{{ reactive_resume_dev_argocd_alignment_destination_root }}/reactive-resume-dev-networkpolicy/network/reactive-resume-object-storage-allow-dev.yaml"
-reactive_resume_dev_argocd_alignment_object_count: 14
-reactive_resume_dev_argocd_alignment_source_object_count: 10
+reactive_resume_dev_argocd_alignment_object_count: 12
+reactive_resume_dev_argocd_alignment_source_object_count: 8
 reactive_resume_dev_argocd_alignment_destination_policy_count: 4
 reactive_resume_dev_argocd_alignment_expected_hashes:
   - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/deployment.yaml"
     sha256: aa9d9d542b0a32cd9d84b3f30f0427aa8f209ad8acbe9c393dae15c557593985
-  - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/infisical-tls-writer-binding.yaml"
-    sha256: bf755cb4bdecc99c79533e84b22830ecd8a454e1eb0b4db006e9da51004468ee
-  - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/infisical-tls-writer-rbac.yaml"
-    sha256: e3c07cae3ca6c0a230a072f98c4e6253a1fb5db96c694f1296e82aac06311b76
   - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/ingress-private.yaml"
     sha256: af470655a1762abf48c9fc3f9a4d0a9015e0afd74b952c5212be7742e4444571
   - path: "{{ reactive_resume_dev_argocd_alignment_workload_root }}/networkpolicy-allow-backend.yaml"
@@ -57,8 +51,6 @@ reactive_resume_dev_argocd_alignment_expected_hashes:
     sha256: 79687232a2a98efaf10db9671ed98d67ed677db3a07729748fbc7df0e4010420
 reactive_resume_dev_argocd_alignment_expected_identities:
   - {apiVersion: apps/v1, kind: Deployment, namespace: cristexhub-dev, name: reactive-resume-dev}
-  - {apiVersion: rbac.authorization.k8s.io/v1, kind: RoleBinding, namespace: cristexhub-dev, name: reactive-resume-dev-tls-infisical-writer}
-  - {apiVersion: rbac.authorization.k8s.io/v1, kind: Role, namespace: cristexhub-dev, name: reactive-resume-dev-tls-infisical-writer}
   - {apiVersion: networking.k8s.io/v1, kind: Ingress, namespace: cristexhub-dev, name: reactive-resume-dev-private}
   - {apiVersion: networking.k8s.io/v1, kind: NetworkPolicy, namespace: cristexhub-dev, name: reactive-resume-dev-allow-backend}
   - {apiVersion: networking.k8s.io/v1, kind: NetworkPolicy, namespace: cristexhub-dev, name: reactive-resume-dev-default-deny}
