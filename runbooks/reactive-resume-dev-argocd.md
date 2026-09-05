@@ -11,15 +11,17 @@ The live Argo application is pinned to revision
 `faf2e5f108d02e096379b4619ee78b114f6219a7`, whose source contains exactly seven
 value-free Kubernetes objects in `cristexhub-dev`: one immutable-digest
 Deployment, one ClusterIP Service, one tokenless ServiceAccount, three workload
-NetworkPolicies, and the private Traefik Ingress. Current HEAD contains eight
+NetworkPolicies, and the private Traefik Ingress. Current HEAD contains ten
 YAML manifests in this path: it additionally checks in
-`networkpolicy-allow-backend.yaml`. That eighth HEAD manifest is source-only and
-is not claimed live, Argo-managed, or applied; it is not part of the pinned
-revision until a separately reviewed revision and runtime handoff. The migration
-Job is excluded from the automated Argo desired-state by design.
-The Ingress references the precreated
-`reactive-resume-dev-tls` Secret; this path never creates or updates Secrets,
-PVCs, Namespaces, RBAC, Jobs, object storage, database, or Infisical resources.
+`networkpolicy-allow-backend.yaml` and the exact Infisical TLS writer Role and
+RoleBinding. Those three HEAD manifests are source-only and are
+not claimed live, Argo-managed, or applied from this revision until a separately
+reviewed runtime handoff. The
+migration Job is excluded from the automated Argo desired-state by design.
+The Ingress references the precreated `reactive-resume-dev-tls` Secret; this
+path never creates or updates Secrets, PVCs, Namespaces, Jobs, object storage,
+database, or Infisical custom resources. Its only RBAC grants the Infisical
+controller get/update/patch access to that one named TLS Secret.
 
 ## Fixed object contract
 

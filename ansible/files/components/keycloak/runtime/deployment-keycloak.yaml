@@ -40,7 +40,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: keycloak
-          image: ghcr.io/devraider/cristexhub/keycloak@sha256:e837165e5cfa64baf7ef06d894ccca55418863d31a41973c3eedc14a0b0ae91f
+          image: ghcr.io/devraider/cristexhub/keycloak@sha256:0c9d87edd491aeecaefab87643640d836f17ba11aa76bea8dc3e6aa8e9c1902f
           imagePullPolicy: IfNotPresent
           args: [start, --import-realm]
           ports:

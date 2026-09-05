@@ -16,6 +16,8 @@ REGISTRATION = ROOT / "ansible/files/components/reactive-resume-dev-argocd-regis
 EXPECTED_FILES = {
     "deployment.yaml",
     "ingress-private.yaml",
+    "infisical-tls-writer-binding.yaml",
+    "infisical-tls-writer-rbac.yaml",
     "networkpolicy-allow-backend.yaml",
     "networkpolicy-default-deny.yaml",
     "networkpolicy-egress.yaml",
@@ -27,8 +29,12 @@ HANDOFF = ROOT / "ansible/files/policies/reactive-resume-dev-argocd-handoff"
 RUNTIME_DIGEST = "sha256:720ff5a60a7f6b91a75535e230dbb664207fdf1bc5cb8732d584bae7ebdac13c"
 MIGRATION_DIGEST = "sha256:a4f0157e023c10c1c6ff163d34bf25c3343647247eddb1d4f9bfa9b46e1a3093"
 MIGRATION_SOURCE_SHA256 = "b262ddb6834eb9d14d0eb279bb1a1c8686df83fedea56dc51d01fddc2281a3ac"
-PINNED_REVISION = "dd7d4cedd902e68266d9713d1dbb8e90f0b529b1"
-PINNED_FILES = EXPECTED_FILES - {"networkpolicy-allow-backend.yaml"}
+PINNED_REVISION = "faf2e5f108d02e096379b4619ee78b114f6219a7"
+PINNED_FILES = EXPECTED_FILES - {
+    "networkpolicy-allow-backend.yaml",
+    "infisical-tls-writer-binding.yaml",
+    "infisical-tls-writer-rbac.yaml",
+}
 
 
 def load_objects() -> list[dict]:
@@ -40,12 +46,14 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         paths = {path.name for path in SOURCE.glob("*.yaml")}
         self.assertEqual(EXPECTED_FILES, paths)
         objects = load_objects()
-        self.assertEqual(8, len(objects))
+        self.assertEqual(10, len(objects))
         self.assertEqual(
             {
                 "Deployment",
                 "Ingress",
                 "NetworkPolicy",
+                "Role",
+                "RoleBinding",
                 "Service",
                 "ServiceAccount",
             },
@@ -101,6 +109,25 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         self.assertEqual("reactive-resume-dev-postgresql-ca", migration["spec"]["template"]["spec"]["volumes"][0]["configMap"]["name"])
         self.assertNotIn("migration-job.yaml", {path.name for path in SOURCE.glob("*.yaml")})
 
+    def test_infisical_tls_writer_rbac_is_exact(self) -> None:
+        objects = load_objects()
+        role = next(obj for obj in objects if obj["kind"] == "Role")
+        binding = next(obj for obj in objects if obj["kind"] == "RoleBinding")
+        self.assertEqual(
+            [{
+                "apiGroups": [""],
+                "resources": ["secrets"],
+                "resourceNames": ["reactive-resume-dev-tls"],
+                "verbs": ["get", "update", "patch"],
+            }],
+            role["rules"],
+        )
+        self.assertEqual("reactive-resume-dev-tls-infisical-writer", binding["roleRef"]["name"])
+        self.assertEqual(
+            [{"kind": "ServiceAccount", "name": "infisical-operator-controller", "namespace": "shared-services"}],
+            binding["subjects"],
+        )
+
     def test_route_and_network_boundaries_are_private(self) -> None:
         objects = load_objects()
         ingress = next(obj for obj in objects if obj["kind"] == "Ingress")
@@ -131,10 +158,10 @@ class ReactiveResumeDevArgoSourceContractTests(unittest.TestCase):
         self.assertFalse(registration["spec"]["syncPolicy"]["automated"]["allowEmpty"])
         self.assertTrue(registration["spec"]["syncPolicy"]["automated"]["selfHeal"])
 
-    def test_head_eight_manifest_is_not_claimed_live_or_argo_managed(self) -> None:
+    def test_head_ten_manifest_is_not_claimed_live_or_argo_managed(self) -> None:
         runbook = RUNBOOK.read_text()
         normalized = " ".join(runbook.split())
-        self.assertIn("Current HEAD contains eight YAML manifests", normalized)
+        self.assertIn("Current HEAD contains ten YAML manifests", normalized)
         self.assertIn("networkpolicy-allow-backend.yaml", normalized)
         self.assertIn("not claimed live, Argo-managed, or applied", runbook)
 

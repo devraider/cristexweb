@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COMPONENT = ROOT / "ansible/files/components/keycloak"
 EXPECTED_IMAGE = (
     "ghcr.io/devraider/cristexhub/keycloak@sha256:"
-    "e837165e5cfa64baf7ef06d894ccca55418863d31a41973c3eedc14a0b0ae91f"
+    "0c9d87edd491aeecaefab87643640d836f17ba11aa76bea8dc3e6aa8e9c1902f"
 )
 EXPECTED_HOSTNAME = "https://auth.cristex-soft.com"
 EXPECTED_NAMESPACE = "shared-services"
