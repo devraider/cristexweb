@@ -45,11 +45,14 @@ jobs:
 
       - name: Prepare portable contract harness
         run: |
-          sudo install -d -m 0755 /home/paul/projects
+          sudo install -d -m 0755 /home/paul /home/paul/projects
+          sudo chown "$(id -u):$(id -g)" /home/paul
+          install -d -m 0700 /home/paul/.ansible/tmp
           sudo ln -sfn "$GITHUB_WORKSPACE" /home/paul/projects/cristexweb
 
       - name: Run offline contract tests
         run: |
+          export PYTHONDONTWRITEBYTECODE=1
           while IFS='=' read -r name _; do
             case "$name" in
               CLOUDFLARE_*|cloudflare_*|LD_*|DYLD_*|read_hidden_result|cloudflare_token|cloudflare_token_sha256)

@@ -362,7 +362,7 @@ class SharedMongoDbNetworkPolicyContractTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             link = Path(directory) / 'python'
             link.symlink_to('/usr/bin/python3')
-            target = Path('/usr/bin/python3.13')
+            target = Path('/usr/bin/python3').resolve(strict=True)
             with mock.patch.object(self.plugin, '_PYTHON_SOURCE', link), mock.patch.object(
                 self.plugin, '_PYTHON_REAL_SOURCE', target
             ), mock.patch.object(self.plugin, '_EXPECTED_PYTHON_SHA256', hashlib.sha256(

@@ -4,6 +4,7 @@ import ast
 import hashlib
 import importlib.util
 import os
+import pwd
 import re
 import shutil
 import shlex
@@ -342,6 +343,8 @@ class ReactiveResumeDevSuccessorContractTests(unittest.TestCase):
         self.assertLess(controller, self.wrapper.index("/usr/bin/env -i"))
 
     def test_wrapper_rejects_every_nested_source_leaf_before_fake_controller(self) -> None:
+        if pwd.getpwuid(os.getuid()).pw_name != "paul":
+            self.skipTest("production ownership fixture requires the canonical controller user")
         closure_paths = [
             "ansible/files/components/reactive-resume-dev-successor/source/admission-rbac.yaml",
             "ansible/files/components/reactive-resume-dev-successor/source/migration-static-secret.yaml",

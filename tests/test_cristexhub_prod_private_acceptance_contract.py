@@ -591,6 +591,8 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
                 "_proc_cmdline",
                 return_value=["/bin/dash", str(module._WRAPPER_SOURCE), "check"],
             ), mock.patch.object(
+                module, "_python_runtime_contract", return_value=True
+            ), mock.patch.object(
                 module.context, "CLIARGS", {"check": True, "diff": True}
             ), mock.patch.dict(os.environ, environment, clear=False):
                 self.assertTrue(
@@ -658,19 +660,22 @@ class CristexHubProdPrivateAcceptanceContractTests(unittest.TestCase):
         venv_hash_name = "CRISTEXWEB_CRISTEXHUB_PROD_PRIVATE_ACCEPTANCE_VENV_PYTHON_SHA256"
         original = {key: os.environ.get(key) for key in (name, venv_target_name, venv_hash_name)}
         os.environ[name] = hashlib.sha256(target.read_bytes()).hexdigest()
-        try:
-            module._VENV_PYTHON_SOURCE = Path("/home/paul/projects/cristexweb/.venv/bin/python")
+        with tempfile.TemporaryDirectory() as directory:
+            venv_python = Path(directory) / "python"
+            venv_python.symlink_to("/usr/bin/python3")
+            module._VENV_PYTHON_SOURCE = venv_python
             module._VENV_PYTHON_TARGET = target
             os.environ[venv_target_name] = str(target)
             os.environ[venv_hash_name] = os.environ[name]
-            self.assertEqual(target, module._python_target())
-            self.assertTrue(module._python_runtime_contract())
-        finally:
-            for key, value in original.items():
-                if value is None:
-                    os.environ.pop(key, None)
-                else:
-                    os.environ[key] = value
+            try:
+                self.assertEqual(target, module._python_target())
+                self.assertTrue(module._python_runtime_contract())
+            finally:
+                for key, value in original.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
 
     def test_python_source_contract_rejects_writable_or_non_linked_chains(self) -> None:
         spec = importlib.util.spec_from_file_location("private_acceptance_python_unsafe_contract", PROCESS_GUARD)

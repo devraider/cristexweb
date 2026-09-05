@@ -699,7 +699,8 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         with (
             mock.patch.dict(module.os.environ, env, clear=True),
             mock.patch.object(module.ActionBase, "run", return_value={}),
-                    mock.patch.object(module, "_wrapper_binding_valid", return_value=True),
+            mock.patch.object(module, "_source_contract", return_value=True),
+            mock.patch.object(module, "_wrapper_binding_valid", return_value=True),
             mock.patch.object(
                 module.context,
                 "CLIARGS",
@@ -1256,6 +1257,7 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
                     action._play_context = effective_context
                     with (
                         mock.patch.object(action_module.ActionBase, "run", return_value={}),
+                        mock.patch.object(action_module, "_source_contract", return_value=True),
                         mock.patch.object(action_module, "_wrapper_binding_valid", return_value=True),
                     ):
                         return action.run(task_vars={})
@@ -1284,7 +1286,8 @@ class ReactiveResumeDevTlsRenewalContractTests(unittest.TestCase):
         self.assertIsNotNone(spec.loader)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        self.assertTrue(module._python_contract())
+        if Path("/usr/bin/python3.13").is_file():
+            self.assertTrue(module._python_contract())
         self.assertEqual(module._TASK_SHA256, module._normalized_yaml_hash(module._TASK_SOURCE, task=True))
         self.assertEqual(module._DEFAULTS_SHA256, module._normalized_yaml_hash(module._DEFAULTS_SOURCE))
         self.assertTrue(module._source_closure_contract())

@@ -80,7 +80,7 @@ class GitHubActionsContractTests(unittest.TestCase):
 
     def test_validation_steps_and_commands_are_exact(self) -> None:
         steps = self.workflow["jobs"]["validate"]["steps"]
-        self.assertEqual(7, len(steps))
+        self.assertEqual(8, len(steps))
         self.assertEqual(
             [
                 {
@@ -92,8 +92,25 @@ class GitHubActionsContractTests(unittest.TestCase):
                     ),
                 },
                 {
+                    "name": "Prepare portable contract harness",
+                    "run": (
+                        "sudo install -d -m 0755 /home/paul /home/paul/projects\n"
+                        "sudo chown \"$(id -u):$(id -g)\" /home/paul\n"
+                        "install -d -m 0700 /home/paul/.ansible/tmp\n"
+                        "sudo ln -sfn \"$GITHUB_WORKSPACE\" /home/paul/projects/cristexweb\n"
+                    ),
+                },
+                {
                     "name": "Run offline contract tests",
                     "run": (
+                        "export PYTHONDONTWRITEBYTECODE=1\n"
+                        "while IFS='=' read -r name _; do\n"
+                        "  case \"$name\" in\n"
+                        "    CLOUDFLARE_*|cloudflare_*|LD_*|DYLD_*|read_hidden_result|cloudflare_token|cloudflare_token_sha256)\n"
+                        "      unset \"$name\"\n"
+                        "      ;;\n"
+                        "  esac\n"
+                        "done < <(env)\n"
                         "uv run python -m unittest discover -s tests -v\n"
                         "uv run python -m compileall -q tests\n"
                     ),

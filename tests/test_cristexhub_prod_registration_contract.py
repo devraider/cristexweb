@@ -520,7 +520,15 @@ class CristexHubProdRegistrationContractTests(unittest.TestCase):
                 source_file = ROOT / relative
                 if not source_file.exists():
                     source_file = Path('/home/paul/projects/cristexweb') / relative
-                destination.write_bytes(source_file.read_bytes())
+                if relative == "ansible/.ansible/inventory.local.yml" and not source_file.exists():
+                    destination.write_text(
+                        "---\nall:\n  hosts:\n    crtxweb:\n"
+                        "      ansible_connection: local\n"
+                        "      ansible_python_interpreter: /usr/bin/python3\n"
+                        "      ansible_user: paul\n"
+                    )
+                else:
+                    destination.write_bytes(source_file.read_bytes())
             sandbox_wrapper = wrapper.replace(
                 "expected_repository_root=/home/paul/projects/cristexweb",
                 f"expected_repository_root={root}",
