@@ -225,26 +225,12 @@
         - not ansible_check_mode
       no_log: true
 
-    - name: Capture the preceding systemd backup invocation identity
-      ansible.builtin.command:
-        argv: [/usr/bin/systemctl, show, --property=InvocationID, --value, cristexweb-mongodb-shared-backup.service]
-      register: mongodb_shared_backup_test_pre_invocation
-      check_mode: false
-      changed_when: false
-      when:
-        - mongodb_shared_backup_mode == 'test'
-        - not ansible_check_mode
-      no_log: true
-
     - name: Refuse an in-flight backup or invalid journal cursor
       ansible.builtin.assert:
         that:
           - mongodb_shared_backup_test_pre_active.rc != 0
           - mongodb_shared_backup_test_pre_active.stdout in ['inactive', 'failed', 'unknown']
           - mongodb_shared_backup_test_cursor is match('^[A-Za-z0-9_;=.-]+$')
-          - >-
-            (mongodb_shared_backup_test_pre_invocation.stdout == '') or
-            (mongodb_shared_backup_test_pre_invocation.stdout is match('^[0-9a-f]{32}$'))
         fail_msg: Refusing an in-flight backup or unbound pre-test journal boundary.
       when:
         - mongodb_shared_backup_mode == 'test'
@@ -259,38 +245,17 @@
         - mongodb_shared_backup_mode == 'test'
         - not ansible_check_mode
 
-    - name: Capture the completed systemd backup invocation identity
-      ansible.builtin.command:
-        argv: [/usr/bin/systemctl, show, --property=InvocationID, --value, cristexweb-mongodb-shared-backup.service]
-      register: mongodb_shared_backup_test_invocation
-      check_mode: false
-      changed_when: false
-      when:
-        - mongodb_shared_backup_mode == 'test'
-        - not ansible_check_mode
-      no_log: true
-
-    - name: Require a fresh exact systemd backup invocation
-      ansible.builtin.assert:
-        that:
-          - mongodb_shared_backup_test_invocation.stdout is match('^[0-9a-f]{32}$')
-          - mongodb_shared_backup_test_invocation.stdout != mongodb_shared_backup_test_pre_invocation.stdout
-        fail_msg: The backup service did not complete as a fresh attributable systemd invocation.
-      when:
-        - mongodb_shared_backup_mode == 'test'
-        - not ansible_check_mode
-      no_log: true
-
-    - name: Read only the exact post-cursor invocation sanitized journal
+    - name: Read only the exact post-cursor backup journal records
       ansible.builtin.command:
         argv:
           - /usr/bin/journalctl
           - --unit
           - cristexweb-mongodb-shared-backup.service
           - "--after-cursor={{ mongodb_shared_backup_test_cursor }}"
-          - "_SYSTEMD_INVOCATION_ID={{ mongodb_shared_backup_test_invocation.stdout }}"
           - --output
-          - cat
+          - json
+          - --output-fields
+          - _SYSTEMD_INVOCATION_ID,MESSAGE
           - --no-pager
       register: mongodb_shared_backup_test_journal
       check_mode: false
@@ -300,11 +265,21 @@
         - not ansible_check_mode
       no_log: true
 
+    - name: Parse only the exact post-cursor backup journal records
+      ansible.builtin.set_fact:
+        mongodb_shared_backup_test_journal_records: >-
+          {{ mongodb_shared_backup_test_journal.stdout_lines | map('from_json') | list }}
+      when:
+        - mongodb_shared_backup_mode == 'test'
+        - not ansible_check_mode
+      no_log: true
+
     - name: Select the exact current-source sanitized backup receipt
       ansible.builtin.set_fact:
         mongodb_shared_backup_test_receipts: >-
-          {{ mongodb_shared_backup_test_journal.stdout_lines
-             | select('match',
+          {{ mongodb_shared_backup_test_journal_records
+             | selectattr('MESSAGE', 'defined')
+             | selectattr('MESSAGE', 'match',
                  '^backup_status=success schema=1 service=mongodb purpose=shared-mongodb '
                  ~ 'timestamp=20[0-9]{6}T[0-9]{6}Z archive_bytes=[1-9][0-9]* '
                  ~ 'duration_seconds=[0-9]+ readback=verified consistency=oplog '
@@ -320,6 +295,7 @@
       ansible.builtin.assert:
         that:
           - mongodb_shared_backup_test_receipts | length == 1
+          - mongodb_shared_backup_test_receipts[0]._SYSTEMD_INVOCATION_ID is match('^[0-9a-f]{32}$')
         fail_msg: The backup test did not produce one exact current-source sanitized receipt.
       when:
         - mongodb_shared_backup_mode == 'test'
@@ -328,7 +304,7 @@
 
     - name: Persist the exact sanitized backup acceptance receipt
       ansible.builtin.copy:
-        content: "{{ mongodb_shared_backup_test_receipts[0] }}\n"
+        content: "{{ mongodb_shared_backup_test_receipts[0].MESSAGE }}\n"
         dest: /var/lib/cristexweb-backup/acceptance/mongodb/shared-mongodb/backup.receipt
         owner: root
         group: root
