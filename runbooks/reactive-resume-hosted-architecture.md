@@ -258,7 +258,7 @@ administration, public Traefik routing, and direct origins remain forbidden. Any
 future public route requires separate provider, hostname, positive-flow,
 negative-admin/direct-origin, and rollback approval and is last. Argo now owns
 the exact ten-object namespaced closure from pinned revision
-`f5d15f011865a93c16278ed7b89cf32c02c52fa8`, including the backend allow policy
+`5a63a9c743b54dd2cebaac190e370871b929c428`, including the backend allow policy
 and least-privilege Infisical TLS writer Role/RoleBinding. The superseded Ansible
 alignment and route lanes refuse tracked objects. The API omits
 `metadata.managedFields`, so that
